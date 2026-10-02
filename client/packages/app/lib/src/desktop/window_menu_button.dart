@@ -134,6 +134,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
                   port: widget.port,
                   update: update,
                   action: action,
+                  context: context,
                   isMounted: () => mounted,
                 ),
               );

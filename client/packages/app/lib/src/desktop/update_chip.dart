@@ -49,6 +49,7 @@ class UpdateChip extends ConsumerWidget {
               port: port,
               update: update,
               action: action,
+              context: context,
               isMounted: () => context.mounted,
             ),
           ),

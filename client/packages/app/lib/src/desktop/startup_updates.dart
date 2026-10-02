@@ -25,6 +25,7 @@ import 'self_update/self_update_controller.dart';
 import 'startup_screen.dart';
 import 'startup_state.dart';
 import 'update_check.dart';
+import 'update_package_view.dart';
 
 /// Replaces the running process with a fresh one, so an installed update is
 /// the build actually in memory. Injectable; the real one is `relaunch.dart`,
@@ -132,7 +133,8 @@ Future<void> _installInPlace(
 
 /// Every format dnf does not cover, and every dnf run that failed: say the
 /// version is there and open the release, which is what decision 0020's
-/// notifier already did. A version turned down here is not offered again
+/// notifier already did. A package-managed install is told its package
+/// manager is the way and only offered "Check GitHub", since the repo may lag. A version turned down here is not offered again
 /// until something newer exists.
 Future<void> _offerManually(
   ProviderContainer container,
@@ -150,7 +152,9 @@ Future<void> _offerManually(
   container.read(startupPromptProvider.notifier).state = StartupPrompt(
     title: 'Version ${update.version} is available',
     detail: updateActionHint(update.format),
-    primaryLabel: 'Get update',
+    primaryLabel: isPackageManaged(update.format)
+        ? 'Check GitHub'
+        : 'Get update',
     onPrimary: () => answer.complete(true),
     secondaryLabel: 'Not now',
     onSecondary: () => answer.complete(false),
