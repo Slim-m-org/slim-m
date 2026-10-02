@@ -23,6 +23,7 @@ import 'src/providers/app_lock_preference.dart';
 import 'src/providers/desktop_call_notifier.dart';
 import 'src/providers/desktop_message_notifier.dart';
 import 'src/providers/viewing_reporter.dart';
+import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
 import 'src/desktop/desktop_window_shell.dart';
@@ -261,6 +262,9 @@ class SlimMApp extends ConsumerWidget {
       return StartupApp(
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
+        windowPort: currentDesktopPlatform() == DesktopPlatform.linux
+            ? DesktopWindowShell.port
+            : null,
       );
     }
 
