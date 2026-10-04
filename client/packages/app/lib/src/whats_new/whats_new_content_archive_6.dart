@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What's-new entries for 0.92.0 and 0.93.0, in their own file because
+/// What's-new entries for 0.92.0 to 0.94.0, in their own file because
 /// `whats_new_content.dart` is near its line budget.
 library;
 
@@ -65,6 +65,29 @@ const List<WhatsNewEntry> whatsNewArchiveEntries6 = [
       WhatsNewPoint(
         'A slimm link now reaches the running Linux app, so linking Spotify '
         'works on desktop.',
+      ),
+    ],
+  ),
+  WhatsNewEntry(
+    version: '0.94.0',
+    headline: 'A roomier desktop call and clearer updates',
+    points: [
+      WhatsNewPoint(
+        'On desktop, a shared screen is a centred 16:9 card with the people '
+        'strip under it, and bot controls are one row of small buttons. '
+        'Nothing is hidden under the dock any more.',
+      ),
+      WhatsNewPoint(
+        'If you installed from your package manager, the update notice says '
+        'to update there and shows the command. Check GitHub is a button '
+        'beside it.',
+      ),
+      WhatsNewPoint(
+        'On Linux, the small window shown while the app starts can be moved '
+        'and closed.',
+      ),
+      WhatsNewPoint(
+        'A channel you lift in the desktop list draws once, not twice.',
       ),
     ],
   ),
