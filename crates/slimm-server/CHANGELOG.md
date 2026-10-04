@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.81.0...server-v0.81.1) (2026-10-02)
+
+
+### Miscellaneous Chores
+
+* **server:** Synchronize server versions
+
 ## [0.81.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.80.0...server-v0.81.0) (2026-10-02)
 
 
