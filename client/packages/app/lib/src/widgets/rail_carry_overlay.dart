@@ -20,6 +20,7 @@ class RailCarryOverlay extends StatelessWidget {
     required this.slot,
     required this.grab,
     required this.size,
+    required this.inset,
     required this.lift,
     required this.link,
     required this.listWidth,
@@ -32,6 +33,9 @@ class RailCarryOverlay extends StatelessWidget {
   /// Where within the item the pointer took hold, so the copy does not jump.
   final Offset grab;
   final Size size;
+
+  /// The gap left of the item's face inside [size], which the copy omits.
+  final double inset;
   final Animation<double> lift;
 
   /// Anchored on the rail's list, so a y in its coordinates lands correctly.
@@ -51,9 +55,9 @@ class RailCarryOverlay extends StatelessWidget {
             final overlay = Overlay.of(context).context.findRenderObject()!;
             final local = (overlay as RenderBox).globalToLocal(at - grab);
             return Positioned(
-              left: local.dx,
+              left: local.dx + inset,
               top: local.dy,
-              width: size.width,
+              width: size.width - inset,
               height: size.height,
               child: child!,
             );
