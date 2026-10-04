@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 import 'package:slimm_app/src/widgets/channel_rail_reorder.dart';
+import 'package:slimm_app/src/widgets/rail_carry_slot.dart';
 import 'package:slimm_app/src/widgets/rail_drag_lift.dart';
 import 'package:slimm_app/src/widgets/rail_drop_slots.dart';
 import 'package:slimm_app/src/widgets/rail_insertion_line.dart';
@@ -151,18 +152,14 @@ void main() {
     expect(rail.channelReports, isEmpty);
   });
 
-  testWidgets('a hold lifts a floating copy over a dimmed placeholder', (
-    tester,
-  ) async {
+  testWidgets('a hold lifts a floating copy over a quiet slot', (tester) async {
     await _pump(tester);
     final gesture = await _press(tester, tester.getCenter(find.text('b')));
 
     expect(find.byType(RailDragLift), findsOneWidget);
     expect(find.text('b-carried'), findsOneWidget);
-    final dimmed = tester.widget<Opacity>(
-      find.ancestor(of: find.text('b'), matching: find.byType(Opacity)).first,
-    );
-    expect(dimmed.opacity, lessThan(1));
+    expect(find.text('b'), findsNothing, reason: 'the row is not drawn twice');
+    expect(find.byType(RailCarrySlot), findsOneWidget);
     await gesture.up();
   });
 

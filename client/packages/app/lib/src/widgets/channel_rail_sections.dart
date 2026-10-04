@@ -205,19 +205,30 @@ class _ChannelCategorySectionsState
           !pinnedOpen) {
         return const SizedBox.shrink();
       }
+      Widget body(Widget? kebab) => channel.kind == 'voice'
+          ? VoiceChannelRow(
+              channel: channel,
+              selected: channel.id == selectedId,
+              trailingExtra: kebab,
+            )
+          : _TextChannelRow(
+              channel: channel,
+              selected: channel.id == selectedId,
+              trailingExtra: kebab,
+            );
+      // The lifted copy is just the face of the row: no menu, kebab or hover.
+      if (carried) return body(null);
       return Padding(
-        padding: const EdgeInsets.only(left: AppSpacing.s8),
+        padding: const EdgeInsets.only(left: kRailRowInset),
         child: SelectionMarkerTarget(
           selected: channel.id == selectedId,
           child: ManagedChannelRow(
             canManage: canManage,
             reorderable: longPressDrags,
-            menuKey: carried
-                ? null
-                : _menuKeys.putIfAbsent(
-                    channel.id,
-                    GlobalKey<ContextMenuRegionState>.new,
-                  ),
+            menuKey: _menuKeys.putIfAbsent(
+              channel.id,
+              GlobalKey<ContextMenuRegionState>.new,
+            ),
             move: ChannelMoveActions(
               canMove: (delta) =>
                   groupsAfterStep(
@@ -238,23 +249,13 @@ class _ChannelCategorySectionsState
               },
             ),
             channel: channel,
-            row: (kebab) => channel.kind == 'voice'
-                ? VoiceChannelRow(
-                    channel: channel,
-                    selected: channel.id == selectedId,
-                    trailingExtra: kebab,
-                  )
-                : _TextChannelRow(
-                    channel: channel,
-                    selected: channel.id == selectedId,
-                    trailingExtra: kebab,
-                  ),
+            row: body,
           ),
         ),
       );
     }
 
-    Widget header(ChannelCategoryRow? category) {
+    Widget header(ChannelCategoryRow? category, {bool carried = false}) {
       // Structurally always an item (see _dragging's doc comment); nothing while idle and empty.
       if (category == null && implicitEmpty && !_dragging) {
         return const SizedBox.shrink();
@@ -275,12 +276,12 @@ class _ChannelCategorySectionsState
             : (revealed, onFocusChange) => AddChannelGlyph(
                 categoryId: category?.id,
                 categoryName: category?.name ?? 'Channels',
-                revealed: revealed,
+                revealed: revealed && !carried,
                 onFocusChange: onFocusChange,
               ),
       );
       // Only a real category is manageable; the null section is the id-less implicit 'Channels' bucket.
-      if (category == null || !canManage) return label;
+      if (category == null || !canManage || carried) return label;
       return CategoryHeaderMenu(
         category: category,
         categories: categories,
@@ -295,7 +296,9 @@ class _ChannelCategorySectionsState
       onReorder: onReorder,
       rowBuilder: row,
       carriedRowBuilder: (channel) => row(channel, true, carried: true),
+      carriedRowInset: kRailRowInset,
       headerBuilder: header,
+      carriedHeaderBuilder: (category) => header(category, carried: true),
       collapsed: collapsed,
       onReorderCategories: (ids) => unawaited(
         ref.read(categoryOrderControllerProvider.notifier).reorder(ids),

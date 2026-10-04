@@ -25,9 +25,9 @@ import 'rail_autoscroll.dart';
 import 'rail_drop_slots.dart';
 import 'rail_move_actions.dart';
 import 'rail_carry_overlay.dart';
+import 'rail_carry_slot.dart';
 
 const _holdDelay = Duration(milliseconds: 300);
-const _placeholderOpacity = 0.35;
 
 class DesktopRailReorder extends StatefulWidget {
   const DesktopRailReorder({
@@ -37,6 +37,8 @@ class DesktopRailReorder extends StatefulWidget {
     required this.rowBuilder,
     required this.carriedRowBuilder,
     required this.headerBuilder,
+    this.carriedHeaderBuilder,
+    this.carriedRowInset = 0,
     required this.onReorder,
     required this.onReorderCategories,
   });
@@ -47,6 +49,8 @@ class DesktopRailReorder extends StatefulWidget {
 
   /// Builds the floating copy, which cannot reuse the original's global keys.
   final Widget Function(Channel channel)? carriedRowBuilder;
+  final double carriedRowInset;
+  final Widget Function(ChannelCategoryRow? category)? carriedHeaderBuilder;
   final Widget Function(ChannelCategoryRow? category) headerBuilder;
   final ValueChanged<List<ChannelOrderGroup>> onReorder;
   final ValueChanged<List<String>>? onReorderCategories;
@@ -172,9 +176,9 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     required Map<CustomSemanticsAction, VoidCallback> actions,
     required Widget child,
   }) {
-    Widget item = Opacity(
-      opacity: dimmed ? _placeholderOpacity : 1,
-      child: Semantics(customSemanticsActions: actions, child: child),
+    Widget item = Semantics(
+      customSemanticsActions: actions,
+      child: dimmed ? _slotFor(isCategory) : child,
     );
     if (liftable) {
       item = RawGestureDetector(
@@ -196,6 +200,11 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     }
     return KeyedSubtree(key: _keyFor(id), child: item);
   }
+
+  Widget _slotFor(bool isCategory) => RailCarrySlot(
+    height: _carry!.size.height,
+    inset: isCategory ? 0 : widget.carriedRowInset,
+  );
 
   RenderBox? _boxOf(GlobalKey key) {
     final object = key.currentContext?.findRenderObject();
@@ -257,7 +266,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
 
   Widget _floating(_Carry carry) {
     final copy = carry.isCategory
-        ? widget.headerBuilder(
+        ? (widget.carriedHeaderBuilder ?? widget.headerBuilder)(
             widget.sections
                 .map((s) => s.$1)
                 .firstWhere((c) => c?.id == carry.id, orElse: () => null),
@@ -271,6 +280,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
         slot: _slot,
         grab: carry.grab,
         size: carry.size,
+        inset: carry.isCategory ? 0 : widget.carriedRowInset,
         lift: _lift,
         link: _link,
         listWidth: () => _boxOf(_stackKey)?.size.width ?? 0,

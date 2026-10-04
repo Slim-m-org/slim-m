@@ -44,6 +44,9 @@ import 'rail_drag_lift.dart';
 
 /// One category's ordered channels, `null` for the implicit uncategorised
 /// section, which always renders first.
+/// The gap a channel row keeps from the rail's left edge.
+const kRailRowInset = AppSpacing.s8;
+
 typedef ChannelSection = (ChannelCategoryRow? category, List<Channel> channels);
 
 /// Exposed (not library-private) only so `groupsFromRailItems` can be driven
@@ -84,6 +87,8 @@ class ReorderableChannelRows extends StatefulWidget {
     this.onLiftedInPlace,
     this.onReorderCategories,
     this.carriedRowBuilder,
+    this.carriedHeaderBuilder,
+    this.carriedRowInset = 0,
     this.collapsed = const {},
   });
 
@@ -108,6 +113,11 @@ class ReorderableChannelRows extends StatefulWidget {
   final ValueChanged<Channel>? onLiftedInPlace;
   final ValueChanged<List<String>>? onReorderCategories;
   final Widget Function(Channel channel)? carriedRowBuilder;
+
+  /// The gap [rowBuilder] leaves left of a row's face, which the lifted copy
+  /// and the slot it leaves behind are drawn without.
+  final double carriedRowInset;
+  final Widget Function(ChannelCategoryRow? category)? carriedHeaderBuilder;
   final Set<String> collapsed;
 
   /// Builds one channel's row, told whether *this render* actually wraps it
@@ -147,6 +157,8 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
         collapsed: widget.collapsed,
         rowBuilder: widget.rowBuilder,
         carriedRowBuilder: widget.carriedRowBuilder,
+        carriedRowInset: widget.carriedRowInset,
+        carriedHeaderBuilder: widget.carriedHeaderBuilder,
         headerBuilder: widget.headerBuilder,
         onReorder: widget.onReorder,
         onReorderCategories: widget.onReorderCategories,
