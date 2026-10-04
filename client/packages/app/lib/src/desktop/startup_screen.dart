@@ -36,6 +36,9 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'desktop_window_port.dart';
+import 'startup_window_chrome.dart';
+
 /// The default [StartupScreen.status] text, and the only one every existing
 /// test and every non-desktop launch ever sees: `main.dart` overrides it
 /// with `startupStatusProvider`'s live value once bootstrap actually starts.
@@ -85,17 +88,21 @@ class StartupApp extends StatelessWidget {
     super.key,
     this.status = defaultStartupStatus,
     this.prompt,
+    this.windowPort,
   });
 
   final String status;
   final StartupPrompt? prompt;
+
+  /// Set where the native title bar is hidden; see [StartupWindowChrome].
+  final DesktopWindowPort? windowPort;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'slim-m',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(Brightness.dark, AppTokens.dark),
-    home: StartupScreen(status: status, prompt: prompt),
+    home: StartupScreen(status: status, prompt: prompt, windowPort: windowPort),
   );
 }
 
@@ -104,9 +111,11 @@ class StartupScreen extends StatelessWidget {
     super.key,
     this.status = defaultStartupStatus,
     this.prompt,
+    this.windowPort,
   });
 
   final String status;
+  final DesktopWindowPort? windowPort;
 
   /// When set, the splash shows a question instead of the plain status line,
   /// and waits on the user rather than proceeding on its own.
@@ -115,36 +124,50 @@ class StartupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.dark;
+    final port = windowPort;
     return Scaffold(
       backgroundColor: tokens.surfaceBase,
-      body: Center(
-        child: AppFadeIn(
-          offset: 0,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppBrandMark(size: 64, color: tokens.accent),
-              const SizedBox(height: AppSpacing.s16),
-              Text(
-                'slim-m',
-                style: AppText.heading.copyWith(
-                  color: tokens.textPrimary,
-                  fontFamily: AppFonts.mono,
-                  fontWeight: AppWeights.medium,
-                  letterSpacing: 20 * AppTracking.mono,
-                ),
+      body: Stack(
+        children: [
+          Center(
+            child: AppFadeIn(
+              offset: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppBrandMark(size: 64, color: tokens.accent),
+                  const SizedBox(height: AppSpacing.s16),
+                  Text(
+                    'slim-m',
+                    style: AppText.heading.copyWith(
+                      color: tokens.textPrimary,
+                      fontFamily: AppFonts.mono,
+                      fontWeight: AppWeights.medium,
+                      letterSpacing: 20 * AppTracking.mono,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s24),
+                  if (prompt case final question?)
+                    _Prompt(prompt: question, tokens: tokens)
+                  else
+                    Text(
+                      status,
+                      style: AppText.caption.copyWith(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.s24),
-              if (prompt case final question?)
-                _Prompt(prompt: question, tokens: tokens)
-              else
-                Text(
-                  status,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-            ],
+            ),
           ),
-        ),
+          if (port != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: StartupWindowChrome(port: port),
+            ),
+        ],
       ),
     );
   }
