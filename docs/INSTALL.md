@@ -113,6 +113,11 @@ What updates itself and what does not depends on how you installed it.
 A desktop app checks the latest client release for a signed `manifest.json`, and only an install the updater itself laid out will replace itself from it (decision [0041](decisions/0041-per-user-installs-and-signed-self-update.md)).
 A release published without `manifest.json` and `manifest.json.sig` cannot be updated to; the client's fetch of `manifest.json` fails and nothing is downloaded.
 
+On a package-managed install (rpm, deb, Flatpak) the update chip does not open GitHub.
+It opens a short view that says the new version arrives through the package manager, with the command to copy, and a secondary "Check GitHub" button for reading the release or installing by hand.
+The repository can lag the GitHub release, so GitHub is never the lead there.
+Per-user installs keep their own update path.
+
 | Install | How it updates | How to remove it |
 | --- | --- | --- |
 | Fedora COPR rpm | `sudo dnf upgrade --refresh slim-m-client`; never replaced by the app | `sudo dnf remove slim-m-client` |

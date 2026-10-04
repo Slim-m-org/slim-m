@@ -38,6 +38,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'desktop_window_port.dart';
 import 'startup_window_chrome.dart';
+import 'update_package_view.dart' show packageManagerCommand;
 
 /// The default [StartupScreen.status] text, and the only one every existing
 /// test and every non-desktop launch ever sees: `main.dart` overrides it
@@ -76,8 +77,9 @@ class StartupPrompt {
 /// cannot apply it the same way for every format (see decision 0020).
 String updateActionHint(InstallFormat format) => switch (format) {
   InstallFormat.flatpak => 'Update with: flatpak update top.npcserver.slimm',
-  InstallFormat.rpm || InstallFormat.deb =>
-    'Update through your package manager, or open the release.',
+  InstallFormat.rpm =>
+    'Update with your package manager: ${packageManagerCommand(format)}',
+  InstallFormat.deb => 'Update with your package manager.',
   InstallFormat.appImage ||
   InstallFormat.tarball ||
   InstallFormat.unknown => 'Open the release page to download the new version.',

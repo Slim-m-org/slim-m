@@ -293,6 +293,8 @@ void main() {
     await pass;
 
     expect(prompt.title, 'Version 9.9.9 is available');
+    expect(prompt.primaryLabel, 'Check GitHub');
+    expect(prompt.detail, contains('sudo dnf upgrade --refresh slim-m-client'));
     expect(
       c.read(debugLogProvider).any((e) => e.message.contains('dnf')),
       isTrue,
@@ -318,6 +320,7 @@ void main() {
 
     expect(dnf.applied, isFalse);
     expect(prompt.detail, updateActionHint(InstallFormat.flatpak));
+    expect(prompt.primaryLabel, 'Check GitHub');
   });
 
   test('nothing newer means nothing is shown at all', () async {

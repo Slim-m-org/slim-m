@@ -197,7 +197,7 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('without auto-update the item only offers the release page', (
+  testWidgets('without auto-update the item points at the package manager', (
     tester,
   ) async {
     final handle = await _pump(
@@ -208,7 +208,10 @@ void main() {
     );
     await _open(tester);
 
-    expect(find.text('Get update 0.99.0'), findsOneWidget);
+    expect(
+      find.text('Update 0.99.0 with your package manager'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Restart to update'), findsNothing);
     handle.dispose();
   });
@@ -222,11 +225,11 @@ void main() {
       );
       expect(
         updateMenuAction(_update, autoUpdate: false),
-        UpdateMenuAction.openRelease,
+        UpdateMenuAction.packageManager,
       );
       expect(
         updateMenuAction(_update, autoUpdate: null),
-        UpdateMenuAction.openRelease,
+        UpdateMenuAction.packageManager,
         reason: 'unanswered means the splash will ask, not install',
       );
       const flatpak = ClientUpdate(
@@ -236,7 +239,7 @@ void main() {
       );
       expect(
         updateMenuAction(flatpak, autoUpdate: true),
-        UpdateMenuAction.openRelease,
+        UpdateMenuAction.packageManager,
       );
     },
   );
