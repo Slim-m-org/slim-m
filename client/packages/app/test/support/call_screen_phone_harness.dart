@@ -60,6 +60,18 @@ const _participants = [
   ),
 ];
 
+final _quietParticipants = [
+  for (final p in _participants)
+    VoiceParticipant(
+      identity: p.identity,
+      name: p.name,
+      isSpeaking: p.isSpeaking,
+      isMuted: p.isMuted,
+      isLocal: p.isLocal,
+      isScreenSharing: false,
+    ),
+];
+
 typedef CallScreen = ({
   ProviderContainer container,
   SlimmDatabase db,
@@ -92,12 +104,13 @@ MockClient _client() {
 }
 
 /// Pumps the call screen at [size]; [canvas] opens the canvas over the call
-/// and [bots] offers the playback controls.
+/// [bots] offers the playback controls and [share] puts a screen on the stage.
 Future<CallScreen> pumpCallScreen(
   WidgetTester tester,
   Size size, {
   bool canvas = false,
   bool bots = true,
+  bool share = true,
   Brightness brightness = Brightness.dark,
 }) async {
   final session = FakeSession(supportsAudioOutputSelection: false);
@@ -147,7 +160,7 @@ Future<CallScreen> pumpCallScreen(
   await tester.pumpAndSettle(const Duration(seconds: 1));
   session.emitState(VoiceSessionState.connected);
   await tester.pumpAndSettle();
-  session.emitParticipants(_participants);
+  session.emitParticipants(share ? _participants : _quietParticipants);
   await tester.pumpAndSettle();
   if (canvas) {
     fixture.container.read(canvasOpenProvider.notifier).state = callChannelId;

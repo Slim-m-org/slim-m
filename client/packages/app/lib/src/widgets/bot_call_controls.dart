@@ -2,12 +2,11 @@
 /// Controls a bot puts in a call, shown in the call's dock only while that bot
 /// is on the call. See docs/decisions/0045-bot-contributed-ui.md.
 ///
-/// Layout follows width, never platform (docs/design/desktop-vs-mobile.md,
-/// law 2): the buttons are the design system's own and grow to the touch
-/// floor by themselves, and the row wraps rather than scrolling, so a phone
-/// gets more lines instead of a hidden control. Below [kCompactWidth] a bot
-/// is one row: its name as a small label, then an icon chip per control, the
-/// same chip the call's own controls use, labelled by tooltip and semantics.
+/// Every width gets the same shape (docs/design/desktop-vs-mobile.md, law 2:
+/// tokens and type never scale with width): a bot is one row, its name as a
+/// small label, then an icon chip per control, the same chip the call's own
+/// controls use, labelled by tooltip and semantics. The chips grow to the
+/// touch floor by themselves and wrap rather than scroll.
 library;
 
 import 'dart:async';
@@ -128,7 +127,6 @@ class _Group extends StatelessWidget {
     final failed = group.controls
         .where((c) => uses[c.id]?.failure != null)
         .firstOrNull;
-    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     final name = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -149,29 +147,12 @@ class _Group extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (compact)
-            _CompactRow(
-              name: name,
-              controls: group.controls,
-              uses: uses,
-              onUse: onUse,
-            )
-          else ...[
-            name,
-            const SizedBox(height: AppSpacing.s4),
-            Wrap(
-              spacing: AppSpacing.s8,
-              runSpacing: AppSpacing.s8,
-              children: [
-                for (final control in group.controls)
-                  _ControlButton(
-                    control: control,
-                    pending: uses[control.id]?.pending ?? false,
-                    onPressed: () => onUse(control),
-                  ),
-              ],
-            ),
-          ],
+          _CompactRow(
+            name: name,
+            controls: group.controls,
+            uses: uses,
+            onUse: onUse,
+          ),
           if (failed != null)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s8),
@@ -229,41 +210,4 @@ class _CompactRow extends StatelessWidget {
       ),
     ],
   );
-}
-
-class _ControlButton extends StatelessWidget {
-  const _ControlButton({
-    required this.control,
-    required this.pending,
-    required this.onPressed,
-  });
-
-  final api.BotUiEntry control;
-  final bool pending;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    AppButton build({required bool busy}) => AppButton(
-      label: control.label,
-      variant: AppButtonVariant.secondary,
-      icon: _iconFor(control.icon),
-      busy: busy,
-      onPressed: onPressed,
-    );
-    if (!pending) return build(busy: false);
-    // The invisible copy holds the label's width so the spinner swaps in without a reflow.
-    return Stack(
-      children: [
-        Visibility(
-          visible: false,
-          maintainSize: true,
-          maintainState: true,
-          maintainAnimation: true,
-          child: build(busy: false),
-        ),
-        Positioned.fill(child: build(busy: true)),
-      ],
-    );
-  }
 }

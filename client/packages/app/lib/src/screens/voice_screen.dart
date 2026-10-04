@@ -303,9 +303,8 @@ class _InCall extends ConsumerStatefulWidget {
 }
 
 class _InCallState extends ConsumerState<_InCall> {
-  /// The dock's real height on a phone, where bot controls and the call row
-  /// make it vary; null until measured, and unused where the dock floats
-  /// over a stage that is wide enough to leave room.
+  /// The dock's real height, which bot controls and the call row make vary;
+  /// null until measured.
   double? _dockHeight;
 
   String get channelId => widget.channelId;
@@ -318,9 +317,7 @@ class _InCallState extends ConsumerState<_InCall> {
   /// Dock plus the margin [SafeArea] keeps below it.
   double? _clearance(BuildContext context) {
     final height = _dockHeight;
-    if (height == null || LayoutClass.of(context) != LayoutClass.compact) {
-      return null;
-    }
+    if (height == null) return null;
     final inset = MediaQuery.paddingOf(context).bottom;
     return height + (inset > AppSpacing.s12 ? inset : AppSpacing.s12);
   }

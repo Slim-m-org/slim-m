@@ -57,6 +57,8 @@ const double defaultDockClearance = _dockClearance;
 /// still gets most of the height on a phone in portrait.
 const double _filmstripHeight = 128;
 
+const double _stageAspect = 16 / 9;
+
 /// The whole in-call body: a compact header, a stage when one is warranted,
 /// and either a horizontal filmstrip (stage present) or a wrapping grid
 /// (nobody sharing) of every participant's own tile.
@@ -214,24 +216,29 @@ class _StageWithFilmstrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Expanded(
-        child: ScreenShareStage(
-          sharerName: sharer.name,
-          isLocal: sharer.isLocal,
-          popOutIdentity: sharer.identity,
-          onExpand: () => showFullscreenVideo(
-            context,
-            identity: sharer.identity,
-            label: sharer.isLocal ? 'Your screen' : "${sharer.name}'s screen",
-            kind: FullscreenVideoKind.screenShare,
+      Flexible(
+        // A share is almost always 16:9; fitting the card to that leaves no black band around the video.
+        child: AspectRatio(
+          aspectRatio: _stageAspect,
+          child: ScreenShareStage(
+            sharerName: sharer.name,
+            isLocal: sharer.isLocal,
+            popOutIdentity: sharer.identity,
+            onExpand: () => showFullscreenVideo(
+              context,
+              identity: sharer.identity,
+              label: sharer.isLocal ? 'Your screen' : "${sharer.name}'s screen",
+              kind: FullscreenVideoKind.screenShare,
+            ),
+            child: controller.screenShareViewFor(sharer.identity),
           ),
-          child: controller.screenShareViewFor(sharer.identity),
         ),
       ),
       const SizedBox(height: AppSpacing.s12),
       SizedBox(
+        width: double.infinity,
         height: _filmstripHeight,
         child: _Filmstrip(
           participants: participants,
@@ -263,26 +270,30 @@ class _Filmstrip extends StatelessWidget {
   menuItemsBuilder;
 
   @override
-  Widget build(BuildContext context) => ListView.separated(
-    scrollDirection: Axis.horizontal,
-    itemCount: participants.length,
-    separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.s12),
-    itemBuilder: (context, index) {
-      final participant = participants[index];
-      return Center(
-        // Keyed at the item root so a roster shift never replays the pop.
-        key: ValueKey('film-${participant.identity}'),
-        child: CallTilePop(
-          child: participantTile(
-            context,
-            participant,
-            controller,
-            onOpenProfile,
-            menuItemsBuilder: menuItemsBuilder,
+  Widget build(BuildContext context) => Center(
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      shrinkWrap: true,
+      itemCount: participants.length,
+      separatorBuilder: (context, index) =>
+          const SizedBox(width: AppSpacing.s12),
+      itemBuilder: (context, index) {
+        final participant = participants[index];
+        return Center(
+          // Keyed at the item root so a roster shift never replays the pop.
+          key: ValueKey('film-${participant.identity}'),
+          child: CallTilePop(
+            child: participantTile(
+              context,
+              participant,
+              controller,
+              onOpenProfile,
+              menuItemsBuilder: menuItemsBuilder,
+            ),
           ),
-        ),
-      );
-    },
+        );
+      },
+    ),
   );
 }
 

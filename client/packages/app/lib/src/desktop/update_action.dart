@@ -12,9 +12,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/auto_update_preference.dart';
 import '../providers/providers.dart';
@@ -22,11 +22,21 @@ import '../providers/voice_controller.dart';
 import 'desktop_window_port.dart';
 import 'self_update/self_update_controller.dart';
 import 'update_check.dart';
+import 'update_package_view.dart';
 import 'update_watch.dart';
 
 /// What the update action does for an update on this install.
-enum UpdateMenuAction { installAndRestart, restartToUpdate, openRelease }
+enum UpdateMenuAction {
+  installAndRestart,
+  restartToUpdate,
+  packageManager,
+  openRelease,
+}
 
+/// A package-managed install (rpm, deb, flatpak) cannot take the update from
+/// GitHub and its repo can lag the release, so it is told how the package
+/// manager gets it, with the release page as a secondary "Check GitHub".
+///
 /// Restart only where the splash will actually install on the way back up:
 /// an rpm, with the auto-update preference answered yes. A per-user tarball
 /// installs itself on tap ([selfApplies]) and restarts once [staged].
@@ -41,8 +51,11 @@ UpdateMenuAction updateMenuAction(
         ? UpdateMenuAction.restartToUpdate
         : UpdateMenuAction.installAndRestart;
   }
-  return update.format == InstallFormat.rpm && autoUpdate == true
-      ? UpdateMenuAction.restartToUpdate
+  if (update.format == InstallFormat.rpm && autoUpdate == true) {
+    return UpdateMenuAction.restartToUpdate;
+  }
+  return isPackageManaged(update.format)
+      ? UpdateMenuAction.packageManager
       : UpdateMenuAction.openRelease;
 }
 
@@ -77,6 +90,7 @@ String updateActionLabel(
     'Installing ${update.version}',
   UpdateMenuAction.installAndRestart => 'Install ${update.version}',
   UpdateMenuAction.restartToUpdate => 'Restart to update to ${update.version}',
+  UpdateMenuAction.packageManager => packageManagerLabel(update),
   UpdateMenuAction.openRelease => 'Get update ${update.version}',
 };
 
@@ -87,6 +101,7 @@ Future<void> runUpdateAction(
   required DesktopWindowPort port,
   required ClientUpdate update,
   required UpdateMenuAction action,
+  required BuildContext context,
   required bool Function() isMounted,
 }) async {
   switch (action) {
@@ -100,9 +115,11 @@ Future<void> runUpdateAction(
       await port.relaunch();
     case UpdateMenuAction.restartToUpdate:
       await port.relaunch();
+    case UpdateMenuAction.packageManager:
+      await showUpdatePackageView(context, update: update);
     case UpdateMenuAction.openRelease:
       final uri = Uri.tryParse(update.releaseUrl);
       if (uri == null) return;
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      await ref.read(releaseLauncherProvider)(uri);
   }
 }
