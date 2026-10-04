@@ -74,6 +74,11 @@ void main() {
     var answerPings = true;
     final sockets = <WebSocket>[];
 
+    // A ping can land as the client closes; a closed sink throws on add.
+    void reply(WebSocket socket, Map<String, Object?> frame) {
+      if (socket.readyState == WebSocket.open) socket.add(jsonEncode(frame));
+    }
+
     setUp(() async {
       answerPings = true;
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -84,9 +89,9 @@ void main() {
         socket.listen((raw) {
           final type = (jsonDecode(raw as String) as Map)['type'];
           if (type == 'hello') {
-            socket.add(jsonEncode({'type': 'hello', 'protocol': 1}));
+            reply(socket, {'type': 'hello', 'protocol': 1});
           } else if (type == 'ping' && answerPings) {
-            socket.add(jsonEncode({'type': 'pong'}));
+            reply(socket, {'type': 'pong'});
           }
         });
       });
