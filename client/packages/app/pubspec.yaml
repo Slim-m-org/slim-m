@@ -3,7 +3,7 @@ name: slimm_app
 description: slim-m client application shell.
 publish_to: none
 # Feeds CFBundleShortVersionString/CFBundleVersion; kept in lockstep by an extra-files marker, not a component - see CLAUDE.md.
-version: 0.93.0 # x-release-please-version
+version: 0.94.0 # x-release-please-version
 resolution: workspace
 environment:
   sdk: ^3.10.0
