@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.94.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.93.0...client-v0.94.0) (2026-10-04)
+
+
+### Features
+
+* **client:** a draggable splash, package manager updates, a roomier desktop call, and a quieter lifted channel ([#1615](https://github.com/Slim-m-org/slim-m/issues/1615)) ([0b35dac](https://github.com/Slim-m-org/slim-m/commit/0b35dac7ec4e1f9678dfc889562ae1c23c800962))
+
 ## [0.93.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.92.0...client-v0.93.0) (2026-10-02)
 
 
