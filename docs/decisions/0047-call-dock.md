@@ -52,6 +52,12 @@ The eraser stays on screen without scrolling at 360, 390 and 430, held by `canva
 Outside the canvas a bot's call controls are one row at phone width: its name and a Bot badge as a small label, then one icon chip per control, the same chip the call row uses and labelled by tooltip and semantics.
 The stage reserves the dock's measured height instead of a constant, so participant tiles are no longer hidden under a taller dock.
 Between 600 and 800 the stacked layout above is unchanged, and so is everything at desktop width.
+
+Amended 2026-10-02, from the owner's desktop screenshot (seq 195, "UI for desktop voice call, for streaming and such doesnt look good like mobile"): the bot row is the same icon-chip row at every width, since type and hit targets do not scale with width (desktop-vs-mobile.md, density).
+The stage reserves the dock's measured height at every width, so participant tiles are never hidden under it.
+A call dock with a bot row hugs its content (`FloatingDockCard.hugsWidth`) instead of stretching to the pane, because the hairline between rows used to widen the card.
+With a share, the stage is a centred 16:9 card with the participant strip centred under it, so the video has no black band around it.
+The canvas dock's own stacked rows are unchanged.
 The channel's text chat on a phone is an app bar action beside members, not a floating button over the call (desktop-vs-mobile.md rule 2).
 
 ### 2. Leave is always last, after a divider

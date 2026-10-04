@@ -146,7 +146,11 @@ class _VoiceCallDockState extends State<VoiceCallDock>
     );
     final botRow = widget.botControls;
     final card = channelId == null
-        ? FloatingDockCard(rows: [?botRow, callRow()], trailing: leave)
+        ? FloatingDockCard(
+            rows: [?botRow, callRow()],
+            trailing: leave,
+            hugsWidth: true,
+          )
         : LayoutBuilder(
             builder: (context, constraints) {
               final toggle = _CanvasToggleButton(channelId: channelId);
@@ -158,6 +162,7 @@ class _VoiceCallDockState extends State<VoiceCallDock>
               );
               return FloatingDockCard(
                 trailing: leave,
+                hugsWidth: true,
                 rows: [
                   ?botRow,
                   if (!fits) Center(child: toggle),

@@ -86,7 +86,17 @@ import 'package:slimm_design_system/design_system.dart';
 /// single [Column] here keeps the divider between them in one place instead
 /// of every caller redrawing it.
 class FloatingDockCard extends StatelessWidget {
-  const FloatingDockCard({super.key, required this.rows, this.trailing});
+  const FloatingDockCard({
+    super.key,
+    required this.rows,
+    this.trailing,
+    this.hugsWidth = false,
+  });
+
+  /// Sizes the card to its widest row. The hairlines between rows would
+  /// otherwise stretch it to the pane; off for a card holding a scroll strip,
+  /// which has no intrinsic width.
+  final bool hugsWidth;
 
   final List<Widget> rows;
 
@@ -115,8 +125,15 @@ class FloatingDockCard extends StatelessWidget {
           ),
         );
       }
-      divided.add(rows[i]);
+      divided.add(hugsWidth ? Center(child: rows[i]) : rows[i]);
     }
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: hugsWidth
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
+      children: divided,
+    );
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       // A no-op, not an omission: see this file's own library doc for why a right-click here must never reach a canvas object menu beneath.
@@ -137,7 +154,7 @@ class FloatingDockCard extends StatelessWidget {
         child: AnimatedSize(
           duration: AppMotion.reducedSize(context, AppMotion.base),
           curve: AppMotion.entrance,
-          child: Column(mainAxisSize: MainAxisSize.min, children: divided),
+          child: hugsWidth ? IntrinsicWidth(child: column) : column,
         ),
       ),
     );

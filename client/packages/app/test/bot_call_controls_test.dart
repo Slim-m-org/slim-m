@@ -121,7 +121,8 @@ void main() {
     expect(find.text('Jellyfin'), findsOneWidget);
     expect(find.text('BOT'), findsOneWidget);
     for (final label in ['Previous', 'Pause', 'Skip', 'Stop']) {
-      expect(find.text(label), findsOneWidget);
+      expect(find.byTooltip(label), findsOneWidget);
+      expect(find.text(label), findsNothing, reason: 'icon chips');
     }
     expect(find.byIcon(AppIcons.pause), findsOneWidget);
     expect(find.text('Quiet'), findsNothing);
@@ -130,16 +131,16 @@ void main() {
   testWidgets('a phone width wraps the row instead of overflowing', (
     tester,
   ) async {
-    await _pump(tester, [], width: 280);
+    await _pump(tester, [], width: 240);
     expect(tester.takeException(), isNull);
     final strip = tester.getRect(find.byType(BotCallControls));
-    final stop = tester.getRect(find.text('Stop'));
-    expect(strip.width, lessThanOrEqualTo(280));
+    final stop = tester.getRect(find.byTooltip('Stop'));
+    expect(strip.width, lessThanOrEqualTo(240));
     expect(stop.right, lessThanOrEqualTo(strip.right));
     expect(
       stop.top,
-      greaterThan(tester.getRect(find.text('Previous')).top),
-      reason: 'four labelled controls cannot share one 280 line',
+      greaterThan(tester.getRect(find.byTooltip('Previous')).top),
+      reason: 'four chips beside the name cannot share one 240 line',
     );
   });
 
@@ -148,14 +149,14 @@ void main() {
   ) async {
     final requests = <Map<String, dynamic>>[];
     final h = await _pump(tester, requests);
-    await tester.tap(find.text('Pause'));
+    await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
 
     expect(requests.single['surface'], 'call_control');
     expect(requests.single['entry_id'], 'pause');
     expect(requests.single.containsKey('message_id'), isFalse);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Skip'), findsOneWidget, reason: 'no reflow');
+    expect(find.byTooltip('Skip'), findsOneWidget, reason: 'no reflow');
 
     h.events.add(
       api.InteractionAnswered(
@@ -174,7 +175,7 @@ void main() {
   ) async {
     final requests = <Map<String, dynamic>>[];
     await _pump(tester, requests, status: 403);
-    await tester.tap(find.text('Skip'));
+    await tester.tap(find.byTooltip('Skip'));
     await tester.pump();
     await tester.pump();
     expect(find.byType(AppErrorState), findsOneWidget);
@@ -187,7 +188,7 @@ void main() {
 
   testWidgets('silence fails visibly after the timeout', (tester) async {
     await _pump(tester, []);
-    await tester.tap(find.text('Stop'));
+    await tester.tap(find.byTooltip('Stop'));
     await tester.pump();
     await tester.pump(botUiUseTimeout + const Duration(seconds: 1));
     expect(find.textContaining('did not answer'), findsOneWidget);
