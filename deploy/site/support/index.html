@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>slim-m support</title>
+<style>
+  :root { --bg: #fafaf8; --fg: #1d1f23; --soft: #5b6068; --rule: #dcdcd6; --link: #2f5d8a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111316; --fg: #e6e6e2; --soft: #a3a8b0; --rule: #2c3036; --link: #7aa9d4; }
+  }
+  body { background: var(--bg); color: var(--fg); margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  h1 { font-size: 1.8rem; margin: 0 0 .25rem; line-height: 1.2; }
+  h2 { font-size: 1.15rem; margin: 2.2rem 0 .4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+  p, li { margin: .6rem 0; }
+  ul { padding-left: 1.3rem; }
+  a { color: var(--link); }
+</style>
+</head>
+<body>
+<main>
+<h1>slim-m support</h1>
+<p>It's a hobby project run by one person, so replies can be slow.</p>
+
+<h2>If something's broken</h2>
+<p>Open an issue at <a href="https://github.com/Slim-m-org/slim-m/issues">github.com/Slim-m-org/slim-m/issues</a>.
+Say what you did and what happened, which phone and app version you're on (it's in Settings under About), and a screenshot helps if there's nothing private in it.</p>
+
+<h2>Joining a space</h2>
+<p>You need two things from whoever runs the space: its address and an invite code.
+On the sign-in screen you put the address in the Server field, then register with the code.
+The first person to log in on a brand new server becomes its admin.</p>
+
+<h2>Forgot your password</h2>
+<p>There's no email recovery.
+An admin of your space can give you a one-time reset code, and you use that on the sign-in screen.</p>
+
+<h2>Deleting your account</h2>
+<p>Settings, then Account &amp; devices, then Delete account.
+It purges your personal data and signs out every device, and your old messages stay without your name on them.
+There's more on this in the <a href="/privacy">privacy policy</a>.</p>
+
+<h2>Reporting a message or a person</h2>
+<p>Hold a message and choose Report message, or open someone's profile and choose Report user.
+Reports go to the admins of the space you're in, and you can block someone from the same menu.
+Admins can delete messages, time people out, and remove members.</p>
+<p>If something on the official server isn't being handled, or it's something illegal, open an issue without posting the content itself and I'll look at it.</p>
+
+<h2>Running your own server</h2>
+<p>The walkthrough is <a href="https://github.com/Slim-m-org/slim-m/blob/main/deploy/README.md">deploy/README.md</a> in the repo.
+You pretty much spin it up in docker, then on your phone you download the app and the first person to log in becomes admin.</p>
+
+<h2>License</h2>
+<p>slim-m is under the PolyForm Noncommercial license, so running it for yourself or a community is free, and selling it or hosting it as a paid service isn't allowed without asking.</p>
+</main>
+</body>
+</html>

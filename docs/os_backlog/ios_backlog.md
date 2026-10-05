@@ -41,6 +41,8 @@ the pre-trim `CLAUDE.md`, "A release can succeed and still ship no store build":
 **iOS 15.0 is the client's own minimum deployment target, raised specifically in response to a real Apple compliance deadline.**
 Confirmed by reading `IPHONEOS_DEPLOYMENT_TARGET = 15.0` across every build configuration in `client/packages/app/ios/Runner.xcodeproj/project.pbxproj`. The owner's own briefing for this task states client 0.29.1 raised it in response to Apple's ITMS-90068 warning, which requires uploads to declare 15.0 or later starting spring 2027; this is recorded here as a compliance constraint to keep in mind before ever lowering the deployment target again.
 
+**Superseded by [decision 0057](../decisions/0057-ios-background-modes.md): the modes are now `audio` and `remote-notification`, and `voip` was removed because nothing constructs `VoipPushRegistrar`. The entry below is the earlier reasoning.**
+
 **The `voip` background mode is what grants background execution today, and it is deliberately not `audio`, because `audio` used purely to keep a call alive is a named App Store rejection risk.**
 the pre-trim `CLAUDE.md`, "The killed-app ghost was never going to be fixed by a race the sweep always loses": adding `UIBackgroundModes: audio` was considered and rejected, citing `docs/research/appstore.md` and an adversarial review (finding M5) that names `audio`-as-keep-alive as a 2.5.4 rejection risk reviewers reject as a generic keep-alive.
 Confirmed by reading `client/packages/app/ios/Runner/Info.plist`: `UIBackgroundModes` contains only `voip`, with an in-file comment explaining PushKit needs it to be woken for a VoIP push at all.

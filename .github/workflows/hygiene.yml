@@ -63,6 +63,7 @@ jobs:
           for key in NSCameraUsageDescription NSMicrophoneUsageDescription \
                      NSPhotoLibraryUsageDescription NSPhotoLibraryAddUsageDescription \
                      NSLocationWhenInUseUsageDescription \
+                     NSLocalNetworkUsageDescription \
                      NSFaceIDUsageDescription; do
             grep -q "<key>$key</key>" "$plist" || missing+=("$key")
           done
@@ -217,13 +218,14 @@ jobs:
       # written down twice in this script.
       - name: ios notification service extension is wired up
         run: bash scripts/check-ios-nse-wired.sh
-      # Orientation is locked to portrait on phones only, and the two halves
-      # fail in opposite directions if either is quietly edited: landscape
-      # back in the iPhone array stretches the phone-sized shell across a
-      # 932pt-wide window that the layout classes as a two-pane tablet, and
-      # dropping landscape from the ~ipad array (or from the sw600dp Android
-      # override) freezes a tablet in portrait it has no reason to be in.
-      # Neither shows up in a diff as a behaviour change, hence the gate.
+      # Orientation is locked to portrait on phones only. The iOS app is iPhone
+      # only (device family 1, no iPad orientation array), so the Android
+      # sw600dp override is the one place a tablet is freed, and the two halves
+      # fail in opposite directions if either is quietly edited: landscape back
+      # in the iPhone array stretches the phone-sized shell across a 932pt-wide
+      # window that the layout classes as a two-pane tablet, and dropping
+      # landscape from the sw600dp override freezes an Android tablet in
+      # portrait. Neither shows up in a diff as a behaviour change.
       - name: orientation is locked on phones only
         run: |
           plist=client/packages/app/ios/Runner/Info.plist
@@ -233,11 +235,9 @@ jobs:
           phone=$(awk '/<key>UISupportedInterfaceOrientations<\/key>/{f=1}
                        f{print}
                        f&&/<\/array>/{exit}' "$plist")
-          ipad=$(awk '/<key>UISupportedInterfaceOrientations~ipad<\/key>/{f=1}
-                      f{print}
-                      f&&/<\/array>/{exit}' "$plist")
+          pbx=client/packages/app/ios/Runner.xcodeproj/project.pbxproj
 
-          if [ -z "$phone" ] || [ -z "$ipad" ]; then
+          if [ -z "$phone" ]; then
             echo "::error::$plist is missing an orientation array"
             fail=1
           fi
@@ -245,12 +245,14 @@ jobs:
             echo "::error::$plist allows landscape on iPhone"
             fail=1
           fi
-          for side in LandscapeLeft LandscapeRight; do
-            grep -q "UIInterfaceOrientation$side" <<<"$ipad" || {
-              echo "::error::$plist no longer allows $side on iPad"
-              fail=1
-            }
-          done
+          if grep -q 'UISupportedInterfaceOrientations~ipad' "$plist"; then
+            echo "::error::$plist declares iPad orientations; the app is iPhone only"
+            fail=1
+          fi
+          if grep 'TARGETED_DEVICE_FAMILY' "$pbx" | grep -qv '= 1;'; then
+            echo "::error::$pbx has a build configuration that is not iPhone only"
+            fail=1
+          fi
 
           grep -q '<bool name="slimm_portrait_only">true</bool>' \
             "$res/values/bools.xml" || {

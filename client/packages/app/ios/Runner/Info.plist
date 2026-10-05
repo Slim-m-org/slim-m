@@ -71,9 +71,6 @@
 	     the push envelope. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<!-- Required for PushKit: without the voip background mode iOS never
-	     delivers a VoIP push at all, so the CallKit path below it is dead code.
-	     remote-notification is the ordinary content-free wake from phase 3. -->
 	<!-- Required whether or not the feature is reached: App Store review
 	     rejects a binary whose linked SDKs reference these APIs without a
 	     purpose string, and livekit_client and file_picker both do. -->
@@ -81,6 +78,8 @@
 	<string>slim-m uses the camera when you turn on video in a call.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>slim-m uses the microphone when you join a voice call.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>slim-m connects to a server on your local network if the space you join runs on one.</string>
 	<!-- Only shown by iOS when the app-lock setting is on and Face ID is
 	     the enrolled biometric; local_auth links Face ID's framework
 	     regardless, so App Store review needs this string either way. -->
@@ -98,19 +97,16 @@
 	     archive. Nothing in slim-m calls a location API. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>slim-m never asks for your location. This entry exists because DKImagePickerController (an image-attachment picker) links against Core Location for photo EXIF geotag handling; we never request or transmit location data.</string>
-	<!-- Deliberately never the `audio` background mode: `docs/research/
-	     appstore.md` and `appstore-review.md` (finding M5) treat it as an
-	     App Store 2.5.4 rejection risk when used to keep a call alive rather
-	     than for genuine continuous playback, which is exactly what a
-	     UI-joined call not reported to CallKit would be using it for. `voip`
-	     with a call actually reported to CallKit is the only compliant path
-	     (see https://github.com/NC1107/slim-m/issues/212, and
-	     `VoipCallHandler.swift`'s doc comment): CallKit itself is what
-	     grants background execution while it holds an active, reported
-	     call. -->
+	<!-- `audio` because a call records and plays audio while the app is in the
+	     background. `voip` is absent on purpose: nothing constructs
+	     VoipPushRegistrar, so declaring it is an App Store 2.5.4 rejection.
+	     Calls the UI joins are still reported to CallKit by
+	     VoiceCallReporter. remote-notification is the content-free wake.
+	     docs/decisions/0057-ios-background-modes.md has what bringing voip
+	     back needs. -->
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>voip</string>
+		<string>audio</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
@@ -121,18 +117,11 @@
 	     landscape reports ~932pt, which crosses into the two-pane medium
 	     class and stretches a phone-sized shell across it. UIKit intersects
 	     this array with FlutterViewController's permissive default, so this
-	     key is the ceiling; the ~ipad array below keeps tablets free.
-	     The hygiene workflow gates both halves. -->
+	     key is the ceiling. The app is iPhone only (TARGETED_DEVICE_FAMILY 1), so
+	     there is no iPad array. The hygiene workflow gates this. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>

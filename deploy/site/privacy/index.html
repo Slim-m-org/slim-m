@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>slim-m privacy policy</title>
+<style>
+  :root { --bg: #fafaf8; --fg: #1d1f23; --soft: #5b6068; --rule: #dcdcd6; --link: #2f5d8a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111316; --fg: #e6e6e2; --soft: #a3a8b0; --rule: #2c3036; --link: #7aa9d4; }
+  }
+  body { background: var(--bg); color: var(--fg); margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  h1 { font-size: 1.8rem; margin: 0 0 .25rem; line-height: 1.2; }
+  h2 { font-size: 1.15rem; margin: 2.2rem 0 .4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+  p, li { margin: .6rem 0; }
+  ul { padding-left: 1.3rem; }
+  .date { color: var(--soft); font-size: .9rem; margin: 0 0 1.5rem; }
+  a { color: var(--link); }
+</style>
+</head>
+<body>
+<main>
+<h1>slim-m privacy policy</h1>
+<p class="date">Last updated 5 October 2026</p>
+
+<p>This covers the slim-m app and the official server at slim.npc-server.top.
+It's written plainly because I think that's more useful than legal wording, and it's meant to be accurate, so if something here looks wrong please tell me.</p>
+
+<h2>Who I am</h2>
+<p>I'm Nick, one person, and I run the official server and the push relay as a hobby.
+slim-m is free, there are no ads or payments in it, and the source is available under the PolyForm Noncommercial license at <a href="https://github.com/Slim-m-org/slim-m">github.com/Slim-m-org/slim-m</a>.</p>
+
+<h2>How the app works, which decides most of this</h2>
+<p>slim-m doesn't have one big service.
+Each community, called a space, runs on its own server, and the app talks to whichever server you put in.
+If you join the official one, that's mine.
+If you join somebody else's space, that server is run by them, they decide what it keeps, and I can't see any of it, so you'd need to ask them.</p>
+
+<h2>What the app keeps on your phone</h2>
+<ul>
+<li>Your sign-in, in the iOS keychain.</li>
+<li>A local copy of your messages and channels so it opens quickly. It's encrypted, and the key is in the keychain.</li>
+<li>Your settings, and a random install id the app makes so each device shows up as one row in your devices list.</li>
+<li>If you turn on app lock, the app asks for Face ID before it opens. iOS handles Face ID, the app never sees your face data.</li>
+</ul>
+
+<h2>What a server keeps</h2>
+<p>This is the official server, and I'd guess most others work the same way.</p>
+<ul>
+<li>Your account: username, display name, profile photo, status, a hash of your password (never the password itself), and two-factor details if you turn that on.</li>
+<li>What you post: messages, edits, reactions, poll votes, attachments, and drawings on the canvas.</li>
+<li>Your devices: a name, the app version, and when each was last used, so you can sign them out.</li>
+<li>Your push token, if you turn on notifications.</li>
+<li>Moderation records: reports, blocks, removals, and a log of admin actions.</li>
+</ul>
+<p>Like any web server, it sees your IP address when you connect.
+It uses that to slow down anything that sends requests too fast, and Cloudflare and Traefik in front of it see it too.
+I only look at logs when something is broken.</p>
+
+<h2>Voice and screen sharing</h2>
+<p>Calls go through a LiveKit server that sits next to the app server, in real time.
+Nothing is recorded, and the app has no way to record a call.</p>
+
+<h2>Push notifications</h2>
+<p>Apple delivers them.
+The push relay passes a notification from the server on to Apple and doesn't store it.
+The text of a message in a notification is sealed to your device, so the relay can't read it, and you can turn the text off in Settings under Notifications.
+Apple still knows a notification went to your device, same as with any app.
+On Android, Google's Firebase Cloud Messaging carries it the same way.</p>
+
+<h2>Other things the app can talk to</h2>
+<ul>
+<li>GIF search goes through the server to Klipy, so Klipy sees the search and not who you are or your IP address.</li>
+<li>If you link Spotify in Settings, the app asks Spotify what you're playing and shows it as your status in the space. It's off until you turn it on, and the Spotify sign-in stays on your phone.</li>
+<li>Link previews make the server fetch the link, but only if whoever runs the server turns them on. They're off on the official one.</li>
+</ul>
+
+<h2>What I don't do</h2>
+<p>No ads, no analytics, no crash reporting service, no tracking across other apps and sites, and I don't sell or share your data.</p>
+
+<h2>Deleting your data</h2>
+<p>In the app, go to Settings, then Account &amp; devices, then Delete account.
+It asks for your password, and a two-factor code if you have that on.
+On the server you're connected to, it purges your personal data, signs out every device, and frees the username.
+Your old messages in shared channels stay, but without your name on them.
+It can't be undone.
+On somebody else's server the same button does the same thing, but I can't speak for what their backups keep.</p>
+
+<h2>Children</h2>
+<p>slim-m isn't meant for children under 13, and I don't knowingly keep data from them.</p>
+
+<h2>Changes</h2>
+<p>If this changes, the new version goes up here with a new date, and the history is in the repo.</p>
+
+<h2>Contact</h2>
+<p>The easiest way is to open an issue at <a href="https://github.com/Slim-m-org/slim-m/issues">github.com/Slim-m-org/slim-m/issues</a>.
+If it's something private, say so in the issue without the details and I'll find another way to talk.</p>
+</main>
+</body>
+</html>
