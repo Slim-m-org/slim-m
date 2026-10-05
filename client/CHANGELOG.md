@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.95.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.94.0...client-v0.95.0) (2026-10-05)
+
+
+### Features
+
+* **ios:** a privacy manifest, audio in place of voip, iphone only, and the app store pages ([#1997](https://github.com/Slim-m-org/slim-m/issues/1997)) ([9ae4166](https://github.com/Slim-m-org/slim-m/commit/9ae416620a0db21369b62f00cc8ceeab57b31e67))
+
 ## [0.94.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.93.0...client-v0.94.0) (2026-10-04)
 
 
