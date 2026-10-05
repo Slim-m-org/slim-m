@@ -199,3 +199,96 @@ async fn too_many_embeds_from_a_webhook_is_a_400() {
         .unwrap();
     assert_eq!(posted.status(), StatusCode::BAD_REQUEST);
 }
+
+const OCT_4_NOON_UTC_MS: i64 = 1_791_115_200_000;
+
+/// Posts one embed through a fresh webhook; returns the delivery status and the listed message embeds.
+async fn deliver_one_embed(name: &str, embed: Value) -> (StatusCode, Value) {
+    let (store, _guard) = new_store(name).await;
+    let (viewer_token, channel_id, admin_id) = fixture(&store, "root").await;
+    let minted = store
+        .create_webhook(channel_id, "sonarr", admin_id)
+        .await
+        .unwrap();
+    let app = app(store, LinkPreviews::disabled());
+
+    let path = format!("/webhooks/{}/{}", minted.webhook.id, minted.token);
+    let posted = app
+        .clone()
+        .oneshot(post_json(
+            &path,
+            json!({ "content": "grabbed", "embeds": [embed] }),
+        ))
+        .await
+        .unwrap();
+    let status = posted.status();
+    let listed = app
+        .clone()
+        .oneshot(bearer_get(
+            &format!("/channels/{channel_id}/messages"),
+            &viewer_token,
+        ))
+        .await
+        .unwrap();
+    (status, json_body(listed).await)
+}
+
+/// Discord's own embed `timestamp` is an ISO 8601 string, and Sonarr/Radarr send it.
+#[tokio::test]
+async fn a_webhook_embed_with_an_iso_timestamp_is_delivered() {
+    let (status, messages) = deliver_one_embed(
+        "slimm-webhook-embeds-iso-ts",
+        json!({ "title": "Episode Grabbed", "timestamp": "2026-10-04T12:00:00.000Z" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(messages[0]["embeds"][0]["title"], "Episode Grabbed");
+    assert_eq!(messages[0]["embeds"][0]["timestamp"], OCT_4_NOON_UTC_MS);
+}
+
+#[tokio::test]
+async fn a_webhook_embed_with_an_offset_iso_timestamp_is_delivered() {
+    let (status, messages) = deliver_one_embed(
+        "slimm-webhook-embeds-offset-ts",
+        json!({ "title": "Episode Grabbed", "timestamp": "2026-10-04T14:00:00+02:00" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(messages[0]["embeds"][0]["timestamp"], OCT_4_NOON_UTC_MS);
+}
+
+/// A timestamp nobody can read degrades like an unreadable colour or image, never a 400.
+#[tokio::test]
+async fn a_webhook_embed_with_an_unparseable_timestamp_still_posts() {
+    let (status, messages) = deliver_one_embed(
+        "slimm-webhook-embeds-bad-ts",
+        json!({ "title": "Episode Grabbed", "timestamp": "not a date" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(messages[0]["embeds"][0]["title"], "Episode Grabbed");
+    assert!(messages[0]["embeds"][0]["timestamp"].is_null());
+}
+
+#[tokio::test]
+async fn a_webhook_embed_with_null_fields_is_delivered() {
+    let (status, messages) = deliver_one_embed(
+        "slimm-webhook-embeds-null-fields",
+        json!({ "title": "Episode Grabbed", "fields": null }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(messages[0]["embeds"][0]["title"], "Episode Grabbed");
+}
+
+/// Control: the integer-millisecond form the route already takes.
+#[tokio::test]
+async fn a_webhook_embed_with_an_integer_timestamp_is_delivered() {
+    let (status, messages) = deliver_one_embed(
+        "slimm-webhook-embeds-int-ts",
+        json!({ "title": "Episode Grabbed", "timestamp": OCT_4_NOON_UTC_MS }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(messages[0]["embeds"][0]["timestamp"], OCT_4_NOON_UTC_MS);
+}
