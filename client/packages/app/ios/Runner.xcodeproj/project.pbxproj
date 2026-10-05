@@ -54,6 +54,7 @@
 		7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000002 /* callkit_ringtone.wav */; };
 		7A11C0DE0008000000000006 /* direct_message.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000003 /* direct_message.wav */; };
 		7A11C0DE0008000000000007 /* group_message.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000004 /* group_message.wav */; };
+		7A11C0DE000A000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000A000000000001 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -160,6 +161,7 @@
 		7A11C0DE0008000000000002 /* callkit_ringtone.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/callkit_ringtone.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000003 /* direct_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/direct_message.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000004 /* group_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/group_message.wav"; sourceTree = "<group>"; };
+		7A11C0DE000A000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -287,6 +289,7 @@
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
 				D4E485318AF84DC511743258 /* Runner.entitlements */,
+				7A11C0DE000A000000000001 /* PrivacyInfo.xcprivacy */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
@@ -454,6 +457,7 @@
 				7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */,
 				7A11C0DE0008000000000006 /* direct_message.wav in Resources */,
 				7A11C0DE0008000000000007 /* group_message.wav in Resources */,
+				7A11C0DE000A000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -659,7 +663,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Profile;
@@ -786,7 +790,7 @@
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -839,7 +843,7 @@
 				SUPPORTED_PLATFORMS = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -917,7 +921,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -947,7 +951,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -974,7 +978,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Profile;
 		};
@@ -1002,7 +1006,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -1032,7 +1036,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -1059,7 +1063,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Profile;
 		};

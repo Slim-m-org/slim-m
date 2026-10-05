@@ -17,7 +17,7 @@ Ask them for both before you start.
 | Windows | The `-windows-x64.zip` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | macOS | The `-macos.zip` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | Android | The `-android.apk` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
-| iPhone or iPad | Ask the space's owner for a TestFlight invite |
+| iPhone | Ask the space's owner for a TestFlight invite |
 
 ## The browser, which needs no install
 
@@ -100,7 +100,7 @@ Releases from 0.80.0 onward carry only the apk; older ones also list an `.aab`, 
 
 Android also has no in-app update prompt yet, so you will not be told when a new version exists - check the releases page now and then.
 
-## iPhone and iPad
+## iPhone
 
 iOS builds go out through TestFlight, which needs the space owner to add your Apple ID first.
 Ask them, accept the email invite, install TestFlight from the App Store, and slim-m appears inside it.
@@ -128,7 +128,7 @@ Per-user installs keep their own update path.
 | Windows, run from the unzipped folder | Not updated | Delete the folder |
 | macOS app in `~/Applications` | In the app, from a signed manifest; never run on a real Mac yet, so treat it as unconfirmed | Drag the app to the bin |
 | Android apk | Not updated by the app as far as the client tree shows; check the releases page | Uninstall as any app |
-| iPhone and iPad | TestFlight | Delete the app |
+| iPhone | TestFlight | Delete the app |
 | Web client | Reload when the page offers it | Nothing installed |
 
 A per-user install keeps the previous version until the new one has run for 20 seconds.
