@@ -66,3 +66,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0054](0054-push-preview-default-on.md) | Push previews are an account choice, on by default | accepted |
 | [0055](0055-member-nicknames.md) | An administrator can give a member or bot a space-local name | accepted |
 | [0056](0056-activity-art-source-and-spotify-link-feedback.md) | Activity carries a source label and Spotify cover art, and Spotify linking reports what happened | accepted |
+| [0057](0057-ios-background-modes.md) | iOS declares the audio background mode, not voip | accepted |
