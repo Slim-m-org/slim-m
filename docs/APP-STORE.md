@@ -63,8 +63,8 @@ The default server is run by the developer, so these count as collected.
 | Device ID | The push token and the install id. |
 | Other user content | Messages, polls, reactions. |
 | Photos or videos | Attachments the user sends. |
-| Audio data | Voice calls pass through the voice server in real time and aren't recorded. |
 
+Call audio is left out on purpose: it passes through the voice server in real time and isn't kept, which Apple doesn't count as collected.
 No analytics, no crash reporting service, no advertising data, no location.
 The location usage string exists only because an image picker links Core Location.
 
