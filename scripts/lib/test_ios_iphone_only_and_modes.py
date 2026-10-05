@@ -42,7 +42,7 @@ class LocalNetwork(unittest.TestCase):
     def test_usage_description_is_present_and_plain(self):
         text = runner_plist()["NSLocalNetworkUsageDescription"]
         self.assertTrue(text.strip())
-        self.assertNotIn("—", text)
+        self.assertNotIn("\u2014", text)
 
     def test_no_bonjour_and_no_transport_security_exception(self):
         plist = runner_plist()
