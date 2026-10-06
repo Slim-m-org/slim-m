@@ -40,6 +40,11 @@ class MessageAlert {
 @visibleForTesting
 var alertStateMaxAge = const Duration(minutes: 1);
 
+/// How long a failed lookup of this account's name and roles waits before the
+/// next message may try again. A `var` so a test can shrink it.
+@visibleForTesting
+var selfLookupRetryAfter = const Duration(seconds: 30);
+
 /// How long an alert waits for that refetch before it uses what it already has.
 const _refreshWait = Duration(seconds: 2);
 
@@ -59,6 +64,8 @@ class MessageAlertPolicy {
   ({String username, List<String> roles})? _self;
   String? _selfForId;
   DateTime? _selfAt;
+  DateTime? _selfFailedAt;
+  Future<({String username, List<String> roles})?>? _selfLookup;
 
   /// A thread's parent channel never changes, so each is asked for once.
   final Map<String, String?> _parentChannels = {};
@@ -128,25 +135,41 @@ class MessageAlertPolicy {
         );
   }
 
-  /// Best-effort: a lookup failure just leaves one message read as not a
-  /// mention, and the next message that needs it tries again.
-  Future<({String username, List<String> roles})?> _resolveSelf(
-    String selfId,
-  ) async {
+  /// Best-effort: a lookup failure just leaves messages read as not a mention
+  /// until [selfLookupRetryAfter] passes. A burst of messages shares one
+  /// lookup and a failure is not retried per message, since `/me` shares the
+  /// per-user read budget and a 429 there blanks the user panel.
+  Future<({String username, List<String> roles})?> _resolveSelf(String selfId) {
+    final now = DateTime.now();
     final loadedAt = _selfAt;
     final fresh =
         _selfForId == selfId &&
         loadedAt != null &&
-        DateTime.now().difference(loadedAt) <= alertStateMaxAge;
-    if (fresh) return _self;
+        now.difference(loadedAt) <= alertStateMaxAge;
+    final failedAt = _selfFailedAt;
+    final backingOff =
+        failedAt != null && now.difference(failedAt) < selfLookupRetryAfter;
+    if (fresh || backingOff) {
+      return Future.value(_selfForId == selfId ? _self : null);
+    }
+    return _selfLookup ??= _lookUpSelf(
+      selfId,
+    ).whenComplete(() => _selfLookup = null);
+  }
+
+  Future<({String username, List<String> roles})?> _lookUpSelf(
+    String selfId,
+  ) async {
     try {
       final client = _ref.read(apiProvider);
       final me = await client.me();
       _self = (username: me.username, roles: await _roleNames(client, selfId));
       _selfForId = selfId;
       _selfAt = DateTime.now();
+      _selfFailedAt = null;
     } on api.ApiException {
       // Keeps the cache for this account, if there is one.
+      _selfFailedAt = DateTime.now();
     }
     return _selfForId == selfId ? _self : null;
   }
