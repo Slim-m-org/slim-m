@@ -5,11 +5,14 @@ Same fixture module as test_backup_lib.py (backup_fixtures.py), so the
 drill is checked against the same schema-faithful database shape a real
 backup would produce.
 """
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -188,6 +191,62 @@ class RunTest(RestoreDrillTestCase):
         code = restore_drill_lib.run(self._args())
 
         self.assertEqual(code, 1)
+
+    def _scratch_copies(self):
+        return list((self.backup_root / "restore-drill").rglob("slimm.db"))
+
+    def test_a_corrupt_snapshot_fails_with_a_report_not_a_traceback(self):
+        snapshot = self._write_snapshot()
+        snapshot.write_bytes(snapshot.read_bytes()[: snapshot.stat().st_size // 2])
+
+        with contextlib.redirect_stdout(io.StringIO()) as out, \
+                contextlib.redirect_stderr(io.StringIO()):
+            code = restore_drill_lib.run(self._args())
+
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL", out.getvalue())
+        self.assertIn("integrity_check", out.getvalue())
+
+    def test_a_failed_integrity_check_skips_the_later_checks(self):
+        self._write_snapshot()
+        with mock.patch.object(restore_drill_lib, "check_integrity",
+                               return_value="row 3 missing from index"), \
+                mock.patch.object(restore_drill_lib, "check_attachments") as att, \
+                contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code = restore_drill_lib.run(self._args())
+
+        self.assertEqual(code, 1)
+        att.assert_not_called()
+
+    def test_the_default_scratch_copy_is_removed_afterwards(self):
+        self._write_snapshot()
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(restore_drill_lib.run(self._args()), 0)
+
+        self.assertEqual(self._scratch_copies(), [])
+
+    def test_keep_scratch_leaves_the_copy(self):
+        self._write_snapshot()
+        args = restore_drill_lib.parse_args(
+            ["--backup-root", str(self.backup_root), "--keep-scratch"])
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            restore_drill_lib.run(args)
+
+        self.assertEqual(len(self._scratch_copies()), 1)
+
+    def test_an_explicit_scratch_dir_is_the_callers_and_is_kept(self):
+        self._write_snapshot()
+        scratch = self.root / "mine"
+        args = restore_drill_lib.parse_args(
+            ["--backup-root", str(self.backup_root), "--scratch-dir", str(scratch)])
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            restore_drill_lib.run(args)
+
+        self.assertTrue((scratch / "slimm.db").is_file())
 
 
 if __name__ == "__main__":
