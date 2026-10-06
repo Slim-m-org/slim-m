@@ -30,8 +30,10 @@ Map<String, dynamic> _reorder(int seq) => {
 };
 
 class _Feed {
-  _Feed(this.head);
+  _Feed(this.head, {this.failAfter, this.stalls = false});
   final int head;
+  final int? failAfter;
+  final bool stalls;
   final afterSeqs = <int>[];
   var coldFetches = 0;
 
@@ -48,6 +50,19 @@ class _Feed {
     httpClient: MockClient((request) async {
       final after = int.parse(request.url.queryParameters['after_seq']!);
       afterSeqs.add(after);
+      if (after == failAfter) return http.Response('{}', 500);
+      if (stalls) {
+        return http.Response(
+          jsonEncode({
+            'ops': <Object>[],
+            'latest_seq': head,
+            'has_more': true,
+            'reset': false,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
       final last = (after + _pageLimit).clamp(0, head);
       return http.Response(
         jsonEncode({
@@ -98,6 +113,33 @@ void main() {
       expect(feed.afterSeqs, [for (var i = 0; i < 10; i++) i * 100]);
       expect(feed.coldFetches, 0);
       expect(sync.asOfSeq, 1000);
+    });
+  });
+
+  test('a page that fails part way leaves the cursor where it was', () {
+    fakeAsync((async) {
+      final feed = _Feed(250, failAfter: 100);
+      final sync = feed.sync()..seedFromViewport(0);
+
+      sync.catchUp();
+      async.flushMicrotasks();
+
+      expect(feed.afterSeqs, [0, 100]);
+      expect(feed.coldFetches, 0);
+      expect(sync.asOfSeq, 0);
+    });
+  });
+
+  test('a page that claims more but carries no ops is a reset, not a loop', () {
+    fakeAsync((async) {
+      final feed = _Feed(10, stalls: true);
+      final sync = feed.sync()..seedFromViewport(0);
+
+      sync.catchUp();
+      async.flushMicrotasks();
+
+      expect(feed.afterSeqs, [0]);
+      expect(feed.coldFetches, 1);
     });
   });
 
