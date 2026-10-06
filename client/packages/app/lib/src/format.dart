@@ -35,3 +35,12 @@ String formatClock(DateTime dt, {required bool use24Hour}) {
 /// duplicated.
 ({int hours, int minutes, int seconds}) decomposeDuration(Duration d) =>
     (hours: d.inHours, minutes: d.inMinutes % 60, seconds: d.inSeconds % 60);
+
+/// `m:ss`, or `h:mm:ss` from an hour up, clamped at zero: a playback position
+/// or a clip length, the one form the watch bar and the video controls share.
+String formatPlaybackTime(Duration d) {
+  final parts = decomposeDuration(d.isNegative ? Duration.zero : d);
+  final ss = parts.seconds.toString().padLeft(2, '0');
+  if (parts.hours == 0) return '${parts.minutes}:$ss';
+  return '${parts.hours}:${parts.minutes.toString().padLeft(2, '0')}:$ss';
+}
