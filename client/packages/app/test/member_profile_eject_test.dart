@@ -347,8 +347,7 @@ void main() {
             builder: (context, state) => Scaffold(
               body: Consumer(
                 builder: (context, ref, _) => TextButton(
-                  onPressed: () =>
-                      showMemberProfile(context, ref, profile: _other),
+                  onPressed: () => showMemberProfile(context, profile: _other),
                   child: const Text('open'),
                 ),
               ),

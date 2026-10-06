@@ -56,7 +56,7 @@ const _other = api.UserProfile(
 Widget _openPage(BuildContext context, GoRouterState state) => Scaffold(
   body: Consumer(
     builder: (context, ref, _) => GestureDetector(
-      onTap: () => showMemberProfile(context, ref, profile: _other),
+      onTap: () => showMemberProfile(context, profile: _other),
       child: const Text('open'),
     ),
   ),

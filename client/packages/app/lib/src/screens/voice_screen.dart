@@ -401,5 +401,5 @@ void _openProfile(
       .firstOrNull;
   if (profile == null) return;
 
-  showMemberProfile(context, ref, profile: profile);
+  showMemberProfile(context, profile: profile);
 }

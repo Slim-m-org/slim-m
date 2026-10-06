@@ -172,7 +172,7 @@ class AppMemberPane extends ConsumerWidget {
               canTimeOut: canTimeOut,
               canRemove: canRemove,
               onTimeOut: (duration) =>
-                  unawaited(timeOutSelectedMembers(ref, context, duration)),
+                  unawaited(timeOutSelectedMembers(ref, duration)),
               onRemove: () => confirmAndRemoveSelectedMembers(ref, context),
             ),
         ],

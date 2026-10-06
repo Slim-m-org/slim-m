@@ -85,7 +85,7 @@ class _AuthorProfileTapTargetState
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    void open() => unawaited(showMemberProfile(context, ref, profile: profile));
+    void open() => unawaited(showMemberProfile(context, profile: profile));
 
     final pressable = widget.fingerTarget || !AppTouchTargets.of(context);
 
