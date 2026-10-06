@@ -61,3 +61,20 @@ So the id is keyed now, with a key derived from the identity secret for this one
 The cost named above was that a key makes ids change on rotation; the identity secret does not rotate, so that cost is theoretical.
 The real cost is one-off: every caller id changed once when this deployed, so a module that had stored state against the old ids no longer recognises those people.
 No module in the registry declared `kv.store` at the time, and a poll left open across the deploy could be voted on a second time.
+
+## Amended 2026-10-06
+
+A module has no clock and no random source, and the request was a pure function of what the person typed, so `/roll d20` gave the same number to everyone every time.
+The caller id cannot fix that: it is stable per person by design.
+
+So the request gains a second additive field, `entropy`: 16 random bytes as 32 lowercase hex characters, fresh for every run.
+
+- It is drawn from the operating system's random source on the server, so it carries nothing about the person, the channel or the deployment.
+  It is not stable, so it cannot be used to dedupe or to follow anyone.
+- It is for variation only: a module that wants a random number mixes it into its seed.
+  A module that wants reproducible output ignores it, and a module built before it existed keeps working.
+- The ABI stays v1, for the same reason the caller id did: the field is additive and modules are told to ignore unknown fields.
+- Nothing is gated, since a random value grants no power.
+
+A host that replays a run to check it would see a different value and, for a module that uses it, a different answer.
+Nothing replays runs today, and a module whose answer must be checkable should keep its state in `input` instead.
