@@ -20,6 +20,7 @@ cannot be recovered from an access token afterwards.
 import json
 import os
 import pathlib
+import tempfile
 import urllib.error
 
 import e2e_api
@@ -61,11 +62,22 @@ def _entry(account):
 
 
 def _save_cache(path, accounts):
+    """Replaces the cache whole, so a kill mid-write cannot cost the tokens.
+
+    mkstemp creates the temp file 0600, so there is no readable window either.
+    """
     payload = [_entry(a) for a in accounts]
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2)
-    os.chmod(path, 0o600)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
 
 
 def _revive(base_url, entry):
@@ -204,7 +216,7 @@ def obtain(base_url, count, password, invite_code, cache_dir):
             revived.append({"username": entry["username"],
                             "display_name": entry["display_name"],
                             "api": api, "refresh": refresh, "reused": True})
-            _save_cache(path, revived + cached[len(revived):count])
+            _save_cache(path, revived + cached[len(revived):])
         if len(revived) == count:
             return revived, True
 
