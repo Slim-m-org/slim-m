@@ -133,8 +133,8 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
       child: Text(
         status.resolved
-            ? 'Resolved. Filed ${_filedAgo(status.createdAt)}.'
-            : 'Still open. Filed ${_filedAgo(status.createdAt)}.',
+            ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
+            : 'Still open. Filed ${filedAgo(status.createdAt)}.',
         style: AppText.body.copyWith(color: tokens.textPrimary),
       ),
     );
@@ -227,8 +227,8 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
             padding: const EdgeInsets.only(top: AppSpacing.s12),
             child: Text(
               status.resolved
-                  ? 'Resolved. Filed ${_filedAgo(status.createdAt)}.'
-                  : 'Still open. Filed ${_filedAgo(status.createdAt)}.',
+                  ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
+                  : 'Still open. Filed ${filedAgo(status.createdAt)}.',
               style: AppText.body.copyWith(color: tokens.textPrimary),
             ),
           ),
@@ -250,9 +250,9 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
 /// timestamp already uses, extended with weeks: a filed report is realistic
 /// to check back on well after a day has passed, where a canvas activity
 /// entry is not.
-String _filedAgo(int createdAtMs) {
+String filedAgo(int createdAtMs, {DateTime? now}) {
   final at = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
-  final elapsed = DateTime.now().difference(at);
+  final elapsed = (now ?? DateTime.now()).difference(at);
   if (elapsed.inMinutes < 1) return 'just now';
   if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
   if (elapsed.inDays < 1) return '${elapsed.inHours}h ago';
