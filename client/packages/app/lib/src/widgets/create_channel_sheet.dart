@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The sheet for making a channel: a name, a text/voice choice, and - for a
 /// caller who holds MANAGE_ROLES - a Private toggle, sent through
-/// `POST /channels` ([api.SlimmApi.createChannel]).
+/// `POST /channels` (`SlimmApi.createChannel`).
 ///
 /// Opened from the Space menu's "Add channel", and from the `+` on a
 /// category header in the rail - which passes that category so the channel
@@ -26,15 +26,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../api_failure.dart';
-import '../entity_name.dart';
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
 import '../providers/providers.dart';
 import '../routing/routes.dart';
+import 'name_entry_sheet.dart';
 import 'settings_toggle_row.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
@@ -83,62 +81,25 @@ class _CreateChannelSheet extends ConsumerStatefulWidget {
 }
 
 class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
-  final _name = TextEditingController();
   late String _kind = widget.initialKind;
   bool _restricted = false;
   bool _joinMuted = false;
-  bool _submitting = false;
-  String? _error;
 
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  bool get _nameValid => entityNameValid(_name.text);
-
-  bool get _canSubmit => !_submitting && _nameValid;
-
-  /// Names what is missing rather than sitting disabled with no explanation
-  /// - the same "say why" treatment `poll_composer_sheet.dart`'s own button
-  /// label gives an incomplete poll.
-  String get _buttonLabel {
-    if (_submitting) return 'Creating...';
-    if (_name.text.trim().isEmpty) return 'Add a channel name';
-    if (!_nameValid) return 'Name is too long';
-    return 'Create channel';
-  }
-
-  Future<void> _submit() async {
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      final created = await ref
-          .read(apiProvider)
-          .createChannel(
-            name: _name.text.trim(),
-            kind: _kind,
-            categoryId: widget.categoryId,
-            restricted: _restricted,
-            joinMuted: _kind == 'voice' && _joinMuted,
-          );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertChannels([created]);
-      if (!mounted) return;
-      final router = GoRouter.of(context);
-      Navigator.of(context).pop();
-      router.go(Routes.channel(created.id));
-    } on api.ApiException catch (e) {
-      if (mounted) {
-        setState(() => _error = describeApiFailure('create the channel', e));
-      }
-    } finally {
-      // Any escape, not just ApiException, must not wedge "Creating..." on.
-      if (mounted) setState(() => _submitting = false);
-    }
+  Future<VoidCallback?> _create(String name) async {
+    final created = await ref
+        .read(apiProvider)
+        .createChannel(
+          name: name,
+          kind: _kind,
+          categoryId: widget.categoryId,
+          restricted: _restricted,
+          joinMuted: _kind == 'voice' && _joinMuted,
+        );
+    final store = await ref.read(storeProvider.future);
+    await store.upsertChannels([created]);
+    if (!mounted) return null;
+    final router = GoRouter.of(context);
+    return () => router.go(Routes.channel(created.id));
   }
 
   @override
@@ -148,108 +109,51 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     final canRestrict = ref
         .watch(myPermissionsProvider)
         .hasPermission(Perm.manageRoles);
-    final nameLength = entityNameLength(_name.text);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Create a channel',
-              style: AppText.heading.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            if (widget.categoryName != null) ...[
-              const SizedBox(height: AppSpacing.s4),
-              Text(
-                'Adding to ${widget.categoryName}',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.s16),
-            AppInput(
-              controller: _name,
-              placeholder: 'Channel name',
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) {
-                if (_canSubmit) _submit();
-              },
-              semanticLabel: 'Channel name',
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$nameLength/$entityNameMaxChars',
-                style: AppText.micro.copyWith(
-                  color: nameLength > entityNameMaxChars
-                      ? tokens.dangerText
-                      : tokens.textSecondary,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            AppSegmentedControl.inline(
-              semanticLabel: 'Channel kind',
-              options: const [
-                AppSegmentedOption(label: 'Text'),
-                AppSegmentedOption(label: 'Voice'),
-              ],
-              selectedIndex: _kind == 'voice' ? 1 : 0,
-              onSegmentSelected: (i) =>
-                  setState(() => _kind = i == 1 ? 'voice' : 'text'),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              _kind == 'voice'
-                  ? 'People join a live call to talk, share video and their screen.'
-                  : 'People post messages, images and files to read at their own pace.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            if (canRestrict)
-              SettingsToggleRow(
-                label: 'Private',
-                description:
-                    'Only you can see this channel until you add others.',
-                value: _restricted,
-                onChanged: (v) => setState(() => _restricted = v),
-                semanticLabel: 'Make this channel private',
-              ),
-            if (_kind == 'voice')
-              SettingsToggleRow(
-                label: 'Join muted',
-                description: 'Members start with their mic off and can unmute.',
-                value: _joinMuted,
-                onChanged: (v) => setState(() => _joinMuted = v),
-                semanticLabel: 'Members join this channel muted',
-              ),
-            if (_error != null) ...[
-              const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: _error!),
-            ],
-            const SizedBox(height: AppSpacing.s12),
-            AppButton(
-              label: _buttonLabel,
-              variant: AppButtonVariant.primary,
-              full: true,
-              disabled: !_canSubmit,
-              onPressed: _submit,
-            ),
+    return NameEntrySheet(
+      noun: 'channel',
+      title: 'Create a channel',
+      subtitle: widget.categoryName == null
+          ? null
+          : 'Adding to ${widget.categoryName}',
+      onCreate: _create,
+      extraFields: [
+        const SizedBox(height: AppSpacing.s8),
+        AppSegmentedControl.inline(
+          semanticLabel: 'Channel kind',
+          options: const [
+            AppSegmentedOption(label: 'Text'),
+            AppSegmentedOption(label: 'Voice'),
           ],
+          selectedIndex: _kind == 'voice' ? 1 : 0,
+          onSegmentSelected: (i) =>
+              setState(() => _kind = i == 1 ? 'voice' : 'text'),
         ),
-      ),
+        const SizedBox(height: AppSpacing.s4),
+        Text(
+          _kind == 'voice'
+              ? 'People join a live call to talk, share video and their screen.'
+              : 'People post messages, images and files to read at their own pace.',
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        if (canRestrict)
+          SettingsToggleRow(
+            label: 'Private',
+            description: 'Only you can see this channel until you add others.',
+            value: _restricted,
+            onChanged: (v) => setState(() => _restricted = v),
+            semanticLabel: 'Make this channel private',
+          ),
+        if (_kind == 'voice')
+          SettingsToggleRow(
+            label: 'Join muted',
+            description: 'Members start with their mic off and can unmute.',
+            value: _joinMuted,
+            onChanged: (v) => setState(() => _joinMuted = v),
+            semanticLabel: 'Members join this channel muted',
+          ),
+      ],
     );
   }
 }
