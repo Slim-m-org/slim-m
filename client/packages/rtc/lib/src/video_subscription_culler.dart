@@ -145,10 +145,6 @@ class VideoSubscriptionCuller {
     }
   }
 
-  /// The interest set as last declared, for a caller that needs to read back
-  /// what it asked for.
-  Set<String>? get interest => _interest;
-
   /// Reconciles [tracks] against the current interest, subscribing anything
   /// wanted that is not subscribed and unsubscribing anything unwanted whose
   /// dwell has already elapsed.
