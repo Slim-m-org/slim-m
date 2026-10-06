@@ -148,4 +148,32 @@ void main() {
     expect(entries, isEmpty);
     expect(planEmojiZip(entries).uploads, isEmpty);
   });
+
+  test('a non-image entry is never inflated, however large it declares '
+      'itself', () {
+    const size = 64 * 1024 * 1024;
+    final archive = Archive()
+      ..addFile(ArchiveFile('notes.bin', size, Uint8List(size)))
+      ..addFile(ArchiveFile('ok.png', 3, Uint8List.fromList([1, 2, 3])));
+
+    final entries = decodeEmojiZipEntries(ZipEncoder().encodeBytes(archive));
+
+    final held = entries.fold<int>(0, (n, e) => n + e.bytes.length);
+    expect(held, lessThan(maxPlannedEmojiBytes));
+    expect(planEmojiZip(entries).uploads.map((u) => u.name), ['ok']);
+  });
+
+  test('an image over the cap is refused by its declared size without being '
+      'inflated', () {
+    const size = maxPlannedEmojiBytes + 1;
+    final archive = Archive()
+      ..addFile(ArchiveFile('big.png', size, Uint8List(size)));
+
+    final entries = decodeEmojiZipEntries(ZipEncoder().encodeBytes(archive));
+    final plan = planEmojiZip(entries);
+
+    expect(entries.single.bytes, isEmpty);
+    expect(plan.uploads, isEmpty);
+    expect(plan.skipped.single.reason, 'larger than 1 MB');
+  });
 }
