@@ -27,6 +27,8 @@ import UserNotifications
   private var clipboardImageChannel: FlutterMethodChannel?
   private var appLockWindowChannel: FlutterMethodChannel?
   private let voiceCallChannel = VoiceCallChannel()
+  private var voipRegistrar: VoipPushRegistrar?
+  private var cachedVoipTokenHex: String?
 
   // The token or a registration failure can each arrive before Dart has asked
   // for it (a fast relaunch) or long after (the user takes a while to decide
@@ -41,7 +43,20 @@ import UserNotifications
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     requestPushAuthorization(application)
+    startVoipRegistration()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Constructed during launch, before the first run loop turn: a VoIP push that wakes a
+  /// killed app is delivered only to a registry that exists by then, and an unreported one
+  /// terminates the app.
+  private func startVoipRegistration() {
+    let registrar = VoipPushRegistrar()
+    registrar.onToken = { [weak self] hex in
+      self?.cachedVoipTokenHex = hex
+      self?.pushChannel?.invokeMethod("onVoipToken", arguments: hex)
+    }
+    voipRegistrar = registrar
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -124,6 +139,8 @@ import UserNotifications
       result(cachedTokenHex)
     case "getRegistrationError":
       result(cachedError)
+    case "getVoipToken":
+      result(cachedVoipTokenHex)
     default:
       result(FlutterMethodNotImplemented)
     }

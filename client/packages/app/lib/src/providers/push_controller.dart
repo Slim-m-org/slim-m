@@ -12,6 +12,9 @@ import 'package:slimm_platform/platform.dart';
 
 import 'providers.dart';
 import 'push_content_preview_settings.dart';
+import 'push_status.dart';
+
+export 'push_status.dart';
 
 /// The native bridge for this device's APNs token. A provider, rather than a
 /// field [PushController] constructs itself, so a test can substitute one
@@ -35,54 +38,6 @@ final fcmTokenChannelProvider = Provider<FcmTokenChannel>(
 final localNotificationsProvider = Provider<LocalNotifications>(
   (ref) => LocalNotifications(),
 );
-
-/// This device's push registration state, plain enough to read at a glance
-/// off the settings screen rather than guessing from server logs, which is
-/// exactly what a silent, un-diagnosable failure used to force.
-enum PushStatus {
-  /// Not signed in, so nothing has been attempted.
-  notSignedIn,
-
-  /// This platform has no push channel implemented (desktop).
-  unsupportedPlatform,
-
-  /// Signed in and supported, but no device token has arrived yet: usually
-  /// waiting on the permission prompt, or the wait timed out.
-  noTokenYet,
-
-  /// The native side reported the device token request itself failed.
-  registrationFailed,
-
-  /// A token was obtained, but telling the server about it failed.
-  serverError,
-
-  /// The server has this device's current token and push public key.
-  registered,
-
-  /// The server has this device's current token and push public key, but
-  /// Android's runtime notification permission is denied - so, unlike
-  /// [registered], nothing this device receives will actually show. Kept
-  /// distinct from [registered] rather than folded into it: the server
-  /// believes this device is reachable ([FirebaseMessaging.getToken]
-  /// succeeds regardless of notification permission), so without this the
-  /// settings screen would say "registered" while every push is silently
-  /// dropped, with no way to tell from the device itself.
-  registeredNotificationsBlocked,
-}
-
-/// A plain-English label for [PushStatus], for the settings screen.
-extension PushStatusLabel on PushStatus {
-  String get label => switch (this) {
-    PushStatus.notSignedIn => 'Not signed in',
-    PushStatus.unsupportedPlatform => 'Not available on this device',
-    PushStatus.noTokenYet => 'Waiting on the notification permission',
-    PushStatus.registrationFailed => 'The device could not register',
-    PushStatus.serverError => 'Could not reach the server',
-    PushStatus.registered => 'Registered for notifications',
-    PushStatus.registeredNotificationsBlocked =>
-      'Registered, but notifications are blocked in system settings',
-  };
-}
 
 /// Registers this device's push token and encryption public key, and reports
 /// foreground/background transitions once registered.
@@ -131,6 +86,11 @@ class PushController extends StateNotifier<PushStatus>
     _lastSignedIn = session.isSignedIn;
     if (_lastSignedIn) unawaited(register());
 
+    _voipRefreshSubscription = _ref
+        .read(apnsTokenChannelProvider)
+        .onVoipToken
+        .listen((_) => _reregisterAfterVoipToken());
+
     // FcmTokenChannel.onTokenRefresh is permanently empty off Android, so this
     // costs nothing on iOS or desktop and needs no platform check of its own.
     _fcmRefreshSubscription = _fcmTokenRefreshStream().listen((token) {
@@ -141,6 +101,7 @@ class PushController extends StateNotifier<PushStatus>
   }
 
   final Ref _ref;
+  StreamSubscription<String>? _voipRefreshSubscription;
   late final StreamSubscription<TokenPair?> _sessionSubscription;
   late final StreamSubscription<String> _fcmRefreshSubscription;
   bool _lastSignedIn = false;
@@ -173,6 +134,18 @@ class PushController extends StateNotifier<PushStatus>
     } catch (_) {
       return const Stream.empty();
     }
+  }
+
+  /// A VoIP token that lands after registration started is not in that PUT, so
+  /// registration runs again once any attempt in flight finishes.
+  void _reregisterAfterVoipToken() {
+    if (!_ref.read(sessionProvider).isSignedIn) return;
+    final inFlight = _registering;
+    if (inFlight == null) {
+      unawaited(register());
+      return;
+    }
+    unawaited(inFlight.whenComplete(() => unawaited(register())));
   }
 
   /// Whether the server currently holds this device's push registration,
@@ -259,7 +232,14 @@ class PushController extends StateNotifier<PushStatus>
       case ApnsRegistrationFailed():
         state = PushStatus.registrationFailed;
       case ApnsTokenReady(:final token):
-        await _registerWithServer(platform: 'ios', token: token);
+        final voipToken = await _ref
+            .read(apnsTokenChannelProvider)
+            .cachedVoipToken();
+        await _registerWithServer(
+          platform: 'ios',
+          token: token,
+          voipToken: voipToken,
+        );
     }
   }
 
@@ -344,6 +324,7 @@ class PushController extends StateNotifier<PushStatus>
   Future<void> _registerWithServer({
     required String platform,
     required String token,
+    String? voipToken,
   }) async {
     try {
       final publicKey = await DevicePushKeys(
@@ -358,6 +339,7 @@ class PushController extends StateNotifier<PushStatus>
           .registerPush(
             platform: platform,
             pushToken: token,
+            voipPushToken: voipToken,
             pushPublicKey: publicKey,
             includeContent: includeContent,
           );
@@ -474,6 +456,7 @@ class PushController extends StateNotifier<PushStatus>
   void dispose() {
     unawaited(_sessionSubscription.cancel());
     unawaited(_fcmRefreshSubscription.cancel());
+    unawaited(_voipRefreshSubscription?.cancel());
     _stopForegroundHeartbeat();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

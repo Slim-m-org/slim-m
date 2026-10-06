@@ -128,9 +128,9 @@ final class OutgoingCallLifecycle {
 /// `packages/platform/lib/src/call_lifecycle_channel.dart`).
 ///
 /// A separate `CXProvider` from `VoipPushRegistrar`'s: that one exists for an
-/// inbound VoIP push and nothing currently constructs a `VoipPushRegistrar`
-/// anywhere in the app, so consolidating onto one shared provider is a
-/// decision for whoever wires that path up, not this one.
+/// inbound VoIP push, so the two never report the same call. Consolidating
+/// onto one shared provider needs a device to confirm the ringtone and audio
+/// session hand-off, so it is left apart.
 ///
 /// `provider(_:didActivate:)`/`didDeactivate:` are deliberately not
 /// implemented: wiring them to the `AVAudioSession` livekit_client and

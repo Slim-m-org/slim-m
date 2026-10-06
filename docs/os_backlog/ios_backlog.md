@@ -41,7 +41,7 @@ the pre-trim `CLAUDE.md`, "A release can succeed and still ship no store build":
 **iOS 15.0 is the client's own minimum deployment target, raised specifically in response to a real Apple compliance deadline.**
 Confirmed by reading `IPHONEOS_DEPLOYMENT_TARGET = 15.0` across every build configuration in `client/packages/app/ios/Runner.xcodeproj/project.pbxproj`. The owner's own briefing for this task states client 0.29.1 raised it in response to Apple's ITMS-90068 warning, which requires uploads to declare 15.0 or later starting spring 2027; this is recorded here as a compliance constraint to keep in mind before ever lowering the deployment target again.
 
-**Superseded by [decision 0057](../decisions/0057-ios-background-modes.md): the modes are now `audio` and `remote-notification`, and `voip` was removed because nothing constructs `VoipPushRegistrar`. The entry below is the earlier reasoning.**
+**Superseded by [decision 0057](../decisions/0057-ios-background-modes.md): the modes are now `audio`, `remote-notification` and `voip`, and `AppDelegate` constructs `VoipPushRegistrar`. The entry below is the earlier reasoning.**
 
 **The `voip` background mode is what grants background execution today, and it is deliberately not `audio`, because `audio` used purely to keep a call alive is a named App Store rejection risk.**
 the pre-trim `CLAUDE.md`, "The killed-app ghost was never going to be fixed by a race the sweep always loses": adding `UIBackgroundModes: audio` was considered and rejected, citing `docs/research/appstore.md` and an adversarial review (finding M5) that names `audio`-as-keep-alive as a 2.5.4 rejection risk reviewers reject as a generic keep-alive.
@@ -54,7 +54,8 @@ The bridge that "does not exist yet" is `client/packages/platform/lib/src/call_l
 `VoiceCallReporter` deliberately keeps its own `CXProvider`, separate from `VoipPushRegistrar`'s, since that one exists for an inbound push and nothing constructs it (see the next entry).
 **Still open, and the reason to keep this entry rather than delete it**: none of it has been confirmed on a real iPhone, so the background-execution grant is reasoned from Apple's own semantics and covered by unit tests only.
 
-**`VoipPushRegistrar` is declared and never constructed - a dormant, dead code path guarded only by a passing test suite that cannot prove it actually runs.**
+**Superseded by [decision 0057](../decisions/0057-ios-background-modes.md): `VoipPushRegistrar` is now constructed at launch; the entry below is the earlier state and the first real push still needs a device.**
+**`VoipPushRegistrar` was declared and never constructed - a dormant, dead code path guarded only by a passing test suite that cannot prove it actually runs.**
 `docs/OPEN-QUESTIONS.md` section 3 ([#230](https://github.com/Slim-m-org/slim-m/issues/230)): the inbound VoIP push path does not run at all today, and this was deliberately left unfixed rather than wired up autonomously, because "iOS terminates an app that receives a VoIP push and does not report a call synchronously," so the failure mode of wiring it up wrong is the app being killed on the owner's own phone with no local way to test first.
 
 **The iOS Notification Service Extension does not exist, confirmed directly against the current Xcode project.**

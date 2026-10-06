@@ -85,9 +85,17 @@ class ApnsTokenChannel {
   final MethodChannel _channel;
   final bool _isIOS;
   Completer<String?>? _pending;
+  final _voipTokens = StreamController<String>.broadcast();
+
+  /// Fires when PushKit issues or rotates this device's VoIP token, which can
+  /// land well after the device token and again later in the app's life.
+  Stream<String> get onVoipToken => _voipTokens.stream;
 
   Future<void> _onCall(MethodCall call) async {
     switch (call.method) {
+      case 'onVoipToken':
+        final token = call.arguments as String?;
+        if (token != null) _voipTokens.add(token);
       case 'onToken':
         _complete(call.arguments as String?);
       case 'onRegistrationError':
@@ -145,6 +153,21 @@ class ApnsTokenChannel {
     } on PlatformException catch (e) {
       _pending = null;
       return ApnsRegistrationFailed(e.message ?? e.code);
+    }
+  }
+
+  /// The PushKit VoIP token native already holds, or null when this is not iOS,
+  /// PushKit has not issued one yet, or the bridge is unavailable. A token that
+  /// lands later arrives on [onVoipToken] instead of being waited for here, so
+  /// a missing one never delays or fails registration.
+  Future<String?> cachedVoipToken() async {
+    if (!_isIOS) return null;
+    try {
+      return await _channel.invokeMethod<String>('getVoipToken');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
     }
   }
 

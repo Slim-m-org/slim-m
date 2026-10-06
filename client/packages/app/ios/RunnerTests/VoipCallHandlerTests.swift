@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import CallKit
+import PushKit
 import XCTest
 
 @testable import Runner
@@ -110,5 +111,26 @@ final class VoipCallHandlerTests: XCTestCase {
     XCTAssertTrue(before)
     XCTAssertEqual(provider.ended.count, 1, "a refused call must be ended, not left hanging")
     XCTAssertEqual(provider.ended.first?.reason, .failed)
+  }
+
+  func testAVoipTypedPushGoesThroughTheReportingPath() {
+    let provider = RecordingProvider()
+    var completed = false
+    var reportedBeforeCompletion = false
+    VoipCallHandler(provider: provider).handlePush(of: .voIP, payload: [:]) {
+      reportedBeforeCompletion = !provider.reported.isEmpty
+      completed = true
+    }
+    XCTAssertTrue(completed)
+    XCTAssertTrue(reportedBeforeCompletion, "the PushKit entry point must report before completing")
+  }
+
+  func testAnUnexpectedPushTypeStillCompletes() {
+    let provider = RecordingProvider()
+    var completed = false
+    VoipCallHandler(provider: provider).handlePush(
+      of: PKPushType(rawValue: "com.example.other"), payload: [:]
+    ) { completed = true }
+    XCTAssertTrue(completed, "PushKit must never be left waiting on a push")
   }
 }

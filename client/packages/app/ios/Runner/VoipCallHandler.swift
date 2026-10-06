@@ -49,9 +49,18 @@ extension CXProvider: CallReporting {}
 /// asserting on happens here against an injected `CallReporting`.
 final class VoipCallHandler {
   private let provider: CallReporting
+  private var answered = Set<UUID>()
+
+  /// Matches the server's ring timeout, past which the ring is over.
+  static let ringTimeout: TimeInterval = 30
 
   init(provider: CallReporting) {
     self.provider = provider
+  }
+
+  /// A call the user picked up must outlive the unanswered-ring timeout below.
+  func callAnswered(_ id: UUID) {
+    answered.insert(id)
   }
 
   /// The caller name shown when the payload does not say who is calling.
@@ -60,6 +69,21 @@ final class VoipCallHandler {
   /// will show until the app is foregrounded and can resolve the channel. A
   /// generic string is the honest thing to display rather than a guess.
   static let unknownCaller = "Incoming call"
+
+  /// The one entry point PushKit's delegate uses, so the type check lives where the
+  /// invariant is tested. A non-VoIP type is never delivered to this registry, but
+  /// completing it keeps PushKit from waiting on a push nobody will report.
+  func handlePush(
+    of type: PKPushType,
+    payload: [AnyHashable: Any],
+    completion: @escaping () -> Void
+  ) {
+    guard type == .voIP else {
+      completion()
+      return
+    }
+    handle(payload: payload, completion: completion)
+  }
 
   /// Handles one VoIP push. `completion` is PushKit's, and is called only
   /// after CallKit has been told about the call.
@@ -73,7 +97,15 @@ final class VoipCallHandler {
     update.supportsHolding = false
 
     // Reported before anything else can throw, return, or dispatch elsewhere.
-    provider.reportNewIncomingCall(with: callId, update: update) { [provider] error in
+    provider.reportNewIncomingCall(with: callId, update: update) { [provider, weak self] error in
+      if error == nil {
+        // The push is content-free, so no later push can say the caller hung up.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.ringTimeout) {
+          if self?.answered.contains(callId) != true {
+            provider.reportCall(with: callId, endedAt: Date(), reason: .unanswered)
+          }
+        }
+      }
       if error != nil {
         // CallKit refused it (a call already up, Do Not Disturb, and so on).
         // Ending it keeps the app's own idea of active calls in step with
@@ -149,16 +181,22 @@ final class VoipPushRegistrar: NSObject, PKPushRegistryDelegate, CXProviderDeleg
     for type: PKPushType,
     completion: @escaping () -> Void
   ) {
-    guard type == .voIP else {
-      completion()
-      return
-    }
-    handler.handle(payload: payload.dictionaryPayload, completion: completion)
+    handler.handlePush(of: type, payload: payload.dictionaryPayload, completion: completion)
   }
 
   // MARK: CXProviderDelegate
 
   func providerDidReset(_: CXProvider) {
     // Intentionally empty: this app holds no CallKit state to tear down on a provider reset.
+  }
+
+  func provider(_: CXProvider, perform action: CXAnswerCallAction) {
+    handler.callAnswered(action.callUUID)
+    // Fulfilled so CallKit does not show a failed call; joining the room is the Dart UI's job.
+    action.fulfill()
+  }
+
+  func provider(_: CXProvider, perform action: CXEndCallAction) {
+    action.fulfill()
   }
 }
