@@ -281,6 +281,7 @@ Future<void> sendOptimistically(
     authorId: authorId,
     content: content,
     replyToId: replyToId,
+    attachmentIds: attachmentIds,
   );
   onQueued?.call();
   try {
@@ -310,15 +311,18 @@ Future<void> sendOptimistically(
 /// Re-sends a message whose first attempt failed, under its original id.
 /// Called both from a message row's own manual retry button and from
 /// `SyncController`'s automatic retry on reconnect.
-Future<void> retryMessage(ProviderReader read, Message message) =>
-    sendOptimistically(
-      read,
-      id: message.id,
-      channelId: message.channelId,
-      authorId: message.authorId ?? '',
-      content: message.content,
-      replyToId: message.replyToId,
-    );
+Future<void> retryMessage(ProviderReader read, Message message) async {
+  final store = await read(storeProvider.future);
+  await sendOptimistically(
+    read,
+    id: message.id,
+    channelId: message.channelId,
+    authorId: message.authorId ?? '',
+    content: message.content,
+    attachmentIds: await store.pendingAttachmentIds(message.id),
+    replyToId: message.replyToId,
+  );
+}
 
 /// Discards a failed send. Nothing reached the server, so nothing to undo.
 Future<void> discardMessage(ProviderReader read, Message message) async =>

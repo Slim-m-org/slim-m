@@ -13,6 +13,7 @@ part 'message_store_batch.dart';
 part 'message_store_channels.dart';
 part 'message_store_cursors.dart';
 part 'message_store_drafts.dart';
+part 'message_store_pending_attachments.dart';
 part 'message_store_rows.dart';
 part 'message_store_recovery.dart';
 part 'message_store_retention.dart';
@@ -350,6 +351,7 @@ class MessageStore {
       await db.delete(db.channels).go();
       // Drafts: the one thing here nobody else has a copy of. See clear's doc.
       await db.delete(db.channelDrafts).go();
+      await db.delete(db.pendingAttachments).go();
     });
   }
 
@@ -372,7 +374,9 @@ class MessageStore {
     required String authorId,
     required String content,
     String? replyToId,
+    List<String> attachmentIds = const [],
   }) async {
+    await _savePendingAttachments(this, id, attachmentIds);
     await db.into(db.messages).insertOnConflictUpdate(
           MessagesCompanion.insert(
             id: id,
@@ -405,8 +409,13 @@ class MessageStore {
   /// call, or a live `message.deleted` event for someone else's) that must
   /// vanish from every view. Same operation either way.
   Future<void> discard(String id) async {
+    await _forgetPendingAttachments(this, id);
     await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
   }
+
+  /// The attachment ids a send was queued with, for a retry to carry again.
+  Future<List<String>> pendingAttachmentIds(String id) =>
+      _pendingAttachmentIds(this, id);
 
   /// Applies an edit to a message already held, and does nothing else.
   ///
