@@ -53,6 +53,13 @@ def _default(env_name, fallback):
     return os.environ.get(env_name, fallback)
 
 
+def _keep_count(raw):
+    count = int(raw)
+    if count < 1:
+        raise argparse.ArgumentTypeError("must be at least 1, or omit it to keep every snapshot")
+    return count
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -71,7 +78,7 @@ def parse_args(argv):
     )
     parser.add_argument(
         "--keep",
-        type=int,
+        type=_keep_count,
         default=None,
         help="prune database snapshots beyond this many, oldest first "
         "(default: keep every snapshot)",
@@ -170,8 +177,10 @@ def _independent_copy(src, dest):
 def prune_snapshots(db_dir, keep):
     if keep is None:
         return []
+    if keep < 1:
+        raise ValueError(f"keep must be at least 1, got {keep}")
     snapshots = sorted(Path(db_dir).glob("slimm-*.db"))
-    stale = snapshots[:-keep] if keep > 0 else snapshots
+    stale = snapshots[:-keep]
     removed = []
     for snap in stale:
         snap.unlink(missing_ok=True)
@@ -192,10 +201,16 @@ def run(args):
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest_db = db_dir / f"slimm-{timestamp}.db"
+    partial_db = db_dir / f".slimm-{timestamp}.db.partial"
 
     t0 = time.time()
-    vacuum_into(source_db, dest_db)
+    try:
+        vacuum_into(source_db, partial_db)
+        os.replace(partial_db, dest_db)
+    finally:
+        partial_db.unlink(missing_ok=True)
     vacuum_seconds = time.time() - t0
+    snapshot_bytes = dest_db.stat().st_size
 
     attachments = sync_attachments(dest_db, args.media_dir, backup_root)
     avatars = sync_avatars(dest_db, args.media_dir, backup_root)
@@ -206,7 +221,7 @@ def run(args):
         "source_database": str(source_db),
         "source_media_dir": str(args.media_dir),
         "vacuum_seconds": round(vacuum_seconds, 3),
-        "snapshot_bytes": dest_db.stat().st_size,
+        "snapshot_bytes": snapshot_bytes,
         "attachments": attachments,
         "avatars": avatars,
         "pruned_snapshots": removed,
