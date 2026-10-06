@@ -17,14 +17,13 @@
 /// started sharing saw the same nothing this whole widget exists to fix.
 library;
 
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'first_frame_gate.dart';
-import 'track_event_filter.dart';
+import 'track_tile_state.dart';
 
 /// Test-only build counter, keyed by identity; see the twin in
 /// `camera_view.dart` for why a rebuild-scoping test needs it.
@@ -57,60 +56,35 @@ class ScreenShareView extends StatefulWidget {
   State<ScreenShareView> createState() => _ScreenShareViewState();
 }
 
-class _ScreenShareViewState extends State<ScreenShareView> {
-  lk.CancelListenFunc? _cancel;
-  lk.VideoTrack? _renderedTrack;
-  OwnedVideoRenderer? _ownedRenderer;
+class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
+  @override
+  lk.Room get tileRoom => widget.room;
+
+  @override
+  String get tileIdentity => widget.identity;
 
   @override
   void initState() {
     super.initState();
-    // Only this participant's own track changes can alter what we render; every other room event is noise.
-    _cancel = widget.room.events.listen((event) {
-      if (mounted && trackEventAffectsIdentity(event, widget.identity)) {
-        _syncRenderer();
-        setState(() {});
-      }
-    });
-    _syncRenderer();
+    startTrackTile();
   }
 
-  /// Swaps in a fresh [OwnedVideoRenderer] whenever the share track this
-  /// tile renders changes, so a re-share after stopping gets its own
-  /// first-frame warm-up rather than inheriting a stale renderer's
-  /// already-latched [FirstFrameTracker].
-  void _syncRenderer() {
-    final track = _shareTrack();
-    if (identical(track, _renderedTrack)) return;
-    _renderedTrack = track;
-    final stale = _ownedRenderer;
-    _ownedRenderer = null;
-    if (stale != null) unawaited(stale.dispose());
-    if (track != null) unawaited(_attachRenderer(track));
-  }
-
-  Future<void> _attachRenderer(lk.VideoTrack track) async {
-    final owned = OwnedVideoRenderer();
-    await owned.initialize();
-    if (!mounted || !identical(track, _renderedTrack)) {
-      unawaited(owned.dispose());
-      return;
-    }
-    setState(() => _ownedRenderer = owned);
+  @override
+  void didUpdateWidget(ScreenShareView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    retargetTrackTile(oldWidget.room, oldWidget.identity);
   }
 
   @override
   void dispose() {
-    _cancel?.call();
-    final owned = _ownedRenderer;
-    _ownedRenderer = null;
-    if (owned != null) unawaited(owned.dispose());
+    stopTrackTile();
     super.dispose();
   }
 
   /// Checked as two concretely-typed branches, not one lookup returning the
   /// abstract `Participant`: see `camera_view.dart`'s own copy of this note.
-  lk.VideoTrack? _shareTrack() {
+  @override
+  lk.VideoTrack? currentTrack() {
     final local = widget.room.localParticipant;
     if (local != null && local.identity == widget.identity) {
       return _shareTrackFrom(local.videoTrackPublications);
@@ -140,11 +114,11 @@ class _ScreenShareViewState extends State<ScreenShareView> {
           (debugScreenShareViewBuildCounts[widget.identity] ?? 0) + 1;
       return true;
     }());
-    final track = _shareTrack();
+    final track = currentTrack();
     // Honest about the beat between "sharing" and the track arriving.
     if (track == null) return _placeholder;
     // And the further beat between the track arriving and a real frame.
-    final owned = _ownedRenderer;
+    final owned = ownedRenderer;
     if (owned == null) return _placeholder;
     return FirstFrameReveal(
       tracker: owned.tracker,

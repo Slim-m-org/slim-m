@@ -18,15 +18,13 @@
 /// `mirrorModeFor` in `camera_switching.dart` for the decision itself.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'camera_switching.dart';
 import 'first_frame_gate.dart';
-import 'track_event_filter.dart';
+import 'track_tile_state.dart';
 
 /// Test-only: how many times each identity's [CameraView] has run `build`,
 /// so a rebuild-scoping test can tell a real rebuild from a repaint that
@@ -64,60 +62,39 @@ class CameraView extends StatefulWidget {
   State<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraViewState extends State<CameraView> {
-  lk.CancelListenFunc? _cancel;
-  lk.VideoTrack? _renderedTrack;
-  OwnedVideoRenderer? _ownedRenderer;
+class _CameraViewState extends State<CameraView> with TrackTileState {
+  @override
+  lk.Room get tileRoom => widget.room;
+
+  @override
+  String get tileIdentity => widget.identity;
 
   @override
   void initState() {
     super.initState();
-    _cancel = widget.room.events.listen((event) {
-      if (mounted && trackEventAffectsIdentity(event, widget.identity)) {
-        _syncRenderer();
-        setState(() {});
-      }
-    });
     // A flip fires no room event at all, so the mirror needs its own listener.
     widget.facing.addListener(_onFacingChanged);
-    _syncRenderer();
+    startTrackTile();
+  }
+
+  @override
+  void didUpdateWidget(CameraView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.facing, widget.facing)) {
+      oldWidget.facing.removeListener(_onFacingChanged);
+      widget.facing.addListener(_onFacingChanged);
+    }
+    retargetTrackTile(oldWidget.room, oldWidget.identity);
   }
 
   void _onFacingChanged() {
     if (mounted) setState(() {});
   }
 
-  /// Swaps in a fresh [OwnedVideoRenderer] whenever the camera track this
-  /// tile renders changes, so a track that appears after one has already
-  /// gone away gets its own first-frame warm-up rather than inheriting a
-  /// stale renderer's already-latched [FirstFrameTracker].
-  void _syncRenderer() {
-    final track = _cameraTrack();
-    if (identical(track, _renderedTrack)) return;
-    _renderedTrack = track;
-    final stale = _ownedRenderer;
-    _ownedRenderer = null;
-    if (stale != null) unawaited(stale.dispose());
-    if (track != null) unawaited(_attachRenderer(track));
-  }
-
-  Future<void> _attachRenderer(lk.VideoTrack track) async {
-    final owned = OwnedVideoRenderer();
-    await owned.initialize();
-    if (!mounted || !identical(track, _renderedTrack)) {
-      unawaited(owned.dispose());
-      return;
-    }
-    setState(() => _ownedRenderer = owned);
-  }
-
   @override
   void dispose() {
-    _cancel?.call();
     widget.facing.removeListener(_onFacingChanged);
-    final owned = _ownedRenderer;
-    _ownedRenderer = null;
-    if (owned != null) unawaited(owned.dispose());
+    stopTrackTile();
     super.dispose();
   }
 
@@ -128,7 +105,8 @@ class _CameraViewState extends State<CameraView> {
   /// abstract `Participant`: losing the concrete type there widens
   /// `videoTrackPublications`' element type to a bare `Track`, which no
   /// longer satisfies this method's `VideoTrack?` return.
-  lk.VideoTrack? _cameraTrack() {
+  @override
+  lk.VideoTrack? currentTrack() {
     final local = widget.room.localParticipant;
     if (local != null && local.identity == widget.identity) {
       return _cameraTrackFrom(local.videoTrackPublications);
@@ -158,10 +136,10 @@ class _CameraViewState extends State<CameraView> {
           (debugCameraViewBuildCounts[widget.identity] ?? 0) + 1;
       return true;
     }());
-    final track = _cameraTrack();
+    final track = currentTrack();
     // Unlike a screen share, no placeholder text for a camera not here yet.
     if (track == null) return const SizedBox.shrink();
-    final owned = _ownedRenderer;
+    final owned = ownedRenderer;
     // The renderer's own initialize() is still pending; same nothing as above.
     if (owned == null) return const SizedBox.shrink();
     return FirstFrameReveal(

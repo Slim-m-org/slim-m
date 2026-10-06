@@ -135,4 +135,38 @@ void main() {
     );
     await teardownFixture(tester, fixture.container, fixture.db);
   });
+
+  testWidgets('the card casts an AppShadows token, not its own shadow', (
+    tester,
+  ) async {
+    late _LiveVoiceController controller;
+    final fixture = await fixtureContainer(
+      extraOverrides: [
+        voiceControllerProvider.overrideWith(
+          (ref) => controller = _LiveVoiceController(ref),
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(1400, 880);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: fixture.container,
+        child: MaterialApp.router(
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          routerConfig: fixtureRouter('/channels/c-general'),
+          builder: appChromeBuilder,
+        ),
+      ),
+    );
+    controller.setState(_call(speaking: false, otherSpeaking: false));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final card = tester.widget<DecoratedBox>(find.byKey(miniPlayerKey));
+    final decoration = card.decoration as BoxDecoration;
+    expect(decoration.boxShadow, AppShadows.canvasTile);
+    await teardownFixture(tester, fixture.container, fixture.db);
+  });
 }

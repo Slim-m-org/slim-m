@@ -32,7 +32,7 @@ class _Biometric implements BiometricAuthChannel {
   BiometricAuthResult result = BiometricAuthResult.failure;
 
   @override
-  Future<bool> isAvailable() async => true;
+  Future<BiometricSupport> checkSupport() async => BiometricSupport.supported;
 
   @override
   Future<BiometricAuthResult> authenticate(String reason) async => result;

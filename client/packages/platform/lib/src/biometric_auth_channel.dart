@@ -36,6 +36,21 @@ enum BiometricAuthResult {
   unavailable,
 }
 
+/// Whether the device can check an owner at all, which is a different question
+/// from whether asking the platform worked.
+enum BiometricSupport {
+  /// Biometrics or a device passcode can confirm the owner.
+  supported,
+
+  /// The platform answered that nothing can check an owner. The only answer
+  /// the app lock may fail open on.
+  unsupported,
+
+  /// The question itself failed (a channel or plugin error), so nothing is
+  /// known. Treated like a failed attempt, never like [unsupported].
+  error,
+}
+
 /// The seam onto `local_auth`'s [LocalAuthentication]. A provider, like
 /// `ApnsTokenChannel` and `FcmTokenChannel`, so a test can substitute a fake
 /// that needs no real biometric hardware or platform channel behind it.
@@ -46,14 +61,17 @@ class BiometricAuthChannel {
   final LocalAuthentication _auth;
 
   /// Whether this device can check an owner at all right now, biometrics or
-  /// device-passcode fallback. False is the true "nothing to lock behind"
-  /// case; callers must fail open on it rather than trap someone who enabled
-  /// the lock before unenrolling every biometric and clearing their passcode.
-  Future<bool> isAvailable() async {
+  /// device-passcode fallback. [BiometricSupport.unsupported] is the true
+  /// "nothing to lock behind" case; callers must fail open on it rather than
+  /// trap someone who enabled the lock before unenrolling every biometric and
+  /// clearing their passcode, and on nothing else.
+  Future<BiometricSupport> checkSupport() async {
     try {
-      return await _auth.isDeviceSupported();
+      return await _auth.isDeviceSupported()
+          ? BiometricSupport.supported
+          : BiometricSupport.unsupported;
     } catch (_) {
-      return false;
+      return BiometricSupport.error;
     }
   }
 

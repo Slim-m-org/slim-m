@@ -218,13 +218,7 @@ class _MiniPlayerCard extends ConsumerWidget {
         color: tokens.surfaceSunken,
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: tokens.borderSubtle),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x40000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadows.canvasTile,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.card - 1),

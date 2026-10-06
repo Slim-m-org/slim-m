@@ -50,8 +50,6 @@ class GridPainter extends CustomPainter {
     final zoom = document.camera.zoom;
     final exponent = (math.log(_targetScreenSpacing / zoom) / math.ln2).round();
     final spacing = math.pow(2, exponent).toDouble();
-    final screenSpacing = spacing * zoom;
-    if (screenSpacing < 8) return;
 
     final paint = Paint()
       ..color = line

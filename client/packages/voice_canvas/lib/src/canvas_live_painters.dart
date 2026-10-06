@@ -10,13 +10,12 @@
 /// `canvas_painters.dart` so nothing importing that file has to change.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';
+import 'canvas_painters.dart' show arrowheadLength, arrowheadWings;
 import 'canvas_stroke_drafts.dart';
 import 'cursor_label_cache.dart';
 
@@ -163,12 +162,20 @@ class DraftShape extends ChangeNotifier {
 /// treatment for a pen stroke, so a shape drag shows the box being sized
 /// rather than only appearing once the pointer lifts. A fixed screen-space
 /// stroke width, unlike the committed shape's world-scaled one: a
-/// mid-drag preview does not need to track zoom exactly, only to exist.
+/// mid-drag preview does not need to track zoom exactly, only to exist. An
+/// arrowhead is the exception, scaled by zoom so it does not change size when
+/// the shape lands.
 class DraftShapePainter extends CustomPainter {
-  DraftShapePainter({required this.draft, required this.color})
-      : super(repaint: draft);
+  DraftShapePainter({
+    required this.draft,
+    required this.document,
+    required this.color,
+  }) : super(repaint: draft);
 
   final DraftShape draft;
+
+  /// Read for the zoom only, so the head matches the committed arrow's.
+  final CanvasDocument document;
   final Color color;
 
   static final Paint _stroke = Paint()
@@ -194,23 +201,12 @@ class DraftShapePainter extends CustomPainter {
     }
   }
 
-  /// The same two wing segments `canvas_painters_shapes.dart`'s own
-  /// `arrowheadWings` draws for a committed arrow - duplicated rather than
-  /// shared, the same call [RemoteDraftPainter] already makes against
-  /// [DraftPainter] for its own path-building, since a `part of` file's
-  /// private helper is not worth a cross-file import for six lines of math.
   void _paintArrowhead(Canvas canvas, Offset from, Offset to, Paint paint) {
-    const headLength = 10.0;
-    const headAngle = 0.5;
-    final direction = to - from;
-    if (direction.distance == 0) return;
-    final angle = direction.direction;
-    final left = to -
-        Offset(math.cos(angle - headAngle), math.sin(angle - headAngle)) *
-            headLength;
-    final right = to -
-        Offset(math.cos(angle + headAngle), math.sin(angle + headAngle)) *
-            headLength;
+    final (left, right) = arrowheadWings(
+      from,
+      to,
+      headLength: arrowheadLength * document.camera.zoom,
+    );
     canvas.drawLine(to, left, paint);
     canvas.drawLine(to, right, paint);
   }

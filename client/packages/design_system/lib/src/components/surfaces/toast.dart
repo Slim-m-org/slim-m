@@ -23,6 +23,10 @@ import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 
+/// The widest a toast grows, so a long message wraps rather than spanning the
+/// window.
+const double kToastMaxWidth = 380;
+
 /// The tone a toast carries. No error member: failures use `AppErrorState`; see
 /// this file's doc comment.
 enum AppToastSeverity { success, info, warning }
@@ -48,7 +52,7 @@ class AppToast extends StatelessWidget {
     final (icon, tone) = _iconAndTone(tokens);
 
     final card = Container(
-      constraints: const BoxConstraints(maxWidth: 380),
+      constraints: const BoxConstraints(maxWidth: kToastMaxWidth),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s12,
         vertical: AppSpacing.s12,
@@ -57,13 +61,7 @@ class AppToast extends StatelessWidget {
         color: tokens.surfaceRaised,
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: tone),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0x1A000000),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadows.canvasTile,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

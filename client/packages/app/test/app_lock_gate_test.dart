@@ -36,7 +36,8 @@ class _FakeBiometricAuthChannel implements BiometricAuthChannel {
   BiometricAuthResult result;
 
   @override
-  Future<bool> isAvailable() async => available;
+  Future<BiometricSupport> checkSupport() async =>
+      available ? BiometricSupport.supported : BiometricSupport.unsupported;
 
   @override
   Future<BiometricAuthResult> authenticate(String reason) async => result;
