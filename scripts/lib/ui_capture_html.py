@@ -11,9 +11,10 @@ import html
 
 CAVEATS = [
     (
-        "No colour-emoji font is loaded in this harness, so every emoji "
-        "renders as a tofu box (an empty rectangle). That is an artifact of "
-        "the test binding, not a defect in the app."
+        "The harness loads Noto Color Emoji when the machine has it. If "
+        "emoji render as tofu boxes (empty rectangles) here, the font was "
+        "not found on the machine that ran the capture, which the run "
+        "warned about on stderr; that is a harness gap, not an app defect."
     ),
     (
         "A thin diagonal stroke can paint as broken or dotted at a low "
