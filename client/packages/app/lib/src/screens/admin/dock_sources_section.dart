@@ -128,9 +128,12 @@ class _AddSourceSheetState extends ConsumerState<_AddSourceSheet> {
       _submitting = true;
       _error = null;
     });
+    final client = ref.read(apiProvider);
+    // Held across the await: the sheet may be gone by then, the Dock behind it is not.
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(apiProvider).addDockSource(_repo.text.trim());
-      ref.invalidate(dockCatalogProvider);
+      await client.addDockSource(_repo.text.trim());
+      container.invalidate(dockCatalogProvider);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e) {
       if (!mounted) return;
