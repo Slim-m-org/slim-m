@@ -341,7 +341,6 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     canUndo: widget.canUndo,
     onUndo: widget.onUndo,
     canManage: widget.canManage,
-    objectCount: widget.document.objectCount,
     onClear: widget.onClear,
     onPasteImage: widget.onPasteImage,
     onRecenter: widget.onRecenter,

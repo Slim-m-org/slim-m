@@ -74,7 +74,6 @@ class CanvasDockData {
     required this.canUndo,
     required this.onUndo,
     required this.canManage,
-    required this.objectCount,
     required this.onClear,
     required this.onPasteImage,
     required this.onRecenter,
@@ -109,7 +108,6 @@ class CanvasDockData {
   final bool canUndo;
   final VoidCallback onUndo;
   final bool canManage;
-  final ValueListenable<int> objectCount;
   final Future<void> Function() onClear;
   final VoidCallback onPasteImage;
   final VoidCallback onRecenter;

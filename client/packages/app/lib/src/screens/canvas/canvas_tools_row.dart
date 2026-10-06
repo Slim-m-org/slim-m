@@ -52,7 +52,6 @@ class CanvasToolsRow extends StatefulWidget {
     required this.canUndo,
     required this.onUndo,
     required this.canManage,
-    required this.objectCount,
     required this.onClear,
     required this.onPasteImage,
     required this.onRecenter,
@@ -114,9 +113,6 @@ class CanvasToolsRow extends StatefulWidget {
 
   /// Whether the signed-in member holds MANAGE_CANVAS, deployment-wide.
   final bool canManage;
-
-  /// The live count [CanvasOverflowMenu]'s confirm names.
-  final ValueListenable<int> objectCount;
 
   final Future<void> Function() onClear;
   final VoidCallback onPasteImage;
@@ -231,7 +227,6 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           canDraw: widget.canDraw,
           onRecenter: widget.onRecenter,
           canManage: widget.canManage,
-          objectCount: widget.objectCount,
           onClear: widget.onClear,
           selection: widget.selection,
           onBringToFront: widget.onBringToFront,

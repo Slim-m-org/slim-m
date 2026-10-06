@@ -41,7 +41,6 @@ class CanvasOverflowMenu extends StatefulWidget {
     required this.canDraw,
     required this.onRecenter,
     required this.canManage,
-    required this.objectCount,
     required this.onClear,
     required this.selection,
     required this.onBringToFront,
@@ -77,7 +76,6 @@ class CanvasOverflowMenu extends StatefulWidget {
   /// anything shared. See `worldLimit`'s own doc for the gap this closes.
   final VoidCallback onRecenter;
   final bool canManage;
-  final ValueListenable<int> objectCount;
   final Future<void> Function() onClear;
 
   /// The bar's own current tool, read only to decide whether the shape-kind
@@ -170,12 +168,9 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   /// immediately falsify a "cannot be undone" claim.
   Future<void> _requestClear() async {
     _controller.hide();
-    final count = widget.objectCount.value;
-    final message = count == 1
-        ? 'This removes the one object on the canvas for everyone in this '
-              'channel.'
-        : 'This removes all $count objects from the canvas for everyone in '
-              'this channel.';
+    const message =
+        'This removes everything on this canvas, including objects outside '
+        'your current view, for everyone in this channel.';
     final confirmed = await confirmDangerousAction(
       context,
       title: 'Clear this canvas?',
