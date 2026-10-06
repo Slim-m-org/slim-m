@@ -101,7 +101,7 @@ void main() {
       api.CallRingEnded(
         channelId: 'c1',
         ringId: ringId,
-        outcome: api.CallRingOutcome.timedOut,
+        outcome: api.CallOutcome.timedOut,
       ),
     );
     await settle();

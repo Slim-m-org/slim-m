@@ -206,7 +206,7 @@ void _ring(_Setup s, {String channelId = 'dm-1', String callerId = 'alice'}) =>
       ),
     );
 
-void _endRing(_Setup s, api.CallRingOutcome outcome) => s.events.add(
+void _endRing(_Setup s, api.CallOutcome outcome) => s.events.add(
   api.CallRingEnded(channelId: 'dm-1', ringId: 'ring-1', outcome: outcome),
 );
 
@@ -227,7 +227,7 @@ void main() {
     final setup = await _wire();
     _ring(setup);
     await pumpEventQueue();
-    _endRing(setup, api.CallRingOutcome.answered);
+    _endRing(setup, api.CallOutcome.answered);
     await pumpEventQueue();
 
     expect(setup.player.looping, isNull);
@@ -239,7 +239,7 @@ void main() {
     final setup = await _wire();
     _ring(setup);
     await pumpEventQueue();
-    _endRing(setup, api.CallRingOutcome.declined);
+    _endRing(setup, api.CallOutcome.declined);
     await pumpEventQueue();
 
     expect(setup.player.looping, isNull);
@@ -250,7 +250,7 @@ void main() {
     final setup = await _wire();
     _ring(setup);
     await pumpEventQueue();
-    _endRing(setup, api.CallRingOutcome.timedOut);
+    _endRing(setup, api.CallOutcome.timedOut);
     await pumpEventQueue();
 
     expect(setup.player.looping, isNull);

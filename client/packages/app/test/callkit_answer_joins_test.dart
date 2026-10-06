@@ -342,7 +342,7 @@ void main() {
         const api.CallRingEnded(
           channelId: 'dm-1',
           ringId: 'ring-1',
-          outcome: api.CallRingOutcome.canceled,
+          outcome: api.CallOutcome.canceled,
         ),
       );
       await rig.settle();
@@ -360,7 +360,7 @@ void main() {
         const api.CallRingEnded(
           channelId: 'dm-1',
           ringId: 'ring-1',
-          outcome: api.CallRingOutcome.timedOut,
+          outcome: api.CallOutcome.timedOut,
         ),
       );
       await rig.settle();

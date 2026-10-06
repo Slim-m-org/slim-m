@@ -79,7 +79,6 @@ export 'src/events.dart'
         CanvasStrokePreview,
         CallRinging,
         CallRingEnded,
-        CallRingOutcome,
         CategoryChanged,
         ChannelCreated,
         ChannelDeleted,
