@@ -1124,6 +1124,10 @@ Every way of failing to resolve a base commit (a short history, a GitHub hiccup,
 That is the old behaviour, and it is the safe direction: an extra image costs minutes of runner time, a missed one costs a deploy nobody notices.
 `scripts/lib/test_server_image_base.py` pins the decision itself, including the cancelled-then-skipped shape this was built for, and that malformed API output degrades rather than fails.
 
+The web image closed the same hole later, because Watchtower follows it and a cancelled build left the live web client stale for a median of about 1.7 hours and once for 23.
+The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles, `web-image.yml` or `.github/actions/**` moved since.
+Both scripts share `scripts/image-needed.sh`, and `scripts/lib/test_main_builds_web_image_decides_from_what_is_deployed.py` pins that only `web-image` reads the new output.
+
 `client` and `packaging` still decide from the push diff alone and keep the same hole.
 That is deliberate for now: a missed TestFlight or COPR build is visible to whoever goes looking for it on their phone or in `dnf upgrade`, where a missed server image is invisible until somebody notices a fix is not live.
 
