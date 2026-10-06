@@ -69,10 +69,16 @@ def git(repo: Path, *args: str, when: int | None = None) -> str:
     return done.stdout.strip()
 
 
-def snapshot(repo: Path, rev: str = "HEAD", spec: str = "slim-m-client.spec") -> str:
+def snapshot(
+    repo: Path,
+    rev: str = "HEAD",
+    spec: str = "slim-m-client.spec",
+    env: dict[str, str] | None = None,
+) -> str:
     done = subprocess.run(
         ["bash", str(SCRIPT), str(repo / spec), rev],
         cwd=repo, capture_output=True, text=True, check=True,
+        env={**os.environ, **(env or {})},
     )
     return done.stdout.strip()
 
@@ -135,6 +141,12 @@ class SnapshotReleaseTest(unittest.TestCase):
 
     def names(self, *whens: int) -> list[str]:
         return [f"0.95.0-{self.repo.commit(w)}{DIST}" for w in whens]
+
+    def test_it_runs_where_git_distrusts_the_checkout_owner(self):
+        # The submit job runs in a container whose checkout belongs to another user; git then refuses to read the repo.
+        self.repo.commit(T0)
+        stamped = snapshot(self.repo.path, env={"GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"})
+        self.assertEqual(stamped, snapshot(self.repo.path))
 
     def test_a_snapshot_sorts_above_the_release_it_follows(self):
         (snap,) = self.names(T0)
