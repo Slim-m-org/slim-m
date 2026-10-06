@@ -38,6 +38,7 @@ import 'composer_bot_mention_help.dart';
 import 'composer_bot_mentions.dart';
 import 'composer_clipboard_image.dart';
 import 'composer_clipboard_paste.dart';
+import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
 import 'composer_list_keys.dart';
 import 'composer_slash.dart';
@@ -124,15 +125,9 @@ class _ComposerState extends ConsumerState<Composer> {
   /// is a build-time mutation, which Riverpod rejects outside tests too.
   StateController<FocusNode?>? _focusRegistry;
 
-  /// Mirrors [_focusRegistry] one level indirected: a channel's drop target
-  /// (`channel_attachment_drop_zone.dart`) reaches this composer's own
-  /// staging through here, keyed by [Composer.channelId] rather than a
-  /// widget reference nothing passes down the tree.
-  StateController<ComposerAttachmentDropTarget?>? _dropRegistry;
-
-  /// What this composer last registered, so a late clear removes only its
-  /// own entry and never a newer composer's for the same channel.
-  ComposerAttachmentDropTarget? _dropTarget;
+  /// Keyed by [Composer.channelId]; `channel_attachment_drop_zone.dart`
+  /// reaches this composer's staging through it.
+  final _drop = ComposerDropRegistration();
 
   /// The trigger the caret is inside, and which of its offers is current.
   ///
@@ -151,8 +146,7 @@ class _ComposerState extends ConsumerState<Composer> {
   final List<String> _visibleMentionHelp = [];
   String? _commandError;
 
-  /// True while a slash command or app launch is awaiting its result; the
-  /// text stays in the field until then, so a second send would run it twice.
+  /// True while a command awaits its result, so a second send cannot rerun it.
   bool _commandRunning = false;
   int _selected = 0;
 
@@ -199,62 +193,36 @@ class _ComposerState extends ConsumerState<Composer> {
       _attachments.removeListener(_handleAttachmentsChange);
       _attachments = ref.read(attachmentStagingProvider(widget.channelId))
         ..addListener(_handleAttachmentsChange);
-      if (mounted) {
-        setState(() {
-          _attachmentError = null;
-          _commandError = null;
-          _mentionHelpSeen.clear();
-          _visibleMentionHelp.clear();
-          _selected = 0;
-        });
-      }
+      setState(() {
+        _attachmentError = null;
+        _commandError = null;
+        _mentionHelpSeen.clear();
+        _visibleMentionHelp.clear();
+        _selected = 0;
+      });
       _rebindDropTarget();
     }
   }
 
-  /// Unregisters whatever [_dropRegistry] currently points at (null on the
-  /// very first call, from [initState]) and registers this composer under
-  /// [Composer.channelId] instead - the same post-frame timing
-  /// [_focusRegistry] uses and for the same reason, since this can run as
-  /// part of the very build that mounts or moves this widget.
-  void _rebindDropTarget() {
-    final oldRegistry = _dropRegistry;
-    final oldTarget = _dropTarget;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (oldRegistry != null &&
-          oldRegistry.mounted &&
-          oldRegistry.state == oldTarget) {
-        oldRegistry.state = null;
-      }
-      if (!mounted) return;
-      final registry = ref.read(
-        composerAttachmentDropProvider(widget.channelId).notifier,
-      );
-      final target = ComposerAttachmentDropTarget(
-        stage: _stageAttachment,
-        setError: _setAttachmentError,
-      );
-      registry.state = target;
-      _dropRegistry = registry;
-      _dropTarget = target;
-    });
-  }
+  void _rebindDropTarget() => _drop.bind(
+    ref: ref,
+    channelId: widget.channelId,
+    target: () => ComposerAttachmentDropTarget(
+      stage: _stageAttachment,
+      setError: _setAttachmentError,
+    ),
+    isMounted: () => mounted,
+  );
 
   @override
   void dispose() {
     // Guards mounted too: the whole container can be gone by this frame.
     final registry = _focusRegistry;
     final focus = _focus;
-    final dropRegistry = _dropRegistry;
-    final dropTarget = _dropTarget;
+    _drop.release();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (registry != null && registry.mounted && registry.state == focus) {
         registry.state = null;
-      }
-      if (dropRegistry != null &&
-          dropRegistry.mounted &&
-          dropRegistry.state == dropTarget) {
-        dropRegistry.state = null;
       }
     });
     widget.controller.removeListener(_handleChange);

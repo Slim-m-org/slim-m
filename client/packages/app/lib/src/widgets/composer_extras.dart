@@ -182,26 +182,7 @@ class _ComposerFieldState extends State<ComposerField> {
               widget.controller.value = applyListAwareEnter(
                 widget.controller.value,
               ),
-        const SingleActivator(LogicalKeyboardKey.keyB, control: true): () =>
-            widget.controller.value = wrapSelectionWithMarker(
-              widget.controller.value,
-              '**',
-            ),
-        const SingleActivator(LogicalKeyboardKey.keyB, meta: true): () =>
-            widget.controller.value = wrapSelectionWithMarker(
-              widget.controller.value,
-              '**',
-            ),
-        const SingleActivator(LogicalKeyboardKey.keyI, control: true): () =>
-            widget.controller.value = wrapSelectionWithMarker(
-              widget.controller.value,
-              '*',
-            ),
-        const SingleActivator(LogicalKeyboardKey.keyI, meta: true): () =>
-            widget.controller.value = wrapSelectionWithMarker(
-              widget.controller.value,
-              '*',
-            ),
+        ...emphasisShortcuts(widget.controller),
       },
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: _minHeight(context)),
