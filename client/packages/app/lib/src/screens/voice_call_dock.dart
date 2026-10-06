@@ -37,6 +37,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/camera_switch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../widgets/floating_dock_card.dart';
@@ -151,25 +152,28 @@ class _VoiceCallDockState extends State<VoiceCallDock>
             trailing: leave,
             hugsWidth: true,
           )
-        : LayoutBuilder(
-            builder: (context, constraints) {
-              final toggle = _CanvasToggleButton(channelId: channelId);
-              final fits = _fitsOneRow(
-                context,
-                constraints.maxWidth,
-                widget.voice.cameraEnabled,
-                widget.controller.supportsAudioOutputSelection,
-              );
-              return FloatingDockCard(
-                trailing: leave,
-                hugsWidth: true,
-                rows: [
-                  ?botRow,
-                  if (!fits) Center(child: toggle),
-                  callRow(toggle: fits ? toggle : null),
-                ],
-              );
-            },
+        : Consumer(
+            builder: (context, ref, _) => LayoutBuilder(
+              builder: (context, constraints) {
+                final toggle = _CanvasToggleButton(channelId: channelId);
+                final fits = _fitsOneRow(
+                  context,
+                  constraints.maxWidth,
+                  widget.voice.cameraEnabled &&
+                      canSwitchCamera(ref, widget.controller),
+                  widget.controller.supportsAudioOutputSelection,
+                );
+                return FloatingDockCard(
+                  trailing: leave,
+                  hugsWidth: true,
+                  rows: [
+                    ?botRow,
+                    if (!fits) Center(child: toggle),
+                    callRow(toggle: fits ? toggle : null),
+                  ],
+                );
+              },
+            ),
           );
     return SlideTransition(
       key: VoiceCallDock.slideKey,
@@ -197,7 +201,7 @@ class _VoiceCallDockState extends State<VoiceCallDock>
 bool _fitsOneRow(
   BuildContext context,
   double width,
-  bool cameraEnabled,
+  bool switchCameraShown,
   bool supportsAudioOutputSelection,
 ) {
   final touch = AppTouchTargets.of(context);
@@ -206,7 +210,7 @@ bool _fitsOneRow(
   final button = chip + 2 * (focusRingGap + focusRingWidth);
   // mic, [speaker], camera, [switch camera], share, leave, and the toggle itself.
   final controlCount =
-      (cameraEnabled ? 5 : 4) + (supportsAudioOutputSelection ? 1 : 0) + 1;
+      (switchCameraShown ? 5 : 4) + (supportsAudioOutputSelection ? 1 : 0) + 1;
   final cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
