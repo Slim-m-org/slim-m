@@ -6,6 +6,10 @@ name: server-binaries
 on:
   workflow_call:
     inputs:
+      ref:
+        description: "The commit to build; empty builds the commit that started the run"
+        type: string
+        default: ""
       server_version:
         description: "The release-please server version; empty on a tag push, where the tag names it"
         type: string
@@ -31,6 +35,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: resolve version
         id: ver
@@ -52,7 +58,7 @@ jobs:
 
       - name: build static binary
         env:
-          SLIMM_BUILD_ID: ${{ github.sha }}
+          SLIMM_BUILD_ID: ${{ inputs.ref || github.sha }}
         run: cargo build --locked --release --target ${{ matrix.target }} --bin slimm-server
 
       - name: stage binary

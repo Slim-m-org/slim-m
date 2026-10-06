@@ -40,6 +40,9 @@ jobs:
       client_released: ${{ steps.rp-client.outputs['client--release_created'] }}
       client_tag: ${{ steps.rp-client.outputs['client--tag_name'] }}
       client_version: ${{ steps.rp-client.outputs['client--version'] }}
+      # The commit each tag sits on; the publish jobs build this, as the verify jobs check it, and a by-hand run on a tag is already on it.
+      server_ref: ${{ steps.rp-server.outputs['crates/slimm-server--sha'] || github.sha }}
+      client_ref: ${{ steps.rp-client.outputs['client--sha'] || github.sha }}
     steps:
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: rp-server
@@ -111,6 +114,8 @@ jobs:
       - name: name the image after this repo's owner, lowercased for GHCR
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-server" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.server_ref }}
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
         with:
@@ -124,7 +129,7 @@ jobs:
           context: .
           file: docker/server.Dockerfile
           platforms: linux/${{ matrix.arch }}
-          build-args: SLIMM_BUILD_ID=${{ github.sha }}
+          build-args: SLIMM_BUILD_ID=${{ needs.release-please.outputs.server_ref }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true # by digest; the merge job tags it
           sbom: true
           provenance: mode=max
@@ -156,6 +161,8 @@ jobs:
       - name: name the image after this repo's owner, lowercased for GHCR
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-server" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.server_ref }}
       - name: resolve version
         id: ver
         run: |
@@ -191,7 +198,7 @@ jobs:
           version="${{ steps.ver.outputs.version }}"
           refs=()
           for f in /tmp/digests/*; do refs+=("${IMAGE}@$(cat "$f")"); done
-          tags=(-t "${IMAGE}:${version}" -t "${IMAGE}:sha-${GITHUB_SHA}")
+          tags=(-t "${IMAGE}:${version}" -t "${IMAGE}:sha-${{ needs.release-please.outputs.server_ref }}")
           if [ "${{ steps.latest.outputs.move }}" = "true" ]; then tags+=(-t "${IMAGE}:latest"); fi
           docker buildx imagetools create "${tags[@]}" "${refs[@]}"
           digest="$(docker buildx imagetools inspect "${IMAGE}:${version}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
@@ -211,6 +218,7 @@ jobs:
     uses: ./.github/workflows/web-image.yml
     permissions: {contents: read, packages: write, id-token: write}
     with:
+      ref: ${{ needs.release-please.outputs.server_ref }}
       version: ${{ needs.release-please.outputs.server_version || github.ref_name }}
 
   # Static musl binaries for direct download, built per arch into artifacts and
@@ -222,6 +230,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/server-binaries.yml
     with:
+      ref: ${{ needs.release-please.outputs.server_ref }}
       server_version: ${{ needs.release-please.outputs.server_version }}
 
   # GPG-signable SHA256SUMS plus the raw binaries on the server GitHub Release.
@@ -291,6 +300,8 @@ jobs:
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
 
       - name: resolve version
         id: ver
@@ -474,6 +485,8 @@ jobs:
         run: dnf -y install git copr-cli rpm-build rpmdevtools >/dev/null
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
       - name: resolve version
@@ -552,6 +565,8 @@ jobs:
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
       - name: resolve version
@@ -711,6 +726,8 @@ jobs:
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
       - name: import signing assets

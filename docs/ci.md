@@ -903,6 +903,8 @@ Before it existed, the tag path published unconditionally with no test workflow 
 The `ref` input carries the sharp edge.
 It defaults to `github.sha`, which is right for the by-hand dispatch on a tag ref, but the release-please path must pass the created tag instead: release-please acts on the repository's current state while `github.sha` is whatever commit started the run, and the two diverge whenever a release merge lands while an earlier run is still going.
 Verifying `github.sha` then waits on a check a path filter correctly skipped, times out, and skips every publish job behind it, which is what happened to server 0.23.0 on 2026-08-01.
+The publish jobs follow the same rule: `release-please` exports `server_ref` and `client_ref` (the commit each tag sits on, `github.sha` on a by-hand run), and every publish checkout, `SLIMM_BUILD_ID` and `sha-` tag uses them, with `web-image` and `server-binaries` taking a `ref` input.
+`scripts/lib/test_release_publishes_the_commit_it_verified.py` fails on a publish checkout without one.
 A check run is attached to the commit, not to the event, so polling the commit's check-runs answers both trigger paths the same way.
 The names in `required_checks` are matched exactly, so a job renamed in `server-ci` or `client-ci` without the matching edit here blocks every release, which is the safe direction to fail.
 The deadline covers queueing, not running: client 0.23.0 timed out at the old thirty-minute ceiling with `client-ios-ci` still queued, and that check passed minutes later.
