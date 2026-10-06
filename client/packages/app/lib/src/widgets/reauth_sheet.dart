@@ -18,10 +18,15 @@ import 'package:slimm_design_system/design_system.dart';
 /// sentence to show if it failed. [code] is null unless the sheet asked for one.
 typedef ReauthSubmit = Future<String?> Function(String password, String? code);
 
+bool _isWrongPassword(String message) =>
+    message.toLowerCase().contains('password is not correct');
+
 /// The sentence for a failed proof. A wrong password is the ordinary case and
-/// gets its own words; a 403 is never a signed-out session here.
+/// gets its own words; any other 403 says what the server said, since a policy
+/// refusal is not a typo. A 403 is never a signed-out session here.
 String reauthFailure(api.ApiException e) => switch (e) {
-  api.ForbiddenException() => 'That password is not correct.',
+  api.ForbiddenException(:final message) when _isWrongPassword(message) =>
+    'That password is not correct.',
   api.RateLimitedException() =>
     'Too many attempts. Wait a few minutes and try again.',
   api.BadRequestException() =>

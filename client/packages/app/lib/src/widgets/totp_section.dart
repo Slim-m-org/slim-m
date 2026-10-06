@@ -20,6 +20,7 @@ import 'settings_notice.dart';
 import 'settings_section_header.dart';
 import 'totp_code_sheet.dart';
 import 'totp_enrol_sheet.dart';
+import 'totp_failures.dart';
 import 'totp_recovery_codes.dart';
 
 final totpStatusProvider = FutureProvider.autoDispose<api.TotpStatus>(
@@ -64,8 +65,7 @@ class _TotpBody extends ConsumerWidget {
 
   final api.TotpStatus status;
 
-  bool get _hidden =>
-      status.policy == api.TotpPolicy.off && !status.enabled && !status.pending;
+  bool get _hidden => status.policy == api.TotpPolicy.off && !status.enabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -211,17 +211,3 @@ class _LowCodesNotice extends StatelessWidget {
               'Replace them below while you still can.',
   );
 }
-
-/// One sentence per failure, shared by every place that submits a code.
-///
-/// A wrong code is the ordinary case and says what to check; a lockout is told
-/// plainly rather than disguised as a wrong code, because a member seeing "that
-/// code is wrong" for a correct one concludes their authenticator is broken.
-String totpCodeFailure(api.ApiException e) => switch (e) {
-  api.BadRequestException() =>
-    'That code was not accepted. Codes change every 30 seconds, so check your '
-        'phone is showing the current one.',
-  api.RateLimitedException() =>
-    'Too many incorrect codes. Wait a few minutes and try again.',
-  _ => e.message,
-};
