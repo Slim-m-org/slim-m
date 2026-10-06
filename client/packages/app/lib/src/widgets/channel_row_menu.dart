@@ -17,24 +17,19 @@
 /// the review budget once it also carried the kebab's own `GlobalKey` wiring.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
-import '../providers/channel_notification_overrides_controller.dart';
-import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
 import '../routing/routes.dart';
 import '../screens/channel_settings_screen.dart';
 import 'channel_move.dart';
-import 'mark_unread_action.dart';
 import 'channel_rail.dart' show selectedChannelId;
+import 'row_menu_notifications.dart';
 
 /// Opening it always, muting it or narrowing it to mentions only (the same
 /// two toggles the header used to duplicate until 2026-08-13, tapping the
@@ -55,9 +50,6 @@ List<Widget> channelRowMenuItems(
   ChannelMoveActions? move,
 }) {
   final container = ProviderScope.containerOf(context, listen: false);
-  final current = container
-      .read(channelNotificationOverridesProvider)
-      .overrideFor(channel.id);
   // Coarse deployment-wide gate like the channel-manage one; the overwrite screen re-checks this channel's own MANAGE_ROLES on open.
   final canManageRoles =
       container
@@ -66,39 +58,6 @@ List<Widget> channelRowMenuItems(
           ?.permissions
           .hasPermission(Perm.manageRoles) ??
       false;
-
-  void toggle(api.NotificationPreference preference) {
-    close();
-    final notifier = container.read(
-      channelNotificationOverridesProvider.notifier,
-    );
-    unawaited(
-      current == preference
-          ? notifier.clear(channel.id)
-          : preference == api.NotificationPreference.nothing
-          ? notifier.mute(channel.id)
-          : notifier.mentionsOnly(channel.id),
-    );
-  }
-
-  final allowedOffHours =
-      container
-          .read(notificationScheduleProvider)
-          .valueOrNull
-          ?.allowedChannelIds
-          .contains(channel.id) ??
-      false;
-
-  void toggleOffHours() {
-    close();
-    final client = container.read(apiProvider);
-    unawaited(
-      (allowedOffHours
-              ? client.removeNotificationScheduleAllowedChannel(channel.id)
-              : client.addNotificationScheduleAllowedChannel(channel.id))
-          .then((_) => container.invalidate(notificationScheduleProvider)),
-    );
-  }
 
   return [
     AppMenuItem(
@@ -109,32 +68,14 @@ List<Widget> channelRowMenuItems(
         context.go(Routes.channel(channel.id));
       },
     ),
-    AppMenuItem(
-      label: 'Mark as unread',
-      leading: AppIcons.unread,
-      onTap: () {
-        close();
-        unawaited(markChannelUnread(container, channel.id));
-      },
-    ),
+    markUnreadMenuItem(context, container, channel.id, close),
     const AppMenuDivider(),
-    AppMenuItem(
-      label: 'Mute channel',
-      leading: AppIcons.notificationsOff,
-      selected: current == api.NotificationPreference.nothing,
-      onTap: () => toggle(api.NotificationPreference.nothing),
-    ),
-    AppMenuItem(
-      label: 'Mentions only',
-      leading: AppIcons.mentions,
-      selected: current == api.NotificationPreference.mentions,
-      onTap: () => toggle(api.NotificationPreference.mentions),
-    ),
-    AppMenuItem(
-      label: 'Notify me off hours',
-      leading: AppIcons.notificationsOn,
-      selected: allowedOffHours,
-      onTap: toggleOffHours,
+    ...notificationMenuItems(
+      context,
+      container,
+      channel.id,
+      close,
+      muteLabel: 'Mute channel',
     ),
     if (canManage && move != null) ...[
       const AppMenuDivider(),
