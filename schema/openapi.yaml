@@ -580,6 +580,8 @@ paths:
       responses:
         "204":
           description: The factor is cleared and the account's sessions are revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -614,6 +616,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResetCodeIssued"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -975,6 +979,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1105,6 +1111,8 @@ paths:
       responses:
         "204":
           description: The device was signed out.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1164,6 +1172,8 @@ paths:
       responses:
         "204":
           description: The user is no longer blocked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -1205,6 +1215,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Report"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1409,6 +1421,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MyReportStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1659,6 +1673,8 @@ paths:
       responses:
         "204":
           description: The channel was deleted (or was already gone).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1971,6 +1987,8 @@ paths:
       responses:
         "204":
           description: The category was deleted (or was already gone).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2216,6 +2234,8 @@ paths:
       responses:
         "204":
           description: The role was deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2274,6 +2294,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GrantedModulePermission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2308,6 +2330,8 @@ paths:
       responses:
         "204":
           description: The role now holds the permission.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2324,6 +2348,8 @@ paths:
       responses:
         "204":
           description: The role no longer holds the permission.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2360,6 +2386,8 @@ paths:
       responses:
         "204":
           description: The role is assigned.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2379,6 +2407,8 @@ paths:
       responses:
         "204":
           description: The role is no longer assigned (or never was).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2571,6 +2601,8 @@ paths:
       responses:
         "204":
           description: No nickname is in force.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2653,6 +2685,8 @@ paths:
       responses:
         "204":
           description: The member is no longer timed out.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2746,6 +2780,8 @@ paths:
       responses:
         "204":
           description: The member is removed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2766,6 +2802,8 @@ paths:
       responses:
         "204":
           description: The member may sign in again.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2796,6 +2834,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2939,6 +2979,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3009,6 +3051,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -3054,6 +3098,8 @@ paths:
       responses:
         "204":
           description: The message was deleted (or was already gone).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3505,6 +3551,8 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/GifResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3885,6 +3933,8 @@ paths:
       responses:
         "204":
           description: The message is not saved (whether or not it was).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -3976,6 +4026,8 @@ paths:
       responses:
         "204":
           description: The message was unpinned (or was already not pinned).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4060,6 +4112,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PinnedMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4084,6 +4138,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PinCount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4393,6 +4449,8 @@ paths:
       responses:
         "204":
           description: The reaction was removed (or was already absent).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4760,6 +4818,8 @@ paths:
       responses:
         "204":
           description: The channel now follows the account default.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -4920,6 +4980,8 @@ paths:
       responses:
         "204":
           description: userId is now on the caller's off-hours people allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -4933,6 +4995,8 @@ paths:
       responses:
         "204":
           description: userId is no longer on the caller's off-hours people allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -4958,6 +5022,8 @@ paths:
       responses:
         "204":
           description: channelId is now on the caller's off-hours channel allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4971,6 +5037,8 @@ paths:
       responses:
         "204":
           description: channelId is no longer on the caller's off-hours channel allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -5029,6 +5097,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/ReadStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -5071,6 +5141,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/ReadStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -5996,6 +6068,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Bot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6056,6 +6130,8 @@ paths:
       responses:
         "204":
           description: Revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6294,6 +6370,8 @@ paths:
       responses:
         "204":
           description: Acknowledged. Repeating it is harmless.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -6423,6 +6501,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WatchSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -6476,6 +6556,8 @@ paths:
       responses:
         "204":
           description: Ended.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6817,6 +6899,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NewWebhook"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6846,6 +6930,8 @@ paths:
       responses:
         "204":
           description: Revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
