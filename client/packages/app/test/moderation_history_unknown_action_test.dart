@@ -129,10 +129,23 @@ void main() {
     expect(state.items, hasLength(2));
   });
 
-  test('a decode failure ends loading instead of spinning forever', () async {
+  test('a row of an unknown kind is dropped and the rest of the page '
+      'survives', () async {
     final state = await _settle([
-      {..._entry('a1', 2), 'kind': 'a_future_kind'},
+      {..._entry('a2', 3), 'kind': 'a_future_kind'},
+      _entry('a1', 2),
+      _entry('a0', 1),
     ]);
     expect(state.loading, isFalse, reason: 'spinner must clear');
+    expect(state.items.map((i) => i.id), ['a1', 'a0']);
+  });
+
+  test('a malformed row ends in the error state, not the spinner', () async {
+    final state = await _settle([
+      {'kind': 'audit_log'},
+    ]);
+    expect(state.loading, isFalse, reason: 'spinner must clear');
+    expect(state.error, isNotNull);
+    expect(state.items, isEmpty);
   });
 }
