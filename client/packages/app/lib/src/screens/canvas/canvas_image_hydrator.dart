@@ -21,6 +21,7 @@ import 'dart:ui' as ui;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../providers/rate_limit_retry.dart';
 import '../../widgets/bounded_image_decode.dart';
 
 /// A crude bound on total decoded pixel bytes, not a byte-accurate cache.
@@ -38,6 +39,15 @@ const int defaultMaxDecodedImageBytes = 64 * 1024 * 1024;
 /// a few hundred world units wide, so two of them blew the whole budget.
 const int maxHydratedImageSide = 2048;
 
+/// How many attachment fetches run at once; the rest wait their turn, so a
+/// canvas of hundreds of images cannot spend the shared asset rate budget in
+/// one burst.
+const int maxConcurrentImageFetches = 6;
+
+/// Tries per image before a transient error is left for the next viewport
+/// settle to retry.
+const int imageFetchAttempts = 3;
+
 /// Hydrates a placed [api.CanvasObject]'s bitmap, bounded and safe to call
 /// repeatedly for the same id.
 ///
@@ -53,23 +63,29 @@ const int maxHydratedImageSide = 2048;
 /// evicts another. [hydrateVisible] brings back an image evicted while it was
 /// off screen once the view reaches it.
 ///
-/// **A failed fetch is not retried automatically.** A 403 or 404 is a
-/// legitimate, stable answer - the object's channel access changed, or the
-/// attachment was swept as an orphan - not a transient error worth hammering
-/// the attachment store over. It is remembered on the stroke itself, so a
-/// restored object, which is a new stroke, gets one fresh try.
+/// **A refusal is not retried.** A 403 or 404 is a legitimate, stable answer -
+/// the object's channel access changed, or the attachment was swept as an
+/// orphan - not worth hammering the attachment store over. It is remembered
+/// on the stroke itself, so a restored object, which is a new stroke, gets one
+/// fresh try. A transient error (429, 5xx, a dropped connection) is retried
+/// with backoff and, once the tries run out, left unmarked so the next
+/// [hydrateVisible] tries again rather than the image showing as broken.
 class CanvasImageHydrator {
   CanvasImageHydrator({
     required this.client,
     required this.document,
     this.maxDecodedBytes = defaultMaxDecodedImageBytes,
+    this.wait = sleepFor,
   });
 
   final api.SlimmApi client;
   final CanvasDocument document;
   final int maxDecodedBytes;
+  final RateLimitWait wait;
 
   final Set<String> _pending = <String>{};
+  final Queue<({String id, String attachmentId})> _waiting = Queue();
+  int _active = 0;
   final Queue<String> _lru = Queue<String>();
   final Map<String, int> _bytesById = <String, int>{};
   int _decodedBytes = 0;
@@ -100,12 +116,56 @@ class CanvasImageHydrator {
   void _request(String id, String attachmentId) {
     if (_pending.contains(id) || !document.imageAwaitsBitmap(id)) return;
     _pending.add(id);
-    unawaited(_fetch(id, attachmentId));
+    _waiting.add((id: id, attachmentId: attachmentId));
+    _startWaiting();
   }
+
+  void _startWaiting() {
+    while (!_disposed &&
+        _active < maxConcurrentImageFetches &&
+        _waiting.isNotEmpty) {
+      final next = _waiting.removeFirst();
+      if (!document.imageAwaitsBitmap(next.id)) {
+        _pending.remove(next.id);
+        continue;
+      }
+      _active++;
+      unawaited(
+        _fetch(next.id, next.attachmentId).whenComplete(() {
+          _active--;
+          _startWaiting();
+        }),
+      );
+    }
+  }
+
+  Future<api.FetchedBytes> _fetchWithRetry(String attachmentId) async {
+    var backoff = rateLimitFallbackWait;
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await client.fetchAttachment(attachmentId);
+      } on api.ApiException catch (error) {
+        if (!_isTransient(error) || attempt >= imageFetchAttempts) rethrow;
+        final named = error is api.RateLimitedException
+            ? error.retryAfter
+            : null;
+        if (named != null && named > rateLimitMaxWait) rethrow;
+        await wait(named ?? backoff);
+        backoff *= 2;
+        if (_disposed) rethrow;
+      }
+    }
+  }
+
+  static bool _isTransient(api.ApiException error) =>
+      error is api.TransportException ||
+      error is api.RateLimitedException ||
+      error is api.UnavailableException ||
+      error is api.ServerException;
 
   Future<void> _fetch(String id, String attachmentId) async {
     try {
-      final fetched = await client.fetchAttachment(attachmentId);
+      final fetched = await _fetchWithRetry(attachmentId);
       final image = await decodeBoundedImage(
         fetched.bytes,
         maxSide: maxHydratedImageSide,
@@ -117,9 +177,11 @@ class CanvasImageHydrator {
       }
       document.setImageBitmap(id, image);
       _remember(id, image);
+    } on api.ApiException catch (error) {
+      _pending.remove(id);
+      if (!_disposed && !_isTransient(error)) document.markImageLoadFailed(id);
     } catch (_) {
       _pending.remove(id);
-      // A 403 or a 404 is a real answer, not a bug, so nothing retries it.
       if (!_disposed) document.markImageLoadFailed(id);
     }
   }
@@ -154,6 +216,9 @@ class CanvasImageHydrator {
 
   /// Marks every in-flight fetch's eventual answer as one to discard rather
   /// than apply to [document], which may itself be disposed by the time a
-  /// pending [_fetch] completes.
-  void dispose() => _disposed = true;
+  /// pending [_fetch] completes, and drops the queue of fetches not started.
+  void dispose() {
+    _disposed = true;
+    _waiting.clear();
+  }
 }
