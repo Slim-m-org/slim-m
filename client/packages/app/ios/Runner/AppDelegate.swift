@@ -19,6 +19,15 @@ import UserNotifications
   /// `packages/platform/lib/src/callkit_incoming_channel.dart`.
   private static let callKitChannelName = "top.npcserver.slimm/callkit_incoming"
 
+  /// Full screen call video asking to rotate; see
+  /// `packages/platform/lib/src/orientation_channel.dart` and decision 0058.
+  private static let orientationChannelName = "top.npcserver.slimm/orientation"
+
+  /// Off until Dart's full screen call video asks, so the shell launches and
+  /// stays portrait whatever the plist's landscape ceiling allows.
+  private static var landscapeAllowed = false
+
+  private var orientationChannel: FlutterMethodChannel?
   private var pushChannel: FlutterMethodChannel?
   private var callKitChannel: FlutterMethodChannel?
   private var pendingCallKitEvents: [[String: String]] = []
@@ -52,6 +61,39 @@ import UserNotifications
     requestPushAuthorization(application)
     startVoipRegistration()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    supportedInterfaceOrientationsFor window: UIWindow?
+  ) -> UIInterfaceOrientationMask {
+    AppDelegate.landscapeAllowed ? .allButUpsideDown : .portrait
+  }
+
+  private func handleOrientationCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard call.method == "allowLandscape" else {
+      result(FlutterMethodNotImplemented)
+      return
+    }
+    let allowed = call.arguments as? Bool ?? false
+    AppDelegate.landscapeAllowed = allowed
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    if #available(iOS 16.0, *) {
+      for scene in scenes {
+        for window in scene.windows {
+          window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+        }
+        if !allowed {
+          scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
+        }
+      }
+    } else {
+      if !allowed {
+        UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+      }
+      UIViewController.attemptRotationToDeviceOrientation()
+    }
+    result(true)
   }
 
   /// Constructed during launch, before the first run loop turn: a VoIP push that wakes a
@@ -105,6 +147,13 @@ import UserNotifications
       self?.handlePushCall(call, result: result)
     }
     pushChannel = channel
+
+    let orientation = FlutterMethodChannel(
+      name: AppDelegate.orientationChannelName, binaryMessenger: messenger)
+    orientation.setMethodCallHandler { [weak self] call, result in
+      self?.handleOrientationCall(call, result: result)
+    }
+    orientationChannel = orientation
 
     let tap = FlutterMethodChannel(name: AppDelegate.tapChannelName, binaryMessenger: messenger)
     tap.setMethodCallHandler { [weak self] call, result in

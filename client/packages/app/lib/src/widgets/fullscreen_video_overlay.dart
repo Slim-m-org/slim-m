@@ -13,12 +13,16 @@
 /// style, `AppMotion`-reduced transitions) rather than a second one.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/phone_landscape.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 
@@ -73,10 +77,47 @@ class FullscreenVideoView extends ConsumerStatefulWidget {
       _FullscreenVideoViewState();
 }
 
-class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView> {
+class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
+    with WidgetsBindingObserver {
   /// Set the instant a pop is scheduled, so a participant leaving *and* their
   /// camera flag flipping in the same frame cannot schedule the pop twice.
   bool _exiting = false;
+
+  /// Whether the name line and close control show over a landscape video; a
+  /// tap on the video toggles them so nothing covers the picture.
+  bool _controlsShown = true;
+
+  late final OrientationChannel _orientation;
+
+  @override
+  void initState() {
+    super.initState();
+    _orientation = ref.read(orientationChannelProvider);
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_allowLandscape());
+  }
+
+  /// The ambient size is kept portrait for the routed app, so it never changes
+  /// on rotation; this route has to hear the window itself.
+  @override
+  void didChangeMetrics() {
+    if (mounted) setState(() {});
+  }
+
+  /// A locked phone may rotate only while this route is up (decision 0058);
+  /// anywhere else nothing answers and nothing changes.
+  Future<void> _allowLandscape() async {
+    final lockedPhone = await _orientation.allowLandscape(true);
+    if (!lockedPhone || !mounted) return;
+    ref.read(portraitLockedPhoneProvider.notifier).state = true;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_orientation.allowLandscape(false));
+    super.dispose();
+  }
 
   /// Whether the feed this route opened for is still actually live. A
   /// participant leaving the call, or turning off the very camera (or share)
@@ -109,7 +150,43 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _exit());
     }
 
-    return CallbackShortcuts(
+    final lockedPhone = ref.watch(portraitLockedPhoneProvider);
+    // The routed app sees a locked phone's window kept portrait; this route alone reads the real one.
+    final real = MediaQueryData.fromView(View.of(context));
+    final landscape = lockedPhone && real.size.width > real.size.height;
+    final video = live
+        ? (widget.kind == FullscreenVideoKind.camera
+              ? controller.cameraViewFor(widget.identity)
+              : controller.screenShareViewFor(widget.identity))
+        : const SizedBox.shrink();
+    final header = _VideoHeader(label: widget.label, onClose: _exit);
+    final Widget stage = landscape
+        ? GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _controlsShown = !_controlsShown),
+            child: Stack(
+              children: [
+                Positioned.fill(child: video),
+                if (_controlsShown)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(bottom: false, child: header),
+                  ),
+              ],
+            ),
+          )
+        : SafeArea(
+            child: Column(
+              children: [
+                header,
+                Expanded(child: video),
+              ],
+            ),
+          );
+
+    final Widget page = CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _exit},
       child: Focus(
         autofocus: true,
@@ -117,28 +194,18 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView> {
           data: buildTheme(Brightness.dark, AppTokens.dark),
           child: Material(
             type: MaterialType.transparency,
-            child: ColoredBox(
-              color: Colors.black,
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    _VideoHeader(label: widget.label, onClose: _exit),
-                    Expanded(
-                      child: live
-                          ? (widget.kind == FullscreenVideoKind.camera
-                                ? controller.cameraViewFor(widget.identity)
-                                : controller.screenShareViewFor(
-                                    widget.identity,
-                                  ))
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            child: ColoredBox(color: Colors.black, child: stage),
           ),
         ),
       ),
+    );
+    if (!lockedPhone) return page;
+    return MediaQuery(
+      data: real.copyWith(
+        textScaler: MediaQuery.textScalerOf(context),
+        disableAnimations: MediaQuery.disableAnimationsOf(context),
+      ),
+      child: page,
     );
   }
 }
