@@ -28,6 +28,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'close_behavior.dart';
 import 'desktop_window_shell.dart';
@@ -35,16 +36,20 @@ import 'first_run_tray_notice_banner.dart';
 import 'title_bar.dart';
 import 'self_update/self_update_failure_banner.dart';
 import 'update_available_banner.dart';
+import 'update_watch.dart';
 import 'window_resize_frame.dart';
 
-class DesktopChrome extends StatelessWidget {
+class DesktopChrome extends ConsumerWidget {
   const DesktopChrome({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (!DesktopWindowShell.active) return child;
+
+    // Owned here, not by the banner: a frameless shell mounts no banner, and the title bar chip still needs the periodic check.
+    ref.watch(updateWatcherProvider);
 
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
     return Material(
