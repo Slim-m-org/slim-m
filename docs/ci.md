@@ -265,7 +265,9 @@ This step reads the iOS orientation arrays, the two Android `bools.xml` override
 ### No emoji in UI source
 
 Emoji are user content (reactions), never interface chrome; chrome uses Lucide icons.
-The gate fails on any emoji codepoint in client source.
+The gate is `scripts/check-no-emoji.sh`, tested by `scripts/lib/test_check_no_emoji.py`.
+It fails on any `Extended_Pictographic` codepoint, the regional-indicator flags, and the variation selector and zero-width joiner, except the copyright and registered signs, which are plain text here.
+A grep error is a failure, never a pass, because a scan that could not run proves nothing.
 It matches text sources only and passes `--binary-files=without-match`, so a compiled artifact that happens to contain those bytes cannot trip it.
 
 ### SPDX headers on Rust source
