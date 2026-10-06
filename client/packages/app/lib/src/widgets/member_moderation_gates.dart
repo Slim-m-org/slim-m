@@ -21,6 +21,10 @@ import '../providers/channel_permissions.dart';
 import '../providers/providers.dart';
 import '../providers/voice_flags.dart';
 
+/// Whether a timeout ending at [until] (Unix milliseconds) still holds.
+bool timeoutActive(int? until) =>
+    until != null && until > DateTime.now().millisecondsSinceEpoch;
+
 /// One viewer's rights over one [profile], and whether they share a call
 /// with them right now.
 class MemberModerationGates {
@@ -129,7 +133,8 @@ MemberModerationGates memberModerationGates(
       inCallTogether &&
       voiceChannelId != null &&
       voiceChannelPermissions.hasPermission(Perm.kickMembers);
-  final canOfferTimeoutChips = canTimeOut && profile.timedOutUntil == null;
+  final canOfferTimeoutChips =
+      canTimeOut && !timeoutActive(profile.timedOutUntil);
 
   return MemberModerationGates(
     isSelf: isSelf,

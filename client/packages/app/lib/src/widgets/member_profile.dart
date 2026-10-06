@@ -217,6 +217,27 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
   /// reset to the profile every time the popover reopens fresh.
   late bool _moderating = widget.initiallyModerating;
 
+  Timer? _expiry;
+  int? _expiryFor;
+
+  @override
+  void dispose() {
+    _expiry?.cancel();
+    super.dispose();
+  }
+
+  // Repaints once at the deadline so the badge and chips follow the clock, not only a refetch.
+  void _watchExpiry(int? until) {
+    if (until == _expiryFor) return;
+    _expiry?.cancel();
+    _expiryFor = until;
+    if (!timeoutActive(until)) return;
+    final wait = until! - DateTime.now().millisecondsSinceEpoch;
+    _expiry = Timer(Duration(milliseconds: wait + 1), () {
+      if (mounted) setState(() {});
+    });
+  }
+
   api.UserProfile get _profile {
     // Live, so a timeout applied here repaints as the badge without reopening.
     final live = ref
@@ -280,6 +301,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
+    _watchExpiry(profile.timedOutUntil);
     final controller = ref.read(voiceControllerProvider.notifier);
     final host = widget.host ?? context;
 
@@ -317,7 +339,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
         createdAt: profile.createdAt,
       ),
 
-      if (profile.timedOutUntil != null)
+      if (timeoutActive(profile.timedOutUntil))
         MemberTimeoutBadge(
           until: profile.timedOutUntil!,
           onLift: canTimeOut ? _liftTimeout : null,
