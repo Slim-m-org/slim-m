@@ -21,7 +21,7 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Serialize;
 
@@ -39,12 +39,52 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/{channel_id}/voice/ring", post(ring))
         .route("/channels/{channel_id}/voice/ring/decline", post(decline))
+        .route("/voice/rings/incoming", get(incoming))
 }
 
 #[derive(Serialize)]
 struct RingResponse {
     ring_id: String,
     timeout_ms: i64,
+}
+
+#[derive(Serialize)]
+struct IncomingRing {
+    channel_id: String,
+    ring_id: String,
+    caller_id: String,
+    remaining_ms: i64,
+}
+
+#[derive(Serialize)]
+struct IncomingRings {
+    rings: Vec<IncomingRing>,
+}
+
+/// The caller's own outstanding rings, for a client that connected after the
+/// `call.ringing` frame was broadcast (a cold launch from a VoIP push).
+///
+/// Keyed on the authenticated account as the callee, so a ring is never
+/// visible to anyone but its recipient. Nothing is claimed or consumed.
+async fn incoming(
+    Authed(ctx): Authed,
+    parts: Parts,
+    State(state): State<AppState>,
+) -> Result<Json<IncomingRings>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
+    let rings = state
+        .voice
+        .rings()
+        .outstanding_for_at(ctx.user_id, std::time::Instant::now())
+        .into_iter()
+        .map(|(channel_id, ring_id, caller_id, left)| IncomingRing {
+            channel_id: channel_id.to_string(),
+            ring_id: ring_id.to_string(),
+            caller_id: caller_id.to_string(),
+            remaining_ms: left.as_millis() as i64,
+        })
+        .collect();
+    Ok(Json(IncomingRings { rings }))
 }
 
 /// Starts ringing the other side of a DM call.

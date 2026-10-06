@@ -89,6 +89,12 @@ final class VoipCallHandler {
     onEvent?(.ended(id))
   }
 
+  /// Dart reports the ring or the in-app call over, so the system call must not linger.
+  func endCall(_ id: UUID) {
+    answered.remove(id)
+    provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
+  }
+
   /// The caller name shown when the payload does not say who is calling.
   ///
   /// The push envelope is content-free by design, so this is what most calls
@@ -193,6 +199,10 @@ final class VoipPushRegistrar: NSObject, PKPushRegistryDelegate, CXProviderDeleg
     registry.delegate = self
     registry.desiredPushTypes = [.voIP]
     provider.setDelegate(self, queue: .main)
+  }
+
+  func endCall(_ id: UUID) {
+    handler.endCall(id)
   }
 
   // MARK: PKPushRegistryDelegate

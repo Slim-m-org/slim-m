@@ -57,4 +57,28 @@ void main() {
   test('off iOS nothing is pending', () async {
     expect(await CallKitIncomingChannel(isIOS: false).takePending(), isEmpty);
   });
+
+  test('endCall names the system call to end', () async {
+    final seen = <MethodCall>[];
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel(_channelName),
+      (call) async {
+        seen.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel(_channelName),
+        null,
+      ),
+    );
+    final channel = CallKitIncomingChannel(isIOS: true);
+    addTearDown(channel.dispose);
+
+    await channel.endCall('uuid-1');
+
+    expect(seen.single.method, 'endCall');
+    expect(seen.single.arguments, {'id': 'uuid-1'});
+  });
 }

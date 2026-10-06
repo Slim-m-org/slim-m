@@ -102,12 +102,23 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     unawaited(
       callKit.takePending().then((pending) => pending.forEach(_onCallKit)),
     );
+    _ref.listen<String?>(voiceControllerProvider.select((s) => s.channelId), (
+      previous,
+      next,
+    ) {
+      if (previous != null && next == null && _answeredRingId != null) {
+        _endCallKit();
+      }
+    });
   }
 
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
   late final StreamSubscription<CallKitIncomingEvent> _callKitSub;
   DateTime? _answeredAt;
+  String? _callKitCallId;
+  String? _answeredRingId;
+  String? _answeredChannelId;
 
   /// How long an answer waits for its `call.ringing` frame: the server's own
   /// ring timeout, past which no frame for that call can still come.
@@ -124,29 +135,93 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     if (!mounted) return;
     switch (event.kind) {
       case CallKitIncomingKind.ringing:
+        _callKitCallId = event.callId;
         if (state.callKit == CallKitPhase.none) {
           state = state.copyWith(callKit: CallKitPhase.ringing);
         }
       case CallKitIncomingKind.answered:
+        _callKitCallId = event.callId;
         final ring = state.incoming;
         _answeredAt = DateTime.now();
         state = state.copyWith(callKit: CallKitPhase.answered);
-        if (ring != null) unawaited(_answerFromCallKit(ring));
+        if (ring != null) {
+          unawaited(_answerFromCallKit(ring));
+        } else {
+          unawaited(_answerFromOutstandingRing(event.callId));
+        }
       case CallKitIncomingKind.ended:
-        final declined = state.callKit == CallKitPhase.ringing;
-        final ring = state.incoming;
-        state = state.copyWith(callKit: CallKitPhase.none);
-        if (declined && ring != null) unawaited(decline(ring));
+        _onCallKitEnded(event.callId);
     }
+  }
+
+  void _onCallKitEnded(String callId) {
+    final declined = state.callKit == CallKitPhase.ringing;
+    final ring = state.incoming;
+    final answeredChannel = _answeredChannelId;
+    if (callId == _callKitCallId) _forgetCallKit();
+    state = state.copyWith(callKit: CallKitPhase.none);
+    if (declined && ring != null) unawaited(decline(ring));
+    if (!declined && answeredChannel != null) _hangUpIfStillOn(answeredChannel);
+  }
+
+  /// A cold launch answers before the websocket connects, so the
+  /// `call.ringing` frame is long gone: ask the server which ring is still
+  /// outstanding. None means it timed out or was cancelled, and the system
+  /// call is ended rather than left up with nothing behind it.
+  Future<void> _answerFromOutstandingRing(String callId) async {
+    final List<api.OutstandingDmCallRing> rings;
+    try {
+      rings = await _ref.read(apiProvider).listIncomingDmCallRings();
+    } on Exception {
+      // Unknown, not empty: the websocket frame can still answer it.
+      return;
+    }
+    final stillWaiting =
+        mounted &&
+        _callKitCallId == callId &&
+        state.callKit == CallKitPhase.answered;
+    if (!stillWaiting) return;
+    if (rings.isEmpty) {
+      state = state.copyWith(callKit: CallKitPhase.none);
+      _endCallKit();
+      return;
+    }
+    final outstanding = rings.first;
+    final ring = IncomingDmCallRing(
+      channelId: outstanding.channelId,
+      ringId: outstanding.ringId,
+      callerId: outstanding.callerId,
+    );
+    state = state.copyWith(incoming: ring);
+    await _answerFromCallKit(ring);
   }
 
   /// The answer happened on the system call screen, so the ring is consumed
   /// here and the call joined without asking again.
   Future<void> _answerFromCallKit(IncomingDmCallRing ring) async {
+    _answeredRingId = ring.ringId;
+    _answeredChannelId = ring.channelId;
     state = state.copyWith(callKit: CallKitPhase.none);
     await accept(ring);
     if (!mounted) return;
     await _ref.read(voiceControllerProvider.notifier).join(ring.channelId);
+    if (!mounted) return;
+    final joined = _ref.read(voiceControllerProvider).channelId;
+    if (joined != ring.channelId) _endCallKit();
+  }
+
+  void _forgetCallKit() {
+    _callKitCallId = null;
+    _answeredRingId = null;
+    _answeredChannelId = null;
+  }
+
+  void _endCallKit() {
+    final id = _callKitCallId;
+    _forgetCallKit();
+    if (id != null) {
+      unawaited(_ref.read(callKitIncomingChannelProvider).endCall(id));
+    }
   }
 
   /// A DM's two participants are the whole audience for its own
@@ -158,7 +233,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
         // Own ring already known from starting it; see this method's own doc.
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
-        if (callerId == selfId) return;
+        if (callerId == selfId || ringId == _answeredRingId) return;
         final ring = IncomingDmCallRing(
           channelId: channelId,
           ringId: ringId,
@@ -192,6 +267,10 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   void _onRingEnded(String ringId, api.CallRingOutcome outcome) {
     if (state.incoming?.ringId == ringId) {
       state = state.copyWith(clearIncoming: true, callKit: CallKitPhase.none);
+      _endCallKit();
+    } else if (ringId == _answeredRingId &&
+        outcome != api.CallRingOutcome.answered) {
+      _endCallKit();
     }
     final outgoing = state.outgoing;
     if (outgoing != null && outgoing.ringId == ringId) {

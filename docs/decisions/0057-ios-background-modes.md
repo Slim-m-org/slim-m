@@ -50,3 +50,12 @@ The push is sealed, so Swift knows neither the channel nor the ring id.
 It reports `ringing`, `answered` and `ended` for the CallKit call to Dart on the `callkit_incoming` channel, held until Dart takes them (a cold launch can answer before Dart exists).
 `DmCallRingController` joins the two sources: CallKit ringing hides the in-app ring, and an answer joins the DM named by the websocket `call.ringing` frame, whichever arrives first.
 Accepting from either surface first fetches the DM over REST if the local store lacks it, since a route to an unloaded channel renders "not found or no access".
+
+## Cold launch answers (amended 2026-10-06)
+
+A cold launch answers before the websocket connects, so the `call.ringing` frame was already broadcast and is never replayed.
+`GET /voice/rings/incoming` lists the rings still waiting on the caller (newest first, only their own, nothing claimed), and `DmCallRingController` asks it when an answer arrives with no ring known.
+It then accepts and joins like an in-app accept.
+An empty list means the ring timed out or was cancelled, and the system call is ended through the `endCall` method on the `callkit_incoming` channel.
+The same `endCall` runs when a ring ends unanswered, a join fails, or the in-app call ends, since Swift only ends a call itself while it is unanswered.
+Not verified without a device: the Swift `endCall` path and the audio session when the system call ends beside the in-app call's own CallKit call.

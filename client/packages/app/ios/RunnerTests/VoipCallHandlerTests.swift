@@ -175,4 +175,20 @@ final class VoipCallHandlerTests: XCTestCase {
     XCTAssertEqual(CallKitCallEvent.ringing(id).wire["event"], "ringing")
     XCTAssertEqual(CallKitCallEvent.ended(id).wire["event"], "ended")
   }
+
+  func testEndingAnAnsweredCallReportsItOverWithoutAnEvent() {
+    let provider = RecordingProvider()
+    let handler = VoipCallHandler(provider: provider)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+    let id = UUID()
+    handler.callAnswered(id)
+    seen.removeAll()
+
+    handler.endCall(id)
+
+    XCTAssertEqual(provider.ended.first?.uuid, id)
+    XCTAssertEqual(provider.ended.first?.reason, .remoteEnded)
+    XCTAssertTrue(seen.isEmpty, "Dart asked for this end, so it needs no echo")
+  }
 }

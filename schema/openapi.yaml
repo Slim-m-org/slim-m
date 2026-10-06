@@ -5856,6 +5856,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /voice/rings/incoming:
+    get:
+      operationId: listIncomingDmCallRings
+      tags: [voice]
+      summary: List the DM call rings still waiting on the caller.
+      description: >
+        For a client that connected after a `call.ringing` event was published,
+        such as an app launched from a closed state by a VoIP push. Only rings
+        naming the authenticated account as the callee are returned, newest
+        first; a ring past its timeout is never listed. Reading claims nothing:
+        answering is still the callee's first voice heartbeat, and declining
+        still goes through `declineDmCallRing`.
+      responses:
+        "200":
+          description: The outstanding rings, possibly none.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncomingDmCallRings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /channels/{channelId}/voice/ring/decline:
     post:
       operationId: declineDmCallRing
@@ -11706,6 +11729,33 @@ components:
             How long the server waits for an answer before giving up on this
             ring on its own; a client renders its own countdown from this
             value rather than a hard-coded duration.
+
+    IncomingDmCallRings:
+      type: object
+      required: [rings]
+      properties:
+        rings:
+          type: array
+          items:
+            $ref: "#/components/schemas/IncomingDmCallRing"
+    IncomingDmCallRing:
+      type: object
+      required: [channel_id, ring_id, caller_id, remaining_ms]
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        ring_id:
+          type: string
+          format: uuid
+        caller_id:
+          type: string
+          format: uuid
+        remaining_ms:
+          type: integer
+          format: int64
+          description: >-
+            How long until the server gives up on this ring.
 
     LiveKitWebhookEvent:
       type: object

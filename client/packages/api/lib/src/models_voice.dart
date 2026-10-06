@@ -111,3 +111,27 @@ class RingStarted {
         timeoutMs: json['timeout_ms'] as int,
       );
 }
+
+/// A DM call ring still waiting on this account, from `GET
+/// /voice/rings/incoming`.
+class OutstandingDmCallRing {
+  const OutstandingDmCallRing({
+    required this.channelId,
+    required this.ringId,
+    required this.callerId,
+    required this.remainingMs,
+  });
+
+  final String channelId;
+  final String ringId;
+  final String callerId;
+  final int remainingMs;
+
+  factory OutstandingDmCallRing.fromJson(Map<String, dynamic> json) =>
+      OutstandingDmCallRing(
+        channelId: json['channel_id'] as String,
+        ringId: json['ring_id'] as String,
+        callerId: json['caller_id'] as String,
+        remainingMs: json['remaining_ms'] as int,
+      );
+}
