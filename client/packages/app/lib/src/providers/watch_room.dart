@@ -34,7 +34,6 @@ class WatchRoom {
     required this.ttl,
     required this.clockOffset,
     this.duration,
-    this.controllerUserId,
   });
 
   final String botUserId;
@@ -49,7 +48,6 @@ class WatchRoom {
   /// The server clock at the sample; what a newer sample is judged against.
   final int sampledAtMs;
   final int epoch;
-  final String? controllerUserId;
 
   /// How long after a sample the server still calls the session live.
   final Duration ttl;
@@ -72,7 +70,6 @@ class WatchRoom {
     duration: s.durationMs == null
         ? null
         : Duration(milliseconds: s.durationMs!),
-    controllerUserId: s.controllerUserId,
   );
 
   /// Whether [tick] continues this same session, so it can update it in place.
@@ -92,7 +89,6 @@ class WatchRoom {
     ttl: ttl,
     clockOffset: clockOffset,
     duration: duration,
-    controllerUserId: controllerUserId,
   );
 
   /// This device's time at the sample.
