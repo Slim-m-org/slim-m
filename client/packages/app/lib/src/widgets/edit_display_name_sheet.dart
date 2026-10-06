@@ -58,9 +58,9 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
 
   bool get _dirty => _name.text.trim() != widget.current;
 
-  bool get _nameValid =>
-      _name.text.trim().isNotEmpty &&
-      _name.text.trim().length <= _displayNameMaxChars;
+  int get _length => _name.text.trim().runes.length;
+
+  bool get _nameValid => _length > 0 && _length <= _displayNameMaxChars;
 
   bool get _canSave => !_saving && _dirty && _nameValid;
 
@@ -87,7 +87,7 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _name.text.trim().length;
+    final length = _length;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
