@@ -283,12 +283,19 @@ class CanvasSync {
   /// dropped: nothing is lost, since whatever the second call would have
   /// found either lands via the first call's own page or arrives as its own
   /// later live frame.
+  ///
+  /// The next page is asked for after the last op of this one: `latest_seq`
+  /// is the channel head on every page, so it is only the cursor once the
+  /// last page has been applied. [_asOfSeq] moves then and not before, so a
+  /// failure part way leaves it where the document is still known to be
+  /// reflected up to, and the retry replays from there.
   Future<void> catchUp() async {
     if (_disposed || _catchingUp) return;
     _catchingUp = true;
     try {
+      var cursor = _asOfSeq ?? 0;
       for (var page = 0; page < maxCatchUpPages; page++) {
-        final result = await _fetchPage(_asOfSeq ?? 0);
+        final result = await _fetchPage(cursor);
         if (_disposed) return;
         if (result == null) return;
         if (result.reset) {
@@ -302,13 +309,16 @@ class CanvasSync {
           }
         }
         if (!result.hasMore) {
-          final cursor = _asOfSeq;
-          _asOfSeq = cursor == null || result.latestSeq > cursor
+          final committed = _asOfSeq;
+          _asOfSeq = committed == null || result.latestSeq > committed
               ? result.latestSeq
-              : cursor;
+              : committed;
           document.refresh();
           return;
         }
+        // A page that claims more and carries nothing cannot be paged past.
+        if (result.ops.isEmpty) break;
+        cursor = result.ops.last.seq;
       }
       await _hardReset();
     } finally {

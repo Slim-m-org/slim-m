@@ -168,6 +168,24 @@ class AttachmentStagingController extends ChangeNotifier {
     unawaited(_runUpload(localId, current.bytes, current.filename));
   }
 
+  /// Hands the uploaded ids to [send], taking them out of the staging in the
+  /// same synchronous step so a second send finds nothing left to post. They
+  /// go back if [send] throws before the message was queued.
+  Future<void> sendReady(Future<void> Function(List<String> ids) send) async {
+    final taken = _items.whereType<UploadedAttachment>().toList();
+    if (taken.isNotEmpty) {
+      _items.removeWhere((a) => a is UploadedAttachment);
+      notifyListeners();
+    }
+    try {
+      await send([for (final a in taken) a.attachment.id]);
+    } on Object {
+      _items.insertAll(0, taken);
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   void remove(String localId) {
     _items.removeWhere((a) => a.localId == localId);
     notifyListeners();

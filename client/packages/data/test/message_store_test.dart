@@ -103,6 +103,15 @@ void main() {
     expect(await _cursorOf(store, 'chan-1'), 3);
   });
 
+  test('cursorFor reads a held channel, and is null for an unknown one',
+      () async {
+    expect(await store.cursorFor('chan-1'), 0);
+    await store.applyMessage(_message(id: 'm1', seq: 4));
+    expect(await store.cursorFor('chan-1'), 4);
+    expect(await store.cursorFor('chan-2'), 0);
+    expect(await store.cursorFor('nope'), isNull);
+  });
+
   test('cursors are per channel', () async {
     await store.applyMessage(_message(id: 'a', channelId: 'chan-1', seq: 7));
     await store.applyMessage(_message(id: 'b', channelId: 'chan-2', seq: 2));

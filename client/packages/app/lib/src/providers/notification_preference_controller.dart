@@ -13,13 +13,17 @@ import 'package:slimm_api/api.dart' as api;
 
 import 'providers.dart';
 
-/// The caller's current preference, fetched fresh whenever watched.
-/// `autoDispose` like [meProvider]: this is settings-screen state, nothing
-/// else in the app needs it kept warm. A [api.NotFoundException] here means
-/// the server predates the route, which the settings row reads as "not
-/// offered by this server" rather than retrying a request that would only
-/// 404 again; see `personal_status_sections.dart`'s `_NotificationPreferenceRow`.
+/// The caller's current preference, fetched once and kept for the session.
+///
+/// Not `autoDispose`: the chime and the desktop banner read it for every
+/// message (`message_alert_policy.dart`), and a refetch per message is not on.
+/// It stays current through [ref.invalidate] from the settings row on a local
+/// change and from the sync controller each time the socket comes back. A
+/// [api.NotFoundException] here means the server predates the route, which the
+/// settings row reads as "not offered by this server" rather than retrying a
+/// request that would only 404 again; see `personal_status_sections.dart`'s
+/// `_NotificationPreferenceRow`.
 final notificationPreferenceProvider =
-    FutureProvider.autoDispose<api.NotificationPreference>(
+    FutureProvider<api.NotificationPreference>(
       (ref) => ref.watch(apiProvider).notificationPreference(),
     );

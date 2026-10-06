@@ -234,19 +234,25 @@ void main() {
   );
 
   test(
-    'more pages than the catch-up ceiling is a reset, not an endless page',
+    'more pages than the catch-up ceiling is a reset, after paging forward',
     () {
       fakeAsync((async) {
         final document = CanvasDocument();
-        var opsGets = 0;
+        final asked = <int>[];
         var coldFetches = 0;
         final sync = CanvasSync(
           channelId: 'c1',
           client: _fakeApi((afterSeq) {
-            opsGets++;
+            asked.add(afterSeq);
             return _json({
-              'ops': <Object>[],
-              'latest_seq': afterSeq + 1,
+              'ops': [
+                {
+                  ..._rawOp(afterSeq + 1, 'reorder'),
+                  'object_id': 'o',
+                  'z_index': 1,
+                },
+              ],
+              'latest_seq': 1000,
               'has_more': true,
               'reset': false,
             });
@@ -262,7 +268,7 @@ void main() {
         sync.catchUp();
         async.flushMicrotasks();
 
-        expect(opsGets, maxCatchUpPages);
+        expect(asked, [for (var i = 0; i < maxCatchUpPages; i++) i]);
         expect(coldFetches, 1);
       });
     },

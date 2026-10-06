@@ -76,7 +76,7 @@ class ChannelNotificationOverridesController
     } else {
       byChannel[channelId] = preference;
     }
-    _generation++;
+    _edits[channelId] = preference;
     state = ChannelNotificationOverridesState(
       byChannel: byChannel,
       settled: state.settled,
@@ -89,13 +89,19 @@ class ChannelNotificationOverridesController
   /// reason.
   String? _account;
 
-  /// Bumped by every load or change, so an answer that arrives after a newer
-  /// state was set is dropped rather than overwriting it.
+  /// Bumped by every load and every session change, so an answer that is no
+  /// longer the latest is dropped. A change does not bump it: dropping the
+  /// whole answer for one edit left every other override unloaded.
   int _generation = 0;
+
+  /// What was changed since the load in flight began, laid over its answer so
+  /// the edit is not undone by a response that was sent before it.
+  final Map<String, api.NotificationPreference?> _edits = {};
 
   void _onSessionChanged(api.TokenPair? tokens) {
     if (tokens == null) {
       _generation++;
+      _edits.clear();
       _account = null;
       state = const ChannelNotificationOverridesState();
       return;
@@ -103,6 +109,7 @@ class ChannelNotificationOverridesController
     if (tokens.userId == _account) return;
     _account = tokens.userId;
     _generation++;
+    _edits.clear();
     state = const ChannelNotificationOverridesState();
     unawaited(refresh());
   }
@@ -113,13 +120,22 @@ class ChannelNotificationOverridesController
   /// reaches no caller at all.
   Future<void> refresh() async {
     final generation = ++_generation;
+    _edits.clear();
     try {
       final overrides = await _ref
           .read(apiProvider)
           .listChannelNotificationOverrides();
       if (!mounted || generation != _generation) return;
+      final byChannel = {for (final o in overrides) o.channelId: o.preference};
+      for (final MapEntry(:key, :value) in _edits.entries) {
+        if (value == null) {
+          byChannel.remove(key);
+        } else {
+          byChannel[key] = value;
+        }
+      }
       state = ChannelNotificationOverridesState(
-        byChannel: {for (final o in overrides) o.channelId: o.preference},
+        byChannel: byChannel,
         settled: true,
       );
     } catch (error) {
@@ -147,8 +163,7 @@ class ChannelNotificationOverridesController
   ) async {
     final before = state.byChannel;
     final after = {...before, channelId: preference};
-    // Bumped, or an in-flight refresh answers after this and reinstates it.
-    _generation++;
+    _edits[channelId] = preference;
     state = ChannelNotificationOverridesState(
       byChannel: after,
       settled: state.settled,
@@ -158,6 +173,7 @@ class ChannelNotificationOverridesController
           .read(apiProvider)
           .setChannelNotificationOverride(channelId, preference);
     } catch (_) {
+      _edits.remove(channelId);
       if (mounted) {
         state = ChannelNotificationOverridesState(
           byChannel: before,
@@ -172,7 +188,7 @@ class ChannelNotificationOverridesController
   Future<void> clear(String channelId) async {
     final before = state.byChannel;
     final after = {...before}..remove(channelId);
-    _generation++;
+    _edits[channelId] = null;
     state = ChannelNotificationOverridesState(
       byChannel: after,
       settled: state.settled,
@@ -180,6 +196,7 @@ class ChannelNotificationOverridesController
     try {
       await _ref.read(apiProvider).clearChannelNotificationOverride(channelId);
     } catch (_) {
+      _edits.remove(channelId);
       if (mounted) {
         state = ChannelNotificationOverridesState(
           byChannel: before,

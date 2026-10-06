@@ -66,9 +66,15 @@ class BlocksController extends StateNotifier<BlocksState> {
   /// rotation is told apart from a different account signing in.
   String? _account;
 
-  /// Bumped by every load, so a response that arrives after a newer state was
-  /// set is dropped rather than overwriting it.
+  /// Bumped by every load and every session change, so an answer that is no
+  /// longer the latest is dropped. A block or unblock does not bump it:
+  /// dropping the whole answer for one edit left the rest of the list unloaded.
   int _generation = 0;
+
+  /// What was blocked (true) or unblocked (false) since the load in flight
+  /// began, laid over its answer so a `GET /blocks` sent before the change and
+  /// answering after it cannot undo it.
+  final Map<String, bool> _edits = {};
 
   /// Sign-out empties the set: the local database is one file for the whole
   /// app, so a block list outliving a sign-out would hide messages from
@@ -83,6 +89,7 @@ class BlocksController extends StateNotifier<BlocksState> {
   void _onSessionChanged(api.TokenPair? tokens) {
     if (tokens == null) {
       _generation++;
+      _edits.clear();
       _account = null;
       state = const BlocksState();
       return;
@@ -90,6 +97,7 @@ class BlocksController extends StateNotifier<BlocksState> {
     if (tokens.userId == _account) return;
     _account = tokens.userId;
     _generation++;
+    _edits.clear();
     state = const BlocksState();
     unawaited(refresh());
   }
@@ -103,10 +111,14 @@ class BlocksController extends StateNotifier<BlocksState> {
   /// and it must not take the app down on the way.
   Future<void> refresh() async {
     final generation = ++_generation;
+    _edits.clear();
     try {
-      final ids = await _ref.read(apiProvider).listBlocks();
+      final ids = (await _ref.read(apiProvider).listBlocks()).toSet();
       if (!mounted || generation != _generation) return;
-      state = BlocksState(ids: ids.toSet(), settled: true);
+      for (final MapEntry(:key, :value) in _edits.entries) {
+        value ? ids.add(key) : ids.remove(key);
+      }
+      state = BlocksState(ids: ids, settled: true);
     } catch (error) {
       if (!mounted || generation != _generation) return;
       final message = error is api.ApiException ? error.message : '$error';
@@ -132,8 +144,7 @@ class BlocksController extends StateNotifier<BlocksState> {
     } else {
       after.remove(userId);
     }
-    // Bumped, or an in-flight refresh answers after this and reinstates it.
-    _generation++;
+    _edits[userId] = blocked;
     state = BlocksState(ids: after, settled: state.settled);
     final client = _ref.read(apiProvider);
     try {
@@ -143,10 +154,12 @@ class BlocksController extends StateNotifier<BlocksState> {
         await client.unblockUser(userId);
       }
     } on api.ApiException {
+      _edits.remove(userId);
       if (mounted) state = BlocksState(ids: before, settled: state.settled);
       rethrow;
     } catch (_) {
       // Not only ApiException: an unreverted change asserts a block never taken.
+      _edits.remove(userId);
       if (mounted) state = BlocksState(ids: before, settled: state.settled);
       rethrow;
     }

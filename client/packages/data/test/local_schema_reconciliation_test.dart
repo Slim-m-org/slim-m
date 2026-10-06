@@ -43,6 +43,12 @@
 /// cannot do. What it needs instead is the opposite guarantee: `MessageStore
 /// .clear()` deletes it on sign-out, because the words are real and belong to
 /// the account that typed them. See `channel_drafts_store_test.dart`.
+///
+/// `pending_attachments` is local-only in the same way: the ids an unsent
+/// message was queued with, which no server copy exists for until the send
+/// lands. It ends with the send (swept at open, wiped by `MessageStore.clear()`
+/// on sign-out) and is never reconciled. See `pending_attachments_store_test
+/// .dart`.
 library;
 
 import 'package:drift/native.dart';
@@ -56,12 +62,18 @@ void main() {
     final names = db.allTables.map((t) => t.actualTableName).toSet();
     expect(
       names,
-      {'channels', 'messages', 'channel_categories', 'channel_drafts'},
+      {
+        'channels',
+        'messages',
+        'channel_categories',
+        'channel_drafts',
+        'pending_attachments',
+      },
       reason: 'a new local table means either something server-owned just '
           'started being cached - read the reconciliation debt in CLAUDE.md '
           'and build reconciliation for it in the same change - or it is '
           'local-only data like channel_drafts, which needs a sign-out wipe '
-          'instead. Say which in this file, the way the four above do.',
+          'instead. Say which in this file, the way the five above do.',
     );
   });
 }

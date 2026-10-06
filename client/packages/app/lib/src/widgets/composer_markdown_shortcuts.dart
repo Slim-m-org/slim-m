@@ -24,7 +24,7 @@ TextEditingValue? continueList(TextEditingValue value) {
   final caret = value.selection.baseOffset;
   if (caret < 0) return null;
   final text = value.text;
-  final lineStart = text.lastIndexOf('\n', caret - 1) + 1;
+  final lineStart = lineStartAt(text, caret);
   final line = text.substring(lineStart, caret);
 
   final item = ListLine.parse(line);

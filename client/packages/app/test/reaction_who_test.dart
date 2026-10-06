@@ -54,6 +54,9 @@ class _Server {
   Map<String, Map<String, Object?>> pages;
   List<Map<String, Object?>> profiles;
   int status = 200;
+
+  /// Answers 500 for the page after this cursor and for no other.
+  String? failAfter;
   Completer<void>? hold;
   final requests = <Uri>[];
 
@@ -61,6 +64,10 @@ class _Server {
     requests.add(request.url);
     if (request.url.path == '/users') return _json(profiles);
     await hold?.future;
+    if (failAfter != null &&
+        request.url.queryParameters['after'] == failAfter) {
+      return _json({'error': 'boom'}, 500);
+    }
     if (status != 200) return _json({'error': 'boom'}, status);
     final after = request.url.queryParameters['after'] ?? '';
     return _json(pages[after] ?? {'users': <Object>[], 'next_cursor': null});
@@ -288,6 +295,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ada'), findsOneWidget);
     expect(find.text('Could not load who reacted.'), findsNothing);
+  });
+
+  testWidgets('a failing next page is asked for once, then waits for Retry', (
+    tester,
+  ) async {
+    final server = _Server(
+      pages: {
+        '': _page(['u1', 'u2'], 'c1'),
+      },
+      profiles: [_profile('u1', 'Ada'), _profile('u2', 'Bob')],
+    )..failAfter = 'c1';
+    await _pump(tester, _Fixture(server), phone);
+
+    await tester.longPress(_chip);
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final asked = server.requests.where(
+      (u) => u.queryParameters['after'] == 'c1',
+    );
+    expect(asked, hasLength(1), reason: 'one failed attempt, then Retry');
+    expect(find.text('Could not load more.'), findsOneWidget);
+  });
+
+  testWidgets('Retry after a failed next page loads it', (tester) async {
+    final server = _Server(
+      pages: {
+        '': _page(['u1', 'u2'], 'c1'),
+        'c1': _page(['u3']),
+      },
+      profiles: [
+        _profile('u1', 'Ada'),
+        _profile('u2', 'Bob'),
+        _profile('u3', 'Cy'),
+      ],
+    )..failAfter = 'c1';
+    await _pump(tester, _Fixture(server), phone);
+    await tester.longPress(_chip);
+    await tester.pumpAndSettle();
+    expect(find.text('Cy'), findsNothing);
+
+    server.failAfter = null;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cy'), findsOneWidget);
+    expect(find.text('Could not load more.'), findsNothing);
   });
 
   testWidgets('a long list follows its cursor for the next page', (

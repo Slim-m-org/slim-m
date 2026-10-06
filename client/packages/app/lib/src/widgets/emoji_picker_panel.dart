@@ -16,6 +16,7 @@ import 'package:slimm_platform/platform.dart';
 import '../providers/admin_providers.dart';
 import '../providers/recent_emoji.dart';
 import 'emoji_catalog.dart';
+import 'emoji_grid_navigator.dart';
 import 'emoji_picker_grid.dart';
 
 /// The panel's own measured width, like the command palette's `_paletteWidth`
@@ -58,6 +59,7 @@ class EmojiPickerPanel extends ConsumerStatefulWidget {
 class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+  final _grid = EmojiGridNavigator();
   String _query = '';
 
   /// Null until a tab is tapped, so the panel can open on whichever one
@@ -80,6 +82,7 @@ class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
   void dispose() {
     _searchController.dispose();
     _searchFocus.dispose();
+    _grid.dispose();
     super.dispose();
   }
 
@@ -100,18 +103,10 @@ class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
     });
   }
 
-  void _move(int delta) {
-    if (_visible.isEmpty) return;
-    setState(() {
-      // From the no-highlight state, down enters at the first cell and up at the last.
-      if (_highlighted < 0) {
-        _highlighted = delta > 0 ? 0 : _visible.length - 1;
-        return;
-      }
-      _highlighted = (_highlighted + delta) % _visible.length;
-      if (_highlighted < 0) _highlighted += _visible.length;
-    });
-  }
+  /// One row up (-1) or down (+1); see [EmojiGridNavigator.step].
+  void _move(int rows) => setState(
+    () => _highlighted = _grid.step(_highlighted, _visible.length, rows),
+  );
 
   void _pick(PickerEmoji emoji) {
     unawaited(ref.read(recentEmojiProvider.notifier).use(emoji.token));
@@ -229,6 +224,7 @@ class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
                   : EmojiGrid(
                       emoji: results,
                       highlighted: _highlighted,
+                      navigator: _grid,
                       onTap: _pick,
                     ),
             ),

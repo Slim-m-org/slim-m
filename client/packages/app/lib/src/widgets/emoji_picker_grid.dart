@@ -7,6 +7,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'custom_emoji_image.dart';
 import 'emoji_catalog.dart';
+import 'emoji_grid_navigator.dart';
 
 /// The row of category tabs above the grid. Hidden by the panel while a
 /// search is active, since a query already narrows the whole catalog.
@@ -117,12 +118,13 @@ class EmojiCategoryRail extends StatelessWidget {
 /// desktop; at eight columns that last one drew 71pt cells around a 20pt
 /// glyph. Against [cellExtent] the column count varies instead and every cell
 /// lands between roughly 38 and 44pt on all three.
-class EmojiGrid extends StatelessWidget {
+class EmojiGrid extends StatefulWidget {
   const EmojiGrid({
     super.key,
     required this.emoji,
     required this.highlighted,
     required this.onTap,
+    this.navigator,
     this.shrinkWrap = false,
     this.onHoverChange,
     this.onPressChange,
@@ -131,6 +133,11 @@ class EmojiGrid extends StatelessWidget {
   final List<PickerEmoji> emoji;
   final int highlighted;
   final ValueChanged<PickerEmoji> onTap;
+
+  /// Lent by an owner that steers [highlighted] with the keyboard, so it can
+  /// step by rows. Without one the grid keeps its own, which still scrolls a
+  /// changed highlight into view.
+  final EmojiGridNavigator? navigator;
 
   /// On for a caller that bounds the grid by a maximum rather than a fixed
   /// height, so a handful of tiles occupies a handful of rows.
@@ -148,28 +155,60 @@ class EmojiGrid extends StatelessWidget {
   static const double cellExtent = AppSizes.rowTouch;
 
   @override
+  State<EmojiGrid> createState() => _EmojiGridState();
+}
+
+class _EmojiGridState extends State<EmojiGrid> {
+  EmojiGridNavigator? _own;
+
+  EmojiGridNavigator get _navigator =>
+      widget.navigator ?? (_own ??= EmojiGridNavigator());
+
+  @override
+  void didUpdateWidget(covariant EmojiGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.highlighted == oldWidget.highlighted) return;
+    // After layout: the cell a new highlight points at may not be built yet.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _navigator.reveal(widget.highlighted);
+    });
+  }
+
+  @override
+  void dispose() {
+    _own?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: shrinkWrap,
-      padding: const EdgeInsets.all(AppSpacing.s8),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: cellExtent,
-        mainAxisSpacing: AppSpacing.s4,
-        crossAxisSpacing: AppSpacing.s4,
-      ),
-      itemCount: emoji.length,
-      itemBuilder: (context, index) {
-        final tile = emoji[index];
-        return EmojiCell(
-          emoji: tile,
-          highlighted: index == highlighted,
-          onTap: () => onTap(tile),
-          onHoverChange: onHoverChange == null
-              ? null
-              : (active) => onHoverChange!(tile, active),
-          onPressChange: onPressChange == null
-              ? null
-              : (active) => onPressChange!(tile, active),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _navigator.layout(constraints.maxWidth, EmojiGrid.cellExtent);
+        return GridView.builder(
+          controller: _navigator.scroll,
+          shrinkWrap: widget.shrinkWrap,
+          padding: const EdgeInsets.all(EmojiGridNavigator.padding),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: EmojiGrid.cellExtent,
+            mainAxisSpacing: EmojiGridNavigator.gap,
+            crossAxisSpacing: EmojiGridNavigator.gap,
+          ),
+          itemCount: widget.emoji.length,
+          itemBuilder: (context, index) {
+            final tile = widget.emoji[index];
+            return EmojiCell(
+              emoji: tile,
+              highlighted: index == widget.highlighted,
+              onTap: () => widget.onTap(tile),
+              onHoverChange: widget.onHoverChange == null
+                  ? null
+                  : (active) => widget.onHoverChange!(tile, active),
+              onPressChange: widget.onPressChange == null
+                  ? null
+                  : (active) => widget.onPressChange!(tile, active),
+            );
+          },
         );
       },
     );

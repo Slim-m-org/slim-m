@@ -2453,6 +2453,215 @@ class ChannelDraftsCompanion extends UpdateCompanion<ChannelDraftRow> {
   }
 }
 
+class $PendingAttachmentsTable extends PendingAttachments
+    with TableInfo<$PendingAttachmentsTable, PendingAttachmentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingAttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _messageIdMeta =
+      const VerificationMeta('messageId');
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+      'message_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+      attachmentIds = GeneratedColumn<String>(
+              'attachment_ids', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<List<String>>(
+              $PendingAttachmentsTable.$converterattachmentIds);
+  @override
+  List<GeneratedColumn> get $columns => [messageId, attachmentIds];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_attachments';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<PendingAttachmentRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('message_id')) {
+      context.handle(_messageIdMeta,
+          messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta));
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {messageId};
+  @override
+  PendingAttachmentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingAttachmentRow(
+      messageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_id'])!,
+      attachmentIds: $PendingAttachmentsTable.$converterattachmentIds.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}attachment_ids'])!),
+    );
+  }
+
+  @override
+  $PendingAttachmentsTable createAlias(String alias) {
+    return $PendingAttachmentsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<List<String>, String> $converterattachmentIds =
+      const AttachmentIdList();
+}
+
+class PendingAttachmentRow extends DataClass
+    implements Insertable<PendingAttachmentRow> {
+  final String messageId;
+
+  /// The ids in the order they were staged, stored as a JSON array.
+  final List<String> attachmentIds;
+  const PendingAttachmentRow(
+      {required this.messageId, required this.attachmentIds});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['message_id'] = Variable<String>(messageId);
+    {
+      map['attachment_ids'] = Variable<String>($PendingAttachmentsTable
+          .$converterattachmentIds
+          .toSql(attachmentIds));
+    }
+    return map;
+  }
+
+  PendingAttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return PendingAttachmentsCompanion(
+      messageId: Value(messageId),
+      attachmentIds: Value(attachmentIds),
+    );
+  }
+
+  factory PendingAttachmentRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingAttachmentRow(
+      messageId: serializer.fromJson<String>(json['messageId']),
+      attachmentIds: serializer.fromJson<List<String>>(json['attachmentIds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'messageId': serializer.toJson<String>(messageId),
+      'attachmentIds': serializer.toJson<List<String>>(attachmentIds),
+    };
+  }
+
+  PendingAttachmentRow copyWith(
+          {String? messageId, List<String>? attachmentIds}) =>
+      PendingAttachmentRow(
+        messageId: messageId ?? this.messageId,
+        attachmentIds: attachmentIds ?? this.attachmentIds,
+      );
+  PendingAttachmentRow copyWithCompanion(PendingAttachmentsCompanion data) {
+    return PendingAttachmentRow(
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      attachmentIds: data.attachmentIds.present
+          ? data.attachmentIds.value
+          : this.attachmentIds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingAttachmentRow(')
+          ..write('messageId: $messageId, ')
+          ..write('attachmentIds: $attachmentIds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(messageId, attachmentIds);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingAttachmentRow &&
+          other.messageId == this.messageId &&
+          other.attachmentIds == this.attachmentIds);
+}
+
+class PendingAttachmentsCompanion
+    extends UpdateCompanion<PendingAttachmentRow> {
+  final Value<String> messageId;
+  final Value<List<String>> attachmentIds;
+  final Value<int> rowid;
+  const PendingAttachmentsCompanion({
+    this.messageId = const Value.absent(),
+    this.attachmentIds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PendingAttachmentsCompanion.insert({
+    required String messageId,
+    required List<String> attachmentIds,
+    this.rowid = const Value.absent(),
+  })  : messageId = Value(messageId),
+        attachmentIds = Value(attachmentIds);
+  static Insertable<PendingAttachmentRow> custom({
+    Expression<String>? messageId,
+    Expression<String>? attachmentIds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (messageId != null) 'message_id': messageId,
+      if (attachmentIds != null) 'attachment_ids': attachmentIds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PendingAttachmentsCompanion copyWith(
+      {Value<String>? messageId,
+      Value<List<String>>? attachmentIds,
+      Value<int>? rowid}) {
+    return PendingAttachmentsCompanion(
+      messageId: messageId ?? this.messageId,
+      attachmentIds: attachmentIds ?? this.attachmentIds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (attachmentIds.present) {
+      map['attachment_ids'] = Variable<String>($PendingAttachmentsTable
+          .$converterattachmentIds
+          .toSql(attachmentIds.value));
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingAttachmentsCompanion(')
+          ..write('messageId: $messageId, ')
+          ..write('attachmentIds: $attachmentIds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$SlimmDatabase extends GeneratedDatabase {
   _$SlimmDatabase(QueryExecutor e) : super(e);
   $SlimmDatabaseManager get managers => $SlimmDatabaseManager(this);
@@ -2461,12 +2670,19 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
   late final $ChannelCategoriesTable channelCategories =
       $ChannelCategoriesTable(this);
   late final $ChannelDraftsTable channelDrafts = $ChannelDraftsTable(this);
+  late final $PendingAttachmentsTable pendingAttachments =
+      $PendingAttachmentsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [channels, messages, channelCategories, channelDrafts];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        channels,
+        messages,
+        channelCategories,
+        channelDrafts,
+        pendingAttachments
+      ];
 }
 
 typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
@@ -3558,6 +3774,147 @@ typedef $$ChannelDraftsTableProcessedTableManager = ProcessedTableManager<
     ),
     ChannelDraftRow,
     PrefetchHooks Function()>;
+typedef $$PendingAttachmentsTableCreateCompanionBuilder
+    = PendingAttachmentsCompanion Function({
+  required String messageId,
+  required List<String> attachmentIds,
+  Value<int> rowid,
+});
+typedef $$PendingAttachmentsTableUpdateCompanionBuilder
+    = PendingAttachmentsCompanion Function({
+  Value<String> messageId,
+  Value<List<String>> attachmentIds,
+  Value<int> rowid,
+});
+
+class $$PendingAttachmentsTableFilterComposer
+    extends Composer<_$SlimmDatabase, $PendingAttachmentsTable> {
+  $$PendingAttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+      get attachmentIds => $composableBuilder(
+          column: $table.attachmentIds,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+}
+
+class $$PendingAttachmentsTableOrderingComposer
+    extends Composer<_$SlimmDatabase, $PendingAttachmentsTable> {
+  $$PendingAttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get attachmentIds => $composableBuilder(
+      column: $table.attachmentIds,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$PendingAttachmentsTableAnnotationComposer
+    extends Composer<_$SlimmDatabase, $PendingAttachmentsTable> {
+  $$PendingAttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String> get attachmentIds =>
+      $composableBuilder(
+          column: $table.attachmentIds, builder: (column) => column);
+}
+
+class $$PendingAttachmentsTableTableManager extends RootTableManager<
+    _$SlimmDatabase,
+    $PendingAttachmentsTable,
+    PendingAttachmentRow,
+    $$PendingAttachmentsTableFilterComposer,
+    $$PendingAttachmentsTableOrderingComposer,
+    $$PendingAttachmentsTableAnnotationComposer,
+    $$PendingAttachmentsTableCreateCompanionBuilder,
+    $$PendingAttachmentsTableUpdateCompanionBuilder,
+    (
+      PendingAttachmentRow,
+      BaseReferences<_$SlimmDatabase, $PendingAttachmentsTable,
+          PendingAttachmentRow>
+    ),
+    PendingAttachmentRow,
+    PrefetchHooks Function()> {
+  $$PendingAttachmentsTableTableManager(
+      _$SlimmDatabase db, $PendingAttachmentsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingAttachmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingAttachmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingAttachmentsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> messageId = const Value.absent(),
+            Value<List<String>> attachmentIds = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PendingAttachmentsCompanion(
+            messageId: messageId,
+            attachmentIds: attachmentIds,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String messageId,
+            required List<String> attachmentIds,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PendingAttachmentsCompanion.insert(
+            messageId: messageId,
+            attachmentIds: attachmentIds,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$PendingAttachmentsTable, PendingAttachmentRow>(
+                        table),
+                    BaseReferences<_$SlimmDatabase, $PendingAttachmentsTable,
+                        PendingAttachmentRow>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$PendingAttachmentsTableProcessedTableManager = ProcessedTableManager<
+    _$SlimmDatabase,
+    $PendingAttachmentsTable,
+    PendingAttachmentRow,
+    $$PendingAttachmentsTableFilterComposer,
+    $$PendingAttachmentsTableOrderingComposer,
+    $$PendingAttachmentsTableAnnotationComposer,
+    $$PendingAttachmentsTableCreateCompanionBuilder,
+    $$PendingAttachmentsTableUpdateCompanionBuilder,
+    (
+      PendingAttachmentRow,
+      BaseReferences<_$SlimmDatabase, $PendingAttachmentsTable,
+          PendingAttachmentRow>
+    ),
+    PendingAttachmentRow,
+    PrefetchHooks Function()>;
 
 class $SlimmDatabaseManager {
   final _$SlimmDatabase _db;
@@ -3570,4 +3927,6 @@ class $SlimmDatabaseManager {
       $$ChannelCategoriesTableTableManager(_db, _db.channelCategories);
   $$ChannelDraftsTableTableManager get channelDrafts =>
       $$ChannelDraftsTableTableManager(_db, _db.channelDrafts);
+  $$PendingAttachmentsTableTableManager get pendingAttachments =>
+      $$PendingAttachmentsTableTableManager(_db, _db.pendingAttachments);
 }

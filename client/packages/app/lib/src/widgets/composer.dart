@@ -568,6 +568,8 @@ class _ComposerState extends ConsumerState<Composer> {
   /// A `/command` for a module runs it and posts its output; anything else is
   /// an ordinary send. See `composer_slash.dart` for the run itself.
   Future<void> _send() async {
+    if (!_canSend) return;
+    final staging = _attachments;
     final handled = await runComposedCommand(
       ref: ref,
       channelId: widget.channelId,
@@ -581,10 +583,8 @@ class _ComposerState extends ConsumerState<Composer> {
       fail: _reportCommandError,
     );
     if (handled) return;
-    final ids = _attachments.readyIds;
-    await widget.onSend(ids);
+    await staging.sendReady(widget.onSend);
     if (mounted) {
-      _attachments.clear();
       setState(() {
         _mentionHelpSeen.clear();
         _visibleMentionHelp.clear();

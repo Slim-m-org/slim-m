@@ -37,13 +37,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 
-import '../widgets/message_mentions.dart' show messageMentionsUsername;
-import 'channel_notification_overrides_controller.dart';
 import 'live_events.dart';
-import 'notification_schedule_controller.dart';
-import 'notification_schedule_rules.dart';
-import 'notification_sound_rules.dart';
-import 'providers.dart';
+import 'message_alert_policy.dart';
 import 'push_controller.dart';
 
 final desktopMessageNotifierProvider = Provider<void>((ref) {
@@ -55,16 +50,10 @@ final desktopMessageNotifierProvider = Provider<void>((ref) {
   ref.onDispose(sub.cancel);
 });
 
-/// Holds the one thing this handler caches across events: the caller's own
-/// username, for mention detection, the same "cached against the id it was
-/// resolved for" shape `NotificationSoundController` uses for the identical
-/// lookup.
 class _DesktopMessageNotifier {
   _DesktopMessageNotifier(this._ref);
 
   final Ref _ref;
-  String? _selfUsername;
-  String? _selfUsernameForId;
 
   void onServerEvent(api.ServerEvent event) {
     if (event case api.MessageCreated(:final message)) {
@@ -73,49 +62,13 @@ class _DesktopMessageNotifier {
   }
 
   Future<void> _onMessageCreated(api.Message message) async {
-    // Per event, not at bootstrap: signing in as someone else changes "me".
-    final selfId = _ref.read(sessionProvider).tokens?.userId;
-    if (message.authorId != null && message.authorId == selfId) return;
-
     // Skip while focused: a foreground app shows unread in the rail already.
     final foreground =
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     if (foreground) return;
 
-    final store = await _ref.read(storeProvider.future);
-    final channel = await store.watchChannelRow(message.channelId).first;
-    final isDm = channel?.kind == 'dm';
-
-    var mentionsSelf = false;
-    if (!isDm && selfId != null) {
-      final username = await _resolveSelfUsername(selfId);
-      if (username != null) {
-        mentionsSelf = messageMentionsUsername(message.content, username);
-      }
-    }
-
-    if (!channelEarnsASound(
-      channelOverride: _ref
-          .read(channelNotificationOverridesProvider)
-          .overrideFor(message.channelId),
-      isDm: isDm,
-      mentionsSelf: mentionsSelf,
-    )) {
-      return;
-    }
-
-    final schedule = _ref.read(notificationScheduleProvider).valueOrNull;
-    if (!scheduleEarnsASound(
-      state: evaluateNotificationSchedule(schedule),
-      channelAllowed:
-          schedule?.allowedChannelIds.contains(message.channelId) ?? false,
-      authorAllowed:
-          schedule?.allowedUserIds.contains(message.authorId) ?? false,
-      isDm: isDm,
-      mentionsSelf: mentionsSelf,
-    )) {
-      return;
-    }
+    final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
+    if (alert == null) return;
 
     final author = message.authorDisplayName;
     final text = author == null || author.isEmpty
@@ -123,24 +76,10 @@ class _DesktopMessageNotifier {
         : 'New message from $author';
     final notifications = _ref.read(localNotificationsProvider);
     // The per-kind OS control only reaches a banner filed under the kind it is; see LocalAlertChannel.
-    final alertChannel = mentionsSelf
+    final alertChannel = alert.mentionsSelf
         ? LocalAlertChannel.mentions
         : LocalAlertChannel.messages;
     // Fire-and-forget: a failed notification must never break event handling.
     unawaited(notifications.show(text, channel: alertChannel));
-  }
-
-  /// Best-effort, matching `NotificationSoundController`'s own: a lookup
-  /// failure just leaves this one message read as not a mention.
-  Future<String?> _resolveSelfUsername(String selfId) async {
-    if (_selfUsernameForId == selfId) return _selfUsername;
-    try {
-      final me = await _ref.read(apiProvider).me();
-      _selfUsername = me.username;
-      _selfUsernameForId = selfId;
-    } catch (_) {
-      // Handled above: the caller reads the unchanged (possibly null) cache.
-    }
-    return _selfUsername;
   }
 }

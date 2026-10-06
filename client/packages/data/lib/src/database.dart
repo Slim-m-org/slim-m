@@ -19,6 +19,7 @@ library;
 import 'package:drift/drift.dart';
 
 import 'message_dto.dart';
+import 'pending_attachments_table.dart';
 
 part 'database.g.dart';
 
@@ -272,12 +273,20 @@ extension MessageRowMapping on MessageRow {
       );
 }
 
-@DriftDatabase(tables: [Channels, Messages, ChannelCategories, ChannelDrafts])
+@DriftDatabase(
+  tables: [
+    Channels,
+    Messages,
+    ChannelCategories,
+    ChannelDrafts,
+    PendingAttachments
+  ],
+)
 class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   /// How each schema version is reached, and why v3 throws the cache away.
   ///
@@ -375,6 +384,8 @@ class SlimmDatabase extends _$SlimmDatabase {
   ///
   /// v20 adds `messages.forwardedRemoved`, false for every existing row.
   ///
+  /// v21 adds the `pending_attachments` table, empty for every existing send.
+  ///
   /// v17 adds `channels.manuallyUnread` the same way: false for every existing
   /// row, and the next refresh reads each channel's real flag back from the
   /// server, since the refresher already fetches read state per channel.
@@ -447,6 +458,9 @@ class SlimmDatabase extends _$SlimmDatabase {
           if (from < 20) {
             await m.addColumn(messages, messages.forwardedRemoved);
           }
+          if (from < 21) {
+            await m.createTable(pendingAttachments);
+          }
           // v2's null display names and the pre-op-stream epoch are both
           // unreachable by a keyset sync. See the doc comment above.
           if (from < 7) {
@@ -461,6 +475,11 @@ class SlimmDatabase extends _$SlimmDatabase {
           await customStatement(
             'CREATE INDEX IF NOT EXISTS messages_channel_seq '
             'ON messages (channel_id, seq DESC)',
+          );
+          // The ids of a send that landed or was discarded have nothing left to retry.
+          await customStatement(
+            'DELETE FROM pending_attachments WHERE message_id NOT IN '
+            '(SELECT id FROM messages WHERE pending = 1 OR failed = 1)',
           );
         },
       );

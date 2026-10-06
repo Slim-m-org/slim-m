@@ -35,13 +35,9 @@ import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../audio/notification_sound.dart';
-import '../widgets/message_mentions.dart' show messageMentionsUsername;
-import 'blocks_controller.dart';
-import 'channel_notification_overrides_controller.dart';
 import 'dm_call_ring_controller.dart';
 import 'live_events.dart';
-import 'notification_schedule_controller.dart';
-import 'notification_schedule_rules.dart';
+import 'message_alert_policy.dart';
 import 'notification_sound_rules.dart';
 import 'notification_sound_settings.dart';
 import 'providers.dart';
@@ -88,13 +84,6 @@ class NotificationSoundController {
   /// reading as a burst of live joins the moment this device arrives.
   Set<String>? _rosterBaseline;
 
-  /// Cached against the id it was resolved for, so a different account
-  /// signing in on the same device (the local store is one file for the
-  /// whole app, per `SyncController`'s own doc comment) never reuses a
-  /// stale username to decide a mention.
-  String? _selfUsername;
-  String? _selfUsernameForId;
-
   // --- Messages ---
 
   void _onServerEvent(api.ServerEvent event) {
@@ -105,71 +94,12 @@ class NotificationSoundController {
 
   Future<void> _onMessageCreated(api.Message message) async {
     if (!_ref.read(messageSoundSettingsProvider)) return;
-    final client = _ref.read(apiProvider);
-    final selfId = client.session.tokens?.userId;
-    if (!messageEarnsASound(
-      authorId: message.authorId,
-      selfId: selfId,
-      authorBlocked: _ref.read(blocksProvider).contains(message.authorId),
-    )) {
-      return;
-    }
-
-    final store = await _ref.read(storeProvider.future);
-    final channel = await store.watchChannelRow(message.channelId).first;
-    final isDm = channel?.kind == 'dm';
-
-    var mentionsSelf = false;
-    if (!isDm && selfId != null) {
-      final username = await _resolveSelfUsername(selfId);
-      if (username != null) {
-        mentionsSelf = messageMentionsUsername(message.content, username);
-      }
-    }
-
-    final channelOverride = _ref
-        .read(channelNotificationOverridesProvider)
-        .overrideFor(message.channelId);
-    if (!channelEarnsASound(
-      channelOverride: channelOverride,
-      isDm: isDm,
-      mentionsSelf: mentionsSelf,
-    )) {
-      return;
-    }
-
-    final schedule = _ref.read(notificationScheduleProvider).valueOrNull;
-    if (!scheduleEarnsASound(
-      state: evaluateNotificationSchedule(schedule),
-      channelAllowed:
-          schedule?.allowedChannelIds.contains(message.channelId) ?? false,
-      authorAllowed:
-          schedule?.allowedUserIds.contains(message.authorId) ?? false,
-      isDm: isDm,
-      mentionsSelf: mentionsSelf,
-    )) {
-      return;
-    }
-
+    final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
+    if (alert == null) return;
     await _player.play(
-      messageSoundKind(isDm: isDm, mentionsSelf: mentionsSelf),
+      messageSoundKind(isDm: alert.isDm, mentionsSelf: alert.mentionsSelf),
     );
     _messageHaptic();
-  }
-
-  /// Best-effort: a lookup failure just leaves a group message read as an
-  /// ordinary one rather than a mention this one time, and the next message
-  /// that needs it tries again rather than caching a failure forever.
-  Future<String?> _resolveSelfUsername(String selfId) async {
-    if (_selfUsernameForId == selfId) return _selfUsername;
-    try {
-      final me = await _ref.read(apiProvider).me();
-      _selfUsername = me.username;
-      _selfUsernameForId = selfId;
-    } catch (_) {
-      // Handled above: the caller reads the unchanged (possibly null) cache.
-    }
-    return _selfUsername;
   }
 
   // --- Voice roster (member join/leave) and call failures (error) ---

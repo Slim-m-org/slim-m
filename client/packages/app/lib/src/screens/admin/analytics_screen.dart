@@ -85,9 +85,12 @@ class _AnalyticsPaneState extends ConsumerState<AnalyticsPane>
   @override
   Widget build(BuildContext context) {
     final analytics = ref.watch(spaceAnalyticsProvider);
-    // Once a fresh fetch lands, the server's own answer takes back over.
+    // Once a fresh fetch lands, the server's own answer takes back over; a refetch that failed still holds the old value and must not.
     ref.listen(spaceAnalyticsProvider, (previous, next) {
-      if (next.hasValue && !next.isLoading && _optimistic != null) {
+      if (next.hasValue &&
+          !next.hasError &&
+          !next.isLoading &&
+          _optimistic != null) {
         setState(() => _optimistic = null);
       }
     });
@@ -98,7 +101,8 @@ class _AnalyticsPaneState extends ConsumerState<AnalyticsPane>
       children: [
         AnalyticsToggleHeader(
           enabled: enabled,
-          busy: _toggling || analytics.isLoading,
+          // With no answer yet there is nothing to flip, so "on" is never guessed.
+          busy: _toggling || analytics.isLoading || !analytics.hasValue,
           onChanged: _setEnabled,
         ),
         SuccessFlash(tick: successTick),
@@ -107,7 +111,14 @@ class _AnalyticsPaneState extends ConsumerState<AnalyticsPane>
           AppErrorState(message: actionError!, onDismiss: clearActionError),
         ],
         const SizedBox(height: AppSpacing.s16),
-        if (!enabled)
+        // With no stats held to keep on screen, the error stands alone rather than beside an off-state preview.
+        if (analytics.hasError &&
+            (!enabled || analytics.valueOrNull?.stats == null))
+          AppErrorState(
+            message: 'Could not load analytics.',
+            onRetry: () => ref.invalidate(spaceAnalyticsProvider),
+          )
+        else if (!enabled)
           const AnalyticsGhostPreview()
         else
           AppAsyncView<api.SpaceAnalytics>(

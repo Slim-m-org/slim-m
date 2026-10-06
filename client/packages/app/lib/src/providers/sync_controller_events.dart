@@ -28,6 +28,14 @@ extension SyncControllerEvents on SyncController {
           await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
         }
         if (!isCurrent()) return;
+        if (await _skipsOver(
+          message.channelId,
+          message.seq,
+          store,
+          isCurrent,
+        )) {
+          return;
+        }
         await store.applyMessage(message);
       case MessageEdited(:final message, :final opSeq):
         if (!await store.hasChannel(message.channelId)) {
@@ -82,6 +90,27 @@ extension SyncControllerEvents on SyncController {
       case _:
         break;
     }
+  }
+
+  /// Whether a message numbered [seq] sits more than one past its channel's cursor, so a
+  /// message in between was never seen. Messages are dense per channel, so
+  /// that is a real gap, not a guess.
+  ///
+  /// Applying it would move the cursor past what was lost for good, so it is
+  /// left to the reconcile it schedules, whose page carries the same message
+  /// in order. Answers true when the caller must not apply it, which includes
+  /// a run superseded while the cursor was being read.
+  Future<bool> _skipsOver(
+    String channelId,
+    int seq,
+    MessageStore store,
+    bool Function() isCurrent,
+  ) async {
+    final cursor = await store.cursorFor(channelId);
+    if (!isCurrent()) return true;
+    if (cursor == null || seq <= cursor + 1) return false;
+    unawaited(reconcile().catchError((_) {}));
+    return true;
   }
 
   /// Decides whether a live op may be applied, and advances the cursor when
