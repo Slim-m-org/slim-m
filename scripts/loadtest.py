@@ -223,22 +223,25 @@ async def run(args):
                                   args.workers, args.per_account)
     print(f"opening {len(accounts) * args.per_account} sockets across "
           f"{args.workers} processes...", flush=True)
-    connected, attempted = pool.start()
-    print(f"  {connected} of {attempted} connected", flush=True)
+    try:
+        connected, attempted = pool.start()
+        print(f"  {connected} of {attempted} connected", flush=True)
 
-    sent_at = {}
-    cpu_before = server_cpu()
-    wall_before = time.monotonic()
-    print(f"sending {args.senders * args.messages} messages into "
-          f"{channel['name']!r}...", flush=True)
-    send_latencies, notes = await send_phase(
-        accounts, channel_id, args, sent_at)
+        sent_at = {}
+        cpu_before = server_cpu()
+        wall_before = time.monotonic()
+        print(f"sending {args.senders * args.messages} messages into "
+              f"{channel['name']!r}...", flush=True)
+        send_latencies, notes = await send_phase(
+            accounts, channel_id, args, sent_at)
 
-    await asyncio.sleep(SETTLE_SECONDS)
-    cpu_used = (server_cpu() or 0) - (cpu_before or 0)
-    wall = time.monotonic() - wall_before
-    after = scrape(admin)
-    harvest = await asyncio.to_thread(pool.finish)
+        await asyncio.sleep(SETTLE_SECONDS)
+        cpu_used = (server_cpu() or 0) - (cpu_before or 0)
+        wall = time.monotonic() - wall_before
+        after = scrape(admin)
+        harvest = await asyncio.to_thread(pool.finish)
+    finally:
+        pool.abort()
 
     seen = harvest["seen"]
     delivery = []
