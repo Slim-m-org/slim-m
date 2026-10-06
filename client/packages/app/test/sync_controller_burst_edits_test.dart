@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
@@ -50,6 +51,17 @@ class _FailingStore extends MessageStore {
     return super.applyMessage(message);
   }
 }
+
+http.Response _page(List<Map<String, dynamic>> messages) => jsonResponse({
+  'scopes': [
+    {
+      'channel_id': 'c1',
+      'messages': messages,
+      'has_more': false,
+      'reset': false,
+    },
+  ],
+});
 
 void main() {
   test(
@@ -131,5 +143,64 @@ void main() {
       'message': rigMessage('m2', 2, 'boom'),
     });
     await Future<void>.delayed(const Duration(milliseconds: 500));
+  });
+
+  test(
+    'a burst of gap frames is one reconcile plus at most one more',
+    () async {
+      var syncCalls = 0;
+      final rig = await SyncLiveRig.build(
+        (r) => r.on('POST', '/sync', (_) async {
+          syncCalls++;
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          return _page(const []);
+        }),
+        seeded: [rigMessage('m1', 1, 'msg 1')],
+        opCursor: 5,
+      );
+      rig.signIn();
+      await rig.waitFor(() => rig.status.name == 'live');
+      final before = syncCalls;
+
+      for (var op = 8; op <= 12; op++) {
+        rig.server.pushEvent({
+          'type': 'message.edited',
+          'op_seq': op,
+          'message': rigMessage('m1', 1, 'edit $op'),
+        });
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(syncCalls - before, inInclusiveRange(1, 2));
+    },
+  );
+
+  test('a reconcile that fails drops the connection so a fresh one repairs '
+      'the gap', () async {
+    var syncCalls = 0;
+    var failing = false;
+    final rig = await SyncLiveRig.build(
+      (r) => r.on('POST', '/sync', (_) {
+        syncCalls++;
+        if (failing) return http.Response('{"error":"boom"}', 500);
+        return _page(const []);
+      }),
+      seeded: [rigMessage('m1', 1, 'msg 1')],
+      opCursor: 5,
+    );
+    rig.signIn();
+    await rig.waitFor(() => rig.status.name == 'live');
+    final connected = syncCalls;
+    failing = true;
+
+    rig.server.pushEvent({
+      'type': 'message.edited',
+      'op_seq': 9,
+      'message': rigMessage('m1', 1, 'edited'),
+    });
+    await rig.waitFor(() => syncCalls > connected);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    expect(rig.status.name, 'offline');
   });
 }

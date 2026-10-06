@@ -28,10 +28,12 @@ import 'providers.dart';
 import 'rate_limit_retry.dart';
 import 'reconnect_backoff.dart';
 import 'sync_failure.dart';
+import 'sync_frame_queue.dart';
 import 'typing_controller.dart';
 import 'user_profiles.dart';
 import 'watch_room.dart';
 
+part 'sync_controller_catchup.dart';
 part 'sync_controller_events.dart';
 part 'sync_controller_reset.dart';
 
@@ -119,6 +121,9 @@ class SyncController extends StateNotifier<SyncStatus> {
   bool _lastSignedIn = false;
   EventConnection? _connection;
   StreamSubscription<ServerEvent>? _events;
+  SerialFrameQueue? _frames;
+  bool _reconciling = false;
+  bool _reconcileAgain = false;
   Timer? _retry;
   bool _disposed = false;
   final ReconnectBackoff _backoff;
@@ -218,7 +223,9 @@ class SyncController extends StateNotifier<SyncStatus> {
       await _catchUp(generation, api, store);
       if (generation != _generation) return;
       _ref.read(initialSyncCompleteProvider.notifier).state = true;
-      await _attach(generation, api, store);
+      final frames = await _attach(generation, api, store);
+      if (frames == null) return;
+      await frames.flush();
       if (generation != _generation) return;
 
       _backoff.reset();
@@ -243,99 +250,21 @@ class SyncController extends StateNotifier<SyncStatus> {
     }
   }
 
-  /// Catches every known scope up in one request, applying deltas in order.
-  ///
-  /// [generation] is this call's [start], checked before every write: a
-  /// sign-out landing while the network round trip above is already in
-  /// flight must not let its answer, arriving after the store has been
-  /// cleared for the account signing out, write into it anyway.
-  Future<void> _catchUp(
-    int generation,
-    SlimmApi api,
-    MessageStore store,
-  ) async {
-    bool isCurrent() => generation == _generation;
-    final cursors = await store.allCursors();
-    if (cursors.isEmpty) return;
-
-    final deltas = await api.sync(cursors);
-    if (generation != _generation) return;
-    var more = false;
-    for (final delta in deltas) {
-      if (generation != _generation) return;
-      if (delta.reset) {
-        // Either cursor is too far behind to stream: local state is untrusted.
-        await _resetScope(generation, api, store, delta.channelId);
-        if (!isCurrent()) return;
-        continue;
-      }
-      await store.applyMessages(delta.messages);
-
-      // After the messages: an edit cannot precede the message it names.
-      if (delta.opLatestSeq != null) {
-        final cursor = await store.opCursorFor(delta.channelId);
-        if (!isCurrent()) return;
-        if (cursor == null) {
-          // Adopt the head; asking from zero replays every edit ever made.
-          await store.setOpCursor(delta.channelId, delta.opLatestSeq);
-        } else if (delta.ops.isNotEmpty) {
-          final outcome = await applyOps(store, delta.channelId, delta.ops);
-          if (!isCurrent()) return;
-          if (outcome == OpsOutcome.needsReset) {
-            await _resetScope(generation, api, store, delta.channelId);
-            continue;
-          }
-        }
-      }
-
-      more = more || delta.hasMore || delta.opsHasMore;
-    }
-
-    /// At most one continuation per round, however many scopes are behind.
-    /// Scheduling inside the loop meant every backlogged channel started its own
-    /// full-cursor resync, so ten of them fanned out into ten overlapping /sync
-    /// calls that each re-requested all ten scopes. Next tick rather than
-    /// straight through, so a long backlog does not block the first paint.
-    if (more) {
-      // This continuation runs outside start()'s try/catch, so a failure in a
-      // later backlog round (a 429 from the server's own limiter, a transient
-      // 5xx) was an unhandled async error: the catch-up stopped silently while
-      // the socket kept the status at live, leaving a permanent gap. Routed to
-      // the same drop path a lost socket takes, which reconnects and catches
-      // up fresh.
-      unawaited(
-        Future<void>.delayed(
-          Duration.zero,
-          () => _catchUp(generation, api, store),
-        ).catchError((_) {
-          if (!_disposed && generation == _generation) _onDropped();
-        }),
-      );
-    }
-  }
-
-  /// Runs one catch-up round against the current generation.
-  ///
-  /// The gap detector's entry point: a live op that is not exactly the next
-  /// one schedules this rather than applying a payload it cannot place.
-  Future<void> reconcile() async {
-    if (_disposed) return;
-    final generation = _generation;
-    final api = _ref.read(apiProvider);
-    final store = await _ref.read(storeProvider.future);
-    if (generation != _generation) return;
-    await _catchUp(generation, api, store);
-  }
-
-  /// Attaches the live socket. Its closure schedules a full restart, so the
-  /// next connection catches up before trusting live events again.
+  /// Attaches the live socket and returns the queue its frames land in, held
+  /// until [start] has caught up. Null when a newer run superseded this one.
+  /// A frame that closes the socket is a drop that schedules a full restart, so
+  /// the next connection catches up before trusting live events again.
   ///
   /// [generation] is checked after the ticket mint and the connect, because
   /// both are network round trips: a [stop] landing inside either used to
   /// return from [start] having already assigned a socket the superseding
   /// [_teardown] had run too early to see, leaving it live and applying
   /// frames with nothing left holding a handle to close it.
-  Future<void> _attach(int generation, SlimmApi api, MessageStore store) async {
+  Future<SerialFrameQueue?> _attach(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+  ) async {
     final ticket = await api.webSocketTicket();
     final connection = await EventConnection.connect(
       url: api.webSocketUrl,
@@ -343,23 +272,36 @@ class SyncController extends StateNotifier<SyncStatus> {
     );
     if (generation != _generation) {
       await connection.close();
-      return;
+      return null;
     }
     _connection = connection;
 
+    final frames = SerialFrameQueue(
+      (event) => _applyServerEvent(generation, api, store, event),
+      onError: (_, _) {
+        if (generation == _generation) _onDropped();
+      },
+    );
+    _frames = frames;
+    void lost() {
+      frames.closed = true;
+      _onDropped();
+    }
+
     _events = connection.events.listen(
-      (event) async {
+      (event) {
         if (generation != _generation) return;
 
         /// Broadcast first and unconditionally: a listener that only cares
         /// about, say, ReactionsChanged must not depend on this switch ever
         /// learning about that event type.
         _liveEvents.add(event);
-        await _applyServerEvent(generation, api, store, event);
+        frames.add(event);
       },
-      onError: (_) => _onDropped(),
-      onDone: _onDropped,
+      onError: (_) => lost(),
+      onDone: lost,
     );
+    return frames;
   }
 
   /// Applies one live event the way [_attach]'s listener would, without
@@ -394,6 +336,8 @@ class SyncController extends StateNotifier<SyncStatus> {
   Future<void> _teardown() async {
     await _events?.cancel();
     _events = null;
+    _frames?.clear();
+    _frames = null;
     await _connection?.close();
     _connection = null;
   }
