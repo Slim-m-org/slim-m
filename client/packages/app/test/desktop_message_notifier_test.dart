@@ -21,6 +21,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/desktop_message_notifier.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -339,6 +340,53 @@ void main() {
           'every banner used to be filed under messages, so the OS\'s '
           'own per-kind control for mentions never applied',
     );
+    await setup.dispose();
+  });
+
+  test('a blocked author is never bannered', () async {
+    if (!isDesktopHost) return;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    final setup = await _wire();
+    await setup.container.read(blocksProvider.notifier).block('pest');
+
+    setup.events.add(
+      api.MessageCreated(
+        _message(
+          id: 'm1',
+          authorId: 'pest',
+          authorDisplayName: 'Pest',
+          channelId: 'group-1',
+        ),
+      ),
+    );
+    await _settle(setup);
+
+    expect(setup.notifications.shown, isEmpty);
+    await setup.dispose();
+  });
+
+  test('a message from a deleted account is not bannered', () async {
+    if (!isDesktopHost) return;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    final setup = await _wire();
+
+    setup.events.add(
+      const api.MessageCreated(
+        api.Message(
+          id: 'm1',
+          channelId: 'group-1',
+          authorId: null,
+          authorDisplayName: 'Deleted',
+          seq: 1,
+          content: 'hi',
+          createdAt: 0,
+          editedAt: null,
+        ),
+      ),
+    );
+    await _settle(setup);
+
+    expect(setup.notifications.shown, isEmpty);
     await setup.dispose();
   });
 }
