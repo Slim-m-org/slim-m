@@ -138,6 +138,12 @@ class WindowManagerDesktopWindowPort
   void onWindowMaximize() => _events.add(DesktopWindowEventKind.maximize);
   @override
   void onWindowUnmaximize() => _events.add(DesktopWindowEventKind.unmaximize);
+
+  /// Un-minimising emits `restore`, never `show`, and the controller reads
+  /// `show` as the window coming back.
+  @override
+  void onWindowRestore() => _events.add(DesktopWindowEventKind.show);
+
   @override
   void onWindowEnterFullScreen() =>
       _events.add(DesktopWindowEventKind.fullScreen);

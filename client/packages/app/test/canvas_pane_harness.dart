@@ -128,6 +128,7 @@ class CanvasPaneFixture {
     this.opsPostStatus = 201,
     this.placeStatus = 201,
     this.attachmentFetchStatus = 200,
+    this.attachmentUploadStatus = 200,
   }) : channelPermissions = channelPermissions ?? mePermissions;
 
   final StreamController<api.ServerEvent> events =
@@ -152,6 +153,10 @@ class CanvasPaneFixture {
   /// other than this client ends up hydrated; any other value drives the
   /// hydrator's own failure-placeholder path.
   final int attachmentFetchStatus;
+
+  /// The status `POST /attachments` answers with, so a test can drive a refused
+  /// upload (413 too big, 507 no storage) from a paste.
+  final int attachmentUploadStatus;
 
   /// Every `GET .../attachments/{id}` the pane's image hydrator sent.
   int attachmentFetches = 0;
@@ -268,6 +273,13 @@ class CanvasPaneFixture {
             }
             if (request.url.path == '/attachments' &&
                 request.method == 'POST') {
+              if (attachmentUploadStatus != 200) {
+                return http.Response(
+                  jsonEncode({'error': 'refused'}),
+                  attachmentUploadStatus,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
               return jsonResponse({
                 'id': 'sha-pasted',
                 'filename': 'pasted-image.png',

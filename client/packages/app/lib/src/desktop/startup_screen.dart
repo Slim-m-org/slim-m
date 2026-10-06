@@ -45,9 +45,6 @@ import 'update_package_view.dart' show packageManagerCommand;
 /// with `startupStatusProvider`'s live value once bootstrap actually starts.
 const defaultStartupStatus = 'Starting slim-m';
 
-/// A newer version offered in the splash, and the two things the user can do
-/// about it. Phase 1 of decision 0020: [onGet] opens the release rather than
-/// self-applying, and [onDismiss] launches the current client unchanged.
 /// A question the splash puts to the user, holding startup until it is
 /// answered. Two buttons, because every one of these is a choice between
 /// doing the thing now and going on without it: enable automatic updates or

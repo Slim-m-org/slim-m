@@ -42,6 +42,7 @@ class DesktopQuitShortcut {
     final resolved = platform ?? currentDesktopPlatform();
     if (resolved == null || resolved == DesktopPlatform.macOS) return;
     _port = port;
+    HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     HardwareKeyboard.instance.addHandler(_onKeyEvent);
   }
 
@@ -56,7 +57,14 @@ class DesktopQuitShortcut {
   static bool _onKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     if (event.logicalKey != LogicalKeyboardKey.keyQ) return false;
-    if (!HardwareKeyboard.instance.isControlPressed) return false;
+    final keyboard = HardwareKeyboard.instance;
+    if (!keyboard.isControlPressed) return false;
+    // Ctrl+Q only: AltGr layouts type a character on Ctrl+Alt+Q, and the others are another app's chord.
+    if (keyboard.isShiftPressed ||
+        keyboard.isAltPressed ||
+        keyboard.isMetaPressed) {
+      return false;
+    }
     _port?.destroy();
     return true;
   }

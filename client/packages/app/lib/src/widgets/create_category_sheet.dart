@@ -17,6 +17,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../ids.dart';
 import '../providers/providers.dart';
 
 /// The server's own ceiling (`validate_category_name` in
@@ -64,6 +65,8 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
     return 'Create category';
   }
 
+  final _createId = newCategoryId();
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -72,7 +75,7 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
     try {
       final created = await ref
           .read(apiProvider)
-          .createCategory(_name.text.trim());
+          .createCategory(_name.text.trim(), id: _createId);
       final store = await ref.read(storeProvider.future);
       await store.upsertCategory(created);
       if (!mounted) return;

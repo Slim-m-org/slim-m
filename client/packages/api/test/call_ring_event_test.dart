@@ -33,10 +33,10 @@ void main() {
   });
 
   for (final entry in {
-    'answered': CallRingOutcome.answered,
-    'declined': CallRingOutcome.declined,
-    'canceled': CallRingOutcome.canceled,
-    'timed_out': CallRingOutcome.timedOut,
+    'answered': CallOutcome.answered,
+    'declined': CallOutcome.declined,
+    'canceled': CallOutcome.canceled,
+    'timed_out': CallOutcome.timedOut,
   }.entries) {
     test('call.ring_ended decodes the "${entry.key}" outcome', () {
       final event = ServerEvent.parse(jsonEncode({

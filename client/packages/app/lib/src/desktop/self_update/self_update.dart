@@ -134,7 +134,16 @@ Future<String?> _latestClientTag(http.Client client) async {
       'https://api.github.com/repos/$clientReleaseRepo/releases?per_page=30',
     ),
   );
-  final releases = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+  final Object? releases;
+  try {
+    releases = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+  } on FormatException catch (error) {
+    throw SelfUpdateFailure(
+      SelfUpdateFailureKind.unreachable,
+      'Could not reach the update server.',
+      detail: '$error',
+    );
+  }
   if (releases is! List) return null;
   String? best;
   for (final entry in releases) {

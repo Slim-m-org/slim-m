@@ -48,7 +48,6 @@ void main() {
       expect(states.map((s) => s.channelId), ['c1', 'c2']);
       expect(states[0].state.lastReadSeq, 4);
       expect(states[0].state.manuallyUnread, isTrue);
-      expect(states[0].state.showsUnread, isTrue);
       expect(states[1].state.manuallyUnread, isFalse);
     });
   });

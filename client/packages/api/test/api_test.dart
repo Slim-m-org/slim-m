@@ -34,7 +34,7 @@ void main() {
       });
       expect(message.id, '018f-uuid');
       expect(message.seq, 42);
-      expect(message.isEdited, isFalse);
+      expect(message.editedAt, isNull);
     });
 
     test('a deleted author comes back as null, not a placeholder', () {
@@ -48,7 +48,7 @@ void main() {
         'edited_at': 2,
       });
       expect(message.authorId, isNull);
-      expect(message.isEdited, isTrue);
+      expect(message.editedAt, 2);
     });
 
     test('a server too old to report push reads as unknown, not false', () {

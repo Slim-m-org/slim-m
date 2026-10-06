@@ -42,9 +42,6 @@ const Map<String, String> _allowlist = {
   'pinnedMessageCount':
       'the pins sheet lists pinned messages and shows no count beside the '
           'header, so nothing asks for one (2026-07-30)',
-  'health': 'a liveness probe. Onboarding deliberately probes /version instead, '
-      'because that answers push_enabled, invite_required and capabilities in '
-      'the same round trip, and /healthz answers none of them',
   'bulkDeleteMessagesByAuthor': 'the author-plus-window sibling of '
       'bulkDeleteMessages: the server route and its index exist so a raid '
       'response is not "select 64 ids by hand", but no transcript UI offers '

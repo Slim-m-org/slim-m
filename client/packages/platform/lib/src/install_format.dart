@@ -40,12 +40,7 @@ enum InstallFormat {
   apk,
 
   /// Not a desktop or Android build, or the packaging could not be determined.
-  unknown;
-
-  /// Whether a build of this format can download and swap in a new version of
-  /// itself, versus having to hand the update off to the system.
-  bool get canSelfApply =>
-      this == InstallFormat.appImage || this == InstallFormat.tarball;
+  unknown,
 }
 
 /// The baked-in format, or empty when none was set at build time.

@@ -30,6 +30,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../ids.dart';
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
 import '../providers/providers.dart';
@@ -115,6 +116,8 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     return 'Create channel';
   }
 
+  final _createId = newChannelId();
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -129,6 +132,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
             categoryId: widget.categoryId,
             restricted: _restricted,
             joinMuted: _kind == 'voice' && _joinMuted,
+            id: _createId,
           );
       final store = await ref.read(storeProvider.future);
       await store.upsertChannels([created]);
