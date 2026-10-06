@@ -175,4 +175,20 @@ void main() {
     );
     expect(find.text('a new status'), findsOneWidget);
   });
+
+  testWidgets('eighty emoji count as eighty characters, as the server does', (
+    tester,
+  ) async {
+    final wired = _wire(currentStatus: null);
+    await _pump(tester, wired.container);
+    final eighty = List.filled(80, '\u{1F600}').join();
+
+    await tester.enterText(find.byType(TextField), eighty);
+    await tester.pump();
+    expect(find.text('80/80'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(wired.patched, [eighty]);
+  });
 }

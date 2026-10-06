@@ -27,6 +27,10 @@ import 'run_guarded.dart';
 /// against.
 const int statusTextMaxChars = 80;
 
+/// Characters as the server counts them (`chars().count()`), so an emoji is
+/// one, not the two UTF-16 units `String.length` would give it.
+int statusTextLength(String text) => text.trim().runes.length;
+
 /// Reads the caller's current status off [meProvider] and hands it to
 /// [_StatusTextField] under a key derived from it, so the field's own
 /// controller re-seeds itself whenever the server's value genuinely
@@ -70,7 +74,7 @@ class _StatusTextFieldState extends ConsumerState<_StatusTextField>
   }
 
   bool get _dirty => _controller.text.trim() != widget.current;
-  bool get _valid => _controller.text.trim().length <= statusTextMaxChars;
+  bool get _valid => statusTextLength(_controller.text) <= statusTextMaxChars;
   bool get _canSave => !_saving && _dirty && _valid;
 
   Future<void> _save() async {
@@ -93,7 +97,7 @@ class _StatusTextFieldState extends ConsumerState<_StatusTextField>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _controller.text.trim().length;
+    final length = statusTextLength(_controller.text);
 
     return Padding(
       padding: const EdgeInsets.symmetric(

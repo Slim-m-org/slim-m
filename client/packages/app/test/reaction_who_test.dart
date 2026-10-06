@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -399,6 +400,22 @@ void main() {
     expect(popover.right, lessThanOrEqualTo(desktop.width));
     expect(popover.bottom, lessThanOrEqualTo(desktop.height));
     expect(fixture.tapped, isEmpty);
+  });
+
+  testWidgets('the context-menu key on a focused chip opens the list', (
+    tester,
+  ) async {
+    final fixture = _Fixture(_ada());
+    await _pump(tester, fixture, desktop);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppMenu), findsOneWidget);
+    expect(find.text('Ada'), findsOneWidget);
+    expect(fixture.tapped, isEmpty, reason: 'opening the list must not toggle');
   });
 
   testWidgets('hovering a chip summarises the first names', (tester) async {

@@ -17,6 +17,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../providers/providers.dart';
 import 'totp_code_sheet.dart';
+import 'totp_failures.dart';
 
 /// Asks for a code and spends [challenge] on it. True once a session exists.
 ///
@@ -56,14 +57,8 @@ Future<bool> promptForTotpCode(
 /// reusing the sign-in screen's "wrong username or password" would send
 /// somebody to retype credentials that were already accepted.
 String _failure(api.ApiException e) => switch (e) {
-  api.BadRequestException() =>
-    'That code was not accepted. Codes change every 30 seconds, so check your '
-        'phone is showing the current one.',
   api.UnauthorizedException() =>
     'This sign-in took too long and has expired. Close this and enter your '
         'password again.',
-  api.RateLimitedException() =>
-    'Too many incorrect codes. Wait a few minutes and try again.',
-  api.ForbiddenException() => e.message,
-  _ => e.message,
+  _ => totpCodeFailure(e),
 };

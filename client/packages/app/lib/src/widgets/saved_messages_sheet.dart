@@ -27,6 +27,7 @@ import 'author_label.dart';
 import 'channel_label.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'message_jump.dart';
+import 'reply_target_summary.dart' show previewLine;
 import 'run_guarded.dart';
 import 'sheet_item_list.dart';
 import 'user_avatar.dart';
@@ -195,7 +196,7 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
             secondary: where == null ? null : '·  $where',
           ),
           subtitle: Text(
-            message.content,
+            previewLine(message.content, message.attachments),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: tokens.textSecondary),

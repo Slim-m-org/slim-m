@@ -30,14 +30,19 @@ pub fn routes() -> Router<AppState> {
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct SpaceSettingsDto {
     join_policy: String,
     /// `off`, `optional` or `required_for_elevated`; see
-    /// [`crate::store::TotpPolicy`]. Optional on the way in so a client that
-    /// predates it can still change the join policy without silently resetting
-    /// this one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// [`crate::store::TotpPolicy`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    totp_policy: Option<String>,
+}
+
+/// The PATCH body: only the fields present are written.
+#[derive(Deserialize)]
+struct UpdateSpaceSettingsDto {
+    join_policy: Option<String>,
     totp_policy: Option<String>,
 }
 
@@ -61,15 +66,21 @@ async fn update(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
-    Json(body): Json<SpaceSettingsDto>,
+    Json(body): Json<UpdateSpaceSettingsDto>,
 ) -> Result<Json<SpaceSettingsDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
 
-    let policy = match body.join_policy.as_str() {
-        "invite" => JoinPolicy::Invite,
-        "open" => JoinPolicy::Open,
-        _ => return Err(ApiError::BadRequest("join_policy must be invite or open")),
+    if body.join_policy.is_none() && body.totp_policy.is_none() {
+        return Err(ApiError::BadRequest(
+            "send join_policy, totp_policy or both",
+        ));
+    }
+    let join = match body.join_policy.as_deref() {
+        Some("invite") => Some(JoinPolicy::Invite),
+        Some("open") => Some(JoinPolicy::Open),
+        Some(_) => return Err(ApiError::BadRequest("join_policy must be invite or open")),
+        None => None,
     };
     // Parsed before either write, so a bad value cannot leave the join policy changed and the request refused.
     let totp = match body.totp_policy.as_deref() {
@@ -78,12 +89,14 @@ async fn update(
         ))?),
         None => None,
     };
-    state.store.set_join_policy(policy).await?;
+    if let Some(join) = join {
+        state.store.set_join_policy(join).await?;
+    }
     if let Some(totp) = totp {
         state.store.set_totp_policy(totp).await?;
     }
     Ok(Json(SpaceSettingsDto {
-        join_policy: policy.as_str().to_owned(),
+        join_policy: state.store.join_policy().await?.as_str().to_owned(),
         totp_policy: Some(state.store.totp_policy().await?.as_str().to_owned()),
     }))
 }

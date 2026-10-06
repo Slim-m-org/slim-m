@@ -19,23 +19,32 @@ import 'sync_controller.dart';
 /// Null for every case that is not a proven mismatch: signed out, nothing
 /// pinned yet, an unreachable server, or one too old to report a key. Failing
 /// open here matches sign-in, which treats an unreadable probe as unknown.
-final serverIdentityChangeProvider = FutureProvider<api.ServerIdentity?>((
-  ref,
-) async {
-  ref.watch(syncControllerProvider);
-  if (!ref.watch(sessionProvider).isSignedIn) return null;
+/// A mismatch already proven is the exception: a failed re-probe keeps it,
+/// because an unreadable answer is no verdict and must not retract one.
+final serverIdentityChangeProvider =
+    AsyncNotifierProvider<ServerIdentityChange, api.ServerIdentity?>(
+      ServerIdentityChange.new,
+    );
 
-  final server = ref.watch(serverUrlProvider);
-  final pinned = await ref
-      .watch(keyStoreProvider)
-      .read(identityHandleFor(server));
-  if (pinned == null) return null;
+class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
+  @override
+  Future<api.ServerIdentity?> build() async {
+    final proven = state.valueOrNull;
+    ref.watch(syncControllerProvider);
+    if (!ref.watch(sessionProvider).isSignedIn) return null;
 
-  try {
-    final identity = (await ref.watch(apiProvider).version()).identity;
-    if (identity == null || identity.publicKey == pinned) return null;
-    return identity;
-  } catch (_) {
-    return null;
+    final server = ref.watch(serverUrlProvider);
+    final pinned = await ref
+        .watch(keyStoreProvider)
+        .read(identityHandleFor(server));
+    if (pinned == null) return null;
+
+    try {
+      final identity = (await ref.watch(apiProvider).version()).identity;
+      if (identity == null || identity.publicKey == pinned) return null;
+      return identity;
+    } catch (_) {
+      return proven?.publicKey == pinned ? null : proven;
+    }
   }
-});
+}

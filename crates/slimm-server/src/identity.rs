@@ -22,7 +22,9 @@
 //! without the fingerprint visibly changing. That is a real property against
 //! a network that turns hostile later, a DNS or routing change that lands on
 //! the wrong host, or a typo'd address that happens to reach someone else's
-//! server. It is not a substitute for checking the fingerprint out of band
+//! server. It does not stop a relay that forwards `/version` to the real
+//! server: that response is public and nothing here signs anything, so the
+//! real key reaches the client unchanged. It is not a substitute for checking the fingerprint out of band
 //! (the admin reading it aloud) on that first connection, which is why the
 //! onboarding design surfaces it as something to compare rather than
 //! something to trust silently.

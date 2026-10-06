@@ -134,8 +134,8 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
       child: Text(
         status.resolved
-            ? 'Resolved. Filed ${_filedAgo(status.createdAt)}.'
-            : 'Still open. Filed ${_filedAgo(status.createdAt)}.',
+            ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
+            : 'Still open. Filed ${filedAgo(status.createdAt)}.',
         style: AppText.body.copyWith(color: tokens.textPrimary),
       ),
     );
@@ -228,8 +228,8 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
             padding: const EdgeInsets.only(top: AppSpacing.s12),
             child: Text(
               status.resolved
-                  ? 'Resolved. Filed ${_filedAgo(status.createdAt)}.'
-                  : 'Still open. Filed ${_filedAgo(status.createdAt)}.',
+                  ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
+                  : 'Still open. Filed ${filedAgo(status.createdAt)}.',
               style: AppText.body.copyWith(color: tokens.textPrimary),
             ),
           ),
@@ -249,5 +249,5 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
 /// A short, relative "filed X ago" for [createdAtMs] (Unix milliseconds).
 /// Counts in weeks: a filed report is realistic to check back on well after
 /// a day has passed.
-String _filedAgo(int createdAtMs) =>
-    formatRelativeAgeMs(createdAtMs, weeks: true);
+String filedAgo(int createdAtMs, {DateTime? now}) =>
+    formatRelativeAgeMs(createdAtMs, now: now, weeks: true);

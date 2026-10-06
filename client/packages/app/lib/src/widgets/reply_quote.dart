@@ -83,54 +83,57 @@ class ReplyQuote extends ConsumerWidget {
       color: tokens.textSecondary,
       fontStyle: resolved == null ? FontStyle.italic : null,
     );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.s4),
-      child: Semantics(
-        button: true,
-        label: label == null
-            ? 'Reply to a message that is not available'
-            : 'Reply to $label: $snippet',
-        child: AppFocusRing(
-          radius: AppRadii.control,
-          builder: (context, onFocusChange) => InkWell(
-            onTap: onTap,
-            // AppFocusRing replaces this overlay; see its own doc comment.
-            focusColor: Colors.transparent,
-            onFocusChange: onFocusChange,
-            borderRadius: BorderRadius.circular(AppRadii.control),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(AppIcons.reply, size: 13, color: tokens.textSecondary),
-                const SizedBox(width: AppSpacing.s4),
-                if (showThumb) ...[
-                  ReplyAttachmentThumb(
-                    attachments: attachments,
-                    edge: _quoteThumbEdge,
-                  ),
+    return AppTouchHitArea(
+      alignment: Alignment.topLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.s4),
+        child: Semantics(
+          button: true,
+          label: label == null
+              ? 'Reply to a message that is not available'
+              : 'Reply to $label: $snippet',
+          child: AppFocusRing(
+            radius: AppRadii.control,
+            builder: (context, onFocusChange) => InkWell(
+              onTap: onTap,
+              // AppFocusRing replaces this overlay; see its own doc comment.
+              focusColor: Colors.transparent,
+              onFocusChange: onFocusChange,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppIcons.reply, size: 13, color: tokens.textSecondary),
                   const SizedBox(width: AppSpacing.s4),
+                  if (showThumb) ...[
+                    ReplyAttachmentThumb(
+                      attachments: attachments,
+                      edge: _quoteThumbEdge,
+                    ),
+                    const SizedBox(width: AppSpacing.s4),
+                  ],
+                  if (label == null)
+                    // A long snippet alone would overflow the row otherwise.
+                    Flexible(
+                      child: Text(
+                        snippet,
+                        style: textStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: AuthorNameLine(
+                        name: label,
+                        profile: resolution?.profile,
+                        style: textStyle.copyWith(fontWeight: AppWeights.semi),
+                        secondary: snippet,
+                        secondaryStyle: textStyle,
+                      ),
+                    ),
                 ],
-                if (label == null)
-                  // A long snippet alone would overflow the row otherwise.
-                  Flexible(
-                    child: Text(
-                      snippet,
-                      style: textStyle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: AuthorNameLine(
-                      name: label,
-                      profile: resolution?.profile,
-                      style: textStyle.copyWith(fontWeight: AppWeights.semi),
-                      secondary: snippet,
-                      secondaryStyle: textStyle,
-                    ),
-                  ),
-              ],
+              ),
             ),
           ),
         ),

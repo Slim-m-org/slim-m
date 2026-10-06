@@ -6035,7 +6035,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SpaceSettings"
+              $ref: "#/components/schemas/UpdateSpaceSettings"
       responses:
         "200":
           description: The settings as stored.
@@ -8825,6 +8825,19 @@ components:
             default every deployment keeps on upgrade. `open` means anyone
             who can reach the server may register; a code is still accepted,
             so an invite granting a role keeps working.
+    UpdateSpaceSettings:
+      type: object
+      minProperties: 1
+      properties:
+        join_policy:
+          type: string
+          enum: [invite, open]
+        totp_policy:
+          type: string
+          enum: [off, optional, required_for_elevated]
+      description: >
+        Only the fields present are written, so a client changing one setting
+        cannot overwrite another from a stale copy. An empty body is refused.
     UpdateSpaceAnalytics:
       type: object
       required: [enabled]

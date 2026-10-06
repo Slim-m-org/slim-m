@@ -112,51 +112,19 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-
-    return threads.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      error: (error, _) {
-        final forbidden = error is api.ForbiddenException;
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  forbidden
-                      ? 'You do not have permission to see threads here.'
-                      : 'Could not load threads.',
-                  style: TextStyle(color: tokens.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                if (!forbidden) ...[
-                  const SizedBox(height: AppSpacing.s12),
-                  TextButton(
-                    onPressed: () =>
-                        ref.invalidate(threadsListProvider(channelId)),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-      data: (list) {
-        if (list.isEmpty) {
-          return Center(
-            child: Text(
-              'No threads yet.',
-              style: TextStyle(color: tokens.textSecondary),
-            ),
-          );
-        }
-
+    final forbidden = threads.error is api.ForbiddenException;
+    return AppAsyncView<List<api.ThreadListItem>>(
+      value: AppAsyncState(data: threads.valueOrNull, error: threads.error),
+      errorMessage: forbidden
+          ? 'You do not have permission to see threads here.'
+          : 'Could not load threads.',
+      onRetry: forbidden
+          ? null
+          : () => ref.invalidate(threadsListProvider(channelId)),
+      emptyMessage: 'No threads yet.',
+      isEmpty: (list) => list.isEmpty,
+      data: (context, list) {
         resolveAuthorProfiles(ref, list.map((t) => t.parentAuthorId));
-
         return SheetItemList(
           itemCount: list.length,
           itemBuilder: (context, i) =>
