@@ -192,8 +192,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         inThisChannel && voice.state == VoiceSessionState.connecting;
     // Without this, `join`'s own in-flight window (see its own comment) reads as `attemptedThis` and briefly flashes the rejoin screen.
     final joiningHere = inThisChannel && voice.joining;
-    // See VoiceState.rejoining for why the gap between two attempts is not "you left".
-    final rejoiningHere = inThisChannel && voice.rejoining;
     final busyElsewhere = _busyElsewhere(voice, channelId);
     // The same canvas-pane remount that connectedHere guards against also
     // wipes this memory when the user hung up *before* closing the canvas:
@@ -222,11 +220,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         : null;
     final canRetry = errorMessage == null || voice.retryable;
 
-    // rejoiningHere stays on the call stage rather than the full-screen
+    // A rejoin in progress stays on the call stage rather than the full-screen
     // connecting spinner: the bounded auto-rejoin behind it is still trying,
     // and the grid, filmstrip and controls it already had are worth more
     // than a blank screen while that happens. See _InCall's own banner.
-    final stage = connectedHere || rejoiningHere
+    final stage = voice.inCallStageFor(channelId)
         ? 'call'
         : (connectingHere || joiningHere)
         ? 'connecting'
@@ -243,7 +241,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       key: ValueKey('voice-${stage == 'joining' ? 'connecting' : stage}'),
       child: switch (stage) {
         'call' => _InCall(channelId: channelId, isDm: widget.isDm),
-        // rejoiningHere never reaches here: it maps to 'call' above, with its own overlay instead of this full-screen spinner.
+        // A rejoin in progress never reaches here: it maps to 'call' above, with its own overlay instead of this full-screen spinner.
         'connecting' || 'joining' => const VoiceConnecting(),
         'switch' => VoiceSwitchPrompt(onSwitch: () => _switchNow(controller)),
         _ => VoiceRejoinScreen(

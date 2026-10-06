@@ -18,6 +18,11 @@ mixin VoiceControllerRejoinMixin
   VoiceAutoRejoin get _rejoinAttempts;
   Future<void> join(String channelId);
 
+  /// The channel of the automatic attempt in flight, so [join] keeps
+  /// [VoiceState.rejoining] up for it instead of clearing it as it does for
+  /// a person's own join, including one into another channel.
+  String? _autoAttemptChannel;
+
   /// Which SFU-decided drops are an accident rather than a decision.
   ///
   /// A lost connection, or a `removed` that [VoiceController] has already
@@ -86,11 +91,19 @@ mixin VoiceControllerRejoinMixin
   Future<void> _attemptAutoRejoin(String channelId) async {
     // A hang-up or another channel already moved on; this attempt is not about that call.
     if (state.channelId != channelId) return;
-    await join(channelId);
+    _autoAttemptChannel = channelId;
+    try {
+      await join(channelId);
+    } finally {
+      _autoAttemptChannel = null;
+    }
     if (state.channelId != channelId) return;
     if (state.state == VoiceSessionState.connected) return;
     // A refusal that cannot change (forbidden, no voice, insecure SFU) is the person's to act on.
-    if (!state.retryable) return;
+    if (!state.retryable) {
+      state = state.copyWith(rejoining: false);
+      return;
+    }
     _scheduleAutoRejoin(channelId);
   }
 }

@@ -62,6 +62,14 @@ class VoiceFlags {
     justLeftAt: state.justLeftAt,
   );
 
+  /// Whether the call controls belong on screen for [channel]: connected
+  /// there, or inside its bounded auto-rejoin, where the call is still ours
+  /// to mute or leave. One rule for the voice stage and the canvas dock, so
+  /// they cannot disagree about whether a call is up.
+  bool inCallStageFor(String channel) =>
+      channelId == channel &&
+      (state == VoiceSessionState.connected || rejoining);
+
   final String? channelId;
   final VoiceSessionState state;
   final bool joining;
