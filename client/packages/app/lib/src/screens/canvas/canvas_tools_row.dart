@@ -86,9 +86,9 @@ class CanvasToolsRow extends StatefulWidget {
   final CanvasTool tool;
   final ValueChanged<CanvasTool> onToolChanged;
 
-  /// False while the pane's own error banner is up - an active refusal
-  /// (forbidden, or a timeout freeze) that would make placing a new object
-  /// fail the identical way again. Disarms pen, note and shape (and the
+  /// False while the pane's error banner is an active refusal (forbidden, a
+  /// timeout freeze, or a canvas that did not load) that would make placing a
+  /// new object fail the identical way again; any other banner leaves it true. Disarms pen, note and shape (and the
   /// overflow's "Paste image"), the exact tools the empty-canvas CTA this
   /// screen-review finding names invites - a still-selectable pen tool
   /// underneath a banner reading "the canvas is not available" or "you

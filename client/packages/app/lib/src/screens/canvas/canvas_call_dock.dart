@@ -100,10 +100,9 @@ class CanvasDockData {
   final CanvasTool tool;
   final ValueChanged<CanvasTool> onToolChanged;
 
-  /// False while an error banner is up (`CanvasPaneBody.error != null`), the
-  /// pane's own signal that a place would fail the identical way the banner
-  /// already explains - see `canvas_tools_row.dart`'s own doc for which
-  /// tools this disarms and why.
+  /// False while the pane's error is one a place would fail the same way as
+  /// (`canvasErrorBlocksDrawing`) - see `canvas_tools_row.dart`'s own doc for
+  /// which tools this disarms and why.
   final bool canDraw;
   final bool canUndo;
   final VoidCallback onUndo;

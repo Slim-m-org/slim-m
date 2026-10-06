@@ -23,6 +23,7 @@ import 'canvas_activity_panel.dart';
 import 'canvas_bar.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
+import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pen_style.dart';
@@ -337,7 +338,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     tool: widget.tool,
     onToolChanged: widget.onToolChanged,
     // A banner already says a place would fail; pen/note/shape must not stay selectable underneath it.
-    canDraw: widget.error == null,
+    canDraw: !canvasErrorBlocksDrawing(widget.error),
     canUndo: widget.canUndo,
     onUndo: widget.onUndo,
     canManage: widget.canManage,
@@ -465,6 +466,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           onDeleteSelected: widget.onDeleteSelected,
           onPasteImageAt: widget.onPasteImageAt,
           onAddNoteAt: widget.onNotePlace,
+          canDraw: !canvasErrorBlocksDrawing(widget.error),
           onRecenter: widget.onRecenter,
         ),
         CanvasSelectionSemantics(

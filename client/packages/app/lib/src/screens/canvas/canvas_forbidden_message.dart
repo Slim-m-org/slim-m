@@ -20,16 +20,32 @@ import '../../format.dart';
 /// fresh rather than cached at pane-mount, since a timeout can start or
 /// lapse while the pane stays open.
 String canvasDrawForbiddenMessage(int? timedOutUntil) {
-  if (timedOutUntil == null) {
-    return "You don't have permission to draw here right now.";
-  }
+  if (timedOutUntil == null) return _drawRefusedMessage;
   final remaining = DateTime.fromMillisecondsSinceEpoch(
     timedOutUntil,
   ).difference(DateTime.now());
   if (remaining.isNegative) {
     // Lapsed between the refusal landing and this being read: nothing left to name.
-    return "You don't have permission to draw here right now.";
+    return _drawRefusedMessage;
   }
-  return "You're timed out and can't draw for another "
-      '${formatRemaining(remaining)}.';
+  return '$_timedOutPrefix${formatRemaining(remaining)}.';
 }
+
+const _drawRefusedMessage = "You don't have permission to draw here right now.";
+const _timedOutPrefix = "You're timed out and can't draw for another ";
+
+/// Shown when the canvas fetch is refused outright.
+const canvasUnavailableMessage = 'The canvas is not available in this channel.';
+
+/// Shown for any other failed canvas fetch.
+const canvasLoadFailedMessage = 'The canvas could not be loaded.';
+
+/// Whether [error] says placing would fail the same way again: a refusal, a
+/// timeout freeze, or a canvas that never loaded. Any other banner (a failed
+/// reorder or delete, an unreadable image) leaves drawing available.
+bool canvasErrorBlocksDrawing(String? error) =>
+    error != null &&
+    (error == _drawRefusedMessage ||
+        error == canvasUnavailableMessage ||
+        error == canvasLoadFailedMessage ||
+        error.startsWith(_timedOutPrefix));
