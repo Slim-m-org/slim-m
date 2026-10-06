@@ -109,10 +109,7 @@ Future<_Rig> _ringing({String? inCall = 'dm-1'}) async {
 }
 
 void main() {
-  for (final outcome in [
-    api.CallOutcome.declined,
-    api.CallOutcome.timedOut,
-  ]) {
+  for (final outcome in [api.CallOutcome.declined, api.CallOutcome.timedOut]) {
     test('a ring that ends $outcome hangs the caller up', () async {
       final rig = await _ringing();
 
@@ -123,10 +120,7 @@ void main() {
     });
   }
 
-  for (final outcome in [
-    api.CallOutcome.answered,
-    api.CallOutcome.canceled,
-  ]) {
+  for (final outcome in [api.CallOutcome.answered, api.CallOutcome.canceled]) {
     test('a ring that ends $outcome clears without hanging up', () async {
       final rig = await _ringing();
 
