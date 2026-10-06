@@ -10238,6 +10238,17 @@ components:
             catch. Unlike `SendMessageRequest.embeds` there is no `is_bot`
             gate: every webhook post is somebody else's program by
             construction, so this is unconditional.
+
+
+            Read more tolerantly than `RequestEmbed`, since the sender is
+            somebody else's program. An embed `timestamp` may be an integer
+            (epoch milliseconds), an RFC 3339 string with `Z` or a numeric
+            offset and any number of fractional digits (Discord's own shape,
+            which Sonarr and Radarr send; years 1970 through 9999), or null.
+            A string that does not parse, or any other type, drops the
+            timestamp and the delivery still posts. A null `embeds` or a null
+            embed `fields` reads as empty. `SendMessageRequest.embeds` is
+            unchanged and still refuses a string timestamp with 400.
         avatar_url:
           description: >-
             Accepted and discarded, permanently. Honouring it would mean

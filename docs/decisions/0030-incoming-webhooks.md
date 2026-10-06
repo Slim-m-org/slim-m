@@ -380,3 +380,13 @@ Rotation shipped after the admin surface: `POST /webhooks/{id}/rotate` replaces 
 The row and its principal are kept, and the old token stops resolving in the same transaction.
 `webhook_rotate` joins the audit log as migration 0086, the same CHECK rebuild as 0078, with the acting admin as `actor_id` and the webhook principal as `subject_id`.
 The list shows how long ago a webhook last delivered, not only whether it has.
+
+## Addendum, 2026-10-05: a honoured field of the wrong type degrades
+
+"Acceptance, not fidelity" covers a field of the wrong type as well as an unknown field, because the sender cannot tell the two apart.
+Sonarr and Radarr send an embed `timestamp` as an ISO 8601 string, which the integer-only embed read refused with a 400 that dropped the whole delivery (issue 1814).
+The webhook route now reads its embeds through its own tolerant type (`http/embeds/webhook.rs`) and hands the result to the same `build_embeds` the send route uses, so the two cannot drift onto different caps.
+`timestamp` takes an integer (epoch milliseconds, as before), an RFC 3339 string with `Z` or a numeric offset and any number of fractional digits (years 1970 through 9999), or null.
+A string that does not parse, or any other type, drops the timestamp and the delivery still posts, the way an unreadable colour or a refused image already does.
+A null `embeds` or a null embed `fields` reads as empty.
+The send and ephemeral routes keep the strict integer type: their callers are this repo's own code, where a wrong type is a bug that should be loud.

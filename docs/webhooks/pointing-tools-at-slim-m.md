@@ -36,6 +36,10 @@ That is deliberate: a tool upgrading and adding a field it thinks Discord wants 
 An `embeds` array renders as slim-m's own embed card: title, description, fields, a color reduced to one of six accent buckets, and an image if the URL passes the same guard link previews use.
 An image the guard refuses is dropped; the rest of the embed still posts.
 
+An embed's `timestamp` can be an integer (epoch milliseconds) or the ISO 8601 string Discord's own shape uses, such as `2026-10-04T12:00:00.000Z` or `2026-10-04T14:00:00+02:00`, with any number of fractional digits.
+A timestamp that cannot be read is dropped and the rest of the embed still posts, the same as an image the guard refuses.
+A `null` for `embeds` or for an embed's `fields` is read as empty.
+
 ## What it cannot do
 
 A webhook URL posts text and bounded embeds into exactly one channel, at a rate limit, and nothing else.
