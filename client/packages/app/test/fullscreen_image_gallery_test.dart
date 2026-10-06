@@ -296,4 +296,51 @@ void main() {
           'which is the spinner this viewer promises never to show',
     );
   });
+
+  testWidgets('a horizontal drag pages when not zoomed, and pans when zoomed', (
+    tester,
+  ) async {
+    await _openAt(tester, _images[1], _images, [_servesPng()]);
+    final viewer = find.byType(InteractiveViewer).hitTestable();
+
+    final centre = tester.getCenter(viewer);
+    final left = await tester.startGesture(centre - const Offset(20, 0));
+    final right = await tester.startGesture(centre + const Offset(20, 0));
+    await tester.pump();
+    await left.moveBy(const Offset(-80, 0));
+    await right.moveBy(const Offset(80, 0));
+    await tester.pump();
+    await left.up();
+    await right.up();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!
+          .value
+          .getMaxScaleOnAxis(),
+      greaterThan(1.0),
+      reason: 'the pinch must have zoomed or this proves nothing',
+    );
+
+    await tester.fling(viewer, const Offset(-300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(find.text('2 of 3'), findsOneWidget, reason: 'zoomed, so a pan');
+  });
+
+  testWidgets('a horizontal drag turns the page when not zoomed', (
+    tester,
+  ) async {
+    await _openAt(tester, _images[1], _images, [_servesPng()]);
+
+    await tester.fling(
+      find.byType(InteractiveViewer).hitTestable(),
+      const Offset(-300, 0),
+      1500,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 of 3'), findsOneWidget);
+  });
 }
