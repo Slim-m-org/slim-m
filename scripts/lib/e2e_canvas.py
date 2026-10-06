@@ -72,6 +72,7 @@ import threading
 import time
 
 import e2e_labels as L
+from e2e_api import wait_until
 
 # Offsets from the canvas's own top-left; the midpoint is the eraser's target.
 STROKE_START = (60, 280)
@@ -279,9 +280,8 @@ def erase_undo_clear_and_restore(a, b, admin_api, channel_id):
     for c in (a, b):
         wait_for_summary(c, "no objects")
     print("  clearing wiped all four kinds on both clients")
-    deadline = time.time() + 15
-    while time.time() < deadline and admin_api.canvas_objects(channel_id):
-        time.sleep(0.5)
+    wait_until(lambda: admin_api.canvas_objects(channel_id), lambda objects: not objects,
+               "the server still holds canvas objects after the clear")
 
     a.click(L.UNDO)
     for c in (a, b):

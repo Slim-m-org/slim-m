@@ -14,9 +14,8 @@ fires `onNotePlace`/`onShapePlace` once, on pointer-down (see
 canvas_surface.dart's own `_down`), so a `drag()` call with one point is a
 real tap: press and release at the same spot.
 """
-import time
-
 import e2e_labels as L
+from e2e_api import wait_until
 from e2e_canvas import (
     STROKE_MID,
     at,
@@ -139,7 +138,7 @@ def place_then_move_without_switching_tools(a, admin_api, channel_id):
         return sum(1 for o in admin_api.canvas_objects(channel_id)
                     if o["kind"] == "shape")
 
-    _wait_until(_shape_count, lambda count: count == before + 1,
+    wait_until(_shape_count, lambda count: count == before + 1,
                 "the newly placed shape never reached the server")
     placed = newest_of_kind(admin_api, channel_id, "shape")
     print("  placing a shape reached the server")
@@ -148,7 +147,7 @@ def place_then_move_without_switching_tools(a, admin_api, channel_id):
     a.drag([point, (point[0] + 40, point[1] + 30)])
     a.gestures(False)
 
-    moved = _wait_until(
+    moved = wait_until(
         lambda: admin_api.canvas_object(channel_id, placed["id"]),
         lambda obj: obj["x"] != placed["x"] or obj["y"] != placed["y"],
         "dragging right after placing, with no tool switch, never moved "
@@ -192,7 +191,7 @@ def reorder_stroke_and_see_it_live(a, b, admin_api, channel_id):
     a.click(L.MORE_CANVAS_ACTIONS)
     a.click(L.BRING_TO_FRONT)
 
-    raised = _wait_until(
+    raised = wait_until(
         lambda: admin_api.canvas_object(channel_id, stroke["id"]),
         lambda obj: obj["z_index"] > max(_others_z(
             admin_api, channel_id, stroke["id"])),
@@ -209,20 +208,10 @@ def reorder_stroke_and_see_it_live(a, b, admin_api, channel_id):
     a.click(L.MORE_CANVAS_ACTIONS)
     a.click(L.SEND_TO_BACK)
 
-    lowered = _wait_until(
+    lowered = wait_until(
         lambda: admin_api.canvas_object(channel_id, stroke["id"]),
         lambda obj: obj["z_index"] < min(_others_z(
             admin_api, channel_id, stroke["id"])),
         "the stroke never dropped below every other object on the server")
     print(f"  sent the stroke back (z_index {lowered['z_index']})")
 
-
-def _wait_until(read, satisfied, failure_message, timeout=15):
-    deadline = time.time() + timeout
-    current = None
-    while time.time() < deadline:
-        current = read()
-        if satisfied(current):
-            return current
-        time.sleep(0.5)
-    raise AssertionError(failure_message)

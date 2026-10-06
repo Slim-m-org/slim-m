@@ -89,5 +89,21 @@ class ListShapeTest(unittest.TestCase):
         self.assertEqual(api.canvas_media_slots("c1"), [2])
 
 
+class WaitUntilTest(unittest.TestCase):
+    def test_returns_the_first_value_that_satisfies(self):
+        reads = iter([0, 1, 2, 3])
+        with patch("e2e_api.time.sleep"):
+            got = e2e_api.wait_until(lambda: next(reads), lambda n: n >= 2, "never")
+        self.assertEqual(got, 2)
+
+    def test_raises_the_given_message_when_the_deadline_passes(self):
+        clock = iter([0.0, 0.0, 10.0, 20.0, 30.0])
+        with patch("e2e_api.time.time", side_effect=lambda: next(clock)), \
+                patch("e2e_api.time.sleep"):
+            with self.assertRaises(AssertionError) as caught:
+                e2e_api.wait_until(lambda: 0, lambda n: n > 0, "the server never emptied", timeout=15)
+        self.assertEqual(str(caught.exception), "the server never emptied")
+
+
 if __name__ == "__main__":
     unittest.main()

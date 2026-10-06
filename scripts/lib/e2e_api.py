@@ -7,6 +7,7 @@ the server stored anything, and a client that only ever agrees with itself
 would pass a run where nothing was persisted at all.
 """
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -24,6 +25,17 @@ def _list_body(got):
     """A list endpoint sends a bare array; anything else is a wire break."""
     assert isinstance(got, list), f"expected a bare array, got {type(got).__name__}: {got!r}"
     return got
+
+
+def wait_until(read, satisfied, failure_message, timeout=15):
+    """Polls `read` until `satisfied` accepts it; raises `failure_message` on timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        current = read()
+        if satisfied(current):
+            return current
+        time.sleep(0.5)
+    raise AssertionError(failure_message)
 
 
 class Api:
