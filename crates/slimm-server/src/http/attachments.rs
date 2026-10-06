@@ -44,9 +44,13 @@ const IMMUTABLE_CACHE: &str = "private, max-age=31536000, immutable";
 /// layer would be - the body is never buffered whole to measure it - and reads
 /// the same operator-configured ceiling.
 pub fn routes() -> Router<AppState> {
-    Router::new()
-        .route("/attachments", post(upload))
-        .route("/attachments/{attachment_id}", get(fetch))
+    Router::new().route("/attachments/{attachment_id}", get(fetch))
+}
+
+/// The upload route on its own so the router can keep it out of the total-time
+/// request timeout; see `http::router`.
+pub fn upload_routes() -> Router<AppState> {
+    Router::new().route("/attachments", post(upload))
 }
 
 // --- Wire types ---

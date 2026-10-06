@@ -22,6 +22,7 @@ mod fixtures;
 mod message_filenames;
 mod ranges;
 mod serving;
+mod slow_upload;
 mod uploading;
 
 #[path = "../support/mod.rs"]
