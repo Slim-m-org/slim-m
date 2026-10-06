@@ -47,8 +47,8 @@ impl From<sqlx::Error> for SearchError {
 }
 
 /// The structured half of an advanced search, already resolved to SQL-ready
-/// values by `http::search`: a username to compare exactly (matching the
-/// case-sensitive uniqueness `users_username_live` already enforces), and
+/// values by `http::search`: a username to compare exactly (live usernames are
+/// unique case-insensitively since migration 0095), and
 /// two cheap content/existence predicates. `channel_ids` is not here - it is
 /// [`Store::search_messages`]'s own parameter, since which channels are in
 /// scope is answered once, before this struct is built, and an `in:` that

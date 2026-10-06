@@ -120,14 +120,10 @@ impl Store {
     /// nobody live behind it - never registered, or deleted - is simply
     /// absent, the same contract [`Store::user_profiles`] has for an id.
     ///
-    /// `users_username_live` has no `COLLATE NOCASE`, so `nick` and `Nick`
-    /// really can both be live accounts at once; a mention of either then
-    /// resolves to both. That is correct rather than ambiguous: the client
-    /// renders a mention chip off the same lowered comparison for whichever
-    /// account it resolves `knownUsernames` against, so both are equally
-    /// "the person mentioned" to anyone reading. This does not touch that
-    /// index or registration's case handling, which would change behaviour
-    /// for every existing account rather than fix this mismatch.
+    /// Live usernames are unique case-insensitively (`users_username_lower_live`,
+    /// migration 0095), so the lowered lookup resolves at most one id per
+    /// name. The lowering is still needed to agree with how the client
+    /// renders a mention chip.
     pub async fn user_ids_for_usernames(
         &self,
         usernames: &[String],
@@ -358,7 +354,7 @@ impl Store {
     /// an avatar no file backs.
     ///
     /// Returns `None` if the account is gone, the same tiny race documented
-    /// on [`Store::update_display_name`].
+    /// on [`Store::update_profile`].
     pub async fn set_avatar_updated(&self, user_id: UserId) -> anyhow::Result<Option<User>> {
         let now = super::now_ms();
         let affected = sqlx::query!(

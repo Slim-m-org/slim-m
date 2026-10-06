@@ -43,7 +43,7 @@ impl Store {
 
     /// Sets the caller's preference. Returns `false` if the account is gone,
     /// the same tiny concurrent-deletion window documented on
-    /// [`Store::update_display_name`](super::Store::update_display_name).
+    /// [`Store::update_profile`](super::Store::update_profile).
     pub async fn set_notification_preference(
         &self,
         user_id: UserId,
