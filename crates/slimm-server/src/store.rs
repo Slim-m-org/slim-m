@@ -141,6 +141,7 @@ pub use categories::CreatedCategory;
 pub use channel_create::{CreateChannelError, CreatedChannel};
 pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 pub use channel_settings::ChannelPatch;
+pub use channel_slow_mode::slow_mode_retry_after_seconds;
 pub use channels::DeleteChannelError;
 pub use code_runs::{CodeRunSummary, MAX_SHARED_OUTPUT_BYTES, clamp_output};
 pub(crate) use dms::DM_CHANNEL_KIND;

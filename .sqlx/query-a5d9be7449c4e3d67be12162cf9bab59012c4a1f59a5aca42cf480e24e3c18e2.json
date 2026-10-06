@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT MAX(created_at) AS \"created_at: i64\" FROM messages\n               WHERE channel_id = ? AND author_id = ? AND deleted_at IS NULL",
+  "query": "SELECT MAX(created_at) AS \"created_at: i64\" FROM messages\n               WHERE channel_id = ? AND author_id = ?",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       true
     ]
   },
-  "hash": "b4cae8814335cb98e69b9b49b36e914fa4ad3577fbcc9ac016180cc29b9353df"
+  "hash": "a5d9be7449c4e3d67be12162cf9bab59012c4a1f59a5aca42cf480e24e3c18e2"
 }

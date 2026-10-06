@@ -168,18 +168,17 @@ async fn deliver(
     let id = idempotent_message_id(&parts, webhook_id);
     let channel_id = context.channel_id;
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
-    if !stored_already {
-        enforce_slow_mode(&state, channel_id, context.principal_id).await?;
-    }
+    let slow_mode_window_ms = match stored_already {
+        true => None,
+        false => enforce_slow_mode(&state, channel_id, context.principal_id).await?,
+    };
 
     let sent = state
         .store
-        .send_message(NewMessage::plain(
-            channel_id,
-            context.principal_id,
-            id,
-            content,
-        ))
+        .send_message_with_slow_mode(
+            NewMessage::plain(channel_id, context.principal_id, id, content),
+            slow_mode_window_ms,
+        )
         .await?;
 
     if sent.fresh {

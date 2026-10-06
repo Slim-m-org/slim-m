@@ -147,6 +147,7 @@ async fn create(
     let id = MessageId(parse_uuid(&req.id)?);
     // Never on a retry: a launch that already landed must not be refused for arriving too soon.
     if state.store.message_including_deleted(id).await?.is_none() {
+        // The app send has its own transaction, so only this early check guards it.
         enforce_slow_mode(&state, channel_id, ctx.user_id).await?;
     }
     let sent = match state

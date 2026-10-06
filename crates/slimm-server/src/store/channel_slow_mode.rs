@@ -65,11 +65,9 @@ impl Store {
         Ok(seconds.unwrap_or(0))
     }
 
-    /// When `author_id` last sent a live (non-deleted) message in `channel_id`,
-    /// or `None` if they never have. Backed by the `messages_author_channel_window`
-    /// index (0054), which is exactly `(channel_id, author_id, created_at)
-    /// WHERE deleted_at IS NULL` - this is the cheapest question that index
-    /// answers.
+    /// When `author_id` last sent a message in `channel_id`, deleted ones included
+    /// (deleting a message must not reopen the window), or `None` if they never
+    /// have. Backed by `messages_author_channel_sent` (0099).
     pub(crate) async fn last_message_at(
         &self,
         channel_id: ChannelId,
@@ -77,7 +75,7 @@ impl Store {
     ) -> anyhow::Result<Option<i64>> {
         let last = sqlx::query_scalar!(
             r#"SELECT MAX(created_at) AS "created_at: i64" FROM messages
-               WHERE channel_id = ? AND author_id = ? AND deleted_at IS NULL"#,
+               WHERE channel_id = ? AND author_id = ?"#,
             channel_id,
             author_id
         )
@@ -85,4 +83,31 @@ impl Store {
         .await?;
         Ok(last)
     }
+}
+
+/// Whole seconds a send must still wait, rounded up so a client that waits the reported time is
+/// never refused twice, or `None` once `window_ms` has elapsed since `last_sent_at`.
+pub fn slow_mode_retry_after_seconds(window_ms: i64, last_sent_at: i64, now: i64) -> Option<i64> {
+    let remaining_ms = window_ms - (now - last_sent_at);
+    (remaining_ms > 0).then(|| ((remaining_ms + 999) / 1000).max(1))
+}
+
+/// The in-transaction half of slow mode: reads the author's last send on the writer's own
+/// connection, so concurrent sends queue behind each other rather than all reading the same one.
+pub(super) async fn retry_after_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+    author_id: UserId,
+    window_ms: i64,
+    now: i64,
+) -> Result<Option<i64>, sqlx::Error> {
+    let last = sqlx::query_scalar!(
+        r#"SELECT MAX(created_at) AS "created_at: i64" FROM messages
+           WHERE channel_id = ? AND author_id = ?"#,
+        channel_id,
+        author_id
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(last.and_then(|last| slow_mode_retry_after_seconds(window_ms, last, now)))
 }

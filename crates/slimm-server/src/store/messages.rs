@@ -52,6 +52,10 @@ pub enum SendError {
     /// different channel from this send. A parent that exists in this
     /// channel but is already soft-deleted is still a valid target.
     InvalidReplyTarget,
+    /// The author's last send in this channel is still inside the slow-mode window.
+    SlowMode {
+        retry_after_seconds: i64,
+    },
     Internal(anyhow::Error),
 }
 
@@ -189,7 +193,19 @@ impl Store {
     /// `busy_timeout`, because waiting could deadlock. Taking the write lock
     /// up front makes concurrent sends queue instead.
     pub async fn send_message(&self, msg: NewMessage<'_>) -> Result<Sent, SendError> {
-        self.send_message_stamped(msg, None).await
+        self.send_message_stamped(msg, None, None).await
+    }
+
+    /// [`Store::send_message`] that also refuses a fresh send inside `slow_mode_window_ms`
+    /// of the author's last message in the channel, checked under the write lock so
+    /// concurrent sends cannot all pass. The caller resolves the window and any exemption.
+    pub async fn send_message_with_slow_mode(
+        &self,
+        msg: NewMessage<'_>,
+        slow_mode_window_ms: Option<i64>,
+    ) -> Result<Sent, SendError> {
+        self.send_message_stamped(msg, None, slow_mode_window_ms)
+            .await
     }
 
     /// [`Store::send_message`] for a message a module posted: the origin row and
@@ -202,7 +218,20 @@ impl Store {
         module_id: &str,
         footer: &str,
     ) -> Result<Sent, SendError> {
-        self.send_message_stamped(msg, Some((module_id, footer)))
+        self.send_message_stamped(msg, Some((module_id, footer)), None)
+            .await
+    }
+
+    /// [`Store::send_module_message`] with the in-transaction slow-mode check of
+    /// [`Store::send_message_with_slow_mode`].
+    pub async fn send_module_message_with_slow_mode(
+        &self,
+        msg: NewMessage<'_>,
+        module_id: &str,
+        footer: &str,
+        slow_mode_window_ms: Option<i64>,
+    ) -> Result<Sent, SendError> {
+        self.send_message_stamped(msg, Some((module_id, footer)), slow_mode_window_ms)
             .await
     }
 
@@ -210,6 +239,7 @@ impl Store {
         &self,
         msg: NewMessage<'_>,
         stamp: Option<(&str, &str)>,
+        slow_mode_window_ms: Option<i64>,
     ) -> Result<Sent, SendError> {
         let NewMessage {
             channel_id,
@@ -247,6 +277,19 @@ impl Store {
             return Err(SendError::IdConflict);
         }
 
+        let now = now_ms();
+        if let Some(window_ms) = slow_mode_window_ms
+            && let Some(retry_after_seconds) = super::channel_slow_mode::retry_after_in_tx(
+                &mut tx, channel_id, author_id, window_ms, now,
+            )
+            .await?
+        {
+            tx.commit().await?;
+            return Err(SendError::SlowMode {
+                retry_after_seconds,
+            });
+        }
+
         // A reply's parent must already exist in this exact channel. The
         // column's bare `REFERENCES messages(id)` only proves the id exists
         // somewhere, never that it belongs here, so the channel is checked by
@@ -277,7 +320,6 @@ impl Store {
         .await?
         .context("channel has no message sequence counter")?;
 
-        let now = now_ms();
         sqlx::query!(
             r#"INSERT INTO messages (id, channel_id, author_id, seq, content, created_at, reply_to_id)
                VALUES (?, ?, ?, ?, ?, ?, ?)"#,
