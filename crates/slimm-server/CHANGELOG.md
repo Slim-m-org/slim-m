@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.82.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.81.1...server-v0.82.0) (2026-10-06)
+
+
+### Bug Fixes
+
+* a moderation history that loads, webhook embeds with iso timestamps, and a desktop window that follows resizing ([#2000](https://github.com/Slim-m-org/slim-m/issues/2000)) ([aecafd0](https://github.com/Slim-m-org/slim-m/commit/aecafd027b186f58d28755430830591ad68d7eb5))
+* answering a CallKit ring on a cold launch joins the call and ends the system call when it is over ([#2004](https://github.com/Slim-m-org/slim-m/issues/2004)) ([ff0870b](https://github.com/Slim-m-org/slim-m/commit/ff0870bddc6b14d76acd8c439cda15bed80cd59b))
+* batch 3 of the october audit, server, canvas, accessibility, startup, update and notification fixes ([#2005](https://github.com/Slim-m-org/slim-m/issues/2005)) ([ffc76a2](https://github.com/Slim-m-org/slim-m/commit/ffc76a2fcdbf2656db87684ba64a8b31dc7072f9))
+
 ## [0.81.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.81.0...server-v0.81.1) (2026-10-02)
 
 
