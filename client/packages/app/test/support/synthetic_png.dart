@@ -40,12 +40,15 @@ Uint8List _png(int w, int h, List<int> header, Uint8List raw) {
   ]);
 }
 
-/// An opaque 8-bit rgba png, [w] by [h]; decodes to exactly that size.
-Uint8List solidPng(int w, int h) {
+/// An opaque 8-bit rgba png of one gray [shade], [w] by [h]; decodes to
+/// exactly that size, and differs byte for byte from another shade.
+Uint8List solidPng(int w, int h, {int shade = 0}) {
   final raw = Uint8List((w * 4 + 1) * h);
   for (var y = 0; y < h; y++) {
     for (var x = 0; x < w; x++) {
-      raw[y * (w * 4 + 1) + 1 + x * 4 + 3] = 255;
+      final at = y * (w * 4 + 1) + 1 + x * 4;
+      raw[at] = raw[at + 1] = raw[at + 2] = shade;
+      raw[at + 3] = 255;
     }
   }
   return _png(w, h, [8, 6, 0, 0, 0], raw);
