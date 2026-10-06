@@ -3,7 +3,7 @@
 # Each package resolves against this shared workspace.
 name: slim_m_workspace
 # release-please tracks the client version here; explicit so the first release is 0.1.0.
-version: 0.96.0
+version: 0.97.0
 publish_to: none
 environment:
   sdk: ^3.10.0

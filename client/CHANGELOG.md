@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.97.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.96.0...client-v0.97.0) (2026-10-06)
+
+
+### Features
+
+* **client:** a phone can turn a call's full screen video sideways ([#2013](https://github.com/Slim-m-org/slim-m/issues/2013)) ([a739ccb](https://github.com/Slim-m-org/slim-m/commit/a739ccbea88667e70498fbe6757ce6d6e7431ece))
+
+
+### Bug Fixes
+
+* **client:** turning the camera on no longer freezes the desktop app ([#2009](https://github.com/Slim-m-org/slim-m/issues/2009)) ([e3ecdf5](https://github.com/Slim-m-org/slim-m/commit/e3ecdf597bb389fe75390219a23cda7cc57153e4))
+* **client:** what's new for 0.95 to 0.97, and the liveness test ignores a closed sink ([#2015](https://github.com/Slim-m-org/slim-m/issues/2015)) ([3b819f0](https://github.com/Slim-m-org/slim-m/commit/3b819f07a8a9f3b6ba3c5547a0e5a071252469a8))
+
 ## [0.96.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.95.0...client-v0.96.0) (2026-10-06)
 
 
