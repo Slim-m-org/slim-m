@@ -967,8 +967,8 @@ A submit that `copr-publish` attempts and fails is retried, then fails the job (
 The concurrency group `copr-catch-up` has `cancel-in-progress: false`: a submit must never be killed halfway.
 GitHub keeps one pending run and replaces older pending ones, which is fine here because every run asks the same question of COPR's current state rather than carrying a payload.
 
-Version ordering is unchanged: `copr-publish` stamps the snapshot Release as `0.<run_number>` (this workflow's own counter), which sorts below the committed spec's `1`.
-Because a catch-up only submits a Version COPR does not yet have, it cannot collide with a `main-builds` snapshot of the same Version, and a later tagged `-1` release still supersedes it.
+Version ordering comes from `copr-publish`, which stamps the snapshot Release from the commit (see the versioning section under `main-builds`), not from either workflow's run counter, so a catch-up cannot outrank a later `main-builds` snapshot of a newer commit.
+A catch-up only submits a Version COPR does not yet have, so it does not collide with a snapshot of the same Version either.
 
 ## desktop-clients
 
@@ -1026,7 +1026,7 @@ The owner's own framing: "every time I go to main, I should be able to test on a
 This is the workflow that answers that, deliberately kept out of `release.yml`: that workflow's whole shape keys off release-please outputs and tag refs, and mixing an untagged path into it would make both harder to reason about.
 Nothing here is versioned, changelogged, tagged or attached to a GitHub Release; that stays `release`'s job, triggered the same way it always has been by merging a release PR.
 On a client merge, iOS reaches TestFlight and the owner's Fedora desktop gets a new build through the same COPR project `dnf upgrade` already polls; on a server merge, the live instance updates on its own, because `latest` moves.
-A tagged release still supersedes all of this: it wins over any COPR snapshot of the same version (see the versioning section below), and it alone attaches signed assets to the GitHub release.
+A tagged release does not supersede its own version's snapshots on `dnf upgrade`, because a snapshot is newer code (see the versioning section below), but the next version's release outranks them all, and a release alone attaches signed assets to the GitHub release.
 
 ### What triggers it, and the one filter step that replaces two workflows
 
@@ -1079,9 +1079,14 @@ The release path's own `spectool` call is untouched; this is a second, parallel 
 
 The spec is committed at `Version: 0.4.0` / `Release: 1%{?dist}`, and the release job already rewrites `Version` to the tag's version on its own copy of the spec, never on the one in git.
 A continuous build does the same version rewrite (to the client's current tracked version, read out of `client/pubspec.yaml`, the same value the mobile builds use), but it also has to rewrite `Release`, or every snapshot of one version would collide with the committed `1%{?dist}` and with each other.
-It is set to `0.${{ github.run_number }}%{?dist}`.
-RPM's version comparison splits `Release` into alphanumeric segments and compares them one at a time, so `0.<n>` and `1` compare on their first segment, `0` against `1`, and `0` always loses.
-That means every snapshot of a given version sorts below the real tagged release of that same version, however high its own run number climbs, so cutting an actual release always supersedes whatever snapshots came before it on `dnf upgrade`, while snapshots still sort in increasing order among themselves because `run_number` only grows.
+`scripts/copr-snapshot-release.sh` derives it as `<N>.<commit time in UTC, YYYYMMDDHHMMSS>git<sha7>%{?dist}`, where N is the integer in the spec's own `Release:` line.
+RPM's version comparison splits `Release` into alphanumeric segments and compares them one at a time, a number above letters, so `1.2026...git...fc44` beats `1.fc44` (number against letters on the second segment) and loses to a `2`.
+The stamp has the same width until the year 9999 and compares as a number, so a newer commit always sorts above an older snapshot, whichever workflow built either; the sha only breaks a tie inside one second.
+The first scheme, `0.<run_number>`, sorted below the release rpm: between releases `pubspec.yaml` equals the last released version, `release.yml` had already put `<version>-1` into COPR, and `dnf upgrade` skipped every snapshot of that version until the next bump (`0.94.0-1` followed by `0.94.0-0.1128`).
+A snapshot now outranks the tagged release of the same version, which is the same code plus later commits, and the next version's release (`0.96.0-1`) outranks every snapshot of `0.95.0`.
+A hand bump of the spec's Release to rebuild a tag raises N, so that rebuild outranks the older snapshots and later snapshots outrank it.
+COPR puts no rule on Release beyond rpm's own (no `-`, no whitespace; the stamp uses digits, `git` and a hex sha); it only prunes by keeping the build with the greatest EPOCH:NAME-VERSION-RELEASE, which this ordering agrees with.
+`scripts/lib/test_copr_snapshot_release_sorts_above_the_release.py` orders real names with a port of rpmvercmp, checked against `rpmdev-vercmp` where it is installed.
 Neither the committed spec's `Release:` line nor the release path's own behaviour is touched; both rewrites happen only on the build-time copy under `~/rpmbuild/SPECS/`.
 
 ### Secrets, gating, and the environments it deliberately does not use
