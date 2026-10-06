@@ -6,6 +6,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
@@ -94,6 +95,8 @@ class DesktopWindowController {
   Future<void> _onEvent(DesktopWindowEventKind kind) async {
     switch (kind) {
       case DesktopWindowEventKind.resize:
+        _scheduleWrite();
+        await _holdMinimumSize();
       case DesktopWindowEventKind.move:
         _scheduleWrite();
       case DesktopWindowEventKind.maximize:
@@ -118,6 +121,32 @@ class DesktopWindowController {
   Future<void> requestClose() async {
     await _writeNow();
     await _routeClose();
+  }
+
+  bool _holdingMinimum = false;
+
+  /// Sizes the window back up when a drag took it below the floor.
+  ///
+  /// The OS minimum is not honored everywhere, notably under Wayland, where a
+  /// window can be dragged to a sliver and the layout overflows. Gated like
+  /// persistence: the splash is deliberately smaller than the floor.
+  Future<void> _holdMinimumSize() async {
+    if (!_geometryPersistenceEnabled || _holdingMinimum) return;
+    _holdingMinimum = true;
+    try {
+      if (await port.isMaximized() || await port.isFullScreen()) return;
+      final bounds = await port.getBounds();
+      final floor = WindowGeometry.minimumWindowSize;
+      if (bounds.width >= floor.width && bounds.height >= floor.height) return;
+      await port.setSize(
+        WindowSize(
+          width: math.max(bounds.width, floor.width),
+          height: math.max(bounds.height, floor.height),
+        ),
+      );
+    } finally {
+      _holdingMinimum = false;
+    }
   }
 
   void _scheduleWrite() {
