@@ -15,6 +15,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../widgets/media_label.dart';
 import '../../widgets/user_avatar.dart';
+import 'canvas_presence_geometry.dart' show presenceScreenLabel;
 
 /// One participant's camera tile: their live camera when it is on, or -
 /// report 4 in the backlog channel, "if a user is not screen sharing or
@@ -202,9 +203,7 @@ class _CanvasScreenShareBubbleState extends State<CanvasScreenShareBubble> {
           revealed: revealed,
           child: MediaLabelChip(
             icon: AppIcons.screenShare,
-            label: widget.participant.isLocal
-                ? 'Your screen'
-                : "${widget.participant.name}'s screen",
+            label: presenceScreenLabel(widget.participant),
           ),
         ),
       ),

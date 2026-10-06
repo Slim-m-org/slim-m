@@ -14,7 +14,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_presence_geometry.dart'
-    show presenceTileIdentity, presenceTileKind;
+    show presenceScreenLabel, presenceTileIdentity, presenceTileKind;
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 
 /// Every hidden tile belonging to somebody still on the call, sorted by the
@@ -37,9 +37,7 @@ List<CanvasHiddenTile> hiddenCanvasTiles({
     if (participant == null) continue;
     final isScreen = presenceTileKind(key) == screenTrackKind;
     final label = isScreen
-        ? (participant.isLocal
-              ? 'Your screen share'
-              : "${participant.name}'s screen share")
+        ? '${presenceScreenLabel(participant)} share'
         : (participant.isLocal
               ? 'Your camera'
               : "${participant.name}'s camera");

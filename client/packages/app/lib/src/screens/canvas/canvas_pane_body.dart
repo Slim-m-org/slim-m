@@ -28,6 +28,7 @@ import 'canvas_hidden_tiles.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
+import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_presence_roster.dart';
 import 'canvas_summary.dart';
@@ -244,6 +245,9 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// right now outlives nothing beyond this body's own lifetime.
   final _menuRequests = CanvasObjectMenuRequests();
 
+  /// One resolution of the call tiles for both the backdrop and the layer.
+  final _presenceFrames = CanvasPresenceFrameResolver();
+
   /// Whether this caller has a camera bubble on the canvas at all right now
   /// - the dock's overflow item's own gate for whether "hide my camera
   /// bubble" means anything to offer.
@@ -416,6 +420,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           screenShareViewFor: widget.screenShareViewFor,
           overrides: widget.tileOverrides,
           hideSelfCamera: widget.selfBubbleHidden,
+          resolver: _presenceFrames,
         ),
         CanvasSurface(
           document: widget.document,
@@ -485,6 +490,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           hideSelfCamera: widget.selfBubbleHidden,
           tool: widget.tool,
           participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
+          resolver: _presenceFrames,
         ),
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.
         CanvasWorldEdgeGlow(

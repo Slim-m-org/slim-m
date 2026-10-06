@@ -55,8 +55,8 @@
 /// set it just used to build its own children, so the thing that mounts a
 /// video widget and the thing that asks the SFU for that video can never
 /// disagree about which tiles those are. [CanvasPresenceBackdrop] needs no
-/// report of its own for the same reason - it runs the identical
-/// `CanvasPresenceVisibility` over the identical rects and then narrows to
+/// report of its own for the same reason - it reads the same
+/// `CanvasPresenceFrame` this widget does and then narrows to
 /// the sent-to-back subset, so the union of tiles carrying real video across
 /// both widgets is precisely this widget's own visible set.
 ///
@@ -90,6 +90,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../widgets/call_roster_motion.dart';
 import '../../widgets/fullscreen_video_overlay.dart';
 import 'canvas_presence_bubble.dart';
+import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';
 import 'canvas_presence_tile.dart';
 
@@ -118,7 +119,12 @@ class CanvasPresenceLayer extends StatefulWidget {
     this.layout = const CanvasPresenceLayout(),
     this.tool = CanvasTool.pan,
     this.participantMenuItemsBuilder,
+    this.resolver,
   });
+
+  /// Shared with `CanvasPresenceBackdrop` so both resolve the tiles through
+  /// one visibility history; a standalone layer makes its own.
+  final CanvasPresenceFrameResolver? resolver;
 
   final CanvasDocument document;
   final List<VoiceParticipant> participants;
@@ -184,7 +190,8 @@ class CanvasPresenceLayer extends StatefulWidget {
 }
 
 class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
-  final CanvasPresenceVisibility _visibility = CanvasPresenceVisibility();
+  late final CanvasPresenceFrameResolver _resolver =
+      widget.resolver ?? CanvasPresenceFrameResolver();
   Set<String>? _lastReported;
   // Distinct from `_lastReported == null`, which is itself a real answer.
   bool _reported = false;
@@ -238,27 +245,24 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final keys = presenceTileKeys(widget.participants);
-    if (keys.isEmpty) {
+    final frame = _resolver.resolve(
+      participants: widget.participants,
+      document: widget.document,
+      overrides: widget.overrides,
+      layout: widget.layout,
+      hideSelfCamera: widget.hideSelfCamera,
+    );
+    final byIdentity = frame.byIdentity;
+    final onCanvas = frame.onCanvas;
+    final visibleIds = frame.visibleIds;
+    if (frame.keys.isEmpty) {
       _reportInterest(null);
       return const SizedBox.shrink();
     }
-    final byIdentity = {for (final p in widget.participants) p.identity: p};
-    final onCanvas = presenceOnCanvasRects(
-      keys: keys,
-      // The pane's real drawing area, in logical pixels and independent of zoom, so a default tile arrangement wraps to the screen a person is actually holding - see CanvasPresenceLayout.maxRowWidth's own doc for the trade.
-      layout: widget.layout.withMaxRowWidth(widget.document.viewport.width),
-      overrides: widget.overrides,
-      byIdentity: byIdentity,
-      hideSelfCamera: widget.hideSelfCamera,
-      viewport: widget.document.viewport,
-    );
-    // Ahead of _visibility.update, matching CanvasPresenceBackdrop's own early return exactly, or the two instances' mounted sets drift.
     if (onCanvas.isEmpty) {
       _reportInterest(const <String>{});
       return const SizedBox.shrink();
     }
-    final visibleIds = _visibility.update(widget.document.worldView, onCanvas);
     // Checked against onCanvas rather than trusted: a participant who left, or a tile hidden from under the route, leaves a key nothing can subscribe to.
     final expanded = _expandedKey;
     final wantsVideo = expanded != null && onCanvas.containsKey(expanded)
@@ -325,9 +329,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
         context,
         identity: participant.identity,
         label: isScreen
-            ? (participant.isLocal
-                  ? 'Your screen'
-                  : "${participant.name}'s screen")
+            ? presenceScreenLabel(participant)
             : (participant.isLocal ? 'Your camera' : participant.name),
         kind: isScreen
             ? FullscreenVideoKind.screenShare

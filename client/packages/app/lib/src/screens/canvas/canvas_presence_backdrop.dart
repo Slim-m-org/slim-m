@@ -18,6 +18,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_presence_bubble.dart';
+import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';
 
 /// Identifies this widget's own [IgnorePointer] for a test to assert on
@@ -42,7 +43,12 @@ class CanvasPresenceBackdrop extends StatefulWidget {
     required this.overrides,
     this.hideSelfCamera = false,
     this.layout = const CanvasPresenceLayout(),
+    this.resolver,
   });
+
+  /// Shared with `CanvasPresenceLayer` so both resolve the tiles through one
+  /// visibility history; a standalone backdrop makes its own.
+  final CanvasPresenceFrameResolver? resolver;
 
   final CanvasDocument document;
   final List<VoiceParticipant> participants;
@@ -57,8 +63,8 @@ class CanvasPresenceBackdrop extends StatefulWidget {
 }
 
 class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
-  // Its own instance, computed over the same full onCanvas map CanvasPresenceLayer's own instance sees - see build() below for why that keeps the two in step.
-  final CanvasPresenceVisibility _visibility = CanvasPresenceVisibility();
+  late final CanvasPresenceFrameResolver _resolver =
+      widget.resolver ?? CanvasPresenceFrameResolver();
 
   @override
   void initState() {
@@ -93,22 +99,17 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
 
   @override
   Widget build(BuildContext context) {
-    final keys = presenceTileKeys(widget.participants);
-    if (keys.isEmpty) return const SizedBox.shrink();
-    final byIdentity = {for (final p in widget.participants) p.identity: p};
-    final onCanvas = presenceOnCanvasRects(
-      keys: keys,
-      // The pane's real drawing area, in logical pixels and independent of zoom, so a default tile arrangement wraps to the screen a person is actually holding - see CanvasPresenceLayout.maxRowWidth's own doc for the trade.
-      layout: widget.layout.withMaxRowWidth(widget.document.viewport.width),
+    final frame = _resolver.resolve(
+      participants: widget.participants,
+      document: widget.document,
       overrides: widget.overrides,
-      byIdentity: byIdentity,
+      layout: widget.layout,
       hideSelfCamera: widget.hideSelfCamera,
-      viewport: widget.document.viewport,
     );
+    final byIdentity = frame.byIdentity;
+    final onCanvas = frame.onCanvas;
     if (onCanvas.isEmpty) return const SizedBox.shrink();
-    // The full onCanvas map, not a pre-filtered one - the two widgets' separate CanvasPresenceVisibility instances would drift apart otherwise.
-    final visibleIds = _visibility.update(widget.document.worldView, onCanvas);
-    final backKeys = visibleIds
+    final backKeys = frame.visibleIds
         .where(
           (key) =>
               presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
