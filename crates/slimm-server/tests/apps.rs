@@ -368,3 +368,53 @@ async fn a_command_with_no_app_extension_point_cannot_be_launched() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
+
+/// What the launch route accepts is exactly what `/modules/apps` offers: an
+/// unknown command, a disabled module and a missing permission all refuse.
+#[tokio::test]
+async fn a_launch_is_refused_unless_the_app_would_be_offered() {
+    let (s, _guard) = store("slimm-apps-launch-gate").await;
+    let user = member(&s).await;
+    install(&s, true).await;
+    let channel = s.create_channel("general", "text").await.unwrap();
+    let token = s.open_session(user.id, "phone").await.unwrap();
+    let tok = token.access_token.as_str();
+    let router = app(s.clone());
+    let launch = |command: &str| {
+        post(
+            &format!("/channels/{}/messages/apps", channel.id),
+            tok,
+            json!({
+                "id": Uuid::now_v7().to_string(),
+                "content": "",
+                "module_id": "widget",
+                "command": command,
+            }),
+        )
+    };
+
+    let status =
+        |request: Request<Body>| async { router.clone().oneshot(request).await.unwrap().status() };
+    assert_eq!(
+        status(launch("surf")).await,
+        StatusCode::FORBIDDEN,
+        "no play permission"
+    );
+    grant_play(&s, &user).await;
+    assert_eq!(
+        status(launch("nope")).await,
+        StatusCode::FORBIDDEN,
+        "no such command"
+    );
+    assert_eq!(
+        status(launch("surf")).await,
+        StatusCode::OK,
+        "offered, so launchable"
+    );
+    s.set_module_enabled("widget", false).await.unwrap();
+    assert_eq!(
+        status(launch("surf")).await,
+        StatusCode::FORBIDDEN,
+        "disabled"
+    );
+}

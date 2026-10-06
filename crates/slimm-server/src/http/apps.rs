@@ -27,6 +27,7 @@ use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::module_commands::reachable_extension_points;
 use super::post_commit::after_commit;
@@ -39,9 +40,6 @@ use crate::store::{AppSurface as StoreAppSurface, CreateAppSurfaceError, Store};
 /// An app-launch body is tiny: which module and command, plus an optional
 /// caption and the client-generated id.
 const APP_BODY_LIMIT: usize = 8 * 1024;
-/// Longest an optional caption riding alongside a launched app may be, matching
-/// the cap ordinary message content already carries.
-const CAPTION_MAX_CHARS: usize = 4000;
 
 /// The app routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
@@ -145,7 +143,7 @@ async fn create(
         return Err(ApiError::Forbidden);
     }
 
-    let content = validate_caption(&req.content)?;
+    let content = validate_content(&req.content, true)?;
     let id = MessageId(parse_uuid(&req.id)?);
     // Never on a retry: a launch that already landed must not be refused for arriving too soon.
     if state.store.message_including_deleted(id).await?.is_none() {
@@ -240,27 +238,11 @@ async fn caller_may_launch(
     user_id: UserId,
     module_id: &str,
     command: &str,
-) -> anyhow::Result<bool> {
-    let Some(module) = state.store.installed_module(module_id).await? else {
-        return Ok(false);
-    };
-    if !module.enabled {
-        return Ok(false);
-    }
-    let Some(ep) = module
-        .extension_points
+) -> Result<bool, ApiError> {
+    Ok(reachable_extension_points(state, user_id, "app")
+        .await?
         .iter()
-        .find(|e| e.kind == "app" && e.command.as_deref() == Some(command))
-    else {
-        return Ok(false);
-    };
-    let Some(permission) = &ep.permission else {
-        return Ok(false);
-    };
-    state
-        .store
-        .user_has_module_permission(user_id, module_id, permission)
-        .await
+        .any(|r| r.module_id == module_id && r.command == command))
 }
 
 /// Every `app` extension point the caller may currently launch: installed,
@@ -283,11 +265,4 @@ async fn list_apps(
         })
         .collect();
     Ok(Json(apps))
-}
-
-fn validate_caption(content: &str) -> Result<&str, ApiError> {
-    if content.chars().count() > CAPTION_MAX_CHARS {
-        return Err(ApiError::BadRequest("caption is too long"));
-    }
-    Ok(content)
 }

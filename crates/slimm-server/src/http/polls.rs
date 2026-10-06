@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
+use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -34,9 +35,6 @@ use crate::store::{CreatePollError, Poll as StorePoll, Store, VoteError, now_ms}
 /// Poll bodies are small: a question, up to four short options, and an
 /// optional close time.
 const POLL_BODY_LIMIT: usize = 8 * 1024;
-/// Longest an optional caption riding alongside a poll may be, matching the
-/// cap ordinary message content already carries.
-const CAPTION_MAX_CHARS: usize = 4000;
 
 /// The poll routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
@@ -181,7 +179,7 @@ async fn create(
         return Err(ApiError::Forbidden);
     }
 
-    let content = validate_caption(&req.content)?;
+    let content = validate_content(&req.content, true)?;
     refuse_hidden_poll_text(&req.question, &req.options)?;
     let id = MessageId(parse_uuid(&req.id)?);
     let sent = match state
@@ -329,11 +327,4 @@ async fn vote(
         options: tally,
     });
     Ok(StatusCode::NO_CONTENT)
-}
-
-fn validate_caption(content: &str) -> Result<&str, ApiError> {
-    if content.chars().count() > CAPTION_MAX_CHARS {
-        return Err(ApiError::BadRequest("caption is too long"));
-    }
-    Ok(content)
 }

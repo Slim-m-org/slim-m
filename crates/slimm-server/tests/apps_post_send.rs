@@ -435,3 +435,29 @@ async fn a_failing_post_commit_lookup_does_not_lose_the_live_frame() {
         "the stored launch must answer 200 and publish exactly one MessageCreated"
     );
 }
+
+#[tokio::test]
+async fn an_over_long_launch_caption_names_how_far_over_it_is() {
+    let (s, _guard) = store("slimm-apps-post-send-caption").await;
+    let user = member(&s).await;
+    install(&s, true).await;
+    grant_play(&s, &user).await;
+    let channel = s.create_channel("general", "text").await.unwrap();
+    let token = s.open_session(user.id, "phone").await.unwrap();
+    let router = app(s);
+    let caption = "x".repeat(4001);
+    let response = router
+        .oneshot(launch(
+            &channel.id.to_string(),
+            &token.access_token,
+            &caption,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let error = json_body(response).await["error"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(error.contains("1 characters over"), "{error}");
+}
