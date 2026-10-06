@@ -12,6 +12,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'channel_history.dart';
+import 'message_page_size.dart';
 import 'providers.dart';
 
 /// What a jump is doing right now.
@@ -62,11 +63,16 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
   final Ref _ref;
   int _token = 0;
 
-  /// How many backward pages [jumpTo] fetches before giving up. Pages are 50
-  /// rows (`channel_history.dart`'s own page size), so this bounds a jump at
-  /// 500 messages of paging - enough for anything a search or a pin can name
-  /// without one tap being able to fetch a channel's entire history.
-  static const int _maxPages = 10;
+  /// How many messages of paging [jumpTo] does before giving up - enough for
+  /// anything a search or a pin can name without one tap being able to fetch
+  /// a channel's entire history. Counted in messages, so the page-size
+  /// setting changes how many requests that takes, not how far a jump reaches.
+  static const int _maxRows = 500;
+
+  int get _maxPages {
+    final rows = _ref.read(messagePageSizeControllerProvider).rows;
+    return (_maxRows / rows).ceil();
+  }
 
   /// Looks for [messageId] in [channelId], paging older history in while it
   /// is not found. Safe to call again before a previous call has settled: the
@@ -76,14 +82,15 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     state = MessageJumpSeeking(channelId, messageId, token);
     final store = await _ref.read(storeProvider.future);
     final history = _ref.read(channelHistoryProvider(channelId).notifier);
+    final maxPages = _maxPages;
 
-    for (var page = 0; page <= _maxPages; page++) {
+    for (var page = 0; page <= maxPages; page++) {
       if (_token != token) return;
       if (await store.hasMessage(channelId, messageId)) {
         state = MessageJumpArrived(channelId, messageId, token);
         return;
       }
-      if (page == _maxPages) break;
+      if (page == maxPages) break;
       // Seeded from the store, not trusted from the screen: a jump can run before any screen has built a frame for this channel.
       history.syncOldest(await store.oldestLocalSeq(channelId));
       // Retried rather than left failed, or one stale failure wedges every jump at page zero forever.
@@ -127,7 +134,10 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       MessageJumpArrived(channelId: final c) => c == channelId,
       MessageJumpUnreachable(channelId: final c) => c == channelId,
     };
-    if (belongsHere) state = const MessageJumpIdle();
+    if (!belongsHere) return;
+    // Bumped so a seek still paging stops instead of writing Arrived for a channel nobody is on.
+    _token++;
+    state = const MessageJumpIdle();
   }
 }
 

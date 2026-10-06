@@ -20,6 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'database_key_store.dart';
 import 'live_events.dart';
+import 'preference_controller.dart';
 
 /// The server the user picked, with null meaning one has never been picked on
 /// this install.
@@ -391,35 +392,13 @@ enum AppThemeChoice { system, light, dark, trueBlack }
 /// started from the constructor, because a constructor load resolves a frame
 /// or more after the first paint: on a true-black phone that is a white flash
 /// before the chosen theme lands.
-class ThemeController extends StateNotifier<AppThemeChoice> {
-  ThemeController(this._ref) : super(AppThemeChoice.system);
-
-  final Ref _ref;
-
-  /// Reads the stored choice back. A missing or unrecognised value leaves the
-  /// default alone, so a preference written by a later version that dropped an
-  /// option degrades to following the system rather than throwing.
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(themeChoiceKey);
-      state = AppThemeChoice.values.firstWhere(
-        (choice) => choice.name == stored,
-        orElse: () => AppThemeChoice.system,
+class ThemeController extends EnumPreferenceController<AppThemeChoice> {
+  ThemeController(super.ref)
+    : super(
+        storageKey: themeChoiceKey,
+        choices: AppThemeChoice.values,
+        fallback: AppThemeChoice.system,
       );
-    } catch (_) {
-      // Appearance is not worth failing a launch over, and the default is
-      // always a usable answer.
-    }
-  }
-
-  /// Applies the choice, then persists it. That order is deliberate: the
-  /// repaint is immediate and does not wait on storage.
-  Future<void> select(AppThemeChoice choice) async {
-    state = choice;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(themeChoiceKey, choice.name);
-  }
 }
 
 final themeControllerProvider =

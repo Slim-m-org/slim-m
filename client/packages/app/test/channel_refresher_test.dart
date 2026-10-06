@@ -135,6 +135,33 @@ void main() {
     );
   });
 
+  test('a burst of change-driven refreshes costs one running and one '
+      'trailing round trip', () async {
+    final f = _fixture();
+    addTearDown(f.db.close);
+    final refresher = ChannelRefresher();
+
+    final a = refresher.refreshAfterChange(
+      f.api,
+      f.store,
+      isCurrent: () => true,
+    );
+    final b = refresher.refreshAfterChange(
+      f.api,
+      f.store,
+      isCurrent: () => true,
+    );
+    final c = refresher.refreshAfterChange(
+      f.api,
+      f.store,
+      isCurrent: () => true,
+    );
+    await Future.wait([a, b, c]);
+
+    expect(identical(b, c), isTrue, reason: 'late callers share one rerun');
+    expect(f.hits['/channels'], 2);
+  });
+
   test('discardInFlight lets the next caller start a fresh refresh', () async {
     final f = _fixture();
     addTearDown(f.db.close);

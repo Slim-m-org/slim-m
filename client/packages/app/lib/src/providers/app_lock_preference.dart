@@ -15,6 +15,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'preference_controller.dart';
 import 'providers.dart';
 
 const appLockPreferenceKey = 'slimm.security.app_lock';
@@ -26,11 +27,13 @@ final appLockWindowChannelProvider = Provider<AppLockWindowChannel>(
   (ref) => AppLockWindowChannel(),
 );
 
-class AppLockPreferenceController extends StateNotifier<bool> {
+class AppLockPreferenceController extends StateNotifier<bool>
+    implements RestorablePreference {
   AppLockPreferenceController(this._ref) : super(false);
 
   final Ref _ref;
 
+  @override
   Future<void> restore() async {
     try {
       final prefs = await _ref.read(preferencesProvider.future);

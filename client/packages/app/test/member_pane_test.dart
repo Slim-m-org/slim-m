@@ -337,6 +337,7 @@ void main() {
       // Bob registers and connects: the real join event, not an inference.
       members = [_profile('1', 'Priya'), _profile('2', 'Bob')];
       built.events.add(const MemberJoined(userId: '2'));
+      await tester.pump(memberRosterRefetchDelay);
       await tester.pumpAndSettle();
 
       expect(fetchCount, 2);
@@ -344,10 +345,8 @@ void main() {
       expect(find.text('Bob'), findsOneWidget);
     });
 
-    testWidgets('two separate MemberJoined events each refetch the roster, '
-        'with no one-shot bound the way the old inference needed', (
-      tester,
-    ) async {
+    testWidgets('two MemberJoined events a settle apart each refetch the '
+        'roster', (tester) async {
       var members = [_profile('1', 'Priya')];
       var fetchCount = 0;
       final built = buildKeepAliveContainer(() => members, () => fetchCount++);
@@ -368,6 +367,7 @@ void main() {
 
       members = [_profile('1', 'Priya'), _profile('2', 'Bob')];
       built.events.add(const MemberJoined(userId: '2'));
+      await tester.pump(memberRosterRefetchDelay);
       await tester.pumpAndSettle();
       expect(fetchCount, 2);
 
@@ -377,6 +377,7 @@ void main() {
         _profile('3', 'Cass'),
       ];
       built.events.add(const MemberJoined(userId: '3'));
+      await tester.pump(memberRosterRefetchDelay);
       await tester.pumpAndSettle();
       expect(fetchCount, 3);
     });

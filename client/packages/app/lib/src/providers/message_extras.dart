@@ -129,6 +129,9 @@ class MessageExtras {
     api.AppSurface? appSurface,
     api.CallRecord? call,
     List<api.ComponentRow>? components,
+    String? threadChannelId,
+    int? threadReplyCount,
+    int? threadLastReplyAt,
   }) => MessageExtras(
     reactions: reactions ?? this.reactions,
     attachments: attachments ?? this.attachments,
@@ -139,9 +142,9 @@ class MessageExtras {
     embeds: embeds,
     webhookUsername: webhookUsername,
     components: components ?? this.components,
-    threadChannelId: threadChannelId,
-    threadReplyCount: threadReplyCount,
-    threadLastReplyAt: threadLastReplyAt,
+    threadChannelId: threadChannelId ?? this.threadChannelId,
+    threadReplyCount: threadReplyCount ?? this.threadReplyCount,
+    threadLastReplyAt: threadLastReplyAt ?? this.threadLastReplyAt,
     threadUnreadCount: threadUnreadCount,
   );
 
@@ -327,22 +330,13 @@ class MessageExtrasController
     required int replyCount,
     required int? lastReplyAt,
   }) {
-    final existing = extrasFor(parentMessageId);
+    // threadUnreadCount is kept: no per-viewer answer rides this frame, see its own doc comment.
     _set(
       parentMessageId,
-      MessageExtras(
-        reactions: existing.reactions,
-        attachments: existing.attachments,
-        codeRuns: existing.codeRuns,
-        poll: existing.poll,
-        embeds: existing.embeds,
-        webhookUsername: existing.webhookUsername,
-        components: existing.components,
+      extrasFor(parentMessageId).copyWith(
         threadChannelId: threadChannelId,
         threadReplyCount: replyCount,
         threadLastReplyAt: lastReplyAt,
-        // No per-viewer answer rides this frame; see threadUnreadCount's own doc comment.
-        threadUnreadCount: existing.threadUnreadCount,
       ),
     );
   }

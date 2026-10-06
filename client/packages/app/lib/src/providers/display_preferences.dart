@@ -12,7 +12,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'providers.dart';
+import 'preference_controller.dart';
 
 /// Whether the clock reads 12-hour or 24-hour. [system] is the default,
 /// following the device's own reported setting via
@@ -33,32 +33,14 @@ bool resolveUse24Hour(BuildContext context, TimeFormatPreference pref) =>
       ),
     };
 
-class TimeFormatController extends StateNotifier<TimeFormatPreference> {
-  TimeFormatController(this._ref) : super(TimeFormatPreference.system);
-
-  final Ref _ref;
-
-  /// A missing or unrecognised stored value leaves the default alone, the
-  /// same degrade [ThemeController.restore] uses for the same reason: a
-  /// preference a later version dropped must not throw on an older one.
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(timeFormatPreferenceKey);
-      state = TimeFormatPreference.values.firstWhere(
-        (choice) => choice.name == stored,
-        orElse: () => TimeFormatPreference.system,
+class TimeFormatController
+    extends EnumPreferenceController<TimeFormatPreference> {
+  TimeFormatController(super.ref)
+    : super(
+        storageKey: timeFormatPreferenceKey,
+        choices: TimeFormatPreference.values,
+        fallback: TimeFormatPreference.system,
       );
-    } catch (_) {
-      // Not worth failing a launch over; system is always a usable answer.
-    }
-  }
-
-  Future<void> select(TimeFormatPreference choice) async {
-    state = choice;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(timeFormatPreferenceKey, choice.name);
-  }
 }
 
 final timeFormatControllerProvider =
@@ -73,29 +55,14 @@ bool watchUse24Hour(WidgetRef ref, BuildContext context) =>
 
 const motionPreferenceKey = 'slimm.appearance.motion';
 
-class MotionPreferenceController extends StateNotifier<MotionOverride> {
-  MotionPreferenceController(this._ref) : super(MotionOverride.system);
-
-  final Ref _ref;
-
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(motionPreferenceKey);
-      state = MotionOverride.values.firstWhere(
-        (choice) => choice.name == stored,
-        orElse: () => MotionOverride.system,
+class MotionPreferenceController
+    extends EnumPreferenceController<MotionOverride> {
+  MotionPreferenceController(super.ref)
+    : super(
+        storageKey: motionPreferenceKey,
+        choices: MotionOverride.values,
+        fallback: MotionOverride.system,
       );
-    } catch (_) {
-      // System is always a usable answer.
-    }
-  }
-
-  Future<void> select(MotionOverride choice) async {
-    state = choice;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(motionPreferenceKey, choice.name);
-  }
 }
 
 final motionPreferenceControllerProvider =
@@ -108,25 +75,9 @@ const highContrastPreferenceKey = 'slimm.appearance.high_contrast';
 /// Off by default: the boosted border and disabled-text roles are a
 /// deliberate change to how quiet the app reads, not a correction, so
 /// nothing changes for an install that has never opened the control.
-class HighContrastController extends StateNotifier<bool> {
-  HighContrastController(this._ref) : super(false);
-
-  final Ref _ref;
-
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      state = prefs.getBool(highContrastPreferenceKey) ?? false;
-    } catch (_) {
-      // Off is always a usable answer.
-    }
-  }
-
-  Future<void> select(bool enabled) async {
-    state = enabled;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setBool(highContrastPreferenceKey, enabled);
-  }
+class HighContrastController extends BoolPreferenceController {
+  HighContrastController(super.ref)
+    : super(storageKey: highContrastPreferenceKey);
 }
 
 final highContrastControllerProvider =
