@@ -125,8 +125,6 @@ class AuthorNameLine extends StatelessWidget {
     this.style,
     this.secondary,
     this.secondaryStyle,
-    this.secondaryFlex = 2,
-    this.mainAxisSize = MainAxisSize.min,
   });
 
   final String name;
@@ -138,16 +136,11 @@ class AuthorNameLine extends StatelessWidget {
   final String? secondary;
   final TextStyle? secondaryStyle;
 
-  /// [secondary]'s flex against [name]'s fixed 1, for a caller whose own
-  /// secondary text usually runs longer than the name beside it.
-  final int secondaryFlex;
-  final MainAxisSize mainAxisSize;
-
   @override
   Widget build(BuildContext context) {
     final secondary = this.secondary;
     return Row(
-      mainAxisSize: mainAxisSize,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
           child: Text(
@@ -161,7 +154,7 @@ class AuthorNameLine extends StatelessWidget {
         if (secondary != null) ...[
           const SizedBox(width: AppSpacing.s8),
           Flexible(
-            flex: secondaryFlex,
+            flex: 2,
             child: Text(
               secondary,
               style: secondaryStyle ?? style,
