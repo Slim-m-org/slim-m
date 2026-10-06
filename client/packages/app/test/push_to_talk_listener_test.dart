@@ -11,12 +11,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/providers/app_lock_controller.dart';
 import 'package:slimm_app/src/providers/composer_focus.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/widgets/push_to_talk_listener.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
+
+class _AlwaysLocked extends AppLockController {
+  _AlwaysLocked(super.ref) {
+    state = true;
+  }
+}
 
 void main() {
   final harness = VoiceHarness();
@@ -28,9 +35,17 @@ void main() {
   );
   tearDown(harness.dispose);
 
-  Future<VoiceController> connect(WidgetTester tester, Widget child) async {
+  Future<VoiceController> connect(
+    WidgetTester tester,
+    Widget child, {
+    List<Override> extraOverrides = const [],
+  }) async {
     final session = FakeSession();
-    final controller = harness.controllerWith(session, voiceApi());
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      extraOverrides: extraOverrides,
+    );
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: harness.container,
@@ -177,6 +192,32 @@ void main() {
           'a hold this listener started must always be releasable, even if '
           'focus moved to the composer in between',
     );
+    await controller.leave();
+  });
+
+  testWidgets('the key does not open the mic while the app lock is up', (
+    tester,
+  ) async {
+    final controller = await connect(
+      tester,
+      const SizedBox.shrink(),
+      extraOverrides: [
+        appLockControllerProvider.overrideWith(_AlwaysLocked.new),
+      ],
+    );
+    await controller.toggleMicrophone();
+    await tester.pumpAndSettle();
+    expect(controller.state.microphoneEnabled, isFalse);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyV);
+    await tester.pump();
+
+    expect(
+      controller.state.microphoneEnabled,
+      isFalse,
+      reason: 'a locked app must not let a key open the microphone',
+    );
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyV);
     await controller.leave();
   });
 }

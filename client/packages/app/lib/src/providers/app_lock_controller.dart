@@ -85,6 +85,15 @@ class AppLockController extends StateNotifier<bool>
     }
   }
 
+  /// Swallows system back while locked, so it cannot pop the routed page
+  /// beneath the lock screen.
+  ///
+  /// Registered before the `Router`'s own back dispatcher (this exists from
+  /// bootstrap, the router mounts later), and observers are asked in
+  /// registration order until one answers true.
+  @override
+  Future<bool> didPopRoute() async => state;
+
   /// Asks the platform to confirm the device owner. Returns whether slim-m
   /// is unlocked afterward - true on a real success, and also true on the
   /// one outcome this must never trap someone behind: a device that reports
