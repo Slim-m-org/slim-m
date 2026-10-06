@@ -43,6 +43,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../providers/call_shortcut_registry.dart';
 import '../providers/providers.dart' show apiProvider;
@@ -354,6 +355,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
           if (chosen == null) return;
           sourceId = chosen.id;
         }
+      }
+      // The call can end while a picker or the source list is open.
+      final voice = widget.voice;
+      if (!mounted ||
+          !(voice.state == VoiceSessionState.connected || voice.rejoining)) {
+        return;
       }
       _lastSourceId = sourceId ?? _lastSourceId;
       await controller.setScreenShare(
