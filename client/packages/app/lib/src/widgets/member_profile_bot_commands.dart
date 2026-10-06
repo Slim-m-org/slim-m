@@ -89,9 +89,20 @@ class _MemberProfileBotCommandsState
           if (collapsible)
             InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
-              child: Text(
-                _expanded ? 'Show less' : 'Show $hidden more',
-                style: AppText.caption.copyWith(color: tokens.accent),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: AppTouchTargets.of(context)
+                      ? AppSizes.rowTouch
+                      : 0,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 1,
+                  child: Text(
+                    _expanded ? 'Show less' : 'Show $hidden more',
+                    style: AppText.caption.copyWith(color: tokens.accent),
+                  ),
+                ),
               ),
             ),
         ],
