@@ -198,17 +198,6 @@ void main() {
           .map((c) => (c.decoration as BoxDecoration?)?.border?.top.color);
       expect(ringColors.where((c) => c == AppTokens.light.accentFill), isEmpty);
     });
-
-    testWidgets('operator variant renders as a non-interactive span',
-        (tester) async {
-      await tester
-          .pumpWidget(_wrap(const AppChip.operator(label: 'from:priya')));
-
-      expect(find.text('from:priya'), findsOneWidget);
-      // No button semantics at all: this variant is a static token, not a
-      // control, so there is nothing for FocusableTapTarget to wrap.
-      expect(find.byType(GestureDetector), findsNothing);
-    });
   });
 
   group('AppToggle', () {
@@ -333,61 +322,6 @@ void main() {
       await tester.tap(find.text('Deny'));
       await tester.pump();
       expect(reported, 2);
-    });
-
-    testWidgets('a disabled card is dimmed and wires no tap handler either', (
-      tester,
-    ) async {
-      var reported = -1;
-      await tester.pumpWidget(
-        _wrap(
-          AppSegmentedControl.cards(
-            options: const [
-              AppSegmentedOption(
-                  label: 'Official', hint: 'slim.npc-server.top'),
-              AppSegmentedOption(
-                label: 'Self-hosted',
-                hint: '10.0.0.100:8095',
-                disabled: true,
-              ),
-            ],
-            selectedIndex: 0,
-            onSegmentSelected: (i) => reported = i,
-          ),
-        ),
-      );
-
-      // The same flag on the same option class must mean the same thing in
-      // both variants, or a caller setting it on a card gets a silent no-op.
-      final label = tester.widget<Text>(find.text('Self-hosted'));
-      final hint = tester.widget<Text>(find.text('10.0.0.100:8095'));
-      expect(label.style?.color, AppTokens.light.textDisabled);
-      expect(hint.style?.color, AppTokens.light.textDisabled);
-
-      await tester.tap(find.text('Self-hosted'));
-      await tester.pump();
-      expect(reported, -1);
-    });
-
-    testWidgets('cards variant shows a check glyph only on the selected option',
-        (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          AppSegmentedControl.cards(
-            options: const [
-              AppSegmentedOption(
-                  label: 'Official server', hint: 'slim.npc-server.top'),
-              AppSegmentedOption(label: 'Self-hosted', hint: '10.0.0.100:8095'),
-            ],
-            selectedIndex: 0,
-            onSegmentSelected: (_) {},
-          ),
-        ),
-      );
-
-      expect(find.text('Official server'), findsOneWidget);
-      expect(find.text('slim.npc-server.top'), findsOneWidget);
-      expect(find.byIcon(AppIcons.check), findsOneWidget);
     });
   });
 

@@ -17,17 +17,16 @@ import 'control_with_options.dart';
 /// where the button's position already says what it does and a standing red
 /// outline would only be noise - a title bar's close button being the one
 /// that prompted it.
-enum AppIconButtonVariant { ghost, outline, danger, dangerGhost }
+enum AppIconButtonVariant { ghost, danger, dangerGhost }
 
-/// Visual diameter. `sm`/`lg`/`touch` land exactly on [AppSizes.controlSm]/
-/// [AppSizes.controlMd]/[AppSizes.controlLg] (26/34/38); `md`, the default,
+/// Visual diameter. `sm`/`touch` land exactly on [AppSizes.controlSm]/
+/// [AppSizes.controlLg] (26/38); `md`, the default,
 /// is [AppSizes.icon28].
-enum AppIconButtonSize { sm, md, lg, touch }
+enum AppIconButtonSize { sm, md, touch }
 
 double _diameterFor(AppIconButtonSize size) => switch (size) {
       AppIconButtonSize.sm => AppSizes.controlSm,
       AppIconButtonSize.md => AppSizes.icon28,
-      AppIconButtonSize.lg => AppSizes.controlMd,
       AppIconButtonSize.touch => AppSizes.controlLg,
     };
 
@@ -126,10 +125,6 @@ class _AppIconButtonState extends State<AppIconButton> {
         ink = tokens.textSecondary;
         fill = Colors.transparent;
         border = null;
-      case AppIconButtonVariant.outline:
-        ink = tokens.textSecondary;
-        fill = Colors.transparent;
-        border = tokens.borderSubtle;
       case AppIconButtonVariant.danger:
         ink = tokens.dangerText;
         fill = Colors.transparent;
