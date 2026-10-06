@@ -12689,6 +12689,7 @@ components:
         - $ref: "#/components/schemas/ClientPing"
         - $ref: "#/components/schemas/ClientTyping"
         - $ref: "#/components/schemas/ClientViewing"
+        - $ref: "#/components/schemas/ClientCanvasCursor"
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
 
     ClientHello:
@@ -12749,6 +12750,29 @@ components:
           items:
             type: string
             format: uuid
+
+    ClientCanvasCursor:
+      type: object
+      required: [type, channel_id, x, y]
+      description: >
+        A pointer position on a channel's canvas: ephemeral, relayed to the
+        other viewers but never persisted, with no "stop" frame. Rate-limited
+        silently, and dropped without an error when a coordinate is not finite
+        or lies outside the canvas world (5,000,000 units from the origin on
+        either axis), or when the member lacks view and canvas permission.
+      properties:
+        type:
+          type: string
+          enum: [canvas.cursor]
+        channel_id:
+          type: string
+          format: uuid
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
 
     ClientCanvasStrokePreview:
       type: object
