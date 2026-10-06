@@ -181,6 +181,7 @@ class MemberProfileOverridesController
   Future<void> _refetch(String userId) async {
     try {
       final profile = await _ref.read(apiProvider).getUser(userId);
+      if (!mounted) return;
       state = {...state, userId: profile};
     } on api.ApiException {
       // Left stale; the next ProfileChanged (or a roster refetch) corrects it.
