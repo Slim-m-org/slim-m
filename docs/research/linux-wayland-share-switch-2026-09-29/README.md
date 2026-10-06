@@ -36,17 +36,17 @@ It has not been run on a live Wayland session.
 The patch is carried as a git dependency.
 
 - Fork: https://github.com/Slim-m-org/flutter-webrtc
-- Branch: `slim-m/reset-desktop-sources`, one commit on top of the `v1.6.0` tag.
-- Pinned commit: `52a0c681c9173b9dab6fda9f761d56d708cc58a5`.
+- Branch: `fix/desktop-getusermedia-off-main`, two commits on top of the `v1.6.0` tag: `52a0c681c9173b9dab6fda9f761d56d708cc58a5` (reset desktop sources) and `b30c7e532d167fc3e4f584c86afe1730b0395e7a` (open the camera off the platform thread, and run task runner tasks unlocked).
+- Pinned commit: `b30c7e532d167fc3e4f584c86afe1730b0395e7a`.
 - Wired in `client/pubspec.yaml` as a `dependency_overrides` entry, not in `packages/rtc`, because `livekit_client` 2.10.0 needs `flutter_webrtc` hosted and pub allows one source per package.
 
 ## Bumping flutter_webrtc
 
 1. In a clone of the fork, fetch upstream's tags from `https://github.com/flutter-webrtc/flutter-webrtc.git`.
-2. Check whether the new release changed `FlutterScreenCapture` caching, or added its own reset. If so, drop the patch.
-3. Otherwise branch from the new tag and cherry-pick `52a0c681c9173b9dab6fda9f761d56d708cc58a5`, fixing conflicts in `common/cpp`.
+2. Check whether the new release changed `FlutterScreenCapture` caching, or added its own reset, and whether `GetUserMedia` still opens the camera on the platform thread. Drop whichever patch upstream made unnecessary.
+3. Otherwise branch from the new tag and cherry-pick both commits, fixing conflicts in `common/cpp`.
 4. Push, and put the new commit SHA in `client/pubspec.yaml`.
 5. Run `flutter pub get` (without `--enforce-lockfile`), confirm `livekit_client` still resolves, and run `flutter build linux --release`.
-6. Manual check on the Fedora KDE Wayland box: share a screen, hold the share button, pick another screen or window, and confirm peers see it.
+6. Manual check on the Fedora KDE Wayland box: share a screen, hold the share button, pick another screen or window, and confirm peers see it. Then turn the camera on in a call and confirm the window keeps animating while it opens.
 
 Optionally offer the same patch upstream.

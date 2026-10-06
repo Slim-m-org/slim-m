@@ -19,6 +19,7 @@ class VoiceState {
     this.participants = const [],
     this.microphoneEnabled = true,
     this.cameraEnabled = false,
+    this.cameraPending = false,
     this.screenSharing = false,
     this.awaitingBroadcast = false,
     this.canPublish = true,
@@ -75,6 +76,10 @@ class VoiceState {
   /// carries: a pre-toggle before `VoiceController.join`, and the live truth
   /// once in a call, kept in step by `VoiceController`'s participant listener.
   final bool cameraEnabled;
+
+  /// A camera toggle is under way: opening a webcam can take seconds, and a
+  /// second press then would race the first.
+  final bool cameraPending;
   final bool screenSharing;
 
   /// iOS only: sharing has been asked for and the system is waiting on the
@@ -129,6 +134,7 @@ class VoiceState {
     List<VoiceParticipant>? participants,
     bool? microphoneEnabled,
     bool? cameraEnabled,
+    bool? cameraPending,
     bool? screenSharing,
     bool? awaitingBroadcast,
     bool? canPublish,
@@ -151,6 +157,7 @@ class VoiceState {
     participants: participants ?? this.participants,
     microphoneEnabled: microphoneEnabled ?? this.microphoneEnabled,
     cameraEnabled: cameraEnabled ?? this.cameraEnabled,
+    cameraPending: cameraPending ?? this.cameraPending,
     screenSharing: screenSharing ?? this.screenSharing,
     awaitingBroadcast: awaitingBroadcast ?? this.awaitingBroadcast,
     canPublish: canPublish ?? this.canPublish,

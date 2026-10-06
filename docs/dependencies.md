@@ -230,7 +230,10 @@ License is BSD-3-Clause, already on `deny.toml`'s allowlist.
 ### `flutter_webrtc`, pinned to a fork for the Wayland screen picker
 
 `flutter_webrtc` resolves from `github.com/Slim-m-org/flutter-webrtc` at a commit SHA, through `dependency_overrides` in `client/pubspec.yaml`.
-The fork is upstream v1.6.0 plus one commit adding a `resetDesktopSources` method, so a share on Linux/Wayland can open the portal picker again.
+The fork is upstream v1.6.0 plus two commits.
+The first adds a `resetDesktopSources` method, so a share on Linux/Wayland can open the portal picker again.
+The second opens the camera off the platform thread on Linux and Windows, where that thread also paints the window and takes input: a 4K webcam took about 3.8 s to open and froze the whole app for that long.
+It also fixes the plugin's Linux and Windows task runners, which ran each task while holding their queue lock and hung if a task enqueued another.
 It is an override rather than a dependency of `slimm_rtc` because `livekit_client` 2.10.0 requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.
 `scripts/check-dart-licenses.py` reads the fork's LICENSE (MIT) from the pub cache's checkout, so it is classified like a hosted package.
 Rebase steps are in `docs/research/linux-wayland-share-switch-2026-09-29/README.md`.

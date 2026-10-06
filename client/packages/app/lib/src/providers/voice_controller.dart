@@ -347,8 +347,10 @@ class VoiceController extends StateNotifier<VoiceState>
   /// where the platform actually distinguished it, and the raw cause
   /// otherwise, rather than inventing a distinction it did not give us.
   Future<void> toggleCamera() async {
+    if (state.cameraPending) return;
     final generation = _callGeneration;
     final want = !state.cameraEnabled;
+    state = state.copyWith(cameraPending: true);
     final got = await _session.setCameraEnabled(want);
     if (generation != _callGeneration) return;
     final cause = got ? null : _session.lastError;
@@ -356,6 +358,7 @@ class VoiceController extends StateNotifier<VoiceState>
       _log('Camera ${want ? 'on' : 'off'} failed', detail: cause);
     }
     state = state.copyWith(
+      cameraPending: false,
       cameraEnabled: got ? want : state.cameraEnabled,
       error: got ? null : cameraFailureMessage(want, cause),
       clearError: got,

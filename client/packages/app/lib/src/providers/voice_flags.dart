@@ -31,6 +31,7 @@ class VoiceFlags {
     this.rejoining = false,
     this.microphoneEnabled = true,
     this.cameraEnabled = false,
+    this.cameraPending = false,
     this.screenSharing = false,
     this.awaitingBroadcast = false,
     this.canPublish = true,
@@ -50,6 +51,7 @@ class VoiceFlags {
     rejoining: state.rejoining,
     microphoneEnabled: state.microphoneEnabled,
     cameraEnabled: state.cameraEnabled,
+    cameraPending: state.cameraPending,
     screenSharing: state.screenSharing,
     awaitingBroadcast: state.awaitingBroadcast,
     canPublish: state.canPublish,
@@ -78,6 +80,9 @@ class VoiceFlags {
   final bool rejoining;
   final bool microphoneEnabled;
   final bool cameraEnabled;
+
+  /// See [VoiceState.cameraPending].
+  final bool cameraPending;
   final bool screenSharing;
   final bool awaitingBroadcast;
   final bool canPublish;
@@ -98,6 +103,7 @@ class VoiceFlags {
       other.rejoining == rejoining &&
       other.microphoneEnabled == microphoneEnabled &&
       other.cameraEnabled == cameraEnabled &&
+      other.cameraPending == cameraPending &&
       other.screenSharing == screenSharing &&
       other.awaitingBroadcast == awaitingBroadcast &&
       other.canPublish == canPublish &&
@@ -117,6 +123,7 @@ class VoiceFlags {
     rejoining,
     microphoneEnabled,
     cameraEnabled,
+    cameraPending,
     screenSharing,
     awaitingBroadcast,
     canPublish,
