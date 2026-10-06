@@ -145,13 +145,15 @@ impl Store {
     ///
     /// Two window starts, not one: `messages_by_day` groups by calendar date,
     /// an inclusive range that needs the `-1` to land on exactly
-    /// [`ANALYTICS_WINDOW_DAYS`] rows, while `active_hours` and
+    /// [`ANALYTICS_WINDOW_DAYS`] rows and a start aligned to midnight UTC so
+    /// the oldest bar counts its whole day, while `active_hours` and
     /// `memory_samples` filter a raw timestamp with `>=`, where the
     /// unadjusted start already covers the full window and the `-1` would
     /// instead drop them to 29 days.
     pub async fn analytics_stats(&self) -> anyhow::Result<AnalyticsStats> {
         let now = now_ms();
-        let day_window_start = now - (ANALYTICS_WINDOW_DAYS - 1) * DAY_MS;
+        let day_window_start =
+            (now - (ANALYTICS_WINDOW_DAYS - 1) * DAY_MS).div_euclid(DAY_MS) * DAY_MS;
         let window_start = now - ANALYTICS_WINDOW_DAYS * DAY_MS;
 
         let total_messages = sqlx::query_scalar!(
