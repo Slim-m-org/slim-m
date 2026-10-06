@@ -32,6 +32,7 @@ import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_presence_roster.dart';
 import 'canvas_summary.dart';
+import 'canvas_truncated_notice.dart';
 import 'canvas_selection_semantics.dart';
 import 'canvas_world_edge_glow.dart';
 import 'canvas_zoom_indicator.dart';
@@ -287,20 +288,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                   onRetry: widget.onRetryError,
                 ),
               ),
-            if (widget.truncated)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s12,
-                  0,
-                  AppSpacing.s12,
-                  AppSpacing.s12,
-                ),
-                child: const AppCallout(
-                  child: Text(
-                    'Some ink in this region is not shown. Zoom in to see it.',
-                  ),
-                ),
-              ),
+            if (widget.truncated) const CanvasTruncatedNotice(),
             Expanded(
               child: Stack(
                 children: [
