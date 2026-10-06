@@ -19,7 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../providers/providers.dart';
 import 'run_guarded.dart';
-import 'status_text_row.dart' show statusTextMaxChars;
+import 'status_text_row.dart' show statusTextLength, statusTextMaxChars;
 
 /// Seeded once from [current] at construction - the caller hands a fresh
 /// instance per menu presentation (the same instance-per-open contract
@@ -77,7 +77,7 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
 
   Future<void> _submit() {
     final text = _controller.text.trim();
-    if (text.length > statusTextMaxChars) return Future.value();
+    if (statusTextLength(text) > statusTextMaxChars) return Future.value();
     return _apply(text);
   }
 
@@ -93,7 +93,7 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _controller.text.trim().length;
+    final length = statusTextLength(_controller.text);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),

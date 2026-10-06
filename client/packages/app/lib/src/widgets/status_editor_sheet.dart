@@ -17,7 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../providers/providers.dart';
 import 'run_guarded.dart';
-import 'status_text_row.dart' show statusTextMaxChars;
+import 'status_text_row.dart' show statusTextLength, statusTextMaxChars;
 
 /// Opens the sheet seeded with [current] (the caller's status as of the tap
 /// that opened it); `showAppSheet` decides bottom sheet versus dialog.
@@ -54,7 +54,7 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
   }
 
   bool get _dirty => _controller.text.trim() != widget.current;
-  bool get _valid => _controller.text.trim().length <= statusTextMaxChars;
+  bool get _valid => statusTextLength(_controller.text) <= statusTextMaxChars;
   bool get _canSave => !_saving && _dirty && _valid;
   bool get _canClear =>
       !_saving &&
@@ -88,7 +88,7 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _controller.text.trim().length;
+    final length = statusTextLength(_controller.text);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
