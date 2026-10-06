@@ -67,6 +67,17 @@ class CommentCapHashFilesTest(unittest.TestCase):
         second = body + TWO_LINE_RUN
         self.assertEqual(_run_gate({"a.sh": second}, "a.sh 1\n").returncode, 1)
 
+    def test_entry_above_the_real_count_fails(self):
+        body = HEADER + "true\n" + TWO_LINE_RUN + "true\n"
+        result = _run_gate({"a.sh": body}, "a.sh 2\n")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("lower the entry", result.stderr)
+
+    def test_entry_of_a_clean_file_fails(self):
+        result = _run_gate({"a.sh": HEADER + "true\n"}, "a.sh 1\n")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("drop the line", result.stderr)
+
     def test_slashes_in_shell_are_not_comments(self):
         body = HEADER + "cat <<EOF\n// not a comment\n// still not\nEOF\n"
         self.assertEqual(_run_gate({"a.sh": body}).returncode, 0)
