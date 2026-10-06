@@ -357,3 +357,87 @@ async fn zero_disables_slow_mode() {
         .unwrap();
     assert_eq!(second.status(), StatusCode::OK);
 }
+
+/// A non-exempt member (the first account bootstraps as the administrator)
+/// in a channel whose slow mode is `seconds`, with a thread open on a message
+/// of their own. Returns the app, the member's token and the thread's send URI.
+async fn member_with_a_thread(seconds: i64) -> (Router, String, String, support::TestDbGuard) {
+    let (store, guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES),
+            true,
+        )
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    store
+        .update_channel_slow_mode(channel.id, seconds)
+        .await
+        .unwrap();
+    let app = app(store.clone());
+    let _admin = register(&store, "admin").await;
+    let token = register(&store, "bob").await;
+    let uri = format!("/channels/{}/messages", channel.id);
+    let root = app
+        .clone()
+        .oneshot(send(&uri, &token, "root"))
+        .await
+        .unwrap();
+    assert_eq!(root.status(), StatusCode::OK);
+    let root_id = json_body(root).await["id"].as_str().unwrap().to_owned();
+    let thread = app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("{uri}/{root_id}/thread"),
+            Some(&token),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(thread.status(), StatusCode::OK);
+    let thread_id = json_body(thread).await["id"].as_str().unwrap().to_owned();
+    (app, token, format!("/channels/{thread_id}/messages"), guard)
+}
+
+/// A thread has no slow mode of its own, so it follows its parent channel's
+/// interval. The window is the thread's own: the first reply is not held back
+/// by the root message sent moments earlier in the channel.
+#[tokio::test]
+async fn a_thread_follows_its_parent_channels_slow_mode() {
+    let (app, token, thread_uri, _guard) = member_with_a_thread(60).await;
+
+    let first = app
+        .clone()
+        .oneshot(send(&thread_uri, &token, "one"))
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let second = app
+        .clone()
+        .oneshot(send(&thread_uri, &token, "two"))
+        .await
+        .unwrap();
+    assert_eq!(
+        second.status(),
+        StatusCode::TOO_MANY_REQUESTS,
+        "second thread message inside the parent's 60s slow mode"
+    );
+}
+
+/// The control: a parent with slow mode off leaves its threads unlimited.
+#[tokio::test]
+async fn a_thread_of_a_channel_without_slow_mode_is_unlimited() {
+    let (app, token, thread_uri, _guard) = member_with_a_thread(0).await;
+
+    for content in ["one", "two", "three"] {
+        let sent = app
+            .clone()
+            .oneshot(send(&thread_uri, &token, content))
+            .await
+            .unwrap();
+        assert_eq!(sent.status(), StatusCode::OK);
+    }
+}
