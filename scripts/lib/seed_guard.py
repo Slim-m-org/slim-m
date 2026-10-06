@@ -13,6 +13,9 @@ import urllib.parse
 # The domain the live instance sits on, so any host under it counts as live.
 PRODUCTION_DOMAIN = "npc-server.top"
 
+# The same server answers on its LAN address, which a hostname check never sees.
+PRODUCTION_HOSTS = frozenset({"10.0.0.100"})
+
 
 class GuardError(Exception):
     """A refusal to run, with the reason a person should see, not a traceback."""
@@ -40,9 +43,13 @@ def check_confirmed(confirmed, base_url):
 
 
 def is_known_production(base_url):
-    """Whether the URL's host is the live deployment's domain or under it."""
+    """Whether the URL's host is the live deployment's domain, under it, or its LAN address."""
     hostname = urllib.parse.urlparse(base_url).hostname or ""
-    return hostname == PRODUCTION_DOMAIN or hostname.endswith(f".{PRODUCTION_DOMAIN}")
+    return (
+        hostname in PRODUCTION_HOSTS
+        or hostname == PRODUCTION_DOMAIN
+        or hostname.endswith(f".{PRODUCTION_DOMAIN}")
+    )
 
 
 def check_not_accidental_production(base_url, force_production):

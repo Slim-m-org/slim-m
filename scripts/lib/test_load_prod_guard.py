@@ -30,6 +30,14 @@ class IsKnownProductionTest(unittest.TestCase):
                     "https://npc-server.top"):
             self.assertTrue(seed_guard.is_known_production(url), url)
 
+    def test_the_live_host_by_its_lan_address_counts_too(self):
+        for url in ("http://10.0.0.100:8095", "http://10.0.0.100", "ws://10.0.0.100:7880"):
+            self.assertTrue(seed_guard.is_known_production(url), url)
+
+    def test_another_lan_address_does_not_count(self):
+        for url in ("http://10.0.0.101:8095", "http://192.168.1.100", "http://127.0.0.1:8095"):
+            self.assertFalse(seed_guard.is_known_production(url), url)
+
     def test_a_path_or_query_naming_the_domain_does_not_count(self):
         for url in ("http://example.com/?x=npc-server.top", "http://127.0.0.1:8080",
                     "http://notnpc-server.top"):
