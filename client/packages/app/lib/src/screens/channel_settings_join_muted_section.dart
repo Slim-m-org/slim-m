@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
 import '../widgets/settings_section_header.dart';
@@ -56,6 +57,10 @@ class _ChannelJoinMutedSectionState
 
   @override
   Widget build(BuildContext context) {
+    // The stored row, so a save that landed earlier is what a later failure falls back to.
+    final stored =
+        ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
+        widget.channel;
     return SettingsSectionCard(
       title: 'Voice',
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -63,7 +68,7 @@ class _ChannelJoinMutedSectionState
         SettingsToggleRow(
           label: 'Join muted',
           description: 'Members start with their mic off and can unmute.',
-          value: _optimistic ?? widget.channel.joinMuted,
+          value: _optimistic ?? stored.joinMuted,
           onChanged: _saving ? null : _set,
           semanticLabel: 'Members join this channel muted',
         ),

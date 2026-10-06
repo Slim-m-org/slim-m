@@ -260,6 +260,3 @@ class _Entry extends StatelessWidget {
     );
   }
 }
-
-/// Redeeming an invite: check the code against the server before asking anyone
-/// to fill in a signup form, and accept the terms at the point of joining.

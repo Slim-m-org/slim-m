@@ -75,6 +75,19 @@ void main() {
     expect(find.text('8/64'), findsOneWidget);
   });
 
+  testWidgets(
+    'a name of astral characters counts characters, not utf-16 units',
+    (tester) async {
+      await _openSheet(tester);
+
+      await tester.enterText(_nameField(), List.filled(40, '\u{1F600}').join());
+      await tester.pump();
+
+      expect(find.text('40/64'), findsOneWidget);
+      expect(_primaryButton(tester).disabled, isFalse);
+    },
+  );
+
   testWidgets('names what is missing rather than sitting disabled mute', (
     tester,
   ) async {

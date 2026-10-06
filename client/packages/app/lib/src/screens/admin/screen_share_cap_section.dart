@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart' show ScreenShareQuality;
 
+import '../../preset_options.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../widgets/optimistic_setting_state.dart';
@@ -46,6 +47,7 @@ String screenShareCapConsequence(int maxHeight) {
   final maxTierHeight = ScreenShareQuality.values
       .map((q) => q.height)
       .reduce((a, b) => a > b ? a : b);
+  if (maxHeight < maxTierHeight) return 'Shares are capped at ${maxHeight}p.';
   return 'No cap: every quality tier already tops out at ${maxTierHeight}p.';
 }
 
@@ -81,10 +83,12 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
       spaceScreenShareCeilingProvider,
       (_, next) => retireOptimistic(next),
     );
-    final current = shown(ceiling.valueOrNull, 2160);
-    final selectedIndex = _screenShareCapOptions.indexWhere(
-      (o) => o.$2 == current,
-    );
+    // Null until the server has answered: an unknown ceiling selects nothing rather than posing as the default.
+    final current = optimistic ?? ceiling.valueOrNull;
+    final options = current == null
+        ? _screenShareCapOptions
+        : presetsIncluding(_screenShareCapOptions, current, (h) => '${h}p');
+    final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
     return SettingsSectionCard(
       title: 'Screen share quality',
@@ -93,17 +97,26 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
         AppSegmentedControl.inline(
           semanticLabel: 'Screen share resolution ceiling',
           options: [
-            for (final option in _screenShareCapOptions)
+            for (final option in options)
               AppSegmentedOption(label: option.$1, disabled: saving),
           ],
-          selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-          onSegmentSelected: (i) => _setMaxHeight(_screenShareCapOptions[i].$2),
+          selectedIndex: selectedIndex,
+          onSegmentSelected: (i) => _setMaxHeight(options[i].$2),
         ),
-        const SizedBox(height: AppSpacing.s12),
-        AppCallout(
-          tone: AppCalloutTone.info,
-          child: Text(screenShareCapConsequence(current)),
-        ),
+        if (current != null) ...[
+          const SizedBox(height: AppSpacing.s12),
+          AppCallout(
+            tone: AppCalloutTone.info,
+            child: Text(screenShareCapConsequence(current)),
+          ),
+        ],
+        if (ceiling.hasError && current == null) ...[
+          const SizedBox(height: AppSpacing.s8),
+          AppErrorState(
+            message: 'Could not load the current ceiling.',
+            onRetry: () => ref.invalidate(spaceScreenShareCeilingProvider),
+          ),
+        ],
         SuccessFlash(tick: successTick),
         if (actionError != null) ...[
           const SizedBox(height: AppSpacing.s8),

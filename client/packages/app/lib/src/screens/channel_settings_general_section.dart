@@ -15,6 +15,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../char_count.dart';
 import '../api_failure.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
@@ -58,9 +59,9 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
 
   bool get _nameValid =>
       _name.text.trim().isNotEmpty &&
-      _name.text.trim().length <= channelNameMaxChars;
+      trimmedCharCount(_name.text) <= channelNameMaxChars;
 
-  bool get _topicValid => _topic.text.trim().length <= channelTopicMaxChars;
+  bool get _topicValid => trimmedCharCount(_topic.text) <= channelTopicMaxChars;
 
   bool get _canSave => !_saving && _dirty && _nameValid && _topicValid;
 
@@ -100,7 +101,7 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final topicLength = _topic.text.trim().length;
+    final topicLength = trimmedCharCount(_topic.text);
 
     return SettingsSectionCard(
       title: 'General',

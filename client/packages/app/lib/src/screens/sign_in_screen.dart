@@ -330,10 +330,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     );
 
     final invite = ref.read(pendingInviteProvider);
+    // Read before the awaits: the session redirect can dispose this screen mid-flight.
+    final pendingInvite = ref.read(pendingInviteProvider.notifier);
+    final justRegistered = ref.read(justRegisteredProvider.notifier);
+    final push = ref.read(pushControllerProvider.notifier);
     try {
       if (_creatingAccount) {
         // Before the call: its session change is what starts the what's-new check.
-        ref.read(justRegisteredProvider.notifier).state = true;
+        justRegistered.state = true;
         await api.register(
           username: _username.text.trim(),
           displayName: _displayName.text.trim().isEmpty
@@ -369,12 +373,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         // An existing account can still spend a code, for the role it grants.
         if (invite != null) await redeemInviteQuietly(api, invite);
       }
-      if (invite != null) {
-        ref.read(pendingInviteProvider.notifier).state = null;
-      }
-      unawaited(ref.read(pushControllerProvider.notifier).register());
+      if (invite != null) pendingInvite.state = null;
+      unawaited(push.register());
     } on ApiException catch (e) {
-      ref.read(justRegisteredProvider.notifier).state = false;
+      justRegistered.state = false;
       if (!mounted) return;
       setState(() => _error = signInErrorFor(e));
     } finally {
