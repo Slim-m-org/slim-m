@@ -89,6 +89,13 @@ _wire({int permissions = 0, api.Me? selfProfile, bool refuseKick = false}) {
                 headers: {'content-type': 'application/json'},
               );
             }
+            if (request.url.path.endsWith('/note')) {
+              return http.Response(
+                jsonEncode({'body': null, 'updated_at': null}),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
             if (refuseKick && request.url.path.endsWith('/kick')) {
               return http.Response('boom', 500);
             }

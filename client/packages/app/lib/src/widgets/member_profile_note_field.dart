@@ -21,6 +21,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../api_failure.dart';
+import '../providers/member_moderation_error.dart';
 import '../providers/providers.dart';
 import '../providers/user_notes.dart';
 
@@ -44,15 +46,21 @@ class _MemberProfileNoteFieldState
   bool _seeded = false;
   String _original = '';
   bool _saving = false;
+  late final ProviderContainer _container;
 
   @override
   void initState() {
     super.initState();
+    _container = ProviderScope.containerOf(context, listen: false);
     _focusNode.addListener(_onFocusChange);
   }
 
   @override
   void dispose() {
+    // Swapping the card to Moderate removes this field while it still has focus, so blur never fires.
+    if (_seeded && !_saving && _controller.text.trim() != _original) {
+      unawaited(_persist(_controller.text.trim()));
+    }
     _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
     _controller.dispose();
@@ -75,14 +83,21 @@ class _MemberProfileNoteFieldState
 
   Future<void> _save(String trimmed) async {
     setState(() => _saving = true);
-    try {
-      await ref.read(apiProvider).setUserNote(widget.subjectId, trimmed);
-      _original = trimmed;
-      ref.invalidate(userNoteProvider(widget.subjectId));
-    } on api.ApiException {
-      // Low-stakes: the field just keeps the unsaved text, no error banner.
-    }
+    await _persist(trimmed);
     if (mounted) setState(() => _saving = false);
+  }
+
+  // Through the container, not ref: the card may be gone before the request answers.
+  Future<void> _persist(String trimmed) async {
+    final subjectId = widget.subjectId;
+    try {
+      await _container.read(apiProvider).setUserNote(subjectId, trimmed);
+      _original = trimmed;
+      _container.invalidate(userNoteProvider(subjectId));
+    } on api.ApiException catch (e) {
+      _container.read(memberModerationErrorProvider.notifier).state =
+          describeApiFailure('save your note', e);
+    }
   }
 
   @override
@@ -136,6 +151,13 @@ class _MemberProfileNoteFieldState
               ),
             ),
           ),
+          if (noteAsync.hasError) ...[
+            const SizedBox(height: AppSpacing.s4),
+            AppErrorState(
+              message: 'Could not load your note.',
+              onRetry: () => ref.invalidate(userNoteProvider(widget.subjectId)),
+            ),
+          ],
           const SizedBox(height: 2),
           Text(
             'only you',

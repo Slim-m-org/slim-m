@@ -81,6 +81,13 @@ data.Channel _channel(String kind) => data.Channel(
                 headers: json,
               );
             }
+            if (path.endsWith('/note')) {
+              return http.Response(
+                jsonEncode({'body': null, 'updated_at': null}),
+                200,
+                headers: json,
+              );
+            }
             if (path == '/channels/$_channelId/overwrites') {
               if (request.method == 'PUT') {
                 writes.add(request);
