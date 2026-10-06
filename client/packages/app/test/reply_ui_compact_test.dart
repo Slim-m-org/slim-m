@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/message_extras.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/reply_banner.dart';
 import 'package:slimm_data/data.dart';
 
@@ -118,17 +119,19 @@ void main() {
               grouped: false,
               showNewDivider: false,
               knownUsernames: const {},
-              onRetry: noop,
-              onDiscard: noop,
-              onPickReaction: (_) {},
-              onReactionTap: (_) {},
-              onVote: (_) {},
               actions: noActions,
               editing: false,
-              onSubmitEdit: (_) {},
-              onCancelEdit: noop,
               replyTo: parent,
-              onReplyTap: noop,
+              callbacks: MessageRowCallbacks(
+                onRetry: noop,
+                onDiscard: noop,
+                onPickReaction: (_) {},
+                onReactionTap: (_) {},
+                onVote: (_) {},
+                onSubmitEdit: (_) {},
+                onCancelEdit: noop,
+                onReplyTap: noop,
+              ),
             ),
             overrides: _carrying(entry.value),
           ),

@@ -28,6 +28,7 @@ import 'package:slimm_app/src/widgets/blocked_dm_notice.dart';
 import 'package:slimm_app/src/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/composer_clipboard_image.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 
 import 'message_row_harness.dart' show harness, message, noActions;
 import 'support/mid_flight_capture.dart';
@@ -224,15 +225,17 @@ void main() {
                     grouped: false,
                     showNewDivider: false,
                     knownUsernames: const {},
-                    onRetry: () {},
-                    onDiscard: () {},
-                    onPickReaction: (_) {},
-                    onReactionTap: (_) {},
-                    onVote: (_) {},
                     actions: noActions,
                     editing: false,
-                    onSubmitEdit: (_) {},
-                    onCancelEdit: () {},
+                    callbacks: MessageRowCallbacks(
+                      onRetry: () {},
+                      onDiscard: () {},
+                      onPickReaction: (_) {},
+                      onReactionTap: (_) {},
+                      onVote: (_) {},
+                      onSubmitEdit: (_) {},
+                      onCancelEdit: () {},
+                    ),
                   ),
                 ),
               ),

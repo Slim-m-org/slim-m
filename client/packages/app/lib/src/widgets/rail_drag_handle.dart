@@ -18,14 +18,16 @@
 /// background is a different token from the rest of the rail).
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'channel_rail.dart';
+
+/// How far the hit area reaches back into the rail's blank edge: the cap
+/// backlog items 54 and 58 settled on, the same at every input density.
+const double _railReach = AppSpacing.s8;
 
 /// Sits where the rail meets the conversation, at every width that docks the
 /// rail beside it (medium and expanded; the compact drawer from #301 is a
@@ -41,7 +43,7 @@ import 'channel_rail.dart';
 /// The divider reserves only that hairline's own width from the `Row` it
 /// sits in - [_RailHandleHitArea] is what makes the click/hover region
 /// comfortable anyway, by laying the same interactive subtree out wider
-/// than that, reaching back (capped at [AppSpacing.s8]) into the rail's own
+/// than that, reaching back ([_railReach]) into the rail's own
 /// already-blank edge - never into the transcript, where a message row is
 /// opaque edge to edge. [_RailHandleHitArea] wraps [Semantics] rather than
 /// sitting inside it, and it has to: the widening only reaches the real
@@ -67,6 +69,7 @@ class RailDragHandle extends ConsumerStatefulWidget {
 
 class _RailDragHandleState extends ConsumerState<RailDragHandle> {
   bool _hovered = false;
+  bool _focused = false;
 
   void _toggle() =>
       ref.read(channelRailExpandedProvider.notifier).update((value) => !value);
@@ -75,8 +78,6 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final expanded = ref.watch(channelRailExpandedProvider);
-    final touch = AppTouchTargets.of(context);
-    final hitWidth = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
 
     // See this class's own doc for why Semantics sits inside the hit area.
     final gestureChain = Semantics(
@@ -86,6 +87,7 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
       child: FocusableActionDetector(
         mouseCursor: SystemMouseCursors.click,
         onShowHoverHighlight: (v) => setState(() => _hovered = v),
+        onShowFocusHighlight: (v) => setState(() => _focused = v),
         actions: <Type, Action<Intent>>{
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) => _toggle(),
@@ -107,7 +109,9 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
                 const Expanded(child: SizedBox()),
                 VerticalDivider(
                   width: 1,
-                  color: Color.lerp(tokens.borderSubtle, tokens.accentFill, t),
+                  color: _focused
+                      ? tokens.focusRing
+                      : Color.lerp(tokens.borderSubtle, tokens.accentFill, t),
                 ),
               ],
             ),
@@ -116,12 +120,11 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
       ),
     );
 
-    // Capped at AppSpacing.s8 - see this class's own doc for why that's safe.
-    final railReach = math.min(hitWidth / 2, AppSpacing.s8);
+    // See this class's own doc for why reaching back this far is safe.
     return _RailHandleHitArea(
       layoutWidth: 1,
-      childWidth: 1 + railReach,
-      childOffset: -railReach,
+      childWidth: 1 + _railReach,
+      childOffset: -_railReach,
       child: gestureChain,
     );
   }

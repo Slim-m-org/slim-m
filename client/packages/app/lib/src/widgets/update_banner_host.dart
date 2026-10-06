@@ -8,17 +8,13 @@
 ///
 /// Everywhere else the signed-in shell is the outermost thing there is, which
 /// is why this wrapper exists at all. The banner is only ever visible when
-/// `update_watch.dart` has actually found something, so on a platform that
-/// never polls, or one that has not found anything yet, this hands the child
-/// straight back too rather than building the `Column` below at all.
-///
-/// That early return matters for more than the cheap case: a `SafeArea`
-/// insets its child by adding padding around it, whatever that child's own
-/// size is - so wrapping an empty `UpdateAvailableBanner` in one the whole
-/// time still reserved a full status-bar-height band of nothing above the
-/// rail on every phone, update pending or not. `bannerVisibleProvider` is the
-/// one place that answers "is there really something to show", shared with
-/// the banner itself so the two can never disagree about it.
+/// `update_watch.dart` has actually found something, and only then is its
+/// `SafeArea` mounted: a `SafeArea` insets its child by adding padding around
+/// it whatever that child's own size is, so one wrapped around an empty banner
+/// reserved a full status-bar band of nothing above the rail on every phone.
+/// [BannerHostLayout] keeps [child]'s parent chain fixed either way.
+/// `bannerVisibleProvider` is the one place that answers "is there really
+/// something to show", shared with the banner itself.
 ///
 /// While a banner *is* showing, its own `SafeArea` is what spends the top
 /// inset - so [child] gets it stripped from its `MediaQuery`, the same way
@@ -34,6 +30,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../desktop/update_available_banner.dart';
 import '../desktop/update_watch.dart';
+import 'banner_host_layout.dart';
 
 class UpdateBannerHost extends ConsumerWidget {
   const UpdateBannerHost({super.key, required this.child, this.ownsBanner});
@@ -50,18 +47,11 @@ class UpdateBannerHost extends ConsumerWidget {
     if (ownsBanner ?? isDesktopHost) return child;
     // Kept alive here so polling continues while nothing is showing yet.
     ref.watch(updateWatcherProvider);
-    if (!ref.watch(bannerVisibleProvider)) return child;
-    return Column(
-      children: [
-        const SafeArea(bottom: false, child: UpdateAvailableBanner()),
-        Expanded(
-          child: MediaQuery.removePadding(
-            context: context,
-            removeTop: true,
-            child: child,
-          ),
-        ),
-      ],
+    return BannerHostLayout(
+      banner: ref.watch(bannerVisibleProvider)
+          ? const SafeArea(bottom: false, child: UpdateAvailableBanner())
+          : null,
+      child: child,
     );
   }
 }

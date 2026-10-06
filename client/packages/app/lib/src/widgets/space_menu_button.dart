@@ -15,8 +15,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
 import '../routing/routes.dart';
+import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
-import 'context_menu_focus.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
 import 'saved_messages_sheet.dart';
@@ -40,7 +40,6 @@ class SpaceMenuButton extends ConsumerStatefulWidget {
 
 class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
   final _controller = AnimatedMenuController();
-  final _link = LayerLink();
 
   @override
   Widget build(BuildContext context) {
@@ -48,81 +47,52 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
     if (!spaceSettingsReachable(permissions)) return const SizedBox.shrink();
     final canManageChannels = permissions.hasPermission(Perm.manageChannels);
 
-    return CompositedTransformTarget(
-      link: _link,
-      child: OverlayPortal(
-        controller: _controller.portal,
-        // Positioned so the follower sizes to its content, not the whole screen a Column would otherwise fill it against.
-        overlayChildBuilder: (_) => Positioned(
-          left: 0,
-          top: 0,
-          child: CompositedTransformFollower(
-            link: _link,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.bottomRight,
-            followerAnchor: Alignment.topRight,
-            offset: const Offset(0, 4),
-            child: AnimatedMenuSurface(
-              controller: _controller,
-              alignment: Alignment.topRight,
-              child: TapRegion(
-                onTapOutside: (_) => _controller.hide(),
-                // Escape closes it and Tab reaches every item once open.
-                child: ContextMenuKeyboardScope(
-                  onDismiss: _controller.hide,
-                  child: AppMenu(
-                    width: 200,
-                    children: [
-                      if (canManageChannels) ...[
-                        AppMenuItem(
-                          label: ActionLabels.createChannel,
-                          leading: AppIcons.add,
-                          onTap: () {
-                            _controller.hide();
-                            showCreateChannelSheet(
-                              context,
-                              initialKind: 'text',
-                            );
-                          },
-                        ),
-                        AppMenuItem(
-                          label: ActionLabels.createCategory,
-                          leading: AppIcons.add,
-                          onTap: () {
-                            _controller.hide();
-                            showCreateCategorySheet(context);
-                          },
-                        ),
-                      ],
-                      // Above settings and outside the manage gate: keeping messages is something every member does.
-                      AppMenuItem(
-                        label: 'Saved messages',
-                        leading: AppIcons.bookmark,
-                        onTap: () {
-                          _controller.hide();
-                          showSavedMessagesSheet(context);
-                        },
-                      ),
-                      AppMenuItem(
-                        label: 'Space settings',
-                        leading: AppIcons.settings,
-                        onTap: () {
-                          _controller.hide();
-                          context.push(Routes.spaceSettings);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+    return AnchoredMenu(
+      controller: _controller,
+      menu: AppMenu(
+        width: 200,
+        children: [
+          if (canManageChannels) ...[
+            AppMenuItem(
+              label: ActionLabels.createChannel,
+              leading: AppIcons.add,
+              onTap: () {
+                _controller.hide();
+                showCreateChannelSheet(context, initialKind: 'text');
+              },
             ),
+            AppMenuItem(
+              label: ActionLabels.createCategory,
+              leading: AppIcons.add,
+              onTap: () {
+                _controller.hide();
+                showCreateCategorySheet(context);
+              },
+            ),
+          ],
+          // Above settings and outside the manage gate: keeping messages is something every member does.
+          AppMenuItem(
+            label: 'Saved messages',
+            leading: AppIcons.bookmark,
+            onTap: () {
+              _controller.hide();
+              showSavedMessagesSheet(context);
+            },
           ),
-        ),
-        child: AppIconButton(
-          icon: AppIcons.chevronDown,
-          semanticLabel: 'Space menu',
-          onPressed: _controller.toggle,
-        ),
+          AppMenuItem(
+            label: 'Space settings',
+            leading: AppIcons.settings,
+            onTap: () {
+              _controller.hide();
+              context.push(Routes.spaceSettings);
+            },
+          ),
+        ],
+      ),
+      child: AppIconButton(
+        icon: AppIcons.chevronDown,
+        semanticLabel: 'Space menu',
+        onPressed: _controller.toggle,
       ),
     );
   }

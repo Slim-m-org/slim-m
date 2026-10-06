@@ -64,9 +64,7 @@ class ThreadParentCard extends ConsumerWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     resolveAuthorProfiles(ref, [parent.parentAuthorId]);
 
-    final gutter = LayoutClass.of(context) == LayoutClass.compact
-        ? AppSizes.paneGutterCompact
-        : AppSizes.paneGutter;
+    final gutter = paneGutterOf(context);
 
     final Widget body;
     final String semanticLabel;

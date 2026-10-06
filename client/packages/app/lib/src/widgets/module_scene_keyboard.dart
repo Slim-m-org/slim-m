@@ -15,6 +15,7 @@
 /// text only) simply has nothing here to move a cursor across.
 library;
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -95,8 +96,18 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
     widget.onActivate('${grid.tap}:${_clampedRow(grid)},${_clampedCol(grid)}');
   }
 
+  void _claimFocus(PointerDownEvent event) {
+    final hit = HitTestResult();
+    WidgetsBinding.instance.hitTestInView(hit, event.position, event.viewId);
+    final onField = hit.path.any((entry) => entry.target is RenderEditable);
+    if (!onField) _focusNode.requestFocus();
+  }
+
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (_grid == null || event is! KeyDownEvent) return KeyEventResult.ignored;
+    // A key from a field inside the scene bubbles here; only the grid's own focus is ours.
+    if (_grid == null || event is! KeyDownEvent || !node.hasPrimaryFocus) {
+      return KeyEventResult.ignored;
+    }
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowUp:
         _move(-1, 0);
@@ -126,7 +137,7 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
       onKeyEvent: _onKeyEvent,
       child: Listener(
         // Lets a click hand off to the keyboard: tap a cell, then use arrows.
-        onPointerDown: (_) => _focusNode.requestFocus(),
+        onPointerDown: _claimFocus,
         child: Semantics(
           label: grid == null
               ? null

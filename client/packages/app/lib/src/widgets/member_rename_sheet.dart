@@ -86,7 +86,7 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
     final trimmed = _name.text.trim();
     return !_busy &&
         trimmed.isNotEmpty &&
-        trimmed.length <= _nicknameMaxChars &&
+        trimmed.runes.length <= _nicknameMaxChars &&
         trimmed != widget.profile.nickname;
   }
 
@@ -118,7 +118,7 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _name.text.trim().length;
+    final length = _name.text.trim().runes.length;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,

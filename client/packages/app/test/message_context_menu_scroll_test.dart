@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -70,15 +71,17 @@ Widget _harness() => ProviderScope(
               grouped: false,
               showNewDivider: false,
               knownUsernames: const {},
-              onRetry: _noop,
-              onDiscard: _noop,
-              onPickReaction: (_) {},
-              onReactionTap: (_) {},
-              onVote: (_) {},
               actions: _noActions,
               editing: false,
-              onSubmitEdit: (_) {},
-              onCancelEdit: _noop,
+              callbacks: MessageRowCallbacks(
+                onRetry: _noop,
+                onDiscard: _noop,
+                onPickReaction: (_) {},
+                onReactionTap: (_) {},
+                onVote: (_) {},
+                onSubmitEdit: (_) {},
+                onCancelEdit: _noop,
+              ),
             ),
         ],
       ),

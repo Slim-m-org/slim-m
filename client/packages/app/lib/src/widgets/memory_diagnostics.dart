@@ -19,22 +19,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'attachment_format.dart';
 import 'settings_section_header.dart';
 
 import 'memory_diagnostics_io.dart'
     if (dart.library.js_interop) 'memory_diagnostics_web.dart';
-
-String formatBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  const units = ['KB', 'MB', 'GB'];
-  var value = bytes / 1024;
-  var unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  return '${value.toStringAsFixed(value >= 100 ? 0 : 1)} ${units[unit]}';
-}
 
 class MemoryDiagnostics extends StatefulWidget {
   const MemoryDiagnostics({super.key});
@@ -79,14 +68,14 @@ class _MemoryDiagnosticsState extends State<MemoryDiagnostics> {
               const SizedBox(height: AppSpacing.s8),
               _Line(
                 label: 'Resident set (process)',
-                value: rss == null ? 'unavailable on web' : formatBytes(rss),
+                value: rss == null ? 'unavailable on web' : formatByteSize(rss),
                 tokens: tokens,
               ),
               _Line(
                 label: 'Image cache',
                 value:
-                    '${formatBytes(cache.currentSizeBytes)} of '
-                    '${formatBytes(cache.maximumSizeBytes)}',
+                    '${formatByteSize(cache.currentSizeBytes)} of '
+                    '${formatByteSize(cache.maximumSizeBytes)}',
                 tokens: tokens,
               ),
               _Line(

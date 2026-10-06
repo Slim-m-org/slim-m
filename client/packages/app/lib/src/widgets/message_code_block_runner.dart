@@ -77,7 +77,7 @@ class _MessageCodeBlockRunnerState extends ConsumerState<MessageCodeBlockRunner>
       whatFailed: 'run this code block',
       action: () async {
         if (_shared) {
-          await ref
+          final shared = await ref
               .read(apiProvider)
               .runCodeBlock(
                 messageId: widget.messageId!,
@@ -85,6 +85,21 @@ class _MessageCodeBlockRunnerState extends ConsumerState<MessageCodeBlockRunner>
                 moduleId: runner.moduleId,
                 command: runner.command,
                 input: widget.code,
+              );
+          if (!mounted) return;
+          ref
+              .read(messageExtrasProvider.notifier)
+              .applyCodeRun(
+                widget.messageId!,
+                api.CodeRun(
+                  blockIndex: widget.blockIndex,
+                  moduleId: runner.moduleId,
+                  command: runner.command,
+                  ok: shared.ok,
+                  output: (shared.ok ? shared.output : shared.error) ?? '',
+                  ranBy: ref.read(sessionProvider).tokens?.userId,
+                  ranAt: DateTime.now().millisecondsSinceEpoch,
+                ),
               );
         } else {
           result = await ref

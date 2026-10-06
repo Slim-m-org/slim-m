@@ -16,6 +16,7 @@ import 'package:slimm_app/src/routing/close_screen.dart';
 import 'package:slimm_app/src/screens/sign_in_alternatives.dart';
 import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/profile_fields_section.dart';
 import 'package:slimm_app/src/widgets/reply_quote.dart';
 import 'package:slimm_app/src/widgets/settings_select_row.dart';
@@ -74,17 +75,19 @@ MessageRow _row({Message? replyTo}) => MessageRow(
   grouped: false,
   showNewDivider: false,
   knownUsernames: const {},
-  onRetry: noop,
-  onDiscard: noop,
-  onPickReaction: (_) {},
-  onReactionTap: (_) {},
-  onVote: (_) {},
   actions: noActions,
   editing: false,
-  onSubmitEdit: (_) {},
-  onCancelEdit: noop,
   replyTo: replyTo,
-  onReplyTap: noop,
+  callbacks: MessageRowCallbacks(
+    onRetry: noop,
+    onDiscard: noop,
+    onPickReaction: (_) {},
+    onReactionTap: (_) {},
+    onVote: (_) {},
+    onSubmitEdit: (_) {},
+    onCancelEdit: noop,
+    onReplyTap: noop,
+  ),
 );
 
 List<Override> get _resolved => [

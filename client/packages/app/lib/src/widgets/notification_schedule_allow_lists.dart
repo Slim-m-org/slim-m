@@ -138,18 +138,19 @@ class _NotificationScheduleAllowedChannelsState
     with GuardedActionState<NotificationScheduleAllowedChannels> {
   bool _expanded = false;
 
-  /// Only subscribed once actually expanded, and built once, not on every
-  /// `build()`: a `StreamBuilder` given a fresh `Stream` each build
-  /// re-subscribes every time, and a drift stream emits its current value
-  /// immediately on listen, which turns that into a rebuild loop. A
-  /// collapsed row never needs a channel name at all, only the count
-  /// already in [NotificationScheduleAllowedChannels.allowedChannelIds].
+  /// Built once per expand, not on every `build()`: a `StreamBuilder` given a
+  /// fresh `Stream` each build re-subscribes every time, and a drift stream
+  /// emits its current value immediately on listen, which turns that into a
+  /// rebuild loop. It is single-subscription, so collapsing drops it and the
+  /// next expand builds a new one. A collapsed row never needs a channel name
+  /// at all, only the count already in
+  /// [NotificationScheduleAllowedChannels.allowedChannelIds].
   Stream<List<Channel>>? _channels;
 
   void _toggleExpanded() {
     setState(() {
       _expanded = !_expanded;
-      _channels ??= _channelsStream();
+      _channels = _expanded ? _channelsStream() : null;
     });
   }
 

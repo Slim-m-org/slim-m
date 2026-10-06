@@ -17,9 +17,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/emoji_catalog_provider.dart';
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/custom_emoji_image.dart';
 import 'package:slimm_app/src/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -77,16 +79,18 @@ class _Row extends ConsumerWidget {
     showNewDivider: false,
     knownUsernames: const {},
     customEmoji: ref.watch(customEmojiIndexProvider),
-    reactions: reactions,
-    onRetry: () {},
-    onDiscard: () {},
-    onPickReaction: (_) {},
-    onReactionTap: onReactionTap ?? (_) {},
-    onVote: (_) {},
     actions: noActions,
     editing: false,
-    onSubmitEdit: (_) {},
-    onCancelEdit: () {},
+    callbacks: MessageRowCallbacks(
+      onRetry: () {},
+      onDiscard: () {},
+      onPickReaction: (_) {},
+      onReactionTap: onReactionTap ?? (_) {},
+      onVote: (_) {},
+      onSubmitEdit: (_) {},
+      onCancelEdit: () {},
+    ),
+    extras: MessageExtras(reactions: reactions),
   );
 }
 

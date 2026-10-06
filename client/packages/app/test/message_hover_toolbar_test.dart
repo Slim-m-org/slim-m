@@ -12,6 +12,7 @@ import 'package:slimm_app/src/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_hover_toolbar.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/message_row_identity.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -55,15 +56,17 @@ Widget _row(Message m, {bool grouped = false, MessageActions? actions}) =>
       grouped: grouped,
       showNewDivider: false,
       knownUsernames: const {},
-      onRetry: noop,
-      onDiscard: noop,
-      onPickReaction: (_) {},
-      onReactionTap: (_) {},
-      onVote: (_) {},
       actions: actions ?? _actions(),
       editing: false,
-      onSubmitEdit: (_) {},
-      onCancelEdit: noop,
+      callbacks: MessageRowCallbacks(
+        onRetry: noop,
+        onDiscard: noop,
+        onPickReaction: (_) {},
+        onReactionTap: (_) {},
+        onVote: (_) {},
+        onSubmitEdit: (_) {},
+        onCancelEdit: noop,
+      ),
     );
 
 Future<TestGesture> _mouse(WidgetTester tester) async {

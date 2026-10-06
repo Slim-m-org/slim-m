@@ -10,7 +10,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../widgets/banner_above_child.dart';
+import '../widgets/banner_host_layout.dart';
 
 /// The handle the database key is stored under in [KeyStore].
 const databaseKeyHandle = 'slimm.database.key';
@@ -61,44 +61,36 @@ class DatabaseResetNotice extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reason = ref.watch(databaseResetProvider);
-    return BannerAboveChild(
-      banner: reason == null ? null : _ResetBanner(reason: reason),
-      child: child,
-    );
-  }
-}
-
-class _ResetBanner extends ConsumerWidget {
-  const _ResetBanner({required this.reason});
-
-  final DatabaseResetReason reason;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Material(
-      type: MaterialType.transparency,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s8),
-          child: AppCallout(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_resetMessage(reason)),
-                AppButton(
-                  label: 'Dismiss',
-                  variant: AppButtonVariant.ghost,
-                  size: AppButtonSize.sm,
-                  onPressed: () =>
-                      ref.read(databaseResetProvider.notifier).state = null,
+    return BannerHostLayout(
+      banner: reason == null
+          ? null
+          : Material(
+              type: MaterialType.transparency,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.s8),
+                  child: AppCallout(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_resetMessage(reason)),
+                        AppButton(
+                          label: 'Dismiss',
+                          variant: AppButtonVariant.ghost,
+                          size: AppButtonSize.sm,
+                          onPressed: () =>
+                              ref.read(databaseResetProvider.notifier).state =
+                                  null,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
+      child: child,
     );
   }
 }

@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
+import '../providers/admin_providers.dart' show rolesProvider;
 import '../providers/channel_by_id_provider.dart';
 import '../providers/channel_permissions.dart';
 import '../providers/member_presence.dart' show channelMembersProvider;
@@ -21,6 +22,15 @@ import 'run_guarded.dart';
 bool canRemoveFromChannel(WidgetRef ref, String channelId) => ref
     .watch(myChannelPermissionsProvider(channelId))
     .hasPermission(Perm.manageRoles);
+
+/// Whether [profile]'s roles carry administrator, which no overwrite can deny.
+bool memberIsAdministrator(api.UserProfile profile, List<api.Role>? roles) =>
+    roles?.any(
+      (r) =>
+          profile.roleIds.contains(r.id) &&
+          r.permissions.hasPermission(Perm.administrator),
+    ) ??
+    false;
 
 /// Denies [memberId] the channel, keeping whatever else their overwrite says.
 Future<void> denyMemberChannel(
@@ -66,7 +76,10 @@ class MemberRemoveFromChannelItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-    if (channel == null || !canRemoveFromChannel(ref, channelId)) {
+    final roles = ref.watch(rolesProvider).valueOrNull;
+    if (channel == null ||
+        !canRemoveFromChannel(ref, channelId) ||
+        memberIsAdministrator(profile, roles)) {
       return const SizedBox.shrink();
     }
     final name = profile.displayName;

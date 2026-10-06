@@ -143,6 +143,19 @@ void main() {
     expect(find.text('65/64'), findsOneWidget);
   });
 
+  testWidgets('40 astral characters count as 40 and can be saved', (
+    tester,
+  ) async {
+    final wired = _wire();
+    await _open(tester, wired.container);
+
+    await tester.enterText(find.byType(TextField), '\u{1F600}' * 40);
+    await tester.pump();
+
+    expect(find.text('40/64'), findsOneWidget);
+    expect(tester.widget<AppButton>(find.byType(AppButton)).disabled, isFalse);
+  });
+
   testWidgets(
     'a valid change sends PATCH /me, refreshes meProvider and closes',
     (tester) async {

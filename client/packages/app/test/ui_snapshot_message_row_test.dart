@@ -10,8 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -63,22 +65,26 @@ Widget _row(
   grouped: grouped,
   showNewDivider: false,
   knownUsernames: const {},
-  onRetry: noop,
-  onDiscard: noop,
-  onPickReaction: (_) {},
-  onReactionTap: (_) {},
-  onVote: (_) {},
   actions: _actions(own: own),
   editing: editing,
-  onSubmitEdit: (_) {},
-  onCancelEdit: noop,
-  onViewEditHistory: onHistory,
-  reactions: reactions,
-  threadReplyCount: threadReplies,
-  threadUnreadCount: threadUnread,
-  threadLastReplyAt: threadReplies == null
-      ? null
-      : DateTime.now().subtract(threadAgo).millisecondsSinceEpoch,
+  callbacks: MessageRowCallbacks(
+    onRetry: noop,
+    onDiscard: noop,
+    onPickReaction: (_) {},
+    onReactionTap: (_) {},
+    onVote: (_) {},
+    onSubmitEdit: (_) {},
+    onCancelEdit: noop,
+    onViewEditHistory: onHistory,
+  ),
+  extras: MessageExtras(
+    reactions: reactions,
+    threadReplyCount: threadReplies,
+    threadUnreadCount: threadUnread,
+    threadLastReplyAt: threadReplies == null
+        ? null
+        : DateTime.now().subtract(threadAgo).millisecondsSinceEpoch,
+  ),
 );
 
 const _longBody =

@@ -23,6 +23,7 @@ import '../providers/message_actions.dart' show lastOwnMessageInChannel;
 import '../providers/message_editing.dart';
 import '../providers/app_launch.dart';
 import '../providers/providers.dart';
+import '../routing/breakpoints.dart';
 import '../providers/slash_command.dart';
 import '../providers/slow_mode_controller.dart';
 import '../providers/typing_controller.dart';
@@ -616,12 +617,11 @@ class _ComposerState extends ConsumerState<Composer> {
     return SafeArea(
       top: false,
       child: Padding(
-        // The same gutter the message rows and the header use; a composer
-        // inset differently from the messages above it is visibly crooked.
+        // The same gutter the message rows and header use; a differently inset composer is visibly crooked.
         padding: EdgeInsets.fromLTRB(
-          touch ? AppSizes.paneGutterCompact : AppSizes.paneGutter,
+          paneGutterOf(context),
           0,
-          touch ? AppSizes.paneGutterCompact : AppSizes.paneGutter,
+          paneGutterOf(context),
           8,
         ),
         child: Column(

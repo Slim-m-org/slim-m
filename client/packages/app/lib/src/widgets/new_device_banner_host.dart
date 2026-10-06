@@ -2,9 +2,9 @@
 /// Puts [NewDeviceSignInBanner] above the signed-in shell while another
 /// device has just signed into this account.
 ///
-/// Hands the child straight back when there is nothing to show, for the
-/// reason [UpdateBannerHost] gives: a `SafeArea` wrapped around nothing still
-/// reserves a status-bar band on every phone.
+/// Mounts no banner, and so no `SafeArea`, when there is nothing to show: a
+/// `SafeArea` wrapped around nothing still reserves a status-bar band on every
+/// phone. The child's own parent chain never changes, see [BannerHostLayout].
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +17,7 @@ import '../format.dart';
 import '../providers/display_preferences.dart';
 import '../providers/new_device_alert.dart';
 import '../routing/routes.dart';
+import 'banner_host_layout.dart';
 import 'message_row_identity.dart' show formatMessageDay;
 
 class NewDeviceBannerHost extends ConsumerWidget {
@@ -27,26 +28,19 @@ class NewDeviceBannerHost extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alert = ref.watch(newDeviceAlertProvider);
-    if (alert == null) return child;
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Column(
-      children: [
-        Material(
-          // Solid, so the callout's translucent warn fill never lands on the bare window.
-          color: tokens.surfaceBase,
-          child: SafeArea(
-            bottom: false,
-            child: NewDeviceSignInBanner(alert: alert),
-          ),
-        ),
-        Expanded(
-          child: MediaQuery.removePadding(
-            context: context,
-            removeTop: true,
-            child: child,
-          ),
-        ),
-      ],
+    return BannerHostLayout(
+      banner: alert == null
+          ? null
+          : Material(
+              // Solid, so the callout's translucent warn fill never lands on the bare window.
+              color: tokens.surfaceBase,
+              child: SafeArea(
+                bottom: false,
+                child: NewDeviceSignInBanner(alert: alert),
+              ),
+            ),
+      child: child,
     );
   }
 }

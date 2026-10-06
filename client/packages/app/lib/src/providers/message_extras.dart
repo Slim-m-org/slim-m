@@ -172,7 +172,7 @@ class MessageExtrasController
       case api.ReactionsChanged(:final messageId, :final reactions):
         _applyReactionsChanged(messageId, reactions);
       case api.CodeRunChanged(:final messageId, :final run):
-        _applyCodeRunChanged(messageId, run);
+        applyCodeRun(messageId, run);
       case api.CodeRunsCleared(:final messageId):
         _applyCodeRunsCleared(messageId);
       case api.PollVoted(:final messageId, :final options):
@@ -298,8 +298,9 @@ class MessageExtrasController
 
   /// Replaces the one block's shared result from a broadcast, so everyone
   /// viewing sees a run someone else triggered without rerunning it. Keyed by
-  /// block index; a re-run of the same block overwrites its entry.
-  void _applyCodeRunChanged(String messageId, api.CodeRun run) {
+  /// block index; a re-run of the same block overwrites its entry. Also the
+  /// runner's own POST response, so the output shows without the broadcast.
+  void applyCodeRun(String messageId, api.CodeRun run) {
     final existing = extrasFor(messageId).codeRuns;
     final next = [
       for (final r in existing)

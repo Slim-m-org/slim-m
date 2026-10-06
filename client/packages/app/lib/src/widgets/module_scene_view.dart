@@ -239,6 +239,13 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
         _stop();
         _error = describeApiFailure('run this', e);
       });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _stop();
+        _error = 'Could not run this.';
+      });
     } finally {
       // A drag queued behind play's own step has nothing else to restart it.
       if (mounted && !_busy && _queue.isNotEmpty) unawaited(_drain());
