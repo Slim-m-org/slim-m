@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -23,7 +22,8 @@ _pump(WidgetTester tester, String location, double width) async {
   final s = setup(
     httpClient: MockClient((request) async {
       paths.add(request.url.toString());
-      return quiet.send(request).then(http.Response.fromStream);
+      // Forwarded by URL: a Request cannot be sent twice.
+      return quiet.get(request.url);
     }),
     signedIn: true,
     extraOverrides: [initialSyncCompleteProvider.overrideWith((ref) => true)],
@@ -32,6 +32,9 @@ _pump(WidgetTester tester, String location, double width) async {
     const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
   ]);
   await pumpAtWidth(tester, s.container, width, location: location);
+  // The pane asks whether an unlisted id is a thread before it says not found.
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.pump();
   return (paths: paths, container: s.container, db: s.db);
 }
 
