@@ -84,20 +84,21 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            // s16 and s20 less the focus ring's 4 per side, so the labels sit where they did.
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
             // Scrolls rather than wraps: three tab labels plus a live count may not fit a phone's width.
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
                   _tabLabel(context, 'Permissions', _RoleDetailTab.permissions),
-                  const SizedBox(width: AppSpacing.s20),
+                  const SizedBox(width: AppSpacing.s12),
                   _tabLabel(
                     context,
                     'Members · ${role.memberCount}',
                     _RoleDetailTab.members,
                   ),
-                  const SizedBox(width: AppSpacing.s20),
+                  const SizedBox(width: AppSpacing.s12),
                   _tabLabel(context, 'Display', _RoleDetailTab.display),
                 ],
               ),
@@ -123,9 +124,11 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
   Widget _tabLabel(BuildContext context, String label, _RoleDetailTab tab) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final selected = _tab == tab;
-    return GestureDetector(
+    return FocusableTapTarget(
       onTap: () => setState(() => _tab = tab),
-      child: DecoratedBox(
+      semanticLabel: label,
+      selected: selected,
+      builder: (context, focused, hovered) => DecoratedBox(
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -135,7 +138,8 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
+          // The focus ring's own gap and stroke take the other four.
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
           child: Text(
             label,
             style: AppText.ui.copyWith(
