@@ -98,10 +98,15 @@ class _ReauthSheetState extends State<_ReauthSheet> {
       _busy = true;
       _error = null;
     });
-    final failure = await widget.onSubmit(
-      _password.text,
-      widget.askForCode ? _codeText : null,
-    );
+    String? failure;
+    try {
+      failure = await widget.onSubmit(
+        _password.text,
+        widget.askForCode ? _codeText : null,
+      );
+    } on Object {
+      failure = 'Something went wrong. Try again.';
+    }
     if (!mounted) return;
     if (failure == null) {
       Navigator.of(context).pop(true);
