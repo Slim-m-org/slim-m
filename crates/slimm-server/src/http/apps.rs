@@ -24,6 +24,7 @@ use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use super::channel_slow_mode::enforce_slow_mode;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::{MessageDto, parse_uuid};
@@ -145,6 +146,10 @@ async fn create(
 
     let content = validate_caption(&req.content)?;
     let id = MessageId(parse_uuid(&req.id)?);
+    // Never on a retry: a launch that already landed must not be refused for arriving too soon.
+    if state.store.message_including_deleted(id).await?.is_none() {
+        enforce_slow_mode(&state, channel_id, ctx.user_id).await?;
+    }
     let sent = match state
         .store
         .send_app_message(
@@ -180,6 +185,7 @@ async fn create(
             &sent.message.content,
         )
         .await?;
+        super::read_sync::advance_for_author(&state, ctx.user_id, &sent.message).await;
 
         // A run can race this send, so block 0 may already exist by now.
         let block_zero = state
@@ -212,6 +218,7 @@ async fn create(
                 presence: state.hub.presence(),
             },
         );
+        super::threads::notify_reply(&state, channel_id).await;
     }
 
     Ok(Json(dto))
