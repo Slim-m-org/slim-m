@@ -184,3 +184,58 @@ async fn the_member_list_can_be_narrowed_to_a_channels_viewers() {
     }
     assert_eq!(paged, viewers, "paging one at a time sees the same people");
 }
+
+// --- Scope of the channel parameter ---
+
+async fn get_members(app: &Router, token: &str, channel: &str) -> axum::response::Response {
+    app.clone()
+        .oneshot(request(
+            "GET",
+            &format!("/members?channel={channel}"),
+            Some(token),
+            None,
+        ))
+        .await
+        .unwrap()
+}
+
+/// Naming a channel the caller cannot view must not reveal who can, nor that
+/// the channel exists: a restricted channel, a dm between two other people and
+/// an unknown id all answer the same 404.
+#[tokio::test]
+async fn a_channel_the_caller_cannot_view_is_not_a_viewer_oracle() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let (admin_token, admin_id) = register(&store, "alice").await;
+    let (_bob_token, bob_id) = register(&store, "bob").await;
+    let (carol_token, carol_id) = register(&store, "carol").await;
+    let channel_id = general_channel_id(&store).await;
+
+    let deny = app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/channels/{channel_id}/overwrites/member/{carol_id}"),
+            Some(&admin_token),
+            Some(json!({ "allow": 0, "deny": Permissions::VIEW_CHANNEL.bits() })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(deny.status(), StatusCode::NO_CONTENT);
+    let user_id = |raw: &str| slimm_server::ids::UserId(uuid::Uuid::parse_str(raw).unwrap());
+    let dm = store
+        .open_dm(user_id(&admin_id), user_id(&bob_id))
+        .await
+        .unwrap();
+
+    let restricted = get_members(&app, &carol_token, &channel_id).await;
+    let in_dm = get_members(&app, &carol_token, &dm.id.to_string()).await;
+    let unknown = get_members(&app, &carol_token, &uuid::Uuid::now_v7().to_string()).await;
+
+    assert_eq!(restricted.status(), StatusCode::NOT_FOUND);
+    assert_eq!(in_dm.status(), StatusCode::NOT_FOUND);
+    assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+    let unknown = json_body(unknown).await;
+    assert_eq!(json_body(restricted).await, unknown);
+    assert_eq!(json_body(in_dm).await, unknown);
+}

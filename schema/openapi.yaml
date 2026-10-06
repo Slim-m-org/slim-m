@@ -765,9 +765,10 @@ paths:
           in: query
           description: >
             Narrow the page to members who can view this channel, for a member
-            list shown beside it. A display filter, not a confidentiality
-            boundary - the unfiltered roster stays readable from this route.
-            Paging is unchanged: a page shorter than `limit` is still the last.
+            list shown beside it. The caller must be able to view the channel
+            too; one they cannot view is a 404, the same as one that does not
+            exist. Paging is unchanged: a page shorter than `limit` is still
+            the last.
           schema:
             type: string
             format: uuid
@@ -784,6 +785,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 

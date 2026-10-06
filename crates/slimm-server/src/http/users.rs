@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! User profile routes: the caller's own account (`/me`), public profiles
-//! (`/users`), and the deployment's member list (`/members`).
+//! (`/users`); the member list lives in `members_list`.
 //!
 //! Every profile returned here is the narrow public shape only: id,
 //! username, display name, and creation time. Nothing from the auth tables
@@ -27,8 +27,7 @@ use super::user_status::{
     validate_status_text,
 };
 use crate::hub::Event;
-use crate::ids::{ChannelId, RoleId, UserId};
-use crate::permissions::Permissions;
+use crate::ids::{RoleId, UserId};
 use crate::ratelimit::Class;
 use crate::store::{Store, User};
 
@@ -42,9 +41,6 @@ pub(super) const AVATAR_MAX_BYTES: u64 = 2 * 1024 * 1024;
 
 /// Most ids `GET /users` may be asked about in one request.
 const MAX_USER_BATCH: usize = 100;
-/// Default and maximum page sizes for the member list.
-const MEMBERS_DEFAULT_LIMIT: i64 = 50;
-const MEMBERS_MAX_LIMIT: i64 = 200;
 
 /// The user profile routes, mounted by [`super::router`].
 ///
@@ -59,7 +55,6 @@ pub fn routes() -> Router<AppState> {
         .route("/users", get(list_users))
         .route("/users/{user_id}", get(get_user))
         .route("/users/{user_id}/avatar", get(get_avatar))
-        .route("/members", get(list_members))
         .layer(DefaultBodyLimit::max(BODY_LIMIT));
 
     let avatar_upload = Router::new()
@@ -135,7 +130,7 @@ pub(super) struct UserDto {
     /// path and only for a moderator looking for a ban-evading return
     /// account; see MOD9.
     #[serde(skip_serializing_if = "Option::is_none")]
-    invite_code: Option<String>,
+    pub(super) invite_code: Option<String>,
     /// Whether this account is a bot rather than a person.
     ///
     /// The interface draws a badge from this, which is the one affordance that
@@ -176,7 +171,7 @@ pub(super) async fn to_dto(store: &Store, user: User) -> anyhow::Result<UserDto>
 /// [`Store::roles_for_users`] follows from [`Store::reactions_for_messages`],
 /// which is what keeps `GET /members` (paginated up to 200) from paying one
 /// query per row.
-async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<Vec<UserDto>> {
+pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<Vec<UserDto>> {
     let ids: Vec<UserId> = users.iter().map(|u| u.id).collect();
     let roles: HashMap<UserId, Vec<(RoleId, String)>> =
         store.roles_for_users(&ids).await?.into_iter().collect();
@@ -302,14 +297,6 @@ struct ListUsersParams {
     ids: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct ListMembersParams {
-    after: Option<String>,
-    limit: Option<i64>,
-    /// Narrows the roster to who can view this channel; see [`list_members`].
-    channel: Option<String>,
-}
-
 // --- Handlers: /me ---
 
 async fn get_me(
@@ -430,70 +417,4 @@ async fn list_users(
 
     let users = state.store.user_profiles(&ids).await?;
     Ok(Json(to_dtos(&state.store, users).await?))
-}
-
-// --- Handlers: /members ---
-
-/// Lists the deployment's live members for a member list. Any authenticated
-/// caller may read it: a member list is deployment-wide, not scoped to any
-/// one channel, so there is no channel permission to check it against.
-///
-/// `channel` narrows the roster to the members who can view that channel,
-/// which is what a member pane beside a channel means by "who is here". It is
-/// a display filter, not a confidentiality boundary: the unfiltered roster is
-/// readable by any authenticated caller from this same route, by design.
-///
-/// A MANAGE_ROLES caller additionally gets each member's registration invite
-/// code attached (see MOD9) - a moderation signal, not a public one, so it
-/// is fetched and attached only here rather than in [`to_dtos`] itself,
-/// which every other `UserDto` response also goes through.
-///
-/// MANAGE_ROLES rather than the BAN_MEMBERS this once used: a code is a
-/// credential, not a label. `Store::redeem_invite` applies the invite's
-/// `role_grant` to whoever spends it, and redeeming needs nothing but a
-/// session, so a moderator who could not grant a role could read a still-live
-/// code off this list and take that role - up to ADMINISTRATOR. Gating on the
-/// permission that could grant it anyway closes that without losing the
-/// ban-evasion signal for the people who set the roles in the first place.
-async fn list_members(
-    AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
-    Query(params): Query<ListMembersParams>,
-    State(state): State<AppState>,
-) -> Result<Json<Vec<UserDto>>, ApiError> {
-    let after = params
-        .after
-        .as_deref()
-        .map(parse_uuid)
-        .transpose()?
-        .map(UserId);
-    let limit = params
-        .limit
-        .unwrap_or(MEMBERS_DEFAULT_LIMIT)
-        .clamp(1, MEMBERS_MAX_LIMIT);
-
-    let members = match params.channel.as_deref().map(parse_uuid).transpose()? {
-        Some(id) => {
-            state
-                .store
-                .list_members_who_view(ChannelId(id), after, limit)
-                .await?
-        }
-        None => state.store.list_members(after, limit).await?,
-    };
-    let ids: Vec<UserId> = members.iter().map(|m| m.id).collect();
-    let mut dtos = to_dtos(&state.store, members).await?;
-
-    // A code is a credential: redeeming it applies the role it grants.
-    let sees_codes = state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::MANAGE_ROLES);
-    if sees_codes {
-        let invite_codes = state.store.registration_invite_codes(&ids).await?;
-        for (dto, id) in dtos.iter_mut().zip(ids.iter()) {
-            dto.invite_code = invite_codes.get(id).cloned();
-        }
-    }
-    Ok(Json(dtos))
 }
