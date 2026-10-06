@@ -101,11 +101,7 @@ impl Store {
         // BEGIN IMMEDIATE, never deferred; see the note on this function.
         let mut tx = self.begin_write().await?;
 
-        // Probes including a tombstoned row, not just a live one: the id column
-        // is unique whether or not the message was deleted, so an idempotent
-        // retry of a since-deleted message must match here and be returned as
-        // the retry it is. Filtering deleted rows out let it fall through to an
-        // INSERT that hit the unique id and mapped to a 500.
+        // Includes tombstoned rows: the id is unique even after a delete, so a retry must match here, not 500 on INSERT.
         if let Some(existing) = fetch_message_including_deleted(&mut *tx, id).await? {
             tx.commit().await?;
             if existing.channel_id == channel_id && existing.author_id == Some(author_id) {
@@ -130,11 +126,7 @@ impl Store {
             });
         }
 
-        // A reply's parent must already exist in this exact channel. The
-        // column's bare `REFERENCES messages(id)` only proves the id exists
-        // somewhere, never that it belongs here, so the channel is checked by
-        // hand; a parent that is already soft-deleted still passes, since a
-        // reply to something since removed is honest, not invalid.
+        // The FK only proves the parent exists somewhere, so its channel is checked by hand; a soft-deleted parent still passes.
         if let Some(parent_id) = reply_to_id {
             let parent_channel = sqlx::query_scalar!(
                 r#"SELECT channel_id AS "channel_id!: ChannelId" FROM messages WHERE id = ?"#,
@@ -148,8 +140,7 @@ impl Store {
             }
         }
 
-        // RETURNING runs on the updated row, so `next_seq - 1` is the value this
-        // message takes and `next_seq` is left pointing at the following one.
+        // RETURNING sees the updated row, so `next_seq - 1` is this message's seq.
         let seq = sqlx::query_scalar!(
             r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
                WHERE channel_id = ? AND stream = 'message'
@@ -197,8 +188,7 @@ impl Store {
             crate::store::message_embeds::insert_embeds(&mut tx, id, &[embed]).await?;
         }
 
-        // Read the name inside the same transaction the insert used, so the
-        // echoed message cannot disagree with what a later fetch would return.
+        // Read in the insert's transaction so the echoed message matches a later fetch.
         let author_display_name = sqlx::query_scalar!(
             r#"SELECT display_name AS "display_name!: String"
                FROM users WHERE id = ? AND deleted_at IS NULL"#,
