@@ -32,6 +32,9 @@ import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
 import 'window_geometry.dart';
 import 'window_geometry_store.dart';
+import 'window_view_size.dart';
+
+export 'window_view_size.dart';
 
 class DesktopWindowShell {
   DesktopWindowShell._();
@@ -85,6 +88,10 @@ class DesktopWindowShell {
   /// size is the compositor's to decide and there is nothing to compare.
   static WindowSize? _handoffTargetSize;
 
+  /// True when the final run state is maximized or fullscreen, where the size
+  /// is the compositor's but the view must still leave the splash's own.
+  static bool _handoffFillsDisplay = false;
+
   /// Test-only seam: a real desktop-shell test still runs on real Linux
   /// (`dart:io`'s `Platform` cannot tell a CI runner from a launch), so
   /// this is what lets a test drive [registerListenersAndTray] against a
@@ -103,6 +110,7 @@ class DesktopWindowShell {
     _active = false;
     _framelessApplied = false;
     _handoffTargetSize = null;
+    _handoffFillsDisplay = false;
   }
 
   /// Flips the two flags [DesktopChrome] reads, so a widget test can render
@@ -273,12 +281,15 @@ class DesktopWindowShell {
     switch (geometry.runState) {
       case WindowRunState.maximized:
         _handoffTargetSize = null;
+        _handoffFillsDisplay = true;
         await _port.maximize();
       case WindowRunState.fullscreen:
         _handoffTargetSize = null;
+        _handoffFillsDisplay = true;
         await _port.setFullScreen(true);
       case WindowRunState.windowed:
         _handoffTargetSize = geometry.windowedSize;
+        _handoffFillsDisplay = false;
     }
   }
 
@@ -344,16 +355,22 @@ class DesktopWindowShell {
   /// which the owner reported twice. Measured on their KDE Wayland session:
   /// one launch in three built the real UI at 380 logical pixels.
   ///
-  /// Only a windowed run state is waited on; maximized and fullscreen have
-  /// no size of ours to match. Fails open on the timeout, because a window
+  /// A maximized or fullscreen run state has no size of ours to match, so it
+  /// waits for the view to stop reporting the splash's size instead; without
+  /// that the real UI built at 380px and a first-launch sheet latched the
+  /// phone presentation for good. Fails open on the timeout, because a window
   /// whose metrics never arrive must still get its app: a wrong layout is
   /// recoverable by resizing, a splash that never leaves is not.
   static Future<void> _awaitMetricsAtHandoffSize() async {
     final target = _handoffTargetSize;
-    if (target == null) return;
+    if (target == null && !_handoffFillsDisplay) return;
     final deadline = DateTime.now().add(_setupTimeout);
     while (DateTime.now().isBefore(deadline)) {
-      if (viewMatchesSize(_currentViewSize(), target)) return;
+      final size = _currentViewSize();
+      final reached = target != null
+          ? viewMatchesSize(size, target)
+          : viewHasLeftSplash(size);
+      if (reached) return;
       try {
         await SchedulerBinding.instance.endOfFrame.timeout(_metricsPollStep);
       } catch (_) {
@@ -479,17 +496,4 @@ class DesktopWindowShell {
     container.read(firstRunTrayNoticeCloseActionProvider.notifier).state =
         action;
   }
-}
-
-/// Whether [size] is the window [target] asked for, to within a logical
-/// pixel either way.
-///
-/// Rounded rather than exact: a compositor converts through physical pixels
-/// and a fractional device pixel ratio, so a window that is exactly right
-/// can still report 1279.9998. An exact comparison would wait out the whole
-/// timeout on every fractional-scale display.
-bool viewMatchesSize(Size? size, WindowSize target) {
-  if (size == null) return false;
-  return (size.width - target.width).abs() <= 1 &&
-      (size.height - target.height).abs() <= 1;
 }
