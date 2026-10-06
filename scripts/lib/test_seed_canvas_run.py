@@ -3,6 +3,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -54,6 +55,40 @@ class OpsReadbackTest(unittest.TestCase):
             **real(after, limit), "ops": [], "reset": True}
         got = run._ops_readback(api, "c")
         self.assertTrue(got["reset"])
+
+
+class PickMemberApiTest(unittest.TestCase):
+    def test_prefers_an_account_that_is_not_the_admin(self):
+        admin, other = object(), object()
+        self.assertIs(run._pick_member_api([admin, other], admin), other)
+
+    def test_with_no_admin_it_takes_the_second_account(self):
+        first, second = object(), object()
+        self.assertIs(run._pick_member_api([first, second], None), second)
+
+    def test_a_single_account_is_its_own_member(self):
+        only = object()
+        self.assertIs(run._pick_member_api([only], None), only)
+
+
+class ReadbackTest(unittest.TestCase):
+    def test_the_viewport_rect_pads_every_object_and_cluster_centre(self):
+        seen = {}
+
+        def viewport(api, channel_id, rect, limit=None):
+            seen["rect"], seen["limit"] = rect, limit
+            return {"objects": [1, 2], "has_more": False, "latest_seq": 9}
+
+        server = FakeCanvasServer()
+        stream(server, 3)
+        with patch("seed_canvas_ops.viewport", viewport):
+            viewport_stats, ops_stats = run._readback(
+                server.user("a"), "c",
+                [{"x": 100, "y": 200}, {"x": 300, "y": 50}], [(0, 0)])
+        self.assertEqual(seen["rect"], (-1500, -1500, 1800, 1700))
+        self.assertEqual(seen["limit"], 2000)
+        self.assertEqual(viewport_stats["objects"], 2)
+        self.assertEqual(ops_stats["count"], 3)
 
 
 if __name__ == "__main__":

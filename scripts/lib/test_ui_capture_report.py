@@ -2,6 +2,8 @@
 """The ui capture report decides whether a capture run is complete, so each
 way a job can fail has to show up in the manifest, the failure list and the
 table row the same way."""
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -127,7 +129,8 @@ class DamagedInputTest(ReportCase):
     def test_main_writes_the_sheet_even_when_a_log_is_truncated(self):
         self.add_job("a", exit_code=137, log='{"type":"testDo')
         argv = ["ui_capture_report.py", "--out", str(self.root), "--work", str(self.work)]
-        with unittest.mock.patch.object(sys, "argv", argv):
+        with unittest.mock.patch.object(sys, "argv", argv), \
+             contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(ui_capture_report.main(), 1)
         self.assertIn("Something did not render", (self.root / "index.html").read_text())
 
