@@ -10,8 +10,9 @@ library;
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_data/src/database.dart';
-import 'package:slimm_data/src/message_store.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart';
+import 'package:slimm_data/src/database.dart' show ChannelsCompanion;
 
 Future<MessageStore> _store() async {
   final db = SlimmDatabase(NativeDatabase.memory());
@@ -70,7 +71,7 @@ void main() {
     await store.saveDraft('c1', 'one', now: 10);
     await store.saveDraft('c2', 'two', now: 10);
 
-    await store.clearDraft('c1');
+    await store.saveDraft('c1', '', now: 20);
 
     expect(await store.drafts(), {'c2': 'two'});
   });
@@ -78,7 +79,7 @@ void main() {
   test('clearing a channel with no draft is not an error', () async {
     final store = await _store();
 
-    await store.clearDraft('never-typed-in');
+    await store.saveDraft('never-typed-in', '', now: 20);
 
     expect(await store.drafts(), isEmpty);
   });
@@ -114,4 +115,46 @@ void main() {
     expect(await store.drafts(), isEmpty);
     expect(await store.db.select(store.db.channels).get(), isEmpty);
   });
+
+  test('signing out takes the cached categories too', () async {
+    final store = await _store();
+    await store.replaceCategories([
+      const api.ChannelCategory(
+          id: 'cat-a', name: 'Alpha', position: 0, createdAt: 1),
+    ]);
+
+    await store.clear();
+
+    expect(await store.allCategories(), isEmpty);
+  });
+
+  test('removing a channel takes its draft with it', () async {
+    final store = await _store();
+    await _seedChannels(store, ['c1', 'c2']);
+    await store.saveDraft('c1', 'gone', now: 10);
+    await store.saveDraft('c2', 'kept', now: 10);
+
+    await store.removeChannel('c1');
+
+    expect(await store.drafts(), {'c2': 'kept'});
+  });
+
+  test('a channel pruned by a full refresh takes its draft with it', () async {
+    final store = await _store();
+    await _seedChannels(store, ['c1', 'c2']);
+    await store.saveDraft('c1', 'gone', now: 10);
+    await store.saveDraft('c2', 'kept', now: 10);
+
+    await store.replaceChannels([
+      const api.Channel(id: 'c2', name: 'c2', kind: 'text', createdAt: 0),
+    ]);
+
+    expect(await store.drafts(), {'c2': 'kept'});
+  });
 }
+
+Future<void> _seedChannels(MessageStore store, List<String> ids) =>
+    store.upsertChannels([
+      for (final id in ids)
+        api.Channel(id: id, name: id, kind: 'text', createdAt: 0),
+    ]);
