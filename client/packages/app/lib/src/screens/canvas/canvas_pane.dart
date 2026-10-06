@@ -128,6 +128,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     if (_toolInitialised) return;
     _toolInitialised = true;
     _tool = _defaultTool;
+    _disarmIfAlreadyFullscreen();
   }
 
   /// Disposes the engine directly, synchronously, rather than trusting
