@@ -129,8 +129,10 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
                     child: SheetItemList(
                       padding: EdgeInsets.zero,
                       itemCount: shown.length,
-                      itemBuilder: (context, index) =>
-                          _EmojiRow(emoji: shown[index]),
+                      itemBuilder: (context, index) => _EmojiRow(
+                        key: ValueKey(shown[index].id),
+                        emoji: shown[index],
+                      ),
                     ),
                   ),
               ],
@@ -143,7 +145,7 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
 }
 
 class _EmojiRow extends ConsumerStatefulWidget {
-  const _EmojiRow({required this.emoji});
+  const _EmojiRow({super.key, required this.emoji});
 
   final api.CustomEmoji emoji;
 
