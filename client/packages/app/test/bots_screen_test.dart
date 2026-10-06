@@ -209,9 +209,7 @@ void main() {
     expect(find.widgetWithText(AppButton, 'Revoke'), findsNothing);
   });
 
-  testWidgets('revoking posts to the revoke route for that bot', (
-    tester,
-  ) async {
+  Future<List<String>> openRevoke(WidgetTester tester) async {
     final posted = <String>[];
     await _pump(tester, (request) {
       if (request.method == 'GET' && request.url.path == '/bots') {
@@ -227,10 +225,36 @@ void main() {
       }
       return http.Response('{}', 200);
     });
-
     await tester.tap(find.widgetWithText(AppButton, 'Revoke'));
+    await tester.pumpAndSettle();
+    return posted;
+  }
+
+  testWidgets('revoking asks first and posts nothing until it is confirmed', (
+    tester,
+  ) async {
+    final posted = await openRevoke(tester);
+
+    expect(find.text('Revoke helper?'), findsOneWidget);
+    expect(posted, isEmpty);
+  });
+
+  testWidgets('confirming revokes that bot', (tester) async {
+    final posted = await openRevoke(tester);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Revoke').last);
     await tester.pumpAndSettle();
 
     expect(posted, ['/bots/bot-helper/revoke']);
+  });
+
+  testWidgets('cancelling revokes nothing', (tester) async {
+    final posted = await openRevoke(tester);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(posted, isEmpty);
+    expect(find.text('Revoke helper?'), findsNothing);
   });
 }

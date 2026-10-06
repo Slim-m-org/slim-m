@@ -86,6 +86,10 @@ MockClient quietClient() => MockClient((request) async {
     },
     _ when path.endsWith('/canvas/media-slots') => const {'slots': <Object>[]},
     _ when path.endsWith('/voice/roster') => const {'participants': <Object>[]},
+    // An id that is not a thread the caller can see answers all-null, the server's masked shape.
+    _ when path.endsWith('/thread-parent') => const <String, Object>{
+      'parent_deleted': false,
+    },
     _ => const <Object>[],
   };
   return http.Response(
@@ -191,6 +195,12 @@ GoRouter testRouter(String location) => GoRouter(
           ],
         ),
       ],
+    ),
+    // A stand-in for the thread screen: tests only need to see that it was reached.
+    GoRoute(
+      path: Routes.threadPattern,
+      builder: (context, state) =>
+          Text('thread ${state.pathParameters['channelId']}'),
     ),
   ],
 );

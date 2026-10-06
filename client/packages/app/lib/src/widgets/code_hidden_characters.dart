@@ -10,28 +10,13 @@ library;
 
 import 'package:slimm_design_system/design_system.dart';
 
-/// Mirrors `is_hidden_char` in the server's `hidden_chars.rs`; both are held to
-/// `crates/slimm-server/tests/fixtures/hidden_chars.json`. Tab, line feed and
-/// carriage return are layout inside a code block, so they are the one exemption.
+import '../hidden_characters.dart';
+
+/// [isHiddenCharacter] for a code block, where tab, line feed and carriage
+/// return are layout and so the one exemption.
 bool isHiddenCodeCharacter(int c) {
   if (c == 0x09 || c == 0x0A || c == 0x0D) return false;
-  return c < 0x20 ||
-      (c >= 0x7F && c <= 0x9F) ||
-      c == 0x00AD ||
-      c == 0x034F ||
-      c == 0x061C ||
-      (c >= 0x115F && c <= 0x1160) ||
-      (c >= 0x17B4 && c <= 0x17B5) ||
-      c == 0x180E ||
-      (c >= 0x200B && c <= 0x200F) ||
-      (c >= 0x2028 && c <= 0x202E) ||
-      (c >= 0x2060 && c <= 0x206F) ||
-      c == 0x2800 ||
-      c == 0x3164 ||
-      c == 0xFEFF ||
-      c == 0xFFA0 ||
-      (c >= 0xFFF9 && c <= 0xFFFC) ||
-      (c >= 0xE0000 && c <= 0xE007F);
+  return isHiddenCharacter(c);
 }
 
 bool hasHiddenCodeCharacters(String code) =>

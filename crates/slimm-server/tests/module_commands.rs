@@ -308,11 +308,21 @@ async fn the_wasm_receives_an_opaque_caller_id_and_nothing_else() {
         );
     }
     let echoed = &answers[0];
-    assert_eq!(echoed, &answers[1], "the id is stable for one person");
+    let id_of = |answer: &str| {
+        answer
+            .split_once("'entropy'")
+            .map(|(head, _)| head.to_owned())
+    };
+    assert_eq!(
+        id_of(echoed),
+        id_of(&answers[1]),
+        "the id is stable for one person"
+    );
 
-    let id = echoed
+    let (id, _entropy) = echoed
         .strip_prefix("{'command':'run','input':'hi','caller':{'id':'")
-        .and_then(|rest| rest.strip_suffix("'}}"))
+        .and_then(|rest| rest.strip_suffix("'}"))
+        .and_then(|rest| rest.split_once("'},'entropy':'"))
         .unwrap_or_else(|| panic!("the request carries more than it should: {echoed}"));
     assert_eq!(id.len(), 64);
     assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
@@ -326,4 +336,44 @@ async fn the_wasm_receives_an_opaque_caller_id_and_nothing_else() {
     );
     assert!(!echoed.contains(&member.id.to_string()));
     assert!(!echoed.contains("Nia"));
+}
+
+/// A module has no clock and no random source, so a command whose answer is
+/// meant to vary (a die roll) can only vary with something the host hands it.
+/// Every run gets a fresh value, the same for nobody and unrelated to the caller.
+#[tokio::test]
+async fn every_run_carries_a_fresh_entropy_value() {
+    let (s, _guard) = store("slimm-module-cmd-entropy").await;
+    let member = deployment(&s).await;
+    install(&s, echo_request_wasm(), true, None).await;
+    grant_run_permission(&s, &member).await;
+    let token = s.open_session(member.id, "phone").await.unwrap();
+    let router = app(s);
+
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..8 {
+        let response = router
+            .clone()
+            .oneshot(req_json(
+                "POST",
+                "/modules/code-exec/commands/run",
+                token.access_token.as_str(),
+                json!({ "input": "hi" }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let echoed = json_body(response).await["output"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let entropy = echoed
+            .split_once("'entropy':'")
+            .and_then(|(_, rest)| rest.strip_suffix("'}"))
+            .unwrap_or_else(|| panic!("the request carries no entropy: {echoed}"));
+        assert_eq!(entropy.len(), 32);
+        assert!(entropy.chars().all(|c| c.is_ascii_hexdigit()));
+        seen.insert(entropy.to_owned());
+    }
+    assert_eq!(seen.len(), 8, "two runs shared an entropy value: {seen:?}");
 }

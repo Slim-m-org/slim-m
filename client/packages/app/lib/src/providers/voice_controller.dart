@@ -199,7 +199,7 @@ class VoiceController extends StateNotifier<VoiceState>
       clearError: true,
       clearRecap: true,
       joining: true,
-      rejoining: false,
+      rejoining: _autoAttemptChannel == channelId,
       clearJustLeft: true,
     );
     try {

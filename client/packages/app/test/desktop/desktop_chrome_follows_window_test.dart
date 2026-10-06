@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
+import 'package:slimm_app/src/desktop/update_watch.dart';
 import 'package:slimm_app/src/providers/display_preferences.dart';
 import 'package:slimm_app/src/routing/breakpoints.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -30,7 +31,14 @@ void main() {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        // The chrome keeps the real watcher alive; its periodic timer is not under test.
+        updateWatcherProvider.overrideWith(
+          (ref) => UpdateWatcher(ref, shouldRun: () => false),
+        ),
+      ],
+    );
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(

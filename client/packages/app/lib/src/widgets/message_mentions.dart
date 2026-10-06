@@ -16,13 +16,43 @@ import 'message_inline.dart';
 /// still found the same way the transcript itself would render it.
 bool messageMentionsUsername(String content, String username) {
   if (username.isEmpty) return false;
+  return _mentions(content, username: username);
+}
+
+/// Whether [content] is addressed to this account: its own `@username`, the
+/// broadcast mentions `@everyone` and `@here`, or `@[Role]` for a role in
+/// [roleNames]. What the server pushes for under a mentions-only preference,
+/// less its check of whether the author may broadcast, which the client
+/// cannot see: a message that looks like a mention in the transcript is
+/// treated as one here.
+bool messageMentionsMe(
+  String content, {
+  required String username,
+  Iterable<String> roleNames = const [],
+}) => _mentions(
+  content,
+  username: username,
+  broadcast: true,
+  roleNames: {for (final name in roleNames) name.toLowerCase()},
+);
+
+bool _mentions(
+  String content, {
+  required String username,
+  bool broadcast = false,
+  Set<String> roleNames = const {},
+}) {
   final target = username.toLowerCase();
 
   bool walk(List<InlineNode> nodes) {
     for (final node in nodes) {
       switch (node) {
         case InlineMention(:final raw):
-          if (raw.substring(1).toLowerCase() == target) return true;
+          final name = raw.substring(1).toLowerCase();
+          if (target.isNotEmpty && name == target) return true;
+          if (broadcast && (name == 'everyone' || name == 'here')) return true;
+        case InlineRoleMention(:final name):
+          if (roleNames.contains(name.toLowerCase())) return true;
         case InlineBold(:final children):
         case InlineItalic(:final children):
         case InlineStrikethrough(:final children):
@@ -31,7 +61,6 @@ bool messageMentionsUsername(String content, String username) {
         case InlineText():
         case InlineCode():
         case InlineEmoji():
-        case InlineRoleMention():
         case InlineLink():
         case InlineMessageLink():
           break;

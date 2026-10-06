@@ -138,10 +138,10 @@ final bannerVisibleProvider = Provider<bool>((ref) {
   return ref.watch(dismissedBannerVersionProvider) != update.version;
 });
 
-/// Forces [UpdateWatcher] into existence for as long as
-/// [UpdateAvailableBanner] is mounted - see that widget, the one place that
-/// watches this. Nothing here reads its own state; the timer it starts is
-/// the entire point.
+/// Forces [UpdateWatcher] into existence for as long as the desktop chrome
+/// is mounted - `DesktopChrome` watches this, because a frameless shell
+/// mounts no banner and the title bar chip still needs the periodic check.
+/// Nothing here reads its own state; the timer it starts is the entire point.
 final updateWatcherProvider = Provider.autoDispose<UpdateWatcher>((ref) {
   final watcher = UpdateWatcher(ref);
   watcher.start();

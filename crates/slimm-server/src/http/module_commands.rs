@@ -35,6 +35,7 @@
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::routing::{get, post};
+use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -103,6 +104,16 @@ struct ModuleWireRequest<'a> {
     command: &'a str,
     input: &'a str,
     caller: ModuleCaller,
+    entropy: String,
+}
+
+/// 16 fresh random bytes as hex, new for every run. A module has no clock or
+/// random source, so this is the only thing a roll can vary with. See
+/// docs/decisions/0038-module-caller-id.md, "Amended 2026-10-06".
+fn run_entropy() -> String {
+    let mut bytes = [0u8; 16];
+    OsRng.fill_bytes(&mut bytes);
+    crate::media::to_hex(&bytes)
 }
 
 /// Who is asking, and nothing more: an id a module can dedupe against.
@@ -217,6 +228,7 @@ pub(crate) async fn execute_command_in(
         caller: ModuleCaller {
             id: super::module_caller::module_caller_id(&caller_key, module_id, user_id),
         },
+        entropy: run_entropy(),
     })
     .map_err(|_| ApiError::Internal)?;
 

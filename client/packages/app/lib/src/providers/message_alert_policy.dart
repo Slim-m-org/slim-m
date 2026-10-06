@@ -16,7 +16,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../widgets/message_mentions.dart' show messageMentionsUsername;
+import '../widgets/message_mentions.dart' show messageMentionsMe;
 import 'blocks_controller.dart';
 import 'channel_notification_overrides_controller.dart';
 import 'notification_preference_controller.dart';
@@ -40,6 +40,11 @@ class MessageAlert {
 @visibleForTesting
 var alertStateMaxAge = const Duration(minutes: 1);
 
+/// How long a failed lookup of this account's name and roles waits before the
+/// next message may try again. A `var` so a test can shrink it.
+@visibleForTesting
+var selfLookupRetryAfter = const Duration(seconds: 30);
+
 /// How long an alert waits for that refetch before it uses what it already has.
 const _refreshWait = Duration(seconds: 2);
 
@@ -52,10 +57,15 @@ class MessageAlertPolicy {
 
   final Ref _ref;
 
-  /// Cached against the id it was resolved for, so a different account
-  /// signing in on the same device never reuses a stale username.
-  String? _selfUsername;
-  String? _selfUsernameForId;
+  /// This account's username and role names, cached against the id they were
+  /// resolved for (so another account signing in on the same device never
+  /// reuses them) and refetched once older than [alertStateMaxAge], since roles
+  /// change.
+  ({String username, List<String> roles})? _self;
+  String? _selfForId;
+  DateTime? _selfAt;
+  DateTime? _selfFailedAt;
+  Future<({String username, List<String> roles})?>? _selfLookup;
 
   /// A thread's parent channel never changes, so each is asked for once.
   final Map<String, String?> _parentChannels = {};
@@ -116,22 +126,62 @@ class MessageAlertPolicy {
 
   Future<bool> _mentionsSelf(api.Message message, String? selfId) async {
     if (selfId == null) return false;
-    final username = await _resolveSelfUsername(selfId);
-    return username != null &&
-        messageMentionsUsername(message.content, username);
+    final me = await _resolveSelf(selfId);
+    return me != null &&
+        messageMentionsMe(
+          message.content,
+          username: me.username,
+          roleNames: me.roles,
+        );
   }
 
-  /// Best-effort: a lookup failure just leaves one message read as not a
-  /// mention, and the next message that needs it tries again.
-  Future<String?> _resolveSelfUsername(String selfId) async {
-    if (_selfUsernameForId == selfId) return _selfUsername;
-    try {
-      _selfUsername = (await _ref.read(apiProvider).me()).username;
-      _selfUsernameForId = selfId;
-    } on api.ApiException {
-      // Reads the unchanged, possibly null, cache.
+  /// Best-effort: a lookup failure just leaves messages read as not a mention
+  /// until [selfLookupRetryAfter] passes. A burst of messages shares one
+  /// lookup and a failure is not retried per message, since `/me` shares the
+  /// per-user read budget and a 429 there blanks the user panel.
+  Future<({String username, List<String> roles})?> _resolveSelf(String selfId) {
+    final now = DateTime.now();
+    final loadedAt = _selfAt;
+    final fresh =
+        _selfForId == selfId &&
+        loadedAt != null &&
+        now.difference(loadedAt) <= alertStateMaxAge;
+    final failedAt = _selfFailedAt;
+    final backingOff =
+        failedAt != null && now.difference(failedAt) < selfLookupRetryAfter;
+    if (fresh || backingOff) {
+      return Future.value(_selfForId == selfId ? _self : null);
     }
-    return _selfUsername;
+    return _selfLookup ??= _lookUpSelf(
+      selfId,
+    ).whenComplete(() => _selfLookup = null);
+  }
+
+  Future<({String username, List<String> roles})?> _lookUpSelf(
+    String selfId,
+  ) async {
+    try {
+      final client = _ref.read(apiProvider);
+      final me = await client.me();
+      _self = (username: me.username, roles: await _roleNames(client, selfId));
+      _selfForId = selfId;
+      _selfAt = DateTime.now();
+      _selfFailedAt = null;
+    } on api.ApiException {
+      // Keeps the cache for this account, if there is one.
+      _selfFailedAt = DateTime.now();
+    }
+    return _selfForId == selfId ? _self : null;
+  }
+
+  /// Only `@[Role]` mentions need these, so a profile that cannot be read
+  /// costs that and nothing else.
+  Future<List<String>> _roleNames(api.SlimmApi client, String selfId) async {
+    try {
+      return (await client.getUser(selfId)).roles;
+    } on Object {
+      return const [];
+    }
   }
 
   /// The override on a thread's parent channel, null for any other channel or

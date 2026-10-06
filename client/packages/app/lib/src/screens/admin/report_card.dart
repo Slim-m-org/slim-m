@@ -30,6 +30,7 @@ import '../../providers/display_preferences.dart';
 import '../../providers/emoji_catalog_provider.dart';
 import '../../providers/member_presence.dart' show membersProvider;
 import '../../providers/providers.dart';
+import '../../providers/reports_controller.dart';
 import '../../providers/user_profiles.dart';
 import '../../widgets/channel_rail.dart' show selectedChannelId;
 import '../../widgets/confirm_dialog.dart';
@@ -133,9 +134,16 @@ class _ReportCardState extends ConsumerState<ReportCard>
     await _runQuickAction((g) async {
       await g(
         whatFailed: 'close the report',
-        action: () => ref
-            .read(apiProvider)
-            .resolveReport(reportId: widget.report.id, resolution: resolution),
+        action: () async {
+          await ref
+              .read(apiProvider)
+              .resolveReport(
+                reportId: widget.report.id,
+                resolution: resolution,
+              );
+          // Without this the closed report stays in the open queue until something else reloads it.
+          await ref.read(reportsControllerProvider.notifier).refresh();
+        },
       );
     });
   }

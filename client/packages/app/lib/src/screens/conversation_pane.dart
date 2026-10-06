@@ -15,7 +15,7 @@ import '../routing/breakpoints.dart';
 import '../widgets/compact_channel_app_bar.dart';
 import '../widgets/channel_header.dart';
 import 'canvas/canvas_pane.dart';
-import 'channel_not_found.dart';
+import 'unlisted_channel.dart';
 import 'channel_screen.dart';
 import 'dm_call_pane.dart';
 import 'voice_screen.dart';
@@ -70,9 +70,11 @@ class ConversationPane extends ConsumerWidget {
               ?.where((c) => c.id == channelId)
               .cast<Channel?>()
               .firstOrNull;
-          // Before the first sync an unresolved id may just not have arrived yet.
-          if (channel == null && ref.watch(initialSyncCompleteProvider)) {
-            return const ChannelNotFound();
+          // Before the first sync, or before the list has emitted, an unresolved id may just not have arrived yet.
+          if (channel == null &&
+              snapshot.hasData &&
+              ref.watch(initialSyncCompleteProvider)) {
+            return UnlistedChannel(channelId: channelId);
           }
           final isVoice = channel?.kind == 'voice';
           final canvasOpen = ref.watch(canvasOpenProvider) == channelId;

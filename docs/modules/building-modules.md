@@ -53,7 +53,7 @@ pub extern "C" fn run(in_ptr: i32, in_len: i32) -> i64 {
     let request = unsafe {
         std::slice::from_raw_parts(in_ptr as *const u8, in_len as usize)
     };
-    // The request is {"command", "input", "caller": {"id"}} as UTF-8 JSON.
+    // The request is {"command", "input", "caller": {"id"}, "entropy"} as UTF-8 JSON.
     // Echo a success response of the same shape the host expects.
     let response = br#"{"ok":true,"output":"hello from a module"}"#;
     let ptr = response.as_ptr() as i64;
@@ -112,12 +112,14 @@ Every extension point that runs is, underneath, a call to one of the module's co
 The **request** the host writes is a JSON object:
 
 ```json
-{ "command": "roll", "input": "2d20+3", "caller": { "id": "9f2c...e1" } }
+{ "command": "roll", "input": "2d20+3", "caller": { "id": "9f2c...e1" }, "entropy": "4b0d...a7" }
 ```
 
 - `command` is the name of a `command` extension point the module declared.
 - `input` is a string whose meaning is entirely the module's own - a code snippet, a dice notation, a JSON blob, whatever the command wants.
 - `caller.id` is an opaque, stable id for whoever ran the command, and it is the only thing the module is told about them.
+- `entropy` is 32 hex characters of fresh randomness, new for every run and unrelated to who ran it.
+  A module has no clock or random source, so mix it into your seed when a command should vary, such as a die roll.
 
 ### Who is calling
 

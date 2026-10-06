@@ -73,4 +73,63 @@ void main() {
   test('an unrecognised top-level kind is null, not a default stroke', () {
     expect(canvasStrokeInputFrom(_object(kind: 'window')), isNull);
   });
+
+  group('a stroke whose props carry the wrong types', () {
+    // A hostile or buggy poster can store any json object as props, and rows already stored are served back as is.
+    final poisoned = <String, Map<String, dynamic>>{
+      'non-string color': {
+        'points': [0, 0, 1, 1],
+        'color': 5,
+      },
+      'non-number width': {
+        'points': [0, 0, 1, 1],
+        'width': 'x',
+      },
+      'non-list points': {'points': 'abc'},
+      'mixed points': {
+        'points': [0, 'a', null, 1, 2],
+      },
+    };
+    for (final entry in poisoned.entries) {
+      test('${entry.key} never throws', () {
+        expect(
+          () => canvasStrokeInputFrom(
+            _object(kind: 'stroke', props: entry.value),
+          ),
+          returnsNormally,
+        );
+      });
+    }
+
+    test('a bad width and color fall back to the defaults', () {
+      final input = canvasStrokeInputFrom(
+        _object(
+          kind: 'stroke',
+          props: {
+            'points': [0, 0, 1, 1],
+            'width': 'x',
+            'color': 5,
+          },
+        ),
+      );
+      expect(input, isNotNull);
+      expect(input!.width, 3);
+      expect(input.colorKey, 'annotation');
+    });
+
+    test('a non-finite or negative width falls back to the default', () {
+      for (final width in [double.infinity, double.nan, -2, 0]) {
+        final input = canvasStrokeInputFrom(
+          _object(
+            kind: 'stroke',
+            props: {
+              'points': [0, 0, 1, 1],
+              'width': width,
+            },
+          ),
+        );
+        expect(input!.width, 3, reason: 'width $width');
+      }
+    });
+  });
 }

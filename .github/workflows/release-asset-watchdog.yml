@@ -22,13 +22,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # continue-on-error so an incomplete release reaches the reporting step instead of ending the job silently.
+      # continue-on-error so an incomplete release reaches the reporting step; pipefail so tee cannot hide the checker's exit 1.
       - id: scan
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python3 scripts/check-release-assets.py --recent 3 | tee release-assets.txt
+        run: |
+          set -euo pipefail
+          python3 scripts/check-release-assets.py --recent 3 | tee release-assets.txt
 
       - name: open or close the incomplete-release issue
         env:

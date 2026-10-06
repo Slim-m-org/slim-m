@@ -44,6 +44,13 @@ class DockScreen extends StatelessWidget {
   );
 }
 
+/// An installed module that has an update, and the community source to install
+/// it from (null for the official one).
+typedef _Outdated = ({api.DockIndexEntry entry, String? source});
+
+/// The host capability a new build of a module has to be approved for again.
+const _postMessages = 'message.post';
+
 /// The module list itself, embeddable as a Space settings pane as well as
 /// routed.
 class DockPane extends ConsumerStatefulWidget {
@@ -74,17 +81,29 @@ class _DockPaneState extends ConsumerState<DockPane>
       entry.id.toLowerCase().contains(needle) ||
       entry.summary.toLowerCase().contains(needle);
 
-  /// Every installed module the marketplace now has a different version of.
+  /// Every installed module its own source now lists a different version of.
   ///
   /// Different rather than newer: the registry is the authority on what a
   /// space may install, and comparing semver here would invent an opinion the
   /// install route does not share (it refuses anything but the current
   /// manifest, see `installDockModule`). A rolled-back registry is therefore
   /// an update too, which is the honest reading of "match the marketplace".
-  static List<api.DockIndexEntry> _outdated(DockCatalog catalog) => [
+  ///
+  /// Community sources count the same way their rows' badges do: a module is
+  /// outdated in a source only if it was installed from that very source, and
+  /// it is updated from there.
+  static List<_Outdated> _outdated(DockCatalog catalog) => [
     for (final entry in catalog.entries)
       if (catalog.installedFor(entry.id) case final installed?)
-        if (installed.version != entry.version) entry,
+        if (installed.sourceRepo == null && installed.version != entry.version)
+          (entry: entry, source: null),
+    for (final section in catalog.sections)
+      if (!section.failed)
+        for (final entry in section.entries)
+          if (catalog.installedFor(entry.id) case final installed?)
+            if (installed.sourceRepo == section.source.repo &&
+                installed.version != entry.version)
+              (entry: entry, source: section.source.id),
   ];
 
   /// Updates every outdated module, one at a time, and reports what did not
@@ -95,15 +114,33 @@ class _DockPaneState extends ConsumerState<DockPane>
   /// burst that raced. Nothing navigates afterwards - an update already knows
   /// who may use the module, which is why the per-module screen only sends a
   /// *first* install to the access screen.
-  Future<void> _updateAll(List<api.DockIndexEntry> outdated) async {
+  ///
+  /// A new build drops the approval to post messages (`message.post`), since
+  /// what was approved was the old build, so the modules that lost it are
+  /// named: decision 0023 says the Dock tells you on the update screen.
+  Future<void> _updateAll(List<_Outdated> outdated) async {
     clearActionError();
     setState(() => _updatingAll = true);
     final failed = <String>[];
-    for (final entry in outdated) {
+    final needApproval = <String>[];
+    for (final (:entry, :source) in outdated) {
+      final before = ref
+          .read(dockCatalogProvider)
+          .valueOrNull
+          ?.installedFor(entry.id)
+          ?.approvedHostCapabilities;
       try {
-        await ref
+        final updated = await ref
             .read(apiProvider)
-            .installDockModule(moduleId: entry.id, version: entry.version);
+            .installDockModule(
+              moduleId: entry.id,
+              version: entry.version,
+              source: source,
+            );
+        if ((before?.contains(_postMessages) ?? false) &&
+            !updated.approvedHostCapabilities.contains(_postMessages)) {
+          needApproval.add(entry.name);
+        }
       } catch (_) {
         failed.add(entry.name);
       }
@@ -116,11 +153,15 @@ class _DockPaneState extends ConsumerState<DockPane>
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
-    if (failed.isEmpty) return;
+    if (failed.isEmpty && needApproval.isEmpty) return;
     final updated = outdated.length - failed.length;
     setActionError(
-      'Updated $updated of ${outdated.length}. '
-      'Could not update ${failed.join(', ')}.',
+      [
+        'Updated $updated of ${outdated.length}.',
+        if (failed.isNotEmpty) 'Could not update ${failed.join(', ')}.',
+        if (needApproval.isNotEmpty)
+          '${needApproval.join(', ')} needs Post messages approved again.',
+      ].join(' '),
     );
   }
 

@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/activity_publisher.dart';
 import '../providers/admin_providers.dart';
 import '../providers/blocks_controller.dart';
+import '../providers/call_shortcut_registry.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/channel_by_id_provider.dart';
@@ -248,6 +249,12 @@ class HomeShell extends ConsumerWidget {
     final openSettings = activatorFor(AppAction.openSettings);
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
+    final muteCall = activatorFor(AppAction.toggleMuteCall);
+    final cameraCall = activatorFor(AppAction.toggleCameraCall);
+    final shareCall = activatorFor(AppAction.toggleShareCall);
+    final leaveCall = activatorFor(AppAction.leaveCall);
+    // Reads the row's handlers when a key arrives, so these are live only while a call row is on screen.
+    CallShortcutHandlers? call() => ref.read(callShortcutHandlersProvider);
     final body = WhatsNewGate(
       child: PushToTalkListener(
         child: CallbackShortcuts(
@@ -263,6 +270,10 @@ class HomeShell extends ConsumerWidget {
               nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
             if (previousChannel != null)
               previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
+            if (muteCall != null) muteCall: () => call()?.toggleMute(),
+            if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
+            if (shareCall != null) shareCall: () => call()?.toggleShare(),
+            if (leaveCall != null) leaveCall: () => call()?.leave(),
           },
           // CallbackShortcuts only fires for a focused descendant, so this
           // default makes the shortcut work the instant the app opens.

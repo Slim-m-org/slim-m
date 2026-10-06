@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 
+import '../hidden_characters.dart';
 import '../spotify/spotify_config.dart';
 import '../spotify/spotify_link.dart';
 import 'activity_sharing_settings.dart';
@@ -21,19 +22,26 @@ final nowPlayingSourceProvider = Provider<NowPlayingSource?>(
   (ref) => createNowPlayingSource(),
 );
 
-/// A track as the wire carries it, cut to the server's cap so a long title is
-/// shortened here rather than refused there.
-api.PresenceActivity activityFromNowPlaying(NowPlaying playing) {
-  final artist = playing.artist;
+/// A track as the wire carries it, cleaned and cut to what the server accepts:
+/// it refuses hidden characters and blank text rather than trimming them, and a
+/// refused activity is never going to be accepted on a retry. Null when nothing
+/// shareable is left, which is a title with no visible text.
+api.PresenceActivity? activityFromNowPlaying(NowPlaying playing) {
+  final title = capActivityText(playing.title);
+  if (title.isEmpty) return null;
+  final artist = playing.artist == null ? '' : capActivityText(playing.artist!);
+  final source = playing.source == null
+      ? ''
+      : String.fromCharCodes(
+          visibleText(
+            playing.source!,
+          ).runes.take(api.PresenceActivity.maxSourceChars),
+        );
   return api.PresenceActivity(
     kind: api.ActivityKind.listening,
-    title: capActivityText(playing.title),
-    subtitle: artist == null ? null : capActivityText(artist),
-    source: playing.source == null
-        ? null
-        : String.fromCharCodes(
-            playing.source!.runes.take(api.PresenceActivity.maxSourceChars),
-          ),
+    title: title,
+    subtitle: artist.isEmpty ? null : artist,
+    source: source.isEmpty ? null : source,
     artUrl: playing.artUrl,
   );
 }
@@ -42,13 +50,16 @@ api.PresenceActivity activityFromNowPlaying(NowPlaying playing) {
 /// tests with a fake.
 final gameSourceProvider = Provider<GameSource?>((ref) => createGameSource());
 
-api.PresenceActivity activityFromGame(RunningGame game) => api.PresenceActivity(
-  kind: api.ActivityKind.playing,
-  title: capActivityText(game.name),
-);
+api.PresenceActivity? activityFromGame(RunningGame game) {
+  final title = capActivityText(game.name);
+  if (title.isEmpty) return null;
+  return api.PresenceActivity(kind: api.ActivityKind.playing, title: title);
+}
 
-String capActivityText(String text) =>
-    String.fromCharCodes(text.runes.take(api.PresenceActivity.maxTextChars));
+/// [text] with hidden characters removed, then cut to the server's cap.
+String capActivityText(String text) => String.fromCharCodes(
+  visibleText(text).runes.take(api.PresenceActivity.maxTextChars),
+);
 
 class ActivityFeed {
   const ActivityFeed({

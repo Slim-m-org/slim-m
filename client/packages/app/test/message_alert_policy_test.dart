@@ -64,10 +64,17 @@ class _Rig {
   String account;
   bool accountFails;
 
+  /// The names of the roles this account holds, as its own profile lists them.
+  List<String> roles = const [];
+
   /// When the schedule says the account is snoozed until, or null for none.
   int? snoozeUntil;
   bool scheduleFails = false;
   int scheduleRequests = 0;
+
+  /// Lookups of this account's own profile, and whether they are refused.
+  int meRequests = 0;
+  bool meFails = false;
   final Map<String, String> overrides;
   final bool parentFails;
   final threadParentRequests = <String>[];
@@ -122,12 +129,23 @@ class _Rig {
   Future<http.Response> _answer(http.Request request) async {
     final path = request.url.path;
     if (path == '/me') {
+      meRequests++;
+      if (meFails) return _json({'error': 'slow down'}, 429);
       return _json({
         'id': 'me',
         'username': 'nick',
         'display_name': 'Nick',
         'created_at': 0,
         'permissions': 0,
+      });
+    }
+    if (path == '/users/me') {
+      return _json({
+        'id': 'me',
+        'username': 'nick',
+        'display_name': 'Nick',
+        'created_at': 0,
+        'roles': roles,
       });
     }
     if (path == '/push/preference') {
@@ -357,6 +375,79 @@ void main() {
       await pastMaxAge();
 
       expect(await _alerts(rig, _message('group-1', 'hi all')), isFalse);
+    });
+  });
+
+  group('a mention that is not the username', () {
+    test('@everyone gets through a channel narrowed to mentions', () async {
+      await wire(_Rig(overrides: {'group-1': 'mentions'}));
+
+      expect(
+        await _alerts(rig, _message('group-1', '@everyone standup')),
+        isTrue,
+      );
+      expect(await _alerts(rig, _message('group-1', 'quick q @here')), isTrue);
+    });
+
+    test('a role the account holds does too', () async {
+      final holder = _Rig(overrides: {'group-1': 'mentions'})
+        ..roles = ['Core Team'];
+      await wire(holder);
+
+      expect(
+        await _alerts(rig, _message('group-1', 'ping @[Core Team]')),
+        isTrue,
+      );
+    });
+
+    test('a role it does not hold stays quiet', () async {
+      await wire(_Rig(overrides: {'group-1': 'mentions'}));
+
+      expect(
+        await _alerts(rig, _message('group-1', 'ping @[Core Team]')),
+        isFalse,
+      );
+    });
+
+    test('an unreadable profile costs only the role mentions', () async {
+      await wire(_Rig(overrides: {'group-1': 'mentions'}));
+
+      expect(await _alerts(rig, _message('group-1', 'hi @nick')), isTrue);
+    });
+  });
+
+  group('looking up this account', () {
+    test('a burst of messages shares one lookup', () async {
+      await wire(_Rig(overrides: {'group-1': 'mentions'}));
+
+      await Future.wait([
+        for (var i = 0; i < 10; i++) _alerts(rig, _message('group-1', 'm $i')),
+      ]);
+
+      expect(rig.meRequests, 1);
+    });
+
+    test('a refused lookup is not retried for every message', () async {
+      await wire(_Rig(overrides: {'group-1': 'mentions'})..meFails = true);
+
+      for (var i = 0; i < 5; i++) {
+        await _alerts(rig, _message('group-1', 'hi @nick $i'));
+      }
+
+      expect(rig.meRequests, 1);
+    });
+
+    test('a refused lookup is tried again once the wait passes', () async {
+      final saved = selfLookupRetryAfter;
+      selfLookupRetryAfter = Duration.zero;
+      addTearDown(() => selfLookupRetryAfter = saved);
+      await wire(_Rig(overrides: {'group-1': 'mentions'})..meFails = true);
+
+      expect(await _alerts(rig, _message('group-1', 'hi @nick')), isFalse);
+      rig.meFails = false;
+
+      expect(await _alerts(rig, _message('group-1', 'hi @nick')), isTrue);
+      expect(rig.meRequests, 2);
     });
   });
 }

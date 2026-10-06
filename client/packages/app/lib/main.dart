@@ -19,7 +19,6 @@ import 'src/deep_links.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
-import 'src/providers/app_lock_preference.dart';
 import 'src/providers/desktop_call_notifier.dart';
 import 'src/providers/desktop_message_notifier.dart';
 import 'src/providers/viewing_reporter.dart';
@@ -27,13 +26,9 @@ import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
 import 'src/desktop/desktop_window_shell.dart';
-import 'src/providers/attachment_preview_quality.dart';
 import 'src/providers/desktop_splash_preference.dart';
 import 'src/providers/emoji_catalog_provider.dart';
 import 'src/providers/emoji_image_cache.dart';
-import 'src/providers/media_preferences.dart';
-import 'src/providers/message_page_size.dart';
-import 'src/providers/image_cache_preference.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
@@ -41,9 +36,9 @@ import 'src/diagnostics/debug_log.dart';
 import 'src/providers/display_preferences.dart';
 import 'src/providers/notification_tap_router.dart';
 import 'src/providers/providers.dart';
+import 'src/providers/startup_restores.dart';
 import 'src/providers/push_controller.dart';
 import 'src/providers/sync_controller.dart';
-import 'src/providers/voice_controller.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
 import 'src/web_update/web_update_pill.dart';
@@ -148,13 +143,16 @@ Future<void> main() async {
 /// native runner before any preference can be read, so even "off" cannot
 /// skip that first small frame, only the added dwell on top of it.
 Future<void> _bootstrapApp(ProviderContainer container) async {
-  final floor = await _resolveSplashFloor(container);
-  await awaitBootstrapWithSplashFloor(
-    () => _runBootstrapSequence(container),
-    floor: floor,
-  );
-  // After the session restore: having an account decides whether the splash asks about updates at all.
-  await runStartupUpdates(container);
+  // Guarded: a step that throws must not leave the splash up for good, the handoff below always runs.
+  await runStartupStep(container, 'startup', () async {
+    final floor = await _resolveSplashFloor(container);
+    await awaitBootstrapWithSplashFloor(
+      () => _runBootstrapSequence(container),
+      floor: floor,
+    );
+    // After the session restore: having an account decides whether the splash asks about updates at all.
+    await runStartupUpdates(container);
+  });
   await DesktopWindowShell.prepareHandoff(container);
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
   await DesktopWindowShell.revealAfterHandoff();
@@ -176,10 +174,11 @@ Future<void> _bootstrapApp(ProviderContainer container) async {
 /// constructor default (splash on, standard duration) is what a read before
 /// this restore completes would see, which already matches the fallback this
 /// function needs: nothing here has to special-case "not loaded yet".
-Future<Duration> _resolveSplashFloor(ProviderContainer container) async {
-  await container.read(splashDurationControllerProvider.notifier).restore();
-  return splashFloorFor(container.read(splashDurationControllerProvider));
-}
+Future<Duration> _resolveSplashFloor(ProviderContainer container) =>
+    restoreSplashFloor(
+      container,
+      (c) => splashFloorFor(c.read(splashDurationControllerProvider)),
+    );
 
 Future<void> _runBootstrapSequence(ProviderContainer container) async {
   container.read(startupStatusProvider.notifier).state = 'Restoring session';
@@ -187,25 +186,7 @@ Future<void> _runBootstrapSequence(ProviderContainer container) async {
 
   container.read(startupStatusProvider.notifier).state = 'Loading preferences';
   // Independent restores off one cached SharedPreferences future: concurrent rather than an event-loop turn apiece, paid on every launch.
-  final voice = container.read(voiceControllerProvider.notifier);
-  await Future.wait([
-    container.read(themeControllerProvider.notifier).restore(),
-    container.read(timeFormatControllerProvider.notifier).restore(),
-    container.read(motionPreferenceControllerProvider.notifier).restore(),
-    container.read(highContrastControllerProvider.notifier).restore(),
-    container.read(imageCacheLimitControllerProvider.notifier).restore(),
-    container
-        .read(attachmentPreviewQualityControllerProvider.notifier)
-        .restore(),
-    container.read(mediaAutoDownloadControllerProvider.notifier).restore(),
-    container.read(gifAutoplayControllerProvider.notifier).restore(),
-    container.read(messagePageSizeControllerProvider.notifier).restore(),
-    container.read(appLockPreferenceProvider.notifier).restore(),
-    voice.restoreCameraPreference(),
-    voice.restoreVoiceActivitySensitivity(),
-    voice.restorePushToTalkPreference(),
-    voice.restoreAudioDevicePreferences(),
-  ]);
+  await restoreStartupPreferences(container);
   // After the session and app-lock preference both restore, so the first frame past the splash never shows the real app unlocked.
   container.read(appLockControllerProvider.notifier).armOnLaunch();
 
@@ -331,23 +312,23 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
       child: DesktopChrome(
         child: MediaQuery(
           data: overrideMotion(MediaQuery.of(context), motionChoice),
-          // Above the routed tree and its dialogs and sheets, under the motion override; the call overlay paints last, above the toasts too.
-          child: Stack(
-            children: [
-              // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
-              ModerationErrorHost(
-                child: ClientTooOldGate(
-                  child: ServerIdentityChangeGate(
-                    child: PictureInPictureGate(child: densityWrapped),
+          // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
+          child: AppLockGate(
+            child: Stack(
+              children: [
+                // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
+                ModerationErrorHost(
+                  child: ClientTooOldGate(
+                    child: ServerIdentityChangeGate(
+                      child: PictureInPictureGate(child: densityWrapped),
+                    ),
                   ),
                 ),
-              ),
-              const Positioned.fill(child: ToastOverlay()),
-              const Positioned.fill(child: WebUpdatePill()),
-              const Positioned.fill(child: IncomingCallOverlay()),
-              // Last, so a locked screen covers a toast or a ring too, not just the routed app underneath.
-              const Positioned.fill(child: AppLockGate()),
-            ],
+                const Positioned.fill(child: ToastOverlay()),
+                const Positioned.fill(child: WebUpdatePill()),
+                const Positioned.fill(child: IncomingCallOverlay()),
+              ],
+            ),
           ),
         ),
       ),

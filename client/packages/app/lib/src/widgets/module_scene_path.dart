@@ -19,6 +19,8 @@ library;
 
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 /// What one step of a path does. The numbers each kind expects are in
 /// [ScenePathStep.points], already in the scene's own logical units.
 enum ScenePathKind {
@@ -53,9 +55,22 @@ class ScenePathStep {
 /// ceiling at parse time, so nothing downstream ever holds an unbounded path.
 const sceneMaxPathSteps = 512;
 
+/// How long a `d` string may be before the op is dropped unread.
+///
+/// The step ceiling above only applies once the string has been tokenised, so
+/// without a bound on the string itself the work was set by whatever length
+/// the module sent. 512 steps of the longest command fit well inside this.
+const int sceneMaxPathChars = 32768;
+
+/// Code units the tokeniser has looked at or copied, so a test can bound its
+/// work by a count instead of by a clock.
+@visibleForTesting
+int scenePathWork = 0;
+
 /// Turns an SVG-style `d` string into steps, or an empty list if none of it
 /// parsed. Bounded by [sceneMaxPathSteps].
 List<ScenePathStep> parseScenePathData(String d) {
+  if (d.length > sceneMaxPathChars) return const [];
   final tokens = _tokenise(d);
   final steps = <ScenePathStep>[];
   var i = 0;
@@ -154,43 +169,48 @@ List<double>? _numbers(List<Object> tokens, int from, int count) {
 /// Splits [d] into command letters and numbers. Separators are insignificant,
 /// as in SVG: commas, whitespace, and the sign or decimal point that starts a
 /// new number all end the one before it.
+///
+/// One pass that remembers where the open number began and slices it out when
+/// it ends, rather than growing a buffer it has to copy to inspect: a sign
+/// after an exponent letter never ends a number, so a hostile string can keep
+/// one open for its whole length.
 List<Object> _tokenise(String d) {
   final tokens = <Object>[];
-  final number = StringBuffer();
+  var start = -1;
+  var hasDot = false;
 
-  void flush() {
-    if (number.isEmpty) return;
-    final parsed = double.tryParse(number.toString());
+  void flush(int end) {
+    if (start < 0) return;
+    scenePathWork += end - start;
+    final parsed = double.tryParse(d.substring(start, end));
     if (parsed != null && parsed.isFinite) tokens.add(parsed);
-    number.clear();
+    start = -1;
+    hasDot = false;
   }
 
   for (var i = 0; i < d.length; i++) {
+    scenePathWork++;
     final c = d[i];
     if (_isCommand(c)) {
-      flush();
+      flush(i);
       tokens.add(c);
     } else if (c == ',' || c.trim().isEmpty) {
-      flush();
+      flush(i);
     } else if (c == '-' || c == '+') {
       // A sign mid-number starts the next one, unless it follows an exponent.
-      final previous = number.isEmpty ? '' : number.toString();
-      if (previous.isNotEmpty &&
-          !previous.endsWith('e') &&
-          !previous.endsWith('E')) {
-        flush();
-      }
-      number.write(c);
-    } else if (c == '.' && number.toString().contains('.')) {
-      flush();
-      number.write(c);
+      if (start >= 0 && !_isExponent(d.codeUnitAt(i - 1))) flush(i);
+      if (start < 0) start = i;
     } else {
-      number.write(c);
+      if (c == '.' && hasDot) flush(i);
+      if (start < 0) start = i;
+      if (c == '.') hasDot = true;
     }
   }
-  flush();
+  flush(d.length);
   return tokens;
 }
+
+bool _isExponent(int codeUnit) => codeUnit == 0x65 || codeUnit == 0x45;
 
 /// Whether [c] starts a command rather than a number.
 ///

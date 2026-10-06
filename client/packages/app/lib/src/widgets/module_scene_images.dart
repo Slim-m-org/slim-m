@@ -13,14 +13,19 @@
 /// every painted op regardless of where the module put it, and a rect drawn
 /// after an image could never hide it.
 ///
-/// Two ceilings, because this is the one op whose cost a module chooses:
+/// Three ceilings, because this is the one op whose cost a module chooses:
 ///
 /// - the payload itself is bounded at parse ([ImageOp.maxEncodedLength]) and the
 ///   count per scene with it, so nothing here ever sees an oversized one
-/// - decoded bitmaps are bounded *here*, by total bytes, because decoding is
-///   where a 64k payload becomes megabytes of pixels. An LRU evicts the
-///   least-recently-drawn rather than refusing new ones, so a scene cycling
-///   through more images than fit stays correct and merely re-decodes.
+/// - the declared pixel size is bounded before decoding ([sceneImageMaxPixels]),
+///   because a few KB of png can claim a bitmap of hundreds of megabytes, and
+///   what is kept is at most [sceneImageMaxSide] on the long side
+/// - decoded bitmaps are bounded by total bytes, because decoding is where a
+///   64k payload becomes megabytes of pixels. An LRU evicts the
+///   least-recently-drawn that the scene on screen does not use, so a scene
+///   cycling through more images than fit stays correct and merely re-decodes
+///   across scenes; the images of the scene being shown are never evicted,
+///   because evicting one only starts a decode that evicts another.
 ///
 /// The same instincts `canvas_image_hydrator.dart` already applies to canvas
 /// images, at a smaller scale and without the network.
@@ -31,7 +36,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
+import 'bounded_image_decode.dart';
 import 'module_scene.dart';
+
+/// The longer side a kept bitmap is decoded to at most.
+const sceneImageMaxSide = 1024;
+
+/// The most pixels a payload may declare before it is refused undecoded.
+const sceneImageMaxPixels = 2048 * 2048;
 
 class SceneImageCache extends ChangeNotifier {
   SceneImageCache({this.maxDecodedBytes = _defaultMaxDecodedBytes});
@@ -54,6 +66,9 @@ class SceneImageCache extends ChangeNotifier {
   /// Least-recently-drawn first.
   final _lru = <int>[];
 
+  /// The image keys of the scene [snapshot] was last asked for: never evicted.
+  var _wanted = <int>{};
+
   var _decodedBytes = 0;
   var _disposed = false;
 
@@ -63,6 +78,10 @@ class SceneImageCache extends ChangeNotifier {
   /// to repaint, and so nothing it holds can change under it mid-paint.
   Map<int, ui.Image> snapshot(ModuleScene scene) {
     final wanted = <int, ui.Image>{};
+    _wanted = {
+      for (final op in scene.ops)
+        if (op is ImageOp) op.key,
+    };
     for (final op in scene.ops) {
       if (op is! ImageOp) continue;
       final image = _ready[op.key];
@@ -80,14 +99,17 @@ class SceneImageCache extends ChangeNotifier {
 
   Future<void> _decode(int key, Uint8List bytes) async {
     try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
+      final image = await decodeBoundedImage(
+        bytes,
+        maxSide: sceneImageMaxSide,
+        maxSourcePixels: sceneImageMaxPixels,
+      );
       if (_disposed) {
-        frame.image.dispose();
+        image.dispose();
         return;
       }
       _pending.remove(key);
-      _remember(key, frame.image);
+      _remember(key, image);
       notifyListeners();
     } catch (_) {
       // Not a decodable image is a real answer, so nothing retries it.
@@ -101,8 +123,9 @@ class SceneImageCache extends ChangeNotifier {
     _ready[key] = image;
     _decodedBytes += _bytesOf(image);
     _lru.add(key);
-    while (_decodedBytes > maxDecodedBytes && _lru.length > 1) {
-      _evict(_lru.first);
+    for (final victim in _lru.toList()) {
+      if (_decodedBytes <= maxDecodedBytes) break;
+      if (!_wanted.contains(victim)) _evict(victim);
     }
   }
 

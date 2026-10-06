@@ -16,6 +16,7 @@ import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/labeled_field.dart';
 import '../../widgets/permission_row.dart';
 import '../../widgets/run_guarded.dart';
@@ -239,6 +240,16 @@ class _BotRowState extends ConsumerState<_BotRow>
   bool _busy = false;
 
   Future<void> _revoke() async {
+    final confirmed = await confirmDangerousAction(
+      context,
+      title: 'Revoke ${widget.bot.displayName}?',
+      message:
+          'Its token and every session it holds stop working now. '
+          'This cannot be undone; make a new bot to replace it.',
+      confirmLabel: 'Revoke',
+    );
+    if (!confirmed || !mounted) return;
+
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: 'revoke ${widget.bot.username}',

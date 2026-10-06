@@ -90,4 +90,63 @@ void main() {
       expect(find.byType(CallControls), findsNothing);
     },
   );
+
+  for (final (label, state, expectControls) in [
+    (
+      'a failed call auto-rejoining in this channel keeps',
+      VoiceState(
+        channelId: 'c1',
+        state: VoiceSessionState.failed,
+        rejoining: true,
+      ),
+      true,
+    ),
+    (
+      'an auto-rejoin attempt in flight in this channel keeps',
+      VoiceState(
+        channelId: 'c1',
+        state: VoiceSessionState.connecting,
+        joining: true,
+        rejoining: true,
+      ),
+      true,
+    ),
+    (
+      'a failed call that is not rejoining drops',
+      VoiceState(channelId: 'c1', state: VoiceSessionState.failed),
+      false,
+    ),
+    (
+      'an auto-rejoin in a different channel does not give this canvas',
+      VoiceState(
+        channelId: 'elsewhere',
+        state: VoiceSessionState.failed,
+        rejoining: true,
+      ),
+      false,
+    ),
+  ]) {
+    testWidgets('$label the call controls', (tester) async {
+      final fixture = CanvasPaneFixture();
+      final container = fixture.container(
+        extraOverrides: [
+          voiceControllerProvider.overrideWith(
+            (ref) => FixedVoiceController(ref, state),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await pumpCanvasPane(tester, container);
+
+      expect(
+        find.byType(CallControls),
+        expectControls ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.byTooltip(RegExp(r'^Leave call')),
+        expectControls ? findsOneWidget : findsNothing,
+      );
+    });
+  }
 }

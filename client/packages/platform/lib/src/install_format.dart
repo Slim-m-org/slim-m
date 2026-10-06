@@ -35,7 +35,11 @@ enum InstallFormat {
   /// A deb package; root-owned, updates via the system package manager.
   deb,
 
-  /// Not a desktop build, or the packaging could not be determined.
+  /// A sideloaded Android apk; has no store to hand off to, so the release page
+  /// is how it gets a new version.
+  apk,
+
+  /// Not a desktop or Android build, or the packaging could not be determined.
   unknown;
 
   /// Whether a build of this format can download and swap in a new version of
@@ -49,14 +53,32 @@ const String _bakedFormat = String.fromEnvironment('SLIMM_INSTALL_FORMAT');
 
 /// This build's [InstallFormat]. Prefers the baked define; falls back to
 /// sniffing the environment when the define is absent.
-InstallFormat currentInstallFormat() {
-  if (kIsWeb || !isDesktopHost) return InstallFormat.unknown;
-  return resolveInstallFormat(
-    baked: _bakedFormat,
-    env: Platform.environment,
-    executablePath: Platform.resolvedExecutable,
-    flatpakInfoExists: _flatpakInfoExists(),
-  );
+InstallFormat currentInstallFormat() => installFormatForHost(
+      isWeb: kIsWeb,
+      isAndroid: isAndroidHost,
+      isDesktop: isDesktopHost,
+      desktop: () => resolveInstallFormat(
+        baked: _bakedFormat,
+        env: Platform.environment,
+        executablePath: Platform.resolvedExecutable,
+        flatpakInfoExists: _flatpakInfoExists(),
+      ),
+    );
+
+/// The pure decision behind [currentInstallFormat]: which kind of host this is
+/// picks the answer, and only a desktop host sniffs its packaging through
+/// [desktop]. Takes the host as arguments because `Platform.isAndroid` cannot
+/// be faked in a test.
+InstallFormat installFormatForHost({
+  required bool isWeb,
+  required bool isAndroid,
+  required bool isDesktop,
+  required InstallFormat Function() desktop,
+}) {
+  if (isWeb) return InstallFormat.unknown;
+  if (isAndroid) return InstallFormat.apk;
+  if (!isDesktop) return InstallFormat.unknown;
+  return desktop();
 }
 
 /// The pure decision behind [currentInstallFormat], with every input passed

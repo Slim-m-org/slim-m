@@ -141,8 +141,9 @@ pub(crate) const PROTOCOL_VERSION: u32 = 1;
 /// saying why: a peer that stops reading could otherwise wedge its task
 /// indefinitely. The HTTP surface had none, against a process whose measured
 /// idle RSS is 7 MB and whose committed budget is under 30 MB. Generous enough
-/// for the heaviest real request (a bundled `/sync`, or an attachment upload at
-/// the operator's ceiling over a slow link) and far short of forever.
+/// for the heaviest real request (a bundled `/sync`) and far short of forever.
+/// An attachment upload is exempt: a gigabyte over a home uplink needs minutes,
+/// and [`BODY_READ_TIMEOUT`] plus the byte ceiling already bound a stuck one.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// How long a request body may trickle in before it is abandoned.
@@ -195,6 +196,11 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router {
     // Fresh per call, like `state.limiter`; see `route_timing`'s own doc.
     let route_timings = route_timing::RouteTimings::new();
+    let uploads = attachments::upload_routes()
+        .route_layer(axum::middleware::from_fn(route_timing::record))
+        .layer(Extension(route_timings.clone()))
+        .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
+        .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     Router::new()
         .route("/healthz", get(healthz))
         .route("/version", get(version))
@@ -271,6 +277,7 @@ pub fn router(state: AppState) -> Router {
             REQUEST_TIMEOUT,
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT))
+        .merge(uploads)
         .merge(ws::routes())
         // Route-template span labeling; see this function's own doc comment.
         .layer(

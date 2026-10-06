@@ -409,15 +409,11 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             cellBuilder: (column, spec) {
               final grantable = myPermissions.hasPermission(spec.bit);
               final (allow, deny) = _pending[column.key] ?? (0, 0);
-              final state = allow & spec.bit != 0
-                  ? CellState.allow
-                  : deny & spec.bit != 0
-                  ? CellState.deny
-                  : CellState.inherit;
               return Cell(
                 key: ValueKey('cell:${column.key}:${spec.bit}'),
-                state: state,
+                state: CellState.resolve(allow, deny, spec.bit),
                 disabled: !grantable,
+                label: '${spec.label}, ${column.label}',
                 onTap: () => _cycle(column, spec.bit, grantable),
               );
             },

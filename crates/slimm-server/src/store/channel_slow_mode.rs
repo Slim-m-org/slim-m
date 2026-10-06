@@ -43,14 +43,21 @@ impl Store {
         self.channel(id).await
     }
 
-    /// The channel's own slow-mode interval, in seconds; 0 (off) for a
+    /// The slow-mode interval that governs `id`, in seconds; 0 (off) for a
     /// missing or deleted channel rather than an error, since the send path
     /// that calls this has already resolved the channel through its own
     /// permission check and only wants a number to compare against.
+    ///
+    /// A thread has no setter and its row keeps the default of 0, so it takes
+    /// its parent channel's interval, the same hop `permission_channel` makes.
     pub(crate) async fn channel_slow_mode_seconds(&self, id: ChannelId) -> anyhow::Result<i64> {
         let seconds = sqlx::query_scalar!(
-            r#"SELECT slow_mode_seconds AS "seconds!: i64" FROM channels
-               WHERE id = ? AND deleted_at IS NULL"#,
+            r#"SELECT COALESCE(parent.slow_mode_seconds, c.slow_mode_seconds) AS "seconds!: i64"
+               FROM channels c
+               LEFT JOIN messages pm ON pm.id = c.parent_message_id
+               LEFT JOIN channels parent ON parent.id = pm.channel_id
+                    AND parent.deleted_at IS NULL
+               WHERE c.id = ? AND c.deleted_at IS NULL"#,
             id
         )
         .fetch_optional(&self.pool)

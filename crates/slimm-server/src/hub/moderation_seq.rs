@@ -47,13 +47,18 @@ impl ModerationClock {
 
     pub(super) fn advance(&self) -> u64 {
         let now = now_ms();
-        let previous = self
-            .last
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |last| {
-                Some(now.max(last + 1))
-            })
-            .unwrap_or(now);
-        now.max(previous + 1)
+        let mut last = self.last.load(Ordering::Acquire);
+        // A compare-exchange loop rather than `fetch_update`, which newer toolchains deprecate for `try_update`.
+        loop {
+            let next = now.max(last + 1);
+            match self
+                .last
+                .compare_exchange_weak(last, next, Ordering::AcqRel, Ordering::Acquire)
+            {
+                Ok(_) => return next,
+                Err(actual) => last = actual,
+            }
+        }
     }
 }
 
@@ -87,5 +92,29 @@ mod tests {
             previous = next;
         }
         assert_eq!(clock.head(), previous);
+    }
+
+    #[test]
+    fn concurrent_callers_never_get_the_same_value() {
+        let clock = std::sync::Arc::new(ModerationClock::new());
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let clock = clock.clone();
+                std::thread::spawn(move || (0..2_000).map(|_| clock.advance()).collect::<Vec<_>>())
+            })
+            .collect();
+        let mut all: Vec<u64> = handles
+            .into_iter()
+            .flat_map(|handle| handle.join().unwrap())
+            .collect();
+        let total = all.len();
+        all.sort_unstable();
+        all.dedup();
+        assert_eq!(
+            all.len(),
+            total,
+            "two callers were handed one sequence value"
+        );
+        assert_eq!(clock.head(), *all.last().unwrap());
     }
 }

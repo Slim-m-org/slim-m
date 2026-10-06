@@ -18,6 +18,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../providers/app_lock_controller.dart';
 import '../providers/composer_focus.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
@@ -65,7 +66,10 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener> {
 
     final controller = ref.read(voiceControllerProvider.notifier);
     if (event is KeyDownEvent) {
-      if (_held || composerFocused) return false;
+      // A locked app takes no input: only a hold already started may still release.
+      if (_held || composerFocused || ref.read(appLockControllerProvider)) {
+        return false;
+      }
       _held = true;
       unawaited(controller.setPushToTalkHeld(true));
     } else if (!_held) {

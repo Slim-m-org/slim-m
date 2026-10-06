@@ -189,6 +189,8 @@ class _HolderGroup extends StatelessWidget {
         ? holders
         : holders.take(_collapseAt).toList();
     final hidden = holders.skip(shown.length).toList();
+    final summary =
+        '+ ${hidden.length} more · ${hidden.map((h) => h.displayName).join(', ')}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,10 +237,11 @@ class _HolderGroup extends StatelessWidget {
         if (hidden.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-            child: GestureDetector(
+            child: FocusableTapTarget(
               onTap: onExpand,
-              child: Text(
-                '+ ${hidden.length} more · ${hidden.map((h) => h.displayName).join(', ')}',
+              semanticLabel: summary,
+              builder: (context, focused, hovered) => Text(
+                summary,
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
                 overflow: TextOverflow.ellipsis,
               ),
