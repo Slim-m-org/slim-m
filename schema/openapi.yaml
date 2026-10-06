@@ -5178,17 +5178,12 @@ paths:
         then `seq`), backed by a spatial index rather than a scan of the canvas.
 
 
-        A client that is panning also sends the rectangle it is leaving as
-        `prev_min_x` and the rest, plus the `latest_seq` it last saw as
-        `after_seq`. The answer is then the delta: objects in the new rectangle
-        that are not in the old one, plus anything inside both that is newer
-        than the cursor. All four previous bounds are sent together or not at
-        all. Omitting them is a cold fetch of the whole region.
-
-
-        The delta covers objects arriving, not objects removed. A soft delete
-        does not advance an object's `seq`, so no cursor over this endpoint can
-        report one; removals belong to `listCanvasOps`, the ordered op stream
+        This is a cold fetch of the whole region. The `prev_*` and `after_seq`
+        parameters below once let a panning client ask for a delta, but
+        `listCanvasOps` replaced that and no known client sends them; they are
+        still accepted for older callers. The delta never covered removals: a
+        soft delete does not advance an object's `seq`, so removals belong to
+        `listCanvasOps`, the ordered op stream
         this operation's `latest_seq` is also a valid cursor into.
       parameters:
         - name: min_x
