@@ -216,6 +216,25 @@ async fn an_op_cursor_past_the_head_resets() {
     assert_eq!(body["scopes"][0]["ops"].as_array().unwrap().len(), 0);
 }
 
+/// The message half has the same restore case as the op half: a message cursor
+/// past the channel head must reset even when no op cursor is sent.
+#[tokio::test]
+async fn a_message_cursor_past_the_head_resets() {
+    let (store, app, _guard) = world().await;
+    let (token, user) = register(&store, "root").await;
+    let channel = store.list_channels().await.unwrap()[0].id;
+    send(&store, channel, user, "one").await;
+
+    let (_, body) = sync(
+        &app,
+        &token,
+        json!([{ "channel_id": channel.to_string(), "after_seq": 99, "after_op_seq": 0 }]),
+    )
+    .await;
+    assert_eq!(body["scopes"][0]["reset"], true);
+    assert_eq!(body["scopes"][0]["messages"].as_array().unwrap().len(), 0);
+}
+
 /// Content is the message's *current* text, so a message edited many times is
 /// that many copies of one string without the collapse.
 #[tokio::test]
