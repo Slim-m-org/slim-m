@@ -45,6 +45,8 @@ class ActivityPublisher {
   /// reads something different, and the next feed is shared instead.
   final _rejected = <ActivityFeed, api.PresenceActivity>{};
   api.PresenceActivity? _sent;
+  bool _pushing = false;
+  bool _disposed = false;
 
   bool get _hidden =>
       _ref.read(ownVisibilityProvider) == api.PresenceVisibility.hidden;
@@ -99,10 +101,23 @@ class ActivityPublisher {
     return null;
   }
 
+  /// One loop at a time: a push that arrives mid-flight is picked up by the
+  /// loop's next pass, so the newest reading is the last one the server sees.
   Future<void> _push() async {
+    if (_pushing) return;
+    _pushing = true;
+    try {
+      while (!_disposed && await _pushOnce()) {}
+    } finally {
+      _pushing = false;
+    }
+  }
+
+  /// Whether the loop should look again for a newer value.
+  Future<bool> _pushOnce() async {
     final choice = _choose();
     final wanted = choice?.$2;
-    if (wanted == _sent) return;
+    if (wanted == _sent) return false;
     final client = _ref.read(apiProvider);
     final previous = _sent;
     _sent = wanted;
@@ -112,21 +127,24 @@ class ActivityPublisher {
       } else {
         await client.setPresenceActivity(wanted);
       }
+      if (_disposed) return false;
       _ref.read(sharedActivityProvider.notifier).state = wanted;
       _ref.read(sharedFeedProvider.notifier).state = choice?.$1;
+      return true;
     } on api.BadRequestException {
-      _sent = previous;
-      if (choice != null) {
-        _rejected[choice.$1] = choice.$2;
-        unawaited(_push());
-      }
+      if (_sent == wanted) _sent = previous;
+      if (choice == null || _disposed) return false;
+      _rejected[choice.$1] = choice.$2;
+      return true;
     } on api.ApiException {
       // Retried by the next change; the server forgets it with the socket anyway.
-      _sent = previous;
+      if (_sent == wanted) _sent = previous;
+      return false;
     }
   }
 
   void _stop() {
+    _disposed = true;
     unawaited(_events.cancel());
     for (final sub in _open.values) {
       unawaited(sub.cancel());
