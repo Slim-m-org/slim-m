@@ -18,6 +18,7 @@ import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import 'image_decode.dart';
+import 'text_link.dart';
 
 Color _accentColor(api.EmbedAccent accent) => switch (accent) {
   api.EmbedAccent.red => AppEmbedAccents.red,
@@ -170,12 +171,9 @@ class _EmbedAuthorRow extends StatelessWidget {
     );
     final authorUrl = url;
     if (authorUrl == null) return row;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => unawaited(openExternalHttpUrl(authorUrl)),
-        child: row,
-      ),
+    return TextLink(
+      onOpen: () => unawaited(openExternalHttpUrl(authorUrl)),
+      child: row,
     );
   }
 }
@@ -198,12 +196,9 @@ class _EmbedTitle extends StatelessWidget {
     );
     final targetUrl = url;
     if (targetUrl == null) return text;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => unawaited(openExternalHttpUrl(targetUrl)),
-        child: text,
-      ),
+    return TextLink(
+      onOpen: () => unawaited(openExternalHttpUrl(targetUrl)),
+      child: text,
     );
   }
 }

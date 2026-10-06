@@ -35,6 +35,7 @@ import '../routing/modal_page.dart' show kScrimColor;
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import 'image_decode.dart';
+import 'text_link.dart';
 import 'youtube_inline_player.dart';
 
 /// One card per URL, below a message's own text. Callers cap [urls] before
@@ -237,12 +238,9 @@ class _AuthorRow extends StatelessWidget {
       ],
     );
     if (authorUrl == null) return row;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => unawaited(openExternalHttpUrl(authorUrl)),
-        child: row,
-      ),
+    return TextLink(
+      onOpen: () => unawaited(openExternalHttpUrl(authorUrl)),
+      child: row,
     );
   }
 }
