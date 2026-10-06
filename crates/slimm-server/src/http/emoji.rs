@@ -214,13 +214,10 @@ async fn bulk_upload(
     ))
 }
 
-/// Bulk-specific refusals get their own message; anything about one image in
-/// the batch reuses [`refusal`], so a name collision or a bad image answers
-/// exactly the way the single upload would.
+/// Anything about one image in the batch reuses [`refusal`], so a name
+/// collision or a bad image answers exactly the way the single upload would.
 fn bulk_refusal(err: BulkAddError) -> ApiError {
     match err {
-        BulkAddError::TooMany => ApiError::BadRequest("too many images in one request"),
-        BulkAddError::TooMuchData => ApiError::BadRequest("too much image data in one request"),
         BulkAddError::Item { error, .. } => refusal(error),
         BulkAddError::Storage(err) => {
             tracing::error!(error = %err, "failed to store a bulk-uploaded emoji");
