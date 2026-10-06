@@ -18,7 +18,7 @@ Each of these opens with the harness's own fixed parameters; only the generic in
 16 call sites total. Coverage for all of the below: none beyond the one generic instance the harness renders.
 
 - **confirm-delete-message**, **confirm-delete-reported-message**, **confirm-delete-emoji**, **confirm-delete-category**, **confirm-delete-role** — five delete confirmations, each its own copy.
-- **confirm-clear-canvas** — copy names no count, since the pane only holds part of the canvas; failure routes to the canvas pane's own `_error` field, not `AppErrorState`/SnackBar.
+- **confirm-clear-canvas** - copy names no count, since the pane only holds part of the canvas; failure routes to the canvas pane's own `_error` field, not `AppErrorState`/SnackBar.
 - **confirm-set-overwrite**, **confirm-clear-overwrite** — see the settings doc.
 - **confirm-eject-from-call**, **confirm-remove-from-space** — both close the popover before the async call, so failure is a legitimate `SnackBar` per this codebase's own stated exemption (surface already gone).
 - **confirm-revoke-invite** — see the settings doc.
