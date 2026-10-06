@@ -28,8 +28,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../external_link.dart';
 import '../message_link.dart';
 import '../providers/providers.dart';
 import 'app_snackbar.dart';
@@ -299,7 +299,8 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
   }
 
   TapGestureRecognizer _makeLinkRecognizer(String url) {
-    final recognizer = TapGestureRecognizer()..onTap = () => _open(url);
+    final recognizer = TapGestureRecognizer()
+      ..onTap = () => openExternalHttpUrl(url);
     _recognizers.add(recognizer);
     return recognizer;
   }
@@ -333,13 +334,6 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
       channelId: link.channelId,
       messageId: link.messageId,
     );
-  }
-
-  Future<void> _open(String url) async {
-    final uri = Uri.tryParse(url);
-    // Parsed defensively though _urlPattern already guarantees an http(s) scheme; a link should never open anything else.
-    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override

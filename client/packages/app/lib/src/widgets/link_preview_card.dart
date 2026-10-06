@@ -26,8 +26,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show LinkPreview;
 import 'package:slimm_design_system/design_system.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../external_link.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/link_preview.dart';
 import '../providers/media_preferences.dart';
@@ -36,14 +36,6 @@ import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import 'image_decode.dart';
 import 'youtube_inline_player.dart';
-
-/// Opens [rawUrl] in the system browser, refusing anything but a plain
-/// http(s) URL - shared by a card's own tap and its author line's tap.
-Future<void> _launchIfHttp(String rawUrl) async {
-  final uri = Uri.tryParse(rawUrl);
-  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
-}
 
 /// One card per URL, below a message's own text. Callers cap [urls] before
 /// handing them here; this renders exactly what it is given.
@@ -87,7 +79,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
   /// tap opens the system browser instead of swapping in an inline player.
   bool _playing = false;
 
-  Future<void> _open() async => _launchIfHttp(widget.url);
+  Future<void> _open() async => openExternalHttpUrl(widget.url);
 
   /// The click-to-play action for a recognized video: on web, swap the
   /// thumbnail for an inline `youtube-nocookie.com` iframe with nothing
@@ -248,7 +240,7 @@ class _AuthorRow extends StatelessWidget {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => unawaited(_launchIfHttp(authorUrl)),
+        onTap: () => unawaited(openExternalHttpUrl(authorUrl)),
         child: row,
       ),
     );
