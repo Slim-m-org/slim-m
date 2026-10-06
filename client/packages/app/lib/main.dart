@@ -35,6 +35,7 @@ import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
 import 'src/providers/display_preferences.dart';
 import 'src/providers/notification_tap_router.dart';
+import 'src/providers/phone_landscape.dart';
 import 'src/providers/providers.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/providers/push_controller.dart';
@@ -308,10 +309,14 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
       child: child ?? const SizedBox.shrink(),
     );
     final motionChoice = ref.watch(motionPreferenceControllerProvider);
+    final lockedPhone = ref.watch(portraitLockedPhoneProvider);
     return PopOutHost(
       child: DesktopChrome(
         child: MediaQuery(
-          data: overrideMotion(MediaQuery.of(context), motionChoice),
+          data: keepPortraitShell(
+            overrideMotion(MediaQuery.of(context), motionChoice),
+            lockedPhone: lockedPhone,
+          ),
           // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
           child: AppLockGate(
             child: Stack(

@@ -111,15 +111,19 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-	<!-- Portrait only on iPhone. The layout is width-driven and a phone in
-	     landscape reports ~932pt, which crosses into the two-pane medium
-	     class and stretches a phone-sized shell across it. UIKit intersects
-	     this array with FlutterViewController's permissive default, so this
-	     key is the ceiling. The app is iPhone only (TARGETED_DEVICE_FAMILY 1), so
-	     there is no iPad array. The hygiene workflow gates this. -->
+	<!-- The ceiling, not the policy. The shell is portrait only on iPhone: the
+	     layout is width-driven and a phone in landscape reports ~932pt, which
+	     crosses into the two-pane medium class. AppDelegate's
+	     supportedInterfaceOrientationsFor returns portrait unless Dart's full
+	     screen call video has asked for landscape (decision 0058), so landscape
+	     here only lets that one view rotate. The app is iPhone only
+	     (TARGETED_DEVICE_FAMILY 1), so there is no iPad array. The hygiene
+	     workflow gates this and the AppDelegate default together. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>

@@ -51,6 +51,29 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ORIENTATION_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "allowLandscape" -> result.success(allowLandscape(call.arguments as? Boolean ?: false))
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /**
+     * Lets a portrait-locked phone rotate while a call's video is full screen
+     * (decision 0058), and locks it again after. A tablet is never locked, so
+     * it reports false and nothing changes; see `OrientationChannel` in
+     * `packages/platform`.
+     */
+    private fun allowLandscape(allowed: Boolean): Boolean {
+        if (!resources.getBoolean(R.bool.slimm_portrait_only)) return false
+        requestedOrientation = if (allowed) {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+        return true
     }
 
     override fun onUserLeaveHint() {
@@ -81,5 +104,6 @@ class MainActivity : FlutterFragmentActivity() {
 
     companion object {
         private const val APP_LOCK_WINDOW_CHANNEL = "top.npcserver.slimm/app_lock_window"
+        private const val ORIENTATION_CHANNEL = "top.npcserver.slimm/orientation"
     }
 }
