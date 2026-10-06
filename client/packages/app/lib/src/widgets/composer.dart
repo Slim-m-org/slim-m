@@ -150,6 +150,10 @@ class _ComposerState extends ConsumerState<Composer> {
   final Set<String> _mentionHelpSeen = {};
   final List<String> _visibleMentionHelp = [];
   String? _commandError;
+
+  /// True while a slash command or app launch is awaiting its result; the
+  /// text stays in the field until then, so a second send would run it twice.
+  bool _commandRunning = false;
   int _selected = 0;
 
   /// A staged file is sendable on its own: a photo needs no caption, and the
@@ -160,6 +164,7 @@ class _ComposerState extends ConsumerState<Composer> {
   /// reaches the wire at all; see [ComposerBanners]'s `overLimitBy` band for
   /// where that refusal is explained.
   bool get _canSend =>
+      !_commandRunning &&
       (_hasSendableText || !_attachments.isEmpty) &&
       !_attachments.hasBlockingAttachment &&
       _overBy == null &&
@@ -590,18 +595,25 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _send() async {
     if (!_canSend) return;
     final staging = _attachments;
-    final handled = await runComposedCommand(
-      ref: ref,
-      channelId: widget.channelId,
-      controller: widget.controller,
-      apps: _apps,
-      commands: _slashCommands,
-      hasStagedFile: !_attachments.isEmpty,
-      isMounted: () => mounted,
-      clearError: () => setState(() => _commandError = null),
-      post: () => widget.onSend(const []),
-      fail: _reportCommandError,
-    );
+    final bool handled;
+    _commandRunning = true;
+    try {
+      handled = await runComposedCommand(
+        ref: ref,
+        channelId: widget.channelId,
+        controller: widget.controller,
+        apps: _apps,
+        commands: _slashCommands,
+        hasStagedFile: !_attachments.isEmpty,
+        isMounted: () => mounted,
+        clearError: () => setState(() => _commandError = null),
+        post: () => widget.onSend(const []),
+        fail: _reportCommandError,
+      );
+    } finally {
+      _commandRunning = false;
+      if (mounted) setState(() {});
+    }
     if (handled) return;
     await staging.sendReady(widget.onSend);
     if (mounted) {
