@@ -53,5 +53,41 @@ class UserAgentTest(unittest.TestCase):
         self.assertIsNone(request.get_header("Authorization"))
 
 
+class ListShapeTest(unittest.TestCase):
+    """The server sends bare arrays; a wrapped body is a wire break and must fail."""
+
+    LISTS = (
+        ("messages", ("c1",), "messages"),
+        ("members", (), "members"),
+        ("pins", ("c1",), "messages"),
+        ("reports", (), "reports"),
+        ("blocks", (), "blocked"),
+        ("roles", (), "roles"),
+    )
+
+    def _api_returning(self, body):
+        api = e2e_api.Api("https://example.invalid")
+        api.call = Mock(return_value=body)
+        return api
+
+    def test_a_bare_array_is_returned_as_is(self):
+        for method, args, _key in self.LISTS:
+            with self.subTest(method=method):
+                api = self._api_returning([{"id": "x"}])
+                self.assertEqual(getattr(api, method)(*args), [{"id": "x"}])
+
+    def test_a_wrapped_body_fails_the_run(self):
+        for method, args, key in self.LISTS:
+            with self.subTest(method=method):
+                api = self._api_returning({key: [{"id": "x"}]})
+                with self.assertRaises(AssertionError):
+                    getattr(api, method)(*args)
+
+    def test_canvas_objects_and_slots_stay_wrapped(self):
+        api = self._api_returning({"objects": [1], "slots": [2]})
+        self.assertEqual(api.canvas_objects("c1"), [1])
+        self.assertEqual(api.canvas_media_slots("c1"), [2])
+
+
 if __name__ == "__main__":
     unittest.main()
