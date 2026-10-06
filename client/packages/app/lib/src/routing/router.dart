@@ -6,9 +6,12 @@
 /// navigation. Paths come from [Routes]; no string literals appear at call sites.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_api/api.dart' show TokenPair;
 
 import '../providers/providers.dart';
 import '../providers/threads.dart';
@@ -313,7 +316,7 @@ class _SessionListenable extends ChangeNotifier {
     ref.onDispose(() => _subscription.cancel());
   }
 
-  late final dynamic _subscription;
+  late final StreamSubscription<TokenPair?> _subscription;
 }
 
 /// The wide-width landing for a cold-opened `/thread/:id`: resolve its parent

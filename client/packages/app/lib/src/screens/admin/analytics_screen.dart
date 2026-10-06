@@ -28,6 +28,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/attachment_view.dart' show formatByteSize;
+import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/success_flash.dart';
 import '../settings_screen_scaffold.dart';
@@ -57,52 +58,29 @@ class AnalyticsPane extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsPaneState extends ConsumerState<AnalyticsPane>
-    with GuardedActionState<AnalyticsPane> {
-  bool _toggling = false;
-
-  /// The value the toggle shows the instant it is tapped, ahead of the
-  /// server's answer: flipped optimistically, reverted on failure, and
-  /// retired once the provider delivers a fresh answer of its own.
-  bool? _optimistic;
-
-  Future<void> _setEnabled(bool value) async {
-    setState(() {
-      _toggling = true;
-      _optimistic = value;
-    });
-    final ok = await guard(
-      whatFailed: value ? 'turn analytics on' : 'turn analytics off',
-      action: () => ref.read(apiProvider).setSpaceAnalyticsEnabled(value),
-    );
-    if (!mounted) return;
-    setState(() {
-      _toggling = false;
-      if (!ok) _optimistic = null;
-    });
-    if (ok) ref.invalidate(spaceAnalyticsProvider);
-  }
+    with
+        GuardedActionState<AnalyticsPane>,
+        OptimisticSettingState<AnalyticsPane, bool> {
+  Future<void> _setEnabled(bool value) => saveOptimistic(
+    value,
+    whatFailed: value ? 'turn analytics on' : 'turn analytics off',
+    action: () => ref.read(apiProvider).setSpaceAnalyticsEnabled(value),
+    refresh: spaceAnalyticsProvider,
+  );
 
   @override
   Widget build(BuildContext context) {
     final analytics = ref.watch(spaceAnalyticsProvider);
-    // Once a fresh fetch lands, the server's own answer takes back over; a refetch that failed still holds the old value and must not.
-    ref.listen(spaceAnalyticsProvider, (previous, next) {
-      if (next.hasValue &&
-          !next.hasError &&
-          !next.isLoading &&
-          _optimistic != null) {
-        setState(() => _optimistic = null);
-      }
-    });
+    ref.listen(spaceAnalyticsProvider, (_, next) => retireOptimistic(next));
 
-    final enabled = _optimistic ?? analytics.valueOrNull?.enabled ?? false;
+    final enabled = shown(analytics.valueOrNull?.enabled, false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AnalyticsToggleHeader(
           enabled: enabled,
           // With no answer yet there is nothing to flip, so "on" is never guessed.
-          busy: _toggling || analytics.isLoading || !analytics.hasValue,
+          busy: saving || analytics.isLoading || !analytics.hasValue,
           onChanged: _setEnabled,
         ),
         SuccessFlash(tick: successTick),

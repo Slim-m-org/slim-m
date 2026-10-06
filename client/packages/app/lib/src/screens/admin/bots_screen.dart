@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../api_failure.dart';
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
@@ -327,32 +326,27 @@ class _BotPermissionsSheet extends ConsumerStatefulWidget {
       _BotPermissionsSheetState();
 }
 
-class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet> {
+class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet>
+    with GuardedActionState<_BotPermissionsSheet> {
   late int _permissions = widget.bot.permissions;
   bool _submitting = false;
-  String? _error;
 
   Future<void> _submit() async {
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await ref
+    clearActionError();
+    setState(() => _submitting = true);
+    final ok = await guard(
+      whatFailed: "save ${widget.bot.displayName}'s permissions",
+      action: () => ref
           .read(apiProvider)
-          .setBotPermissions(widget.bot.userId, _permissions);
-      if (context.mounted) ref.invalidate(botsProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on api.ApiException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = describeApiFailure(
-          "save ${widget.bot.displayName}'s permissions",
-          e,
-        );
-        _submitting = false;
-      });
+          .setBotPermissions(widget.bot.userId, _permissions),
+    );
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _submitting = false);
+      return;
     }
+    ref.invalidate(botsProvider);
+    Navigator.of(context).pop();
   }
 
   @override
@@ -382,10 +376,11 @@ class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(AppIcons.dismiss, color: tokens.textSecondary),
+              AppIconButton(
+                icon: AppIcons.dismiss,
+                semanticLabel: 'Close',
                 tooltip: 'Close',
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),
@@ -423,9 +418,9 @@ class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet> {
               ),
             ),
           ),
-          if (_error != null) ...[
+          if (actionError != null) ...[
             const SizedBox(height: AppSpacing.s8),
-            AppErrorState(message: _error!),
+            AppErrorState(message: actionError!),
           ],
           const SizedBox(height: AppSpacing.s12),
           AppButton(

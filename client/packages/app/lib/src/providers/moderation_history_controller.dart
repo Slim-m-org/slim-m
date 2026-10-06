@@ -60,9 +60,14 @@ class ModerationHistoryController
   /// after a newer one was started is dropped instead of overwriting it.
   int _generation = 0;
 
-  /// Starts the feed again from the top.
+  /// Starts the feed again from the top, keeping what is on screen until the
+  /// first page lands.
   Future<void> refresh() async {
-    state = const ModerationHistoryState();
+    state = ModerationHistoryState(
+      items: state.items,
+      loading: true,
+      more: state.more,
+    );
     await _load(after: null, onto: const []);
   }
 
@@ -84,6 +89,7 @@ class ModerationHistoryController
   }) async {
     final generation = ++_generation;
     final more = state.more;
+    final held = state.items;
     try {
       final page = await _ref
           .read(apiProvider)
@@ -102,7 +108,7 @@ class ModerationHistoryController
     } on Object catch (e) {
       if (!mounted || generation != _generation) return;
       state = ModerationHistoryState(
-        items: onto,
+        items: after == null ? held : onto,
         loading: false,
         error: e is api.ApiException ? e.message : 'Could not read the feed.',
         more: more,

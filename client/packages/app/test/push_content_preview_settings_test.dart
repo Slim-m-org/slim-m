@@ -113,10 +113,14 @@ void main() {
 
   test('a failed local-storage read answers no pending choice and is '
       'retried rather than pinned', () async {
-    SharedPreferences.setMockInitialValues({pushIncludeContentKey: true});
+    SharedPreferences.setMockInitialValues({
+      pushIncludeContentKeyFor('user-1'): true,
+    });
     var reads = 0;
     final container = ProviderContainer(
       overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
         preferencesProvider.overrideWith((ref) async {
           if (reads++ == 0) throw StateError('storage not readable yet');
           return SharedPreferences.getInstance();

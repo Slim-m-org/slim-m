@@ -138,7 +138,8 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
         .watch(roleModulePermissionsProvider(widget.role.id))
         .valueOrNull;
     final grantedKeys = {
-      for (final g in granted ?? const []) '${g.moduleId}:${g.permKey}',
+      for (final g in granted ?? const <api.GrantedModulePermission>[])
+        '${g.moduleId}:${g.permKey}',
     };
 
     final showAdministrator = _matchesFilter(

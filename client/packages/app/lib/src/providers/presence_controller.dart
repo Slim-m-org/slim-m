@@ -24,6 +24,7 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   PresenceController(this._ref) : super(const {}) {
     _sub = _ref.read(liveEventsProvider).listen((event) {
       if (event is api.PresenceChanged) {
+        _liveEventAt[event.userId] = ++_eventClock;
         state = {...state, event.userId: event.status};
         _ref
             .read(presenceActivityProvider.notifier)
@@ -35,6 +36,11 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
 
+  /// A tick per live event, and the tick each member's last one landed at, so
+  /// a batch response can tell which members changed after it was asked for.
+  int _eventClock = 0;
+  final Map<String, int> _liveEventAt = {};
+
   /// Forgets every cached status, for a session ending.
   ///
   /// This provider is deliberately app-lifetime rather than `autoDispose`, so
@@ -45,6 +51,7 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   /// with this shape either runs its own session listener or is cleared by
   /// `SyncController`; this one had neither.
   void clear() {
+    _liveEventAt.clear();
     if (mounted) state = const {};
   }
 
@@ -64,9 +71,14 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   }
 
   Future<void> _refreshBatch(List<String> ids) async {
+    final askedAt = _eventClock;
     try {
-      final statuses = await _ref.read(apiProvider).listPresence(ids);
+      final all = await _ref.read(apiProvider).listPresence(ids);
       if (!mounted) return;
+      // A live event newer than the request is fresher than its snapshot.
+      final statuses = all
+          .where((status) => (_liveEventAt[status.userId] ?? 0) <= askedAt)
+          .toList(growable: false);
       state = {
         ...state,
         for (final status in statuses) status.userId: status.status,
