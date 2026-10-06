@@ -15,7 +15,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers.dart';
+import 'preference_controller.dart';
 
 /// The decode-resolution levels offered for inline attachment previews.
 enum AttachmentPreviewQuality { dataSaver, balanced, sharp }
@@ -45,34 +45,13 @@ const attachmentPreviewQualityKey = 'slimm.performance.preview_quality';
 const defaultAttachmentPreviewQuality = AttachmentPreviewQuality.sharp;
 
 class AttachmentPreviewQualityController
-    extends StateNotifier<AttachmentPreviewQuality> {
-  AttachmentPreviewQualityController(this._ref)
-    : super(defaultAttachmentPreviewQuality);
-
-  final Ref _ref;
-
-  /// A missing or unrecognised stored value leaves the default alone, the same
-  /// degrade the other display preferences use.
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(attachmentPreviewQualityKey);
-      for (final quality in AttachmentPreviewQuality.values) {
-        if (quality.name == stored) {
-          state = quality;
-          return;
-        }
-      }
-    } catch (_) {
-      // Not worth failing a launch over; sharp is always usable.
-    }
-  }
-
-  Future<void> select(AttachmentPreviewQuality quality) async {
-    state = quality;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(attachmentPreviewQualityKey, quality.name);
-  }
+    extends EnumPreferenceController<AttachmentPreviewQuality> {
+  AttachmentPreviewQualityController(super.ref)
+    : super(
+        storageKey: attachmentPreviewQualityKey,
+        choices: AttachmentPreviewQuality.values,
+        fallback: defaultAttachmentPreviewQuality,
+      );
 }
 
 final attachmentPreviewQualityControllerProvider =

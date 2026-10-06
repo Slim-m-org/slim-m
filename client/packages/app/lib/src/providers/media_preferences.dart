@@ -15,7 +15,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers.dart';
+import 'preference_controller.dart';
 
 /// Whether an inline image downloads on sight or waits for a tap.
 enum MediaAutoDownload { always, manual }
@@ -43,58 +43,23 @@ const gifAutoplayKey = 'slimm.performance.gif_autoplay';
 const defaultMediaAutoDownload = MediaAutoDownload.always;
 const defaultGifAutoplay = GifAutoplay.tapToPlay;
 
-class MediaAutoDownloadController extends StateNotifier<MediaAutoDownload> {
-  MediaAutoDownloadController(this._ref) : super(defaultMediaAutoDownload);
-
-  final Ref _ref;
-
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(mediaAutoDownloadKey);
-      for (final value in MediaAutoDownload.values) {
-        if (value.name == stored) {
-          state = value;
-          return;
-        }
-      }
-    } catch (_) {
-      // Not worth failing a launch over; the default always downloads.
-    }
-  }
-
-  Future<void> select(MediaAutoDownload value) async {
-    state = value;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(mediaAutoDownloadKey, value.name);
-  }
+class MediaAutoDownloadController
+    extends EnumPreferenceController<MediaAutoDownload> {
+  MediaAutoDownloadController(super.ref)
+    : super(
+        storageKey: mediaAutoDownloadKey,
+        choices: MediaAutoDownload.values,
+        fallback: defaultMediaAutoDownload,
+      );
 }
 
-class GifAutoplayController extends StateNotifier<GifAutoplay> {
-  GifAutoplayController(this._ref) : super(defaultGifAutoplay);
-
-  final Ref _ref;
-
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(gifAutoplayKey);
-      for (final value in GifAutoplay.values) {
-        if (value.name == stored) {
-          state = value;
-          return;
-        }
-      }
-    } catch (_) {
-      // Not worth failing a launch over; the default holds gifs.
-    }
-  }
-
-  Future<void> select(GifAutoplay value) async {
-    state = value;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(gifAutoplayKey, value.name);
-  }
+class GifAutoplayController extends EnumPreferenceController<GifAutoplay> {
+  GifAutoplayController(super.ref)
+    : super(
+        storageKey: gifAutoplayKey,
+        choices: GifAutoplay.values,
+        fallback: defaultGifAutoplay,
+      );
 }
 
 final mediaAutoDownloadControllerProvider =

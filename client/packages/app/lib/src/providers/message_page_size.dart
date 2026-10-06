@@ -13,7 +13,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers.dart';
+import 'preference_controller.dart';
 
 /// A backwards-page size, each a concrete row count at or under the server cap.
 enum MessagePageSize { small, standard, large }
@@ -37,34 +37,16 @@ const messagePageSizeKey = 'slimm.performance.message_page_size';
 
 const defaultMessagePageSize = MessagePageSize.standard;
 
-class MessagePageSizeController extends StateNotifier<MessagePageSize> {
+class MessagePageSizeController
+    extends EnumPreferenceController<MessagePageSize> {
   MessagePageSizeController(
-    this._ref, [
+    super.ref, [
     MessagePageSize initial = defaultMessagePageSize,
-  ]) : super(initial);
-
-  final Ref _ref;
-
-  Future<void> restore() async {
-    try {
-      final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getString(messagePageSizeKey);
-      for (final value in MessagePageSize.values) {
-        if (value.name == stored) {
-          state = value;
-          return;
-        }
-      }
-    } catch (_) {
-      // Not worth failing a launch over; the default is the standard page.
-    }
-  }
-
-  Future<void> select(MessagePageSize value) async {
-    state = value;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(messagePageSizeKey, value.name);
-  }
+  ]) : super(
+         storageKey: messagePageSizeKey,
+         choices: MessagePageSize.values,
+         fallback: initial,
+       );
 }
 
 final messagePageSizeControllerProvider =
