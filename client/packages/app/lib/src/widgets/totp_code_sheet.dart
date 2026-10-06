@@ -108,7 +108,7 @@ class _TotpCodeSheetState extends State<_TotpCodeSheet> {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: SingleChildScrollView(
         child: Column(

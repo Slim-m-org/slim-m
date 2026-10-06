@@ -402,7 +402,7 @@ class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

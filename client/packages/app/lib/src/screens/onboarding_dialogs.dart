@@ -136,7 +136,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         AppSpacing.s16,
         AppSpacing.s16,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -269,7 +269,7 @@ class ManualServerDialogState extends State<ManualServerDialog> {
         AppSpacing.s16,
         AppSpacing.s16,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
