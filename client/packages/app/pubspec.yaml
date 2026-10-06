@@ -80,6 +80,8 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter
+  # Only imported from test/, to fake the platform under the real BiometricAuthChannel.
+  local_auth: ^3.0.1
 flutter:
   uses-material-design: true
   # A checked-in copy of the repo-root `assets/audio/notifications/` (see its
