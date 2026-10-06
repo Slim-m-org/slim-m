@@ -316,8 +316,8 @@ impl Store {
     }
 
     /// Batched read for push fan-out: every `viewer_ids` with a configured
-    /// schedule, the same shape [`Store::quiet_hours_for_users`] already
-    /// established. An id absent from the map has never configured one, and
+    /// schedule, one query for every recipient rather than one lookup each.
+    /// An id absent from the map has never configured one, and
     /// reads at the call site as always on hours.
     pub async fn notification_schedules_for_users(
         &self,
