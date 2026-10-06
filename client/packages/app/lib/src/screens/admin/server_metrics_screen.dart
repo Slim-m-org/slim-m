@@ -22,6 +22,7 @@ import '../../widgets/analytics_bar_chart.dart';
 import '../../widgets/attachment_view.dart' show formatByteSize;
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'admin_stat_tile.dart';
 import 'server_metrics_routes_card.dart';
 
 class ServerMetricsScreen extends StatelessWidget {
@@ -90,17 +91,17 @@ class _SystemCard extends StatelessWidget {
           spacing: AppSpacing.s12,
           runSpacing: AppSpacing.s12,
           children: [
-            _StatTile(
+            AdminStatTile(
               label: 'Resident memory',
               value: metrics.residentMemoryBytes == null
                   ? 'unknown'
                   : formatByteSize(metrics.residentMemoryBytes!.round()),
             ),
-            _StatTile(
+            AdminStatTile(
               label: 'WebSocket connections',
               value: '${metrics.webSocketConnections}',
             ),
-            _StatTile(
+            AdminStatTile(
               label: 'DB pool in use',
               value: pool == null ? 'unknown' : '${pool.inUse} / ${pool.max}',
               warn: pool != null && pool.max > 0 && pool.inUse >= pool.max,
@@ -182,49 +183,6 @@ class _RequestClassRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.label,
-    required this.value,
-    this.warn = false,
-  });
-
-  final String label;
-  final String value;
-
-  /// Highlights the value in the danger color - a pool at its ceiling, say -
-  /// rather than leaving a bottleneck signal looking like any other number.
-  final bool warn;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SizedBox(
-      width: 150,
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: AppText.heading.copyWith(
-                color: warn ? tokens.dangerText : tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              label,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ],
-        ),
       ),
     );
   }

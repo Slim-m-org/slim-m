@@ -35,3 +35,42 @@ String formatClock(DateTime dt, {required bool use24Hour}) {
 /// duplicated.
 ({int hours, int minutes, int seconds}) decomposeDuration(Duration d) =>
     (hours: d.inHours, minutes: d.inMinutes % 60, seconds: d.inSeconds % 60);
+
+/// "just now", "5m ago", "3h ago", "2d ago" for an [elapsed] age, the single
+/// threshold table every relative timestamp in the app shares. [seconds] adds
+/// a seconds tier after the first thirty, [weeks] replaces days from seven.
+String formatRelativeAge(
+  Duration elapsed, {
+  bool seconds = false,
+  bool weeks = false,
+}) {
+  if (seconds && elapsed.inSeconds >= 30 && elapsed.inMinutes < 1) {
+    return '${elapsed.inSeconds}s ago';
+  }
+  if (elapsed.inMinutes < 1) return 'just now';
+  if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
+  if (elapsed.inDays < 1) return '${elapsed.inHours}h ago';
+  if (weeks && elapsed.inDays >= 7) return '${elapsed.inDays ~/ 7}w ago';
+  return '${elapsed.inDays}d ago';
+}
+
+/// [formatRelativeAge] for a Unix-millisecond timestamp, against [now].
+String formatRelativeAgeMs(int epochMs, {DateTime? now, bool weeks = false}) =>
+    formatRelativeAge(
+      (now ?? DateTime.now()).difference(
+        DateTime.fromMillisecondsSinceEpoch(epochMs),
+      ),
+      weeks: weeks,
+    );
+
+/// How long is left, in the coarsest unit that is still true.
+///
+/// Coarse on purpose: a timeout is not a countdown anybody should watch, and
+/// a badge re-rendering a ticking second would be movement with no meaning.
+String formatRemaining(Duration remaining) {
+  if (remaining.isNegative) return 'moments';
+  if (remaining.inHours >= 24) return '${remaining.inDays}d';
+  if (remaining.inMinutes >= 60) return '${remaining.inHours}h';
+  if (remaining.inMinutes >= 1) return '${remaining.inMinutes}m';
+  return '${remaining.inSeconds}s';
+}

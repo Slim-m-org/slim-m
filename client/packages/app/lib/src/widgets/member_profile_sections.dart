@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../format.dart';
 import '../providers/presence_view.dart';
 import 'user_avatar.dart';
 
@@ -216,18 +217,6 @@ class MemberTimeoutBadge extends StatelessWidget {
       ),
     );
   }
-}
-
-/// How long is left, in the coarsest unit that is still true.
-///
-/// Coarse on purpose: a timeout is not a countdown anybody should watch, and
-/// a badge re-rendering a ticking second would be movement with no meaning.
-String formatRemaining(Duration remaining) {
-  if (remaining.isNegative) return 'moments';
-  if (remaining.inHours >= 24) return '${remaining.inDays}d';
-  if (remaining.inMinutes >= 60) return '${remaining.inHours}h';
-  if (remaining.inMinutes >= 1) return '${remaining.inMinutes}m';
-  return '${remaining.inSeconds}s';
 }
 
 /// The lengths every timeout chooser offers, so no surface drifts from another.

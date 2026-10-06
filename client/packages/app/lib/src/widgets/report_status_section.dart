@@ -22,6 +22,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../format.dart';
 import '../providers/filed_reports.dart';
 import '../providers/providers.dart';
 import 'settings_section_header.dart';
@@ -246,16 +247,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
 }
 
 /// A short, relative "filed X ago" for [createdAtMs] (Unix milliseconds).
-/// Matches the granularity `canvas_activity_panel.dart`'s own relative
-/// timestamp already uses, extended with weeks: a filed report is realistic
-/// to check back on well after a day has passed, where a canvas activity
-/// entry is not.
-String _filedAgo(int createdAtMs) {
-  final at = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
-  final elapsed = DateTime.now().difference(at);
-  if (elapsed.inMinutes < 1) return 'just now';
-  if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
-  if (elapsed.inDays < 1) return '${elapsed.inHours}h ago';
-  if (elapsed.inDays < 7) return '${elapsed.inDays}d ago';
-  return '${elapsed.inDays ~/ 7}w ago';
-}
+/// Counts in weeks: a filed report is realistic to check back on well after
+/// a day has passed.
+String _filedAgo(int createdAtMs) =>
+    formatRelativeAgeMs(createdAtMs, weeks: true);

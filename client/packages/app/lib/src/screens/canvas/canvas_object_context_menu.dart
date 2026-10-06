@@ -155,9 +155,14 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
+    this.canDraw = true,
   });
 
   final CanvasDocument document;
+
+  /// False while the pane's error says placing would fail again; disables the
+  /// empty-space items that place something, as the overflow menu does.
+  final bool canDraw;
 
   /// Whether the caller holds MANAGE_CANVAS - widens which objects a
   /// right-click can resolve a target from, the same bit
@@ -437,9 +442,13 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
         AppMenuItem(
           label: 'Paste image',
           leading: AppIcons.clipboardPaste,
-          onTap: _pasteImage,
+          onTap: widget.canDraw ? _pasteImage : null,
         ),
-        AppMenuItem(label: 'Add note', leading: AppIcons.note, onTap: _addNote),
+        AppMenuItem(
+          label: 'Add note',
+          leading: AppIcons.note,
+          onTap: widget.canDraw ? _addNote : null,
+        ),
         AppMenuItem(
           label: 'Recenter view',
           leading: AppIcons.recenter,

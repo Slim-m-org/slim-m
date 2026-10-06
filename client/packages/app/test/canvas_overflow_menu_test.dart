@@ -56,7 +56,6 @@ void main() {
               onRecenter: () {},
               onToggleFullscreen: () {},
               canManage: false,
-              objectCount: ValueNotifier(0),
               onClear: () async {},
               selection: ValueNotifier(null),
               onBringToFront: (_) {},

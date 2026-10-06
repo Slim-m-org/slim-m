@@ -47,6 +47,7 @@ import 'canvas_call_dock.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_engine.dart';
+import 'canvas_forbidden_message.dart';
 import 'canvas_fullscreen.dart';
 import 'canvas_image_paste.dart';
 import 'canvas_media_slot_sync.dart';
@@ -128,6 +129,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     if (_toolInitialised) return;
     _toolInitialised = true;
     _tool = _defaultTool;
+    _disarmIfAlreadyFullscreen();
   }
 
   /// Disposes the engine directly, synchronously, rather than trusting
@@ -198,7 +200,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
         autofocus: true,
         onKeyEvent: (_, event) => _onToolKey(
           event,
-          canDraw: engineState.error == null,
+          canDraw: !canvasErrorBlocksDrawing(engineState.error),
           fullscreen: fullscreen,
         ),
         child: CanvasPaneBody(

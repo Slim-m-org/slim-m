@@ -98,20 +98,25 @@ class CanvasOpsController {
   /// landed; wired as the queue's `onEraseOnConfirm` callback.
   Future<void> eraseOnConfirm(String id) => _submitRemove([id]);
 
-  /// Removes [objectId] - an image, note or shape the select tool picked
-  /// up - the way the eraser removes a stroke: applied locally at once and
-  /// pushed onto the undo stack on success. This is the select tool's own
-  /// removal, never used for a stroke: erasing one is the eraser tool's
-  /// job, and [objectId] can only ever name something
-  /// `document.selectedObjectId` already holds, which `beginSelect` only
-  /// ever sets to an object this caller may act on and which the overflow
-  /// menu's own `ValueListenableBuilder` clears out of the tree the moment
-  /// it dies some other way, so there is no live-caller path that could
-  /// reach here with an id already gone.
-  /// [CanvasDocument.removeObject]'s own `_freeSlot` already clears the
-  /// selection when the freed slot is the current one, so nothing here
-  /// deselects explicitly.
+  /// Removes [objectId] the select tool picked up: applied locally at once
+  /// and pushed onto the undo stack on success. An object still in the
+  /// placement queue is settled there instead, like the eraser and undo do:
+  /// the server has not seen it, so a remove would 404 and the placement
+  /// would land after. [CanvasDocument.removeObject]'s own `_freeSlot`
+  /// already clears the selection when the freed slot is the current one.
   Future<void> deleteSelected(String objectId) async {
+    switch (commits.undoPlacement(objectId)) {
+      case UndoPlacementOutcome.cancelled:
+        document.kill(objectId);
+        document.refresh();
+        return;
+      case UndoPlacementOutcome.armed:
+        document.removeObject(objectId);
+        document.refresh();
+        return;
+      case UndoPlacementOutcome.unresolved:
+        break;
+    }
     document.removeObject(objectId);
     document.refresh();
     const message = 'That could not be deleted.';
