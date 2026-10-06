@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.96.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.95.0...client-v0.96.0) (2026-10-06)
+
+
+### Features
+
+* **client:** ring a closed iPhone with a PushKit VoIP push ([#1999](https://github.com/Slim-m-org/slim-m/issues/1999)) ([b3040fd](https://github.com/Slim-m-org/slim-m/commit/b3040fd716324538e5a7df12e8584c22b141eba5))
+
+
+### Bug Fixes
+
+* a moderation history that loads, webhook embeds with iso timestamps, and a desktop window that follows resizing ([#2000](https://github.com/Slim-m-org/slim-m/issues/2000)) ([aecafd0](https://github.com/Slim-m-org/slim-m/commit/aecafd027b186f58d28755430830591ad68d7eb5))
+* answering a CallKit ring on a cold launch joins the call and ends the system call when it is over ([#2004](https://github.com/Slim-m-org/slim-m/issues/2004)) ([ff0870b](https://github.com/Slim-m-org/slim-m/commit/ff0870bddc6b14d76acd8c439cda15bed80cd59b))
+* batch 3 of the october audit, server, canvas, accessibility, startup, update and notification fixes ([#2005](https://github.com/Slim-m-org/slim-m/issues/2005)) ([ffc76a2](https://github.com/Slim-m-org/slim-m/commit/ffc76a2fcdbf2656db87684ba64a8b31dc7072f9))
+* **client:** a busy thread no longer keeps sync offline ([#2006](https://github.com/Slim-m-org/slim-m/issues/2006)) ([5d22af9](https://github.com/Slim-m-org/slim-m/commit/5d22af98703f0d4cca96a378206a286f25850c9b))
+* **client:** a maximized launch waits for the window to leave the splash size before building the real UI ([#2007](https://github.com/Slim-m-org/slim-m/issues/2007)) ([70b6b05](https://github.com/Slim-m-org/slim-m/commit/70b6b058113c3cae2554132d6780d20c5e60bd51))
+* **client:** answering a CallKit ring joins the call and loads the DM ([#2003](https://github.com/Slim-m-org/slim-m/issues/2003)) ([a43e749](https://github.com/Slim-m-org/slim-m/commit/a43e749d5b1949acc9e70f5a67b459a619211be1))
+* **client:** sync, composer and notification fixes from the october audit, batch 2 ([#2002](https://github.com/Slim-m-org/slim-m/issues/2002)) ([181df34](https://github.com/Slim-m-org/slim-m/commit/181df342fa176dc410773ef9d5b66fa91e73af48))
+
 ## [0.95.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.94.0...client-v0.95.0) (2026-10-05)
 
 
