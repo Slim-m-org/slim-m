@@ -30,16 +30,12 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../entity_name.dart';
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
 import '../providers/providers.dart';
 import '../routing/routes.dart';
 import 'settings_toggle_row.dart';
-
-/// The server's own ceiling (`validate_channel_name` in
-/// `crates/slimm-server/src/http/channels.rs`), so a name that is already
-/// too long is refused here rather than round-tripping to the server first.
-const int _nameMaxChars = 64;
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
 /// changeable inside the sheet, since it is only a starting guess, not a
@@ -100,8 +96,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     super.dispose();
   }
 
-  bool get _nameValid =>
-      _name.text.trim().isNotEmpty && _name.text.trim().length <= _nameMaxChars;
+  bool get _nameValid => entityNameValid(_name.text);
 
   bool get _canSubmit => !_submitting && _nameValid;
 
@@ -153,7 +148,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     final canRestrict = ref
         .watch(myPermissionsProvider)
         .hasPermission(Perm.manageRoles);
-    final nameLength = _name.text.trim().length;
+    final nameLength = entityNameLength(_name.text);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -196,9 +191,9 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '$nameLength/$_nameMaxChars',
+                '$nameLength/$entityNameMaxChars',
                 style: AppText.micro.copyWith(
-                  color: nameLength > _nameMaxChars
+                  color: nameLength > entityNameMaxChars
                       ? tokens.dangerText
                       : tokens.textSecondary,
                 ),

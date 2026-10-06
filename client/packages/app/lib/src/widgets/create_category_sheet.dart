@@ -17,12 +17,8 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../entity_name.dart';
 import '../providers/providers.dart';
-
-/// The server's own ceiling (`validate_category_name` in
-/// `crates/slimm-server/src/http/categories.rs`), refused here rather than
-/// round-tripping first.
-const int _nameMaxChars = 64;
 
 Future<void> showCreateCategorySheet(BuildContext context) {
   return showAppSheet<void>(
@@ -50,8 +46,7 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
     super.dispose();
   }
 
-  bool get _nameValid =>
-      _name.text.trim().isNotEmpty && _name.text.trim().length <= _nameMaxChars;
+  bool get _nameValid => entityNameValid(_name.text);
 
   bool get _canSubmit => !_submitting && _nameValid;
 
@@ -90,7 +85,7 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final nameLength = _name.text.trim().length;
+    final nameLength = entityNameLength(_name.text);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -126,9 +121,9 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '$nameLength/$_nameMaxChars',
+                '$nameLength/$entityNameMaxChars',
                 style: AppText.micro.copyWith(
-                  color: nameLength > _nameMaxChars
+                  color: nameLength > entityNameMaxChars
                       ? tokens.dangerText
                       : tokens.textSecondary,
                 ),

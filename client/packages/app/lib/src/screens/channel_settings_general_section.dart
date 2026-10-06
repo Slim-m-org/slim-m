@@ -16,6 +16,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../entity_name.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
 import '../widgets/settings_section_header.dart';
@@ -25,7 +26,6 @@ import '../widgets/settings_section_header.dart';
 /// disagrees with the length check the request will actually be judged
 /// against.
 const int channelTopicMaxChars = 256;
-const int channelNameMaxChars = 64;
 
 class ChannelGeneralSection extends ConsumerStatefulWidget {
   const ChannelGeneralSection({super.key, required this.channel});
@@ -56,9 +56,7 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
   bool get _dirty =>
       _name.text.trim() != _savedName || _topic.text.trim() != _savedTopic;
 
-  bool get _nameValid =>
-      _name.text.trim().isNotEmpty &&
-      _name.text.trim().length <= channelNameMaxChars;
+  bool get _nameValid => entityNameValid(_name.text);
 
   bool get _topicValid => _topic.text.trim().length <= channelTopicMaxChars;
 
