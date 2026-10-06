@@ -91,7 +91,9 @@ pub(super) async fn fetch_capped(
     if status != StatusCode::OK {
         return Err(FetchError::Unavailable);
     }
-    read_capped(response, limits.cap).await
+    crate::net_guard::read_capped(response, limits.cap)
+        .await
+        .map_err(|_| FetchError::Unavailable)
 }
 
 /// GETs [path] under each of [bases] in turn and returns the first body
@@ -125,23 +127,6 @@ fn joined_under(base: &Url, path: &str) -> Option<Url> {
         && url.host_str() == base.host_str()
         && url.port_or_known_default() == base.port_or_known_default();
     (same_origin && url.path().starts_with(directory)).then_some(url)
-}
-
-/// Reads at most [cap] bytes from [response], stopping the moment the body
-/// runs over rather than buffering an unbounded one.
-async fn read_capped(mut response: reqwest::Response, cap: usize) -> Result<Vec<u8>, FetchError> {
-    let mut body = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| FetchError::Unavailable)?
-    {
-        if body.len() + chunk.len() > cap {
-            return Err(FetchError::Unavailable);
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
 }
 
 #[cfg(test)]

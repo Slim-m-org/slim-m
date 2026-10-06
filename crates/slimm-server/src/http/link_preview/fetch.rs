@@ -99,24 +99,13 @@ pub(super) async fn follow(
     Err(FetchError::Unavailable)
 }
 
-/// Reads at most [cap] bytes from [response], stopping the moment the body
-/// runs over rather than buffering an unbounded one.
 pub(super) async fn read_capped(
-    mut response: reqwest::Response,
+    response: reqwest::Response,
     cap: usize,
 ) -> Result<Vec<u8>, FetchError> {
-    let mut body = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
+    crate::net_guard::read_capped(response, cap)
         .await
-        .map_err(|_| FetchError::Unavailable)?
-    {
-        if body.len() + chunk.len() > cap {
-            return Err(FetchError::Unavailable);
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
+        .map_err(|_| FetchError::Unavailable)
 }
 
 fn content_type(response: &reqwest::Response) -> String {

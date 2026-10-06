@@ -9,6 +9,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{Enabled, RunOutcome};
+use crate::net_guard::read_capped;
 
 /// This server's own wall-clock ceiling on the *run* stage, passed to Piston
 /// explicitly rather than trusted to its default (3000ms) or however an
@@ -122,7 +123,7 @@ pub(super) async fn execute(enabled: &Enabled, language: &str, code: &str) -> Ru
     }
     let bytes = match read_capped(response, MAX_RESPONSE_BYTES).await {
         Ok(bytes) => bytes,
-        Err(()) => return RunOutcome::failure("the code runner's response was too large"),
+        Err(_) => return RunOutcome::failure("the code runner's response was too large"),
     };
     let Ok(parsed) = serde_json::from_slice::<ExecuteResponse>(&bytes) else {
         return RunOutcome::failure("the code runner returned a malformed response");
@@ -160,20 +161,6 @@ pub(super) async fn runtimes(enabled: &Enabled) -> Option<Vec<Runtime>> {
     }
     let bytes = read_capped(response, MAX_RESPONSE_BYTES).await.ok()?;
     serde_json::from_slice(&bytes).ok()
-}
-
-/// Reads at most `cap` bytes from `response`, refusing rather than
-/// buffering an unbounded one - the same shape `http::dock::fetch`'s own
-/// `read_capped` already uses for a different untrusted-response fetch.
-async fn read_capped(mut response: reqwest::Response, cap: usize) -> Result<Vec<u8>, ()> {
-    let mut body = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| ())? {
-        if body.len() + chunk.len() > cap {
-            return Err(());
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
 }
 
 #[cfg(test)]
