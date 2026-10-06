@@ -6,5 +6,7 @@
 #   per-operation security entry on every one is noise.
 # - operation-4xx-response: liveness and version endpoints do not need a 4xx.
 rules:
+  # An undeclared tag lands in an ungrouped section of the rendered reference.
+  operation-tag-defined: error
   security-defined: off
   operation-4xx-response: off

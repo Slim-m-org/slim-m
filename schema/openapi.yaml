@@ -117,6 +117,18 @@ tags:
       The Voice Canvas: reading the objects in a region of a channel's
       canvas, the delta a client receives as it pans, and the ordered op
       stream a client catches up from after a reconnect.
+  - name: members
+    description: Bulk member actions, such as removing or timing out several at once.
+  - name: gifs
+    description: GIF search and trending through the configured provider, and link previews.
+  - name: voice
+    description: Voice room tokens, the roster, heartbeats, and the LiveKit webhook.
+  - name: space
+    description: >
+      Deployment-wide settings, analytics, storage, retention, the Dock, and
+      the other things an admin configures for the whole community.
+  - name: emoji
+    description: The deployment's custom emoji - upload, list, fetch, and remove.
 
 security:
   - bearerAuth: []
@@ -1704,7 +1716,7 @@ paths:
         `docs/decisions/0011-per-channel-permissions.md` for why a raw
         pass-through would leak channel existence. There is accordingly no
         403 or 404 here: an unreachable channel is a 200 of all zeros, the
-        same "refuse identically" precedent `setOverwrite` already
+        same "refuse identically" precedent `setChannelOverwrite` already
         documents for this API.
       responses:
         "200":
@@ -2482,7 +2494,7 @@ paths:
       summary: Time several members out in one act.
       description: >
         Requires KICK_MEMBERS, with the same per-target containment as
-        `timeoutMember`. The deadline is computed once for the batch, so every
+        `timeOutMember`. The deadline is computed once for the batch, so every
         member in it comes back at the same moment. Replaces any timeout
         already in force on a named member, as the single verb does. Nothing is
         applied unless every target passes; an id that is not a member answers
@@ -10679,7 +10691,7 @@ components:
             `@everyone` as usual. Requires MANAGE_ROLES in addition to the
             MANAGE_CHANNELS this route already needs; there is no role
             picker here, others are granted afterwards through
-            `setRoleOverwrite`/`setMemberOverwrite`.
+            `setChannelOverwrite`.
         join_muted:
           type: boolean
           description: >
@@ -13865,7 +13877,7 @@ components:
       required: [type, channel_id, last_read_seq]
       description: >
         This account's read marker in a channel moved, from any of its
-        devices: a `putRead` from one, or a message the account itself sent.
+        devices: a `markRead` from one, or a message the account itself sent.
         Delivered only to the account's own connections, so a badge clears on
         every device; nobody else receives it, and it is not a read receipt.
         `last_read_seq` is the stored marker, which only moves forward, so a
