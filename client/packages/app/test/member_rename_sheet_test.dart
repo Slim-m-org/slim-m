@@ -147,4 +147,18 @@ void main() {
 
     expect(seen, isEmpty);
   });
+
+  testWidgets('40 astral characters count as 40 and can be saved', (
+    tester,
+  ) async {
+    final seen = await _open(tester, profile: _profile());
+
+    await tester.enterText(find.byType(EditableText), '\u{1F600}' * 40);
+    await tester.pump();
+    expect(find.text('40/64'), findsOneWidget);
+    await tester.tap(find.text('Save name'));
+    await tester.pumpAndSettle();
+
+    expect(seen, hasLength(1));
+  });
 }
