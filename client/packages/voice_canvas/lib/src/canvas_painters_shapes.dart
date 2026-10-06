@@ -149,6 +149,10 @@ extension _StrokePainterShapes on StrokePainter {
   }
 }
 
+/// How far back each arrowhead wing reaches, in world units for a committed
+/// arrow and scaled by zoom for the live preview.
+const double arrowheadLength = 10;
+
 /// The two short segments an arrowhead draws back from [to], pure geometry
 /// so it can be tested without a canvas: a `from`-to-`to` line with nothing
 /// at its far end does not read as an arrow, and this is the one thing
@@ -156,7 +160,7 @@ extension _StrokePainterShapes on StrokePainter {
 (Offset, Offset) arrowheadWings(
   Offset from,
   Offset to, {
-  double headLength = 10,
+  double headLength = arrowheadLength,
   double headAngle = 0.5,
 }) {
   final direction = to - from;
