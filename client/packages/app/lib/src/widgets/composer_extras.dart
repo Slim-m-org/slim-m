@@ -146,6 +146,13 @@ class _ComposerFieldState extends State<ComposerField> {
     unawaited(widget.onSend());
   }
 
+  /// Enter confirms an IME candidate while a composition is open, so it must
+  /// not also send the half-composed text.
+  void _sendUnlessComposing() {
+    if (widget.controller.value.composing.isValid) return;
+    unawaited(widget.onSend());
+  }
+
   /// The row's icon buttons are a fixed square (see [AppIconButton]'s own
   /// `outerSize`) at this same touch density, so a one-line field is given
   /// the same floor: short of it, [Stack]'s `centerLeft` alignment centres
@@ -162,8 +169,11 @@ class _ComposerFieldState extends State<ComposerField> {
     return CallbackShortcuts(
       bindings: {
         if (!soft)
-          const SingleActivator(LogicalKeyboardKey.enter): () =>
-              widget.onSend(),
+          for (final key in const [
+            LogicalKeyboardKey.enter,
+            LogicalKeyboardKey.numpadEnter,
+          ])
+            SingleActivator(key): _sendUnlessComposing,
         // Shift+Enter is a hardware-only combination, hence gated the same
         // as plain Enter above; it used to fall through to the field's own
         // newline untouched, which a list continuation now has to pre-empt.
