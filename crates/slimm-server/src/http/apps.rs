@@ -29,6 +29,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::{MessageDto, parse_uuid};
 use super::module_commands::reachable_extension_points;
+use super::post_commit::after_commit;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -169,7 +170,10 @@ async fn create(
         Err(CreateAppSurfaceError::Internal(e)) => return Err(e.into()),
     };
 
-    let surface = state.store.app_surface_for_message(id).await?;
+    let surface = after_commit(
+        "its app surface",
+        state.store.app_surface_for_message(id).await,
+    );
     let mut dto = MessageDto::from(sent.message.clone());
     if let Some(surface) = surface.clone() {
         dto.app_surface = Some(surface.into());
@@ -177,24 +181,27 @@ async fn create(
 
     if sent.fresh {
         // An app message's caption can carry a mention like any other message's content.
-        super::message_mentions::resolve_and_store(
-            &state,
-            channel_id,
-            ctx.user_id,
-            sent.message.id,
-            &sent.message.content,
-        )
-        .await?;
+        after_commit(
+            "its mentions",
+            super::message_mentions::resolve_and_store(
+                &state,
+                channel_id,
+                ctx.user_id,
+                sent.message.id,
+                &sent.message.content,
+            )
+            .await,
+        );
         super::read_sync::advance_for_author(&state, ctx.user_id, &sent.message).await;
 
         // A run can race this send, so block 0 may already exist by now.
-        let block_zero = state
-            .store
-            .code_runs_for_messages(&[sent.message.id])
-            .await?
-            .into_iter()
-            .next()
-            .and_then(|(_, runs)| runs.into_iter().find(|r| r.block_index == 0));
+        let block_zero = after_commit(
+            "its code run",
+            state.store.code_runs_for_messages(&[sent.message.id]).await,
+        )
+        .into_iter()
+        .next()
+        .and_then(|(_, runs)| runs.into_iter().find(|r| r.block_index == 0));
 
         state.hub.publish(Event::MessageCreated {
             message: Arc::new(sent.message.clone()),
