@@ -33,7 +33,6 @@ per deployment rather than per run.
 """
 import argparse
 import asyncio
-import json
 import os
 import pathlib
 import subprocess
@@ -44,10 +43,10 @@ import urllib.parse
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
-import e2e_api  # noqa: E402
 import load_report  # noqa: E402
 import load_pool  # noqa: E402
 import load_accounts  # noqa: E402
+import seed_guard  # noqa: E402
 
 _SERVER_PID = {}
 DEFAULT_PASSWORD = "loadtest-stable-password-1"
@@ -296,7 +295,7 @@ async def run(args):
 
 def main(argv=None):
     args = parse_args(argv)
-    if "npc-server.top" in args.base_url:
+    if seed_guard.is_known_production(args.base_url):
         raise SystemExit("refusing to load test the live deployment")
     _SERVER_PID["pid"] = args.server_pid or find_server_pid()
     asyncio.run(run(args))

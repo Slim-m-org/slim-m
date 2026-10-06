@@ -10,8 +10,8 @@ hand needs a second, more deliberate flag on top of that.
 """
 import urllib.parse
 
-# The live instance CLAUDE.md documents by name; see check_not_accidental_production.
-KNOWN_PRODUCTION_HOSTS = frozenset({"slim.npc-server.top"})
+# The domain the live instance sits on, so any host under it counts as live.
+PRODUCTION_DOMAIN = "npc-server.top"
 
 
 class GuardError(Exception):
@@ -39,10 +39,16 @@ def check_confirmed(confirmed, base_url):
             "creates accounts, a channel, and a lot of messages")
 
 
+def is_known_production(base_url):
+    """Whether the URL's host is the live deployment's domain or under it."""
+    hostname = urllib.parse.urlparse(base_url).hostname or ""
+    return hostname == PRODUCTION_DOMAIN or hostname.endswith(f".{PRODUCTION_DOMAIN}")
+
+
 def check_not_accidental_production(base_url, force_production):
     """A second, harder gate for the one deployment known to hold real data."""
-    hostname = urllib.parse.urlparse(base_url).hostname or ""
-    if hostname in KNOWN_PRODUCTION_HOSTS and not force_production:
+    if is_known_production(base_url) and not force_production:
+        hostname = urllib.parse.urlparse(base_url).hostname
         raise GuardError(
             f"{hostname} is the documented live deployment; pass "
             "--i-know-this-is-production as well as --confirm to seed it "
