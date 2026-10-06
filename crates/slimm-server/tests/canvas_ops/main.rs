@@ -14,6 +14,7 @@ mod http_gate;
 mod index_plan;
 mod r#move;
 mod reorder;
+mod reorder_bounds;
 mod restart_clock;
 mod restore;
 mod restore_permission;

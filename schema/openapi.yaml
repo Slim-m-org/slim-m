@@ -5380,9 +5380,9 @@ paths:
 
 
         `reorder` sets a single live object's `z_index` to an explicit value,
-        touching nothing about its bounds or `props`. Any integer is legal,
-        including negative: there is no ceiling on paint order the way there
-        is on bounds. The caller computes the target itself - typically one
+        touching nothing about its bounds or `props`. Any integer from -2^52
+        to 2^52 is legal, including negative: no practical ceiling on paint
+        order, yet a client can add one without overflowing. The caller computes the target itself - typically one
         above or below every `z_index` it currently knows about, for "bring
         to front"/"send to back" - and the server only applies and
         broadcasts whatever value is sent, the same explicit-value shape
@@ -11028,7 +11028,7 @@ components:
         z_index:
           type: integer
           format: int64
-          description: A `reorder`'s new paint order. Any integer is legal.
+          description: A `reorder`'s new paint order, from -2^52 to 2^52.
 
     CanvasOpPage:
       type: object
