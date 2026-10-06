@@ -152,23 +152,26 @@ class _EmojiBulkUploadCardState extends ConsumerState<EmojiBulkUploadCard> {
 
     final newlyFailed = <_Result>[];
     var anySucceeded = false;
+    final client = ref.read(apiProvider);
+    // Held across the awaits: the import outlives the card, and so must its refresh.
+    final container = ProviderScope.containerOf(context, listen: false);
     for (final chunk in chunkPlannedEmojiUploads(uploads)) {
-      if (!mounted) return;
       try {
-        await ref.read(apiProvider).bulkUploadCustomEmoji([
+        await client.bulkUploadCustomEmoji([
           for (final upload in chunk)
             api.EmojiBulkImage(name: upload.name, bytes: upload.bytes),
         ]);
         anySucceeded = true;
-        if (!mounted) return;
-        setState(() {
-          _succeeded = [
-            ..._succeeded,
-            for (final upload in chunk)
-              _Result(upload: upload, outcome: _Outcome.uploaded),
-          ];
-          _current += chunk.length;
-        });
+        if (mounted) {
+          setState(() {
+            _succeeded = [
+              ..._succeeded,
+              for (final upload in chunk)
+                _Result(upload: upload, outcome: _Outcome.uploaded),
+            ];
+            _current += chunk.length;
+          });
+        }
       } on api.ApiException catch (e) {
         final what = chunk.length == 1
             ? 'add ${emojiShortcode(chunk.single.name)}'
@@ -178,13 +181,12 @@ class _EmojiBulkUploadCardState extends ConsumerState<EmojiBulkUploadCard> {
           for (final upload in chunk)
             _Result(upload: upload, outcome: _Outcome.failed, reason: reason),
         ]);
-        if (!mounted) return;
-        setState(() => _current += chunk.length);
+        if (mounted) setState(() => _current += chunk.length);
       }
     }
 
     if (anySucceeded) {
-      ref.invalidate(customEmojiProvider);
+      container.invalidate(customEmojiProvider);
     }
     if (!mounted) return;
     setState(() {
