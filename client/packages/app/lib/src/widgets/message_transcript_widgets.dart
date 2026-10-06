@@ -61,9 +61,7 @@ class ChannelStartHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // The message rows' own gutter, so the block left-aligns with them.
-    final gutter = LayoutClass.of(context) == LayoutClass.compact
-        ? AppSizes.paneGutterCompact
-        : AppSizes.paneGutter;
+    final gutter = paneGutterOf(context);
     final name = this.name;
     if (isThread) {
       return Padding(
@@ -161,9 +159,7 @@ class HistoryTopAffordance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final gutter = LayoutClass.of(context) == LayoutClass.compact
-        ? AppSizes.paneGutterCompact
-        : AppSizes.paneGutter;
+    final gutter = paneGutterOf(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         gutter,

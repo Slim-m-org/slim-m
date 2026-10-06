@@ -65,6 +65,13 @@ enum LayoutClass {
   }
 }
 
+/// The left and right inset of the transcript, composer and everything that
+/// has to line up with the message rows.
+double paneGutterOf(BuildContext context) =>
+    LayoutClass.of(context) == LayoutClass.compact
+    ? AppSizes.paneGutterCompact
+    : AppSizes.paneGutter;
+
 /// The docked thread pane's width: wider than the member pane because it holds
 /// a transcript and composer, not a list, but still narrow enough to leave the
 /// parent transcript above [_fitsThirdPane]'s minimum at the expanded boundary.

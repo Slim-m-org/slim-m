@@ -221,6 +221,7 @@ class MessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
+    final gutter = paneGutterOf(context);
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return HoverReveal(
       builder: (context, hovered, menuOpen, focusWithin) => Column(
@@ -275,15 +276,11 @@ class MessageRow extends StatelessWidget {
                     child: Padding(
                       // Top-only: a bottom inset here doubled the next row's top inset.
                       padding: EdgeInsets.fromLTRB(
-                        compact
-                            ? AppSizes.paneGutterCompact
-                            : AppSizes.paneGutter,
+                        gutter,
                         grouped
                             ? AppDensity.normal.groupedRowGap
                             : AppDensity.normal.rowGap,
-                        compact
-                            ? AppSizes.paneGutterCompact
-                            : AppSizes.paneGutter,
+                        gutter,
                         0,
                       ),
                       child: Row(
