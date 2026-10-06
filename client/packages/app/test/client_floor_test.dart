@@ -211,7 +211,7 @@ void main() {
     testWidgets('a format that cannot install offers the release instead', (
       tester,
     ) async {
-      await _pumpScreen(tester, format: InstallFormat.flatpak);
+      await _pumpScreen(tester, format: InstallFormat.tarball);
       expect(find.text('Open the release'), findsOneWidget);
       expect(find.text('Update now'), findsNothing);
     });
