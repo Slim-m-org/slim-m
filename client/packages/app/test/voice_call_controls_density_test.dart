@@ -51,7 +51,6 @@ void main() {
     'Mute${_hint(AppAction.toggleMuteCall)}',
     'Turn on camera${_hint(AppAction.toggleCameraCall)}',
     'Share a screen${_hint(AppAction.toggleShareCall)}',
-    'Leave call${_hint(AppAction.leaveCall)}',
   ];
 
   testWidgets(

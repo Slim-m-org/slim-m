@@ -43,8 +43,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../providers/call_shortcut_registry.dart';
+import '../providers/camera_switch.dart';
 import '../providers/providers.dart' show apiProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
@@ -55,7 +57,7 @@ import '../widgets/camera_source_sheet.dart';
 import '../widgets/control_options_menu.dart';
 import '../widgets/screen_source_sheet.dart';
 import 'call_dock_button.dart';
-import 'call_leave_button.dart';
+import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
 export 'call_dock_button.dart';
 
@@ -64,14 +66,10 @@ class CallControls extends ConsumerStatefulWidget {
     super.key,
     required this.controller,
     required this.voice,
-    this.showLeave = true,
     this.extraControl,
   });
 
   final VoiceController controller;
-
-  /// False when the surrounding dock draws leave itself, at its far edge.
-  final bool showLeave;
 
   /// One more control, drawn straight after share - the canvas toggle.
   final Widget? extraControl;
@@ -106,15 +104,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// pointing at, never whether one opens.
   String? _lastSourceId;
 
-  /// The deduplicated camera count a picker platform found on mount, once
-  /// [_loadCameraCount] resolves; unused on a platform that flips instead
-  /// (see [_canSwitchCamera]). Null until then, which reads as "cannot
-  /// switch" rather than flashing the button on and immediately off: a
-  /// picker platform is exactly the one where duplicate device nodes
-  /// (`camera_devices.dart`'s `dedupeCameraDevices`) made an unresolved
-  /// count worse than a briefly-late one.
-  int? _desktopCameraCount;
-
   StateController<CallShortcutHandlers?>? _shortcutRegistry;
 
   /// Mirrors each button's own `onPressed`, so a shortcut can never do
@@ -132,7 +121,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
   @override
   void initState() {
     super.initState();
-    if (!widget.controller.canFlipCamera) unawaited(_loadCameraCount());
     if (isDesktopHost) {
       // A provider write is a build-time mutation when this mounts mid-build, so it waits a frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -155,19 +143,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
     });
     super.dispose();
   }
-
-  Future<void> _loadCameraCount() async {
-    final devices = await widget.controller.cameraDevices();
-    if (!mounted) return;
-    setState(() => _desktopCameraCount = devices.length);
-  }
-
-  /// Whether there is actually another camera to switch to: a bare flip
-  /// needs no device list, since mobile's own OS decides "front" or "back";
-  /// a picker platform needs its enumerated, deduplicated count above one,
-  /// or the button offers a choice that does not exist.
-  bool get _canSwitchCamera =>
-      widget.controller.canFlipCamera || (_desktopCameraCount ?? 0) > 1;
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +189,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
           pending: voice.cameraPending,
           onPressed: () => unawaited(widget.controller.toggleCamera()),
         ),
-        if (voice.cameraEnabled && _canSwitchCamera) ...[
+        if (voice.cameraEnabled && canSwitchCamera(ref, widget.controller)) ...[
           const SizedBox(width: AppSpacing.s8),
           CallDockButton(
             icon: AppIcons.switchCamera,
@@ -249,10 +224,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
         if (widget.extraControl case final extra?) ...[
           const SizedBox(width: AppSpacing.s8),
           extra,
-        ],
-        if (widget.showLeave) ...[
-          const SizedBox(width: AppSpacing.s8),
-          CallLeaveButton(controller: widget.controller),
         ],
       ],
     );
@@ -354,6 +325,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
           if (chosen == null) return;
           sourceId = chosen.id;
         }
+      }
+      // The call can end while a picker or the source list is open.
+      final voice = widget.voice;
+      if (!mounted ||
+          !(voice.state == VoiceSessionState.connected || voice.rejoining)) {
+        return;
       }
       _lastSourceId = sourceId ?? _lastSourceId;
       await controller.setScreenShare(

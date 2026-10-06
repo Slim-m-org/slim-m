@@ -266,9 +266,7 @@ void main() {
     },
   );
 
-  testWidgets('the camera button is on the same row as hang up', (
-    tester,
-  ) async {
+  testWidgets('the camera button turns the camera on', (tester) async {
     final session = InertSession();
     await pumpControls(
       tester,
@@ -278,10 +276,6 @@ void main() {
 
     expect(
       find.byTooltip('Turn on camera${_hint(AppAction.toggleCameraCall)}'),
-      findsOneWidget,
-    );
-    expect(
-      find.byTooltip('Leave call${_hint(AppAction.leaveCall)}'),
       findsOneWidget,
     );
 

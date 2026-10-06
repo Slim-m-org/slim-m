@@ -26,6 +26,12 @@ String? displayNameError(String text) =>
     ? 'Display name must be $displayNameMaxLength characters or fewer.'
     : null;
 
+/// What to say when something other than the server failed, such as the key store.
+const unexpectedSignInError = (
+  SignInErrorField.form,
+  "Could not sign in. Check this device's secure storage and try again.",
+);
+
 /// Where [e] belongs and what to say about it.
 ///
 /// Says what actually happened. "Something went wrong" tells nobody whether to

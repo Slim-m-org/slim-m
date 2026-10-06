@@ -55,11 +55,16 @@ Future<bool> launchApp({
   } on api.ApiException catch (e) {
     onError?.call(describeApiFailure('launch ${app.name}', e));
     return false;
+  } catch (_) {
+    onError?.call('Could not launch ${app.name}.');
+    return false;
   }
 }
 
 /// Opens the apps picker for [channelId]. [onError] is forwarded to [launchApp]
 /// so a failed launch surfaces where the composer shows its command errors.
+///
+/// Launches go through the caller's [ref], not the sheet's: the sheet is gone by the time the request returns.
 ///
 /// The body is its own [Consumer] rather than reading [ref] straight from the
 /// caller: the sheet is a separate Overlay entry, not that caller's
@@ -74,10 +79,10 @@ Future<void> showAppLauncherSheet(
   return showAppSheet<void>(
     context,
     builder: (sheetContext) => Consumer(
-      builder: (context, ref, _) {
+      builder: (context, sheetRef, _) {
         final tokens = Theme.of(sheetContext).extension<AppTokens>()!;
-        final apps = ref.watch(appLaunchProvider);
-        final canManageServer = ref
+        final apps = sheetRef.watch(appLaunchProvider);
+        final canManageServer = sheetRef
             .watch(myPermissionsProvider)
             .hasPermission(Perm.manageServer);
         return SafeArea(
@@ -93,7 +98,7 @@ Future<void> showAppLauncherSheet(
               value: AppAsyncState(data: apps.valueOrNull, error: apps.error),
               center: false,
               errorMessage: 'Could not load your apps.',
-              onRetry: () => ref.invalidate(appLaunchProvider),
+              onRetry: () => sheetRef.invalidate(appLaunchProvider),
               data: (context, list) {
                 if (list.isEmpty) {
                   return Column(

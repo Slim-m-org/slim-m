@@ -36,6 +36,9 @@ abstract class AttachmentVideoSource {
     required void Function(double? progress) onProgress,
   });
 
+  /// Whether the credentials [open] last used no longer match [apiClient]'s.
+  bool isStale(api.SlimmApi apiClient);
+
   /// Releases anything [open] held onto: a blob URL, an in-flight request.
   void dispose();
 }

@@ -39,14 +39,12 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/dm_call_activity.dart';
-import 'mark_unread_action.dart';
 import '../providers/dms.dart';
-import '../providers/notification_schedule_controller.dart';
-import '../providers/providers.dart' show apiProvider;
 import '../providers/unread_indicator_rules.dart';
 import '../routing/routes.dart';
 import '../screens/dm_call_pane.dart' show dmCallOpenProvider;
 import 'context_menu_region.dart';
+import 'row_menu_notifications.dart';
 import 'safety_actions.dart';
 import 'user_avatar.dart';
 
@@ -70,45 +68,9 @@ class DmRow extends ConsumerWidget {
     final peerId = channel.dmParticipantId;
     final blocked = peerId != null && ref.read(blocksProvider).contains(peerId);
     final container = ProviderScope.containerOf(context, listen: false);
-    final currentPreference = ref
-        .read(channelNotificationOverridesProvider)
-        .overrideFor(channel.id);
-
     void run(Future<void> Function() action) {
       close();
       unawaited(action());
-    }
-
-    void toggleNotifications(api.NotificationPreference preference) {
-      final notifier = ref.read(channelNotificationOverridesProvider.notifier);
-      run(
-        () => currentPreference == preference
-            ? notifier.clear(channel.id)
-            : preference == api.NotificationPreference.nothing
-            ? notifier.mute(channel.id)
-            : notifier.mentionsOnly(channel.id),
-      );
-    }
-
-    final allowedOffHours =
-        ref
-            .read(notificationScheduleProvider)
-            .valueOrNull
-            ?.allowedChannelIds
-            .contains(channel.id) ??
-        false;
-
-    void toggleOffHours() {
-      final client = ref.read(apiProvider);
-      run(
-        () =>
-            (allowedOffHours
-                    ? client.removeNotificationScheduleAllowedChannel(
-                        channel.id,
-                      )
-                    : client.addNotificationScheduleAllowedChannel(channel.id))
-                .then((_) => ref.invalidate(notificationScheduleProvider)),
-      );
     }
 
     return [
@@ -127,32 +89,14 @@ class DmRow extends ConsumerWidget {
           onTap: () =>
               run(() => hideDmConversation(container, peerId, channel.id)),
         ),
-      AppMenuItem(
-        label: 'Mark as unread',
-        leading: AppIcons.unread,
-        onTap: () {
-          close();
-          unawaited(markChannelUnread(container, channel.id));
-        },
-      ),
+      markUnreadMenuItem(context, container, channel.id, close),
       const AppMenuDivider(),
-      AppMenuItem(
-        label: 'Mute',
-        leading: AppIcons.notificationsOff,
-        selected: currentPreference == api.NotificationPreference.nothing,
-        onTap: () => toggleNotifications(api.NotificationPreference.nothing),
-      ),
-      AppMenuItem(
-        label: 'Mentions only',
-        leading: AppIcons.mentions,
-        selected: currentPreference == api.NotificationPreference.mentions,
-        onTap: () => toggleNotifications(api.NotificationPreference.mentions),
-      ),
-      AppMenuItem(
-        label: 'Notify me off hours',
-        leading: AppIcons.notificationsOn,
-        selected: allowedOffHours,
-        onTap: toggleOffHours,
+      ...notificationMenuItems(
+        context,
+        container,
+        channel.id,
+        close,
+        muteLabel: 'Mute',
       ),
       if (peerId != null) ...[
         const AppMenuDivider(),

@@ -17,22 +17,16 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../providers/providers.dart';
 
-/// Marks [channelId] unread, returning whether it took.
-Future<bool> markChannelUnread(
+/// Marks [channelId] unread, throwing the [api.ApiException] if the server refuses.
+Future<void> markChannelUnread(
   ProviderContainer container,
   String channelId,
 ) async {
-  try {
-    final read = await container.read(apiProvider).markUnread(channelId);
-    final store = await container.read(storeProvider.future);
-    await store.setReadMarker(
-      channelId,
-      read.lastReadSeq,
-      manuallyUnread: read.manuallyUnread,
-    );
-    return true;
-  } on api.ApiException {
-    // Nothing changed server-side, so nothing changes here either.
-    return false;
-  }
+  final read = await container.read(apiProvider).markUnread(channelId);
+  final store = await container.read(storeProvider.future);
+  await store.setReadMarker(
+    channelId,
+    read.lastReadSeq,
+    manuallyUnread: read.manuallyUnread,
+  );
 }

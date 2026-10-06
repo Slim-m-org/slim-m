@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../format.dart';
 import '../../providers/admin_providers.dart';
 import '../../routing/routes.dart';
-import '../../widgets/attachment_view.dart' show formatByteSize;
+import '../../widgets/attachment_format.dart' show formatByteSize;
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'admin_stat_tile.dart';

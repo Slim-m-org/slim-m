@@ -29,9 +29,6 @@ import 'fullscreen_image_viewer.dart';
 import 'image_decode.dart';
 import 'message_row_parts.dart' show AttachmentPlaceholder;
 
-// `formatByteSize` used to live here; re-exported since other files still import it from here.
-export 'attachment_format.dart';
-
 /// Mirrors `media::is_inline` in `crates/slimm-server/src/media.rs`: the
 /// allowlisted types the server serves inline rather than as a forced
 /// download. Spelled out rather than tested with a `image/` prefix, because
