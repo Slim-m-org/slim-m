@@ -29,6 +29,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../char_count.dart';
 import '../api_failure.dart';
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
@@ -101,7 +102,8 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   }
 
   bool get _nameValid =>
-      _name.text.trim().isNotEmpty && _name.text.trim().length <= _nameMaxChars;
+      _name.text.trim().isNotEmpty &&
+      trimmedCharCount(_name.text) <= _nameMaxChars;
 
   bool get _canSubmit => !_submitting && _nameValid;
 
@@ -153,7 +155,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     final canRestrict = ref
         .watch(myPermissionsProvider)
         .hasPermission(Perm.manageRoles);
-    final nameLength = _name.text.trim().length;
+    final nameLength = trimmedCharCount(_name.text);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(

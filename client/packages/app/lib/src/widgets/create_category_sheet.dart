@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../char_count.dart';
 import '../api_failure.dart';
 import '../providers/providers.dart';
 
@@ -51,7 +52,8 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
   }
 
   bool get _nameValid =>
-      _name.text.trim().isNotEmpty && _name.text.trim().length <= _nameMaxChars;
+      _name.text.trim().isNotEmpty &&
+      trimmedCharCount(_name.text) <= _nameMaxChars;
 
   bool get _canSubmit => !_submitting && _nameValid;
 
@@ -90,7 +92,7 @@ class _CreateCategorySheetState extends ConsumerState<_CreateCategorySheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final nameLength = _name.text.trim().length;
+    final nameLength = trimmedCharCount(_name.text);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(

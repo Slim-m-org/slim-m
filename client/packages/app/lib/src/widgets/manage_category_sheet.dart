@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../char_count.dart';
 import '../api_failure.dart';
 import '../providers/channel_order_controller.dart';
 import '../providers/providers.dart';
@@ -151,7 +152,8 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
   bool get _dirty => _name.text.trim() != widget.category.name;
 
   bool get _nameValid =>
-      _name.text.trim().isNotEmpty && _name.text.trim().length <= _nameMaxChars;
+      _name.text.trim().isNotEmpty &&
+      trimmedCharCount(_name.text) <= _nameMaxChars;
 
   bool get _canSave => !_saving && !_deleting && _dirty && _nameValid;
 
