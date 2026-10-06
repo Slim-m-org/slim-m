@@ -22,7 +22,8 @@ use crate::net_guard::GuardResolver;
 /// counterpart to link preview's own user agent.
 const USER_AGENT: &str = "slimm-dock/1.0 (+https://github.com/Slim-m-org/slim-m)";
 
-const TOTAL_TIMEOUT: Duration = Duration::from_secs(5);
+/// Longest the connection may go without a byte; the whole-request bound is `fetch::Limits`.
+const STALL_TIMEOUT: Duration = Duration::from_secs(5);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, PartialEq, Eq)]
@@ -62,7 +63,7 @@ pub(super) fn build_client(allow_private: bool) -> Client {
     Client::builder()
         .dns_resolver(Arc::new(GuardResolver { allow_private }))
         .redirect(Policy::none())
-        .timeout(TOTAL_TIMEOUT)
+        .read_timeout(STALL_TIMEOUT)
         .connect_timeout(CONNECT_TIMEOUT)
         .user_agent(USER_AGENT)
         .build()

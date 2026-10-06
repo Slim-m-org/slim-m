@@ -227,7 +227,7 @@ async fn fetch_manifest(dock: &Enabled, bases: &[Url], id: &str) -> Result<Manif
         bases,
         &format!("modules/{id}/manifest.json"),
         &dock.allowed_host,
-        fetch::MAX_MANIFEST_BYTES,
+        fetch::Limits::MANIFEST,
     )
     .await?;
     let manifest = parse_manifest(&bytes)?;
@@ -246,7 +246,7 @@ async fn fetch_index(dock: &Enabled, bases: &[Url]) -> Result<Vec<IndexEntry>, A
         bases,
         "index.json",
         &dock.allowed_host,
-        fetch::MAX_INDEX_BYTES,
+        fetch::Limits::INDEX,
     )
     .await?;
     Ok(parse_index(&bytes)?)
@@ -412,7 +412,7 @@ async fn fetch_artifact(
         bases,
         &manifest.artifact.path,
         &dock.allowed_host,
-        fetch::MAX_ARTIFACT_BYTES,
+        fetch::Limits::ARTIFACT,
     )
     .await?;
     let digest = to_hex(&Sha256::digest(&bytes));

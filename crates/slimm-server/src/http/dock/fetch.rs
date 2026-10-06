@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The guarded GET behind [`super::ssrf`]: bounded in time (the client's own
-//! timeouts) and in body size, so a hostile or slow response cannot tie up
+//! The guarded GET behind [`super::ssrf`]: bounded in time ([`Limits`] plus the
+//! client's stall timeout) and in body size, so a hostile or slow response cannot tie up
 //! the server, the same shape `http::link_preview::fetch` uses for an
 //! arbitrary-host fetch.
+
+use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
 use url::Url;
@@ -20,6 +22,32 @@ pub(super) const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 /// the real ceiling on what a module can do at run time is its own
 /// `runtime.limits`, not this fetch cap.
 pub(super) const MAX_ARTIFACT_BYTES: usize = 16 * 1024 * 1024;
+
+/// How much body one fetch may read and how long the whole request may take.
+/// The client itself only bounds a stalled connection, so a slow link keeps
+/// moving a large artifact while a trickling host still runs out of `total`.
+#[derive(Clone, Copy)]
+pub(super) struct Limits {
+    cap: usize,
+    total: Duration,
+}
+
+impl Limits {
+    pub(super) const INDEX: Self = Self::small(MAX_INDEX_BYTES);
+    pub(super) const MANIFEST: Self = Self::small(MAX_MANIFEST_BYTES);
+    /// Three minutes moves the 16 MiB cap at about 0.75 Mbit/s.
+    pub(super) const ARTIFACT: Self = Self {
+        cap: MAX_ARTIFACT_BYTES,
+        total: Duration::from_secs(180),
+    };
+
+    const fn small(cap: usize) -> Self {
+        Self {
+            cap,
+            total: Duration::from_secs(5),
+        }
+    }
+}
 
 /// What went wrong fetching from the Dock's one allowed host.
 #[derive(Debug, PartialEq, Eq)]
@@ -41,17 +69,18 @@ impl From<UrlError> for FetchError {
     }
 }
 
-/// GETs [url] and returns its body, capped at [cap] bytes. [allowed_host]
+/// GETs [url] and returns its body within [limits]. [allowed_host]
 /// gates every request through [`super::ssrf::validate`] first.
 pub(super) async fn fetch_capped(
     client: &Client,
     url: &Url,
     allowed_host: &str,
-    cap: usize,
+    limits: Limits,
 ) -> Result<Vec<u8>, FetchError> {
     validate(url, allowed_host)?;
     let response = client
         .get(url.clone())
+        .timeout(limits.total)
         .send()
         .await
         .map_err(|_| FetchError::Unavailable)?;
@@ -62,7 +91,7 @@ pub(super) async fn fetch_capped(
     if status != StatusCode::OK {
         return Err(FetchError::Unavailable);
     }
-    read_capped(response, cap).await
+    read_capped(response, limits.cap).await
 }
 
 /// GETs [path] under each of [bases] in turn and returns the first body
@@ -74,11 +103,11 @@ pub(super) async fn fetch_first(
     bases: &[Url],
     path: &str,
     allowed_host: &str,
-    cap: usize,
+    limits: Limits,
 ) -> Result<Vec<u8>, FetchError> {
     for base in bases {
         let url = joined_under(base, path).ok_or(FetchError::Refused)?;
-        match fetch_capped(client, &url, allowed_host, cap).await {
+        match fetch_capped(client, &url, allowed_host, limits).await {
             Err(FetchError::Missing) => continue,
             found => return found,
         }
