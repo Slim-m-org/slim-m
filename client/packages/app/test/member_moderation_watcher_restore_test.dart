@@ -62,7 +62,7 @@ void main() {
     expect(fetches, 1);
 
     events.add(const api.MemberRestored(userId: 'bob'));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(memberRosterRefetchDelay * 2);
     // Re-read, or an unread invalidation passes; see the library doc.
     await container.read(membersProvider.future);
     expect(fetches, 2, reason: 'a restore must put the member back on screen');
