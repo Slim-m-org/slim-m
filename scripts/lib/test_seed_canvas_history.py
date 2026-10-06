@@ -3,6 +3,7 @@
 import random
 import sys
 import unittest
+import warnings
 import urllib.error
 from pathlib import Path
 
@@ -13,6 +14,10 @@ import seed_canvas_geometry as geom  # noqa: E402
 import seed_canvas_ops as ops  # noqa: E402
 import uuid7  # noqa: E402
 from fake_canvas_server import FakeCanvasServer  # noqa: E402
+
+
+# HTTPError wraps its body in a tempfile wrapper that warns when collected.
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 def stroke_placer(api, channel_id="c"):
@@ -35,6 +40,10 @@ class ThrowawayBatchTest(unittest.TestCase):
         got = history.run_throwaway_batch(admin, "c", 8, stroke_placer(admin))
 
         self.assertEqual(got["placed"], 8)
+        kinds = {k: server.ops[got[k]["seq"] - 1]["kind"]
+                 for k in ("clear", "restore", "remove")}
+        self.assertEqual(kinds, {"clear": "clear", "restore": "restore",
+                                 "remove": "remove"})
         self.assertEqual(server.live(), [])
         self.assertEqual(
             [o["kind"] for o in server.ops if o["kind"] != "place"],
