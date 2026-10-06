@@ -78,8 +78,7 @@ struct DeliverRequest {
     /// `Webhook` badge. Never written to the principal's own
     /// `display_name` and never returned as a message's
     /// `author_display_name` - see the decision record's "`username`
-    /// becomes a label" section. Stage 3 wires this into a read path; for
-    /// now it is accepted and validated but not yet rendered anywhere.
+    /// becomes a label" section. Read back as a message's `webhook_username`.
     #[serde(default)]
     username: Option<String>,
     /// Structured content; caps are shared with the ordinary send route.
@@ -123,9 +122,9 @@ const USERNAME_MAX_CHARS: usize = 64;
 /// it happens to be calling from - which `enforce`'s own signature has no
 /// shape for, so it is charged directly against the limiter.
 ///
-/// Every failure past the rate limit - a malformed id, an unknown id, a wrong
-/// token, or a revoked one - answers with the same 404, so this route is
-/// never an existence oracle for which webhook ids are live.
+/// A malformed id is a 400. Every other failure past the rate limit - an
+/// unknown id, a wrong token, or a revoked one - answers with the same 404, so
+/// this route is never an existence oracle for which webhook ids are live.
 async fn deliver(
     State(state): State<AppState>,
     parts: Parts,

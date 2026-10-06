@@ -167,8 +167,8 @@ fn sha256_hex(bytes: &[u8]) -> String {
     crate::media::to_hex(&Sha256::digest(bytes))
 }
 
-/// The surface is off on every live path, so a module importing `host_call` is
-/// refused exactly like any other import - a stock deployment is unchanged.
+/// The surface is off for a module with no approved capabilities, so one
+/// importing `host_call` is refused exactly like any other import.
 #[tokio::test]
 async fn a_host_call_module_is_refused_when_the_surface_is_off() {
     let wasm = host_call_wasm(r#"{"capability":"kv.store"}"#);
