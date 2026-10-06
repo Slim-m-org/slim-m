@@ -4854,12 +4854,10 @@ paths:
         converted to UTC before this call, so the server never needs to
         know the account's time zone. `start_minute` may be greater than
         `end_minute` for a window that crosses midnight - 23:00-08:00 is the
-        ordinary shape, not an edge case. Enforced where push recipients are
-        computed (`push::recipients::narrow_for_notification_preference`),
-        the same choke point `setNotificationPreference` already goes
-        through: an in-window `everything` account is narrowed to
-        `mentions`, never to `nothing`, and an account already at `mentions`
-        or `nothing` is unaffected either way.
+        ordinary shape, not an edge case. Legacy: the window is stored and read
+        back, but nothing uses it to decide push since the notification
+        schedule replaced it, so use `setNotificationSchedule` to silence an
+        account.
       requestBody:
         required: true
         content:

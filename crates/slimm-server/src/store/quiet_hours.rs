@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Persistence for the account-wide quiet-hours window (migration 0056):
-//! an optional time-of-day span, in minutes since midnight UTC, during
-//! which `push::recipients::narrow_for_notification_preference` treats an
-//! `everything` preference as `mentions`.
+//! Persistence for the legacy account-wide quiet-hours window (migration
+//! 0056): an optional time-of-day span, in minutes since midnight UTC.
 //!
-//! Read singly by `GET /push/quiet-hours` for the caller's own settings
-//! screen, and in batch by push fan-out
-//! (`push::recipients::narrow_for_notification_preference`), the same split
-//! `store/notifications.rs` already uses between its single and batched
-//! reads.
-
-use std::collections::HashMap;
-
-use sqlx::QueryBuilder;
+//! Read and written only by `GET`/`PUT /push/quiet-hours`. Push fan-out reads
+//! the notification schedule instead (decision 0033), so nothing here
+//! narrows a recipient.
 
 use super::Store;
 use crate::ids::UserId;
@@ -65,46 +57,5 @@ impl Store {
         .await?
         .rows_affected();
         Ok(affected > 0)
-    }
-
-    /// Batched read for push fan-out: one query for however many recipients
-    /// survived the notification-preference narrowing, the
-    /// [`Store::notification_preferences`] shape rather than one lookup per
-    /// candidate. An id absent from the map means either the account is
-    /// gone or quiet hours are disabled - both read as "not in a quiet
-    /// window" at the call site, since neither should narrow a push.
-    pub async fn quiet_hours_for_users(
-        &self,
-        user_ids: &[UserId],
-    ) -> anyhow::Result<HashMap<UserId, QuietHours>> {
-        if user_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-
-        // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
-        let mut builder = QueryBuilder::new(
-            "SELECT id, quiet_hours_start_minute, quiet_hours_end_minute FROM users \
-             WHERE deleted_at IS NULL AND id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in user_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
-
-        let rows = builder.build().fetch_all(&self.pool).await?;
-        use sqlx::Row;
-        let mut windows = HashMap::new();
-        for row in rows {
-            let id: UserId = row.try_get("id")?;
-            let start: Option<i64> = row.try_get("quiet_hours_start_minute")?;
-            let end: Option<i64> = row.try_get("quiet_hours_end_minute")?;
-            if let (Some(start), Some(end)) = (start, end)
-                && let Some(window) = QuietHours::parse(start, end)
-            {
-                windows.insert(id, window);
-            }
-        }
-        Ok(windows)
     }
 }
