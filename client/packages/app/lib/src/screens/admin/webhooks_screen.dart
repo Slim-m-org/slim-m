@@ -419,10 +419,11 @@ class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(AppIcons.dismiss, color: tokens.textSecondary),
+              AppIconButton(
+                icon: AppIcons.dismiss,
+                semanticLabel: 'Close',
                 tooltip: 'Close',
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),
