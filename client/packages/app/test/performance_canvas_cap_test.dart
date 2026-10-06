@@ -144,7 +144,8 @@ void main() {
       tester.widget<AppSegmentedControl>(
         find.byWidgetPredicate(
           (w) =>
-              w is AppSegmentedControl && w.semanticLabel == 'Canvas object cap',
+              w is AppSegmentedControl &&
+              w.semanticLabel == 'Canvas object cap',
         ),
       );
 

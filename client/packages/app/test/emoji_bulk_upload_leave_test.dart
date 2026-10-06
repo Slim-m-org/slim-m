@@ -130,13 +130,13 @@ void main() {
         ),
       );
       for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (gates.length > i) gates[i].complete();
+        await tester.pump(const Duration(milliseconds: 50));
+      }
       await tester.pump(const Duration(milliseconds: 50));
-      if (gates.length > i) gates[i].complete();
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    await tester.pump(const Duration(milliseconds: 50));
 
-    expect(bulkCalls, 3, reason: 'every chunk is still sent after leaving');
+      expect(bulkCalls, 3, reason: 'every chunk is still sent after leaving');
       expect(
         emojiBuilds,
         greaterThan(buildsBefore),

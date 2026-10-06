@@ -53,13 +53,6 @@ final _channel = Channel(
   isPersonalSpace: false,
 );
 
-api.UserProfile _member(String id, String name) => api.UserProfile(
-  id: id,
-  username: name.toLowerCase(),
-  displayName: name,
-  createdAt: 0,
-);
-
 void main() {
   testWidgets('the cells are disabled while a save is in flight', (
     tester,
