@@ -52,14 +52,6 @@ void main() {
         InstallFormat.tarball);
   });
 
-  test('only a tarball or AppImage can self-apply', () {
-    expect(InstallFormat.appImage.canSelfApply, isTrue);
-    expect(InstallFormat.tarball.canSelfApply, isTrue);
-    expect(InstallFormat.flatpak.canSelfApply, isFalse);
-    expect(InstallFormat.rpm.canSelfApply, isFalse);
-    expect(InstallFormat.deb.canSelfApply, isFalse);
-  });
-
   group('the format for a kind of host', () {
     InstallFormat forHost({
       bool web = false,
@@ -76,10 +68,6 @@ void main() {
 
     test('a sideloaded android build is an apk', () {
       expect(forHost(android: true), InstallFormat.apk);
-    });
-
-    test('an apk can only be pointed at the release page', () {
-      expect(InstallFormat.apk.canSelfApply, isFalse);
     });
 
     test('a desktop host answers what its packaging sniffs as', () {

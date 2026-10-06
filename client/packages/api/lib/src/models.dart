@@ -256,8 +256,6 @@ class Message {
   /// `message.components` frame, not this field on an edit, is what changes them.
   final List<ComponentRow> components;
 
-  bool get isEdited => editedAt != null;
-
   factory Message.fromJson(Map<String, dynamic> json) => Message(
         id: json['id'] as String,
         channelId: json['channel_id'] as String,
@@ -327,9 +325,6 @@ class ReadState {
   /// intention, and the two answer different questions. Defaults false so a
   /// server too old to send it reads as "not marked" rather than failing.
   final bool manuallyUnread;
-
-  /// Whether the rail should show this channel as unread at all.
-  bool get showsUnread => unread > 0 || manuallyUnread;
 
   factory ReadState.fromJson(Map<String, dynamic> json) => ReadState(
         lastReadSeq: json['last_read_seq'] as int,

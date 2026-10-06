@@ -197,15 +197,6 @@ class SlimmApi {
     return Version.fromJson(json as Map<String, dynamic>);
   }
 
-  Future<bool> health() async {
-    try {
-      final response = await _http.get(baseUrl.replace(path: '/healthz'));
-      return response.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
   // --- Channels ---
 
   /// The caller's visible channels. A plain array, unchanged since before

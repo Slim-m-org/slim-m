@@ -43,9 +43,8 @@ import 'support/code_only.dart';
 /// Routes reachable through something other than `_send`, so their absence
 /// from the scanned call set is not drift. Each key is `METHOD /normalized/path`.
 const Map<String, String> _allowlist = {
-  'GET /healthz': 'read with a raw http.get in SlimmApi.health, not _send: a '
-      'failed liveness probe must never be treated as an expired session and '
-      'trigger a token refresh',
+  'GET /healthz': 'an operator liveness probe for the load balancer, never '
+      'called by this client: onboarding probes /version instead',
   'GET /ws': 'an HTTP upgrade opened by web_socket_channel in events.dart, '
       'not a request/response call _send could make',
   'GET /metrics': 'reads Prometheus text through SlimmApi._fetchBytes, not '

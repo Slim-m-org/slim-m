@@ -95,8 +95,6 @@ class Channel {
 
   bool get isVoice => kind == 'voice';
 
-  bool get slowModeEnabled => slowModeSeconds > 0;
-
   /// Whether this row is a thread rather than an ordinary channel - see
   /// [parentMessageId].
   bool get isThread => parentMessageId != null;

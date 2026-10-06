@@ -148,7 +148,6 @@ void main() {
       );
       expect(sentBody, {'slow_mode_seconds': 30});
       expect(updated.slowModeSeconds, 30);
-      expect(updated.slowModeEnabled, isTrue);
     });
 
     test('a join-muted-only update sends just that field and round-trips',
