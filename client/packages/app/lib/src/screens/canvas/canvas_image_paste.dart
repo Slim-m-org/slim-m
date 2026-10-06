@@ -122,9 +122,15 @@ class CanvasImagePaste {
         bytes,
         filename: 'pasted-image.png',
       );
-    } on api.ApiException {
+    } on api.ApiException catch (e) {
       decoded.dispose();
-      onError('That image could not be uploaded.');
+      onError(switch (e) {
+        api.ServerException(statusCode: 413) =>
+          'That image is too big to upload.',
+        api.ServerException(statusCode: 507) =>
+          'This server has no storage left. Tell an admin.',
+        _ => 'That image could not be uploaded.',
+      });
       return null;
     }
 

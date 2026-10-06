@@ -27,6 +27,11 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
   // The Dock's registry served content the server refuses; its reason names the field.
   api.ServerException(statusCode: 502) =>
     'Could not $whatFailed. ${sentenceCase(e.message)}',
+  // 413 and 507 are told apart on purpose: one is this file, the other is the whole server.
+  api.ServerException(statusCode: 413) =>
+    'Could not $whatFailed: it is too big.',
+  api.ServerException(statusCode: 507) =>
+    'Could not $whatFailed: this server has no storage left. Tell an admin.',
   api.ForbiddenException() =>
     'Could not $whatFailed: you are not allowed to do that.',
   api.UnauthorizedException() =>
