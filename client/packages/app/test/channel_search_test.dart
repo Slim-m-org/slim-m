@@ -133,6 +133,30 @@ void main() {
     );
   });
 
+  testWidgets('a failed search is an AppErrorState, a 403 one without retry', (
+    tester,
+  ) async {
+    Widget results({required bool forbidden}) => _harness(
+      ChannelSearchResults(
+        results: null,
+        knownUsernames: const {},
+        loading: false,
+        failed: true,
+        forbidden: forbidden,
+        onRetry: _noop,
+        onSelect: _noopMessage,
+      ),
+    );
+
+    await tester.pumpWidget(results(forbidden: false));
+    final failed = tester.widget<AppErrorState>(find.byType(AppErrorState));
+    expect(failed.onRetry, isNotNull);
+
+    await tester.pumpWidget(results(forbidden: true));
+    final denied = tester.widget<AppErrorState>(find.byType(AppErrorState));
+    expect(denied.onRetry, isNull);
+  });
+
   testWidgets('a genuinely empty result reads as "no matches"', (tester) async {
     await tester.pumpWidget(
       _harness(
