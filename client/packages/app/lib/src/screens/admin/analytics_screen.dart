@@ -31,6 +31,7 @@ import '../../widgets/attachment_view.dart' show formatByteSize;
 import '../../widgets/run_guarded.dart';
 import '../../widgets/success_flash.dart';
 import '../settings_screen_scaffold.dart';
+import 'admin_stat_tile.dart';
 import 'analytics_charts.dart';
 import 'analytics_ghost.dart';
 import 'analytics_toggle.dart';
@@ -175,48 +176,13 @@ class _StatTiles extends StatelessWidget {
     spacing: AppSpacing.s12,
     runSpacing: AppSpacing.s12,
     children: [
-      _StatTile(label: 'Total messages', value: '${stats.totalMessages}'),
-      _StatTile(label: 'Members', value: '${stats.memberCount}'),
-      _StatTile(label: 'Channels', value: '${stats.channelCount}'),
-      _StatTile(
+      AdminStatTile(label: 'Total messages', value: '${stats.totalMessages}'),
+      AdminStatTile(label: 'Members', value: '${stats.memberCount}'),
+      AdminStatTile(label: 'Channels', value: '${stats.channelCount}'),
+      AdminStatTile(
         label: 'Attachments stored',
         value: formatByteSize(stats.attachmentBytes),
       ),
     ],
   );
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SizedBox(
-      width: 150,
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: AppText.heading.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              label,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

@@ -19,6 +19,7 @@ import '../../routing/routes.dart';
 import '../../widgets/attachment_view.dart' show formatByteSize;
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'admin_stat_tile.dart';
 
 class StorageScreen extends StatelessWidget {
   const StorageScreen({super.key});
@@ -83,57 +84,22 @@ class _TotalsCard extends StatelessWidget {
           spacing: AppSpacing.s12,
           runSpacing: AppSpacing.s12,
           children: [
-            _StatTile(label: 'Total', value: formatByteSize(onDisk)),
-            _StatTile(
+            AdminStatTile(label: 'Total', value: formatByteSize(onDisk)),
+            AdminStatTile(
               label: 'Database',
               value: formatByteSize(storage.databaseBytes),
             ),
-            _StatTile(
+            AdminStatTile(
               label: 'Attachments',
               value: formatByteSize(storage.attachmentBytes),
             ),
-            _StatTile(
+            AdminStatTile(
               label: 'Reclaimable',
               value: formatByteSize(storage.databaseReclaimableBytes),
             ),
           ],
         ),
       ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SizedBox(
-      width: 150,
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: AppText.heading.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              label,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
