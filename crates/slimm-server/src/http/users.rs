@@ -76,7 +76,7 @@ pub(super) struct UserDto {
     id: String,
     username: String,
     /// What readers see: the nickname an administrator gave this account if
-    /// there is one, else [`Self::account_display_name`]. Decision 0053.
+    /// there is one, else [`Self::account_display_name`]. Decision 0055.
     display_name: String,
     /// The account's own display name, whatever the nickname is.
     account_display_name: String,

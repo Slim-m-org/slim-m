@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Decision 0053: an administrator can give another member or bot a
+//! Decision 0055: an administrator can give another member or bot a
 //! space-local display name that every reader sees, without touching the
 //! account's own name.
 
