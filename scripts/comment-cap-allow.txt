@@ -261,7 +261,7 @@ scripts/lib/e2e_api.py 1
 scripts/lib/e2e_fixtures.py 1
 scripts/lib/e2e_js.py 2
 scripts/lib/e2e_messaging.py 1
-scripts/lib/e2e_run.py 3
+scripts/lib/e2e_run.py 2
 scripts/lib/e2e_seed.py 1
 scripts/lib/e2e_settings.py 2
 scripts/lib/e2e_sweep.py 1
