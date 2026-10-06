@@ -35,11 +35,11 @@ jobs:
       pull-requests: write
     outputs:
       server_released: ${{ steps.rp-server.outputs['crates/slimm-server--release_created'] }}
-      server_tag: ${{ steps.rp-server.outputs['crates/slimm-server--tag_name'] }}
-      server_version: ${{ steps.rp-server.outputs['crates/slimm-server--version'] }}
+      server_tag: ${{ steps.rp-server.outputs['crates/slimm-server--tag_name'] || steps.resolved.outputs.server_tag }}
+      server_version: ${{ steps.rp-server.outputs['crates/slimm-server--version'] || steps.resolved.outputs.server_version }}
       client_released: ${{ steps.rp-client.outputs['client--release_created'] }}
-      client_tag: ${{ steps.rp-client.outputs['client--tag_name'] }}
-      client_version: ${{ steps.rp-client.outputs['client--version'] }}
+      client_tag: ${{ steps.rp-client.outputs['client--tag_name'] || steps.resolved.outputs.client_tag }}
+      client_version: ${{ steps.rp-client.outputs['client--version'] || steps.resolved.outputs.client_version }}
       # The commit each tag sits on; the publish jobs build this, as the verify jobs check it, and a by-hand run on a tag is already on it.
       server_ref: ${{ steps.rp-server.outputs['crates/slimm-server--sha'] || github.sha }}
       client_ref: ${{ steps.rp-client.outputs['client--sha'] || github.sha }}
@@ -58,6 +58,14 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           manifest-file: .release-please-manifest.client.json
           config-file: release-please-config.client.json
+      # A by-hand run on a tag has no release-please output, so the tag itself names the release.
+      - name: resolve the tag a by-hand run names
+        id: resolved
+        run: |
+          case "$GITHUB_REF_NAME" in
+            server-v*) echo "server_version=${GITHUB_REF_NAME#server-v}" >> "$GITHUB_OUTPUT"; echo "server_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT" ;;
+            client-v*) echo "client_version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"; echo "client_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT" ;;
+          esac
 
   # Requires server-ci, hygiene and the license gate to have passed on this
   # exact commit before any server publish job runs. See docs/ci.md.
@@ -163,16 +171,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.release-please.outputs.server_ref }}
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.server_version }}" ]; then
-            version="${{ needs.release-please.outputs.server_version }}"
-          else
-            version="${GITHUB_REF_NAME#server-v}"
-          fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: server-image-digest-*
@@ -191,11 +189,11 @@ jobs:
         id: latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "move=$(bash scripts/decide-latest-tag.sh "$IMAGE" "${{ steps.ver.outputs.version }}")" >> "$GITHUB_OUTPUT"
+        run: echo "move=$(bash scripts/decide-latest-tag.sh "$IMAGE" "${{ needs.release-please.outputs.server_version }}")" >> "$GITHUB_OUTPUT"
       - name: create and inspect manifest
         id: manifest
         run: |
-          version="${{ steps.ver.outputs.version }}"
+          version="${{ needs.release-please.outputs.server_version }}"
           refs=()
           for f in /tmp/digests/*; do refs+=("${IMAGE}@$(cat "$f")"); done
           tags=(-t "${IMAGE}:${version}" -t "${IMAGE}:sha-${{ needs.release-please.outputs.server_ref }}")
@@ -219,7 +217,7 @@ jobs:
     permissions: {contents: read, packages: write, id-token: write}
     with:
       ref: ${{ needs.release-please.outputs.server_ref }}
-      version: ${{ needs.release-please.outputs.server_version || github.ref_name }}
+      version: ${{ needs.release-please.outputs.server_version }}
 
   # Static musl binaries for direct download, built per arch into artifacts and
   # aggregated by server-release-assets.
@@ -247,15 +245,6 @@ jobs:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
-      - name: resolve tag
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.server_tag }}" ]; then
-            echo "tag=${{ needs.release-please.outputs.server_tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           sparse-checkout: scripts
@@ -284,7 +273,7 @@ jobs:
         env:
           # The same identity release-please creates the release with; see below.
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" 'dist/slimm-server-*' dist/SHA256SUMS '?dist/SHA256SUMS.asc'
+        run: scripts/upload-release-assets.sh "${{ needs.release-please.outputs.server_tag }}" 'dist/slimm-server-*' dist/SHA256SUMS '?dist/SHA256SUMS.asc'
 
   # The portable Linux tarball, always, plus whichever packaging formats have
   # their inputs in the repo. Each format gates on its own file. See docs/ci.md.
@@ -303,24 +292,13 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.client_ref }}
 
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-            echo "tag=${{ needs.release-please.outputs.client_tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          fi
-
       # The same build and staging as main-builds and copr-catch-up, so the snapshot and the release tarball cannot drift.
       # Published on every client release and gated on nothing. It is both the
       # download for a user with no packaging, and the spec's Source0.
       - name: build linux tarball
         uses: ./.github/actions/linux-tarball
         with:
-          version: ${{ steps.ver.outputs.version }}
+          version: ${{ needs.release-please.outputs.client_version }}
           spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
 
       # One gate per format, so a working rpm is not held back by the absence of
@@ -356,7 +334,7 @@ jobs:
             --repo=dist/flatpak-repo build-dir \
             packaging/flatpak/top.npcserver.slimm.yaml
           flatpak build-bundle dist/flatpak-repo \
-            "dist/slim-m-client-${{ steps.ver.outputs.version }}.flatpak" \
+            "dist/slim-m-client-${{ needs.release-please.outputs.client_version }}.flatpak" \
             top.npcserver.slimm
 
       # In a Fedora container, not on the runner: the spec is written against
@@ -364,7 +342,7 @@ jobs:
       - name: build rpm
         if: steps.pkg.outputs.rpm == 'true'
         env:
-          VER: ${{ steps.ver.outputs.version }}
+          VER: ${{ needs.release-please.outputs.client_version }}
         run: |
           docker run --rm -v "${PWD}:/w" -w /w -e VER fedora:44 bash -eo pipefail -c '
             dnf -y install rpm-build patchelf desktop-file-utils tar gzip >/dev/null
@@ -404,7 +382,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" \
+          scripts/upload-release-assets.sh "${{ needs.release-please.outputs.client_tag }}" \
             'dist/slim-m-client-*-linux-amd64.tar.gz' \
             '?dist/*.flatpak' '?dist/*/*.rpm' \
             dist/SHA256SUMS '?dist/SHA256SUMS.asc'
@@ -430,7 +408,7 @@ jobs:
       contents: write
     uses: ./.github/workflows/update-manifest.yml
     with:
-      tag: ${{ needs.release-please.outputs.client_tag || github.ref_name }}
+      tag: ${{ needs.release-please.outputs.client_tag }}
       defer: true
     secrets:
       UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
@@ -467,20 +445,10 @@ jobs:
           ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
-      - name: resolve version
-        if: steps.gate.outputs.ready == 'true'
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: submit to COPR
         if: steps.gate.outputs.ready == 'true'
         env:
-          VER: ${{ steps.ver.outputs.version }}
+          VER: ${{ needs.release-please.outputs.client_version }}
         run: |
           set -uo pipefail
           spec=packaging/rpm/slim-m-client.spec
@@ -547,20 +515,6 @@ jobs:
           ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
-      - name: resolve version
-        if: steps.gate.outputs.ready == 'true'
-        id: ver
-        run: |
-          # Both are needed: tag names the release, version feeds --build-name.
-          # Emitting only tag left --build-name= empty on every run so far.
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "tag=${{ needs.release-please.outputs.client_tag }}" >> "$GITHUB_OUTPUT"
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: write signing assets
         if: steps.gate.outputs.ready == 'true'
         run: |
@@ -595,10 +549,10 @@ jobs:
           # Build number from the run number and build name from the tag, never
           # from pubspec. Both stores reject a reuse; see docs/ci.md.
           flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
+            --build-name=${{ needs.release-please.outputs.client_version }} \
             --build-number=${{ github.run_number }}
           flutter build apk --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
+            --build-name=${{ needs.release-please.outputs.client_version }} \
             --build-number=${{ github.run_number }}
 
       - name: verify the signer is the upload key, not debug
@@ -656,7 +610,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" \
+          scripts/upload-release-assets.sh "${{ needs.release-please.outputs.client_tag }}" \
             client/packages/app/dist/slim-m-client-android.apk \
             client/packages/app/dist/SHA256SUMS.android
       - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}
@@ -680,15 +634,6 @@ jobs:
       IOS_BROADCAST_PROVISIONING_PROFILE: ${{ secrets.IOS_BROADCAST_PROVISIONING_PROFILE }}
       IOS_NSE_PROVISIONING_PROFILE: ${{ secrets.IOS_NSE_PROVISIONING_PROFILE }}
     steps:
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: check secrets
         id: gate
         run: |
@@ -798,7 +743,7 @@ jobs:
           # Build number from the run number and build name from the tag, never
           # from pubspec. Both stores reject a reuse; see docs/ci.md.
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
+            --build-name=${{ needs.release-please.outputs.client_version }} \
             --build-number=${{ github.run_number }}
 
       - name: upload to TestFlight

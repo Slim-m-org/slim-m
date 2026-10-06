@@ -908,6 +908,8 @@ It defaults to `github.sha`, which is right for the by-hand dispatch on a tag re
 Verifying `github.sha` then waits on a check a path filter correctly skipped, times out, and skips every publish job behind it, which is what happened to server 0.23.0 on 2026-08-01.
 The publish jobs follow the same rule: `release-please` exports `server_ref` and `client_ref` (the commit each tag sits on, `github.sha` on a by-hand run), and every publish checkout, `SLIMM_BUILD_ID` and `sha-` tag uses them, with `web-image` and `server-binaries` taking a `ref` input.
 `scripts/lib/test_release_publishes_the_commit_it_verified.py` fails on a publish checkout without one.
+The version and tag come from the same place: `release-please` outputs `server_version`, `server_tag`, `client_version` and `client_tag`, falling back to the tag a by-hand run names, so no publish job strips a `server-v` or `client-v` prefix itself (`scripts/lib/test_release_resolves_versions_once.py`).
+The Flutter version is spelled in every workflow, the `linux-tarball` action and `docker/web.Dockerfile`; `scripts/lib/test_flutter_version_is_pinned_once.py` fails if any of them disagree.
 A check run is attached to the commit, not to the event, so polling the commit's check-runs answers both trigger paths the same way.
 The names in `required_checks` are matched exactly, so a job renamed in `server-ci` or `client-ci` without the matching edit here blocks every release, which is the safe direction to fail.
 The deadline covers queueing, not running: client 0.23.0 timed out at the old thirty-minute ceiling with `client-ios-ci` still queued, and that check passed minutes later.

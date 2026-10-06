@@ -11,9 +11,9 @@ on:
         type: string
         default: ""
       server_version:
-        description: "The release-please server version; empty on a tag push, where the tag names it"
+        description: "The server version being released"
         type: string
-        default: ""
+        required: true
 
 permissions:
   contents: read
@@ -38,16 +38,6 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ inputs.server_version }}" ]; then
-            version="${{ inputs.server_version }}"
-          else
-            version="${GITHUB_REF_NAME#server-v}"
-          fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
       # Each arch builds its own musl target natively, no cross and no QEMU, like the container image.
       - name: musl toolchain
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends musl-tools
@@ -64,7 +54,7 @@ jobs:
       - name: stage binary
         id: stage
         run: |
-          name="slimm-server-${{ steps.ver.outputs.version }}-linux-${{ matrix.arch }}"
+          name="slimm-server-${{ inputs.server_version }}-linux-${{ matrix.arch }}"
           install -Dm755 "target/${{ matrix.target }}/release/slimm-server" "dist/${name}"
           echo "name=${name}" >> "$GITHUB_OUTPUT"
 
