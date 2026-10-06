@@ -79,10 +79,16 @@ SyncStatus displaySyncStatus(SyncStatus status, bool hasFailedSinceLive) {
 
 /// Drives synchronisation.
 ///
-/// The order matters and is the whole point: on every (re)connect it catches up
-/// over REST first, then attaches the live socket. Attaching first would leave a
-/// gap between the last message the client holds and the first one the socket
-/// delivers, and nothing would ever notice.
+/// The order matters and is the whole point. On every (re)connect it catches up
+/// over REST first, so the first paint never waits on the socket; then attaches
+/// the live socket, holding what it delivers; then catches up once more; then
+/// applies what it held. The server only subscribes a socket to its fan-out
+/// when that socket's hello is read, so anything committed between the first
+/// catch-up and that subscription is in neither. The second catch-up runs after
+/// the subscription, which is what closes that window, and what the socket
+/// delivered meanwhile is applied afterwards: re-applying a message the
+/// catch-up already holds is a no-op, so the overlap needs no deduplication of
+/// its own.
 ///
 /// The socket is only a delivery route for things already written durably, so
 /// losing it is never data loss, just staleness, and reconnecting re-runs the
@@ -230,8 +236,12 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       final frames = await _attach(generation, api, store);
       if (frames == null) return;
+      await _catchUp(generation, api, store);
+      if (generation != _generation) return;
+      if (frames.closed) throw const SocketClosedDuringConnect();
       await frames.flush();
       if (generation != _generation) return;
+      if (frames.closed) throw const SocketClosedDuringConnect();
 
       _backoff.reset();
       state = SyncStatus.live;

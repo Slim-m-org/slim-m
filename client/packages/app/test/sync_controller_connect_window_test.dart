@@ -170,6 +170,16 @@ void main() {
     expect(await rig.heldSeqs(), containsAll([1, 2, 3]));
   });
 
+  test('a message committed in the window is held once live, with nothing '
+      'sent after it', () async {
+    final rig = await _rig();
+    rig.server.onTicket = () => rig.server.commit(2);
+    rig.controller;
+    await rig.untilLive();
+
+    expect(await rig.heldSeqs(), containsAll([1, 2]));
+  });
+
   test(
     'a reconnect does not heal the message the connect window lost',
     () async {

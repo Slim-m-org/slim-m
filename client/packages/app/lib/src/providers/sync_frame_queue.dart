@@ -7,6 +7,17 @@ import 'dart:collection';
 
 import 'package:slimm_api/api.dart' as api;
 
+/// Thrown when the socket closes before the connect that opened it finished.
+///
+/// While a connect is in flight the controller is `connecting`, which its
+/// ordinary drop handling ignores, so this is how the loss reaches `start()`.
+class SocketClosedDuringConnect implements Exception {
+  const SocketClosedDuringConnect();
+
+  @override
+  String toString() => 'the socket closed before the connect finished';
+}
+
 /// Serialises the handling of one socket's frames.
 ///
 /// `Stream.listen` does not wait for an async listener, so without this every
