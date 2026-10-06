@@ -164,9 +164,8 @@ class VoiceController extends StateNotifier<VoiceState>
   /// Sets the camera preference before joining; use [toggleCamera] for the
   /// live in-call control. Its microphone sibling died with the join lobby
   /// (d190a711) and was deleted rather than left as an uncalled method.
-  void setCameraPreference(bool enabled) {
-    state = _cameraPreference.apply(state, enabled);
-  }
+  void setCameraPreference(bool enabled) =>
+      state = _cameraPreference.apply(state, enabled);
 
   /// Seeds [setCameraPreference] from the persisted setting Voice Settings
   /// writes, for the one moment [join]'s own preference-carrying (see

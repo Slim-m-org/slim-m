@@ -36,8 +36,7 @@ void main() {
   test(
     'an older pins response landing last must not overwrite the newer one',
     () async {
-      // The first GET (constructor) is slow and still lists a pin that the
-      // second GET (after an unpin) no longer has.
+      // The slow first GET still lists a pin the second GET no longer has.
       final first = Completer<http.Response>();
       var calls = 0;
       final container = ProviderContainer(

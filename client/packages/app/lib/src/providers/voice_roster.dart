@@ -105,8 +105,7 @@ final voiceRosterProvider = StreamProvider.autoDispose
       var inFlight = false;
       var askedAgain = false;
 
-      // Single-flight: a nudge during a poll re-asks once when it finishes, so
-      // answers cannot reorder and a burst is one failure, not several.
+      // Single-flight: a nudge mid-poll re-asks once after it, so answers cannot reorder.
       Future<void> tick(Timer? self) async {
         if (inFlight) {
           askedAgain = true;
