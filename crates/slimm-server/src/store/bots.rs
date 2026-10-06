@@ -82,8 +82,7 @@ impl From<sqlx::Error> for CreateBotError {
 /// Why changing a bot's permissions failed.
 #[derive(Debug)]
 pub enum UpdateBotPermissionsError {
-    /// No live bot by that id, or it has been revoked and has no managed
-    /// role left to change.
+    /// No bot by that id, or it has no managed role to change.
     NoSuchBot,
     Internal(anyhow::Error),
 }
