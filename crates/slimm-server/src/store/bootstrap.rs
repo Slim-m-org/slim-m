@@ -36,74 +36,16 @@ impl Store {
     /// Claims an unclaimed deployment for `user_id`, seeding the `@everyone` and
     /// admin roles and a general channel.
     ///
-    /// Concurrency: the `@everyone` insert is the transaction's first statement
-    /// and the partial unique index on `is_everyone` makes it the claim. Two
-    /// racing registrations therefore serialize, and the loser sees a unique
-    /// violation and reports [`Bootstrap::AlreadySetUp`] rather than seeding a
-    /// second set of roles.
+    /// Registration does not call this: [`Store::register_account`] runs the
+    /// same claim inside its own transaction, so an account and the claim it
+    /// makes commit together. This stays for fixtures and a user that already
+    /// exists. Two racing claims serialize on the `@everyone` unique index and
+    /// the loser reports [`Bootstrap::AlreadySetUp`].
     pub async fn bootstrap_deployment(&self, user_id: UserId) -> anyhow::Result<Bootstrap> {
-        let now = now_ms();
         let mut tx = self.begin_write().await?;
-
-        let everyone_id = RoleId::generate();
-        let everyone_bits = EVERYONE_DEFAULTS.bits();
-        let claim = sqlx::query!(
-            "INSERT INTO roles (id, name, permissions, is_everyone, created_at)
-             VALUES (?, 'everyone', ?, 1, ?)",
-            everyone_id,
-            everyone_bits,
-            now
-        )
-        .execute(&mut *tx)
-        .await;
-
-        match claim {
-            Ok(_) => {}
-            // Someone else already claimed it; leave their setup alone.
-            Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
-                return Ok(Bootstrap::AlreadySetUp);
-            }
-            Err(e) => return Err(e.into()),
-        }
-
-        let admin_id = RoleId::generate();
-        let admin_bits = Permissions::ADMINISTRATOR.bits();
-        sqlx::query!(
-            "INSERT INTO roles (id, name, permissions, is_everyone, position, created_at)
-             VALUES (?, 'admin', ?, 0, 100, ?)",
-            admin_id,
-            admin_bits,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO member_roles (user_id, role_id) VALUES (?, ?)",
-            user_id,
-            admin_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        let channel_id = ChannelId::generate();
-        sqlx::query!(
-            "INSERT INTO channels (id, name, kind, created_at) VALUES (?, 'general', 'text', ?)",
-            channel_id,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)
-             VALUES (?, 'message', 1), (?, 'canvas', 1)",
-            channel_id,
-            channel_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
+        let outcome = claim_in(&mut tx, user_id).await?;
         tx.commit().await?;
-        Ok(Bootstrap::Claimed)
+        Ok(outcome)
     }
 
     /// Whether this deployment has been claimed yet.
@@ -169,4 +111,74 @@ impl Store {
             })
             .collect())
     }
+}
+
+/// The claim itself, run inside a caller's write transaction so registration
+/// can make it part of the same commit as the account that claims. The
+/// `@everyone` insert is the first statement and its partial unique index is
+/// the claim: a second claimant sees a unique violation and changes nothing.
+pub(super) async fn claim_in(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    user_id: UserId,
+) -> anyhow::Result<Bootstrap> {
+    let now = now_ms();
+
+    let everyone_id = RoleId::generate();
+    let everyone_bits = EVERYONE_DEFAULTS.bits();
+    let claim = sqlx::query!(
+        "INSERT INTO roles (id, name, permissions, is_everyone, created_at)
+             VALUES (?, 'everyone', ?, 1, ?)",
+        everyone_id,
+        everyone_bits,
+        now
+    )
+    .execute(&mut **tx)
+    .await;
+
+    match claim {
+        Ok(_) => {}
+        // Someone else already claimed it; leave their setup alone.
+        Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
+            return Ok(Bootstrap::AlreadySetUp);
+        }
+        Err(e) => return Err(e.into()),
+    }
+
+    let admin_id = RoleId::generate();
+    let admin_bits = Permissions::ADMINISTRATOR.bits();
+    sqlx::query!(
+        "INSERT INTO roles (id, name, permissions, is_everyone, position, created_at)
+             VALUES (?, 'admin', ?, 0, 100, ?)",
+        admin_id,
+        admin_bits,
+        now
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO member_roles (user_id, role_id) VALUES (?, ?)",
+        user_id,
+        admin_id
+    )
+    .execute(&mut **tx)
+    .await?;
+
+    let channel_id = ChannelId::generate();
+    sqlx::query!(
+        "INSERT INTO channels (id, name, kind, created_at) VALUES (?, 'general', 'text', ?)",
+        channel_id,
+        now
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)
+             VALUES (?, 'message', 1), (?, 'canvas', 1)",
+        channel_id,
+        channel_id
+    )
+    .execute(&mut **tx)
+    .await?;
+
+    Ok(Bootstrap::Claimed)
 }

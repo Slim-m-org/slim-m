@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 use crate::ids::ChannelId;
 
 use super::VoiceService;
+use super::token::unix_secs;
 
 /// Why a webhook delivery was refused.
 #[derive(Debug, PartialEq, Eq)]
@@ -166,13 +167,6 @@ pub fn verify_and_parse(
     }
 
     serde_json::from_slice(body).map_err(|_| WebhookError::Malformed)
-}
-
-fn unix_secs() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

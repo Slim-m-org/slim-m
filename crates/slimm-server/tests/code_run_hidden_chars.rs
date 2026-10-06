@@ -78,25 +78,25 @@ async fn install(s: &Store, module_id: &'static str, output: &str, _as_app: bool
             language: None,
         });
     }
-    s.install_module(InstallModuleRequest {
-        id: module_id,
-        name: module_id,
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "play",
-            name: "Play",
-            description: "play it",
-        }],
-        extension_points: &extension_points,
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: module_id,
+            name: module_id,
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "play",
+                name: "Play",
+                description: "play it",
+            }],
+            extension_points: &extension_points,
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact(module_id, &sha256, &wasm)
-        .await
-        .unwrap();
     s.set_module_enabled(module_id, true).await.unwrap();
 }
 

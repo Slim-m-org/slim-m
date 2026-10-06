@@ -29,8 +29,8 @@ use super::post::{self, MessagePoster};
 /// backend, and this run's `kv.store` call budget.
 #[derive(Clone, Default)]
 pub enum CapabilitySurface {
-    /// The surface is off (the default, and every live path today). A module
-    /// may import nothing; `slim.host_call` is refused like any other import.
+    /// The surface is off (the default, and a module with no approved
+    /// capabilities). A module may import nothing; `slim.host_call` is refused like any other import.
     #[default]
     Disabled,
     /// The surface is on for this run.

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Phase 0 hot-path benchmarks.
+//! Hot-path benchmarks.
 //!
-//! `slimm-server` exposes only a binary target, not a library, so this file
-//! cannot import its internal modules. Each benchmark instead re-creates the
-//! relevant hot path from the same public crates the server uses, which
-//! keeps the file self-contained while still measuring real Phase 0 costs:
-//! generating a UUIDv7 event identity, and serializing the `/version`
-//! response body.
+//! `uuid_now_v7` and `version_json_serialize` are the original baseline
+//! benchmarks and keep their names so committed `perf/baselines/` files stay
+//! comparable. `hub_publish_fanout` drives the real `slimm_server::hub::Hub`.
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use serde::Serialize;
+use slimm_server::hub::{Event, Hub};
+use slimm_server::ids::UserId;
 
-/// Mirrors the response shape served by `GET /version` in `src/main.rs`.
+/// Mirrors the response shape served by `GET /version` in `src/http.rs`.
 #[derive(Serialize)]
 struct Version {
     name: &'static str,
@@ -43,5 +42,21 @@ fn bench_version_json(c: &mut Criterion) {
     });
 }
 
-criterion_group!(hot_paths, bench_uuid_v7, bench_version_json);
+/// Every durable write fans out through `Hub::publish`, so its cost with a
+/// realistic subscriber count bounds how fast the server can accept mutations.
+fn bench_hub_publish_fanout(c: &mut Criterion) {
+    let hub = Hub::new();
+    let _subscribers: Vec<_> = (0..64).map(|_| hub.subscribe()).collect();
+
+    c.bench_function("hub_publish_fanout_64", |b| {
+        b.iter(|| hub.publish(black_box(Event::PresenceChanged(UserId::generate()))));
+    });
+}
+
+criterion_group!(
+    hot_paths,
+    bench_uuid_v7,
+    bench_version_json,
+    bench_hub_publish_fanout
+);
 criterion_main!(hot_paths);

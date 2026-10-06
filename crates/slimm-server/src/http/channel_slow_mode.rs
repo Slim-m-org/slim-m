@@ -9,6 +9,7 @@ use super::AppState;
 use super::error::ApiError;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
+use crate::store::channel_slow_mode::slow_mode_retry_after_seconds;
 use crate::store::now_ms;
 
 /// The highest interval a channel may be set to: six hours. A policy choice,
@@ -31,10 +32,12 @@ pub(crate) fn validate_slow_mode_seconds(seconds: i64) -> Result<i64, ApiError> 
 }
 
 /// Refuses a fresh send that arrives before the channel's slow-mode interval
-/// has elapsed since `author_id`'s own last live message here. A no-op when
-/// slow mode is off, or when `author_id` holds `MANAGE_CHANNELS` in this
-/// channel - the one lever between "nothing" and a full timeout, so its
-/// holder is exempt from the lesser one too.
+/// has elapsed since `author_id`'s own last message here, deleted ones
+/// included. Returns the window to enforce again inside the send transaction
+/// (`NewMessage::with_slow_mode`), which is the authoritative check: this one
+/// only answers early. `None` when slow mode is off, or when `author_id`
+/// holds `MANAGE_CHANNELS` in this channel - the one lever between "nothing"
+/// and a full timeout, so its holder is exempt from the lesser one too.
 ///
 /// Never called for an idempotent retry of an already-stored send; see
 /// `messages::send`'s own `stored_already` guard, which decides that before
@@ -43,30 +46,26 @@ pub(crate) async fn enforce_slow_mode(
     state: &AppState,
     channel_id: ChannelId,
     author_id: UserId,
-) -> Result<(), ApiError> {
+) -> Result<Option<i64>, ApiError> {
     let seconds = state.store.channel_slow_mode_seconds(channel_id).await?;
     if seconds <= 0 {
-        return Ok(());
+        return Ok(None);
     }
     if state
         .store
         .has_permission(author_id, channel_id, Permissions::MANAGE_CHANNELS)
         .await?
     {
-        return Ok(());
+        return Ok(None);
     }
-    let Some(last_sent_at) = state.store.last_message_at(channel_id, author_id).await? else {
-        return Ok(());
-    };
     let window_ms = seconds * 1000;
-    let elapsed_ms = now_ms() - last_sent_at;
-    if elapsed_ms >= window_ms {
-        return Ok(());
+    if let Some(last_sent_at) = state.store.last_message_at(channel_id, author_id).await?
+        && let Some(retry_after_seconds) =
+            slow_mode_retry_after_seconds(window_ms, last_sent_at, now_ms())
+    {
+        return Err(ApiError::SlowMode {
+            retry_after_seconds,
+        });
     }
-    let remaining_ms = window_ms - elapsed_ms;
-    // Rounds up so a client that waits the reported number of seconds is never refused a second time.
-    let retry_after_seconds = ((remaining_ms + 999) / 1000).max(1);
-    Err(ApiError::SlowMode {
-        retry_after_seconds,
-    })
+    Ok(Some(window_ms))
 }

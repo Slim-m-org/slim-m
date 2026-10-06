@@ -202,15 +202,7 @@ impl Store {
             return Err(PlaceError::ChannelFull);
         }
 
-        let seq = sqlx::query_scalar!(
-            r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
-               WHERE channel_id = ? AND stream = 'canvas'
-               RETURNING next_seq - 1 AS "seq!: i64""#,
-            channel_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?
-        .context("channel has no canvas sequence counter")?;
+        let seq = next_canvas_seq(&mut tx, channel_id).await?;
 
         let key = channel_key(channel_id);
         let now = now_ms();
@@ -268,20 +260,6 @@ impl Store {
         })
     }
 
-    /// Soft-deletes an object, which the trigger takes out of the R-Tree.
-    pub async fn remove_canvas_object(&self, id: CanvasObjectId) -> anyhow::Result<bool> {
-        let now = now_ms();
-        let affected = sqlx::query!(
-            "UPDATE canvas_objects SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
-            now,
-            id
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
-        Ok(affected > 0)
-    }
-
     /// The channel's live objects intersecting `view`, z-ordered, held back to
     /// what the caller does not already have when `previous` is given.
     ///
@@ -291,24 +269,12 @@ impl Store {
     /// ascending, the truncation went the other way: `z_index` is seeded from
     /// `seq`, so a busy region would have answered a reconnecting client with
     /// a fixed prefix of old strokes and never with what had just been drawn.
-    pub async fn viewport_objects(
-        &self,
-        channel_id: ChannelId,
-        query: &ViewportQuery,
-    ) -> anyhow::Result<Vec<CanvasObject>> {
-        viewport_objects_query(&self.pool, channel_id, query).await
-    }
-
-    /// The channel's highest assigned canvas sequence, which a client keeps as
-    /// the cursor for its next viewport read.
-    pub async fn latest_canvas_seq(&self, channel_id: ChannelId) -> anyhow::Result<i64> {
-        latest_canvas_seq_query(&self.pool, channel_id).await
-    }
-
-    /// [`Store::latest_canvas_seq`] and [`Store::viewport_objects`], read from
+    ///
+    /// The latest sequence and the objects are read from
     /// one deferred transaction so a write landing between the two cannot
     /// produce a `latest_seq` the page does not cover: over-reporting
-    /// self-heals on the next read, under-reporting does not.
+    /// self-heals on the next read, under-reporting does not. The sequence is
+    /// the cursor a client keeps for its next viewport read.
     pub async fn viewport_snapshot(
         &self,
         channel_id: ChannelId,
@@ -447,4 +413,21 @@ async fn fetch_object(
             },
         )
     }))
+}
+
+/// Allocates the channel's next canvas stream seq inside the caller's write transaction.
+pub(super) async fn next_canvas_seq(
+    conn: &mut sqlx::SqliteConnection,
+    channel_id: ChannelId,
+) -> anyhow::Result<i64> {
+    // RETURNING sees the updated row, so `next_seq - 1` is the seq just handed out.
+    sqlx::query_scalar!(
+        r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
+           WHERE channel_id = ? AND stream = 'canvas'
+           RETURNING next_seq - 1 AS "seq!: i64""#,
+        channel_id
+    )
+    .fetch_optional(&mut *conn)
+    .await?
+    .context("channel has no canvas sequence counter")
 }

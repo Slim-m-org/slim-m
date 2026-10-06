@@ -27,7 +27,7 @@ use super::extract::{
 use crate::hub::Event;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Invite, InviteCheck, RedeemError};
+use crate::store::{Invite, InviteCheck, RedeemError, now_ms};
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -136,14 +136,6 @@ async fn resolve_grant(
         return Err(ApiError::Forbidden);
     }
     Ok(role_id)
-}
-
-fn now_ms() -> i64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
 }
 
 /// Creates an invite. Requires the permission to manage invites.

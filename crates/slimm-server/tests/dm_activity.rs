@@ -37,7 +37,7 @@ async fn new_store(name: &str) -> (Store, SqlitePool, support::TestDbGuard) {
 
 async fn register(store: &Store, name: &str) -> UserId {
     store
-        .register_account(name, name, "not-a-real-hash", None)
+        .create_account(name, name, "not-a-real-hash")
         .await
         .expect("register")
         .id

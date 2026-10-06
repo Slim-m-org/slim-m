@@ -38,7 +38,7 @@ pub(super) struct CachedPreview {
 
 struct CachedImage {
     url: String,
-    bytes: Option<(Vec<u8>, String)>,
+    bytes: Option<Vec<u8>>,
     inserted_at: i64,
 }
 
@@ -138,15 +138,15 @@ impl Cache {
     }
 
     /// The already-fetched bytes for an image token, if any.
-    pub(super) fn image_bytes(&self, token: &str) -> Option<(Vec<u8>, String)> {
+    pub(super) fn image_bytes(&self, token: &str) -> Option<Vec<u8>> {
         lock(&self.images).get(token).and_then(|c| c.bytes.clone())
     }
 
     /// Records the fetched bytes for an image token, so the next viewer of
     /// the same card is served from memory rather than a fresh outbound fetch.
-    pub(super) fn store_image_bytes(&self, token: &str, bytes: Vec<u8>, content_type: String) {
+    pub(super) fn store_image_bytes(&self, token: &str, bytes: Vec<u8>) {
         if let Some(entry) = lock(&self.images).get_mut(token) {
-            entry.bytes = Some((bytes, content_type));
+            entry.bytes = Some(bytes);
         }
     }
 }
@@ -224,10 +224,8 @@ mod tests {
         let cached = cache.insert("https://example.com", preview_with_image());
         let token = cached.image_token.unwrap();
         assert!(cache.image_bytes(&token).is_none());
-        cache.store_image_bytes(&token, vec![1, 2, 3], "image/png".to_owned());
-        let (bytes, ctype) = cache.image_bytes(&token).unwrap();
-        assert_eq!(bytes, vec![1, 2, 3]);
-        assert_eq!(ctype, "image/png");
+        cache.store_image_bytes(&token, vec![1, 2, 3]);
+        assert_eq!(cache.image_bytes(&token).unwrap(), vec![1, 2, 3]);
     }
 
     #[test]

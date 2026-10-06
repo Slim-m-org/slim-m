@@ -174,9 +174,10 @@ async fn send(
     // A retry must not re-authorize what already succeeded; the authoritative check still runs in the transaction.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
     // Never on a retry: see `enforce_slow_mode`'s own doc for why a second attempt at an id that already landed must not be refused.
-    if !stored_already {
-        enforce_slow_mode(&state, channel_id, ctx.user_id).await?;
-    }
+    let slow_mode_window_ms = match stored_already {
+        true => None,
+        false => enforce_slow_mode(&state, channel_id, ctx.user_id).await?,
+    };
     let forward = match &req.forwarded_from_id {
         // Parsed even on a retry, so a malformed id is still a 400.
         Some(raw) => {
@@ -190,15 +191,18 @@ async fn send(
     };
     let sent = state
         .store
-        .send_message(NewMessage {
-            channel_id,
-            author_id: ctx.user_id,
-            id,
-            content,
-            attachment_ids: &attachment_ids,
-            reply_to_id,
-            forward,
-        })
+        .send_message_with_slow_mode(
+            NewMessage {
+                channel_id,
+                author_id: ctx.user_id,
+                id,
+                content,
+                attachment_ids: &attachment_ids,
+                reply_to_id,
+                forward,
+            },
+            slow_mode_window_ms,
+        )
         .await?;
 
     // Read once and used twice: the live frame and this response need the

@@ -112,8 +112,7 @@ impl Store {
     /// The effective preference for each of `user_ids` in `channel_id`: that
     /// user's own override for this channel if they have set one, else the one
     /// they set on `parent_channel_id`, else their account default - one query
-    /// rather than [`Store::notification_preferences`] plus a second lookup,
-    /// the batched shape [`Store::roles_for_users`] already uses. An id absent
+    /// rather than a preference lookup plus a second one, the batched shape [`Store::roles_for_users`] already uses. An id absent
     /// from the map (deleted mid-fan-out) is read as the default at the call
     /// site, the same contract every sibling batched lookup in this crate
     /// follows.

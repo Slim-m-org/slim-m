@@ -64,9 +64,11 @@ async fn deleting_an_account_takes_its_poll_votes() {
             admin.id,
             poll_message,
             "vote",
-            "lunch?",
-            &["yes".into(), "no".into()],
-            None,
+            slimm_server::store::NewPoll {
+                question: "lunch?",
+                options: &["yes".into(), "no".into()],
+                close_at: None,
+            },
         )
         .await
         .unwrap();

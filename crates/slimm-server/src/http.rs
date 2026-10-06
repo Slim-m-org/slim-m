@@ -71,6 +71,7 @@ pub mod link_preview;
 mod member_nicknames;
 mod members;
 mod members_bulk;
+mod members_list;
 mod message_components;
 mod message_dto;
 mod message_enrich;
@@ -123,6 +124,7 @@ mod user_avatars;
 mod user_notes;
 mod user_status;
 mod users;
+mod viewable_message;
 mod voice;
 mod voice_ring;
 mod voice_webhook;
@@ -262,6 +264,7 @@ pub fn router(state: AppState) -> Router {
         .merge(webhooks_admin::routes())
         .merge(polls::routes())
         .merge(users::routes())
+        .merge(members_list::routes())
         .merge(user_notes::routes())
         .merge(gifs::routes())
         .merge(link_preview::routes())

@@ -265,6 +265,40 @@ async fn an_invalid_image_in_the_batch_leaves_no_earlier_image_written() {
     );
 }
 
+/// The refusal still covers the whole batch, but it names the image at fault
+/// so an admin retrying a 50-image chunk can tell which file to fix.
+#[tokio::test]
+async fn a_refused_batch_names_the_image_that_broke_it() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let images: Vec<(&str, Vec<u8>)> = vec![
+        ("first", png(b"first")),
+        ("junk_file", b"this is plainly not an image".to_vec()),
+    ];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let message = json_body(response).await["error"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(message.contains("image 2"), "{message}");
+    assert!(message.contains("junk_file"), "{message}");
+    assert!(message.contains("unsupported emoji type"), "{message}");
+
+    let images: Vec<(&str, Vec<u8>)> =
+        vec![("party_parrot", png(b"one")), ("Party-Parrot", png(b"two"))];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let message = json_body(response).await["error"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(message.contains("image 2"), "{message}");
+    assert!(message.contains("Party-Parrot"), "{message}");
+}
+
 /// Two images in the same batch sharing a normalised name is the same
 /// refusal the single path gives for uploading a taken name twice: a
 /// conflict, with nothing from the batch written.
@@ -319,4 +353,33 @@ async fn bulk_upload_requires_manage_server() {
     let response = bulk_upload(&app, &member, &[("party_parrot", png(b"x"))]).await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     assert_eq!(emoji_count(&app, &member).await, 0);
+}
+
+/// The single upload's 1 MiB cap is a body limit, not just the handler's own
+/// refusal: a 413 is the limit, the handler's `TooLarge` is a 400. It holds
+/// only while the `/emoji` layer outranks the bulk route's far larger one.
+#[tokio::test]
+async fn a_single_upload_over_one_mib_is_refused_by_the_body_limit() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let oversized = png(&vec![0u8; 1024 * 1024]);
+    let response = single_upload(&app, &admin, "huge", oversized).await;
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+/// The bulk route must keep its own, larger limit: a request well past the
+/// single cap is read and judged by the handler, not cut off at 1 MiB.
+#[tokio::test]
+async fn a_bulk_body_over_one_mib_is_not_cut_off_by_the_single_limit() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let images: Vec<(&str, Vec<u8>)> = (0..3)
+        .map(|_| ("padding", png(&vec![0u8; 700 * 1024])))
+        .collect();
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_ne!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }

@@ -27,6 +27,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::message_enrich::with_reactions;
 use super::messages::{MessageDto, parse_uuid};
+use super::viewable_message::{NO_SUCH_MESSAGE, viewable_message};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -65,22 +66,11 @@ async fn save(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let message_id = MessageId(parse_uuid(&message_id)?);
-    let missing = ApiError::NotFound("message not found");
-
-    let Some(message) = state.store.message(message_id).await? else {
-        return Err(missing);
-    };
-    if !state
-        .store
-        .has_permission(ctx.user_id, message.channel_id, Permissions::VIEW_CHANNEL)
-        .await?
-    {
-        return Err(missing);
-    }
+    viewable_message(&state, ctx.user_id, message_id).await?;
     // Mapped here the way pins::pin does: a ceiling is a 400, a missing message keeps the 404 an unviewable one gets.
     match state.store.save_message(ctx.user_id, message_id).await {
         Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(SaveError::UnknownMessage) => Err(missing),
+        Err(SaveError::UnknownMessage) => Err(ApiError::NotFound(NO_SUCH_MESSAGE)),
         Err(SaveError::TooMany) => Err(ApiError::BadRequest(
             "you already have as many saved messages as an account can hold",
         )),

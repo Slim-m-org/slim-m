@@ -26,6 +26,7 @@ use sqlx::SqliteConnection;
 mod token_sweep;
 pub use token_sweep::SweptTokens;
 
+use super::bootstrap::{Bootstrap, claim_in};
 use super::invites::{record_redemption, spend_invite};
 use super::{JoinPolicy, Store, now_ms};
 use crate::auth::{generate_secret, hash_secret};
@@ -123,7 +124,8 @@ impl Store {
     /// policy is applied here, atomically with the account insert.
     ///
     /// An unclaimed deployment accepts anyone, because the first account is
-    /// what claims it and there is nobody to issue an invite yet. Once claimed,
+    /// what claims it and there is nobody to issue an invite yet; that account
+    /// claims it in this same transaction. Once claimed,
     /// joining is by invitation (see [`crate::store::invites`]), and the invite
     /// is spent in the same transaction that creates the account: a code that
     /// loses the race for its last remaining use leaves no orphan account
@@ -175,7 +177,14 @@ impl Store {
         // policy change landing concurrently must not be missed here.
         let policy = super::space::read_join_policy(&mut *tx).await?;
 
-        if claimed {
+        if !claimed {
+            // The first account claims the deployment in this same commit, so a
+            // failure here cannot strand it as a plain member of an unclaimed one.
+            if let Bootstrap::AlreadySetUp = claim_in(&mut tx, id).await? {
+                return Err(RegisterError::InviteRequired);
+            }
+            tracing::info!(user_id = %id, "deployment claimed by its first account");
+        } else {
             // Dropping `tx` without committing rolls the account insert back, so
             // every early return below leaves the username free.
             let code = match (invite_code, policy) {

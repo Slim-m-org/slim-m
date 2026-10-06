@@ -34,30 +34,14 @@ impl VoiceService {
             return Err(VoiceError::Unavailable);
         };
         let room = room_for_channel(channel_id);
-        let admin = self.admin_token(enabled, &room)?;
-
-        let response = enabled
-            .http
-            .post(format!(
-                "{}/twirp/livekit.RoomService/DeleteRoom",
-                enabled.service_url
-            ))
-            .bearer_auth(admin)
-            .json(&serde_json::json!({ "room": room }))
-            .send()
-            .await
-            .map_err(|e| VoiceError::Internal(e.into()))?;
-
         // A room that never existed is already in the state this asks for.
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Ok(());
-        }
-        if !response.status().is_success() {
-            let status = response.status();
-            return Err(VoiceError::Internal(anyhow::anyhow!(
-                "livekit room service refused deleting the room: {status}"
-            )));
-        }
+        self.room_service_call(
+            enabled,
+            "DeleteRoom",
+            &room,
+            serde_json::json!({ "room": room }),
+        )
+        .await?;
         Ok(())
     }
 }

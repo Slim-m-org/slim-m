@@ -9,6 +9,7 @@ use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::store::{CANVAS_OP_PAGE_BYTES, CanvasOpBody};
 
 use crate::fixtures::{new_store, new_store_and_pool, place, place_many};
+use crate::support::canvas::CanvasReads;
 
 /// A page bounded only by row count still varies three orders of magnitude
 /// in bytes, since a `place` op carries whole props at up to `MAX_PROPS_BYTES`

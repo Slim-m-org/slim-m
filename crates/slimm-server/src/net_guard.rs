@@ -126,9 +126,51 @@ fn is_blocked_v6(ip: Ipv6Addr) -> bool {
     false
 }
 
+/// A response body ran past its cap or could not be read to the end.
+#[derive(Debug)]
+pub struct ReadCappedError;
+
+/// Reads at most `cap` bytes from `response`, stopping the moment the body
+/// runs over rather than buffering an unbounded one.
+pub async fn read_capped(
+    mut response: reqwest::Response,
+    cap: usize,
+) -> Result<Vec<u8>, ReadCappedError> {
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|_| ReadCappedError)? {
+        if body.len() + chunk.len() > cap {
+            return Err(ReadCappedError);
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn response_of(body: &'static [u8]) -> reqwest::Response {
+        let app = axum::Router::new().route("/", axum::routing::get(move || async move { body }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        reqwest::get(format!("http://{addr}/")).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn read_capped_refuses_a_body_over_the_cap() {
+        let body = read_capped(response_of(&[7; 100]).await, 99).await;
+        assert!(body.is_err());
+    }
+
+    #[tokio::test]
+    async fn read_capped_returns_a_body_at_the_cap() {
+        let body = read_capped(response_of(&[7; 100]).await, 100)
+            .await
+            .unwrap();
+        assert_eq!(body, vec![7; 100]);
+    }
 
     fn blocked(ip: &str) -> bool {
         is_blocked(ip.parse().unwrap())

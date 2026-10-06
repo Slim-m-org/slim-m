@@ -88,7 +88,7 @@ pub struct ModuleExtensionPointSpec<'a> {
     pub language: Option<&'a str>,
 }
 
-/// Everything an install call needs, bundled so `Store::install_module` stays
+/// Everything an install call needs, bundled so `Store::install_module_with_artifact` stays
 /// under the project's 7-positional-parameter limit.
 pub struct InstallModuleRequest<'a> {
     pub id: &'a str,
@@ -99,6 +99,13 @@ pub struct InstallModuleRequest<'a> {
     pub runtime_limits: &'a ModuleRuntimeLimits,
     pub permissions: &'a [ModulePermissionSpec<'a>],
     pub extension_points: &'a [ModuleExtensionPointSpec<'a>],
+}
+
+/// What the dock records alongside an install, in the same transaction as it.
+pub struct DockProvenance<'a> {
+    pub host_capabilities: &'a [String],
+    /// The community source's slug; `None` is the official one.
+    pub source_repo: Option<&'a str>,
 }
 
 struct ModuleRow {
@@ -154,38 +161,18 @@ impl Store {
     /// for every key would cascade away every grant on every reinstall, even
     /// when nothing about that permission changed.
     ///
-    /// Writes only the metadata half of an install; a caller installing a
-    /// module must use [`Store::install_module_with_artifact`] instead, or
-    /// the two rows can diverge.
-    pub async fn install_module(
-        &self,
-        req: InstallModuleRequest<'_>,
-    ) -> anyhow::Result<InstalledModule> {
-        let mut tx = self.begin_write().await?;
-        insert_module_metadata(&mut tx, &req).await?;
-        tx.commit().await?;
-        self.installed_module(req.id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
-    }
-
-    /// Installs a module's metadata and its verified artifact bytes as one
-    /// atomic write.
-    ///
-    /// [`Store::install_module`] and [`Store::store_module_artifact`] used to
-    /// be the only way to record an install, and `http::dock::install` called
-    /// them as two independent, separately-committed writes: a racing
-    /// upgrade, or a crash between the two, could leave `installed_modules`
-    /// and `module_artifacts` describing different versions with no error
-    /// anywhere. This method is the fix for that half of the defect;
+    /// The metadata and the verified artifact bytes commit as one atomic
+    /// write. Recording the two as separate writes let a racing upgrade, or a crash
+    /// between them, leave `installed_modules` and `module_artifacts`
+    /// describing different versions with no error anywhere. This method is the
+    /// fix for that half of the defect;
     /// `http::module_commands::execute_command`'s comparison of
     /// `installed_modules.artifact_sha256` against the stored artifact's own
     /// sha is the other half, and is what makes a mismatch here actually
     /// unreachable rather than merely rarer.
     ///
     /// `artifact` must already be sha256-verified against
-    /// `req.artifact_sha256` by the caller, exactly as
-    /// [`Store::store_module_artifact`] expects. The metadata row is written
+    /// `req.artifact_sha256` by the caller. The metadata row is written
     /// before the artifact row: `module_artifacts.module_id` is a foreign key
     /// onto `installed_modules(id)`, so the reverse order would violate it.
     pub async fn install_module_with_artifact(
@@ -196,6 +183,40 @@ impl Store {
         let mut tx = self.begin_write().await?;
         insert_module_metadata(&mut tx, &req).await?;
         store_module_artifact_tx(&mut tx, req.id, req.artifact_sha256, artifact).await?;
+        tx.commit().await?;
+        self.installed_module(req.id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
+    }
+
+    /// [`Self::install_module_with_artifact`] plus the dock's own provenance,
+    /// all in one transaction: the host capabilities the admin approved and the
+    /// community source it came from. Written separately, a failure between the
+    /// calls left a community module installed and reading as official.
+    pub async fn install_module_from_dock(
+        &self,
+        req: InstallModuleRequest<'_>,
+        artifact: &[u8],
+        provenance: &DockProvenance<'_>,
+    ) -> anyhow::Result<InstalledModule> {
+        let mut tx = self.begin_write().await?;
+        insert_module_metadata(&mut tx, &req).await?;
+        store_module_artifact_tx(&mut tx, req.id, req.artifact_sha256, artifact).await?;
+        let host_json = serde_json::to_string(provenance.host_capabilities)?;
+        sqlx::query!(
+            "UPDATE installed_modules SET approved_host_capabilities = ? WHERE id = ?",
+            host_json,
+            req.id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE installed_modules SET source_repo = ? WHERE id = ?",
+            provenance.source_repo,
+            req.id
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         self.installed_module(req.id)
             .await?
@@ -277,25 +298,6 @@ impl Store {
         Ok(affected > 0)
     }
 
-    /// Records which community source an installed module came from; `None`
-    /// is the official one. `Ok(false)` if it is not installed. Like the host
-    /// capabilities, an upsert leaves it alone and `http::dock` sets it.
-    pub async fn set_module_source(
-        &self,
-        id: &str,
-        source_repo: Option<&str>,
-    ) -> anyhow::Result<bool> {
-        let affected = sqlx::query!(
-            "UPDATE installed_modules SET source_repo = ? WHERE id = ?",
-            source_repo,
-            id
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
-        Ok(affected > 0)
-    }
-
     /// Uninstalls a module. `Ok(false)` if it was not installed. The
     /// `module_permissions`, `role_module_permissions`, `module_artifacts` and
     /// `module_kv` rows all cascade away on the `installed_modules` foreign key, so
@@ -310,8 +312,8 @@ impl Store {
 }
 
 /// The metadata half of an install: the `installed_modules` row itself, plus
-/// the `module_permissions` reconciliation [`Store::install_module`]'s own
-/// doc explains. Split out so [`Store::install_module`] and
+/// the `module_permissions` reconciliation [`Store::install_module_with_artifact`]'s own
+/// doc explains. Split out so [`Store::install_module_with_artifact`] and
 /// [`Store::install_module_with_artifact`] run exactly the same metadata
 /// write inside whichever transaction the caller owns, rather than drifting
 /// into two copies of it.

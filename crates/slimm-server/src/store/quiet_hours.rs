@@ -33,7 +33,7 @@ impl Store {
 
     /// Sets or clears the caller's quiet-hours window. Returns `false` if
     /// the account is gone, the same tiny concurrent-deletion window
-    /// documented on [`Store::update_display_name`](super::Store::update_display_name).
+    /// documented on [`Store::update_profile`](super::Store::update_profile).
     pub async fn set_quiet_hours(
         &self,
         user_id: UserId,

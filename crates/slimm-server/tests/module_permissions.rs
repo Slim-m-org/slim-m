@@ -72,16 +72,19 @@ async fn install_code_exec(s: &Store) {
         name: "Execute code blocks",
         description: "run a snippet",
     }];
-    s.install_module(InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.1.0",
-        artifact_sha256: &"0".repeat(64),
-        approved_capabilities: &["command.register".to_owned()],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &permissions,
-        extension_points: &[],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.1.0",
+            artifact_sha256: &"0".repeat(64),
+            approved_capabilities: &["command.register".to_owned()],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &permissions,
+            extension_points: &[],
+        },
+        b"stub-artifact",
+    )
     .await
     .unwrap();
 }

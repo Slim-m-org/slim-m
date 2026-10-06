@@ -125,9 +125,23 @@ async fn bulk_delete(
         }
     }
 
+    delete_and_publish(&state, channel_id, &ids, ctx.user_id, &subjects).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Deletes `ids` in one transaction, then fans the result out: one event per
+/// message, the cascades, one reply-summary refresh, and the freed files.
+pub(super) async fn delete_and_publish(
+    state: &AppState,
+    channel_id: ChannelId,
+    ids: &[MessageId],
+    actor_id: UserId,
+    subjects: &[UserId],
+) -> Result<(), ApiError> {
     let outcome = state
         .store
-        .bulk_delete_messages(channel_id, &ids, ctx.user_id, &subjects)
+        .bulk_delete_messages(channel_id, ids, actor_id, subjects)
         .await?;
 
     // One event per message, each with its own seq; see this module's doc.
@@ -145,16 +159,15 @@ async fn bulk_delete(
             });
         }
     }
-    super::message_forwards::publish_cascaded(&state, outcome.cascade).await;
+    super::message_forwards::publish_cascaded(state, outcome.cascade).await;
     // One reply-summary refresh for the whole batch; see `threads::notify_reply`.
     if !outcome.deleted.is_empty() {
-        super::threads::notify_reply(&state, channel_id).await;
+        super::threads::notify_reply(state, channel_id).await;
     }
     for hex in &outcome.freed_attachments {
         if let Err(err) = state.media.delete_attachment(hex).await {
             tracing::warn!(%hex, error = %err, "failed to remove an orphaned attachment file");
         }
     }
-
-    Ok(StatusCode::NO_CONTENT)
+    Ok(())
 }

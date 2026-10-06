@@ -40,7 +40,7 @@ mod channel_notification_prefs;
 mod channel_order;
 mod channel_restricted;
 mod channel_settings;
-mod channel_slow_mode;
+pub(crate) mod channel_slow_mode;
 mod channels;
 mod code_runs;
 mod credentials;
@@ -163,15 +163,15 @@ pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
 };
 pub use modules::{
-    InstallModuleRequest, InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec,
-    ModulePermissionSpec, ModuleRuntimeLimits,
+    DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
+    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
 pub use permissions::ChannelOverwrite;
 pub use pins::{MAX_PINS_PER_CHANNEL, PinError, PinnedMessage};
 pub use polls::{
-    CreatePollError, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_QUESTION_CHARS, MIN_OPTIONS, Poll,
+    CreatePollError, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_QUESTION_CHARS, MIN_OPTIONS, NewPoll, Poll,
     PollOption, PollTally, VoteError,
 };
 pub use push::{PushError, PushRegistration, PushTarget};

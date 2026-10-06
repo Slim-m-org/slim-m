@@ -16,11 +16,19 @@ use slimm_server::store::Store;
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;
 
+/// Canvas reads and removals through the product's own paths.
+#[allow(dead_code)]
+pub mod canvas;
+
 /// A one-member deployment plus helpers to install and run a wasm module.
 #[allow(dead_code)]
 pub mod module_world;
 /// Router and account helpers shared by the channel-overwrite test binaries.
 pub mod overwrite_harness;
+
+/// Filing a report under a fresh id.
+#[allow(dead_code)]
+pub mod reports;
 
 /// A voice channel with two bots on its call, for the watch session tests.
 #[allow(dead_code)]

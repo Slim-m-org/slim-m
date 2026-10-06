@@ -231,25 +231,6 @@ impl Store {
         })
     }
 
-    /// The caller's DM conversations, most recently active first. A
-    /// conversation whose other participant has been deleted is omitted
-    /// rather than shown with nothing to render for them, and so is one the
-    /// caller has hidden (`dm_hides`, 0057_dm_hides.sql) - unless it has
-    /// picked up new activity since, which is what brings a closed DM back
-    /// on its own rather than silently dropping whatever the other person
-    /// sends next.
-    ///
-    /// Activity is the newest live message's `created_at`, found by seeking
-    /// `ORDER BY seq DESC LIMIT 1` rather than `MAX(created_at)`: both are
-    /// allocated in the same transaction so the answers are identical, but
-    /// only the seq form can use `messages_channel_live` as a single-row
-    /// seek - the MAX form scanned every live message in the channel, per
-    /// conversation, on a table nothing ever sweeps (measured at ~7,700x
-    /// slower by the 2026-08-11 review at 200k rows). `tests/dm_activity.rs`
-    /// pins both the plan and the equivalence. The hide filter is applied in
-    /// an outer query rather than folded into the same `WHERE` as the pair
-    /// match, because SQLite cannot see a `SELECT`-list alias (`activity_at`)
-    /// from its own `WHERE` clause.
     /// Every DM channel `user_id` is a party to, hidden ones included.
     ///
     /// Deliberately NOT [`Self::list_dm_conversations`], which filters out
@@ -275,6 +256,25 @@ impl Store {
         Ok(rows.into_iter().map(|row| row.channel_id).collect())
     }
 
+    /// The caller's DM conversations, most recently active first. A
+    /// conversation whose other participant has been deleted is omitted
+    /// rather than shown with nothing to render for them, and so is one the
+    /// caller has hidden (`dm_hides`, 0057_dm_hides.sql) - unless it has
+    /// picked up new activity since, which is what brings a closed DM back
+    /// on its own rather than silently dropping whatever the other person
+    /// sends next.
+    ///
+    /// Activity is the newest live message's `created_at`, found by seeking
+    /// `ORDER BY seq DESC LIMIT 1` rather than `MAX(created_at)`: both are
+    /// allocated in the same transaction so the answers are identical, but
+    /// only the seq form can use `messages_channel_live` as a single-row
+    /// seek - the MAX form scanned every live message in the channel, per
+    /// conversation, on a table nothing ever sweeps (measured at ~7,700x
+    /// slower by the 2026-08-11 review at 200k rows). `tests/dm_activity.rs`
+    /// pins both the plan and the equivalence. The hide filter is applied in
+    /// an outer query rather than folded into the same `WHERE` as the pair
+    /// match, because SQLite cannot see a `SELECT`-list alias (`activity_at`)
+    /// from its own `WHERE` clause.
     pub async fn list_dm_conversations(
         &self,
         user_id: UserId,
@@ -338,13 +338,6 @@ impl Store {
         Ok(conversations)
     }
 
-    /// The explicit DM authorization check that [`Store::permissions_in_channel`]
-    /// delegates to for a `dm`-kind channel, instead of running the ordinary
-    /// role/overwrite evaluator. A caller outside the pair gets
-    /// [`Permissions::NONE`] regardless of any role they hold -
-    /// `ADMINISTRATOR` included, since that bypass belongs to the
-    /// deployment's own channels, not to a conversation between two
-    /// specific people who happen to be on it.
     /// The two accounts a DM channel is between, or `None` if it is not a DM.
     ///
     /// Exists so a caller with many candidates can narrow them to the pair
@@ -417,6 +410,13 @@ impl Store {
         Ok(())
     }
 
+    /// The explicit DM authorization check that [`Store::permissions_in_channel`]
+    /// delegates to for a `dm`-kind channel, instead of running the ordinary
+    /// role/overwrite evaluator. A caller outside the pair gets
+    /// [`Permissions::NONE`] regardless of any role they hold -
+    /// `ADMINISTRATOR` included, since that bypass belongs to the
+    /// deployment's own channels, not to a conversation between two
+    /// specific people who happen to be on it.
     pub(crate) async fn dm_permissions(
         &self,
         user_id: UserId,

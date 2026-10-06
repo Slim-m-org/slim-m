@@ -14,6 +14,7 @@ use crate::fixtures::{
     app, clear, general, get_ops, id, member, new_store, new_store_and_pool, place, post_object,
     register, remove, restore, stroke, submit_op,
 };
+use crate::support::canvas::CanvasReads;
 
 async fn is_live(pool: &sqlx::SqlitePool, object_id: &str) -> bool {
     let deleted_at: Option<i64> =

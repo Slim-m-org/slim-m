@@ -329,3 +329,38 @@ async fn deleting_the_account_closes_its_live_socket() {
         "the socket must close when the account behind it is deleted"
     );
 }
+
+/// A revocation published while the socket is still waiting to say hello must
+/// still close it, so the durable subscription has to exist before the ticket
+/// is redeemed rather than after.
+#[tokio::test]
+async fn a_revocation_before_the_hello_still_closes_the_socket() {
+    let (store, _guard) = new_store().await;
+    let state = state_for(&store);
+    let (access, ticket, _user) = user_ticket(&store, "alice").await;
+    let session = store
+        .authenticate(&access)
+        .await
+        .unwrap()
+        .unwrap()
+        .session_id;
+
+    let addr = serve(state.clone()).await;
+    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
+    // The server task subscribes as soon as the upgrade lands; give it that.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    state
+        .hub
+        .publish(slimm_server::hub::Event::SessionRevoked(session));
+    ws.send(WsMessage::Text(
+        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
+    ))
+    .await
+    .unwrap();
+
+    let closed = tokio::time::timeout(Duration::from_secs(2), wait_closed(&mut ws)).await;
+    assert!(
+        closed.is_ok(),
+        "the socket should close for a revoked session"
+    );
+}

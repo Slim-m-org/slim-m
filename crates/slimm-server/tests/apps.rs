@@ -73,42 +73,42 @@ async fn member(s: &Store) -> User {
 async fn install(s: &Store, enabled: bool) {
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "widget",
-        name: "Widget",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "play",
-            name: "Play the widget",
-            description: "launch and play it",
-        }],
-        extension_points: &[
-            ModuleExtensionPointSpec {
-                kind: "command",
-                name: "surf",
-                description: Some("draws a surface"),
-                permission: Some("play"),
-                command: None,
-                language: None,
-            },
-            ModuleExtensionPointSpec {
-                kind: "app",
-                name: "Widget",
-                description: Some("Launch the widget in chat"),
-                permission: Some("play"),
-                command: Some("surf"),
-                language: None,
-            },
-        ],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "widget",
+            name: "Widget",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "play",
+                name: "Play the widget",
+                description: "launch and play it",
+            }],
+            extension_points: &[
+                ModuleExtensionPointSpec {
+                    kind: "command",
+                    name: "surf",
+                    description: Some("draws a surface"),
+                    permission: Some("play"),
+                    command: None,
+                    language: None,
+                },
+                ModuleExtensionPointSpec {
+                    kind: "app",
+                    name: "Widget",
+                    description: Some("Launch the widget in chat"),
+                    permission: Some("play"),
+                    command: Some("surf"),
+                    language: None,
+                },
+            ],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("widget", &sha256, &wasm)
-        .await
-        .unwrap();
     if enabled {
         s.set_module_enabled("widget", true).await.unwrap();
     }
@@ -326,32 +326,32 @@ async fn a_command_with_no_app_extension_point_cannot_be_launched() {
     let user = member(&s).await;
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "widget",
-        name: "Widget",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "play",
-            name: "Play the widget",
-            description: "launch it",
-        }],
-        extension_points: &[ModuleExtensionPointSpec {
-            kind: "command",
-            name: "surf",
-            description: Some("draws a surface"),
-            permission: Some("play"),
-            command: None,
-            language: None,
-        }],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "widget",
+            name: "Widget",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "play",
+                name: "Play the widget",
+                description: "launch it",
+            }],
+            extension_points: &[ModuleExtensionPointSpec {
+                kind: "command",
+                name: "surf",
+                description: Some("draws a surface"),
+                permission: Some("play"),
+                command: None,
+                language: None,
+            }],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("widget", &sha256, &wasm)
-        .await
-        .unwrap();
     s.set_module_enabled("widget", true).await.unwrap();
     grant_play(&s, &user).await;
     let channel = s.create_channel("general", "text").await.unwrap();
@@ -367,4 +367,54 @@ async fn a_command_with_no_app_extension_point_cannot_be_launched() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+/// What the launch route accepts is exactly what `/modules/apps` offers: an
+/// unknown command, a disabled module and a missing permission all refuse.
+#[tokio::test]
+async fn a_launch_is_refused_unless_the_app_would_be_offered() {
+    let (s, _guard) = store("slimm-apps-launch-gate").await;
+    let user = member(&s).await;
+    install(&s, true).await;
+    let channel = s.create_channel("general", "text").await.unwrap();
+    let token = s.open_session(user.id, "phone").await.unwrap();
+    let tok = token.access_token.as_str();
+    let router = app(s.clone());
+    let launch = |command: &str| {
+        post(
+            &format!("/channels/{}/messages/apps", channel.id),
+            tok,
+            json!({
+                "id": Uuid::now_v7().to_string(),
+                "content": "",
+                "module_id": "widget",
+                "command": command,
+            }),
+        )
+    };
+
+    let status =
+        |request: Request<Body>| async { router.clone().oneshot(request).await.unwrap().status() };
+    assert_eq!(
+        status(launch("surf")).await,
+        StatusCode::FORBIDDEN,
+        "no play permission"
+    );
+    grant_play(&s, &user).await;
+    assert_eq!(
+        status(launch("nope")).await,
+        StatusCode::FORBIDDEN,
+        "no such command"
+    );
+    assert_eq!(
+        status(launch("surf")).await,
+        StatusCode::OK,
+        "offered, so launchable"
+    );
+    s.set_module_enabled("widget", false).await.unwrap();
+    assert_eq!(
+        status(launch("surf")).await,
+        StatusCode::FORBIDDEN,
+        "disabled"
+    );
 }

@@ -315,9 +315,17 @@ pub async fn sweep_stale_call_rings_at(
             ring_id,
             outcome: voice::CallRingOutcome::TimedOut,
         });
-        push.notify_call_end(store.clone(), channel_id, ring_id, caller_id);
         // The missed call: the one outcome that used to leave no trace.
-        record_timed_out_call(store, hub, push, channel_id, caller_id).await;
+        voice::record_finished_call(
+            store,
+            hub,
+            push,
+            channel_id,
+            ring_id,
+            caller_id,
+            voice::CallRingOutcome::TimedOut,
+        )
+        .await;
         match voice.remove_participant(channel_id, caller_id).await {
             Ok(()) => tracing::info!(
                 %channel_id,
@@ -331,72 +339,6 @@ pub async fn sweep_stale_call_rings_at(
                 "failed to release an unanswered dm call room"
             ),
         }
-    }
-}
-
-/// Writes the call record for a ring nobody answered, fans it out live, and
-/// pushes a wake for it.
-///
-/// A near-copy of `http::voice_ring::record_call` rather than a call into it:
-/// that one takes an `AppState`, which a background sweep has no reason to
-/// hold, and the alternative is threading the whole thing through every sweep
-/// for one field. Best-effort for the same reason - a record that fails to
-/// write must not stop the room being released on the next line.
-///
-/// The push goes through [`crate::push::PushSender::notify_message`] rather
-/// than earning a kind of its own, and that is the deliberate choice rather
-/// than the lazy one. A missed call *is* a transcript row - that is what
-/// `record_call` just wrote - so the message path is already correct about
-/// every question a new kind would have to answer again: whether the channel
-/// is muted, whether the two of them have blocked each other, whether a
-/// preview is allowed inside this device's sealed envelope, and whether a
-/// burst should collapse. A second kind would reimplement all of it for a row
-/// that differs only in what it says.
-async fn record_timed_out_call(
-    store: &Store,
-    hub: &hub::Hub,
-    push: &crate::push::PushSender,
-    channel_id: crate::ids::ChannelId,
-    caller_id: crate::ids::UserId,
-) {
-    match store
-        .record_call(
-            channel_id,
-            caller_id,
-            voice::CallRingOutcome::TimedOut.as_str(),
-            None,
-        )
-        .await
-    {
-        Ok((sent, record)) => {
-            push.notify_message(
-                store.clone(),
-                crate::push::SentMessage {
-                    channel_id,
-                    author_id: caller_id,
-                    message_id: sent.message.id,
-                    seq: sent.message.seq,
-                    content: sent.message.content.clone(),
-                    presence: hub.presence(),
-                },
-            );
-            hub.publish(hub::Event::MessageCreated {
-                message: std::sync::Arc::new(sent.message),
-                attachments: std::sync::Arc::new(Vec::new()),
-                forwarded: None,
-                app_surface: None,
-                code_run: None,
-                poll: None,
-                embeds: std::sync::Arc::new(Vec::new()),
-                call: Some(std::sync::Arc::new(record)),
-                components: std::sync::Arc::new(Vec::new()),
-            });
-        }
-        Err(err) => tracing::warn!(
-            error = %err,
-            %channel_id,
-            "failed to record a call nobody answered"
-        ),
     }
 }
 

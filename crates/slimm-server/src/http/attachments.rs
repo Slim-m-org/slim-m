@@ -209,11 +209,11 @@ fn upload_stream_error(err: StreamError) -> ApiError {
 ///
 /// The check runs across every channel that has attached these bytes, because
 /// content addressing means more than one message, in more than one channel,
-/// can share them. An id nothing has ever attached - still mid-compose, or
-/// already swept as an orphan - reports the same 404 as one that never
-/// existed, for anyone including whoever uploaded it: existence follows
-/// permission here exactly as it does for a channel or a message elsewhere in
-/// this API.
+/// can share them. An id nothing has attached - still mid-compose, or already
+/// swept as an orphan - reports the same 404 as one that never existed, except
+/// to whoever uploaded it, who may always fetch their own upload: existence
+/// follows permission here exactly as it does for a channel or a message
+/// elsewhere in this API.
 async fn fetch(
     AuthedLimited(ctx): AuthedLimited<ASSET>,
     Path(attachment_id): Path<String>,
@@ -224,33 +224,13 @@ async fn fetch(
         .filter(|bytes| bytes.len() == 32)
         .ok_or(ApiError::BadRequest("invalid attachment id"))?;
 
-    // The uploader may always fetch what they uploaded, even before it is on
-    // any message: previewing a just-staged attachment (a picked GIF) needs
-    // this, and `may_link` already lets them attach it, so fetch has to agree.
-    let mut allowed = state
+    // The uploader may always fetch what they uploaded, even before it is on any message
+    // (previewing a just-picked GIF needs it); everyone else needs VIEW_CHANNEL on a
+    // referencing channel. `may_link` shares this rule.
+    let allowed = state
         .store
-        .is_attachment_uploader(ctx.user_id, &sha256)
+        .can_fetch_attachment(ctx.user_id, &sha256)
         .await?;
-
-    // Otherwise, unreferenced bytes 404 rather than 403, for everyone; see the
-    // access control note on this function.
-    let channels = state.store.channels_referencing_attachment(&sha256).await?;
-    if !allowed && channels.is_empty() {
-        return Err(ApiError::NotFound("attachment not found"));
-    }
-    for channel_id in channels {
-        if allowed {
-            break;
-        }
-        if state
-            .store
-            .has_permission(ctx.user_id, channel_id, Permissions::VIEW_CHANNEL)
-            .await?
-        {
-            allowed = true;
-            break;
-        }
-    }
     if !allowed {
         // 404, not 403, and the difference is the whole point. An attachment id
         // is the content's sha256, so anyone holding a candidate file can

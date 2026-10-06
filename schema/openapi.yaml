@@ -782,9 +782,10 @@ paths:
           in: query
           description: >
             Narrow the page to members who can view this channel, for a member
-            list shown beside it. A display filter, not a confidentiality
-            boundary - the unfiltered roster stays readable from this route.
-            Paging is unchanged: a page shorter than `limit` is still the last.
+            list shown beside it. The caller must be able to view the channel
+            too; one they cannot view is a 404, the same as one that does not
+            exist. Paging is unchanged: a page shorter than `limit` is still
+            the last.
           schema:
             type: string
             format: uuid
@@ -801,6 +802,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -1868,11 +1871,12 @@ paths:
         in any category, since a category only decides placement, never
         behaviour). Sending neither, or both, is a 400. The channel ids
         named - flattened, for the grouped shape - must add up to exactly
-        the live, non-DM, non-thread channels - no more, no fewer, no
-        repeats - and every named category id must be a live category, or
-        the request is refused with a 400 naming what was wrong; a partial
-        list is never applied. Submitting the arrangement already in effect
-        is not an error and changes nothing.
+        the live, non-DM, non-thread channels the caller can view - no more,
+        no fewer, no repeats - and every named category id must be a live
+        category, or the request is refused with a 400 naming what was
+        wrong; a partial list is never applied. A channel the caller cannot
+        view keeps its place and is never named. Submitting the arrangement
+        already in effect is not an error and changes nothing.
       requestBody:
         required: true
         content:
@@ -1881,7 +1885,7 @@ paths:
               $ref: "#/components/schemas/ReorderChannelsRequest"
       responses:
         "200":
-          description: Every live, non-DM channel, in its new order.
+          description: Every live, non-DM channel the caller can view, in its new order.
           content:
             application/json:
               schema:
@@ -5463,9 +5467,9 @@ paths:
 
 
         `reorder` sets a single live object's `z_index` to an explicit value,
-        touching nothing about its bounds or `props`. Any integer is legal,
-        including negative: there is no ceiling on paint order the way there
-        is on bounds. The caller computes the target itself - typically one
+        touching nothing about its bounds or `props`. Any integer from -2^52
+        to 2^52 is legal, including negative: no practical ceiling on paint
+        order, yet a client can add one without overflowing. The caller computes the target itself - typically one
         above or below every `z_index` it currently knows about, for "bring
         to front"/"send to back" - and the server only applies and
         broadcasts whatever value is sent, the same explicit-value shape
@@ -11137,7 +11141,7 @@ components:
         z_index:
           type: integer
           format: int64
-          description: A `reorder`'s new paint order. Any integer is legal.
+          description: A `reorder`'s new paint order, from -2^52 to 2^52.
 
     CanvasOpPage:
       type: object

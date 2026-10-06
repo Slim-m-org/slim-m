@@ -40,7 +40,8 @@ use crate::config::Config;
 use crate::media::to_hex;
 use crate::ratelimit::Class;
 use crate::store::{
-    InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
+    DockProvenance, InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec,
+    ModuleRuntimeLimits,
 };
 
 use capabilities::{approvable_host_capabilities, carried_host_capabilities};
@@ -226,7 +227,7 @@ async fn fetch_manifest(dock: &Enabled, bases: &[Url], id: &str) -> Result<Manif
         bases,
         &format!("modules/{id}/manifest.json"),
         &dock.allowed_host,
-        fetch::MAX_MANIFEST_BYTES,
+        fetch::Limits::MANIFEST,
     )
     .await?;
     let manifest = parse_manifest(&bytes)?;
@@ -245,7 +246,7 @@ async fn fetch_index(dock: &Enabled, bases: &[Url]) -> Result<Vec<IndexEntry>, A
         bases,
         "index.json",
         &dock.allowed_host,
-        fetch::MAX_INDEX_BYTES,
+        fetch::Limits::INDEX,
     )
     .await?;
     Ok(parse_index(&bytes)?)
@@ -356,18 +357,8 @@ async fn install(
             description: &p.description,
         })
         .collect();
-    let extension_points: Vec<ModuleExtensionPointSpec> = manifest
-        .extension_points
-        .iter()
-        .map(|e| ModuleExtensionPointSpec {
-            kind: &e.kind,
-            name: &e.name,
-            description: e.description.as_deref(),
-            permission: e.permission.as_deref(),
-            command: e.command.as_deref(),
-            language: e.language.as_deref(),
-        })
-        .collect();
+    let extension_points: Vec<ModuleExtensionPointSpec> =
+        manifest.extension_points.iter().map(Into::into).collect();
     let runtime_limits = ModuleRuntimeLimits {
         memory_mb: manifest.runtime.limits.memory_mb,
         wall_ms: manifest.runtime.limits.wall_ms,
@@ -375,7 +366,7 @@ async fn install(
     };
     let installed = state
         .store
-        .install_module_with_artifact(
+        .install_module_from_dock(
             InstallModuleRequest {
                 id: &manifest.id,
                 name: &manifest.name,
@@ -387,21 +378,12 @@ async fn install(
                 extension_points: &extension_points,
             },
             &artifact,
+            &DockProvenance {
+                host_capabilities: &approved_host,
+                source_repo: resolved.repo.as_deref(),
+            },
         )
         .await?;
-    state
-        .store
-        .set_module_host_capabilities(&installed.id, &approved_host)
-        .await?;
-    state
-        .store
-        .set_module_source(&installed.id, resolved.repo.as_deref())
-        .await?;
-    let installed = state
-        .store
-        .installed_module(&installed.id)
-        .await?
-        .ok_or(ApiError::NotFound("module not installed"))?;
     Ok(Json(InstalledModuleDto::from(installed)))
 }
 
@@ -420,7 +402,7 @@ async fn fetch_artifact(
         bases,
         &manifest.artifact.path,
         &dock.allowed_host,
-        fetch::MAX_ARTIFACT_BYTES,
+        fetch::Limits::ARTIFACT,
     )
     .await?;
     let digest = to_hex(&Sha256::digest(&bytes));

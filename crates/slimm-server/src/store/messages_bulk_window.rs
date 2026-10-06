@@ -28,7 +28,9 @@ impl Store {
     /// by migration 0054) rather than either index that predates it:
     /// `messages_channel_live` has no author column, and `messages_author`
     /// has no channel or time column, so together they still leave this
-    /// predicate unindexed. Proved by `tests/messages_bulk_window_index_plan.rs`.
+    /// predicate unindexed. Pinned with `INDEXED BY` because the unfiltered
+    /// `messages_author_channel_sent` (0099) matches the same keys and the planner may pick it.
+    /// Proved by `tests/messages_bulk_window_index_plan.rs`.
     pub async fn message_ids_by_author_since(
         &self,
         channel_id: ChannelId,
@@ -38,6 +40,7 @@ impl Store {
     ) -> anyhow::Result<Vec<MessageId>> {
         let ids = sqlx::query_scalar!(
             r#"SELECT id AS "id!: MessageId" FROM messages
+                 INDEXED BY messages_author_channel_window
                WHERE channel_id = ? AND author_id = ? AND created_at >= ?
                  AND deleted_at IS NULL
                LIMIT ?"#,

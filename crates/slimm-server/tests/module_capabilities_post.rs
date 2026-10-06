@@ -39,7 +39,15 @@ async fn a_post_lands_as_the_invoking_user_and_names_the_module() {
     assert_eq!(message.author_id, Some(w.user.id));
     assert_eq!(message.channel_id, channel.id);
     assert_eq!(message.content, "hello from a module");
-    let origin = w.store.module_message_origin(id).await.unwrap();
+    let mut conn = sqlx::SqliteConnection::connect(&format!("sqlite://{}", w.db_path))
+        .await
+        .unwrap();
+    let origin: Option<String> =
+        sqlx::query_scalar("SELECT module_id FROM module_message_origins WHERE message_id = ?")
+            .bind(id)
+            .fetch_optional(&mut conn)
+            .await
+            .unwrap();
     assert_eq!(origin.as_deref(), Some("announcer"));
     let embeds = w.store.embeds_for_messages(&[id]).await.unwrap();
     let footer = embeds[0].1[0].footer_text.as_deref();

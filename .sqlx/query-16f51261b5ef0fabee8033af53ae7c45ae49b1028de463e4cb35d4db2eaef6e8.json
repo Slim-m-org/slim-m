@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT display_name AS \"display_name!: String\"\n               FROM users WHERE id = ? AND deleted_at IS NULL",
+  "query": "SELECT display_name AS \"display_name!: String\"\n           FROM users WHERE id = ? AND deleted_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "0ee73a8e27b4501f71c4970917ff68ab4cab7d32073cf01a41d3e700e026426c"
+  "hash": "16f51261b5ef0fabee8033af53ae7c45ae49b1028de463e4cb35d4db2eaef6e8"
 }

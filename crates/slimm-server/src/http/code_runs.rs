@@ -47,9 +47,9 @@ use super::messages::parse_uuid;
 use super::module_commands::{
     CODE_RUNNER_MODULE_ID, CommandOutcome, execute_code_runner, execute_command,
 };
+use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::MessageId;
-use crate::permissions::Permissions;
 use crate::store::{MAX_SHARED_OUTPUT_BYTES, clamp_output};
 
 /// A code block's input is a whole snippet, so this matches the run route's
@@ -107,15 +107,10 @@ async fn run(
     let message_id = MessageId(parse_uuid(&message_id)?);
 
     // See it before running in it, answering a hidden message as a missing one - the probe defense reactions.rs uses.
-    let Some(message) = state.store.message(message_id).await? else {
-        return Err(ApiError::NotFound("no such message"));
-    };
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, message.channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL) {
-        return Err(ApiError::NotFound("no such message"));
+    let (message, permissions) = viewable_message(&state, ctx.user_id, message_id).await?;
+    // The run is stored and shown to the whole channel, so a timeout bars it like a message.
+    if state.store.timed_out_until(ctx.user_id).await?.is_some() {
+        return Err(ApiError::Forbidden);
     }
 
     // An app surface owns its whole code-run surface; see this file's doc comment.

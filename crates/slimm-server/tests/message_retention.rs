@@ -436,7 +436,7 @@ async fn an_offline_client_recovers_via_reset_once_its_cursor_falls_behind_the_r
             Some(json!({
                 "scopes": [{
                     "channel_id": channel.to_string(),
-                    "after_seq": 99,
+                    "after_seq": 1,
                     "after_op_seq": 1,
                 }]
             })),

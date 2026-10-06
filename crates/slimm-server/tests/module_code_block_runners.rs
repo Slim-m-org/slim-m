@@ -94,21 +94,21 @@ async fn install(s: &Store, enabled: bool) {
             language: Some("javascript"),
         },
     ];
-    s.install_module(InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &permissions,
-        extension_points: &extension_points,
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &permissions,
+            extension_points: &extension_points,
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("code-exec", &sha256, &wasm)
-        .await
-        .unwrap();
     if enabled {
         s.set_module_enabled("code-exec", true).await.unwrap();
     }
@@ -232,42 +232,42 @@ async fn a_runner_with_no_language_is_offered_as_a_wildcard() {
     let member = deployment(&s).await;
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "run",
-            name: "Execute code blocks",
-            description: "run a snippet",
-        }],
-        extension_points: &[
-            ModuleExtensionPointSpec {
-                kind: "command",
-                name: "run",
-                description: Some("runs it"),
-                permission: Some("run"),
-                command: None,
-                language: None,
-            },
-            ModuleExtensionPointSpec {
-                kind: "code-block-runner",
-                name: "Run in chat",
-                description: Some("offers Run on a fenced code block"),
-                permission: Some("run"),
-                command: Some("run"),
-                language: None,
-            },
-        ],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "run",
+                name: "Execute code blocks",
+                description: "run a snippet",
+            }],
+            extension_points: &[
+                ModuleExtensionPointSpec {
+                    kind: "command",
+                    name: "run",
+                    description: Some("runs it"),
+                    permission: Some("run"),
+                    command: None,
+                    language: None,
+                },
+                ModuleExtensionPointSpec {
+                    kind: "code-block-runner",
+                    name: "Run in chat",
+                    description: Some("offers Run on a fenced code block"),
+                    permission: Some("run"),
+                    command: Some("run"),
+                    language: None,
+                },
+            ],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("code-exec", &sha256, &wasm)
-        .await
-        .unwrap();
     s.set_module_enabled("code-exec", true).await.unwrap();
     grant_run_permission(&s, &member).await;
     let token = s.open_session(member.id, "phone").await.unwrap();
@@ -295,32 +295,32 @@ async fn a_module_with_only_a_command_extension_point_is_never_offered() {
     let member = deployment(&s).await;
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "run",
-            name: "Execute code blocks",
-            description: "run a snippet",
-        }],
-        extension_points: &[ModuleExtensionPointSpec {
-            kind: "command",
-            name: "run",
-            description: Some("runs it"),
-            permission: Some("run"),
-            command: None,
-            language: None,
-        }],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "run",
+                name: "Execute code blocks",
+                description: "run a snippet",
+            }],
+            extension_points: &[ModuleExtensionPointSpec {
+                kind: "command",
+                name: "run",
+                description: Some("runs it"),
+                permission: Some("run"),
+                command: None,
+                language: None,
+            }],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("code-exec", &sha256, &wasm)
-        .await
-        .unwrap();
     s.set_module_enabled("code-exec", true).await.unwrap();
     grant_run_permission(&s, &member).await;
     let token = s.open_session(member.id, "phone").await.unwrap();

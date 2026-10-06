@@ -215,16 +215,14 @@ async fn image(
     Path(token): Path<String>,
 ) -> Result<Response, ApiError> {
     let service = state.link_previews.enabled()?;
-    if let Some((bytes, _)) = service.cache.image_bytes(&token) {
+    if let Some(bytes) = service.cache.image_bytes(&token) {
         return serve_image(bytes);
     }
     let url = service.cache.image_url(&token).ok_or(ApiError::NotFound(
         "that preview image is no longer available",
     ))?;
-    let (bytes, _) = fetch_image(&service.client, &url, service.allow_private).await?;
-    service
-        .cache
-        .store_image_bytes(&token, bytes.clone(), String::new());
+    let bytes = fetch_image(&service.client, &url, service.allow_private).await?;
+    service.cache.store_image_bytes(&token, bytes.clone());
     serve_image(bytes)
 }
 
