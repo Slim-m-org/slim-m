@@ -226,6 +226,8 @@ class SlimmApi {
   /// Null leaves it uncategorised. Naming a category that does not exist is
   /// a 400 rather than a silent fall back, so a stale category id surfaces
   /// instead of quietly putting the channel somewhere nobody chose.
+  /// [id] is an optional client-generated UUIDv7 that makes the create
+  /// idempotent: a retry with the same id returns the first channel.
   /// [restricted] denies `@everyone` VIEW_CHANNEL and grants only the
   /// caller, written atomically with the channel row itself so it can never
   /// be observed public first.
@@ -235,11 +237,13 @@ class SlimmApi {
     String? categoryId,
     bool restricted = false,
     bool joinMuted = false,
+    String? id,
   }) async {
     final json = await _send(
       'POST',
       '/channels',
       body: {
+        if (id != null) 'id': id,
         'name': name,
         'kind': kind,
         if (categoryId != null) 'category_id': categoryId,

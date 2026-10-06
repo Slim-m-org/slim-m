@@ -57,6 +57,20 @@ void main() {
       expect(created.name, 'lounge');
       expect(created.isVoice, isTrue);
     });
+
+    test('sends the client id when one is given', () async {
+      Map<String, dynamic>? sentBody;
+      final api = SlimmApi(
+        baseUrl: _base,
+        session: SessionStore(tokens: _tokens()),
+        httpClient: MockClient((request) async {
+          sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(jsonEncode(_channelJson(name: 'lounge')), 200);
+        }),
+      );
+      await api.createChannel(name: 'lounge', id: 'id-1');
+      expect(sentBody, containsPair('id', 'id-1'));
+    });
   });
 
   group('updateChannel', () {
