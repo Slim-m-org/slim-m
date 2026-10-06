@@ -41,6 +41,7 @@ class GridMetrics {
     required this.labelWidth,
     required this.cellWidth,
     required this.rowHeight,
+    required this.headerHeight,
     required this.contentWidth,
     required this.viewportWidth,
   });
@@ -63,6 +64,7 @@ class GridMetrics {
       labelWidth: labelWidth,
       cellWidth: cellWidth,
       rowHeight: compact ? AppSizes.rowTouch : wideRowHeight,
+      headerHeight: compact ? compactHeaderHeight : wideHeaderHeight,
       contentWidth: cellWidth * slots,
       viewportWidth: viewport,
     );
@@ -75,11 +77,15 @@ class GridMetrics {
   static const double wideCellWidth = 72;
   static const double wideRowHeight = 40;
   static const double groupHeaderHeight = 32;
-  static const double headerHeight = 72;
+  static const double wideHeaderHeight = 72;
+
+  /// Room for the remove button at its 44dp touch size.
+  static const double compactHeaderHeight = 88;
 
   final double labelWidth;
   final double cellWidth;
   final double rowHeight;
+  final double headerHeight;
 
   /// Width of every principal column plus the add column.
   final double contentWidth;
@@ -149,7 +155,7 @@ class HeaderRow extends StatelessWidget {
         border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
       ),
       child: SizedBox(
-        height: GridMetrics.headerHeight,
+        height: metrics.headerHeight,
         child: Row(
           children: [
             SizedBox(width: metrics.labelWidth),
@@ -243,22 +249,12 @@ class HeaderCell extends StatelessWidget {
                 ],
               ),
             ),
-            Semantics(
-              button: true,
-              label: 'Remove ${column.label} from this grid',
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onRemove,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 28,
-                  child: Icon(
-                    AppIcons.dismiss,
-                    size: 12,
-                    color: tokens.textDisabled,
-                  ),
-                ),
-              ),
+            AppIconButton(
+              icon: AppIcons.dismiss,
+              iconSize: AppSizes.icon16,
+              size: AppIconButtonSize.sm,
+              semanticLabel: 'Remove ${column.label} from this grid',
+              onPressed: onRemove,
             ),
           ],
         ),

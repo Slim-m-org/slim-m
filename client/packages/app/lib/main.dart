@@ -312,23 +312,23 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
       child: DesktopChrome(
         child: MediaQuery(
           data: overrideMotion(MediaQuery.of(context), motionChoice),
-          // Above the routed tree and its dialogs and sheets, under the motion override; the call overlay paints last, above the toasts too.
-          child: Stack(
-            children: [
-              // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
-              ModerationErrorHost(
-                child: ClientTooOldGate(
-                  child: ServerIdentityChangeGate(
-                    child: PictureInPictureGate(child: densityWrapped),
+          // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
+          child: AppLockGate(
+            child: Stack(
+              children: [
+                // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
+                ModerationErrorHost(
+                  child: ClientTooOldGate(
+                    child: ServerIdentityChangeGate(
+                      child: PictureInPictureGate(child: densityWrapped),
+                    ),
                   ),
                 ),
-              ),
-              const Positioned.fill(child: ToastOverlay()),
-              const Positioned.fill(child: WebUpdatePill()),
-              const Positioned.fill(child: IncomingCallOverlay()),
-              // Last, so a locked screen covers a toast or a ring too, not just the routed app underneath.
-              const Positioned.fill(child: AppLockGate()),
-            ],
+                const Positioned.fill(child: ToastOverlay()),
+                const Positioned.fill(child: WebUpdatePill()),
+                const Positioned.fill(child: IncomingCallOverlay()),
+              ],
+            ),
           ),
         ),
       ),

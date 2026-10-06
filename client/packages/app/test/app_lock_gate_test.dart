@@ -75,7 +75,7 @@ Future<ProviderContainer> _lockedContainer(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Stack(children: [Text('app content'), AppLockGate()]),
+        home: const AppLockGate(child: Text('app content')),
       ),
     ),
   );
@@ -98,7 +98,7 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Stack(children: [Text('app content'), AppLockGate()]),
+          home: const AppLockGate(child: Text('app content')),
         ),
       ),
     );

@@ -3,10 +3,9 @@
 ///
 /// Prompts the moment it mounts, and again on every tap of its own retry
 /// affordance. There is no way to dismiss this except a successful
-/// `AppLockController.unlock` - no back-button handling either, since this
-/// sits beside the routed app rather than inside its `Navigator`, and the
-/// system's own fallback for an unreachable back target (backgrounding the
-/// app) is exactly the safe behaviour a locked screen wants anyway.
+/// `AppLockController.unlock`: back is swallowed by the controller, and the
+/// gate takes the app beneath out of focus and semantics, so this screen owns
+/// the only focus scope and takes focus as it mounts.
 library;
 
 import 'dart:async';
@@ -61,52 +60,55 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Scaffold(
-      backgroundColor: tokens.surfaceBase,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.s24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(
-                  AppIcons.appLock,
-                  size: AppSizes.icon32,
-                  color: tokens.accent,
-                ),
-                const SizedBox(height: AppSpacing.s16),
-                Text(
-                  'slim-m is locked',
-                  textAlign: TextAlign.center,
-                  style: AppText.heading.copyWith(color: tokens.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.s8),
-                Text(
-                  'Confirm it is you to open your messages.',
-                  textAlign: TextAlign.center,
-                  style: AppText.body.copyWith(color: tokens.textSecondary),
-                ),
-                if (_failed) ...[
+    return FocusScope(
+      autofocus: true,
+      child: Scaffold(
+        backgroundColor: tokens.surfaceBase,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    AppIcons.appLock,
+                    size: AppSizes.icon32,
+                    color: tokens.accent,
+                  ),
                   const SizedBox(height: AppSpacing.s16),
-                  AppErrorState(
-                    message: "Couldn't confirm it was you.",
-                    onRetry: _attempt,
-                    retryLabel: 'Try again',
+                  Text(
+                    'slim-m is locked',
+                    textAlign: TextAlign.center,
+                    style: AppText.heading.copyWith(color: tokens.textPrimary),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Text(
+                    'Confirm it is you to open your messages.',
+                    textAlign: TextAlign.center,
+                    style: AppText.body.copyWith(color: tokens.textSecondary),
+                  ),
+                  if (_failed) ...[
+                    const SizedBox(height: AppSpacing.s16),
+                    AppErrorState(
+                      message: "Couldn't confirm it was you.",
+                      onRetry: _attempt,
+                      retryLabel: 'Try again',
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.s24),
+                  AppButton(
+                    label: 'Unlock',
+                    variant: AppButtonVariant.primary,
+                    size: AppButtonSize.lg,
+                    full: true,
+                    busy: _busy,
+                    onPressed: _busy ? null : _attempt,
                   ),
                 ],
-                const SizedBox(height: AppSpacing.s24),
-                AppButton(
-                  label: 'Unlock',
-                  variant: AppButtonVariant.primary,
-                  size: AppButtonSize.lg,
-                  full: true,
-                  busy: _busy,
-                  onPressed: _busy ? null : _attempt,
-                ),
-              ],
+              ),
             ),
           ),
         ),

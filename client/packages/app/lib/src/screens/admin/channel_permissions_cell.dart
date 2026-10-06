@@ -8,7 +8,18 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-enum CellState { allow, inherit, deny }
+enum CellState {
+  allow,
+  inherit,
+  deny;
+
+  /// The state a pending (allow, deny) pair puts [bit] in.
+  static CellState resolve(int allow, int deny, int bit) => allow & bit != 0
+      ? CellState.allow
+      : deny & bit != 0
+      ? CellState.deny
+      : CellState.inherit;
+}
 
 /// The painted chip, shared by [Cell] and the legend so the two cannot drift.
 class CellChip extends StatelessWidget {
@@ -88,18 +99,22 @@ class CellChip extends StatelessWidget {
   }
 }
 
-/// A tappable cell that fills whatever slot the grid gives it, so the touch
-/// target is the whole column-by-row area rather than just the chip.
+/// A focusable cell that fills whatever slot the grid gives it, so the touch
+/// target is the whole column-by-row area rather than just the chip. [label]
+/// names the permission and the column, so a screen reader never hears a bare
+/// "Allow".
 class Cell extends StatefulWidget {
   const Cell({
     super.key,
     required this.state,
     required this.disabled,
+    required this.label,
     required this.onTap,
   });
 
   final CellState state;
   final bool disabled;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -108,38 +123,32 @@ class Cell extends StatefulWidget {
 
 class _CellState extends State<Cell> {
   bool _pressed = false;
-  bool _hovered = false;
 
   void _setPressed(bool value) {
     if (_pressed != value) setState(() => _pressed = value);
   }
 
+  String get _stateLabel => switch (widget.state) {
+    CellState.allow => 'Allow',
+    CellState.deny => 'Deny',
+    CellState.inherit =>
+      widget.disabled ? "Inherit; you can't grant this" : 'Inherit from role',
+  };
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: switch (widget.state) {
-      CellState.allow => 'Allow',
-      CellState.deny => 'Deny',
-      CellState.inherit =>
-        widget.disabled ? "Inherit; you can't grant this" : 'Inherit from role',
-    },
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (_) => _setPressed(true),
+    onPointerUp: (_) => _setPressed(false),
+    onPointerCancel: (_) => _setPressed(false),
+    child: SizedBox.expand(
+      child: FocusableTapTarget(
+        semanticLabel: '${widget.label}: $_stateLabel',
         onTap: widget.onTap,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
-        child: Center(
-          child: CellChip(
-            state: widget.state,
-            disabled: widget.disabled,
-            pressed: _pressed,
-            hovered: _hovered,
-          ),
+        builder: (context, focused, hovered) => CellChip(
+          state: widget.state,
+          disabled: widget.disabled,
+          pressed: _pressed,
+          hovered: hovered,
         ),
       ),
     ),

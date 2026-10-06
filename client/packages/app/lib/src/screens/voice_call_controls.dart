@@ -44,6 +44,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../providers/call_shortcut_registry.dart';
 import '../providers/providers.dart' show apiProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
@@ -114,10 +115,45 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// count worse than a briefly-late one.
   int? _desktopCameraCount;
 
+  StateController<CallShortcutHandlers?>? _shortcutRegistry;
+
+  /// Mirrors each button's own `onPressed`, so a shortcut can never do
+  /// something the matching button could not. `HomeShell` binds the keys.
+  late final CallShortcutHandlers _shortcuts = CallShortcutHandlers(
+    toggleMute: () => widget.controller.toggleMicrophone(),
+    toggleCamera: () => unawaited(widget.controller.toggleCamera()),
+    toggleShare: () {
+      if (_shareRequestInFlight) return;
+      unawaited(_share(context));
+    },
+    leave: () => widget.controller.leave(),
+  );
+
   @override
   void initState() {
     super.initState();
     if (!widget.controller.canFlipCamera) unawaited(_loadCameraCount());
+    if (isDesktopHost) {
+      // A provider write is a build-time mutation when this mounts mid-build, so it waits a frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final registry = ref.read(callShortcutHandlersProvider.notifier);
+        registry.state = _shortcuts;
+        _shortcutRegistry = registry;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    final registry = _shortcutRegistry;
+    final shortcuts = _shortcuts;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (registry != null && registry.mounted && registry.state == shortcuts) {
+        registry.state = null;
+      }
+    });
+    super.dispose();
   }
 
   Future<void> _loadCameraCount() async {
@@ -219,32 +255,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ],
       ],
     );
-    if (!isDesktopHost) return row;
-    // CallbackShortcuts is the ancestor: key handling walks up from whoever holds focus, so autofocus goes inside it.
-    return CallbackShortcuts(
-      bindings: _shortcutBindings(context),
-      child: Focus(autofocus: true, child: row),
-    );
-  }
-
-  /// Mirrors each button's own `onPressed` above, so a shortcut can never do
-  /// something the matching button could not.
-  Map<ShortcutActivator, VoidCallback> _shortcutBindings(BuildContext context) {
-    final muteKey = activatorFor(AppAction.toggleMuteCall);
-    final cameraKey = activatorFor(AppAction.toggleCameraCall);
-    final shareKey = activatorFor(AppAction.toggleShareCall);
-    final leaveKey = activatorFor(AppAction.leaveCall);
-    return {
-      if (muteKey != null) muteKey: widget.controller.toggleMicrophone,
-      if (cameraKey != null)
-        cameraKey: () => unawaited(widget.controller.toggleCamera()),
-      if (shareKey != null)
-        shareKey: () {
-          if (_shareRequestInFlight) return;
-          unawaited(_share(context));
-        },
-      if (leaveKey != null) leaveKey: widget.controller.leave,
-    };
+    return row;
   }
 
   static String _shareTooltip(VoiceFlags voice) {
