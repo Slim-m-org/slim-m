@@ -76,6 +76,50 @@ async fn revoking_a_bot_leaves_its_managed_role_and_other_holders_intact() {
     );
 }
 
+/// A failure while revoking the bot's sessions must leave the whole revoke retryable.
+#[tokio::test]
+async fn a_failed_revoke_can_be_retried_and_still_revokes_the_session() {
+    let (store, pool, _guard) = harness("slimm-bot-perm-revoke-retry").await;
+    let (_admin_id, root) = admin(&store, "root").await;
+    let app = app(store.clone());
+    let (bot_id, _token, status) =
+        create_bot(&app, &root, "helper", Permissions::MANAGE_ROLES.bits()).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let bot = UserId(bot_id.parse().unwrap());
+    let revoke = || request("POST", &format!("/bots/{bot_id}/revoke"), &root, None);
+
+    sqlx::query(
+        "CREATE TRIGGER fault BEFORE UPDATE ON devices BEGIN SELECT RAISE(ABORT, 'injected'); END",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let first = app.clone().oneshot(revoke()).await.unwrap();
+    assert_ne!(
+        first.status(),
+        StatusCode::NO_CONTENT,
+        "sanity: the fault fires"
+    );
+    sqlx::query("DROP TRIGGER fault")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let retry = app.clone().oneshot(revoke()).await.unwrap();
+    assert_eq!(retry.status(), StatusCode::NO_CONTENT);
+    let live: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sessions WHERE user_id = ? AND revoked_at IS NULL",
+    )
+    .bind(bot)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        live, 0,
+        "after a successful retry the bot's session must be revoked"
+    );
+}
+
 /// Decision 0028 promises bot creation, revocation, and permission changes
 /// all land on the moderation-audit trail (decision 0015).
 #[tokio::test]

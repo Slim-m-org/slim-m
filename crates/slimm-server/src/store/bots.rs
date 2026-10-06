@@ -29,7 +29,7 @@ use crate::ids::{DeviceId, RoleId, SessionId, UserId};
 use crate::permissions::Permissions;
 
 use super::moderation_audit::{ModerationAudit, record_moderation_audit};
-use super::sessions::SessionContext;
+use super::sessions::{SessionContext, revoke_session_rows};
 use super::{Store, now_ms};
 
 /// Marks a bot token in its plaintext, so the auth extractor can route a
@@ -394,8 +394,9 @@ impl Store {
         Ok(row.is_some())
     }
 
-    /// Revokes a bot's token and session. The account and its roles stay, so
-    /// a role shared with a human is unaffected.
+    /// Revokes a bot's token and session in one transaction, so a failure leaves the token
+    /// live and the call retryable. The account and its roles stay, so a role shared with a
+    /// human is unaffected.
     ///
     /// Returns `None` if no bot by that id exists, and otherwise the sessions
     /// it revoked. The caller must publish
@@ -406,18 +407,19 @@ impl Store {
         revoked_by: UserId,
     ) -> anyhow::Result<Option<Vec<SessionId>>> {
         let now = now_ms();
+        let mut tx = self.begin_write().await?;
         let sessions = sqlx::query!(
             r#"SELECT session_id AS "session_id!: SessionId"
                FROM bot_tokens WHERE bot_user_id = ? AND revoked_at IS NULL"#,
             bot_user_id
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?;
         if sessions.is_empty() {
+            tx.rollback().await?;
             return Ok(self.is_bot(bot_user_id).await?.then(Vec::new));
         }
 
-        let mut tx = self.begin_write().await?;
         sqlx::query!(
             "UPDATE bot_tokens SET revoked_at = ? WHERE bot_user_id = ? AND revoked_at IS NULL",
             now,
@@ -437,13 +439,12 @@ impl Store {
             },
         )
         .await?;
-        tx.commit().await?;
-
         let mut revoked = Vec::with_capacity(sessions.len());
         for row in sessions {
-            self.revoke_session(row.session_id).await?;
+            revoke_session_rows(&mut tx, row.session_id, now).await?;
             revoked.push(row.session_id);
         }
+        tx.commit().await?;
         Ok(Some(revoked))
     }
 }
