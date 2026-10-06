@@ -96,7 +96,7 @@ A heading wants more air above it than below, so that it reads as belonging to w
 The rail, the member pane and the transcript each arrived at the same answer independently, which is what made it a rhythm worth naming rather than drift worth re-gridding.
 Nothing else is allowed off the grid: a value used at a single site stays a named constant in the file that owns it, where what it aligns to can be named too.
 Radius is four steps: 4 (chips), 6 (buttons, inputs), 10 (cards, panels, modals), 16 (floating canvas windows), plus full for avatars and pills.
-Elevation is border-first: a 1px hairline is the default separator, and only two soft, low-opacity shadow tokens exist, reserved for surfaces that must visually float (menus, canvas windows, modals).
+Elevation is border-first: a 1px hairline is the default separator, and only three soft, low-opacity shadow tokens exist (`AppShadows.menu`, `float` and `canvasTile`), reserved for surfaces that must visually float (menus, canvas windows, modals) or rest above the plane (live canvas tiles, toasts, the call mini-player).
 This is performance and identity together: blurred shadows and backdrop blur cost more to composite than a hairline border, which matters on the lightweight self-host and older-device targets, and reads calmer than Discord's shadowed panels.
 Message layout is flat and grouped (avatar, name, timestamp, stacked lines), not chat-bubble style, matching the brief's instruction that layout should "resemble the familiarity of Discord or Slack," where bubbles read as consumer messaging instead.
 Risk: border-only separation can feel flat on dense screens, mitigated by pairing borders with a sunken background step for the few screens that need a third depth cue.
@@ -165,7 +165,7 @@ Type scale from 11sp to 24sp. Message body at 15sp.
 
 Spacing: 4dp grid (4/8/12/16/20/24/32/40/48/64). Radius: 4/6/10/16 plus
 full for avatars and pills. Elevation via 1px hairline borders, not
-drop shadows, except two subtle shadows for menus and floating windows.
+drop shadows, except three subtle shadows for menus, floating windows and resting tiles.
 
 Icons: consistent 1.5px stroke outline set (Phosphor-style), 20-24dp,
 bold weight for active state instead of color-only changes.

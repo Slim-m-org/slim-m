@@ -28,6 +28,23 @@ void main() {
     }
   });
 
+  testWidgets('the card casts an AppShadows token at the named max width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_wrap(const AppToast(message: 'Done')));
+    final card = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(AppToast),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = card.decoration! as BoxDecoration;
+    expect(decoration.boxShadow, AppShadows.canvasTile);
+    expect(card.constraints!.maxWidth, kToastMaxWidth);
+  });
+
   testWidgets('a tap runs onDismiss when one is given', (tester) async {
     var dismissed = 0;
     await tester.pumpWidget(
