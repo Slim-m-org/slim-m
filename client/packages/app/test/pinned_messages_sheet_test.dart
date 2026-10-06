@@ -117,6 +117,11 @@ void main() {
 
       expect(find.text('Could not load pinned messages.'), findsOneWidget);
       expect(
+        find.byType(AppErrorState),
+        findsOneWidget,
+        reason: 'a failed fetch is the shared persistent error, not bare text',
+      );
+      expect(
         find.text('Nothing pinned yet.'),
         findsNothing,
         reason: 'a failed load must never read as an honest empty state',

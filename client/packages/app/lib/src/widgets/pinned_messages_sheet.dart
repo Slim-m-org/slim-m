@@ -126,61 +126,29 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final list = pins.pinned;
-
-    // A failed refresh with an older list on hand falls through to that list
-    // below instead: it is stale, not wrong, and the live events correct it.
-    if (list == null && pins.failed) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                pins.forbidden
-                    ? 'You do not have permission to see pins here.'
-                    : 'Could not load pinned messages.',
-                style: TextStyle(color: tokens.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              if (!pins.forbidden) ...[
-                const SizedBox(height: AppSpacing.s12),
-                TextButton(
-                  onPressed: () => ref
-                      .read(pinsControllerProvider(channelId).notifier)
-                      .refresh(),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ],
+    return AppAsyncView<List<api.PinnedMessage>>(
+      value: AppAsyncState(data: pins.pinned, error: pins.failed ? pins : null),
+      errorMessage: pins.forbidden
+          ? 'You do not have permission to see pins here.'
+          : 'Could not load pinned messages.',
+      onRetry: pins.forbidden
+          ? null
+          : () =>
+                ref.read(pinsControllerProvider(channelId).notifier).refresh(),
+      emptyMessage: 'Nothing pinned yet.',
+      isEmpty: (list) => list.isEmpty,
+      data: (context, list) {
+        resolveAuthorProfiles(ref, list.map((p) => p.message.authorId));
+        return SheetItemList(
+          itemCount: list.length,
+          itemBuilder: (context, i) => PinnedMessageRow(
+            channelId: channelId,
+            pin: list[i],
+            router: router,
+            currentChannelId: currentChannelId,
           ),
-        ),
-      );
-    }
-    if (list == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (list.isEmpty) {
-      return Center(
-        child: Text(
-          'Nothing pinned yet.',
-          style: TextStyle(color: tokens.textSecondary),
-        ),
-      );
-    }
-
-    resolveAuthorProfiles(ref, list.map((p) => p.message.authorId));
-
-    return SheetItemList(
-      itemCount: list.length,
-      itemBuilder: (context, i) => PinnedMessageRow(
-        channelId: channelId,
-        pin: list[i],
-        router: router,
-        currentChannelId: currentChannelId,
-      ),
+        );
+      },
     );
   }
 }
