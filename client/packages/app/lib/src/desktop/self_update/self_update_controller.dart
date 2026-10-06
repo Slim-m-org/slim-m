@@ -140,6 +140,13 @@ class SelfUpdateController {
     } on SelfUpdateFailure catch (failure) {
       ref.read(selfUpdateFailureProvider.notifier).state = failure;
       return null;
+    } catch (error) {
+      ref.read(selfUpdateFailureProvider.notifier).state = SelfUpdateFailure(
+        SelfUpdateFailureKind.installFailed,
+        'The update could not be installed, so this version is unchanged.',
+        detail: '$error',
+      );
+      return null;
     } finally {
       client.close();
       ref.read(selfUpdateInstallingProvider.notifier).state = false;

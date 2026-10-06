@@ -59,7 +59,7 @@ Future<void> installLinuxUpdate({
     _delete(File(layout.path(LayoutNames.pendingTries)));
     _swapLink(layout, LayoutNames.current, update.version);
     _delete(update.file);
-  } on FileSystemException catch (error) {
+  } on IOException catch (error) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.installFailed,
       'The update could not be installed, so this version is unchanged.',
