@@ -60,7 +60,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.textContaining('dead'), findsOneWidget);
+    expect(
+      find.textContaining('dead'),
+      findsNothing,
+      reason: 'a key that cannot be hashed shows no server-chosen code',
+    );
   });
 
   testWidgets('an empty identity renders nothing rather than throwing', (

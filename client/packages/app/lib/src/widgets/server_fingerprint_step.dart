@@ -13,6 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import 'server_identity_fingerprint.dart';
+
 /// The two rows of four hex groups plus the colour strip, shared by the
 /// first-connect confirmation and the identity-changed warning so the two
 /// screens read the same code the same way.
@@ -38,7 +40,7 @@ class FingerprintDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final groups = identity.fingerprintGroups;
+    final groups = fingerprintGroupsOf(identity);
     final firstRow = groups.take(4).join('  ');
     final secondRow = groups.skip(4).take(4).join('  ');
 
@@ -127,7 +129,7 @@ class _ServerFingerprintStepState extends State<ServerFingerprintStep> {
   /// character rather than reformatting it first.
   Future<void> _copy() async {
     await Clipboard.setData(
-      ClipboardData(text: widget.identity.fingerprintGroups.join(' ')),
+      ClipboardData(text: fingerprintGroupsOf(widget.identity).join(' ')),
     );
     if (!mounted) return;
     setState(() => _copied = true);
