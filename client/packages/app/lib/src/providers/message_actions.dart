@@ -237,15 +237,15 @@ Future<void> deleteMessageAction(WidgetRef ref, Message message) async {
 /// discard is unconditional for the same reason: a row for a message the
 /// server says is not there should not survive on this device.
 Future<void> bulkDeleteMessagesAction(
-  WidgetRef ref, {
+  ProviderReader read, {
   required String channelId,
   required List<String> messageIds,
 }) async {
   if (messageIds.isEmpty) return;
-  await ref
-      .read(apiProvider)
-      .bulkDeleteMessages(channelId: channelId, messageIds: messageIds);
-  final store = await ref.read(storeProvider.future);
+  await read(
+    apiProvider,
+  ).bulkDeleteMessages(channelId: channelId, messageIds: messageIds);
+  final store = await read(storeProvider.future);
   for (final id in messageIds) {
     await store.discard(id);
   }
