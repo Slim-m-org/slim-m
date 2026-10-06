@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Persistence for the one durable notification choice: how much of a
 //! channel's traffic is worth waking a device for. Read singly by
-//! `GET /push/preference` and in batch by push fan-out
-//! (`push::recipients::message_recipients`), which is the only place it is
-//! ever enforced.
-
-use std::collections::HashMap;
-
-use sqlx::QueryBuilder;
+//! `GET /push/preference`; push fan-out reads it per channel through
+//! [`Store::channel_notification_preferences`], the only place it is enforced.
 
 use super::Store;
 use crate::ids::{ChannelId, UserId};
@@ -59,41 +54,6 @@ impl Store {
         .await?
         .rows_affected();
         Ok(affected > 0)
-    }
-
-    /// Batched read for push fan-out: one query for however many recipients
-    /// survived view and thread narrowing, the [`Store::roles_for_users`]
-    /// shape rather than one lookup per candidate. An id absent from the
-    /// map (deleted mid-fan-out) is read as the default at the call site,
-    /// the same contract [`Store::notification_preference`] has for one id.
-    pub async fn notification_preferences(
-        &self,
-        user_ids: &[UserId],
-    ) -> anyhow::Result<HashMap<UserId, NotificationPreference>> {
-        if user_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-
-        // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
-        let mut builder = QueryBuilder::new(
-            "SELECT id, notification_preference FROM users \
-             WHERE deleted_at IS NULL AND id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in user_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
-
-        let rows = builder.build().fetch_all(&self.pool).await?;
-        use sqlx::Row;
-        let mut preferences = HashMap::with_capacity(rows.len());
-        for row in rows {
-            let id: UserId = row.try_get("id")?;
-            let raw: String = row.try_get("notification_preference")?;
-            preferences.insert(id, NotificationPreference::parse(&raw).unwrap_or_default());
-        }
-        Ok(preferences)
     }
 
     /// Whether `channel_id` should notify a [`NotificationPreference::Mentions`]
