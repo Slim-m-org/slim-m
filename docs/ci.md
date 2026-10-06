@@ -878,6 +878,8 @@ The workflow runs the script hourly over `--recent 3` days and hands the result 
 Unlike the advisory check it also fails its own run, because an incomplete release is something to act on rather than to read later.
 Releases older than the window are not rechecked, so a release left incomplete for more than 3 days stops alerting; run the script by hand with `--recent` for a longer look.
 `scripts/lib/test_check_release_assets.py` drives the comparison with fake asset lists.
+The scan step pipes the checker into `tee` under `set -euo pipefail`: a step with no `shell:` runs `bash -e`, where tee's exit 0 replaced the checker's exit 1, so `steps.scan.outcome` was always `success` and neither the issue nor the red run could ever appear.
+`scripts/lib/test_release_asset_watchdog_fails_on_missing_assets.py` runs the workflow's own step text against a fake `gh` with the shell flags GitHub would pick, and refuses a pipe into `tee` without pipefail in any workflow.
 
 The run itself now fails where it can know.
 `release.yml` attaches assets through `scripts/upload-release-assets.sh`, which retries a failed upload (five attempts, growing pauses, the PAT's remaining core API budget in the final error) and fails the job when a required file pattern matches nothing, where softprops uploaded whatever matched and went green.
