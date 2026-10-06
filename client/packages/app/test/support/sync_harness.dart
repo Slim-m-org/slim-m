@@ -46,6 +46,10 @@ class RestRouter {
   void on(String method, String path, RestHandler handler) =>
       _routes.add((method, path, handler));
 
+  /// Whether a handler is registered for this exact (method, path) pair.
+  bool hasRoute(String method, String path) =>
+      _routes.any((r) => r.$1 == method && r.$2 == path);
+
   http.Client build() => MockClient((request) async {
     for (final (method, path, handler) in _routes) {
       if (request.method == method && request.url.path == path) {
