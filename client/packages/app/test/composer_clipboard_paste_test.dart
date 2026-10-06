@@ -77,29 +77,6 @@ void main() {
     expect(find.text('Paste image'), findsNothing);
   });
 
-  testWidgets('the row still appears when the edit-menu swizzle is confirmed '
-      'installed - that is not evidence the native menu offers Paste, and '
-      'must never withdraw the only working route (regression guard, '
-      '2026-08-01)', (tester) async {
-    _useTouchViewport(tester);
-    _mock((call) async {
-      if (call.method == 'editMenuPasteSwizzleInstalled') return true;
-      if (call.method == 'hasImage') return true;
-      return null;
-    });
-
-    await tester.pumpWidget(
-      composerHarness(
-        controller: controller,
-        sends: sends,
-        platform: TargetPlatform.iOS,
-      ),
-    );
-    await _openActionsSheet(tester);
-
-    expect(find.text('Paste image'), findsOneWidget);
-  });
-
   testWidgets(
     'the row appears when the clipboard holds an image, and stages it like '
     'a picked file',

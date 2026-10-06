@@ -38,6 +38,7 @@ import 'composer_bot_mention_help.dart';
 import 'composer_bot_mentions.dart';
 import 'composer_clipboard_image.dart';
 import 'composer_clipboard_paste.dart';
+import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
 import 'composer_list_keys.dart';
 import 'composer_slash.dart';
@@ -124,11 +125,9 @@ class _ComposerState extends ConsumerState<Composer> {
   /// is a build-time mutation, which Riverpod rejects outside tests too.
   StateController<FocusNode?>? _focusRegistry;
 
-  /// Mirrors [_focusRegistry] one level indirected: a channel's drop target
-  /// (`channel_attachment_drop_zone.dart`) reaches this composer's own
-  /// staging through here, keyed by [Composer.channelId] rather than a
-  /// widget reference nothing passes down the tree.
-  StateController<ComposerAttachmentDropTarget?>? _dropRegistry;
+  /// Keyed by [Composer.channelId]; `channel_attachment_drop_zone.dart`
+  /// reaches this composer's staging through it.
+  final _drop = ComposerDropRegistration();
 
   /// The trigger the caret is inside, and which of its offers is current.
   ///
@@ -146,6 +145,9 @@ class _ComposerState extends ConsumerState<Composer> {
   final Set<String> _mentionHelpSeen = {};
   final List<String> _visibleMentionHelp = [];
   String? _commandError;
+
+  /// True while a command awaits its result, so a second send cannot rerun it.
+  bool _commandRunning = false;
   int _selected = 0;
 
   /// A staged file is sendable on its own: a photo needs no caption, and the
@@ -156,6 +158,7 @@ class _ComposerState extends ConsumerState<Composer> {
   /// reaches the wire at all; see [ComposerBanners]'s `overLimitBy` band for
   /// where that refusal is explained.
   bool get _canSend =>
+      !_commandRunning &&
       (_hasSendableText || !_attachments.isEmpty) &&
       !_attachments.hasBlockingAttachment &&
       _overBy == null &&
@@ -190,46 +193,36 @@ class _ComposerState extends ConsumerState<Composer> {
       _attachments.removeListener(_handleAttachmentsChange);
       _attachments = ref.read(attachmentStagingProvider(widget.channelId))
         ..addListener(_handleAttachmentsChange);
-      if (mounted) setState(() => _attachmentError = null);
+      setState(() {
+        _attachmentError = null;
+        _commandError = null;
+        _mentionHelpSeen.clear();
+        _visibleMentionHelp.clear();
+        _selected = 0;
+      });
       _rebindDropTarget();
     }
   }
 
-  /// Unregisters whatever [_dropRegistry] currently points at (null on the
-  /// very first call, from [initState]) and registers this composer under
-  /// [Composer.channelId] instead - the same post-frame timing
-  /// [_focusRegistry] uses and for the same reason, since this can run as
-  /// part of the very build that mounts or moves this widget.
-  void _rebindDropTarget() {
-    final oldRegistry = _dropRegistry;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (oldRegistry != null && oldRegistry.mounted) {
-        oldRegistry.state = null;
-      }
-      if (!mounted) return;
-      final registry = ref.read(
-        composerAttachmentDropProvider(widget.channelId).notifier,
-      );
-      registry.state = ComposerAttachmentDropTarget(
-        stage: _stageAttachment,
-        setError: _setAttachmentError,
-      );
-      _dropRegistry = registry;
-    });
-  }
+  void _rebindDropTarget() => _drop.bind(
+    ref: ref,
+    channelId: widget.channelId,
+    target: () => ComposerAttachmentDropTarget(
+      stage: _stageAttachment,
+      setError: _setAttachmentError,
+    ),
+    isMounted: () => mounted,
+  );
 
   @override
   void dispose() {
     // Guards mounted too: the whole container can be gone by this frame.
     final registry = _focusRegistry;
     final focus = _focus;
-    final dropRegistry = _dropRegistry;
+    _drop.release();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (registry != null && registry.mounted && registry.state == focus) {
         registry.state = null;
-      }
-      if (dropRegistry != null && dropRegistry.mounted) {
-        dropRegistry.state = null;
       }
     });
     widget.controller.removeListener(_handleChange);
@@ -570,18 +563,25 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _send() async {
     if (!_canSend) return;
     final staging = _attachments;
-    final handled = await runComposedCommand(
-      ref: ref,
-      channelId: widget.channelId,
-      controller: widget.controller,
-      apps: _apps,
-      commands: _slashCommands,
-      hasStagedFile: !_attachments.isEmpty,
-      isMounted: () => mounted,
-      clearError: () => setState(() => _commandError = null),
-      post: () => widget.onSend(const []),
-      fail: _reportCommandError,
-    );
+    final bool handled;
+    _commandRunning = true;
+    try {
+      handled = await runComposedCommand(
+        ref: ref,
+        channelId: widget.channelId,
+        controller: widget.controller,
+        apps: _apps,
+        commands: _slashCommands,
+        hasStagedFile: !_attachments.isEmpty,
+        isMounted: () => mounted,
+        clearError: () => setState(() => _commandError = null),
+        post: () => widget.onSend(const []),
+        fail: _reportCommandError,
+      );
+    } finally {
+      _commandRunning = false;
+      if (mounted) setState(() {});
+    }
     if (handled) return;
     await staging.sendReady(widget.onSend);
     if (mounted) {

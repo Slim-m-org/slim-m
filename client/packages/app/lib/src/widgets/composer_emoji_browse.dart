@@ -23,8 +23,10 @@ import 'package:slimm_platform/platform.dart';
 import '../providers/admin_providers.dart';
 import '../providers/recent_emoji.dart';
 import 'emoji_catalog.dart';
+import 'emoji_grid_navigator.dart';
 import 'emoji_picker_grid.dart';
 import 'emoji_preview_footer.dart';
+import 'emoji_section_navigation.dart';
 import 'emoji_sectioned_grid.dart';
 
 /// The rail-plus-grid area's own fixed height: tall enough that the rail shows
@@ -57,9 +59,11 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   final _scrollController = ScrollController();
+  final _searchGrid = EmojiGridNavigator();
   String _query = '';
   int _highlighted = 0;
   List<PickerEmoji> _visible = const [];
+  List<EmojiSection> _sections = const [];
 
   /// Whichever tile the pointer sits over right now, by token rather than
   /// by identity - a rebuild recomputes fresh [PickerEmoji] instances, so
@@ -77,6 +81,7 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
     _searchController.dispose();
     _searchFocus.dispose();
     _scrollController.dispose();
+    _searchGrid.dispose();
     super.dispose();
   }
 
@@ -87,12 +92,44 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
     });
   }
 
-  void _move(int delta) {
+  double get _gridCrossAxisExtent =>
+      widget.width -
+      EmojiCategoryRail.width -
+      AppSpacing.s4 -
+      2 * EmojiSectionedGrid.gridInset;
+
+  /// One cell left (-1) or right (+1), stopping at either end.
+  void _moveCell(int delta) {
     if (_visible.isEmpty) return;
-    setState(() {
-      _highlighted = (_highlighted + delta) % _visible.length;
-      if (_highlighted < 0) _highlighted += _visible.length;
-    });
+    _highlight((_highlighted + delta).clamp(0, _visible.length - 1));
+  }
+
+  /// One row up (-1) or down (+1); sections are stepped across, a search's
+  /// flat grid by its own column count.
+  void _moveRow(int rows) {
+    if (_visible.isEmpty) return;
+    final searching = _query.trim().isNotEmpty;
+    _highlight(
+      searching
+          ? _searchGrid.step(_highlighted, _visible.length, rows)
+          : EmojiSectionNavigation(
+              sections: _sections,
+              crossAxisExtent: _gridCrossAxisExtent,
+            ).stepRow(_highlighted, rows),
+    );
+  }
+
+  void _highlight(int index) {
+    if (_query.trim().isEmpty && _scrollController.hasClients) {
+      final position = _scrollController.position;
+      _scrollController.jumpTo(
+        EmojiSectionNavigation(
+          sections: _sections,
+          crossAxisExtent: _gridCrossAxisExtent,
+        ).reveal(index, position.pixels, position.viewportDimension),
+      );
+    }
+    setState(() => _highlighted = index);
   }
 
   void _pick(PickerEmoji emoji) {
@@ -128,15 +165,10 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   }
 
   void _jumpTo(EmojiCategory category, List<EmojiSection> sections) {
-    final crossAxisExtent =
-        widget.width -
-        EmojiCategoryRail.width -
-        AppSpacing.s4 -
-        2 * EmojiSectionedGrid.gridInset;
     final offset = emojiSectionScrollOffset(
       category: category,
       sections: sections,
-      crossAxisExtent: crossAxisExtent,
+      crossAxisExtent: _gridCrossAxisExtent,
     );
     setState(() => _jumpedTo = category);
     unawaited(
@@ -162,8 +194,15 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   Map<ShortcutActivator, VoidCallback> _bindings() {
     final close = activatorFor(AppAction.escape);
     return {
-      const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
-      const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
+      const SingleActivator(LogicalKeyboardKey.arrowDown): () => _moveRow(1),
+      const SingleActivator(LogicalKeyboardKey.arrowUp): () => _moveRow(-1),
+      // Left and Right stay the search field's caret keys once it has text.
+      if (_query.isEmpty) ...{
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+            _moveCell(1),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+            _moveCell(-1),
+      },
       if (close != null) close: widget.onClose,
     };
   }
@@ -186,6 +225,7 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
           )
         : [for (final section in sections) ...section.emoji];
     _visible = results;
+    _sections = sections;
     if (_highlighted >= results.length) {
       _highlighted = results.isEmpty ? 0 : results.length - 1;
     }
@@ -265,6 +305,7 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
       );
     }
     return EmojiGrid(
+      navigator: _searchGrid,
       emoji: results,
       highlighted: _highlighted,
       onTap: _pick,

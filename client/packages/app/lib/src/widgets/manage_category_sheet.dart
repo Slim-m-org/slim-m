@@ -16,8 +16,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../char_count.dart';
 import '../api_failure.dart';
+import '../entity_name.dart';
 import '../providers/channel_order_controller.dart';
 import '../providers/providers.dart';
 import 'app_snackbar.dart';
@@ -112,11 +112,6 @@ Future<void> moveCategoryAndReport(
   if (context.mounted) showAppSnackbar(context, error);
 }
 
-/// The server's own ceiling (`CATEGORY_NAME_MAX_CHARS` in
-/// `crates/slimm-server/src/http/categories.rs`), so the check here never
-/// disagrees with the one the request is judged against.
-const int _nameMaxChars = 64;
-
 Future<void> showManageCategorySheet(
   BuildContext context,
   ChannelCategoryRow category,
@@ -151,9 +146,7 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
 
   bool get _dirty => _name.text.trim() != widget.category.name;
 
-  bool get _nameValid =>
-      _name.text.trim().isNotEmpty &&
-      trimmedCharCount(_name.text) <= _nameMaxChars;
+  bool get _nameValid => entityNameValid(_name.text);
 
   bool get _canSave => !_saving && !_deleting && _dirty && _nameValid;
 

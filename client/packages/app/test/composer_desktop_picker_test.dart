@@ -144,6 +144,28 @@ void main() {
     expect(find.text('Search emoji'), findsOneWidget);
   });
 
+  testWidgets('the smile button toggles the panel closed again', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        apiBuilder: _api(gifSearchEnabled: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(emojiButton);
+    await tester.pumpAndSettle();
+    expect(find.byType(ComposerPickerPanel), findsOneWidget);
+
+    await tester.tap(emojiButton);
+    await tester.pumpAndSettle();
+    expect(find.byType(ComposerPickerPanel), findsNothing);
+  });
+
   testWidgets('without a GIF provider the panel has no tab row at all', (
     tester,
   ) async {

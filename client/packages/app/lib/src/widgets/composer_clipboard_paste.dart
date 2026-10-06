@@ -60,18 +60,16 @@ Future<void> pasteClipboardImageFromKeystroke(
 /// Answers [hasClipboardImage] alone, on every platform - Android's and
 /// Linux desktop's only route, and iOS's too, unconditionally.
 ///
-/// This used to also answer false whenever [editMenuPasteSwizzleInstalled]
-/// reported true, on the theory that the iOS long-press edit menu's own
-/// Paste item already did this with no prompt, making this row a redundant,
-/// worse duplicate. That theory did not survive a real device (2026-08-01):
-/// the swizzle installing is not evidence the menu item appears, and on this
-/// composer's plain Material `TextField` it provably does not - see
-/// `composer_clipboard_image_stub.dart`'s doc comment on
-/// [editMenuPasteSwizzleInstalled] for the mechanism. Withdrawing the only
-/// working route on an unproven claim left no way to paste an image at all,
-/// so this row is never hidden again on that signal: only genuine evidence
-/// that a paste completed through the native menu would justify hiding it,
-/// and nothing here tracks that yet.
+/// This used to also answer false once the iOS edit-menu paste swizzle
+/// (`ClipboardPasteBridge.m`) had installed, on the theory that the menu's own
+/// Paste item made this row redundant. A real device disproved it
+/// (2026-08-01): the swizzle installing is not evidence the menu item
+/// appears, because Flutter's `SystemContextMenu` decides Paste's presence in
+/// Dart from `Clipboard.hasStrings()` before any native call, until
+/// `composer_context_menu.dart` forces the platform's Paste item in for an
+/// image clipboard (confirmed working 2026-08-02, PR #327). So this row is
+/// never hidden on that signal; only proof a paste completed through the
+/// native menu would justify it, and nothing tracks that yet.
 Future<bool> composerClipboardPasteAvailable() => hasClipboardImage();
 
 /// Runs the whole "Paste image" action: clears [setError] up front, so a

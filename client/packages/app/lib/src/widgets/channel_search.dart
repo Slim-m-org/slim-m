@@ -150,21 +150,11 @@ class ChannelSearchResults extends ConsumerWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                forbidden
-                    ? 'You do not have permission to search this channel.'
-                    : 'Search failed.',
-                style: TextStyle(color: tokens.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              if (!forbidden) ...[
-                const SizedBox(height: AppSpacing.s12),
-                TextButton(onPressed: onRetry, child: const Text('Retry')),
-              ],
-            ],
+          child: AppErrorState(
+            message: forbidden
+                ? 'You do not have permission to search this channel.'
+                : 'Search failed.',
+            onRetry: forbidden ? null : onRetry,
           ),
         ),
       );
