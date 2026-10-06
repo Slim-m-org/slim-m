@@ -14,9 +14,10 @@
 use uuid::Uuid;
 
 use super::Store;
+use super::permissions::{ChannelOverwrite, RoleContext};
 use super::timeouts::TIMEOUT_DENY;
-use crate::ids::{ChannelId, RoleId, UserId};
-use crate::permissions::{Overwrite, Permissions, evaluate, mask_unless_viewable};
+use crate::ids::{ChannelId, UserId};
+use crate::permissions::{Permissions, evaluate, mask_unless_viewable};
 
 impl Store {
     /// Which of `candidates` hold VIEW_CHANNEL in `channel_id`, answered with
@@ -92,22 +93,17 @@ impl Store {
             return Ok(viewers);
         }
 
-        let everyone = sqlx::query!(
-            r#"SELECT id AS "id!: RoleId", permissions AS "permissions!: Permissions"
-               FROM roles WHERE is_everyone = 1 LIMIT 1"#
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        let (everyone_id, everyone_perms) = match everyone {
-            Some(row) => (Some(row.id.0), row.permissions),
-            None => (None, Permissions::NONE),
-        };
+        let (everyone_id, everyone_perms) = self.everyone_role().await?;
 
         // One built query for every candidate's roles (no array binding in SQLite), the same shape roles_for_users uses.
+        // Joined from `users` so a webhook candidate is recognised without a second round trip.
         let mut builder = sqlx::QueryBuilder::new(
-            "SELECT mr.user_id AS user_id, r.id AS role_id, r.permissions AS permissions \
-             FROM roles r JOIN member_roles mr ON mr.role_id = r.id \
-             WHERE r.is_everyone = 0 AND mr.user_id IN (",
+            "SELECT u.id AS user_id, u.is_webhook AS is_webhook, \
+                    r.id AS role_id, r.permissions AS permissions \
+             FROM users u \
+             LEFT JOIN member_roles mr ON mr.user_id = u.id \
+             LEFT JOIN roles r ON r.id = mr.role_id AND r.is_everyone = 0 \
+             WHERE u.id IN (",
         );
         let mut separated = builder.separated(", ");
         for id in candidates {
@@ -118,62 +114,38 @@ impl Store {
 
         use sqlx::Row;
         use std::collections::HashMap;
-        let mut roles_by_user: HashMap<Uuid, (Vec<Permissions>, Vec<Uuid>)> = HashMap::new();
+        let mut contexts: HashMap<Uuid, RoleContext> = HashMap::new();
         for row in role_rows {
             let user_id: Uuid = row.try_get("user_id")?;
-            let role_id: Uuid = row.try_get("role_id")?;
-            let perms: Permissions = row.try_get("permissions")?;
-            let entry = roles_by_user.entry(user_id).or_default();
-            entry.0.push(perms);
-            entry.1.push(role_id);
+            let context = contexts.entry(user_id).or_insert_with(|| RoleContext {
+                everyone_id,
+                everyone_perms,
+                ..RoleContext::none()
+            });
+            // A webhook holds no roles at all, `@everyone` included; see `load_roles`.
+            if row.try_get::<i64, _>("is_webhook")? != 0 {
+                *context = RoleContext::none();
+                continue;
+            }
+            if let Some(role_id) = row.try_get::<Option<Uuid>, _>("role_id")? {
+                context.role_ids.push(role_id);
+                context.role_perms.push(row.try_get("permissions")?);
+            }
         }
 
-        let overwrite_rows = sqlx::query!(
-            r#"SELECT target_type,
-                      target_id AS "target_id!: Uuid",
-                      allow AS "allow!: Permissions",
-                      deny AS "deny!: Permissions"
-               FROM channel_overwrites WHERE channel_id = ?"#,
-            channel_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        let empty: (Vec<Permissions>, Vec<Uuid>) = (Vec::new(), Vec::new());
+        let overwrites = self.channel_overwrites(channel_id).await?;
+        let unknown = RoleContext {
+            everyone_id,
+            everyone_perms,
+            ..RoleContext::none()
+        };
         let mut viewers = Vec::new();
         for &user_id in candidates {
-            let (role_perms, role_ids) = roles_by_user.get(&user_id.0).unwrap_or(&empty);
-
-            let mut everyone_overwrite = None;
-            let mut role_overwrites = Vec::new();
-            let mut member_overwrite = None;
-            for row in &overwrite_rows {
-                let overwrite = Overwrite {
-                    allow: row.allow,
-                    deny: row.deny,
-                };
-                match row.target_type.as_str() {
-                    "role" if Some(row.target_id) == everyone_id => {
-                        everyone_overwrite = Some(overwrite);
-                    }
-                    "role" if role_ids.contains(&row.target_id) => {
-                        role_overwrites.push(overwrite);
-                    }
-                    "member" if row.target_id == user_id.0 => {
-                        member_overwrite = Some(overwrite);
-                    }
-                    _ => {}
-                }
-            }
-
-            let perms = evaluate(
-                everyone_perms,
-                role_perms,
-                everyone_overwrite,
-                &role_overwrites,
-                member_overwrite,
-            )
-            .remove(deny_for(user_id));
+            let context = contexts.get(&user_id.0).unwrap_or(&unknown);
+            let perms = context
+                .evaluate_for(user_id, &overwrites)
+                .permissions
+                .remove(deny_for(user_id));
             if perms.contains(Permissions::VIEW_CHANNEL) {
                 viewers.push(user_id);
             }
@@ -263,76 +235,61 @@ impl Store {
         // Hoisted: the map closure below is synchronous and cannot await.
         let timeout_deny = self.timeout_deny(user_id).await?;
 
-        // One built query for every listed channel's overwrites (no array binding in SQLite).
-        let mut builder = sqlx::QueryBuilder::new(
-            "SELECT channel_id, target_type, target_id, allow, deny \
-             FROM channel_overwrites WHERE channel_id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for channel in &channels {
-            separated.push_bind(channel.id);
-        }
-        builder.push(")");
-        let rows = builder.build().fetch_all(&self.pool).await?;
-
-        use sqlx::Row;
-        use std::collections::HashMap;
-        struct RawOverwrite {
-            target_type: String,
-            target_id: Uuid,
-            overwrite: Overwrite,
-        }
-        let mut by_channel: HashMap<Uuid, Vec<RawOverwrite>> = HashMap::new();
-        for row in rows {
-            let channel_id: Uuid = row.try_get("channel_id")?;
-            by_channel
-                .entry(channel_id)
-                .or_default()
-                .push(RawOverwrite {
-                    target_type: row.try_get("target_type")?,
-                    target_id: row.try_get("target_id")?,
-                    overwrite: Overwrite {
-                        allow: row.try_get("allow")?,
-                        deny: row.try_get("deny")?,
-                    },
-                });
-        }
+        let by_channel = self
+            .overwrites_by_channel(channels.iter().map(|channel| channel.id))
+            .await?;
 
         let empty = Vec::new();
         Ok(channels
             .into_iter()
             .map(|channel| {
-                let mut everyone_overwrite = None;
-                let mut role_overwrites = Vec::new();
-                let mut member_overwrite = None;
-                for raw in by_channel.get(&channel.id.0).unwrap_or(&empty) {
-                    match raw.target_type.as_str() {
-                        "role" if Some(raw.target_id) == roles.everyone_id => {
-                            everyone_overwrite = Some(raw.overwrite);
-                        }
-                        "role" if roles.role_ids.contains(&raw.target_id) => {
-                            role_overwrites.push(raw.overwrite);
-                        }
-                        "member" if raw.target_id == user_id.0 => {
-                            member_overwrite = Some(raw.overwrite);
-                        }
-                        _ => {}
-                    }
-                }
-                let perms = evaluate(
+                let overwrites = by_channel.get(&channel.id.0).unwrap_or(&empty);
+                let evaluated = roles.evaluate_for(user_id, overwrites);
+                let perms = evaluated.permissions.remove(timeout_deny);
+                let restricted = !evaluate(
                     roles.everyone_perms,
-                    &roles.role_perms,
-                    everyone_overwrite,
-                    &role_overwrites,
-                    member_overwrite,
+                    &[],
+                    evaluated.everyone_overwrite,
+                    &[],
+                    None,
                 )
-                .remove(timeout_deny);
-                let restricted =
-                    !evaluate(roles.everyone_perms, &[], everyone_overwrite, &[], None)
-                        .contains(Permissions::VIEW_CHANNEL);
+                .contains(Permissions::VIEW_CHANNEL);
                 (channel, perms, restricted)
             })
             .collect())
+    }
+
+    /// Every overwrite on `channel_ids` in one built query (no array binding
+    /// in SQLite), grouped by channel.
+    async fn overwrites_by_channel(
+        &self,
+        channel_ids: impl Iterator<Item = ChannelId>,
+    ) -> anyhow::Result<std::collections::HashMap<Uuid, Vec<ChannelOverwrite>>> {
+        use sqlx::Row;
+        let mut builder = sqlx::QueryBuilder::new(
+            "SELECT channel_id, target_type, target_id, allow, deny \
+             FROM channel_overwrites WHERE channel_id IN (",
+        );
+        let mut separated = builder.separated(", ");
+        for id in channel_ids {
+            separated.push_bind(id);
+        }
+        builder.push(")");
+
+        let mut by_channel: std::collections::HashMap<Uuid, Vec<ChannelOverwrite>> =
+            std::collections::HashMap::new();
+        for row in builder.build().fetch_all(&self.pool).await? {
+            by_channel
+                .entry(row.try_get("channel_id")?)
+                .or_default()
+                .push(ChannelOverwrite {
+                    target_type: row.try_get("target_type")?,
+                    target_id: row.try_get("target_id")?,
+                    allow: row.try_get("allow")?,
+                    deny: row.try_get("deny")?,
+                });
+        }
+        Ok(by_channel)
     }
 
     /// The caller's effective permissions in each of `channel_ids`, batched
@@ -404,71 +361,19 @@ impl Store {
             return Ok(result);
         }
 
-        // One built query for the still-live channels' overwrites, deduplicated since several ids can share one.
+        // Deduplicated, since several requested ids can resolve to one channel.
         let mut resolved_ids: Vec<ChannelId> = ordinary.iter().map(|(_, c)| c.id).collect();
         resolved_ids.sort_by_key(|id| id.0);
         resolved_ids.dedup();
-
-        let mut builder = sqlx::QueryBuilder::new(
-            "SELECT channel_id, target_type, target_id, allow, deny \
-             FROM channel_overwrites WHERE channel_id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in &resolved_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
-        let rows = builder.build().fetch_all(&self.pool).await?;
-
-        use sqlx::Row;
-        struct RawOverwrite {
-            target_type: String,
-            target_id: Uuid,
-            overwrite: Overwrite,
-        }
-        let mut by_channel: HashMap<Uuid, Vec<RawOverwrite>> = HashMap::new();
-        for row in rows {
-            let channel_id: Uuid = row.try_get("channel_id")?;
-            by_channel
-                .entry(channel_id)
-                .or_default()
-                .push(RawOverwrite {
-                    target_type: row.try_get("target_type")?,
-                    target_id: row.try_get("target_id")?,
-                    overwrite: Overwrite {
-                        allow: row.try_get("allow")?,
-                        deny: row.try_get("deny")?,
-                    },
-                });
-        }
+        let by_channel = self.overwrites_by_channel(resolved_ids.into_iter()).await?;
 
         let empty = Vec::new();
         for (requested_id, channel) in ordinary {
-            let mut everyone_overwrite = None;
-            let mut role_overwrites = Vec::new();
-            let mut member_overwrite = None;
-            for raw in by_channel.get(&channel.id.0).unwrap_or(&empty) {
-                match raw.target_type.as_str() {
-                    "role" if Some(raw.target_id) == roles.everyone_id => {
-                        everyone_overwrite = Some(raw.overwrite);
-                    }
-                    "role" if roles.role_ids.contains(&raw.target_id) => {
-                        role_overwrites.push(raw.overwrite);
-                    }
-                    "member" if raw.target_id == user_id.0 => {
-                        member_overwrite = Some(raw.overwrite);
-                    }
-                    _ => {}
-                }
-            }
-            let perms = evaluate(
-                roles.everyone_perms,
-                &roles.role_perms,
-                everyone_overwrite,
-                &role_overwrites,
-                member_overwrite,
-            )
-            .remove(timeout_deny);
+            let overwrites = by_channel.get(&channel.id.0).unwrap_or(&empty);
+            let perms = roles
+                .evaluate_for(user_id, overwrites)
+                .permissions
+                .remove(timeout_deny);
             result.insert(requested_id, mask_unless_viewable(perms));
         }
 

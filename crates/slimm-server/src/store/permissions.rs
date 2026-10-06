@@ -30,6 +30,59 @@ pub(super) struct RoleContext {
     pub(super) role_ids: Vec<Uuid>,
 }
 
+impl RoleContext {
+    /// The context of a principal that holds nothing, not even `@everyone`.
+    pub(super) fn none() -> Self {
+        Self {
+            everyone_id: None,
+            everyone_perms: Permissions::NONE,
+            role_perms: Vec::new(),
+            role_ids: Vec::new(),
+        }
+    }
+
+    /// Sorts `overwrites` into the tiers `user_id` is subject to and runs the
+    /// pure evaluator, so every read path buckets overwrites the same way.
+    pub(super) fn evaluate_for(
+        &self,
+        user_id: UserId,
+        overwrites: &[ChannelOverwrite],
+    ) -> Evaluated {
+        let mut everyone = None;
+        let mut roles = Vec::new();
+        let mut member = None;
+        for row in overwrites {
+            let overwrite = Overwrite {
+                allow: row.allow,
+                deny: row.deny,
+            };
+            match row.target_type.as_str() {
+                "role" if Some(row.target_id) == self.everyone_id => everyone = Some(overwrite),
+                "role" if self.role_ids.contains(&row.target_id) => roles.push(overwrite),
+                "member" if row.target_id == user_id.0 => member = Some(overwrite),
+                _ => {}
+            }
+        }
+        Evaluated {
+            permissions: evaluate(
+                self.everyone_perms,
+                &self.role_perms,
+                everyone,
+                &roles,
+                member,
+            ),
+            everyone_overwrite: everyone,
+        }
+    }
+}
+
+/// What [`RoleContext::evaluate_for`] decided, plus the `@everyone` tier it
+/// isolated on the way, which `restricted` is answered from.
+pub(super) struct Evaluated {
+    pub(super) permissions: Permissions,
+    pub(super) everyone_overwrite: Option<Overwrite>,
+}
+
 impl Store {
     /// Grants a role to a member. Idempotent.
     pub async fn assign_role(&self, user_id: UserId, role_id: RoleId) -> anyhow::Result<bool> {
@@ -312,47 +365,8 @@ impl Store {
         }
 
         let roles = self.load_roles(user_id).await?;
-
-        let rows = sqlx::query!(
-            r#"SELECT target_type,
-                      target_id AS "target_id!: Uuid",
-                      allow AS "allow!: Permissions",
-                      deny AS "deny!: Permissions"
-               FROM channel_overwrites WHERE channel_id = ?"#,
-            channel_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        let mut everyone_overwrite = None;
-        let mut role_overwrites = Vec::new();
-        let mut member_overwrite = None;
-        for row in rows {
-            let overwrite = Overwrite {
-                allow: row.allow,
-                deny: row.deny,
-            };
-            match row.target_type.as_str() {
-                "role" if Some(row.target_id) == roles.everyone_id => {
-                    everyone_overwrite = Some(overwrite);
-                }
-                "role" if roles.role_ids.contains(&row.target_id) => {
-                    role_overwrites.push(overwrite);
-                }
-                "member" if row.target_id == user_id.0 => {
-                    member_overwrite = Some(overwrite);
-                }
-                _ => {}
-            }
-        }
-
-        Ok(evaluate(
-            roles.everyone_perms,
-            &roles.role_perms,
-            everyone_overwrite,
-            &role_overwrites,
-            member_overwrite,
-        ))
+        let overwrites = self.channel_overwrites(channel_id).await?;
+        Ok(roles.evaluate_for(user_id, &overwrites).permissions)
     }
 
     /// Whether the user holds every bit in `needed` in this channel.
@@ -386,26 +400,10 @@ impl Store {
         .await?
         .unwrap_or(0);
         if is_webhook != 0 {
-            return Ok(RoleContext {
-                everyone_id: None,
-                everyone_perms: Permissions::NONE,
-                role_perms: Vec::new(),
-                role_ids: Vec::new(),
-            });
+            return Ok(RoleContext::none());
         }
 
-        // At most one @everyone role exists (a partial unique index enforces it),
-        // so LIMIT 1 resolves the base deterministically.
-        let everyone = sqlx::query!(
-            r#"SELECT id AS "id!: RoleId", permissions AS "permissions!: Permissions"
-               FROM roles WHERE is_everyone = 1 LIMIT 1"#
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        let (everyone_id, everyone_perms) = match everyone {
-            Some(row) => (Some(row.id.0), row.permissions),
-            None => (None, Permissions::NONE),
-        };
+        let (everyone_id, everyone_perms) = self.everyone_role().await?;
 
         let rows = sqlx::query!(
             r#"SELECT r.id AS "id!: RoleId", r.permissions AS "permissions!: Permissions"
@@ -425,6 +423,24 @@ impl Store {
             everyone_perms,
             role_perms,
             role_ids,
+        })
+    }
+}
+
+impl Store {
+    /// The `@everyone` role's id and base permissions; at most one such role
+    /// exists (a partial unique index enforces it), so `LIMIT 1` is
+    /// deterministic. `(None, NONE)` before the deployment bootstraps.
+    pub(super) async fn everyone_role(&self) -> anyhow::Result<(Option<Uuid>, Permissions)> {
+        let everyone = sqlx::query!(
+            r#"SELECT id AS "id!: RoleId", permissions AS "permissions!: Permissions"
+               FROM roles WHERE is_everyone = 1 LIMIT 1"#
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(match everyone {
+            Some(row) => (Some(row.id.0), row.permissions),
+            None => (None, Permissions::NONE),
         })
     }
 }
