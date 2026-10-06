@@ -55,7 +55,7 @@ pub struct Bot {
     /// bot can currently do anything at all.
     pub token_name: Option<String>,
     pub token_last_used_at: Option<i64>,
-    /// The bot's managed role and its permissions. `NONE` once revoked.
+    /// The bot's managed role and its permissions; the role outlives a revoke (ADR 0028).
     pub role_id: Option<RoleId>,
     pub permissions: Permissions,
 }
@@ -307,8 +307,8 @@ impl Store {
     }
 
     /// Changes what a bot's managed role grants; `permissions` is already
-    /// validated by `http::bots`. `NoSuchBot` covers a revoked bot too, since
-    /// revocation deletes the managed role this looks up.
+    /// validated by `http::bots`. A revoked bot keeps its managed role (ADR 0028),
+    /// so this still succeeds for one; `NoSuchBot` means no managed role exists.
     pub async fn update_bot_permissions(
         &self,
         bot_user_id: UserId,
