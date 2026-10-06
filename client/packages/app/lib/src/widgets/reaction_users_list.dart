@@ -31,9 +31,10 @@ String reactionSummaryLine(List<String> names, int total) {
     if (shown.length == 1) return shown.first;
     return '${shown.sublist(0, shown.length - 1).join(', ')} and ${shown.last}';
   }
-  final others = total - 2;
-  return '${names[0]}, ${names[1]} and $others '
-      '${others == 1 ? 'other' : 'others'}';
+  final named = names.take(2).toList();
+  final others = total - named.length;
+  final noun = others == 1 ? 'other' : 'others';
+  return '${named.join(', ')} and $others $noun';
 }
 
 /// The loaded names of [userIds], in order, for [reactionSummaryLine].
