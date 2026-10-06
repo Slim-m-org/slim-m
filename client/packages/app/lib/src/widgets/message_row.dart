@@ -23,10 +23,10 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/message_extras.dart' show MessageExtras;
 import '../routing/breakpoints.dart';
 
 import 'emoji_picker.dart';
@@ -34,6 +34,7 @@ import 'message_hover_toolbar.dart';
 import 'hover_reveal.dart';
 import 'message_context_menu.dart';
 import 'message_row_identity.dart';
+import 'message_row_callbacks.dart';
 import 'message_row_column.dart';
 import 'message_row_parts.dart';
 import 'reactions_row.dart';
@@ -53,33 +54,14 @@ class MessageRow extends StatelessWidget {
     this.dayLabel,
     required this.knownUsernames,
     this.knownRoleNames = const {},
-    required this.onRetry,
-    required this.onDiscard,
-    this.onEditFailed,
-    required this.onPickReaction,
-    required this.onReactionTap,
-    required this.onVote,
+    required this.callbacks,
     required this.actions,
     required this.editing,
-    required this.onSubmitEdit,
-    required this.onCancelEdit,
-    this.onViewEditHistory,
     this.customEmoji = const {},
-    this.reactions = const [],
-    this.attachments = const [],
-    this.embeds = const [],
-    this.webhookUsername,
-    this.components = const [],
-    this.poll,
-    this.appSurface,
-    this.call,
+    this.extras = MessageExtras.empty,
     this.viewerIsCaller = false,
-    this.threadReplyCount,
-    this.threadLastReplyAt,
-    this.threadUnreadCount,
     this.replyTo,
     this.replyParentAdjacent = false,
-    this.onReplyTap,
   });
 
   final Message message;
@@ -108,27 +90,8 @@ class MessageRow extends StatelessWidget {
   /// the body ([MessageBody]) and on a reaction chip ([ReactionsRow]) alike.
   final Map<String, String> customEmoji;
 
-  final VoidCallback onRetry;
-  final VoidCallback onDiscard;
-
-  /// Recovers a failed message's text for editing (error grammar 01: failed
-  /// content is never thrown away). Null hides the Edit action.
-  final VoidCallback? onEditFailed;
-
-  /// Called with the token the add-reaction picker chose (a codepoint, or a
-  /// `:shortcode:` for one of the deployment's own), from the hover toolbar's
-  /// button or from the long-press menu's own sheet, which is the only one of
-  /// the two a finger can reach.
-  final ValueChanged<String> onPickReaction;
-
-  /// Toggles the caller's own reaction for an existing chip: on if
-  /// [api.ReactionSummary.reacted] was false, off if it was true.
-  final ValueChanged<api.ReactionSummary> onReactionTap;
-
-  /// Casts (or changes) the caller's vote when [poll] is non-null. Always
-  /// required, like every other callback here, even though it is only ever
-  /// invoked when there is a poll to vote on.
-  final ValueChanged<int> onVote;
+  /// Everything this row can ask its caller to do.
+  final MessageRowCallbacks callbacks;
 
   /// What this row's context menu can do here: edit, delete, and pin/unpin,
   /// each gated by whatever the caller already knows about authorship and
@@ -140,60 +103,16 @@ class MessageRow extends StatelessWidget {
   /// keeping a single editing-message id, not this widget.
   final bool editing;
 
-  /// Called with the trimmed new content when an inline edit is saved.
-  final ValueChanged<String> onSubmitEdit;
+  /// What rides on this message beyond its text: reactions, attachments,
+  /// embeds, a poll, an app, a call, the thread summary and a webhook's name.
+  /// A new per-message field lands in `MessageExtras` and is read from here.
+  final MessageExtras extras;
 
-  /// Called to leave edit mode without saving, however that happened
-  /// (Escape, the Cancel button, or submitting empty text).
-  final VoidCallback onCancelEdit;
-
-  /// Reaction summaries for this message, from `Message.reactions` (a REST
-  /// fetch) merged with any live `reactions.changed` update; see
-  /// `providers/message_extras.dart`.
-  final List<api.ReactionSummary> reactions;
-
-  /// Attachments riding on this message, in display order.
-  final List<api.Attachment> attachments;
-
-  /// Structured content a webhook or a bot attached; see decision 0030.
-  final List<api.Embed> embeds;
-
-  /// The webhook post's own username label, shown beside the Webhook badge.
-  final String? webhookUsername;
-
-  /// A bot's buttons; they stay visible but disabled once its account is gone.
-  final List<api.ComponentRow> components;
-
-  /// The poll this message carries, if it is a poll message.
-  final api.Poll? poll;
-
-  /// The app this message launches, if it is an app message. Rendered as an
-  /// interactive, shared surface in place of the message body.
-  final api.AppSurface? appSurface;
-
-  /// The call this message records, or null on an ordinary message. Rendered
-  /// in place of the body, which a call message stores empty.
-  final api.CallRecord? call;
-
-  /// Whether the reader is the one who placed [call]. The same stored record
-  /// reads as "missed call" to one side and "no answer" to the other, so this
-  /// cannot be derived from the message: its author is always the caller.
+  /// Whether the reader is the one who placed `extras.call`. The same stored
+  /// record reads as "missed call" to one side and "no answer" to the other,
+  /// so this cannot be derived from the message: its author is always the
+  /// caller.
   final bool viewerIsCaller;
-
-  /// Undeleted replies in this message's thread, from
-  /// `MessageExtras.threadReplyCount` - null (not zero) hides the row
-  /// entirely, since a message with no thread must never read as a
-  /// zero-reply one. See `ThreadReplySummary`.
-  final int? threadReplyCount;
-
-  /// How many of the thread's live messages this viewer has not yet read,
-  /// from `MessageExtras.threadUnreadCount`. Null exactly when
-  /// [threadReplyCount] is null; can be a genuine 0.
-  final int? threadUnreadCount;
-
-  /// When the thread's newest reply was sent, unix milliseconds. Null
-  /// whenever [threadReplyCount] is null or zero.
-  final int? threadLastReplyAt;
 
   /// The message [message] replies to, resolved by the transcript, or null
   /// when [message] is not a reply at all or its parent could not be
@@ -202,15 +121,6 @@ class MessageRow extends StatelessWidget {
 
   /// True when the quoted parent is the row directly above this one.
   final bool replyParentAdjacent;
-
-  /// Jumps to the parent named by [Message.replyToId]. Only ever called when
-  /// that id is non-null, so it is safe to leave null when [message] is not
-  /// a reply.
-  final VoidCallback? onReplyTap;
-
-  /// Opens this message's edit history. Null leaves the "edited" marker
-  /// inert - a view-only surface, or a message with nothing to show.
-  final VoidCallback? onViewEditHistory;
 
   bool get _unsent => message.pending || message.failed;
 
@@ -232,11 +142,13 @@ class MessageRow extends StatelessWidget {
           MessageContextMenuRegion(
             content: message.content,
             actions: actions,
-            onAddReaction: () =>
-                showEmojiPickerSheet(context, onSelect: onPickReaction),
-            onPickReaction: onPickReaction,
+            onAddReaction: () => showEmojiPickerSheet(
+              context,
+              onSelect: callbacks.onPickReaction,
+            ),
+            onPickReaction: callbacks.onPickReaction,
             reactedEmoji: {
-              for (final r in reactions)
+              for (final r in extras.reactions)
                 if (r.reacted) r.emoji,
             },
             // A failed row is marked by a red hairline down its left edge
@@ -311,29 +223,11 @@ class MessageRow extends StatelessWidget {
                                   knownUsernames: knownUsernames,
                                   knownRoleNames: knownRoleNames,
                                   customEmoji: customEmoji,
-                                  onRetry: onRetry,
-                                  onDiscard: onDiscard,
-                                  onReactionTap: onReactionTap,
-                                  onVote: onVote,
-                                  onSubmitEdit: onSubmitEdit,
-                                  onCancelEdit: onCancelEdit,
-                                  onEditFailed: onEditFailed,
-                                  onViewEditHistory: onViewEditHistory,
-                                  onReplyTap: onReplyTap,
+                                  callbacks: callbacks,
+                                  extras: extras,
                                   replyTo: replyTo,
                                   replyParentAdjacent: replyParentAdjacent,
-                                  webhookUsername: webhookUsername,
-                                  reactions: reactions,
-                                  attachments: attachments,
-                                  embeds: embeds,
-                                  components: components,
-                                  poll: poll,
-                                  appSurface: appSurface,
-                                  call: call,
                                   viewerIsCaller: viewerIsCaller,
-                                  threadReplyCount: threadReplyCount,
-                                  threadLastReplyAt: threadLastReplyAt,
-                                  threadUnreadCount: threadUnreadCount,
                                 ),
                               ),
                             ),
@@ -353,7 +247,7 @@ class MessageRow extends StatelessWidget {
                     right: AppSizes.paneGutter,
                     child: MessageHoverToolbar(
                       actions: actions,
-                      onPickReaction: onPickReaction,
+                      onPickReaction: callbacks.onPickReaction,
                     ),
                   ),
               ],

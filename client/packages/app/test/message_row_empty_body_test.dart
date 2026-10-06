@@ -13,8 +13,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/attachment_view.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -35,16 +37,18 @@ Widget _row(String content) => harness(
     grouped: false,
     showNewDivider: false,
     knownUsernames: const {},
-    onRetry: () {},
-    onDiscard: () {},
-    onPickReaction: (_) {},
-    onReactionTap: (_) {},
-    onVote: (_) {},
     actions: noActions,
     editing: false,
-    onSubmitEdit: (_) {},
-    onCancelEdit: () {},
-    attachments: const [_attachment],
+    callbacks: MessageRowCallbacks(
+      onRetry: () {},
+      onDiscard: () {},
+      onPickReaction: (_) {},
+      onReactionTap: (_) {},
+      onVote: (_) {},
+      onSubmitEdit: (_) {},
+      onCancelEdit: () {},
+    ),
+    extras: MessageExtras(attachments: const [_attachment]),
   ),
 );
 

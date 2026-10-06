@@ -10,10 +10,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/control_swatch_row.dart';
 import 'package:slimm_app/src/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/quick_reactions.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -60,16 +62,18 @@ Future<void> _openSheet(
         grouped: false,
         showNewDivider: false,
         knownUsernames: const {},
-        onRetry: noop,
-        onDiscard: noop,
-        onPickReaction: onPick ?? (_) {},
-        onReactionTap: (_) {},
-        onVote: (_) {},
         actions: _actions(),
         editing: false,
-        onSubmitEdit: (_) {},
-        onCancelEdit: noop,
-        reactions: reactions,
+        callbacks: MessageRowCallbacks(
+          onRetry: noop,
+          onDiscard: noop,
+          onPickReaction: onPick ?? (_) {},
+          onReactionTap: (_) {},
+          onVote: (_) {},
+          onSubmitEdit: (_) {},
+          onCancelEdit: noop,
+        ),
+        extras: MessageExtras(reactions: reactions),
       ),
     ),
   );

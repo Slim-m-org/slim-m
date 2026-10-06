@@ -21,6 +21,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/user_profiles.dart';
 import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/user_avatar.dart';
 
 import 'message_row_harness.dart';
@@ -38,15 +39,17 @@ Widget _row({String? authorId = 'author-1', bool grouped = false}) =>
       grouped: grouped,
       showNewDivider: false,
       knownUsernames: const {},
-      onRetry: noop,
-      onDiscard: noop,
-      onPickReaction: (_) {},
-      onReactionTap: (_) {},
-      onVote: (_) {},
       actions: noActions,
       editing: false,
-      onSubmitEdit: (_) {},
-      onCancelEdit: noop,
+      callbacks: MessageRowCallbacks(
+        onRetry: noop,
+        onDiscard: noop,
+        onPickReaction: (_) {},
+        onReactionTap: (_) {},
+        onVote: (_) {},
+        onSubmitEdit: (_) {},
+        onCancelEdit: noop,
+      ),
     );
 
 List<Override> _resolvedProfile() => [

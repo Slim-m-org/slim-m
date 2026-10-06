@@ -23,6 +23,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/display_preferences.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/message_row_identity.dart';
 
 import 'message_row_harness.dart';
@@ -39,15 +40,17 @@ Future<void> _pumpRow(
       grouped: grouped,
       showNewDivider: false,
       knownUsernames: const {},
-      onRetry: () {},
-      onDiscard: () {},
-      onPickReaction: (_) {},
-      onReactionTap: (_) {},
-      onVote: (_) {},
       actions: noActions,
       editing: false,
-      onSubmitEdit: (_) {},
-      onCancelEdit: () {},
+      callbacks: MessageRowCallbacks(
+        onRetry: () {},
+        onDiscard: () {},
+        onPickReaction: (_) {},
+        onReactionTap: (_) {},
+        onVote: (_) {},
+        onSubmitEdit: (_) {},
+        onCancelEdit: () {},
+      ),
     ),
     overrides: [
       timeFormatControllerProvider.overrideWith(

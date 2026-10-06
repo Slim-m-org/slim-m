@@ -13,6 +13,7 @@ import 'package:slimm_app/src/providers/user_profiles.dart';
 import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -53,15 +54,17 @@ Widget _row({VoidCallback? onReply}) => MessageRow(
   grouped: false,
   showNewDivider: false,
   knownUsernames: const {},
-  onRetry: noop,
-  onDiscard: noop,
-  onPickReaction: (_) {},
-  onReactionTap: (_) {},
-  onVote: (_) {},
   actions: _actions(onReply: onReply),
   editing: false,
-  onSubmitEdit: (_) {},
-  onCancelEdit: noop,
+  callbacks: MessageRowCallbacks(
+    onRetry: noop,
+    onDiscard: noop,
+    onPickReaction: (_) {},
+    onReactionTap: (_) {},
+    onVote: (_) {},
+    onSubmitEdit: (_) {},
+    onCancelEdit: noop,
+  ),
 );
 
 final _before = FocusNode(debugLabel: 'before');

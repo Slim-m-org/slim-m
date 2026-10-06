@@ -21,6 +21,7 @@ import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/screens/channel_message_actions.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -51,11 +52,6 @@ void main() {
             grouped: false,
             showNewDivider: false,
             knownUsernames: const {},
-            onRetry: () {},
-            onDiscard: () {},
-            onPickReaction: (_) {},
-            onReactionTap: (_) {},
-            onVote: (_) {},
             actions: MessageActions(
               canReply: false,
               onReply: noop,
@@ -80,8 +76,15 @@ void main() {
               onSave: noop,
             ),
             editing: false,
-            onSubmitEdit: (_) {},
-            onCancelEdit: () {},
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (_) {},
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
           ),
         ),
       );
@@ -107,15 +110,17 @@ void main() {
             grouped: false,
             showNewDivider: false,
             knownUsernames: const {},
-            onRetry: () {},
-            onDiscard: () {},
-            onPickReaction: (_) {},
-            onReactionTap: (_) {},
-            onVote: (_) {},
             actions: noActions,
             editing: false,
-            onSubmitEdit: (_) {},
-            onCancelEdit: () {},
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (_) {},
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
           ),
         ),
       );

@@ -9,7 +9,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 
 import 'message_row_harness.dart';
 
@@ -34,16 +36,18 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (_) {},
           actions: noActions,
           editing: false,
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
-          poll: poll(),
+          callbacks: MessageRowCallbacks(
+            onRetry: () {},
+            onDiscard: () {},
+            onPickReaction: (_) {},
+            onReactionTap: (_) {},
+            onVote: (_) {},
+            onSubmitEdit: (_) {},
+            onCancelEdit: () {},
+          ),
+          extras: MessageExtras(poll: poll()),
         ),
       ),
     );
@@ -65,16 +69,18 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (option) => voted = option,
           actions: noActions,
           editing: false,
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
-          poll: poll(),
+          callbacks: MessageRowCallbacks(
+            onRetry: () {},
+            onDiscard: () {},
+            onPickReaction: (_) {},
+            onReactionTap: (_) {},
+            onVote: (option) => voted = option,
+            onSubmitEdit: (_) {},
+            onCancelEdit: () {},
+          ),
+          extras: MessageExtras(poll: poll()),
         ),
       ),
     );
@@ -92,16 +98,18 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (option) => voted = option,
           actions: noActions,
           editing: false,
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
-          poll: poll(closed: true),
+          callbacks: MessageRowCallbacks(
+            onRetry: () {},
+            onDiscard: () {},
+            onPickReaction: (_) {},
+            onReactionTap: (_) {},
+            onVote: (option) => voted = option,
+            onSubmitEdit: (_) {},
+            onCancelEdit: () {},
+          ),
+          extras: MessageExtras(poll: poll(closed: true)),
         ),
       ),
     );

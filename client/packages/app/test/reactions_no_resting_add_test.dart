@@ -13,8 +13,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/action_labels.dart';
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/reactions_row.dart';
 
 import 'message_row_harness.dart';
@@ -25,18 +27,22 @@ Widget _row(List<String> tapped) => harness(
     grouped: false,
     showNewDivider: false,
     knownUsernames: const {},
-    onRetry: () {},
-    onDiscard: () {},
-    onPickReaction: (_) {},
-    onReactionTap: (r) => tapped.add(r.emoji),
-    onVote: (_) {},
     actions: noActions,
     editing: false,
-    onSubmitEdit: (_) {},
-    onCancelEdit: () {},
-    reactions: const [
-      api.ReactionSummary(emoji: '\u{1F440}', count: 1, reacted: false),
-    ],
+    callbacks: MessageRowCallbacks(
+      onRetry: () {},
+      onDiscard: () {},
+      onPickReaction: (_) {},
+      onReactionTap: (r) => tapped.add(r.emoji),
+      onVote: (_) {},
+      onSubmitEdit: (_) {},
+      onCancelEdit: () {},
+    ),
+    extras: MessageExtras(
+      reactions: const [
+        api.ReactionSummary(emoji: '\u{1F440}', count: 1, reacted: false),
+      ],
+    ),
   ),
 );
 

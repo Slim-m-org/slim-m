@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/reactions_row.dart';
 
 import 'message_row_harness.dart';
@@ -28,15 +29,17 @@ Widget _row() => harness(
     grouped: false,
     showNewDivider: false,
     knownUsernames: const {},
-    onRetry: () {},
-    onDiscard: () {},
-    onPickReaction: (_) {},
-    onReactionTap: (_) {},
-    onVote: (_) {},
     actions: noActions,
     editing: false,
-    onSubmitEdit: (_) {},
-    onCancelEdit: () {},
+    callbacks: MessageRowCallbacks(
+      onRetry: () {},
+      onDiscard: () {},
+      onPickReaction: (_) {},
+      onReactionTap: (_) {},
+      onVote: (_) {},
+      onSubmitEdit: (_) {},
+      onCancelEdit: () {},
+    ),
   ),
 );
 

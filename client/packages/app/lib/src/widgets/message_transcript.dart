@@ -22,6 +22,7 @@ import 'message_context_menu.dart';
 import 'message_jump.dart';
 import 'message_transcript_dividers.dart';
 import 'message_row.dart';
+import 'message_row_callbacks.dart';
 import 'message_selectable.dart';
 import 'message_transcript_extent.dart';
 import 'transcript_selection.dart';
@@ -429,46 +430,38 @@ class _MessageTranscriptState extends State<MessageTranscript> {
                   knownUsernames: widget.knownUsernames,
                   knownRoleNames: widget.knownRoleNames,
                   customEmoji: widget.customEmoji,
-                  onRetry: () => widget.onRetry(message),
-                  onDiscard: () => widget.onDiscard(message),
-                  onEditFailed: widget.onEditFailed == null
-                      ? null
-                      : () => widget.onEditFailed!(message),
-                  onPickReaction: (emoji) =>
-                      widget.onPickReaction(message, emoji),
-                  onReactionTap: (reaction) =>
-                      widget.onReactionTap(message, reaction),
-                  onVote: (option) => widget.onVote(message, option),
-                  reactions: extras.reactions,
-                  attachments: extras.attachments,
-                  embeds: extras.embeds,
-                  webhookUsername: extras.webhookUsername,
-                  components: extras.components,
-                  poll: extras.poll,
-                  appSurface: extras.appSurface,
-                  call: extras.call,
+                  callbacks: MessageRowCallbacks(
+                    onRetry: () => widget.onRetry(message),
+                    onDiscard: () => widget.onDiscard(message),
+                    onEditFailed: widget.onEditFailed == null
+                        ? null
+                        : () => widget.onEditFailed!(message),
+                    onPickReaction: (emoji) =>
+                        widget.onPickReaction(message, emoji),
+                    onReactionTap: (reaction) =>
+                        widget.onReactionTap(message, reaction),
+                    onVote: (option) => widget.onVote(message, option),
+                    onSubmitEdit: (content) =>
+                        widget.onSubmitEdit(message, content),
+                    onCancelEdit: widget.onCancelEdit,
+                    onViewEditHistory: () => showMessageEditHistorySheet(
+                      context,
+                      widget.channelId,
+                      message.id,
+                    ),
+                    onReplyTap: switch (message.replyToId) {
+                      final String id => () => widget.onJumpToReply(id),
+                      null => null,
+                    },
+                  ),
+                  extras: extras,
                   viewerIsCaller:
                       extras.call?.callerId != null &&
                       extras.call?.callerId == widget.selfId,
-                  threadReplyCount: extras.threadReplyCount,
-                  threadLastReplyAt: extras.threadLastReplyAt,
-                  threadUnreadCount: extras.threadUnreadCount,
                   // A null replyToId is a null map key here, which is a null lookup - the same "no parent" the row renders as nothing.
                   replyTo: byId[message.replyToId],
                   replyParentAdjacent: message.replyToId == previous?.id,
-                  onReplyTap: switch (message.replyToId) {
-                    final String id => () => widget.onJumpToReply(id),
-                    null => null,
-                  },
                   editing: editing,
-                  onSubmitEdit: (content) =>
-                      widget.onSubmitEdit(message, content),
-                  onCancelEdit: widget.onCancelEdit,
-                  onViewEditHistory: () => showMessageEditHistorySheet(
-                    context,
-                    widget.channelId,
-                    message.id,
-                  ),
                   actions: widget.actionsFor(
                     message,
                     extras.threadChannelId != null,
