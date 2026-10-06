@@ -65,7 +65,7 @@ void main() {
     });
 
     test('trims the ends and leaves ordinary text alone', () {
-      expect(visibleText('  Café ❤️  '), 'Café ❤️');
+      expect(visibleText('  Café \u{2764}\u{fe0f}  '), 'Café \u{2764}\u{fe0f}');
     });
 
     test('leaves nothing of text that was only hidden characters', () {
