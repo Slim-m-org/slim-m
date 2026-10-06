@@ -111,6 +111,36 @@ impl CallRings {
         }
     }
 
+    /// Rings still waiting on `callee_id` as of `now`, newest first, as
+    /// `(channel_id, ring_id, caller_id, time left)`. A ring past its timeout
+    /// that the sweep has not yet collected is left out.
+    pub fn outstanding_for_at(
+        &self,
+        callee_id: UserId,
+        now: Instant,
+    ) -> Vec<(ChannelId, CallRingId, UserId, Duration)> {
+        let state = lock(&self.state);
+        let mut found: Vec<_> = state
+            .iter()
+            .filter(|(_, ring)| ring.callee_id == callee_id)
+            .filter_map(|(&channel_id, ring)| {
+                let left = RING_TIMEOUT.checked_sub(now.duration_since(ring.started_at))?;
+                Some((
+                    ring.started_at,
+                    channel_id,
+                    ring.ring_id,
+                    ring.caller_id,
+                    left,
+                ))
+            })
+            .collect();
+        found.sort_by_key(|entry| std::cmp::Reverse(entry.0));
+        found
+            .into_iter()
+            .map(|(_, channel, ring, caller, left)| (channel, ring, caller, left))
+            .collect()
+    }
+
     /// Every ring whose [`RING_TIMEOUT`] has passed as of `now`, removed and
     /// handed back as `(channel_id, ring_id, caller_id)` for the caller to
     /// publish the timeout and release the caller's own dangling SFU
@@ -233,6 +263,22 @@ mod tests {
                 .sweep_stale_at(Instant::now() + RING_TIMEOUT)
                 .is_empty(),
             "an answered ring must not later be swept as timed out"
+        );
+    }
+
+    #[test]
+    fn a_ring_past_its_timeout_is_not_listed_as_outstanding() {
+        let rings = CallRings::new();
+        let (channel, caller, callee) = (cid(), uid(), uid());
+        rings.start(channel, caller, callee);
+        let now = Instant::now();
+
+        assert_eq!(rings.outstanding_for_at(callee, now).len(), 1);
+        assert!(rings.outstanding_for_at(caller, now).is_empty());
+        assert!(
+            rings
+                .outstanding_for_at(callee, now + RING_TIMEOUT)
+                .is_empty()
         );
     }
 

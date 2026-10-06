@@ -84,6 +84,13 @@ import UserNotifications
       let pending = pendingCallKitEvents
       pendingCallKitEvents = []
       result(pending)
+    case "endCall":
+      if let args = call.arguments as? [String: Any],
+        let raw = args["id"] as? String, let id = UUID(uuidString: raw)
+      {
+        voipRegistrar?.endCall(id)
+      }
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }

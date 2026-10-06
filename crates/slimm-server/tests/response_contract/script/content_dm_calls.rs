@@ -27,6 +27,13 @@ pub(super) async fn dm_call_ring_calls(
     )
     .await;
     c.bare(
+        "listIncomingDmCallRings",
+        "GET",
+        "/voice/rings/incoming",
+        bob_token,
+    )
+    .await;
+    c.bare(
         "declineDmCallRing",
         "POST",
         &format!("/channels/{dm_channel}/voice/ring/decline"),

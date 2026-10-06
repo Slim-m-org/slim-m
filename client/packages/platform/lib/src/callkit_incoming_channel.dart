@@ -77,5 +77,18 @@ class CallKitIncomingChannel {
     }
   }
 
+  /// Ends the system call [callId] named, so it does not outlive the ring or
+  /// the in-app call it stood for. A no-op when it is already over.
+  Future<void> endCall(String callId) async {
+    if (!_isIOS) return;
+    try {
+      await _channel.invokeMethod<void>('endCall', {'id': callId});
+    } on PlatformException {
+      // Best-effort: the call may already be gone.
+    } on MissingPluginException {
+      // No native side to end anything on.
+    }
+  }
+
   Future<void> dispose() => _events.close();
 }

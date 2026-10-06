@@ -82,6 +82,17 @@ extension SlimmApiVoice on SlimmApi {
     return RingStarted.fromJson(json as Map<String, dynamic>);
   }
 
+  /// The rings still waiting on this account, newest first.
+  ///
+  /// For a client that connected after the `call.ringing` frame was sent, such
+  /// as an app launched by a VoIP push; nothing is claimed by reading.
+  Future<List<OutstandingDmCallRing>> listIncomingDmCallRings() async {
+    final json = await _send('GET', '/voice/rings/incoming');
+    return ((json as Map<String, dynamic>)['rings'] as List<dynamic>)
+        .map((r) => OutstandingDmCallRing.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Declines an incoming DM call ring. Idempotent: declining one that
   /// already ended some other way still succeeds.
   Future<void> declineDmCallRing(String channelId) => _send(
