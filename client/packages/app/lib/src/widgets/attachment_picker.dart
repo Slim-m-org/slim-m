@@ -34,12 +34,12 @@ enum AttachmentSource {
 }
 
 /// Runs one pick and answers what was chosen, or null if nothing was.
-typedef AttachmentPicker = Future<FilePickerResult?> Function();
+typedef AttachmentPicker = Future<PlatformFile?> Function();
 
-Future<FilePickerResult?> _pickPhotoLibrary() =>
-    FilePicker.pickFiles(type: FileType.image);
+Future<PlatformFile?> _pickPhotoLibrary() =>
+    FilePicker.pickFile(type: FileType.image);
 
-Future<FilePickerResult?> _pickFileBrowser() => FilePicker.pickFiles();
+Future<PlatformFile?> _pickFileBrowser() => FilePicker.pickFile();
 
 /// The picker each [AttachmentSource] runs, injectable because `file_picker`
 /// has no platform implementation under test: without this seam a widget
@@ -68,9 +68,9 @@ Future<void> runAttachmentPick({
   required VoidCallback onPickerFailed,
   required Future<void> Function(Uint8List bytes, String filename) stage,
 }) async {
-  final FilePickerResult? result;
+  final PlatformFile? file;
   try {
-    result = await pick();
+    file = await pick();
   } catch (e) {
     if (!isMounted()) return;
     focus.requestFocus();
@@ -79,9 +79,7 @@ Future<void> runAttachmentPick({
   }
   if (!isMounted()) return;
   focus.requestFocus();
-  final files = result?.files ?? const <PlatformFile>[];
-  if (files.isEmpty) return;
-  final file = files.first;
+  if (file == null) return;
   // readAsBytes streams from disk; eager PlatformFile.bytes OOMs on a large pick.
   await stage(await file.readAsBytes(), file.name);
 }

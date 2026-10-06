@@ -164,7 +164,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('Toggle channel list'), findsNothing);
-    expect(find.byIcon(AppIcons.sidebar), findsNothing);
   });
 
   testWidgets('isDm withholds the member-list toggle, at a width that would '

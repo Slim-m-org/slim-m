@@ -74,3 +74,12 @@ String formatRemaining(Duration remaining) {
   if (remaining.inMinutes >= 1) return '${remaining.inMinutes}m';
   return '${remaining.inSeconds}s';
 }
+
+/// `m:ss`, or `h:mm:ss` from an hour up, clamped at zero: a playback position
+/// or a clip length, the one form the watch bar and the video controls share.
+String formatPlaybackTime(Duration d) {
+  final parts = decomposeDuration(d.isNegative ? Duration.zero : d);
+  final ss = parts.seconds.toString().padLeft(2, '0');
+  if (parts.hours == 0) return '${parts.minutes}:$ss';
+  return '${parts.hours}:${parts.minutes.toString().padLeft(2, '0')}:$ss';
+}

@@ -31,7 +31,7 @@ class _AppTypingDotsState extends State<AppTypingDots>
     with SingleTickerProviderStateMixin {
   late final AnimationController _t = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: AppMotion.typingWave,
   );
 
   @override

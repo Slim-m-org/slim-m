@@ -197,7 +197,10 @@ abstract final class AppShadows {
   ];
 }
 
-/// Vertical rhythm, which is the only thing the density setting moves.
+/// Vertical rhythm, which is the only thing a density setting would move.
+///
+/// No setting selects a step yet: the app reads [normal] everywhere, and
+/// [compact] and [spacious] are reserved for the setting decision 0004 describes.
 ///
 /// Type sizes, avatar sizes and touch targets deliberately do not respond to
 /// it. Someone choosing "compact" wants more messages on screen, not smaller

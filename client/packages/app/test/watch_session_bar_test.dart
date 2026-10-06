@@ -135,15 +135,6 @@ Future<_Rig> _pump(
 late DateTime Function(Duration) _advance;
 
 void main() {
-  test('formatWatchTime shows hours only when there are some', () {
-    expect(formatWatchTime(const Duration(seconds: 7)), '0:07');
-    expect(formatWatchTime(const Duration(minutes: 3, seconds: 7)), '3:07');
-    expect(
-      formatWatchTime(const Duration(hours: 1, minutes: 23, seconds: 45)),
-      '1:23:45',
-    );
-  });
-
   testWidgets('a joiner reads the room position from REST alone', (
     tester,
   ) async {

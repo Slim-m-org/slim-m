@@ -50,7 +50,7 @@ class TotpRecoveryCodesView extends ConsumerWidget {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: SingleChildScrollView(
         child: Column(

@@ -39,7 +39,9 @@ class _CreateCategorySheet extends ConsumerWidget {
       noun: 'category',
       title: 'Create a category',
       onCreate: (name) async {
-        final created = await ref.read(apiProvider).createCategory(name, id: id);
+        final created = await ref
+            .read(apiProvider)
+            .createCategory(name, id: id);
         final store = await ref.read(storeProvider.future);
         await store.upsertCategory(created);
         return null;

@@ -43,6 +43,8 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../format.dart' show formatPlaybackTime;
+
 /// How long an idle, playing video keeps its controls up before fading them.
 const Duration kVideoControlsAutoHide = Duration(seconds: 3);
 
@@ -333,7 +335,7 @@ class _ControlsBar extends StatelessWidget {
                     variant: AppIconButtonVariant.ghost,
                     onPressed: onPlayPause,
                   ),
-                  Text(formatVideoDuration(position), style: timeStyle),
+                  Text(formatPlaybackTime(position), style: timeStyle),
                   const SizedBox(width: AppSpacing.s4),
                   Text(
                     '/',
@@ -341,7 +343,7 @@ class _ControlsBar extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.s4),
                   Text(
-                    '-${formatVideoDuration(remaining)}',
+                    '-${formatPlaybackTime(remaining)}',
                     style: timeStyle.copyWith(color: tokens.textSecondary),
                   ),
                   const Spacer(),
@@ -367,15 +369,4 @@ class _ControlsBar extends StatelessWidget {
       ),
     );
   }
-}
-
-/// `m:ss`, or `h:mm:ss` once a clip runs an hour or longer.
-String formatVideoDuration(Duration d) {
-  final clamped = d.isNegative ? Duration.zero : d;
-  final hours = clamped.inHours;
-  final minutes = clamped.inMinutes.remainder(60);
-  final seconds = clamped.inSeconds.remainder(60);
-  final mm = hours > 0 ? minutes.toString().padLeft(2, '0') : minutes;
-  final ss = seconds.toString().padLeft(2, '0');
-  return hours > 0 ? '$hours:$mm:$ss' : '$mm:$ss';
 }

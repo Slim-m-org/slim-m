@@ -113,4 +113,22 @@ void main() {
     expect(snapshots, hasLength(1));
     expect(snapshots.single.firstWhere((c) => c.id == 'chan-1').position, 5);
   });
+
+  test('flipping a channel to restricted does re-emit: the rail draws a lock',
+      () async {
+    await store.upsertChannels([
+      const api.Channel(
+        id: 'chan-1',
+        name: 'general',
+        kind: 'text',
+        createdAt: 1,
+        restricted: true,
+      ),
+    ]);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(snapshots, hasLength(1));
+    expect(
+        snapshots.single.firstWhere((c) => c.id == 'chan-1').restricted, true);
+  });
 }

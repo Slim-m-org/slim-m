@@ -359,7 +359,7 @@ class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet>
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

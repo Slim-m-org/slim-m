@@ -251,7 +251,8 @@ Colour for both is fixed per kind (`AppCanvasColors.note`, `.shape`), not user-c
   canvas costs no message space and survives navigating to another channel. You
   are in a call, not in a screen.
 - **The speaking ring pulses**, and it is the one looping animation in the
-  chrome. Under reduce-motion it becomes a static ring plus a bar glyph, so
+  chrome itself (the typing dots and the screen-share loading shape loop too,
+  as content that reports progress). Under reduce-motion it becomes a static ring plus a bar glyph, so
   speaking is still conveyed twice.
 - **Disabled controls say why.** The share-audio row keeps its space and explains
   itself on sessions that cannot capture, because silently hiding a

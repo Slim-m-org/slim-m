@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart' show XFile;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,36 +70,64 @@ class FakePicker extends FilePickerPlatform {
   /// composer's two attach routes apart without a platform channel.
   FileType? lastType;
 
+  /// The extension filter of the most recent call, for the custom type.
+  List<String>? lastAllowedExtensions;
+
   @override
-  Future<FilePickerResult?> pickFiles({
+  Future<PlatformFile?> pickFile({
     String? dialogTitle,
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
     void Function(FilePickerStatus)? onFileLoading,
     int compressionQuality = 0,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-    bool cancelUploadOnWindowBlur = true,
-    AndroidSAFOptions? androidSafOptions,
+    AndroidOptions androidOptions = const AndroidOptions(),
+    DarwinOptions darwinOptions = const DarwinOptions(),
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
   }) async {
     calls += 1;
     lastType = type;
+    lastAllowedExtensions = allowedExtensions;
     if (failure != null) throw failure!;
-    return file == null ? null : FilePickerResult([file!]);
+    return file;
   }
+}
+
+/// A picked file that holds its bytes in memory, so `readAsBytes` never
+/// touches the filesystem.
+final class FakePlatformFile extends PlatformFile {
+  FakePlatformFile(this.name, this._bytes);
+
+  @override
+  final String name;
+
+  final Uint8List _bytes;
+
+  @override
+  Uri get uri => Uri.parse('file:///fake/$name');
+
+  @override
+  XFile get xFile => throw UnimplementedError();
+
+  @override
+  int? lengthSync() => _bytes.length;
+
+  @override
+  Future<int?> length() async => _bytes.length;
+
+  @override
+  Future<Uint8List> readAsBytes() async => _bytes;
+
+  @override
+  Stream<Uint8List> readAsByteStream() => Stream.value(_bytes);
 }
 
 /// A pick that resolves, carrying its own bytes so `readAsBytes` never
 /// touches the filesystem.
-PlatformFile pickedFile() => PlatformFile(
-  name: 'holiday.png',
-  size: 4,
-  bytes: Uint8List.fromList([1, 2, 3, 4]),
-);
+PlatformFile pickedFile() =>
+    FakePlatformFile('holiday.png', Uint8List.fromList([1, 2, 3, 4]));
 
 /// Installs a fake picker for one test and puts the real one back after, so a
 /// later test in the same process is not left with this one's fake.

@@ -57,6 +57,12 @@ const double kSheetDialogTopInset = AppSpacing.s16;
 /// in one nests harmlessly, since the inner `SafeArea` then has nothing left
 /// to reserve.
 ///
+/// It also pads the content by the on-screen keyboard and, unless [scrolls],
+/// wraps it in a scroll view, so a form that is taller than the space the
+/// keyboard leaves scrolls rather than overflowing. A caller pads its sides
+/// and bottom only, never the keyboard inset. The dialog branch needs neither:
+/// a desktop window has no keyboard to cover it.
+///
 /// The dialog branch wraps the content in `Semantics(container: true,
 /// explicitChildNodes: true)`, as `AlertDialog` wraps its own. A dialog route
 /// names itself from every descendant that forms no semantics node of its
@@ -82,7 +88,11 @@ Future<T?> showAppSheet<T>(
       isScrollControlled: true,
       showDragHandle: true,
       sheetAnimationStyle: noAnimation,
-      builder: (context) => SafeArea(top: false, child: builder(context)),
+      builder: (context) => SafeArea(
+        top: false,
+        child:
+            _KeyboardInset(scrolls: scrolls, child: Builder(builder: builder)),
+      ),
     );
   }
   return showInWindowDialog<T>(
@@ -95,6 +105,21 @@ Future<T?> showAppSheet<T>(
       child: Builder(builder: builder),
     ),
   );
+}
+
+class _KeyboardInset extends StatelessWidget {
+  const _KeyboardInset({required this.scrolls, required this.child});
+
+  final bool scrolls;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: scrolls ? child : SingleChildScrollView(child: child),
+    );
+  }
 }
 
 class _SheetDialog extends StatelessWidget {

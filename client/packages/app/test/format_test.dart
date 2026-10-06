@@ -86,4 +86,16 @@ void main() {
       expect(age(const Duration(seconds: -5)), 'just now');
     });
   });
+
+  test('formatPlaybackTime is m:ss, h:mm:ss from an hour, clamped at zero', () {
+    expect(formatPlaybackTime(const Duration(seconds: -1)), '0:00');
+    expect(formatPlaybackTime(Duration.zero), '0:00');
+    expect(formatPlaybackTime(const Duration(seconds: 7)), '0:07');
+    expect(formatPlaybackTime(const Duration(minutes: 3, seconds: 7)), '3:07');
+    expect(formatPlaybackTime(const Duration(hours: 1)), '1:00:00');
+    expect(
+      formatPlaybackTime(const Duration(hours: 1, minutes: 23, seconds: 45)),
+      '1:23:45',
+    );
+  });
 }

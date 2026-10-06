@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The composer and avatar attach actions' shared picker, proven at the
-/// `file_picker` method channel: nothing on this box can drive a real OS
+/// `file_picker` platform interface: nothing on this box can drive a real OS
 /// picker, and `attachment_picker.dart`'s whole reason to exist is that the
 /// two [AttachmentSource] routes must ask the plugin for different things.
 ///
@@ -13,29 +13,17 @@
 /// usable image; neither is checkable without a phone.
 library;
 
-import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/attachment_picker.dart';
 
-const _channel = MethodChannel('miguelruivo.flutter.plugins.filepicker');
-
-void _mock(Future<Object?> Function(MethodCall call)? handler) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_channel, handler);
-}
+import 'composer_harness.dart' show usePicker;
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  tearDown(() => _mock(null));
-
   test('the photo library route asks the plugin for FileType.image', () async {
-    MethodCall? seen;
-    _mock((call) async {
-      seen = call;
-      return null; // no selection, the same shape a cancelled pick returns
-    });
+    // A null file is the shape a cancelled pick returns.
+    final picker = usePicker(null);
 
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -44,18 +32,14 @@ void main() {
     )();
 
     expect(picked, isNull);
-    expect(seen, isNotNull);
-    expect(seen!.method, 'image');
+    expect(picker.calls, 1);
+    expect(picker.lastType, FileType.image);
   });
 
   test(
     'the file browser route asks the plugin for the default FileType.any',
     () async {
-      MethodCall? seen;
-      _mock((call) async {
-        seen = call;
-        return null;
-      });
+      final picker = usePicker(null);
 
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -64,10 +48,10 @@ void main() {
       )();
 
       expect(picked, isNull);
-      expect(seen, isNotNull);
+      expect(picker.calls, 1);
       expect(
-        seen!.method,
-        'any',
+        picker.lastType,
+        FileType.any,
         reason: 'the document browser opens with no type filter at all',
       );
     },

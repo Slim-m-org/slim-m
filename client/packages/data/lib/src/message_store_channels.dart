@@ -81,9 +81,18 @@ Future<void> _replaceChannels(
     final stale =
         await (db.select(db.channels)..where((c) => c.id.isNotIn(keep))).get();
     for (final row in stale) {
-      await (db.delete(db.messages)..where((m) => m.channelId.equals(row.id)))
-          .go();
-      await (db.delete(db.channels)..where((c) => c.id.equals(row.id))).go();
+      await _deleteChannelRows(db, row.id);
     }
   });
+}
+
+/// A channel's row and everything keyed to it: its messages and its draft,
+/// which would otherwise sit unreachable behind an id nothing lists.
+Future<void> _deleteChannelRows(SlimmDatabase db, String channelId) async {
+  await (db.delete(db.messages)..where((m) => m.channelId.equals(channelId)))
+      .go();
+  await (db.delete(db.channelDrafts)
+        ..where((d) => d.channelId.equals(channelId)))
+      .go();
+  await (db.delete(db.channels)..where((c) => c.id.equals(channelId))).go();
 }
