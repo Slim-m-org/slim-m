@@ -19,7 +19,7 @@ use super::extract::{Authed, AuthedLimited, Json, PASSWORD, REFRESH, RateLimited
 use crate::hub::Event;
 use crate::ratelimit::Class;
 use crate::store::DeleteAccountError;
-use crate::store::{Bootstrap, IssuedTokens, JoinPolicy, RefreshOutcome, RegisterError};
+use crate::store::{IssuedTokens, JoinPolicy, RefreshOutcome, RegisterError};
 
 /// Auth payloads are a handful of short fields; cap the body well below any
 /// realistic request so an oversized body is rejected before it is buffered.
@@ -238,11 +238,6 @@ async fn register(
         Err(RegisterError::Internal(err)) => return Err(err.into()),
     };
 
-    // Seeds roles and a general channel on an unclaimed deployment; see the
-    // note on this function.
-    if let Bootstrap::Claimed = state.store.bootstrap_deployment(account.id).await? {
-        tracing::info!(user_id = %account.id, "deployment claimed by its first account");
-    }
     state.hub.publish(Event::MemberJoined(account.id));
 
     let tokens = state

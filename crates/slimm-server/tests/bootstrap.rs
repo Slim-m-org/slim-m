@@ -20,6 +20,11 @@ use uuid::Uuid;
 mod support;
 
 async fn new_store() -> (Store, support::TestDbGuard) {
+    let (store, _pool, guard) = new_store_with_pool().await;
+    (store, guard)
+}
+
+async fn new_store_with_pool() -> (Store, sqlx::SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new("slimm-boot-test");
     let config = Config {
         port: 0,
@@ -28,7 +33,7 @@ async fn new_store() -> (Store, support::TestDbGuard) {
         ..Config::default()
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
+    (Store::new(pool.clone()), pool, guard)
 }
 
 fn app(store: Store) -> Router {
@@ -90,7 +95,7 @@ async fn join(app: &Router, host: &str, username: &str) -> String {
     signup(app, username, Some(&code)).await
 }
 
-async fn signup(app: &Router, username: &str, invite_code: Option<&str>) -> String {
+fn signup_request(username: &str, invite_code: Option<&str>) -> Request<Body> {
     let mut body = json!({
         "username": username,
         "display_name": username,
@@ -100,9 +105,13 @@ async fn signup(app: &Router, username: &str, invite_code: Option<&str>) -> Stri
     if let Some(code) = invite_code {
         body["invite_code"] = json!(code);
     }
+    request("POST", "/auth/register", None, Some(body))
+}
+
+async fn signup(app: &Router, username: &str, invite_code: Option<&str>) -> String {
     let response = app
         .clone()
-        .oneshot(request("POST", "/auth/register", None, Some(body)))
+        .oneshot(signup_request(username, invite_code))
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -294,5 +303,51 @@ async fn password_endpoints_are_rate_limited() {
     assert!(
         statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
         "a sustained flood is refused: {statuses:?}"
+    );
+}
+
+/// Registering and claiming are one transaction: when seeding the deployment
+/// fails, the first account must not be left behind as a plain member with the
+/// deployment unclaimed for the next registrant to take.
+#[tokio::test]
+async fn a_failed_claim_does_not_hand_the_deployment_to_the_next_registrant() {
+    let (store, pool, _guard) = new_store_with_pool().await;
+    let app = app(store.clone());
+
+    for statement in [
+        "CREATE TABLE claim_fault (on_ INTEGER)",
+        "INSERT INTO claim_fault VALUES (1)",
+        "CREATE TRIGGER claim_boom BEFORE INSERT ON channels WHEN (SELECT on_ FROM claim_fault) = 1
+         BEGIN SELECT RAISE(ABORT, 'injected'); END",
+    ] {
+        sqlx::query(statement).execute(&pool).await.unwrap();
+    }
+
+    let first = app
+        .clone()
+        .oneshot(signup_request("alice", None))
+        .await
+        .unwrap();
+    assert!(first.status().is_server_error(), "{}", first.status());
+    sqlx::query("UPDATE claim_fault SET on_ = 0")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let retry = app
+        .clone()
+        .oneshot(signup_request("alice", None))
+        .await
+        .unwrap();
+    assert_eq!(retry.status(), StatusCode::OK, "alice retries her own name");
+    let bob = app
+        .clone()
+        .oneshot(signup_request("bob", None))
+        .await
+        .unwrap();
+    assert_eq!(
+        bob.status(),
+        StatusCode::BAD_REQUEST,
+        "bob now needs an invite"
     );
 }
