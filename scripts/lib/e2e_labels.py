@@ -13,6 +13,8 @@ SEND = "Send message"
 ATTACH = "Attach a file"
 ADD_REACTION = "Add reaction"
 REMOVE_ATTACHMENT = "Remove attachment"
+# The cover a spoiler wears until tapped (message_spoiler.dart).
+HIDDEN_SPOILER = "Hidden spoiler"
 
 # Rail and navigation
 SPACE_MENU = "Space menu"
