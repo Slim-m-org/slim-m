@@ -32,7 +32,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/blocks_controller.dart';
-import '../providers/dms.dart';
 import '../providers/member_moderation_error.dart';
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/providers.dart';
@@ -349,10 +348,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
           leading: AppIcons.send,
           onTap: () {
             widget.memberPaneScaffold?.closeEndDrawer();
-            run((container) async {
-              final channelId = await openDirectMessage(container, profile.id);
-              if (host.mounted) host.go(Routes.channel(channelId));
-            });
+            run((container) => messageMember(host, container, profile));
           },
         ),
         if (widget.mentionChannelName != null)

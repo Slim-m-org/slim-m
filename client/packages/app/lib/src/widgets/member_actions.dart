@@ -13,12 +13,15 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../providers/member_moderation_error.dart';
+import '../providers/dms.dart' show openDirectMessage;
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
+import '../routing/routes.dart';
 import 'app_snackbar.dart';
 import 'confirm_dialog.dart';
 import 'run_guarded.dart';
@@ -40,6 +43,26 @@ Future<void> reportMember(
   subjectId: profile.id,
   subjectLabel: 'this member',
 );
+
+/// Opens a direct message with [profile] from the member card.
+///
+/// The card closes on tap, before the server answers, so a refusal (the other
+/// person blocked you, or the request failed) is said on [host], which
+/// outlives it.
+Future<void> messageMember(
+  BuildContext host,
+  ProviderContainer container,
+  api.UserProfile profile,
+) async {
+  final failure = await runGuarded(
+    whatFailed: 'open a conversation with ${profile.displayName}',
+    action: () async {
+      final channelId = await openDirectMessage(container, profile.id);
+      if (host.mounted) host.go(Routes.channel(channelId));
+    },
+  );
+  if (failure != null && host.mounted) showAppSnackbar(host, failure);
+}
 
 /// Blocks a member from the row's context menu.
 Future<void> blockMember(
