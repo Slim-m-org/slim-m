@@ -23,6 +23,9 @@ set -euo pipefail
 DEADLINE_SECONDS="${DEADLINE_SECONDS:-10800}"
 CREATION_GRACE_SECONDS="${CREATION_GRACE_SECONDS:-300}"
 POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-30}"
+# This script runs inside the release run, so that run must not count as work still in flight.
+SELF_RUN_ID="${GITHUB_RUN_ID:-0}"
+[[ "$SELF_RUN_ID" =~ ^[0-9]+$ ]] || SELF_RUN_ID=0
 
 IFS='|' read -r -a required <<< "$REQUIRED_CHECKS"
 # Resolved once: the check-runs path takes a tag, the runs query does not.
@@ -71,7 +74,7 @@ while :; do
   # Absent-and-nothing-running is a typo; absent-while-running is a queue.
   if [[ "${#missing[@]}" -gt 0 ]] && [[ $(( now - started )) -ge "$CREATION_GRACE_SECONDS" ]] \
     && [[ "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" \
-          --jq '[.workflow_runs[] | select(.status != "completed")] | length' 2>/dev/null || echo 1)" = "0" ]]; then
+          --jq '[.workflow_runs[] | select(.status != "completed" and .id != '"${SELF_RUN_ID}"')] | length' 2>/dev/null || echo 1)" = "0" ]]; then
     echo "::error::no check run named ${missing[*]} exists on ${SHA} and nothing is still running for it; either it never ran or required_checks names it wrongly"
     exit 1
   fi
