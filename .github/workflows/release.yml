@@ -592,6 +592,7 @@ jobs:
           flutter-version: 3.47.0
 
       - uses: ./.github/actions/native-hooks-cache
+        if: steps.gate.outputs.ready == 'true'
       - name: build android release
         if: steps.gate.outputs.ready == 'true'
         working-directory: client/packages/app
@@ -665,7 +666,7 @@ jobs:
           scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" \
             client/packages/app/dist/slim-m-client-android.apk \
             client/packages/app/dist/SHA256SUMS.android
-      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+      - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}
 
   # Signed ipa to TestFlight, reviewer-gated. Inert without its six secrets: it
   # warns and stops rather than faking an upload. See docs/ci.md.
@@ -792,6 +793,7 @@ jobs:
           flutter-version: 3.47.0
 
       - uses: ./.github/actions/native-hooks-cache
+        if: steps.gate.outputs.ready == 'true'
       - name: build ipa
         if: steps.gate.outputs.ready == 'true'
         working-directory: client/packages/app
@@ -813,4 +815,4 @@ jobs:
             --file "${ipa[0]}" \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
-      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+      - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}

@@ -245,6 +245,7 @@ jobs:
           flutter-version: 3.47.0
 
       - uses: ./.github/actions/native-hooks-cache
+        if: steps.gate.outputs.ready == 'true'
       # Build number from the run number, build name from pubspec's tracked version; never from local pubspec defaults.
       - name: build android release
         if: steps.gate.outputs.ready == 'true'
@@ -301,7 +302,7 @@ jobs:
             client/packages/app/build/app/outputs/flutter-apk/app-release.apk
             client/packages/app/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+      - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}
 
   # Signed ipa straight to TestFlight; inert without its six secrets, the same gate release.yml uses.
   # CONTINUOUS_TESTFLIGHT=false leaves iOS to release.yml alone; a hand-run dispatch still builds.
