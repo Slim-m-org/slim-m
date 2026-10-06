@@ -22,6 +22,8 @@
 /// the guards typing one has to clear.
 library;
 
+import 'link_query.dart';
+
 /// The scheme and host an invite link uses. `slimm://join?...`.
 const _scheme = 'slimm';
 const _host = 'join';
@@ -48,8 +50,10 @@ String buildInviteLink({required Uri server, required String code}) => Uri(
   final uri = Uri.tryParse(text.trim());
   if (uri == null || uri.scheme != _scheme || uri.host != _host) return null;
 
-  final rawServer = uri.queryParameters['server']?.trim() ?? '';
-  final code = uri.queryParameters['code']?.trim() ?? '';
+  final query = queryOrNull(uri);
+  if (query == null) return null;
+  final rawServer = query['server']?.trim() ?? '';
+  final code = query['code']?.trim() ?? '';
   if (rawServer.isEmpty || code.isEmpty) return null;
 
   final server = Uri.tryParse(rawServer);
