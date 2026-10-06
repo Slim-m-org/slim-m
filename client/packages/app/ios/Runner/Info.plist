@@ -97,17 +97,15 @@
 	     archive. Nothing in slim-m calls a location API. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>slim-m never asks for your location. This entry exists because DKImagePickerController (an image-attachment picker) links against Core Location for photo EXIF geotag handling; we never request or transmit location data.</string>
-	<!-- `audio` because a call records and plays audio while the app is in the
-	     background. `voip` is absent on purpose: nothing constructs
-	     VoipPushRegistrar, so declaring it is an App Store 2.5.4 rejection.
-	     Calls the UI joins are still reported to CallKit by
-	     VoiceCallReporter. remote-notification is the content-free wake.
-	     docs/decisions/0057-ios-background-modes.md has what bringing voip
-	     back needs. -->
+	<!-- `audio` because a call records and plays audio in the background. `voip`
+	     because AppDelegate constructs VoipPushRegistrar, which reports every
+	     VoIP push to CallKit. remote-notification is the content-free wake.
+	     docs/decisions/0057-ios-background-modes.md has the history. -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
 		<string>remote-notification</string>
+		<string>voip</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

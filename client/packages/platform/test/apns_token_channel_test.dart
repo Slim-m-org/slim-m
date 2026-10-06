@@ -130,4 +130,47 @@ void main() {
       expect((result as ApnsTokenReady).token, 'abc123');
     });
   });
+
+  group('ApnsTokenChannel VoIP token', () {
+    test('not iOS has none and never touches the channel', () async {
+      var touched = false;
+      _mock((call) async {
+        touched = true;
+        return 'voip';
+      });
+      addTearDown(() => _mock(null));
+
+      expect(await ApnsTokenChannel(isIOS: false).cachedVoipToken(), isNull);
+      expect(touched, isFalse);
+    });
+
+    test('the cached token is returned as native holds it', () async {
+      _mock((call) async => call.method == 'getVoipToken' ? 'ab12' : null);
+      addTearDown(() => _mock(null));
+
+      expect(await ApnsTokenChannel(isIOS: true).cachedVoipToken(), 'ab12');
+    });
+
+    test('no plugin registered is null, not a throw', () async {
+      _mock(null);
+      expect(await ApnsTokenChannel(isIOS: true).cachedVoipToken(), isNull);
+    });
+
+    test('a token pushed from native reaches onVoipToken', () async {
+      _mock((call) async => null);
+      addTearDown(() => _mock(null));
+      final channel = ApnsTokenChannel(isIOS: true);
+      final next = channel.onVoipToken.first;
+
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+        _channelName,
+        const StandardMethodCodec()
+            .encodeMethodCall(const MethodCall('onVoipToken', 'cafe')),
+        (_) {},
+      );
+
+      expect(await next, 'cafe');
+    });
+  });
 }

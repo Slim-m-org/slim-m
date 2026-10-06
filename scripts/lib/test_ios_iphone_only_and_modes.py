@@ -31,10 +31,10 @@ class DeviceFamily(unittest.TestCase):
 
 
 class BackgroundModes(unittest.TestCase):
-    def test_modes_are_audio_and_remote_notification(self):
+    def test_modes_are_audio_remote_notification_and_voip(self):
         self.assertEqual(
             sorted(runner_plist()["UIBackgroundModes"]),
-            ["audio", "remote-notification"],
+            ["audio", "remote-notification", "voip"],
         )
 
 

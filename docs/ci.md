@@ -167,6 +167,7 @@ The same job is how a deliberate design change gets new references later: run it
 The CallKit synchronous-report invariant is a real termination risk, not a style rule.
 iOS kills an app that takes a VoIP push without reporting a call before the handler returns, and repeat offences cost it VoIP push entirely.
 That makes it worth a macOS runner of its own, because the ubuntu job runs Dart tests and cannot compile a line of Swift.
+The wiring XCTest cannot see (no early exit before the report, the PushKit callback only calls the handler, `AppDelegate` constructs the registrar at launch, `voip` declared exactly then) is read from the Swift source by `scripts/lib/test_ios_voip_invariant.py` in the `hygiene` unittest suite.
 
 The XCTest run is simulator only, so it needs no signing identity and no secrets: it compiles the Swift and runs XCTest, it does not produce a shippable build.
 The signed device build stays in the release workflow.
