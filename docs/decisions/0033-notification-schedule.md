@@ -32,7 +32,7 @@ The same local window then holds on both sides of a DST transition, because the 
 A window can cross midnight into the next weekday (Friday 22:00 into Saturday 02:00 is the ordinary shape a night-shift schedule needs).
 It is stored once, under the weekday it starts on.
 Evaluating "is this weekday's morning still covered" checks two things: today's own row, for a window that starts and ends the same day, and yesterday's row, for a window that started yesterday and has not yet reached its end minute.
-That is the same clock-face reasoning `QuietHours::contains` already used for a single wrapping window, extended across a weekday boundary instead of collapsing back to it every midnight.
+That is the same clock-face reasoning the old `QuietHours::contains` (since deleted) used for a single wrapping window, extended across a weekday boundary instead of collapsing back to it every midnight.
 
 ## The off-hours policy
 
@@ -73,7 +73,7 @@ The timezone is `UTC`, not a guessed device zone: the stored quiet-hours minutes
 Guessing a device zone from inside a SQL migration was rejected outright - there is no device to ask at migration time, and a wrong guess would be a real behaviour change dressed as a preserving one, exactly the outcome this migration exists to avoid.
 
 The window itself is inverted: quiet hours named the window to go quiet in, and this table names the window to stay on in, so the migration writes `(end_minute, start_minute)` rather than `(start_minute, end_minute)`.
-This is not a special case - the complement of a circular interval `[start, end)`, read the same clock-face way `QuietHours::contains` and `DayWindow` both do, is exactly `[end, start)` - so swapping the two fields is the whole transformation, verified in `notification_schedule_migration.rs` against a database seeded before 0081 ran.
+This is not a special case - the complement of a circular interval `[start, end)`, read the same clock-face way the old `QuietHours::contains` and `DayWindow` both did, is exactly `[end, start)` - so swapping the two fields is the whole transformation, verified in `notification_schedule_migration.rs` against a database seeded before 0081 ran.
 
 The old `quiet_hours_start_minute`/`quiet_hours_end_minute` columns and the `/push/quiet-hours` routes are untouched.
 An old client, or an API consumer that predates this feature, keeps working exactly as before.

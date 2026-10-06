@@ -48,8 +48,8 @@ impl DayWindow {
     }
 
     /// Whether this window, read as starting on its own weekday, covers
-    /// `minute` of that same day - a window ending before midnight the same
-    /// way [`crate::notifications::QuietHours::contains`] does, or, if it
+    /// `minute` of that same day - a window ending before midnight as a plain
+    /// range, or, if it
     /// crosses midnight, everything from `start_minute` to the end of the
     /// day. The early-morning tail of a crossing window is
     /// [`DayWindow::tail_into_next_day`]'s job, not this one's, since that
