@@ -130,6 +130,10 @@ class _ComposerState extends ConsumerState<Composer> {
   /// widget reference nothing passes down the tree.
   StateController<ComposerAttachmentDropTarget?>? _dropRegistry;
 
+  /// What this composer last registered, so a late clear removes only its
+  /// own entry and never a newer composer's for the same channel.
+  ComposerAttachmentDropTarget? _dropTarget;
+
   /// The trigger the caret is inside, and which of its offers is current.
   ///
   /// Held here rather than in the panel because all three act on the text
@@ -190,7 +194,15 @@ class _ComposerState extends ConsumerState<Composer> {
       _attachments.removeListener(_handleAttachmentsChange);
       _attachments = ref.read(attachmentStagingProvider(widget.channelId))
         ..addListener(_handleAttachmentsChange);
-      if (mounted) setState(() => _attachmentError = null);
+      if (mounted) {
+        setState(() {
+          _attachmentError = null;
+          _commandError = null;
+          _mentionHelpSeen.clear();
+          _visibleMentionHelp.clear();
+          _selected = 0;
+        });
+      }
       _rebindDropTarget();
     }
   }
@@ -202,19 +214,24 @@ class _ComposerState extends ConsumerState<Composer> {
   /// part of the very build that mounts or moves this widget.
   void _rebindDropTarget() {
     final oldRegistry = _dropRegistry;
+    final oldTarget = _dropTarget;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (oldRegistry != null && oldRegistry.mounted) {
+      if (oldRegistry != null &&
+          oldRegistry.mounted &&
+          oldRegistry.state == oldTarget) {
         oldRegistry.state = null;
       }
       if (!mounted) return;
       final registry = ref.read(
         composerAttachmentDropProvider(widget.channelId).notifier,
       );
-      registry.state = ComposerAttachmentDropTarget(
+      final target = ComposerAttachmentDropTarget(
         stage: _stageAttachment,
         setError: _setAttachmentError,
       );
+      registry.state = target;
       _dropRegistry = registry;
+      _dropTarget = target;
     });
   }
 
@@ -224,11 +241,14 @@ class _ComposerState extends ConsumerState<Composer> {
     final registry = _focusRegistry;
     final focus = _focus;
     final dropRegistry = _dropRegistry;
+    final dropTarget = _dropTarget;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (registry != null && registry.mounted && registry.state == focus) {
         registry.state = null;
       }
-      if (dropRegistry != null && dropRegistry.mounted) {
+      if (dropRegistry != null &&
+          dropRegistry.mounted &&
+          dropRegistry.state == dropTarget) {
         dropRegistry.state = null;
       }
     });
