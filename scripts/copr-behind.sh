@@ -7,7 +7,7 @@
 # "Live" is any build that has not failed or been canceled, so a build that is
 # still pending or running counts and a catch-up cannot double-submit behind
 # main-builds. Only the Version part is compared, never the Release segment: a
-# tagged 0.87.0-1 and a snapshot 0.87.0-0.968 are the same version here, and
+# tagged 0.87.0-1 and a snapshot 0.87.0-1.20261006000000gitabcdef0 are the same version here, and
 # RPM ordering between them is copr-publish.yml's concern, not this gate's.
 #
 # COPR_BUILDS_JSON points at a saved build list so scripts/lib/test_copr_behind.py

@@ -51,12 +51,11 @@ jobs:
           name: slim-m-client-tarball
           path: dist
 
-      # RPM compares Release segment by segment: 0.<run> sorts below the committed spec's 1, so a tagged release always supersedes a same-version snapshot.
+      # A snapshot's Release is the spec's N plus the commit time and sha, which sorts above the release N of the same version and below the next version; scripts/copr-snapshot-release.sh.
       - name: submit snapshot to COPR
         if: steps.gate.outputs.ready == 'true'
         env:
           VER: ${{ steps.ver.outputs.version }}
-          SNAPSHOT_RELEASE: 0.${{ github.run_number }}
         run: |
           set -uo pipefail
           spec=packaging/rpm/slim-m-client.spec
@@ -73,6 +72,7 @@ jobs:
             packaging/linux/icons/top.npcserver.slimm*.png \
             packaging/linux/icons/top.npcserver.slimm.svg ~/rpmbuild/SOURCES/
           cp "dist/slim-m-client-${VER}-linux-amd64.tar.gz" ~/rpmbuild/SOURCES/
+          SNAPSHOT_RELEASE="$(bash scripts/copr-snapshot-release.sh "$spec")" || { echo "::error::could not derive the snapshot Release from ${spec}"; exit 1; }
           sed -i "s/^Version:.*/Version:        ${VER}/" ~/rpmbuild/SPECS/slim-m-client.spec
           sed -i "s/^Release:.*/Release:        ${SNAPSHOT_RELEASE}%{?dist}/" ~/rpmbuild/SPECS/slim-m-client.spec
           rpmbuild -bs ~/rpmbuild/SPECS/slim-m-client.spec >/dev/null
