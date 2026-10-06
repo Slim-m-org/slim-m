@@ -13,6 +13,8 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/providers/notification_preference_controller.dart';
+import 'package:slimm_app/src/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
@@ -41,6 +43,12 @@ class _Rig {
   ];
   int blockHits = 0;
   int overrideHits = 0;
+  int scheduleHits = 0;
+  int preferenceHits = 0;
+
+  /// Answered by `GET /notifications/schedule` and `GET /push/preference`.
+  int? snoozeUntil;
+  String preference = 'everything';
 
   late final SlimmDatabase db;
   late final SyncTestServer server;
@@ -59,6 +67,23 @@ class _Rig {
       ..on('GET', '/notification-preferences/channels', (_) {
         if (++overrideHits <= failFirst) return http.Response('boom', 500);
         return jsonResponse(overrides);
+      })
+      ..on('GET', '/notifications/schedule', (_) {
+        scheduleHits++;
+        return jsonResponse({
+          'schedule': {
+            'timezone': 'UTC',
+            'days': <dynamic>[],
+            'off_hours_mode': 'mentions_and_dms',
+            'snooze_until': snoozeUntil,
+            'allowed_user_ids': <String>[],
+            'allowed_channel_ids': <String>[],
+          },
+        });
+      })
+      ..on('GET', '/push/preference', (_) {
+        preferenceHits++;
+        return jsonResponse({'preference': preference});
       })
       ..on('GET', '/channels', (_) => jsonResponse(<dynamic>[]))
       ..on('POST', '/sync', (_) => jsonResponse({'scopes': <dynamic>[]}))
@@ -96,6 +121,9 @@ class _Rig {
   Future<void> signInAndConnect() => tester.runAsync(() async {
     container.read(blocksProvider);
     container.read(channelNotificationOverridesProvider);
+    // Held alive for the session the way home_shell holds them.
+    container.listen(notificationScheduleProvider, (_, _) {});
+    container.listen(notificationPreferenceProvider, (_, _) {});
     container.read(syncControllerProvider.notifier);
     container.read(sessionProvider).set(_tokens);
     await untilLive();
@@ -182,6 +210,53 @@ void main() {
       );
       expect(overrides.isMuted('c1'), isFalse);
       expect(overrides.overrideFor('c2'), api.NotificationPreference.mentions);
+    } finally {
+      await rig.close();
+    }
+  });
+
+  testWidgets('a reconnect picks up a snooze and a preference set elsewhere', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+      expect(
+        rig.container.read(notificationScheduleProvider).valueOrNull?.isSnoozed,
+        isFalse,
+      );
+      rig
+        ..snoozeUntil = DateTime.now().millisecondsSinceEpoch + 3600 * 1000
+        ..preference = 'mentions';
+
+      await rig.dropAndReconnect();
+
+      expect(
+        rig.container.read(notificationScheduleProvider).valueOrNull?.isSnoozed,
+        isTrue,
+      );
+      expect(
+        rig.container.read(notificationPreferenceProvider).valueOrNull,
+        api.NotificationPreference.mentions,
+      );
+      expect(rig.scheduleHits, 2);
+      expect(rig.preferenceHits, 2);
+    } finally {
+      await rig.close();
+    }
+  });
+
+  testWidgets('a first fetch of either that worked is not repeated', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+
+      expect(rig.scheduleHits, 1);
+      expect(rig.preferenceHits, 1);
     } finally {
       await rig.close();
     }

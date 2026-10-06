@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/providers/message_alert_policy.dart';
+import 'package:slimm_app/src/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
@@ -59,8 +60,14 @@ class _Rig {
     this.parentFails = false,
   });
 
-  final String account;
-  final bool accountFails;
+  /// Both can change under the policy, like a setting changed on another device.
+  String account;
+  bool accountFails;
+
+  /// When the schedule says the account is snoozed until, or null for none.
+  int? snoozeUntil;
+  bool scheduleFails = false;
+  int scheduleRequests = 0;
   final Map<String, String> overrides;
   final bool parentFails;
   final threadParentRequests = <String>[];
@@ -105,6 +112,8 @@ class _Rig {
         }),
       ],
     );
+    // Held alive for the session the way home_shell holds it; unobserved it would refetch on every read.
+    container.listen(notificationScheduleProvider, (_, _) {});
     await container
         .read(channelNotificationOverridesProvider.notifier)
         .refresh();
@@ -125,6 +134,22 @@ class _Rig {
       return accountFails
           ? _json({'error': 'boom'}, 500)
           : _json({'preference': account});
+    }
+    if (path == '/notifications/schedule') {
+      scheduleRequests++;
+      if (scheduleFails) return _json({'error': 'boom'}, 500);
+      return _json({
+        'schedule': snoozeUntil == null
+            ? null
+            : {
+                'timezone': 'UTC',
+                'days': <Object>[],
+                'off_hours_mode': 'mentions_and_dms',
+                'snooze_until': snoozeUntil,
+                'allowed_user_ids': <String>[],
+                'allowed_channel_ids': <String>[],
+              },
+      });
     }
     if (path == '/notification-preferences/channels') {
       return _json([
@@ -279,6 +304,59 @@ void main() {
         await _alerts(rig, _message('group-1', 'hi', authorId: 'me')),
         isFalse,
       );
+    });
+  });
+
+  group('what was set on another device', () {
+    late Duration originalMaxAge;
+
+    setUp(() {
+      originalMaxAge = alertStateMaxAge;
+      alertStateMaxAge = const Duration(milliseconds: 40);
+    });
+    tearDown(() => alertStateMaxAge = originalMaxAge);
+
+    Future<void> pastMaxAge() =>
+        Future<void>.delayed(const Duration(milliseconds: 80));
+
+    test('a snooze is honoured once the schedule is stale', () async {
+      await wire(_Rig());
+      expect(await _alerts(rig, _message('group-1', 'hi all')), isTrue);
+
+      rig.snoozeUntil = DateTime.now().millisecondsSinceEpoch + 3600 * 1000;
+      await pastMaxAge();
+
+      expect(await _alerts(rig, _message('group-1', 'hi all')), isFalse);
+    });
+
+    test('a fresh schedule is not asked for again', () async {
+      await wire(_Rig());
+      await rig.policy.evaluate(_message('group-1', 'one'));
+      await rig.policy.evaluate(_message('group-1', 'two'));
+
+      expect(rig.scheduleRequests, 1);
+    });
+
+    test('a schedule that failed to load is asked for again', () async {
+      final failing = _Rig()..scheduleFails = true;
+      await wire(failing);
+      await rig.policy.evaluate(_message('group-1', 'one'));
+
+      rig
+        ..scheduleFails = false
+        ..snoozeUntil = DateTime.now().millisecondsSinceEpoch + 3600 * 1000;
+
+      expect(await _alerts(rig, _message('group-1', 'two')), isFalse);
+    });
+
+    test('a changed account preference is honoured once it is stale', () async {
+      await wire(_Rig());
+      expect(await _alerts(rig, _message('group-1', 'hi all')), isTrue);
+
+      rig.account = 'nothing';
+      await pastMaxAge();
+
+      expect(await _alerts(rig, _message('group-1', 'hi all')), isFalse);
     });
   });
 }

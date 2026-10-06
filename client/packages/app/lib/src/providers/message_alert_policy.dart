@@ -12,6 +12,7 @@
 /// last word.
 library;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -32,6 +33,16 @@ class MessageAlert {
   final bool mentionsSelf;
 }
 
+/// How old the schedule and the account preference may be before an alert
+/// refetches them. A snooze or a changed preference set on another device while
+/// this one stays connected arrives as nothing at all, so this bounds how long
+/// the desktop keeps chiming through it. A `var` so a test can shrink it.
+@visibleForTesting
+var alertStateMaxAge = const Duration(minutes: 1);
+
+/// How long an alert waits for that refetch before it uses what it already has.
+const _refreshWait = Duration(seconds: 2);
+
 final messageAlertPolicyProvider = Provider<MessageAlertPolicy>(
   MessageAlertPolicy.new,
 );
@@ -48,6 +59,9 @@ class MessageAlertPolicy {
 
   /// A thread's parent channel never changes, so each is asked for once.
   final Map<String, String?> _parentChannels = {};
+
+  /// When each provider was last known good, for [alertStateMaxAge].
+  final Map<Object, DateTime> _loadedAt = {};
 
   /// The alert [message] earns, or null when it should stay quiet.
   Future<MessageAlert?> evaluate(api.Message message) async {
@@ -82,7 +96,10 @@ class MessageAlertPolicy {
       return null;
     }
 
-    final schedule = _ref.read(notificationScheduleProvider).valueOrNull;
+    final schedule = await _current(
+      notificationScheduleProvider,
+      notificationScheduleProvider.future,
+    );
     if (!scheduleEarnsASound(
       state: evaluateNotificationSchedule(schedule),
       channelAllowed:
@@ -140,11 +157,31 @@ class MessageAlertPolicy {
   /// The account's own "Notify me for", null when it cannot be read, so a
   /// failure of any kind (including a body the client could not parse) never
   /// silences a message the person did not ask to silence.
-  Future<api.NotificationPreference?> _accountPreference() async {
+  Future<api.NotificationPreference?> _accountPreference() => _current(
+    notificationPreferenceProvider,
+    notificationPreferenceProvider.future,
+  );
+
+  /// [provider]'s value, refetched first when it failed or is older than
+  /// [alertStateMaxAge]. Falls back to whatever it holds if the refetch is
+  /// slow or fails, so a bad network never silences or floods an alert.
+  Future<T?> _current<T>(
+    ProviderBase<AsyncValue<T>> provider,
+    Refreshable<Future<T>> future,
+  ) async {
+    final now = DateTime.now();
+    final loadedAt = _loadedAt[provider] ?? now;
+    final failed = _ref.exists(provider) && _ref.read(provider).hasError;
+    if (failed || now.difference(loadedAt) > alertStateMaxAge) {
+      _ref.invalidate(provider);
+      _loadedAt[provider] = now;
+    } else {
+      _loadedAt[provider] = loadedAt;
+    }
     try {
-      return await _ref.read(notificationPreferenceProvider.future);
+      return await _ref.read(future).timeout(_refreshWait);
     } on Object {
-      return null;
+      return _ref.exists(provider) ? _ref.read(provider).valueOrNull : null;
     }
   }
 }
