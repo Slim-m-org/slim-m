@@ -101,6 +101,13 @@ pub struct InstallModuleRequest<'a> {
     pub extension_points: &'a [ModuleExtensionPointSpec<'a>],
 }
 
+/// What the dock records alongside an install, in the same transaction as it.
+pub struct DockProvenance<'a> {
+    pub host_capabilities: &'a [String],
+    /// The community source's slug; `None` is the official one.
+    pub source_repo: Option<&'a str>,
+}
+
 struct ModuleRow {
     id: String,
     name: String,
@@ -202,6 +209,40 @@ impl Store {
             .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
     }
 
+    /// [`Self::install_module_with_artifact`] plus the dock's own provenance,
+    /// all in one transaction: the host capabilities the admin approved and the
+    /// community source it came from. Written separately, a failure between the
+    /// calls left a community module installed and reading as official.
+    pub async fn install_module_from_dock(
+        &self,
+        req: InstallModuleRequest<'_>,
+        artifact: &[u8],
+        provenance: &DockProvenance<'_>,
+    ) -> anyhow::Result<InstalledModule> {
+        let mut tx = self.begin_write().await?;
+        insert_module_metadata(&mut tx, &req).await?;
+        store_module_artifact_tx(&mut tx, req.id, req.artifact_sha256, artifact).await?;
+        let host_json = serde_json::to_string(provenance.host_capabilities)?;
+        sqlx::query!(
+            "UPDATE installed_modules SET approved_host_capabilities = ? WHERE id = ?",
+            host_json,
+            req.id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE installed_modules SET source_repo = ? WHERE id = ?",
+            provenance.source_repo,
+            req.id
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.installed_module(req.id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
+    }
+
     /// One installed module, or `None` if it is not (or no longer) installed.
     pub async fn installed_module(&self, id: &str) -> anyhow::Result<Option<InstalledModule>> {
         let row = sqlx::query_as!(
@@ -269,25 +310,6 @@ impl Store {
         let affected = sqlx::query!(
             "UPDATE installed_modules SET approved_host_capabilities = ? WHERE id = ?",
             json,
-            id
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
-        Ok(affected > 0)
-    }
-
-    /// Records which community source an installed module came from; `None`
-    /// is the official one. `Ok(false)` if it is not installed. Like the host
-    /// capabilities, an upsert leaves it alone and `http::dock` sets it.
-    pub async fn set_module_source(
-        &self,
-        id: &str,
-        source_repo: Option<&str>,
-    ) -> anyhow::Result<bool> {
-        let affected = sqlx::query!(
-            "UPDATE installed_modules SET source_repo = ? WHERE id = ?",
-            source_repo,
             id
         )
         .execute(&self.pool)

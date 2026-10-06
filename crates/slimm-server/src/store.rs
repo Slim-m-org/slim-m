@@ -163,8 +163,8 @@ pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
 };
 pub use modules::{
-    InstallModuleRequest, InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec,
-    ModulePermissionSpec, ModuleRuntimeLimits,
+    DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
+    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

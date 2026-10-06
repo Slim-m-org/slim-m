@@ -40,7 +40,8 @@ use crate::config::Config;
 use crate::media::to_hex;
 use crate::ratelimit::Class;
 use crate::store::{
-    InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
+    DockProvenance, InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec,
+    ModuleRuntimeLimits,
 };
 
 use capabilities::{approvable_host_capabilities, carried_host_capabilities};
@@ -375,7 +376,7 @@ async fn install(
     };
     let installed = state
         .store
-        .install_module_with_artifact(
+        .install_module_from_dock(
             InstallModuleRequest {
                 id: &manifest.id,
                 name: &manifest.name,
@@ -387,21 +388,12 @@ async fn install(
                 extension_points: &extension_points,
             },
             &artifact,
+            &DockProvenance {
+                host_capabilities: &approved_host,
+                source_repo: resolved.repo.as_deref(),
+            },
         )
         .await?;
-    state
-        .store
-        .set_module_host_capabilities(&installed.id, &approved_host)
-        .await?;
-    state
-        .store
-        .set_module_source(&installed.id, resolved.repo.as_deref())
-        .await?;
-    let installed = state
-        .store
-        .installed_module(&installed.id)
-        .await?
-        .ok_or(ApiError::NotFound("module not installed"))?;
     Ok(Json(InstalledModuleDto::from(installed)))
 }
 
