@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
