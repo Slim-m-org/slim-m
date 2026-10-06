@@ -6,10 +6,12 @@ on:
     branches: [main]
     paths:
       - "assets/audio/**"
+      - "client/packages/app/assets/audio/**"
       - ".github/workflows/audio-ci.yml"
   pull_request:
     paths:
       - "assets/audio/**"
+      - "client/packages/app/assets/audio/**"
       - ".github/workflows/audio-ci.yml"
 
 permissions:
@@ -43,7 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 assets/audio/generate.py
-          if ! git diff --exit-code -- assets/audio; then
+          if [ -n "$(git status --porcelain -- assets/audio)" ]; then
+            git status --short -- assets/audio
             echo "::error::a committed sound does not match what the code makes"
             exit 1
           fi

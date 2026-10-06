@@ -8,6 +8,7 @@ on:
       - "client/**"
       - "packaging/windows/**"
       - ".github/workflows/client-windows-ci.yml"
+      - ".github/actions/**"
       # A release-please bump touches these three only; a real dependency change still runs through the lock file.
       - "!client/CHANGELOG.md"
       - "!client/pubspec.yaml"
