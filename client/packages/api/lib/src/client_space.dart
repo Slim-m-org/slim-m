@@ -47,22 +47,26 @@ extension SlimmApiSpace on SlimmApi {
     return SpaceSettings.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Writes the join policy, and the second-factor policy when [totpPolicy] is
-  /// given.
+  /// Writes whichever of [joinPolicy] and [totpPolicy] is given and leaves the
+  /// other alone.
   ///
-  /// `totp_policy` is omitted rather than echoed back when the caller does not
-  /// mean to change it: the server leaves an absent field alone, so a screen
-  /// that only knows about the join policy cannot reset the operator's other
-  /// choice by round-tripping a stale value.
+  /// A field is omitted rather than echoed back when the caller does not mean
+  /// to change it: the server writes only what is present, so a screen holding
+  /// a stale snapshot cannot overwrite the operator's other choice. At least
+  /// one is required.
   Future<SpaceSettings> setSpaceSettings({
-    required JoinPolicy joinPolicy,
+    JoinPolicy? joinPolicy,
     TotpPolicy? totpPolicy,
   }) async {
+    assert(
+      joinPolicy != null || totpPolicy != null,
+      'a settings PATCH must carry at least one field',
+    );
     final json = await _send(
       'PATCH',
       '/space/settings',
       body: {
-        'join_policy': joinPolicy.wire,
+        if (joinPolicy != null) 'join_policy': joinPolicy.wire,
         if (totpPolicy != null) 'totp_policy': totpPolicy.wire,
       },
     );

@@ -46,7 +46,7 @@ class _Server {
       patches.add(body);
       return http.Response(
         jsonEncode({
-          'join_policy': body['join_policy'],
+          'join_policy': body['join_policy'] ?? 'invite',
           'totp_policy': body['totp_policy'] ?? totpPolicy,
         }),
         200,
@@ -179,9 +179,9 @@ void main() {
     expect(find.text('Nobody new can turn it on'), findsOneWidget);
   });
 
-  /// The row writes one PATCH carrying the join policy it just read, so
-  /// changing the second-factor policy cannot change who can join.
-  testWidgets('changing the policy leaves the join policy where it was', (
+  /// The row sends only its own field, so a join policy another admin changed
+  /// after this screen loaded cannot be written back from a stale snapshot.
+  testWidgets('changing the policy sends no join policy at all', (
     tester,
   ) async {
     final server = _Server();
@@ -193,12 +193,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(server.patches, hasLength(1));
-    expect(server.patches.single['totp_policy'], 'off');
-    expect(
-      server.patches.single['join_policy'],
-      'invite',
-      reason: 'the join policy is echoed back unchanged, not dropped',
-    );
+    expect(server.patches.single, {'totp_policy': 'off'});
   });
 
   /// An unrecognised policy from a newer server must not read as `off`, which

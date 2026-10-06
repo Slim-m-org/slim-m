@@ -41,16 +41,13 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
     with GuardedActionState<TotpPolicyRow> {
   bool _saving = false;
 
-  /// The join policy is sent unchanged alongside, because `/space/settings` is
-  /// one PATCH and it requires that field; sending the value just read is what
-  /// keeps this row from being able to change the other one.
-  Future<void> _set(api.SpaceSettings current, api.TotpPolicy policy) async {
+  /// Only the second-factor field is sent, so this row cannot change the join
+  /// policy even when its snapshot of it is stale.
+  Future<void> _set(api.TotpPolicy policy) async {
     setState(() => _saving = true);
     final ok = await guard(
       whatFailed: 'change the two-factor policy',
-      action: () => ref
-          .read(apiProvider)
-          .setSpaceSettings(joinPolicy: current.joinPolicy, totpPolicy: policy),
+      action: () => ref.read(apiProvider).setSpaceSettings(totpPolicy: policy),
     );
     if (!mounted) return;
     setState(() => _saving = false);
@@ -119,7 +116,7 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
       choices: _choices,
     );
     if (chosen != null && chosen != current.totpPolicy) {
-      await _set(current, chosen);
+      await _set(chosen);
     }
   }
 }

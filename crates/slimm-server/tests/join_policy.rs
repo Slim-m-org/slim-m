@@ -288,3 +288,38 @@ async fn version_reports_whether_the_deployment_is_claimed() {
     claim(&app).await;
     assert_eq!(version().await["claimed"], true);
 }
+
+#[tokio::test]
+async fn a_patch_writes_only_the_fields_it_carries() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = claim(&app).await;
+    store.set_join_policy(JoinPolicy::Open).await.unwrap();
+
+    let totp_only = app
+        .clone()
+        .oneshot(request(
+            "PATCH",
+            "/space/settings",
+            Some(&admin),
+            Some(json!({"totp_policy": "optional"})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(totp_only.status(), StatusCode::OK);
+    let body = json_body(totp_only).await;
+    assert_eq!(body["join_policy"], "open");
+    assert_eq!(body["totp_policy"], "optional");
+    assert_eq!(store.join_policy().await.unwrap(), JoinPolicy::Open);
+
+    let empty = app
+        .oneshot(request(
+            "PATCH",
+            "/space/settings",
+            Some(&admin),
+            Some(json!({})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(empty.status(), StatusCode::BAD_REQUEST);
+}
