@@ -220,9 +220,14 @@ class SyncController extends StateNotifier<SyncStatus> {
         isCurrent: () => generation == _generation,
       );
       if (generation != _generation) return;
-      await _catchUp(generation, api, store);
+      await _catchUp(
+        generation,
+        api,
+        store,
+        onFirstRound: () =>
+            _ref.read(initialSyncCompleteProvider.notifier).state = true,
+      );
       if (generation != _generation) return;
-      _ref.read(initialSyncCompleteProvider.notifier).state = true;
       final frames = await _attach(generation, api, store);
       if (frames == null) return;
       await frames.flush();

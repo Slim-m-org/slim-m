@@ -6,30 +6,59 @@
 part of 'sync_controller.dart';
 
 extension SyncControllerCatchUp on SyncController {
-  /// Catches every known scope up in one request, applying deltas in order.
+  /// Catches every known scope up, round after round until none is behind.
+  ///
+  /// The rounds are awaited here rather than left to a detached continuation,
+  /// so a failed round throws to whoever is waiting: [start] retries with
+  /// backoff, [reconcile] drops the connection. A detached one had nobody to
+  /// throw to once `start()` had moved on, and the controller went live with
+  /// the rest of the backlog unfetched.
   ///
   /// [generation] is this call's [start], checked before every write: a
-  /// sign-out landing while the network round trip above is already in
-  /// flight must not let its answer, arriving after the store has been
-  /// cleared for the account signing out, write into it anyway.
+  /// sign-out landing while a network round trip is already in flight must
+  /// not let its answer, arriving after the store has been cleared for the
+  /// account signing out, write into it anyway.
+  ///
+  /// [onFirstRound] runs once the first round has landed, before the rest of
+  /// a long backlog, so the first paint does not wait for all of it.
   Future<void> _catchUp(
+    int generation,
+    SlimmApi api,
+    MessageStore store, {
+    void Function()? onFirstRound,
+  }) async {
+    var first = true;
+    while (true) {
+      final more = await _catchUpRound(generation, api, store);
+      if (generation != _generation) return;
+      if (first) onFirstRound?.call();
+      first = false;
+      if (!more) return;
+      // Next tick rather than straight through, so a long backlog does not block the first paint.
+      await Future<void>.delayed(Duration.zero);
+      if (generation != _generation) return;
+    }
+  }
+
+  /// One `/sync` request over every scope, applying its deltas in order.
+  /// Answers whether any scope still has more to fetch.
+  Future<bool> _catchUpRound(
     int generation,
     SlimmApi api,
     MessageStore store,
   ) async {
     bool isCurrent() => generation == _generation;
     final cursors = await store.allCursors();
-    if (cursors.isEmpty) return;
+    if (cursors.isEmpty) return false;
 
     final deltas = await api.sync(cursors);
-    if (generation != _generation) return;
     var more = false;
     for (final delta in deltas) {
-      if (generation != _generation) return;
+      if (!isCurrent()) return false;
       if (delta.reset) {
         // Either cursor is too far behind to stream: local state is untrusted.
         await _resetScope(generation, api, store, delta.channelId);
-        if (!isCurrent()) return;
+        if (!isCurrent()) return false;
         continue;
       }
       await store.applyMessages(delta.messages);
@@ -37,13 +66,13 @@ extension SyncControllerCatchUp on SyncController {
       // After the messages: an edit cannot precede the message it names.
       if (delta.opLatestSeq != null) {
         final cursor = await store.opCursorFor(delta.channelId);
-        if (!isCurrent()) return;
+        if (!isCurrent()) return false;
         if (cursor == null) {
           // Adopt the head; asking from zero replays every edit ever made.
           await store.setOpCursor(delta.channelId, delta.opLatestSeq);
         } else if (delta.ops.isNotEmpty) {
           final outcome = await applyOps(store, delta.channelId, delta.ops);
-          if (!isCurrent()) return;
+          if (!isCurrent()) return false;
           if (outcome == OpsOutcome.needsReset) {
             await _resetScope(generation, api, store, delta.channelId);
             continue;
@@ -53,23 +82,7 @@ extension SyncControllerCatchUp on SyncController {
 
       more = more || delta.hasMore || delta.opsHasMore;
     }
-
-    /// At most one continuation per round, however many scopes are behind.
-    /// Scheduling inside the loop meant every backlogged channel started its own
-    /// full-cursor resync, so ten of them fanned out into ten overlapping /sync
-    /// calls that each re-requested all ten scopes. Next tick rather than
-    /// straight through, so a long backlog does not block the first paint.
-    if (more) {
-      // Runs outside start()'s try/catch, so a failed round takes the drop path a lost socket takes.
-      unawaited(
-        Future<void>.delayed(
-          Duration.zero,
-          () => _catchUp(generation, api, store),
-        ).catchError((_) {
-          if (!_disposed && generation == _generation) _onDropped();
-        }),
-      );
-    }
+    return more;
   }
 
   /// Runs a catch-up against the current generation.
