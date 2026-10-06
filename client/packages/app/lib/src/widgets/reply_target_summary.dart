@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/attachment_bytes.dart';
 import '../providers/media_preferences.dart';
+import '../message_preview.dart';
 import 'attachment_view.dart' show isInlineImage, isVideo;
 import 'image_decode.dart';
 
@@ -24,6 +25,16 @@ String attachmentKindLabel(List<api.Attachment> attachments) {
   if (isVideo(only.contentType)) return 'Video';
   if (only.contentType.startsWith('audio/')) return 'Voice message';
   return only.filename;
+}
+
+/// One line naming a message: its text flattened, else what it attached, else
+/// "(no text)". Shared by every list that previews a message, so none can
+/// print raw markup or leave a photo-only message blank.
+String previewLine(String content, List<api.Attachment> attachments) {
+  final text = plainPreview(content);
+  if (text.isNotEmpty) return text;
+  final kind = attachmentKindLabel(attachments);
+  return kind.isEmpty ? '(no text)' : kind;
 }
 
 IconData _glyphFor(List<api.Attachment> attachments) {

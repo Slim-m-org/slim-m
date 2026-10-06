@@ -16,6 +16,7 @@ import '../providers/user_profiles.dart';
 import 'author_label.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'message_jump.dart';
+import 'reply_target_summary.dart' show previewLine;
 import 'sheet_item_list.dart';
 import 'user_avatar.dart';
 
@@ -232,7 +233,7 @@ class PinnedMessageRow extends ConsumerWidget {
       ),
       title: AuthorNameLine(name: name, profile: resolution.profile),
       subtitle: Text(
-        pin.message.content,
+        previewLine(pin.message.content, pin.message.attachments),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
