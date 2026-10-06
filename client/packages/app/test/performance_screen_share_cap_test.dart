@@ -137,4 +137,57 @@ void main() {
       expect(find.textContaining('1280x720'), findsOneWidget);
     },
   );
+
+  Future<AppSegmentedControl> pumpCeiling(
+    WidgetTester tester,
+    MockClient client,
+  ) async {
+    final container = _containerFor(client);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('720p'));
+    await tester.pumpAndSettle();
+    return tester.widget<AppSegmentedControl>(
+      find.byWidgetPredicate(
+        (w) =>
+            w is AppSegmentedControl &&
+            w.semanticLabel == 'Screen share resolution ceiling',
+      ),
+    );
+  }
+
+  testWidgets('a ceiling between the presets gets its own selected segment', (
+    tester,
+  ) async {
+    final control = await pumpCeiling(
+      tester,
+      _clientWith(maxHeight: () => 900),
+    );
+
+    expect(control.options[control.selectedIndex].label, '900p');
+    expect(find.textContaining('No cap'), findsNothing);
+    expect(find.textContaining('capped at 900p'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a ceiling that failed to load selects nothing and claims no cap',
+    (tester) async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/space/screen-share') {
+          return http.Response('{}', 500);
+        }
+        return _json({
+          'retention_days': 0,
+          'object_cap': 20000,
+          'enabled': false,
+        });
+      });
+
+      final control = await pumpCeiling(tester, client);
+
+      expect(control.selectedIndex, -1);
+      expect(find.textContaining('No cap'), findsNothing);
+    },
+  );
 }
