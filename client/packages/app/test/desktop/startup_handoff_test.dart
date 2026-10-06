@@ -212,4 +212,45 @@ void main() {
       isFalse,
     );
   });
+
+  testWidgets('a maximized handoff does not finish while the view still '
+      'reports the splash width - the real UI must not build at 380px', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      windowGeometryPreferenceKey: jsonEncode(
+        const WindowGeometry(
+          windowedSize: WindowSize(width: 1400, height: 900),
+          runState: WindowRunState.maximized,
+        ).toJson(),
+      ),
+    });
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    await DesktopWindowShell.prepareHandoff(_container());
+    tester.view.physicalSize = const Size(380, 507);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var done = false;
+    unawaited(DesktopWindowShell.revealAfterHandoff().then((_) => done = true));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 400)),
+    );
+    await tester.pump();
+    expect(done, isFalse, reason: 'still at the splash width');
+
+    tester.view.physicalSize = const Size(1920, 1080);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 400)),
+    );
+    await tester.pump();
+    expect(done, isTrue);
+  });
+
+  test('viewHasLeftSplash looks at width only', () {
+    expect(viewHasLeftSplash(const Size(380, 507)), isFalse);
+    expect(viewHasLeftSplash(const Size(1920, 1080)), isTrue);
+    expect(viewHasLeftSplash(null), isFalse);
+  });
 }
