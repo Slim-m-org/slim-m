@@ -44,7 +44,7 @@ final desktopCallNotifierProvider = Provider<void>((ref) {
   final notifications = ref.read(localNotificationsProvider);
 
   ref.listen<IncomingDmCallRing?>(
-    dmCallRingControllerProvider.select((s) => s.incoming),
+    dmCallRingControllerProvider.select((s) => s.visibleIncoming),
     (previous, next) {
       // Fire-and-forget: a failed notification must not disturb the call.
       if (next == null) {

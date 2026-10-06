@@ -54,8 +54,6 @@ import '../desktop/desktop_window_shell.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../providers/user_profiles.dart';
 import '../routing/router.dart';
-import '../routing/routes.dart';
-import '../screens/dm_call_pane.dart';
 import '../screens/voice_call_controls.dart' show CallDockButton;
 import 'floating_dock_card.dart';
 import 'user_avatar.dart';
@@ -68,7 +66,7 @@ class IncomingCallOverlay extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Only a new ring should steal the window back; see this file's own library doc.
-    ref.listen(dmCallRingControllerProvider.select((s) => s.incoming), (
+    ref.listen(dmCallRingControllerProvider.select((s) => s.visibleIncoming), (
       previous,
       next,
     ) {
@@ -76,7 +74,7 @@ class IncomingCallOverlay extends ConsumerWidget {
     });
 
     final ring = ref.watch(
-      dmCallRingControllerProvider.select((s) => s.incoming),
+      dmCallRingControllerProvider.select((s) => s.visibleIncoming),
     );
     if (ring == null) return const SizedBox.shrink();
 
@@ -120,11 +118,8 @@ Future<void> _raiseWindow() async {
   }
 }
 
-void _acceptRing(WidgetRef ref, IncomingDmCallRing ring) {
-  ref.read(dmCallRingControllerProvider.notifier).dismissIncoming();
-  ref.read(dmCallOpenProvider.notifier).state = ring.channelId;
-  ref.read(routerProvider).go(Routes.channel(ring.channelId));
-}
+void _acceptRing(WidgetRef ref, IncomingDmCallRing ring) =>
+    unawaited(ref.read(dmCallRingControllerProvider.notifier).accept(ring));
 
 void _declineRing(WidgetRef ref, IncomingDmCallRing ring) =>
     unawaited(ref.read(dmCallRingControllerProvider.notifier).decline(ring));

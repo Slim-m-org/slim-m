@@ -42,6 +42,22 @@ protocol CallReporting {
 
 extension CXProvider: CallReporting {}
 
+/// What CallKit is doing with a call this file reported, told to Dart so the
+/// websocket's copy of the same ring is not prompted for a second time.
+enum CallKitCallEvent: Equatable {
+  case ringing(UUID)
+  case answered(UUID)
+  case ended(UUID)
+
+  var wire: [String: String] {
+    switch self {
+    case .ringing(let id): return ["event": "ringing", "id": id.uuidString]
+    case .answered(let id): return ["event": "answered", "id": id.uuidString]
+    case .ended(let id): return ["event": "ended", "id": id.uuidString]
+    }
+  }
+}
+
 /// Turns a VoIP push payload into a reported CallKit call.
 ///
 /// Deliberately separate from the PushKit delegate wiring so the invariant can
@@ -50,6 +66,9 @@ extension CXProvider: CallReporting {}
 final class VoipCallHandler {
   private let provider: CallReporting
   private var answered = Set<UUID>()
+
+  /// Set after construction so the tests' one-argument initializer still works.
+  var onEvent: ((CallKitCallEvent) -> Void)?
 
   /// Matches the server's ring timeout, past which the ring is over.
   static let ringTimeout: TimeInterval = 30
@@ -61,6 +80,13 @@ final class VoipCallHandler {
   /// A call the user picked up must outlive the unanswered-ring timeout below.
   func callAnswered(_ id: UUID) {
     answered.insert(id)
+    onEvent?(.answered(id))
+  }
+
+  /// The user ended or declined the call on the system screen.
+  func callEnded(_ id: UUID) {
+    answered.remove(id)
+    onEvent?(.ended(id))
   }
 
   /// The caller name shown when the payload does not say who is calling.
@@ -99,10 +125,12 @@ final class VoipCallHandler {
     // Reported before anything else can throw, return, or dispatch elsewhere.
     provider.reportNewIncomingCall(with: callId, update: update) { [provider, weak self] error in
       if error == nil {
+        self?.onEvent?(.ringing(callId))
         // The push is content-free, so no later push can say the caller hung up.
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.ringTimeout) {
           if self?.answered.contains(callId) != true {
             provider.reportCall(with: callId, endedAt: Date(), reason: .unanswered)
+            self?.onEvent?(.ended(callId))
           }
         }
       }
@@ -141,6 +169,9 @@ final class VoipPushRegistrar: NSObject, PKPushRegistryDelegate, CXProviderDeleg
   /// server, alongside the ordinary APNs token.
   var onToken: ((String) -> Void)?
 
+  /// Called as CallKit's view of an incoming call changes, for the Dart side.
+  var onCallEvent: ((CallKitCallEvent) -> Void)?
+
   override init() {
     registry = PKPushRegistry(queue: .main)
 
@@ -158,6 +189,7 @@ final class VoipPushRegistrar: NSObject, PKPushRegistryDelegate, CXProviderDeleg
     handler = VoipCallHandler(provider: provider)
     super.init()
 
+    handler.onEvent = { [weak self] event in self?.onCallEvent?(event) }
     registry.delegate = self
     registry.desiredPushTypes = [.voIP]
     provider.setDelegate(self, queue: .main)
@@ -192,11 +224,12 @@ final class VoipPushRegistrar: NSObject, PKPushRegistryDelegate, CXProviderDeleg
 
   func provider(_: CXProvider, perform action: CXAnswerCallAction) {
     handler.callAnswered(action.callUUID)
-    // Fulfilled so CallKit does not show a failed call; joining the room is the Dart UI's job.
+    // Fulfilled so CallKit does not show a failed call; Dart is told and joins the room.
     action.fulfill()
   }
 
   func provider(_: CXProvider, perform action: CXEndCallAction) {
+    handler.callEnded(action.callUUID)
     action.fulfill()
   }
 }

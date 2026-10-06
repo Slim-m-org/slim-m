@@ -133,4 +133,46 @@ final class VoipCallHandlerTests: XCTestCase {
     ) { completed = true }
     XCTAssertTrue(completed, "PushKit must never be left waiting on a push")
   }
+
+  func testAReportedCallTellsDartItIsRingingAfterTheReport() {
+    let provider = RecordingProvider()
+    let handler = VoipCallHandler(provider: provider)
+    var seen: [CallKitCallEvent] = []
+    var reportedWhenTold = false
+    handler.onEvent = { event in
+      reportedWhenTold = !provider.reported.isEmpty
+      seen.append(event)
+    }
+    let id = UUID()
+    handler.handle(payload: ["call_id": id.uuidString]) {}
+    XCTAssertEqual(seen, [.ringing(id)])
+    XCTAssertTrue(reportedWhenTold, "Dart is told only once CallKit has the call")
+  }
+
+  func testARefusedCallIsNotAnnouncedAsRinging() {
+    let provider = RecordingProvider()
+    provider.reportError = NSError(domain: "CXErrorDomain", code: 3)
+    let handler = VoipCallHandler(provider: provider)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+    handler.handle(payload: [:]) {}
+    XCTAssertEqual(seen, [], "a call CallKit refused never rang")
+  }
+
+  func testAnswerAndEndAreForwardedToDart() {
+    let handler = VoipCallHandler(provider: RecordingProvider())
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+    let id = UUID()
+    handler.callAnswered(id)
+    handler.callEnded(id)
+    XCTAssertEqual(seen, [.answered(id), .ended(id)])
+  }
+
+  func testTheWireFormatMatchesWhatDartParses() {
+    let id = UUID()
+    XCTAssertEqual(CallKitCallEvent.answered(id).wire, ["event": "answered", "id": id.uuidString])
+    XCTAssertEqual(CallKitCallEvent.ringing(id).wire["event"], "ringing")
+    XCTAssertEqual(CallKitCallEvent.ended(id).wire["event"], "ended")
+  }
 }

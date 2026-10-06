@@ -89,6 +89,30 @@ class HandlerReportsFirst(unittest.TestCase):
         self.assertIn("completion()", body)
 
 
+class CallKitEventsReachDart(unittest.TestCase):
+    def test_the_ringing_event_is_sent_only_after_the_report(self):
+        body = body_of(swift("VoipCallHandler.swift"), "func handle(payload:")
+        self.assertGreater(body.index(".ringing("), body.index("reportNewIncomingCall"))
+
+    def test_the_answer_action_tells_the_handler_before_fulfilling(self):
+        body = body_of(swift("VoipCallHandler.swift"), "perform action: CXAnswerCallAction")
+        self.assertLess(body.index("handler.callAnswered("), body.index("action.fulfill()"))
+
+    def test_events_are_held_until_dart_asks_and_then_sent_live(self):
+        delegate = swift("AppDelegate.swift")
+        deliver = body_of(delegate, "func deliverCallKitEvent(")
+        self.assertIn("pendingCallKitEvents.append", deliver)
+        self.assertIn("invokeMethod", deliver)
+        take = body_of(delegate, "func handleCallKitCall(")
+        self.assertIn("dartTakesCallKitEvents = true", take)
+        self.assertIn("pendingCallKitEvents = []", take)
+
+    def test_the_channel_name_matches_the_dart_side(self):
+        dart = IOS.parent.parent / "platform/lib/src/callkit_incoming_channel.dart"
+        name = re.search(r"_channelName = '([^']+)'", dart.read_text()).group(1)
+        self.assertIn(name, (RUNNER / "AppDelegate.swift").read_text())
+
+
 class DelegateRoutesThroughTheHandler(unittest.TestCase):
     def test_the_pushkit_callback_only_calls_the_handler(self):
         handler = swift("VoipCallHandler.swift")

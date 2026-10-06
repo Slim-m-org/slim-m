@@ -40,5 +40,13 @@ Two layers guard it:
 
 ## Not verified without a device
 
-Real APNs delivery to the `.voip` topic, the phone ringing from a killed app, the CallKit answer path (it only fulfils the action, it does not yet join the room), and whether a second ring for the same call (CallKit plus the in-app WebSocket ring) is shown twice.
+Real APNs delivery to the `.voip` topic and the phone ringing from a killed app (confirmed on a device: CallKit shows "Incoming call").
+Still to confirm on a device: that answering joins the call without a second accept, that no in-app ring shows beside CallKit, and that an answer on a cold launch finds the DM.
 Issue 230 stays open until a device confirms each.
+
+## Answering (amended 2026-10-05)
+
+The push is sealed, so Swift knows neither the channel nor the ring id.
+It reports `ringing`, `answered` and `ended` for the CallKit call to Dart on the `callkit_incoming` channel, held until Dart takes them (a cold launch can answer before Dart exists).
+`DmCallRingController` joins the two sources: CallKit ringing hides the in-app ring, and an answer joins the DM named by the websocket `call.ringing` frame, whichever arrives first.
+Accepting from either surface first fetches the DM over REST if the local store lacks it, since a route to an unloaded channel renders "not found or no access".
