@@ -16,6 +16,10 @@ use super::envelope::SealedMessage;
 /// HTTP response already sent, so nothing but this background task is waiting.
 pub(super) const RELAY_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Messages per request. The relay refuses more than 500 or a body over 1 MiB, and a sealed
+/// payload can reach ~4 KB, so 100 stays under both limits.
+pub(super) const MAX_BATCH: usize = 100;
+
 #[derive(Serialize)]
 struct SendRequest<'a> {
     messages: Vec<RelayMessage<'a>>,
@@ -82,10 +86,40 @@ impl RelayResult {
     }
 }
 
-/// Posts one batch to the relay's `/v1/send` and returns the per-token
-/// results. `messages` is expected non-empty; the caller filters out targets
-/// with nothing sealed to send before calling this.
+/// Posts `messages` to the relay's `/v1/send` in chunks of [`MAX_BATCH`] and returns the
+/// per-token results. A rejected chunk loses only its own devices; the call fails only when
+/// every chunk did. `messages` is expected non-empty; the caller filters out targets with
+/// nothing sealed to send before calling this.
 pub(super) async fn send(
+    http: &reqwest::Client,
+    send_url: &str,
+    key: &str,
+    messages: &[SealedMessage],
+) -> anyhow::Result<Vec<RelayResult>> {
+    let mut results = Vec::with_capacity(messages.len());
+    let mut first_error = None;
+    let mut failed_chunks = 0usize;
+    let chunks = messages.chunks(MAX_BATCH);
+    let total_chunks = chunks.len();
+    for chunk in chunks {
+        match send_chunk(http, send_url, key, chunk).await {
+            Ok(chunk_results) => results.extend(chunk_results),
+            Err(err) => {
+                failed_chunks += 1;
+                first_error.get_or_insert(err);
+            }
+        }
+    }
+    if let Some(err) = first_error {
+        if failed_chunks == total_chunks {
+            return Err(err);
+        }
+        tracing::warn!(error = %err, failed_chunks, total_chunks, "push: relay rejected some chunks");
+    }
+    Ok(results)
+}
+
+async fn send_chunk(
     http: &reqwest::Client,
     send_url: &str,
     key: &str,
@@ -112,6 +146,9 @@ pub(super) async fn send(
     let parsed: SendResponse = response.json().await?;
     Ok(parsed.results)
 }
+
+#[cfg(test)]
+mod chunking_tests;
 
 #[cfg(test)]
 mod tests {
