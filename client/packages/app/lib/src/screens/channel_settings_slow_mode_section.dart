@@ -16,6 +16,8 @@ import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../preset_options.dart';
+import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
 import '../widgets/settings_section_header.dart';
@@ -33,6 +35,14 @@ const List<(String, int)> slowModeOptions = [
   ('1m', 60),
   ('10m', 600),
 ];
+
+/// Reads a stored interval the presets do not list, e.g. `5s` or `1h`.
+String slowModeLabel(int seconds) {
+  if (seconds >= 3600 && seconds % 3600 == 0) return '${seconds ~/ 3600}h';
+  if (seconds >= 60 && seconds % 60 == 0) return '${seconds ~/ 60}m';
+  if (seconds > 60) return '${seconds ~/ 60}m ${seconds % 60}s';
+  return '${seconds}s';
+}
 
 class ChannelSlowModeSection extends ConsumerStatefulWidget {
   const ChannelSlowModeSection({super.key, required this.channel});
@@ -76,8 +86,13 @@ class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
 
   @override
   Widget build(BuildContext context) {
-    final current = _optimisticSeconds ?? widget.channel.slowModeSeconds;
-    final selectedIndex = slowModeOptions.indexWhere((o) => o.$2 == current);
+    // The stored row, so a save that landed earlier is what a later failure falls back to.
+    final stored =
+        ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
+        widget.channel;
+    final current = _optimisticSeconds ?? stored.slowModeSeconds;
+    final options = presetsIncluding(slowModeOptions, current, slowModeLabel);
+    final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
     return SettingsSectionCard(
       title: 'Slow mode',
@@ -87,11 +102,11 @@ class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
         AppSegmentedControl.inline(
           semanticLabel: 'Slow mode interval',
           options: [
-            for (final option in slowModeOptions)
+            for (final option in options)
               AppSegmentedOption(label: option.$1, disabled: _saving),
           ],
-          selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-          onSegmentSelected: (i) => _setSeconds(slowModeOptions[i].$2),
+          selectedIndex: selectedIndex,
+          onSegmentSelected: (i) => _setSeconds(options[i].$2),
         ),
         SuccessFlash(tick: successTick),
         if (actionError != null) ...[
