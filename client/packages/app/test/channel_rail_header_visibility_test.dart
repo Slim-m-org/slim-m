@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Design review note 22: the desktop title bar carries the Space's name,
-/// connection dot and menu chevron now, so `RailHeader` must not draw its
-/// own copy right below it while that bar is mounted - the Space named
-/// twice, 40px apart, is the exact regression this covers.
+/// `RailHeader` renders on every platform, the desktop title bar included
+/// (0012's 2026-09-25 addendum): the title bar is the window's own title, the
+/// rail header is the Space, so the header must not vanish under the title bar.
 library;
 
 import 'package:flutter/material.dart';

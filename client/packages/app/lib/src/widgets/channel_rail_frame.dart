@@ -45,10 +45,10 @@ final serverInfoProvider = FutureProvider.autoDispose<api.Version>(
 /// (`MEMBERS · N`), one line below where a caller already looks for it,
 /// rather than a second tally here nobody asked to compare.
 ///
-/// This header is hidden outright while the desktop title bar is mounted
-/// (`ChannelRail`, on every platform now - see 0012's 2026-09-25 addendum): that bar already
-/// carries the Space's name, connection dot and menu chevron, and running
-/// both left the Space named twice 40px apart.
+/// This header renders on every platform, the desktop title bar included
+/// (0012's 2026-09-25 addendum): the title bar keeps the Space name and the
+/// build version as the window's own title, while this header carries the
+/// Space's identity, its connection dot and its menu.
 ///
 /// The name line also carries [SpaceConnectionDot] now (owner request,
 /// 2026-08-03): the Space's own connection used to show only in the profile

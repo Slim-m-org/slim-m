@@ -297,8 +297,6 @@ VoiceParticipant _asVoiceParticipant(api.VoiceRosterParticipant p) =>
       isCameraOn: p.hasVideo,
     );
 
-/// Who is in a voice channel: real-time for the one the caller has joined,
-/// a periodic snapshot ([voiceRosterProvider]) for every other one.
 /// Left indent that puts the list under a channel row's *label* rather than
 /// its icon, so a name reads as belonging to the channel named above it.
 /// Off the 4dp grid because it tracks the icon column's width, not the grid.
@@ -315,6 +313,9 @@ const double _stripTop = 2;
 /// number any real channel is expected to reach.
 const int _maxNamedParticipants = 8;
 
+/// Who is in a voice channel: real-time for the one the caller has joined,
+/// a periodic snapshot ([voiceRosterProvider]) for every other one.
+///
 /// Named rows, not a strip of faces: each participant gets their own row
 /// (a small avatar and their name), the way a member pane names people
 /// rather than just showing a row of pictures. `isSpeaking` already reaches
