@@ -178,6 +178,9 @@ void main() {
       if (request.url.path == '/space/retention') {
         return _json({'retention_days': 0});
       }
+      if (request.url.path == '/space/screen-share') {
+        return _json({'max_height': 2160});
+      }
       if (request.url.path == '/space/canvas-cap') {
         capCalls++;
         if (capCalls == 1) return http.Response('boom', 500);
