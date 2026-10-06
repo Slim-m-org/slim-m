@@ -26,6 +26,7 @@ use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
+use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -279,16 +280,7 @@ async fn authorize(
     user_id: UserId,
     message_id: MessageId,
 ) -> Result<ChannelId, ApiError> {
-    let Some(message) = state.store.message(message_id).await? else {
-        return Err(ApiError::NotFound("no such message"));
-    };
-    let permissions = state
-        .store
-        .permissions_in_channel(user_id, message.channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL) {
-        return Err(ApiError::NotFound("no such message"));
-    }
+    let (message, permissions) = viewable_message(state, user_id, message_id).await?;
     // Voting costs the same permission sending does; see the note above.
     if !permissions.contains(Permissions::SEND_MESSAGES) {
         return Err(ApiError::Forbidden);

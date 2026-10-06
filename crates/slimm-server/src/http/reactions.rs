@@ -21,6 +21,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
+use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::MessageId;
 use crate::permissions::Permissions;
@@ -50,18 +51,7 @@ async fn authorize(
     user_id: crate::ids::UserId,
     message_id: MessageId,
 ) -> Result<crate::ids::ChannelId, ApiError> {
-    let Some(message) = state.store.message(message_id).await? else {
-        return Err(ApiError::NotFound("no such message"));
-    };
-    let permissions = state
-        .store
-        .permissions_in_channel(user_id, message.channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL) {
-        // The same answer a missing message gets, so the two are not
-        // distinguishable from outside.
-        return Err(ApiError::NotFound("no such message"));
-    }
+    let (message, permissions) = viewable_message(state, user_id, message_id).await?;
     if !permissions.contains(Permissions::ADD_REACTIONS) {
         return Err(ApiError::Forbidden);
     }
@@ -195,16 +185,7 @@ async fn list_reactors(
     let message_id = MessageId(parse_uuid(&message_id)?);
     let after = params.after.as_deref().map(parse_cursor).transpose()?;
     let limit = params.limit.unwrap_or(DEFAULT_PAGE).clamp(1, MAX_PAGE);
-    let Some(message) = state.store.message(message_id).await? else {
-        return Err(ApiError::NotFound("no such message"));
-    };
-    if !state
-        .store
-        .has_permission(ctx.user_id, message.channel_id, Permissions::VIEW_CHANNEL)
-        .await?
-    {
-        return Err(ApiError::NotFound("no such message"));
-    }
+    viewable_message(&state, ctx.user_id, message_id).await?;
 
     let mut rows = state
         .store

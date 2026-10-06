@@ -123,6 +123,7 @@ mod user_avatars;
 mod user_notes;
 mod user_status;
 mod users;
+mod viewable_message;
 mod voice;
 mod voice_ring;
 mod voice_webhook;
