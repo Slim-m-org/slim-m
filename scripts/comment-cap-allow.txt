@@ -31,7 +31,6 @@ client/packages/api/test/compression_interop_test.dart 2
 client/packages/api/test/live_server_test.dart 3
 client/packages/api/test/new_routes_test.dart 2
 client/packages/api/test/schema_coverage_test.dart 2
-client/packages/app/analysis_options.yaml 1
 client/packages/app/lib/main.dart 4
 client/packages/app/lib/src/providers/pins_controller.dart 1
 client/packages/app/lib/src/providers/providers.dart 5

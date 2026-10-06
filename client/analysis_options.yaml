@@ -1,11 +1,8 @@
 # Analyzer options for every package in this workspace.
 #
-# Options resolve by nearest enclosing directory, and until this file existed
-# the only one was packages/app/analysis_options.yaml - so `dart analyze`
-# applied zero lints to api, data, design_system, platform, rtc and
-# voice_canvas, all six of which already carry flutter_lints as a dev
-# dependency. The app keeps its own file, which wins for that package by
-# being nearer.
+# Options resolve by nearest enclosing directory, so one file here covers all
+# seven packages. A package that needs extra rules adds its own file that starts
+# with `include: ../../analysis_options.yaml`.
 analyzer:
   exclude:
     - build/**
