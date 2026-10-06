@@ -314,40 +314,14 @@ jobs:
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      # libsecret-1-dev is here because flutter_secure_storage's Linux plugin
-      # will not even configure without it. Why that is unavoidable: docs/ci.md.
-      - name: linux build deps
-        uses: ./.github/actions/linux-build-deps
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: stable
-          flutter-version: 3.47.0
-
-      - uses: ./.github/actions/native-hooks-cache
-      - name: build linux release
-        run: |
-          flutter config --enable-linux-desktop
-          dart pub get --enforce-lockfile
-          flutter build linux --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}"
-        working-directory: client/packages/app
-
+      # The same build and staging as main-builds and copr-catch-up, so the snapshot and the release tarball cannot drift.
       # Published on every client release and gated on nothing. It is both the
       # download for a user with no packaging, and the spec's Source0.
-      - name: stage portable tarball
-        run: |
-          version="${{ steps.ver.outputs.version }}"
-          name="slim-m-client-${version}"
-          bundle="client/packages/app/build/linux/x64/release/bundle"
-          if [ ! -x "${bundle}/slimm_app" ]; then
-            echo "::error::no linux bundle at ${bundle}"
-            exit 1
-          fi
-          mkdir -p "stage/${name}" dist
-          cp -a "${bundle}/." "stage/${name}/"
-          cp LICENSES/LicenseRef-PolyForm-Noncommercial-1.0.0.txt "stage/${name}/LICENSE"
-          cp packaging/linux/README.md packaging/linux/slim-m packaging/linux/install.sh "stage/${name}/"
-          tar -C stage -czf "dist/${name}-linux-amd64.tar.gz" "${name}"
+      - name: build linux tarball
+        uses: ./.github/actions/linux-tarball
+        with:
+          version: ${{ steps.ver.outputs.version }}
+          spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
 
       # One gate per format, so a working rpm is not held back by the absence of
       # a flatpak manifest. The tarball above ships either way.

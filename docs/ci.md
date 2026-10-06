@@ -106,6 +106,9 @@ Flutter does not keep a failed hook's stderr (`stderr.txt` is empty), so the act
 CMake skips the download when the file exists and only MD5-checks what it just downloaded, so a stale entry is not a risk as long as only a successful build saves the cache, which `actions/cache` guarantees.
 A failed download leaves an empty archive and the log says only `Integrity check failed`, so `native-hooks-diagnose` reports a missing or empty archive as a failed download.
 With both caches restored and no network, a full `flutter build linux --release` succeeds.
+The `linux-tarball` composite carries the cache itself, but a composite cannot run a failure step after its caller's, so each job that calls it adds the `native-hooks-diagnose` step.
+`release`'s `linux-client` calls the same composite rather than keeping a copy of the build and staging commands.
+`scripts/lib/test_flutter_build_jobs_cache_and_diagnose_native_hooks.py` fails on a job that builds or tests Flutter without both.
 
 ### Logic tests also run as JavaScript
 
