@@ -74,9 +74,14 @@ void main() {
     var answerPings = true;
     final sockets = <WebSocket>[];
 
-    // A ping can land as the client closes; a closed sink throws on add.
+    // A ping can land as the client closes, and the sink can close between a readyState check and add, so a closed sink is ignored.
     void reply(WebSocket socket, Map<String, Object?> frame) {
-      if (socket.readyState == WebSocket.open) socket.add(jsonEncode(frame));
+      if (socket.readyState != WebSocket.open) return;
+      try {
+        socket.add(jsonEncode(frame));
+      } on StateError {
+        return;
+      }
     }
 
     setUp(() async {
