@@ -50,7 +50,11 @@ class _NoopSync extends SyncController {
 
   @override
   Future<void> start() async {}
+
+  void flip(SyncStatus next) => state = next;
 }
+
+bool probeFails = false;
 
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
@@ -60,6 +64,7 @@ Future<ProviderContainer> _pump(
 }) async {
   final client = MockClient((request) async {
     if (request.url.path == '/version') {
+      if (probeFails) throw http.ClientException('network down');
       return http.Response(
         jsonEncode({
           'name': 'slim-m',
@@ -156,5 +161,23 @@ void main() {
 
     expect(container.read(sessionProvider).isSignedIn, isFalse);
     expect(await store.read(_handle), _keyA);
+  });
+
+  testWidgets('a shown mismatch survives a failed re-probe', (tester) async {
+    probeFails = false;
+    addTearDown(() => probeFails = false);
+    final store = InMemoryKeyStore();
+    await store.put(_handle, _keyA);
+    final container = await _pump(tester, keyStore: store, presentedKey: _keyB);
+    expect(find.text("This server's identity changed"), findsOneWidget);
+
+    probeFails = true;
+    (container.read(syncControllerProvider.notifier) as _NoopSync).flip(
+      SyncStatus.live,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(find.text('the app'), findsNothing);
   });
 }
