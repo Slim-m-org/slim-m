@@ -48,10 +48,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   Map<String, (int, int)> _pending = {};
   Map<String, (int, int)> _original = {};
 
-  /// Columns added locally that never had a saved overwrite yet, so a
-  /// pending removal of one is a local drop rather than a `DELETE` call.
-  final Set<String> _addedLocally = {};
-
   /// Columns that existed in [_original] but the caller removed; cleared via
   /// `deleteChannelOverwrite` on save.
   final Set<String> _removed = {};
@@ -87,7 +83,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
           _pending.remove(key);
         }
       }
-      _addedLocally.removeWhere(fresh.containsKey);
       _original = fresh;
     });
   }
@@ -109,6 +104,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   }
 
   void _cycle(GridColumn column, int bit, bool grantable) {
+    if (_saving) return;
     final (allow, deny) = _pending[column.key] ?? (0, 0);
     final state = allow & bit != 0
         ? CellState.allow
@@ -138,30 +134,29 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   void _addColumn(GridColumn column) {
     setState(() {
       _pending.putIfAbsent(column.key, () => (0, 0));
-      if (!_original.containsKey(column.key)) _addedLocally.add(column.key);
       _removed.remove(column.key);
     });
   }
 
   void _removeColumn(GridColumn column) {
+    if (_saving) return;
     setState(() {
       _pending.remove(column.key);
       if (_original.containsKey(column.key)) {
         _removed.add(column.key);
       }
-      _addedLocally.remove(column.key);
     });
   }
 
   void _discard() {
     setState(() {
       _pending = {..._original};
-      _addedLocally.clear();
       _removed.clear();
     });
   }
 
   Future<void> _pickTarget() async {
+    if (_saving) return;
     final kind = await showAppSheet<api.OverwriteTarget>(
       context,
       builder: (context) => const AddColumnKindSheet(),
@@ -172,7 +167,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         context,
         builder: (context) => const RolePickerSheet(),
       );
-      if (role != null) {
+      if (role != null && mounted) {
         _addColumn(
           GridColumn(
             kind: api.OverwriteTarget.role,
@@ -187,7 +182,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         context,
         builder: (context) => const MemberPickerSheet(),
       );
-      if (member != null) {
+      if (member != null && mounted) {
         _addColumn(
           GridColumn(
             kind: api.OverwriteTarget.member,
@@ -287,7 +282,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       if (!mounted) return;
       setState(() {
         _loaded = false;
-        _addedLocally.clear();
         _removed.clear();
         _seedFrom(fresh);
       });
@@ -412,7 +406,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
               return Cell(
                 key: ValueKey('cell:${column.key}:${spec.bit}'),
                 state: CellState.resolve(allow, deny, spec.bit),
-                disabled: !grantable,
+                disabled: !grantable || _saving,
                 label: '${spec.label}, ${column.label}',
                 onTap: () => _cycle(column, spec.bit, grantable),
               );

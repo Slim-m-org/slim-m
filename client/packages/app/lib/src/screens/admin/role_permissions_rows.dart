@@ -30,11 +30,7 @@ class GroupHeader extends StatelessWidget {
           padding: const EdgeInsets.only(top: AppSpacing.s12),
           child: Text(
             title.toUpperCase(),
-            style: AppText.micro.copyWith(
-              color: tokens.textSecondary,
-              fontWeight: AppWeights.medium,
-              letterSpacing: title.length * 0.5,
-            ),
+            style: AppText.label.copyWith(color: tokens.textSecondary),
           ),
         ),
       ),

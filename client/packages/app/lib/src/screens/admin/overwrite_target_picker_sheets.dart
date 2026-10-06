@@ -24,6 +24,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
@@ -117,12 +118,30 @@ class RolePickerSheet extends ConsumerWidget {
   }
 }
 
-class MemberPickerSheet extends ConsumerWidget {
+class MemberPickerSheet extends ConsumerStatefulWidget {
   const MemberPickerSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MemberPickerSheet> createState() => _MemberPickerSheetState();
+}
+
+class _MemberPickerSheetState extends ConsumerState<MemberPickerSheet> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  bool _matches(api.UserProfile member, String needle) =>
+      member.displayName.toLowerCase().contains(needle) ||
+      member.username.toLowerCase().contains(needle);
+
+  @override
+  Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
+    final needle = _search.text.trim().toLowerCase();
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -131,6 +150,16 @@ class MemberPickerSheet extends ConsumerWidget {
           const Padding(
             padding: _headingPadding,
             child: Text('Choose a member', style: AppText.heading),
+          ),
+          Padding(
+            padding: _headingPadding,
+            child: AppInput(
+              controller: _search,
+              placeholder: 'Search members',
+              icon: const Icon(AppIcons.search),
+              semanticLabel: 'Search members',
+              onChanged: (_) => setState(() {}),
+            ),
           ),
           AppAsyncView(
             value: AppAsyncState(
@@ -141,17 +170,29 @@ class MemberPickerSheet extends ConsumerWidget {
             onRetry: () => ref.invalidate(membersProvider),
             emptyMessage: 'No members yet.',
             isEmpty: (list) => list.isEmpty,
-            data: (context, list) => _PickerList(
-              children: [
+            data: (context, list) {
+              final shown = [
                 for (final member in list)
-                  AppListRow(
-                    leading: const Icon(AppIcons.account),
-                    label: member.displayName,
-                    meta: '@${member.username}',
-                    onTap: () => Navigator.of(context).pop(member),
-                  ),
-              ],
-            ),
+                  if (needle.isEmpty || _matches(member, needle)) member,
+              ];
+              if (shown.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppSpacing.s16),
+                  child: Text('No members match.'),
+                );
+              }
+              return _PickerList(
+                children: [
+                  for (final member in shown)
+                    AppListRow(
+                      leading: const Icon(AppIcons.account),
+                      label: member.displayName,
+                      meta: '@${member.username}',
+                      onTap: () => Navigator.of(context).pop(member),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),

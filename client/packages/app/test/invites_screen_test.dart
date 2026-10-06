@@ -244,7 +244,7 @@ void main() {
       await tester.enterText(find.byType(TextField).first, '9' * 25);
       await tester.pump();
       expect(
-        find.text('Enter a number, or leave blank for unlimited.'),
+        find.text('Enter a number above 0, or leave blank for unlimited.'),
         findsOneWidget,
       );
 

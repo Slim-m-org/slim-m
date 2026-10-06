@@ -82,26 +82,37 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
   Widget build(BuildContext context) {
     final cap = ref.watch(spaceCanvasCapProvider);
     ref.listen(spaceCanvasCapProvider, (_, next) => retireOptimistic(next));
-    final current = shown(cap.valueOrNull, 20000);
+    final current = optimistic ?? cap.valueOrNull;
     final selectedIndex = _canvasCapOptions.indexWhere((o) => o.$2 == current);
 
     return SettingsSectionCard(
       title: 'Canvas object cap',
       description: 'The most objects one channel canvas can hold.',
       children: [
-        AppSegmentedControl.inline(
-          semanticLabel: 'Canvas object cap',
-          options: [
-            for (final option in _canvasCapOptions)
-              AppSegmentedOption(label: option.$1, disabled: saving),
-          ],
-          selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-          onSegmentSelected: (i) => _setCap(_canvasCapOptions[i].$2),
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        AppCallout(
-          tone: AppCalloutTone.info,
-          child: Text(canvasCapConsequence(current)),
+        AppAsyncView<int>(
+          value: AppAsyncState(data: current, error: cap.error),
+          center: false,
+          errorMessage: 'Could not load the canvas object cap.',
+          onRetry: () => ref.invalidate(spaceCanvasCapProvider),
+          data: (context, value) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppSegmentedControl.inline(
+                semanticLabel: 'Canvas object cap',
+                options: [
+                  for (final option in _canvasCapOptions)
+                    AppSegmentedOption(label: option.$1, disabled: saving),
+                ],
+                selectedIndex: selectedIndex,
+                onSegmentSelected: (i) => _setCap(_canvasCapOptions[i].$2),
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              AppCallout(
+                tone: AppCalloutTone.info,
+                child: Text(canvasCapConsequence(value)),
+              ),
+            ],
+          ),
         ),
         SuccessFlash(tick: successTick),
         if (actionError != null) ...[

@@ -76,7 +76,7 @@ class _ChannelPermissionsPaneState
       context,
       builder: (context) => ChannelPickerSheet(channels: channels),
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() => _channel = picked);
   }
 

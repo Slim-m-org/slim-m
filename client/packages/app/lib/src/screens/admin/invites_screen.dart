@@ -95,7 +95,10 @@ class _InviteList extends ConsumerWidget {
       emptyMessage: 'No invites yet.',
       data: (context, list) => SettingsSectionCard(
         title: 'Invites',
-        children: [for (final invite in list) _InviteRow(invite: invite)],
+        children: [
+          for (final invite in list)
+            _InviteRow(key: ValueKey(invite.code), invite: invite),
+        ],
       ),
     );
   }
@@ -122,13 +125,16 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
     super.dispose();
   }
 
-  /// Null while the field parses cleanly: empty (deliberately unlimited) or
-  /// a whole number. Anything else must block submission rather than let
-  /// [int.tryParse]'s null quietly become "unlimited" too.
+  /// Null while the field is empty (deliberately unlimited) or a whole number
+  /// of at least one, which is all the server accepts. Anything else must
+  /// block submission rather than let [int.tryParse]'s null quietly become
+  /// "unlimited" too.
   String? get _maxUsesError {
     final text = _maxUses.text.trim();
-    if (text.isEmpty || int.tryParse(text) != null) return null;
-    return 'Enter a number, or leave blank for unlimited.';
+    if (text.isEmpty) return null;
+    final uses = int.tryParse(text);
+    if (uses != null && uses >= 1) return null;
+    return 'Enter a number above 0, or leave blank for unlimited.';
   }
 
   Future<void> _create() async {
@@ -318,7 +324,7 @@ String? _roleGrantLabel(String? roleId, AsyncValue<List<api.Role>> roles) {
 }
 
 class _InviteRow extends ConsumerStatefulWidget {
-  const _InviteRow({required this.invite});
+  const _InviteRow({super.key, required this.invite});
 
   final api.Invite invite;
 

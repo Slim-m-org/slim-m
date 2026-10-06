@@ -20,6 +20,9 @@ mixin OptimisticSettingState<T extends ConsumerStatefulWidget, V>
   /// Whether a save is in flight, to disable the control meanwhile.
   bool get saving => _saving;
 
+  /// The tapped value while its save is unconfirmed, else null.
+  V? get optimistic => _optimistic;
+
   /// What the control shows: the tapped value, else the served one.
   V shown(V? served, V fallback) => _optimistic ?? served ?? fallback;
 
