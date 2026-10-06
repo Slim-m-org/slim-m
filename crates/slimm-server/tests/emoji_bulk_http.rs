@@ -265,6 +265,40 @@ async fn an_invalid_image_in_the_batch_leaves_no_earlier_image_written() {
     );
 }
 
+/// The refusal still covers the whole batch, but it names the image at fault
+/// so an admin retrying a 50-image chunk can tell which file to fix.
+#[tokio::test]
+async fn a_refused_batch_names_the_image_that_broke_it() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let images: Vec<(&str, Vec<u8>)> = vec![
+        ("first", png(b"first")),
+        ("junk_file", b"this is plainly not an image".to_vec()),
+    ];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let message = json_body(response).await["error"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(message.contains("image 2"), "{message}");
+    assert!(message.contains("junk_file"), "{message}");
+    assert!(message.contains("unsupported emoji type"), "{message}");
+
+    let images: Vec<(&str, Vec<u8>)> =
+        vec![("party_parrot", png(b"one")), ("Party-Parrot", png(b"two"))];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let message = json_body(response).await["error"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(message.contains("image 2"), "{message}");
+    assert!(message.contains("Party-Parrot"), "{message}");
+}
+
 /// Two images in the same batch sharing a normalised name is the same
 /// refusal the single path gives for uploading a taken name twice: a
 /// conflict, with nothing from the batch written.

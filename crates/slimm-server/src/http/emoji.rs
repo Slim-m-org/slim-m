@@ -178,6 +178,7 @@ async fn bulk_upload(
         return Err(ApiError::BadRequest("too many images in one request"));
     }
 
+    let mut names = Vec::with_capacity(req.images.len());
     let mut items = Vec::with_capacity(req.images.len());
     let mut total_bytes: u64 = 0;
     for image in req.images {
@@ -185,6 +186,7 @@ async fn bulk_upload(
             .decode(&image.data)
             .map_err(|_| ApiError::BadRequest("image data must be base64"))?;
         total_bytes = total_bytes.saturating_add(bytes.len() as u64);
+        names.push(image.name.clone());
         items.push((image.name, bytes));
     }
     if total_bytes > bulk::MAX_BULK_TOTAL_BYTES {
@@ -195,7 +197,7 @@ async fn bulk_upload(
 
     let created = bulk::add_emoji_bulk(&state.store, &state.media, items, Some(ctx.user_id))
         .await
-        .map_err(bulk_refusal)?;
+        .map_err(|err| bulk_refusal(err, &names))?;
 
     Ok((
         StatusCode::CREATED,
@@ -214,11 +216,19 @@ async fn bulk_upload(
     ))
 }
 
-/// Anything about one image in the batch reuses [`refusal`], so a name
-/// collision or a bad image answers exactly the way the single upload would.
-fn bulk_refusal(err: BulkAddError) -> ApiError {
+/// Anything about one image in the batch reuses [`refusal`]'s status and
+/// wording, prefixed with which image it was so the caller can fix that file.
+fn bulk_refusal(err: BulkAddError, names: &[String]) -> ApiError {
     match err {
-        BulkAddError::Item { error, .. } => refusal(error),
+        BulkAddError::Item { index, error } => {
+            let name = names.get(index).map(String::as_str).unwrap_or_default();
+            let at = |message: &str| format!("image {} ({name}): {message}", index + 1);
+            match refusal(error) {
+                ApiError::BadRequest(message) => ApiError::BadRequestDetail(at(message)),
+                ApiError::Conflict(message) => ApiError::ConflictDetail(at(message)),
+                other => other,
+            }
+        }
         BulkAddError::Storage(err) => {
             tracing::error!(error = %err, "failed to store a bulk-uploaded emoji");
             ApiError::Internal
