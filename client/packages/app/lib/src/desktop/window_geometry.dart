@@ -219,21 +219,42 @@ class WindowGeometry {
 }
 
 /// A saved [geometry] validated against the displays actually attached right
-/// now, dropping a position that no longer lands on anything.
+/// now: a position that no longer lands on anything is dropped, and a size
+/// larger than the biggest display is capped to it (never below
+/// [WindowGeometry.minimumWindowSize]).
 ///
-/// [displays] empty is treated the same as "nothing intersects": a position
-/// this call cannot confirm is safe is not applied, the same fail-closed
-/// choice the decision record makes for the tray-availability probe.
-/// [geometry] with no [WindowGeometry.position] passes through unchanged -
-/// there was nothing to validate, which is the ordinary Wayland case.
+/// [displays] empty is treated the same as "nothing intersects" for the
+/// position: one this call cannot confirm is safe is not applied, the same
+/// fail-closed choice the decision record makes for the tray-availability
+/// probe. The size has nothing to be capped against then, so it is left alone.
+/// [geometry] with no [WindowGeometry.position] keeps passing the position
+/// through - there was nothing to validate, which is the ordinary Wayland case.
 WindowGeometry clampToAttachedDisplays(
   WindowGeometry geometry,
   List<DisplayArea> displays,
 ) {
-  final position = geometry.position;
-  if (position == null) return geometry;
+  final sized = _capSizeToDisplays(geometry, displays);
+  final position = sized.position;
+  if (position == null) return sized;
   final stillAttached = displays.any(position.overlaps);
-  return stillAttached ? geometry : geometry.copyWith(clearPosition: true);
+  return stillAttached ? sized : sized.copyWith(clearPosition: true);
+}
+
+WindowGeometry _capSizeToDisplays(
+  WindowGeometry geometry,
+  List<DisplayArea> displays,
+) {
+  if (displays.isEmpty) return geometry;
+  final min = WindowGeometry.minimumWindowSize;
+  final maxWidth = displays.map((d) => d.width).reduce(math.max);
+  final maxHeight = displays.map((d) => d.height).reduce(math.max);
+  final size = geometry.windowedSize;
+  final width = math.max(math.min(size.width, maxWidth), min.width);
+  final height = math.max(math.min(size.height, maxHeight), min.height);
+  if (width == size.width && height == size.height) return geometry;
+  return geometry.copyWith(
+    windowedSize: WindowSize(width: width, height: height),
+  );
 }
 
 /// A [geometry] whose [WindowGeometry.windowedSize] is never below
