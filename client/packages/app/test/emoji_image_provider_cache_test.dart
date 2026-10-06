@@ -177,4 +177,70 @@ void main() {
       expect(bytes, _png);
     },
   );
+
+  for (final mode in ['a 503', 'a dropped connection']) {
+    test('$mode on the first fetch heals once it is over', () async {
+      final originalCooldown = emojiImageTombstoneCooldown;
+      emojiImageTombstoneCooldown = const Duration(milliseconds: 30);
+      addTearDown(() => emojiImageTombstoneCooldown = originalCooldown);
+
+      var requests = 0;
+      final container = _container(
+        cache: _FakeCache(),
+        httpClient: MockClient((request) async {
+          requests++;
+          if (requests == 1) {
+            if (mode == 'a 503') {
+              return http.Response('{"error":"down"}', 503);
+            }
+            throw http.ClientException('connection reset');
+          }
+          return http.Response.bytes(
+            _png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        }),
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(customEmojiImageProvider('e-1'), (_, _) {});
+      addTearDown(sub.close);
+
+      await expectLater(
+        container.read(customEmojiImageProvider('e-1').future),
+        throwsA(isA<api.ApiException>()),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(container.read(customEmojiImageProvider('e-1')).valueOrNull, _png);
+    });
+  }
+
+  for (final status in [403, 404]) {
+    test('a $status is the answer and is not retried', () async {
+      final originalCooldown = emojiImageTombstoneCooldown;
+      emojiImageTombstoneCooldown = const Duration(milliseconds: 30);
+      addTearDown(() => emojiImageTombstoneCooldown = originalCooldown);
+
+      var requests = 0;
+      final container = _container(
+        cache: _FakeCache(),
+        httpClient: MockClient((request) async {
+          requests++;
+          return http.Response('{"error":"no"}', status);
+        }),
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(customEmojiImageProvider('e-1'), (_, _) {});
+      addTearDown(sub.close);
+
+      await expectLater(
+        container.read(customEmojiImageProvider('e-1').future),
+        throwsA(isA<api.ApiException>()),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(requests, 1, reason: 'a refusal would only fail the same way');
+    });
+  }
 }

@@ -170,6 +170,7 @@ var emojiImageTombstoneCooldown = const Duration(seconds: 10);
 /// loop's fixed schedule. If every retry still fails, [_healAfterCooldown]
 /// schedules one more attempt after [emojiImageTombstoneCooldown] rather than
 /// leaving this emoji's answer permanently broken for a cell still on screen.
+/// The same holds for a dropped connection or a 5xx, see [_isTransient].
 final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
   ref,
   emojiId,
@@ -186,9 +187,10 @@ final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
     Duration? retryAfter;
     try {
       bytes = (await api.fetchCustomEmojiImage(emojiId)).bytes;
-    } on RateLimitedException catch (e) {
-      if (attempt >= 3) {
-        _healAfterCooldown(ref);
+    } on ApiException catch (e) {
+      // Only a rate limit is retried in place; any other failure goes straight to the cooldown.
+      if (e is! RateLimitedException || attempt >= 3) {
+        if (_isTransient(e)) _healAfterCooldown(ref);
         rethrow;
       }
       retryAfter = e.retryAfter;
@@ -203,6 +205,16 @@ final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
     delay *= 2;
   }
 });
+
+/// Whether [e] is the kind of failure that passes by itself: a rate limit, a
+/// dropped connection or a server that is briefly down. A refusal, a missing
+/// emoji or a bad request would only fail the same way again, so it is left
+/// as the answer rather than retried every cooldown for as long as a cell is
+/// on screen.
+bool _isTransient(ApiException e) =>
+    e is RateLimitedException ||
+    e is TransportException ||
+    e is UnavailableException;
 
 /// Schedules a self-invalidation of the currently-building
 /// [customEmojiImageProvider] entry, so a rate limit that outlasted every
