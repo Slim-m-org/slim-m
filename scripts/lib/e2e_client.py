@@ -22,10 +22,22 @@ TIMEOUT = 90
 _MOUSE = "Input.dispatchMouseEvent"
 _KEY = "Input.dispatchKeyEvent"
 _DEFAULT_MIME = "image/png"
-# A private directory when unset, rather than a guessable shared one.
-SHOTS = os.environ.get("E2E_SHOTS") or tempfile.mkdtemp(prefix="e2e-")
+_shots_dir = None
 # Enough to carry a launch's worth of failures without holding a whole run.
 LOG_LINES = 200
+
+
+def shots_dir():
+    """Where screenshots and console logs go, created on first use.
+
+    A private directory when E2E_SHOTS is unset, rather than a guessable
+    shared one; resolved lazily so importing this module leaves nothing behind.
+    """
+    global _shots_dir
+    if _shots_dir is None:
+        _shots_dir = os.environ.get("E2E_SHOTS") or tempfile.mkdtemp(prefix="e2e-")
+    os.makedirs(_shots_dir, mode=0o700, exist_ok=True)
+    return _shots_dir
 
 
 class Client:
@@ -87,7 +99,7 @@ class Client:
     def _write_log(self, tag):
         if not self._log:
             return
-        path = os.path.join(SHOTS, f"{self.name}-{tag}.log")
+        path = os.path.join(shots_dir(), f"{self.name}-{tag}.log")
         with open(path, "w", encoding="utf-8") as fh:
             fh.write("\n".join(self._log) + "\n")
         print(f"    console {path}")
@@ -95,6 +107,12 @@ class Client:
     def ev(self, expr):
         r = self.send("Runtime.evaluate",
                       {"expression": expr, "returnByValue": True})
+        thrown = r.get("result", {}).get("exceptionDetails")
+        if thrown:
+            detail = (thrown.get("exception") or {}).get("description")
+            raise AssertionError(
+                f"{self.name}: the injected script threw: "
+                f"{detail or thrown.get('text')}")
         return r.get("result", {}).get("result", {}).get("value")
 
     def enable_semantics(self):
@@ -339,14 +357,13 @@ class Client:
             f"{self.ev('location.href')}")
 
     def shot(self, tag):
-        os.makedirs(SHOTS, mode=0o700, exist_ok=True)
         r = self.send("Page.captureScreenshot", {"format": "png"})
         self._write_log(tag)
         data = (r.get("result", {}).get("result", {}).get("data")
                 or r.get("result", {}).get("data"))
         if not data:
             return
-        path = os.path.join(SHOTS, f"{self.name}-{tag}.png")
+        path = os.path.join(shots_dir(), f"{self.name}-{tag}.png")
         with open(path, "wb") as fh:
             fh.write(base64.b64decode(data))
         print(f"    shot {path}")
