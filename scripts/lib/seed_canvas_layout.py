@@ -2,10 +2,10 @@
 """Where seeded canvas objects land: clustered, not scattered uniformly.
 
 A real board has busy regions and empty space, not an even grid - and
-CLAUDE.md's own canvas-spike notes record that clustering is the case that
-matters for the client's spatial index (an 8.5x regression when objects
-crowd one grid cell), so a uniform scatter would be the easy case rather
-than the honest one.
+docs/research/canvas-spike-client.md records that clustering is the case
+that matters for the client's spatial index (an 8.5x regression when
+objects crowd one grid cell), so a uniform scatter would be the easy case
+rather than the honest one.
 """
 import math
 

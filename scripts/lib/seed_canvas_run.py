@@ -228,7 +228,7 @@ def _print_report(base_url, channel, channel_name, accounts, password, report):
     print(f"composed a deliberate diagram: {report['diagram_placed']} "
           "objects (a box around the busiest cluster, an arrow to a "
           "callout note, a divider line, and 3 notes from a two-word "
-          "label up to one near the client's own length ceiling)")
+          "label up to a long one that tests wrapping)")
     h = report["history"]
     print(f"history: {h['moved']} moved ({h['resized']} also resized), "
           f"{h['reordered']} reordered, {h['removed']} objects removed "

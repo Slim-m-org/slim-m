@@ -2,9 +2,7 @@
 """Composes one deliberate diagram on top of the random main pass: a box
 drawn around a busy cluster, an arrow pointing from it to a callout note,
 a divider line, and three notes at genuinely different lengths - a
-two-word label, a sentence, and one long enough to test wrapping and sit
-close to the client's own length ceiling (`maxNoteTextLength`, 1800
-characters).
+two-word label, a sentence, and one long enough to test wrapping.
 
 Placed after `seed_canvas_history.run` rather than folded into the main
 pass, and never handed to that history pass as a target: this is the one
@@ -12,7 +10,7 @@ part of the board meant to read as a diagram somebody actually made, so
 nothing here gets randomly moved, resized, reordered, removed or restored
 the way the rest of the seeded content deliberately is. Authorship is
 still spread across accounts round-robin, or the whole thing reads as one
-person's work - see CLAUDE.md's own note on why that matters.
+person's work.
 
 A shape's line and arrow primitives always draw their own box's diagonal
 from top-left to bottom-right (see `canvas_painters_shapes.dart`'s own
