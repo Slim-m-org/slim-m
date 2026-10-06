@@ -120,10 +120,12 @@ Future<Harness> pumpReports(
   int permissions = 0,
   SlimmDatabase? db,
   GoRouter? router,
+  List<Override> overrides = const [],
 }) async {
   final calls = <Call>[];
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
       if (db != null)

@@ -3,9 +3,9 @@
 /// it, the moderation-history feed (`GET /reports/history`, MOD4): who was
 /// removed, timed out, or restored, by whom, and when - see
 /// docs/decisions/0015-moderation-audit-log.md for why that record exists.
-/// Both tabs require MANAGE_MESSAGES, which is why the settings row that
-/// reaches this is itself gated on that bit; a caller without it never sees
-/// the link, and the server refuses either request regardless.
+/// The queue requires MANAGE_MESSAGES and the history either that or
+/// VIEW_MODERATION_HISTORY, so a holder of only the second sees history alone;
+/// the server refuses either request regardless.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,6 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../permissions.dart';
+import '../../providers/admin_providers.dart' show myPermissionsProvider;
 import '../../providers/reports_controller.dart';
 import '../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
@@ -21,17 +23,24 @@ import 'report_history_pane.dart';
 import 'reports_load_more_row.dart';
 import '../../widgets/settings_empty.dart';
 
-class ReportsScreen extends StatelessWidget {
+/// Whether [permissions] reads history but cannot read the open queue.
+bool reportsHistoryOnly(int permissions) =>
+    !permissions.hasPermission(Perm.manageMessages) &&
+    permissions.hasPermission(Perm.viewModerationHistory);
+
+class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => const SettingsScreenScaffold(
+  Widget build(BuildContext context, WidgetRef ref) => SettingsScreenScaffold(
     title: 'Reports',
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     scrollable: false,
     padding: EdgeInsets.zero,
-    child: ReportsPane(),
+    child: ReportsPane(
+      historyOnly: reportsHistoryOnly(ref.watch(myPermissionsProvider)),
+    ),
   );
 }
 
@@ -45,7 +54,10 @@ class ReportsScreen extends StatelessWidget {
 /// down every time its tab loses focus would refetch its whole first page
 /// on every switch back.
 class ReportsPane extends StatefulWidget {
-  const ReportsPane({super.key});
+  const ReportsPane({super.key, this.historyOnly = false});
+
+  /// Shows only the history feed, for a caller who cannot read the open queue.
+  final bool historyOnly;
 
   @override
   State<ReportsPane> createState() => _ReportsPaneState();
@@ -56,6 +68,7 @@ class _ReportsPaneState extends State<ReportsPane> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.historyOnly) return const ReportHistoryPane();
     return Column(
       children: [
         Padding(
