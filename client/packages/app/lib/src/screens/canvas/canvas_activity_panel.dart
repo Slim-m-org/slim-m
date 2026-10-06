@@ -5,11 +5,15 @@
 /// job `_cursorLabel` already does for a remote pointer in `canvas_pane.dart`.
 library;
 
+import 'dart:async';
+
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/user_profiles.dart';
+import '../../format.dart';
 import '../../widgets/author_label.dart';
 import 'canvas_activity_log.dart';
 
@@ -38,8 +42,11 @@ class CanvasActivityAnnouncer extends ConsumerStatefulWidget {
 
 class _CanvasActivityAnnouncerState
     extends ConsumerState<CanvasActivityAnnouncer> {
+  static const _resolveTimeout = Duration(seconds: 1);
+
   String _text = '';
   int _lastTick = 0;
+  int _generation = 0;
 
   @override
   void initState() {
@@ -67,14 +74,33 @@ class _CanvasActivityAnnouncerState
     _lastTick = tick;
     final batch = widget.activityLog.takeAnnouncementBatch();
     if (batch.isEmpty) return;
-    final text = summarizeCanvasActivity(batch, nameFor: _nameFor);
-    if (mounted) setState(() => _text = text);
+    final generation = ++_generation;
+    final actors = {for (final e in batch) ?e.actorId};
+    final known = ref.read(batchProfilesControllerProvider);
+    if (actors.every(known.containsKey)) return _announce(batch);
+    final pending = ref
+        .read(batchProfilesControllerProvider.notifier)
+        .resolve(actors)
+        .timeout(_resolveTimeout, onTimeout: () {});
+    unawaited(
+      pending.then((_) {
+        if (generation == _generation) _announce(batch);
+      }),
+    );
   }
 
-  String? _nameFor(String userId) {
+  void _announce(List<CanvasActivityEntry> batch) {
+    if (!mounted) return;
     final profiles = ref.read(batchProfilesControllerProvider);
-    resolveAuthorProfiles(ref, [userId]);
-    return profiles[userId]?.displayName;
+    final text = summarizeCanvasActivity(
+      batch,
+      nameFor: (id) => authorLabel(
+        authorId: id,
+        cachedDisplayName: null,
+        profiles: profiles,
+      ),
+    );
+    setState(() => _text = text);
   }
 
   @override
@@ -92,7 +118,7 @@ class _CanvasActivityAnnouncerState
 /// `Semantics` label and as ordinary visible text - a cue is never carried
 /// by one channel alone anywhere else in this product, and this is no
 /// exception.
-class CanvasActivityPanel extends StatelessWidget {
+class CanvasActivityPanel extends StatefulWidget {
   const CanvasActivityPanel({
     super.key,
     required this.activityLog,
@@ -117,10 +143,36 @@ class CanvasActivityPanel extends StatelessWidget {
   final int objectCount;
 
   @override
+  State<CanvasActivityPanel> createState() => _CanvasActivityPanelState();
+}
+
+class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
+  static const _ageRefresh = Duration(seconds: 10);
+
+  final ValueNotifier<int> _ageTick = ValueNotifier(0);
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(_ageRefresh, (_) => _ageTick.value++);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _ageTick.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final activityLog = widget.activityLog;
+    final summary = widget.summary;
+    final objectCount = widget.objectCount;
     return AnimatedBuilder(
-      animation: activityLog,
+      animation: Listenable.merge([activityLog, _ageTick]),
       builder: (context, _) {
         final entries = activityLog.entries.reversed.toList(growable: false);
         return Column(
@@ -192,29 +244,23 @@ class _ActivityRow extends ConsumerWidget {
     final actorId = entry.actorId;
     String? name;
     if (actorId != null) {
-      final profiles = ref.watch(batchProfilesControllerProvider);
+      final resolution = ref.watch(
+        batchProfilesControllerProvider.select(
+          (profiles) => authorResolution(profiles, actorId),
+        ),
+      );
       resolveAuthorProfiles(ref, [actorId]);
-      name = authorLabel(
+      name = authorLabelResolved(
         authorId: actorId,
         cachedDisplayName: null,
-        profiles: profiles,
+        resolution: resolution,
       );
     }
     final text = describeCanvasActivityEntry(entry, nameFor: (_) => name);
-    // AppListRow: the same focusable row the channel rail already uses.
-    return AppListRow(label: text, meta: _relativeTime(entry.at));
+    // AppListRow merges its `meta` into the row's single Semantics label, so a screen reader hears the age too.
+    return AppListRow(
+      label: text,
+      meta: formatRelativeAge(clock.now().difference(entry.at), seconds: true),
+    );
   }
-}
-
-/// A short, relative timestamp ("just now", "5m ago"). `AppListRow` merges
-/// its own `meta` text into the row's single `Semantics` label alongside
-/// the sentence - confirmed against the real dumped tree, not assumed - so
-/// a screen reader hears both rather than only the visible one.
-String _relativeTime(DateTime at) {
-  final elapsed = DateTime.now().difference(at);
-  if (elapsed.inSeconds < 30) return 'just now';
-  if (elapsed.inMinutes < 1) return '${elapsed.inSeconds}s ago';
-  if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
-  if (elapsed.inDays < 1) return '${elapsed.inHours}h ago';
-  return '${elapsed.inDays}d ago';
 }
