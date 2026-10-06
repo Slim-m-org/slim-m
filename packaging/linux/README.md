@@ -19,6 +19,8 @@ The runner locates `data/` and `lib/` relative to its own path, so the directory
 ```
 
 This copies the bundle to `~/.local/share/slim-m/<version>/`, points `~/.local/share/slim-m/current` at it and links `~/.local/bin/slim-m` to the launcher.
+It also installs a desktop entry and icons under `~/.local/share`, and registers slim-m as the handler for `slimm://` links, so an invite link or the Spotify sign-in redirect opens this install.
+If the rpm is installed too, the per-user entry takes over those links.
 Nothing outside your home directory is touched.
 
 An install laid out this way updates itself.

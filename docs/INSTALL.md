@@ -123,7 +123,7 @@ Per-user installs keep their own update path.
 | Fedora COPR rpm | `sudo dnf upgrade --refresh slim-m-client`; never replaced by the app | `sudo dnf remove slim-m-client` |
 | Flatpak | Download the new bundle and install it over the old one; there is no remote | `flatpak uninstall top.npcserver.slimm` |
 | Linux tarball, run in place | Not updated; download the next one | Delete the folder |
-| Linux tarball via `install.sh` | In the app, from a signed manifest | Delete `~/.local/share/slim-m` and `~/.local/bin/slim-m` |
+| Linux tarball via `install.sh` | In the app, from a signed manifest | Delete `~/.local/share/slim-m`, `~/.local/bin/slim-m`, `~/.local/share/applications/top.npcserver.slimm.desktop` and the `top.npcserver.slimm` icons under `~/.local/share/icons/hicolor` |
 | Windows via `install.cmd` | In the app, from a signed manifest | Delete `%LOCALAPPDATA%\slim-m` and the Start menu shortcut |
 | Windows, run from the unzipped folder | Not updated | Delete the folder |
 | macOS app in `~/Applications` | In the app, from a signed manifest; never run on a real Mac yet, so treat it as unconfirmed | Drag the app to the bin |
