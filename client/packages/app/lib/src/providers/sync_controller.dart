@@ -136,6 +136,10 @@ class SyncController extends StateNotifier<SyncStatus> {
   final ReconnectBackoff _backoff;
   final _channelRefresher = ChannelRefresher();
 
+  /// Channels a refresh on this connection did not bring into the store, such
+  /// as threads, which the channel list never names.
+  final _unlistedChannels = <String>{};
+
   /// Whether this controller has been live before, which tells a reconnect from
   /// the first connect of a session.
   bool _wasLive = false;
@@ -209,6 +213,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     await _teardown();
     if (generation != _generation) return;
     state = SyncStatus.connecting;
+    _unlistedChannels.clear();
     // No cursor over a rename to catch up from, so forget every cached name on a fresh connect.
     _ref.read(batchProfilesControllerProvider.notifier).clear();
     // A missed voice.activity frame while disconnected is otherwise unrecoverable.

@@ -23,10 +23,7 @@ extension SyncControllerEvents on SyncController {
     bool isCurrent() => generation == _generation;
     switch (event) {
       case MessageCreated(:final message):
-        // A DM's first message is a channel never fetched; materialise it first or this no-ops.
-        if (!await store.hasChannel(message.channelId)) {
-          await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
-        }
+        await _materialise(message.channelId, api, store, isCurrent);
         if (!isCurrent()) return;
         if (await _skipsOver(
           message.channelId,
@@ -38,9 +35,7 @@ extension SyncControllerEvents on SyncController {
         }
         await store.applyMessage(message);
       case MessageEdited(:final message, :final opSeq):
-        if (!await store.hasChannel(message.channelId)) {
-          await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
-        }
+        await _materialise(message.channelId, api, store, isCurrent);
         if (!isCurrent()) return;
         if (!await _placeLiveOp(message.channelId, opSeq, store, isCurrent)) {
           return;
@@ -89,6 +84,30 @@ extension SyncControllerEvents on SyncController {
         unawaited(start());
       case _:
         break;
+    }
+  }
+
+  /// Refreshes the channel list for a message in a channel not held yet, which
+  /// is how a DM's first message lands instead of no-opping.
+  ///
+  /// Once per channel per connection: a thread is never listed, and a refresh
+  /// per reply rate-limited the account. A refused refresh is skipped rather
+  /// than dropping the socket over a message that could not be placed anyway.
+  Future<void> _materialise(
+    String channelId,
+    SlimmApi api,
+    MessageStore store,
+    bool Function() isCurrent,
+  ) async {
+    if (_unlistedChannels.contains(channelId)) return;
+    if (await store.hasChannel(channelId)) return;
+    try {
+      await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
+    } on ApiException {
+      return;
+    }
+    if (isCurrent() && !await store.hasChannel(channelId)) {
+      _unlistedChannels.add(channelId);
     }
   }
 
