@@ -130,8 +130,11 @@ class AppMemberPane extends ConsumerWidget {
                       if (error is! api.ForbiddenException) ...[
                         const SizedBox(height: AppSpacing.s12),
                         TextButton(
-                          onPressed: () =>
-                              ref.invalidate(channelMembersProvider),
+                          onPressed: () => channelId == null
+                              ? ref.invalidate(membersProvider)
+                              : ref.invalidate(
+                                  channelMembersProvider(channelId),
+                                ),
                           child: const Text('Retry'),
                         ),
                       ],
