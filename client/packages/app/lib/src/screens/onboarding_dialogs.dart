@@ -101,6 +101,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     final client = ref.read(probeApiProvider)(reduced);
     try {
       final check = await client.checkInvite(_code.text.trim());
+      if (!mounted) return;
       if (check is api.InviteUnusable) {
         /// Deliberately vague, and it has to stay that way: the server answers
         /// expired, spent, revoked and never-issued identically so codes cannot
@@ -117,6 +118,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         Navigator.of(context).pop((reduced, _code.text.trim()));
       }
     } on api.ApiException catch (e) {
+      if (!mounted) return;
       setState(
         () => _error = e is api.TransportException
             ? 'Could not reach that server.'
