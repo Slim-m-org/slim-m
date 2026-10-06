@@ -155,6 +155,10 @@ class SeedState:
         with self._lock:
             return bool(self._top_messages)
 
+    def has_own_message(self, author):
+        with self._lock:
+            return bool(self._own_messages.get(author))
+
     def has_thread(self):
         with self._lock:
             return bool(self._threads)

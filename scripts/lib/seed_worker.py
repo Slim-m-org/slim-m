@@ -257,7 +257,7 @@ def run_account(ctx, actions_count, pace_range, actions=None):
         resolved = seed_actions.resolve_action(
             chosen,
             has_top_message=ctx.state.has_top_message(),
-            has_own_message=ctx.state.random_own_message(ctx.rng, ctx.username) is not None,
+            has_own_message=ctx.state.has_own_message(ctx.username),
             has_thread=ctx.state.has_thread(),
             has_other_account=bool(ctx.other_usernames),
             is_privileged=ctx.is_privileged,
