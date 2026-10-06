@@ -211,6 +211,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             AppAction.toggleCameraCall,
           ),
           active: voice.cameraEnabled,
+          pending: voice.cameraPending,
           onPressed: () => unawaited(widget.controller.toggleCamera()),
         ),
         if (voice.cameraEnabled && _canSwitchCamera) ...[
