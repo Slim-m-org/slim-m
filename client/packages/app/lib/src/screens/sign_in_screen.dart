@@ -44,12 +44,10 @@ import 'sign_in_session_ended_notice.dart';
 /// for the same reason an invite does: that button means there is no
 /// account here yet.
 ///
-/// Collapsed is not silent about the destination. The identity chip used to
-/// sit inside the branch that draws the address field, so the official-server
-/// path - the commonest way in, and the one that deliberately hides that
-/// field - named no server anywhere on screen. It is outside that branch now,
-/// with a quieter line standing in until the probe answers, so every state of
-/// this screen says where it is about to connect.
+/// Collapsed is not silent about the destination: the identity chip sits
+/// outside the branch that draws the address field, with a quieter line
+/// standing in until the probe answers, so every state of this screen says
+/// where it is about to connect.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 

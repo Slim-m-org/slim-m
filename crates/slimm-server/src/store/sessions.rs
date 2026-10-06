@@ -178,8 +178,7 @@ impl Store {
         let policy = super::space::read_join_policy(&mut *tx).await?;
 
         if !claimed {
-            // The first account claims the deployment in this same commit, so a
-            // failure here cannot strand it as a plain member of an unclaimed one.
+            // The first account claims the deployment in this same commit, so a failure cannot strand it unclaimed.
             if let Bootstrap::AlreadySetUp = claim_in(&mut tx, id).await? {
                 return Err(RegisterError::InviteRequired);
             }
