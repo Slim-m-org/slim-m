@@ -163,10 +163,15 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// so the anchor is only taken on the first of the two: recomputing it on
   /// the second call, which carries no position, would throw the real one away.
   void _setOpen(bool open, {bool pinRow = true, Offset? pointerGlobal}) {
-    if (LayoutClass.of(context) == LayoutClass.compact) {
+    // A close follows whichever surface is open, not the layout it has now.
+    final sheet = open
+        ? LayoutClass.of(context) == LayoutClass.compact
+        : _sheetOpen;
+    if (sheet) {
       _setSheetOpen(open, pinRow: pinRow);
       return;
     }
+    if (!open && !_controller.isShowing) return;
     widget.onVisibilityChanged?.call(open);
     if (pinRow || !open) widget.onOpenChanged?.call(open);
     if (open && !_controller.isShowing) _anchor = _anchorOffset(pointerGlobal);
