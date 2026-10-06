@@ -202,15 +202,7 @@ impl Store {
             return Err(PlaceError::ChannelFull);
         }
 
-        let seq = sqlx::query_scalar!(
-            r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
-               WHERE channel_id = ? AND stream = 'canvas'
-               RETURNING next_seq - 1 AS "seq!: i64""#,
-            channel_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?
-        .context("channel has no canvas sequence counter")?;
+        let seq = next_canvas_seq(&mut tx, channel_id).await?;
 
         let key = channel_key(channel_id);
         let now = now_ms();
@@ -421,4 +413,21 @@ async fn fetch_object(
             },
         )
     }))
+}
+
+/// Allocates the channel's next canvas stream seq inside the caller's write transaction.
+pub(super) async fn next_canvas_seq(
+    conn: &mut sqlx::SqliteConnection,
+    channel_id: ChannelId,
+) -> anyhow::Result<i64> {
+    // RETURNING sees the updated row, so `next_seq - 1` is the seq just handed out.
+    sqlx::query_scalar!(
+        r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
+           WHERE channel_id = ? AND stream = 'canvas'
+           RETURNING next_seq - 1 AS "seq!: i64""#,
+        channel_id
+    )
+    .fetch_optional(&mut *conn)
+    .await?
+    .context("channel has no canvas sequence counter")
 }

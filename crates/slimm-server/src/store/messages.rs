@@ -19,6 +19,7 @@
 
 use anyhow::Context;
 
+pub(in crate::store) mod row;
 mod send;
 
 use super::attachments::{LinkError, release_message_attachments};

@@ -31,7 +31,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{CreatePollError, Poll as StorePoll, Store, VoteError, now_ms};
+use crate::store::{CreatePollError, NewPoll, Poll as StorePoll, Store, VoteError, now_ms};
 
 /// Poll bodies are small: a question, up to four short options, and an
 /// optional close time.
@@ -190,9 +190,11 @@ async fn create(
             ctx.user_id,
             id,
             content,
-            &req.question,
-            &req.options,
-            req.close_at,
+            NewPoll {
+                question: &req.question,
+                options: &req.options,
+                close_at: req.close_at,
+            },
         )
         .await
     {

@@ -200,9 +200,11 @@ async fn delete_account_anonymizes_moderation_and_poll_authorship() {
             moderator.id,
             poll_message,
             "vote",
-            "lunch?",
-            &["yes".into(), "no".into()],
-            None,
+            slimm_server::store::NewPoll {
+                question: "lunch?",
+                options: &["yes".into(), "no".into()],
+                close_at: None,
+            },
         )
         .await
         .unwrap();

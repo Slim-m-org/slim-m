@@ -171,7 +171,7 @@ pub use overwrites_batch::OverwriteBatchEntry;
 pub use permissions::ChannelOverwrite;
 pub use pins::{MAX_PINS_PER_CHANNEL, PinError, PinnedMessage};
 pub use polls::{
-    CreatePollError, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_QUESTION_CHARS, MIN_OPTIONS, Poll,
+    CreatePollError, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_QUESTION_CHARS, MIN_OPTIONS, NewPoll, Poll,
     PollOption, PollTally, VoteError,
 };
 pub use push::{PushError, PushRegistration, PushTarget};

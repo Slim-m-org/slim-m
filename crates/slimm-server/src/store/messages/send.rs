@@ -2,13 +2,11 @@
 //! The send half of the message write paths: idempotent insert, attachment linking, and the
 //! in-transaction slow-mode check. Edit and delete live in [`super`].
 
-use anyhow::Context;
-
+use super::row::{IdProbe, NewRow, insert_message_row, probe_id};
 use super::{NewMessage, SendError, Sent};
-use crate::ids::{ChannelId, Seq};
+use crate::ids::ChannelId;
 use crate::store::attachments::link_attachments;
-use crate::store::message_reads::fetch_message_including_deleted;
-use crate::store::{Message, Store, now_ms};
+use crate::store::{Store, now_ms};
 
 impl Store {
     /// Sends a message. Idempotent by `id` within its `(channel, author)` scope;
@@ -101,16 +99,19 @@ impl Store {
         // BEGIN IMMEDIATE, never deferred; see the note on this function.
         let mut tx = self.begin_write().await?;
 
-        // Includes tombstoned rows: the id is unique even after a delete, so a retry must match here, not 500 on INSERT.
-        if let Some(existing) = fetch_message_including_deleted(&mut *tx, id).await? {
-            tx.commit().await?;
-            if existing.channel_id == channel_id && existing.author_id == Some(author_id) {
+        match probe_id(&mut tx, channel_id, author_id, id).await? {
+            IdProbe::Free => {}
+            IdProbe::Replay(message) => {
+                tx.commit().await?;
                 return Ok(Sent {
-                    message: existing,
+                    message,
                     fresh: false,
                 });
             }
-            return Err(SendError::IdConflict);
+            IdProbe::Conflict => {
+                tx.commit().await?;
+                return Err(SendError::IdConflict);
+            }
         }
 
         let now = now_ms();
@@ -140,29 +141,17 @@ impl Store {
             }
         }
 
-        // RETURNING sees the updated row, so `next_seq - 1` is this message's seq.
-        let seq = sqlx::query_scalar!(
-            r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
-               WHERE channel_id = ? AND stream = 'message'
-               RETURNING next_seq - 1 AS "seq!: i64""#,
-            channel_id
+        let message = insert_message_row(
+            &mut tx,
+            &NewRow {
+                channel_id,
+                author_id,
+                id,
+                content,
+                reply_to_id,
+                now,
+            },
         )
-        .fetch_optional(&mut *tx)
-        .await?
-        .context("channel has no message sequence counter")?;
-
-        sqlx::query!(
-            r#"INSERT INTO messages (id, channel_id, author_id, seq, content, created_at, reply_to_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?)"#,
-            id,
-            channel_id,
-            author_id,
-            seq,
-            content,
-            now,
-            reply_to_id
-        )
-        .execute(&mut *tx)
         .await?;
 
         if !attachment_ids.is_empty() {
@@ -188,28 +177,9 @@ impl Store {
             crate::store::message_embeds::insert_embeds(&mut tx, id, &[embed]).await?;
         }
 
-        // Read in the insert's transaction so the echoed message matches a later fetch.
-        let author_display_name = sqlx::query_scalar!(
-            r#"SELECT display_name AS "display_name!: String"
-               FROM users WHERE id = ? AND deleted_at IS NULL"#,
-            author_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
-
         tx.commit().await?;
         Ok(Sent {
-            message: Message {
-                id,
-                channel_id,
-                author_id: Some(author_id),
-                author_display_name,
-                seq: Seq(seq),
-                content: content.to_owned(),
-                created_at: now,
-                edited_at: None,
-                reply_to_id,
-            },
+            message,
             fresh: true,
         })
     }
