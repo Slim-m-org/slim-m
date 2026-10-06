@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_presence_geometry.dart'
-    show presenceTileIdentity, presenceTileKind;
+    show presenceTileIdentity, presenceTileKeyForSlot, presenceTileKind;
 
 class CanvasMediaSlotSync {
   CanvasMediaSlotSync({
@@ -46,7 +46,7 @@ class CanvasMediaSlotSync {
     }
     for (final slot in page.slots) {
       overrides.applyServer(
-        '${slot.kind}:${slot.userId}',
+        presenceTileKeyForSlot(slot.kind, slot.userId),
         rect: Rect.fromLTWH(slot.x, slot.y, slot.w, slot.h),
         locked: slot.locked,
         sentToBack: slot.sentToBack,
@@ -83,7 +83,7 @@ class CanvasMediaSlotSync {
   void applyRemote(api.CanvasMediaSlotChanged event) {
     if (event.channelId != channelId) return;
     overrides.applyServer(
-      '${event.kind}:${event.userId}',
+      presenceTileKeyForSlot(event.kind, event.userId),
       rect: Rect.fromLTWH(event.x, event.y, event.w, event.h),
       locked: event.locked,
       sentToBack: event.sentToBack,

@@ -13,6 +13,8 @@
 /// wire field for a distinction the client can already tell apart.
 library;
 
+import '../../format.dart';
+
 /// [timedOutUntil] is the caller's own `Me.timedOutUntil` as read at the
 /// moment the refusal is being explained, Unix milliseconds or null. Read
 /// fresh rather than cached at pane-mount, since a timeout can start or
@@ -29,16 +31,5 @@ String canvasDrawForbiddenMessage(int? timedOutUntil) {
     return "You don't have permission to draw here right now.";
   }
   return "You're timed out and can't draw for another "
-      '${_formatRemaining(remaining)}.';
-}
-
-/// The coarsest unit that is still true, the same rule
-/// `member_profile_sections.dart`'s `formatRemaining` uses for the same
-/// countdown - not reused directly, since that one is styled for a
-/// `TextSpan` and this needs a plain string to interpolate.
-String _formatRemaining(Duration remaining) {
-  if (remaining.inHours >= 24) return '${remaining.inDays}d';
-  if (remaining.inMinutes >= 60) return '${remaining.inHours}h';
-  if (remaining.inMinutes >= 1) return '${remaining.inMinutes}m';
-  return '${remaining.inSeconds}s';
+      '${formatRemaining(remaining)}.';
 }

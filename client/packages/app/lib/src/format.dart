@@ -62,3 +62,15 @@ String formatRelativeAgeMs(int epochMs, {DateTime? now, bool weeks = false}) =>
       ),
       weeks: weeks,
     );
+
+/// How long is left, in the coarsest unit that is still true.
+///
+/// Coarse on purpose: a timeout is not a countdown anybody should watch, and
+/// a badge re-rendering a ticking second would be movement with no meaning.
+String formatRemaining(Duration remaining) {
+  if (remaining.isNegative) return 'moments';
+  if (remaining.inHours >= 24) return '${remaining.inDays}d';
+  if (remaining.inMinutes >= 60) return '${remaining.inHours}h';
+  if (remaining.inMinutes >= 1) return '${remaining.inMinutes}m';
+  return '${remaining.inSeconds}s';
+}
