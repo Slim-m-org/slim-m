@@ -213,6 +213,7 @@ Two jobs run it, against two different bases, because one commit needs both.
 The PR's head commit is checked out explicitly rather than the default merge-ref checkout, so `HEAD:schema/openapi.yaml` is exactly the schema the PR proposes with no synthetic merge commit in between.
 oasdiff also needs the base branch's schema content, but that checkout only fetched the PR head commit, so the workflow fetches just that one base commit, shallowly, by its exact SHA from the `pull_request` event payload, landing it in the local object database without cloning the base branch's history.
 oasdiff then reads it straight out of git as `<base-sha>:schema/openapi.yaml`.
+That commit is the merge base of the PR and its base branch, found by `scripts/pr-merge-base.sh`, not the base branch's tip: against the tip, a path that `main` gained after the PR branched reads as removed by the PR, and the gate goes red for a change its author never made.
 
 `breaking-change-gate-main` runs on every push to `main` instead, diffing `HEAD~1` against `HEAD`.
 This is not redundant with the PR-time gate: `verify-release-checks.yml` (see below) polls check-runs on the exact commit a release verifies, a squash-merge mints a brand-new SHA that the PR-time gate's check-run was never attached to, and a release-please commit never touches `schema/**` at all - so `breaking-change-gate` structurally cannot ever appear on the commit a release actually checks, no matter how the required-checks list is written.
