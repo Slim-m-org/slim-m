@@ -24,6 +24,8 @@ use sqlx::SqlitePool;
 
 mod support;
 
+use support::canvas::CanvasReads;
+
 /// Objects a 1920x1080 viewport should hold, which is what the seeded world's
 /// size is solved backwards from so density stays fixed as the count grows.
 const PER_SCREEN: f64 = 200.0;

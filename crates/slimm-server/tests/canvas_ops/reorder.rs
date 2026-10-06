@@ -12,6 +12,7 @@ use crate::fixtures::{
     app, general, id, member, new_store, new_store_and_pool, post_object, register, reorder_op,
     stroke, submit_op,
 };
+use crate::support::canvas::CanvasReads;
 
 async fn bounds_and_z(pool: &sqlx::SqlitePool, object_id: &str) -> (f64, f64, f64, f64, i64) {
     sqlx::query_as("SELECT x, y, w, h, z_index FROM canvas_objects WHERE id = ?")

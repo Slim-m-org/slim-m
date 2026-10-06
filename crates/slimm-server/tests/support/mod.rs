@@ -16,6 +16,10 @@ use slimm_server::store::Store;
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;
 
+/// Canvas reads and removals through the product's own paths.
+#[allow(dead_code)]
+pub mod canvas;
+
 /// A one-member deployment plus helpers to install and run a wasm module.
 #[allow(dead_code)]
 pub mod module_world;
