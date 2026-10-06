@@ -1839,11 +1839,12 @@ paths:
         in any category, since a category only decides placement, never
         behaviour). Sending neither, or both, is a 400. The channel ids
         named - flattened, for the grouped shape - must add up to exactly
-        the live, non-DM, non-thread channels - no more, no fewer, no
-        repeats - and every named category id must be a live category, or
-        the request is refused with a 400 naming what was wrong; a partial
-        list is never applied. Submitting the arrangement already in effect
-        is not an error and changes nothing.
+        the live, non-DM, non-thread channels the caller can view - no more,
+        no fewer, no repeats - and every named category id must be a live
+        category, or the request is refused with a 400 naming what was
+        wrong; a partial list is never applied. A channel the caller cannot
+        view keeps its place and is never named. Submitting the arrangement
+        already in effect is not an error and changes nothing.
       requestBody:
         required: true
         content:
@@ -1852,7 +1853,7 @@ paths:
               $ref: "#/components/schemas/ReorderChannelsRequest"
       responses:
         "200":
-          description: Every live, non-DM channel, in its new order.
+          description: Every live, non-DM channel the caller can view, in its new order.
           content:
             application/json:
               schema:

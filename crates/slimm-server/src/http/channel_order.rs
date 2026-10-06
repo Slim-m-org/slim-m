@@ -8,6 +8,7 @@
 //! client posting `channel_ids` alone still reorders positions and never
 //! has any channel's `category_id` touched.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::Router;
@@ -75,6 +76,22 @@ async fn reorder(
         return Err(ApiError::Forbidden);
     }
 
+    let visible: HashSet<ChannelId> = state
+        .store
+        .visible_channels_with_permissions(ctx.user_id)
+        .await?
+        .into_iter()
+        .map(|(channel, ..)| channel.id)
+        .collect();
+    let hidden: HashSet<ChannelId> = state
+        .store
+        .list_channels()
+        .await?
+        .into_iter()
+        .map(|channel| channel.id)
+        .filter(|id| !visible.contains(id))
+        .collect();
+
     let outcome = match (req.channel_ids, req.categories) {
         (Some(_), Some(_)) => {
             return Err(ApiError::BadRequest(
@@ -91,15 +108,18 @@ async fn reorder(
                 .iter()
                 .map(|id| parse_uuid(id).map(ChannelId))
                 .collect::<Result<Vec<_>, _>>()?;
-            state.store.reorder_channels_flat(&ordered).await
+            state
+                .store
+                .reorder_channels_flat_around(&ordered, &hidden)
+                .await
         }
         (None, Some(categories)) => {
             let groups = parse_groups(&categories)?;
-            state.store.reorder_channels(&groups).await
+            state.store.reorder_channels_around(&groups, &hidden).await
         }
     };
 
-    finish(&state, outcome).await
+    finish(&state, &visible, outcome).await
 }
 
 fn parse_groups(categories: &[ReorderGroupRequest]) -> Result<Vec<ChannelOrderGroup>, ApiError> {
@@ -126,9 +146,10 @@ fn parse_groups(categories: &[ReorderGroupRequest]) -> Result<Vec<ChannelOrderGr
 
 /// Shared by both the flat and grouped paths: publishes a live update for
 /// every channel the store reports moved, and maps a refusal to the 400 it
-/// should read as.
+/// should read as. The answer lists only the channels `visible` to the caller.
 async fn finish(
     state: &AppState,
+    visible: &HashSet<ChannelId>,
     outcome: Result<ReorderOutcome, ReorderChannelsError>,
 ) -> Result<Json<Vec<ChannelDto>>, ApiError> {
     match outcome {
@@ -142,7 +163,12 @@ async fn finish(
                 }
             }
             Ok(Json(
-                outcome.channels.into_iter().map(ChannelDto::from).collect(),
+                outcome
+                    .channels
+                    .into_iter()
+                    .filter(|channel| visible.contains(&channel.id))
+                    .map(ChannelDto::from)
+                    .collect(),
             ))
         }
         Err(ReorderChannelsError::Mismatch { missing, extra }) => Err(ApiError::BadRequestDetail(
