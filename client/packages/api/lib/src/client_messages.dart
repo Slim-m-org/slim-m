@@ -170,16 +170,16 @@ extension SlimmApiMessages on SlimmApi {
     String? afterDate,
     String? beforeDate,
   }) async {
-    final query = <String, String>{
-      if (q != null) 'q': q,
-      if (before != null) 'before': '$before',
-      if (limit != null) 'limit': '$limit',
-      if (from != null) 'from': from,
-      if (inChannel != null) 'in': inChannel,
-      if (has != null) 'has': has,
-      if (afterDate != null) 'after_date': afterDate,
-      if (beforeDate != null) 'before_date': beforeDate,
-    };
+    final query = _searchQuery(
+      q: q,
+      before: before,
+      limit: limit,
+      from: from,
+      inChannel: inChannel,
+      has: has,
+      afterDate: afterDate,
+      beforeDate: beforeDate,
+    );
     final json = await _send(
       'GET',
       '/channels/$channelId/messages/search',
@@ -208,16 +208,16 @@ extension SlimmApiMessages on SlimmApi {
     String? afterDate,
     String? beforeDate,
   }) async {
-    final query = <String, String>{
-      if (q != null) 'q': q,
-      if (before != null) 'before': '$before',
-      if (limit != null) 'limit': '$limit',
-      if (from != null) 'from': from,
-      if (inChannel != null) 'in': inChannel,
-      if (has != null) 'has': has,
-      if (afterDate != null) 'after_date': afterDate,
-      if (beforeDate != null) 'before_date': beforeDate,
-    };
+    final query = _searchQuery(
+      q: q,
+      before: before,
+      limit: limit,
+      from: from,
+      inChannel: inChannel,
+      has: has,
+      afterDate: afterDate,
+      beforeDate: beforeDate,
+    );
     final json = await _send('GET', '/search/messages', query: query);
     return (json as List<dynamic>)
         .map((m) => Message.fromJson(m as Map<String, dynamic>))
@@ -446,3 +446,25 @@ extension SlimmApiMessages on SlimmApi {
         expectNoContent: true,
       );
 }
+
+/// The query string both search routes share, so a new operator is added once.
+Map<String, String> _searchQuery({
+  String? q,
+  int? before,
+  int? limit,
+  String? from,
+  String? inChannel,
+  String? has,
+  String? afterDate,
+  String? beforeDate,
+}) =>
+    {
+      if (q != null) 'q': q,
+      if (before != null) 'before': '$before',
+      if (limit != null) 'limit': '$limit',
+      if (from != null) 'from': from,
+      if (inChannel != null) 'in': inChannel,
+      if (has != null) 'has': has,
+      if (afterDate != null) 'after_date': afterDate,
+      if (beforeDate != null) 'before_date': beforeDate,
+    };
