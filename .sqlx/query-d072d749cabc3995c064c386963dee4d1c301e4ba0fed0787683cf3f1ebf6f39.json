@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(parent.slow_mode_seconds, c.slow_mode_seconds) AS \"seconds!: i64\"\n               FROM channels c\n               LEFT JOIN messages pm ON pm.id = c.parent_message_id\n               LEFT JOIN channels parent ON parent.id = pm.channel_id\n                    AND parent.deleted_at IS NULL\n               WHERE c.id = ? AND c.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "seconds!: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d072d749cabc3995c064c386963dee4d1c301e4ba0fed0787683cf3f1ebf6f39"
+}

@@ -231,9 +231,15 @@ async fn remove_member(
     for session_id in revoked {
         state.hub.publish(Event::SessionRevoked(session_id));
     }
-    state.hub.publish(Event::MemberRemoved(target));
-    evict_from_voice(&state, target).await;
+    announce_member_gone(&state, target).await;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// What every way of a member leaving owes the rest of the deployment: a live
+/// `MemberRemoved`, and eviction from voice, since a LiveKit token cannot be revoked.
+pub(super) async fn announce_member_gone(state: &AppState, target: UserId) {
+    state.hub.publish(Event::MemberRemoved(target));
+    evict_from_voice(state, target).await;
 }
 
 /// Lets a removed member back in. Requires BAN_MEMBERS. 404 if they were not
@@ -309,6 +315,7 @@ async fn delete_member_account(
     if let Err(err) = state.media.delete_avatar(&target.to_string()).await {
         tracing::warn!(error = %err, "failed to delete an account's avatar file");
     }
+    announce_member_gone(&state, target).await;
     Ok(StatusCode::NO_CONTENT)
 }
 
