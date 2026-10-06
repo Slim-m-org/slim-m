@@ -4,8 +4,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../providers/channel_by_id_provider.dart';
 import '../providers/database_key_store.dart';
 import '../providers/last_text_channel.dart';
 import '../providers/providers.dart';
@@ -63,61 +63,57 @@ class ConversationPane extends ConsumerWidget {
           ),
         ),
       ),
-      data: (store) => StreamBuilder<List<Channel>>(
-        stream: store.watchChannels(),
-        builder: (context, snapshot) {
-          final channel = snapshot.data
-              ?.where((c) => c.id == channelId)
-              .cast<Channel?>()
-              .firstOrNull;
-          // Before the first sync, or before the list has emitted, an unresolved id may just not have arrived yet.
-          if (channel == null &&
-              snapshot.hasData &&
-              ref.watch(initialSyncCompleteProvider)) {
-            return UnlistedChannel(channelId: channelId);
-          }
-          final isVoice = channel?.kind == 'voice';
-          final canvasOpen = ref.watch(canvasOpenProvider) == channelId;
-          final dmCallOpen =
-              channel?.kind == 'dm' &&
-              ref.watch(dmCallOpenProvider) == channelId;
-          // Keyed by stage, so each pane fades through the one it replaces.
-          final stage = canvasOpen
-              ? 'canvas'
-              : isVoice
-              ? 'voice'
-              : dmCallOpen
-              ? 'dm-call'
-              : 'text';
-          if (stage == 'text' && channel != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              ref.read(lastTextChannelProvider.notifier).state = channelId;
-            });
-          }
-          final body = AppFadeIn(
-            key: ValueKey('pane-$stage'),
-            child: canvasOpen
-                ? CanvasPane(channelId: channelId)
-                : isVoice
-                ? VoiceScreen(channelId: channelId, openChat: openChat)
-                : dmCallOpen
-                ? DmCallPane(channelId: channelId)
-                : ChannelScreen(channelId: channelId),
-          );
+      data: (_) => _resolved(context, ref, layout),
+    );
+  }
 
-          if (!layout.showsBothPanes || !isVoice || canvasOpen) return body;
-          return Column(
-            children: [
-              _VoiceConversationHeader(
-                channelId: channelId,
-                name: channel?.name ?? '',
-                topic: channel?.topic,
-              ),
-              Expanded(child: body),
-            ],
-          );
-        },
-      ),
+  Widget _resolved(BuildContext context, WidgetRef ref, LayoutClass layout) {
+    final row = ref.watch(channelByIdProvider(channelId));
+    final channel = row.valueOrNull;
+    // Before the first sync, or before the row has emitted, an unresolved id may just not have arrived yet.
+    if (channel == null &&
+        row.hasValue &&
+        ref.watch(initialSyncCompleteProvider)) {
+      return UnlistedChannel(channelId: channelId);
+    }
+    final isVoice = channel?.kind == 'voice';
+    final canvasOpen = ref.watch(canvasOpenProvider) == channelId;
+    final dmCallOpen =
+        channel?.kind == 'dm' && ref.watch(dmCallOpenProvider) == channelId;
+    // Keyed by stage, so each pane fades through the one it replaces.
+    final stage = canvasOpen
+        ? 'canvas'
+        : isVoice
+        ? 'voice'
+        : dmCallOpen
+        ? 'dm-call'
+        : 'text';
+    if (stage == 'text' && channel != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(lastTextChannelProvider.notifier).state = channelId;
+      });
+    }
+    final body = AppFadeIn(
+      key: ValueKey('pane-$stage'),
+      child: canvasOpen
+          ? CanvasPane(channelId: channelId)
+          : isVoice
+          ? VoiceScreen(channelId: channelId, openChat: openChat)
+          : dmCallOpen
+          ? DmCallPane(channelId: channelId)
+          : ChannelScreen(channelId: channelId),
+    );
+
+    if (!layout.showsBothPanes || !isVoice || canvasOpen) return body;
+    return Column(
+      children: [
+        _VoiceConversationHeader(
+          channelId: channelId,
+          name: channel?.name ?? '',
+          topic: channel?.topic,
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 }
