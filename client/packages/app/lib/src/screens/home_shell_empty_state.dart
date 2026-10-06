@@ -15,6 +15,11 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+/// The first thing a fresh desktop sign-in lands on, so it carries the same
+/// visual weight `ChannelStartHeader` gives the functionally identical
+/// "nothing here yet" case, rather than a single small line of grey text.
+/// The Ctrl+K hint drops on a touch layout, the same rule the rail's own
+/// search field hint already follows - no finger can press it.
 class NoChannelSelected extends StatelessWidget {
   const NoChannelSelected({super.key});
 

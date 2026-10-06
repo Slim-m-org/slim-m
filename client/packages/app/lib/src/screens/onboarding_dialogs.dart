@@ -17,6 +17,8 @@ import '../providers/providers.dart';
 import '../server_address_reduction.dart';
 import '../server_scheme_policy.dart';
 
+/// Redeeming an invite: check the code against the server before asking anyone
+/// to fill in a signup form, and accept the terms at the point of joining.
 class InviteDialog extends ConsumerStatefulWidget {
   const InviteDialog({this.initial, super.key});
 
