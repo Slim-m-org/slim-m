@@ -88,7 +88,7 @@ pub struct ModuleExtensionPointSpec<'a> {
     pub language: Option<&'a str>,
 }
 
-/// Everything an install call needs, bundled so `Store::install_module` stays
+/// Everything an install call needs, bundled so `Store::install_module_with_artifact` stays
 /// under the project's 7-positional-parameter limit.
 pub struct InstallModuleRequest<'a> {
     pub id: &'a str,
@@ -161,38 +161,18 @@ impl Store {
     /// for every key would cascade away every grant on every reinstall, even
     /// when nothing about that permission changed.
     ///
-    /// Writes only the metadata half of an install; a caller installing a
-    /// module must use [`Store::install_module_with_artifact`] instead, or
-    /// the two rows can diverge.
-    pub async fn install_module(
-        &self,
-        req: InstallModuleRequest<'_>,
-    ) -> anyhow::Result<InstalledModule> {
-        let mut tx = self.begin_write().await?;
-        insert_module_metadata(&mut tx, &req).await?;
-        tx.commit().await?;
-        self.installed_module(req.id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
-    }
-
-    /// Installs a module's metadata and its verified artifact bytes as one
-    /// atomic write.
-    ///
-    /// [`Store::install_module`] and [`Store::store_module_artifact`] used to
-    /// be the only way to record an install, and `http::dock::install` called
-    /// them as two independent, separately-committed writes: a racing
-    /// upgrade, or a crash between the two, could leave `installed_modules`
-    /// and `module_artifacts` describing different versions with no error
-    /// anywhere. This method is the fix for that half of the defect;
+    /// The metadata and the verified artifact bytes commit as one atomic
+    /// write. Recording the two as separate writes let a racing upgrade, or a crash
+    /// between them, leave `installed_modules` and `module_artifacts`
+    /// describing different versions with no error anywhere. This method is the
+    /// fix for that half of the defect;
     /// `http::module_commands::execute_command`'s comparison of
     /// `installed_modules.artifact_sha256` against the stored artifact's own
     /// sha is the other half, and is what makes a mismatch here actually
     /// unreachable rather than merely rarer.
     ///
     /// `artifact` must already be sha256-verified against
-    /// `req.artifact_sha256` by the caller, exactly as
-    /// [`Store::store_module_artifact`] expects. The metadata row is written
+    /// `req.artifact_sha256` by the caller. The metadata row is written
     /// before the artifact row: `module_artifacts.module_id` is a foreign key
     /// onto `installed_modules(id)`, so the reverse order would violate it.
     pub async fn install_module_with_artifact(
@@ -332,8 +312,8 @@ impl Store {
 }
 
 /// The metadata half of an install: the `installed_modules` row itself, plus
-/// the `module_permissions` reconciliation [`Store::install_module`]'s own
-/// doc explains. Split out so [`Store::install_module`] and
+/// the `module_permissions` reconciliation [`Store::install_module_with_artifact`]'s own
+/// doc explains. Split out so [`Store::install_module_with_artifact`] and
 /// [`Store::install_module_with_artifact`] run exactly the same metadata
 /// write inside whichever transaction the caller owns, rather than drifting
 /// into two copies of it.

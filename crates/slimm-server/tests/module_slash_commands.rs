@@ -94,21 +94,21 @@ async fn install(s: &Store, enabled: bool) {
             language: None,
         },
     ];
-    s.install_module(InstallModuleRequest {
-        id: "dice",
-        name: "Dice",
-        version: "0.2.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &permissions,
-        extension_points: &extension_points,
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "dice",
+            name: "Dice",
+            version: "0.2.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &permissions,
+            extension_points: &extension_points,
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("dice", &sha256, &wasm)
-        .await
-        .unwrap();
     if enabled {
         s.set_module_enabled("dice", true).await.unwrap();
     }
@@ -223,32 +223,32 @@ async fn a_module_with_only_a_command_extension_point_is_never_offered() {
     let member = deployment(&s).await;
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "dice",
-        name: "Dice",
-        version: "0.2.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "roll",
-            name: "Roll dice",
-            description: "roll dice",
-        }],
-        extension_points: &[ModuleExtensionPointSpec {
-            kind: "command",
-            name: "roll",
-            description: Some("rolls dice"),
-            permission: Some("roll"),
-            command: None,
-            language: None,
-        }],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "dice",
+            name: "Dice",
+            version: "0.2.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "roll",
+                name: "Roll dice",
+                description: "roll dice",
+            }],
+            extension_points: &[ModuleExtensionPointSpec {
+                kind: "command",
+                name: "roll",
+                description: Some("rolls dice"),
+                permission: Some("roll"),
+                command: None,
+                language: None,
+            }],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("dice", &sha256, &wasm)
-        .await
-        .unwrap();
     s.set_module_enabled("dice", true).await.unwrap();
     grant_roll_permission(&s, &member).await;
     let token = s.open_session(member.id, "phone").await.unwrap();

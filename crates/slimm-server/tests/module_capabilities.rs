@@ -129,16 +129,19 @@ async fn a_module_installed_before_approval_existed_gains_nothing() {
         description: "run it",
     }];
     w.store
-        .install_module(InstallModuleRequest {
-            id: "old-module",
-            name: "Scorekeeper",
-            version: "0.2.0",
-            artifact_sha256: &sha256,
-            approved_capabilities: &[],
-            runtime_limits: &ModuleRuntimeLimits::default(),
-            permissions: &run_permission,
-            extension_points: &run_command,
-        })
+        .install_module_with_artifact(
+            InstallModuleRequest {
+                id: "old-module",
+                name: "Scorekeeper",
+                version: "0.2.0",
+                artifact_sha256: &sha256,
+                approved_capabilities: &[],
+                runtime_limits: &ModuleRuntimeLimits::default(),
+                permissions: &run_permission,
+                extension_points: &run_command,
+            },
+            &wasm,
+        )
         .await
         .unwrap();
     assert!(w.answer("old-module").await.contains("may not do"));

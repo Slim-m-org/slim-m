@@ -79,42 +79,42 @@ async fn member(s: &Store) -> User {
 async fn install(s: &Store, enabled: bool) {
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "widget",
-        name: "Widget",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "play",
-            name: "Play the widget",
-            description: "launch and play it",
-        }],
-        extension_points: &[
-            ModuleExtensionPointSpec {
-                kind: "command",
-                name: "surf",
-                description: Some("draws a surface"),
-                permission: Some("play"),
-                command: None,
-                language: None,
-            },
-            ModuleExtensionPointSpec {
-                kind: "app",
-                name: "Widget",
-                description: Some("Launch the widget in chat"),
-                permission: Some("play"),
-                command: Some("surf"),
-                language: None,
-            },
-        ],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "widget",
+            name: "Widget",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "play",
+                name: "Play the widget",
+                description: "launch and play it",
+            }],
+            extension_points: &[
+                ModuleExtensionPointSpec {
+                    kind: "command",
+                    name: "surf",
+                    description: Some("draws a surface"),
+                    permission: Some("play"),
+                    command: None,
+                    language: None,
+                },
+                ModuleExtensionPointSpec {
+                    kind: "app",
+                    name: "Widget",
+                    description: Some("Launch the widget in chat"),
+                    permission: Some("play"),
+                    command: Some("surf"),
+                    language: None,
+                },
+            ],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("widget", &sha256, &wasm)
-        .await
-        .unwrap();
     if enabled {
         s.set_module_enabled("widget", true).await.unwrap();
     }

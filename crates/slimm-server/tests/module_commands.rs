@@ -86,24 +86,24 @@ async fn install(s: &Store, wasm: Vec<u8>, enabled: bool, fuel: Option<u64>) {
         command: None,
         language: None,
     }];
-    s.install_module(InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits {
-            fuel,
-            ..ModuleRuntimeLimits::default()
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits {
+                fuel,
+                ..ModuleRuntimeLimits::default()
+            },
+            permissions: &permissions,
+            extension_points: &extension_points,
         },
-        permissions: &permissions,
-        extension_points: &extension_points,
-    })
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("code-exec", &sha256, &wasm)
-        .await
-        .unwrap();
     if enabled {
         s.set_module_enabled("code-exec", true).await.unwrap();
     }

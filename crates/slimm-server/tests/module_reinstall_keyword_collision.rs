@@ -164,16 +164,19 @@ async fn updating_an_enabled_module_to_a_taken_keyword_is_refused() {
             language: None,
         },
     ];
-    s.install_module(InstallModuleRequest {
-        id: "poll",
-        name: "poll",
-        version: "1.0.0",
-        artifact_sha256: "00",
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[],
-        extension_points: &points,
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "poll",
+            name: "poll",
+            version: "1.0.0",
+            artifact_sha256: "00",
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[],
+            extension_points: &points,
+        },
+        b"stub-artifact",
+    )
     .await
     .unwrap();
     assert_eq!(

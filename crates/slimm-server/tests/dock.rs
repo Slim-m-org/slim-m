@@ -348,16 +348,19 @@ async fn an_update_to_a_new_build_must_approve_posting_again() {
     json_body(install(approved).await.unwrap()).await;
 
     // The space is on a different build than the registry now offers.
-    s.install_module(slimm_server::store::InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.0.9",
-        artifact_sha256: &"b".repeat(64),
-        approved_capabilities: &["message.post".to_owned()],
-        runtime_limits: &slimm_server::store::ModuleRuntimeLimits::default(),
-        permissions: &[],
-        extension_points: &[],
-    })
+    s.install_module_with_artifact(
+        slimm_server::store::InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.0.9",
+            artifact_sha256: &"b".repeat(64),
+            approved_capabilities: &["message.post".to_owned()],
+            runtime_limits: &slimm_server::store::ModuleRuntimeLimits::default(),
+            permissions: &[],
+            extension_points: &[],
+        },
+        b"stub-artifact",
+    )
     .await
     .unwrap();
     let updated = json_body(install(json!({ "version": "0.1.0" })).await.unwrap()).await;
