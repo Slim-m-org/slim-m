@@ -241,9 +241,25 @@ jobs:
             echo "::error::$plist is missing an orientation array"
             fail=1
           fi
+          # Landscape in the array is only the ceiling for full screen call video (decision 0058).
           if grep -q 'Landscape' <<<"$phone"; then
-            echo "::error::$plist allows landscape on iPhone"
-            fail=1
+            swift=client/packages/app/ios/Runner/AppDelegate.swift
+            scode=$(sed -e 's://.*::' "$swift" |
+                    awk '/\/\*/{c=1} !c{print} /\*\//{c=0}')
+            for token in 'supportedInterfaceOrientationsFor' \
+                         'static var landscapeAllowed = false' \
+                         'landscapeAllowed ? .allButUpsideDown : .portrait'; do
+              grep -qF "$token" <<<"$scode" || {
+                echo "::error::$plist allows landscape but $swift no longer keeps the shell portrait ($token is gone)"
+                fail=1
+              }
+            done
+            callers=$(grep -rlE 'allowLandscape\(true\)' client/packages/app/lib |
+                      xargs -r grep -lE '^[^/]*allowLandscape\(true\)' || true)
+            if [ "$callers" != "client/packages/app/lib/src/widgets/fullscreen_video_overlay.dart" ]; then
+              echo "::error::only fullscreen_video_overlay.dart may ask for landscape; found: ${callers:-none}"
+              fail=1
+            fi
           fi
           if grep -q 'UISupportedInterfaceOrientations~ipad' "$plist"; then
             echo "::error::$plist declares iPad orientations; the app is iPhone only"

@@ -67,3 +67,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0055](0055-member-nicknames.md) | An administrator can give a member or bot a space-local name | accepted |
 | [0056](0056-activity-art-source-and-spotify-link-feedback.md) | Activity carries a source label and Spotify cover art, and Spotify linking reports what happened | accepted |
 | [0057](0057-ios-background-modes.md) | iOS declares audio and voip, and constructs the PushKit registrar | accepted |
+| [0058](0058-phone-landscape-for-full-screen-call-video.md) | A phone may rotate only while a call's video is full screen | accepted |
