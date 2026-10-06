@@ -14,15 +14,16 @@
 #   status code, content type, fields, types, enums and nullability. Both
 #   directions fail - a field promised here that the server omits, and a field
 #   the server sends that nothing here documents - and an operation the test
-#   never drives fails too, so coverage cannot quietly lapse. Three operations
+#   never drives fails too, so coverage cannot quietly lapse. A few operations
 #   are exempt by name in that test's UNCOVERED list, each with its reason;
 #   a stale entry there fails in both directions, so the exemptions cannot
 #   quietly grow either.
 # - The WebSocket frame set, by crates/slimm-server/tests/ws_frame_contract.rs,
-#   which compares ServerFrame.oneOf against the frames ws/frames.rs really
-#   serialises and fails on drift in either direction. Frame *bodies* are not
-#   checked against a live socket the way response bodies are; connectWebSocket
-#   is one of the response contract's three exemptions.
+#   which compares ServerFrame.oneOf and ClientFrame.oneOf against the frames
+#   ws/frames.rs really serialises and accepts and fails on drift in either
+#   direction. Frame *bodies* are not checked against a live socket the way
+#   response bodies are; connectWebSocket is one of the response contract's
+#   exemptions.
 # - Additive-only evolution, by the oasdiff breaking-change gate in schema-ci.
 # - Valid OpenAPI, by redocly lint.
 #
@@ -2507,7 +2508,8 @@ paths:
                   minimum: 1
                   description: >
                     From now. The deadline is computed server-side, so a skewed
-                    client clock cannot ask for one already past.
+                    client clock cannot ask for one already past. At most 28
+                    days (2,419,200 seconds); more answers 400.
                 reason:
                   type: string
       responses:
@@ -3338,11 +3340,13 @@ paths:
       tags: [attachments]
       summary: Fetch an attachment's bytes.
       description: >
-        Gated on VIEW_CHANNEL in a channel that has a live message attaching
-        it - the same permission reading that message already requires, not
-        a bare "the id is hard to guess". An id nothing has ever attached
-        (still mid-compose, or already reclaimed) answers 404 for anyone,
-        including whoever uploaded it. The response always carries
+        Readable by whoever uploaded it, so a file staged in the composer
+        previews before it is sent, and by anyone with VIEW_CHANNEL in a
+        channel that has a live message or a canvas object attaching it,
+        including a canvas object that was erased and can still be restored -
+        the same permission reading that message already requires, not a
+        bare "the id is hard to guess". An id nothing attaches (or already
+        reclaimed) answers 404 for everyone but its uploader. The response always carries
         `X-Content-Type-Options: nosniff` and a Content-Disposition that
         forces a download for every content type except the handful of
         image types the allowlist marks safe to render inline.
@@ -5301,8 +5305,9 @@ paths:
 
 
         A 409 also means the channel's canvas is full: a canvas holds at most
-        20,000 live objects, refused in the same transaction that counts them,
-        because this slice ships no way to remove one.
+        20,000 live objects by default (an admin can set it between 100 and
+        100,000 through `/space/canvas-cap`), refused in the same transaction
+        that counts them. A `remove` or `clear` op frees room again.
       requestBody:
         required: true
         content:
@@ -5356,8 +5361,9 @@ paths:
         cursor cannot be paged from: discard local canvas state and cold-fetch
         the viewport instead. It is returned when the caller is more than
         2,000 ops behind, when `after_seq` names a point before the oldest op
-        this server still retains (nothing sweeps the op stream yet, so this
-        cannot happen today, but the wire is ready for when something does),
+        this server still retains (a background sweep compacts `remove`,
+        `clear` and `restore` rows older than 30 days, so a client that has
+        been offline for a month can hit this),
         or when `after_seq` is past `latest_seq`, which happens after a
         restore from backup.
 
@@ -8184,8 +8190,8 @@ components:
             `block` means a member can block someone (`POST /blocks/{userId}`).
             `webhooks` means this build serves incoming webhook delivery
             (`POST /webhooks/{webhookId}/{token}`) - a client uses it to
-            decide whether the webhook admin surface is worth showing, since
-            there is no admin route to mint one in this build yet.
+            decide whether the webhook admin surface is worth showing; minting
+            and rotating one is `createWebhook` and `rotateWebhook`.
 
 
             slim-m's safety model is manual reporting plus blocking and
