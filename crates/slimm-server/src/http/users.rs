@@ -351,7 +351,8 @@ async fn update_me(
 ) -> Result<Json<UserDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
 
-    if let Some(display_name) = &req.display_name {
+    let display_name = req.display_name.as_deref().map(str::trim);
+    if let Some(display_name) = display_name {
         validate_label(display_name, "display_name must be 1 to 64 characters")?;
     }
     let status_text = req
@@ -362,7 +363,7 @@ async fn update_me(
     let pronouns = req.pronouns.as_deref().map(validate_pronouns).transpose()?;
     let about = req.about.as_deref().map(validate_about).transpose()?;
     let profile_color = req.profile_color.map(validate_profile_color).transpose()?;
-    if req.display_name.is_none()
+    if display_name.is_none()
         && status_text.is_none()
         && pronouns.is_none()
         && about.is_none()
@@ -376,7 +377,7 @@ async fn update_me(
         .update_profile(
             ctx.user_id,
             crate::store::ProfileUpdate {
-                display_name: req.display_name.as_deref(),
+                display_name,
                 status_text: status_text.as_ref().map(|s| s.as_deref()),
                 pronouns: pronouns.as_ref().map(|s| s.as_deref()),
                 about: about.as_ref().map(|s| s.as_deref()),
