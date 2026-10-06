@@ -17,6 +17,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../providers/reaction_users.dart';
 import '../providers/user_profiles.dart';
+import 'context_menu_focus.dart';
 import 'reaction_users_list.dart';
 import 'reaction_users_surface.dart';
 
@@ -102,7 +103,12 @@ class _ReactionChipWhoState extends ConsumerState<ReactionChipWho> {
         triggerMode: TooltipTriggerMode.manual,
         waitDuration: const Duration(milliseconds: 500),
         excludeFromSemantics: true,
-        child: widget.child,
+        // The chip is its own tab stop; the keyboard route rides it.
+        child: ContextMenuFocus(
+          ownsFocusNode: false,
+          onOpen: _open,
+          child: widget.child,
+        ),
       ),
     ),
   );
