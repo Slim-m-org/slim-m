@@ -149,14 +149,14 @@ class _ModuleAccessPaneState extends ConsumerState<ModuleAccessPane>
     );
     if (!mounted) return;
     setState(() => _pending.remove(role.id));
-    if (ok) {
-      ref.invalidate(roleModulePermissionsProvider(role.id));
-      // A grant changes what the caller may reach, so discovery is stale at once.
-      ref.invalidate(codeBlockRunnerProvider);
-      ref.invalidate(slashCommandProvider);
-      ref.invalidate(appLaunchProvider);
-      if (value) await _enableIfOff();
-    }
+    // A half-applied change leaves the server holding something in between.
+    ref.invalidate(roleModulePermissionsProvider(role.id));
+    if (ok && value) await _enableIfOff();
+    if (!mounted) return;
+    // Invalidated after the enable, so the refetch sees the module as on.
+    ref.invalidate(codeBlockRunnerProvider);
+    ref.invalidate(slashCommandProvider);
+    ref.invalidate(appLaunchProvider);
   }
 
   /// Turns the module on the first time somebody is granted it.
@@ -181,7 +181,7 @@ class _ModuleAccessPaneState extends ConsumerState<ModuleAccessPane>
       whatFailed: 'enable ${widget.manifest.name}',
       action: () => ref.read(apiProvider).enableDockModule(widget.manifest.id),
     );
-    if (ok) ref.invalidate(dockCatalogProvider);
+    if (ok && mounted) ref.invalidate(dockCatalogProvider);
   }
 
   String _summary() {
