@@ -239,5 +239,20 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(h.container.read(tappedInviteProvider), isNull);
     });
+
+    test('a link with a bad percent escape is ignored', () async {
+      final h = harness(signedIn: false);
+      h.uris.add(Uri.parse('slimm://join?server=%ff&code=x'));
+      await Future<void>.delayed(Duration.zero);
+      expect(h.container.read(tappedInviteProvider), isNull);
+    });
+
+    test('an error on the stream does not stop later links', () async {
+      final h = harness(signedIn: false);
+      h.uris.addError(StateError('platform channel hiccup'));
+      h.uris.add(link);
+      await Future<void>.delayed(Duration.zero);
+      expect(h.container.read(tappedInviteProvider)?.code, 'C1');
+    });
   });
 }

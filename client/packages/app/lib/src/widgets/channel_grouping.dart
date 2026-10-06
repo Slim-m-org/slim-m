@@ -11,7 +11,6 @@
 /// in, and a channel of any kind may sit in any category.
 library;
 
-import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 import 'package:slimm_data/data.dart';
 
 import '../providers/dms.dart';
@@ -71,29 +70,5 @@ List<Channel> orderedChannels(
     ...dms.others,
     ...byCategory[null] ?? const [],
     for (final category in categories) ...byCategory[category.id] ?? const [],
-  ];
-}
-
-/// The whole rail's current arrangement, as [ChannelOrderGroup]s in category
-/// order - the baseline a drag mutates before submitting. Every live,
-/// non-DM, non-thread channel appears exactly once, across all groups.
-List<ChannelOrderGroup> currentOrderGroups(
-  List<Channel> channels,
-  List<ChannelCategoryRow> categories,
-) {
-  final byCategory = channelsByCategory(
-    channels
-        .where((c) => c.kind != dmChannelKind && c.parentMessageId == null)
-        .toList(),
-  );
-  Iterable<String> idsIn(String? categoryId) =>
-      (byCategory[categoryId] ?? const []).map((c) => c.id);
-  return [
-    ChannelOrderGroup(categoryId: null, channelIds: idsIn(null).toList()),
-    for (final category in categories)
-      ChannelOrderGroup(
-        categoryId: category.id,
-        channelIds: idsIn(category.id).toList(),
-      ),
   ];
 }

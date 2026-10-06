@@ -48,12 +48,13 @@ class WindowResizeFrame extends StatefulWidget {
 
 class _WindowResizeFrameState extends State<WindowResizeFrame> {
   bool _maximized = false;
+  bool _fullScreen = false;
   StreamSubscription<DesktopWindowEventKind>? _subscription;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_syncMaximized());
+    unawaited(_syncRunState());
     _subscription = widget.port.events.listen(_onEvent);
   }
 
@@ -63,10 +64,15 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
     super.dispose();
   }
 
-  Future<void> _syncMaximized() async {
+  Future<void> _syncRunState() async {
     try {
-      final value = await widget.port.isMaximized();
-      if (mounted) setState(() => _maximized = value);
+      final maximized = await widget.port.isMaximized();
+      final fullScreen = await widget.port.isFullScreen();
+      if (!mounted) return;
+      setState(() {
+        _maximized = maximized;
+        _fullScreen = fullScreen;
+      });
     } catch (_) {
       // An early-startup plugin failure leaves the frame active by default.
     }
@@ -78,6 +84,10 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
         setState(() => _maximized = true);
       case DesktopWindowEventKind.unmaximize:
         setState(() => _maximized = false);
+      case DesktopWindowEventKind.fullScreen:
+        setState(() => _fullScreen = true);
+      case DesktopWindowEventKind.leaveFullScreen:
+        setState(() => _fullScreen = false);
       default:
         break;
     }
@@ -85,8 +95,8 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
 
   @override
   Widget build(BuildContext context) {
-    // A maximized window has no edge left for a hit-test band to grab.
-    if (_maximized) return const SizedBox.shrink();
+    // A maximized or full-screen window has no edge left for a band to grab.
+    if (_maximized || _fullScreen) return const SizedBox.shrink();
 
     return Stack(
       children: [

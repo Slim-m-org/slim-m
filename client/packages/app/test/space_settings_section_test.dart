@@ -25,6 +25,8 @@ import 'package:slimm_app/src/screens/admin/reports_screen.dart';
 import 'package:slimm_app/src/screens/admin/roles_screen.dart';
 import 'package:slimm_app/src/screens/space_settings_screen.dart';
 import 'package:slimm_app/src/widgets/settings_notice.dart';
+import 'package:slimm_app/src/widgets/space_settings_section.dart'
+    show spaceSettingsReachable;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_app/src/action_labels.dart';
@@ -194,6 +196,21 @@ void main() {
 
     expect(find.text('invites-route'), findsOneWidget);
     expect(find.byType(InvitesPane), findsNothing);
+  });
+
+  testWidgets('VIEW_MODERATION_HISTORY alone reaches Reports, history only', (
+    tester,
+  ) async {
+    expect(spaceSettingsReachable(Perm.viewModerationHistory), isTrue);
+    await _pump(tester, permissions: Perm.viewModerationHistory);
+
+    expect(find.text('Reports'), findsWidgets);
+    expect(find.byType(ReportsPane), findsOneWidget);
+    expect(
+      find.text('Open'),
+      findsNothing,
+      reason: 'GET /reports needs MANAGE_MESSAGES, so no Open queue here',
+    );
   });
 
   testWidgets('a group with none of its panes visible renders no header at '

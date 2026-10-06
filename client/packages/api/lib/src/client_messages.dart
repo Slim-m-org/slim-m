@@ -293,7 +293,11 @@ extension SlimmApiMessages on SlimmApi {
       '/messages/$messageId/blocks/$blockIndex/run',
       body: {'module_id': moduleId, 'command': command, 'input': input},
     );
-    return RunModuleCommandResult.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(
+      json,
+      'POST /messages/$messageId/blocks/$blockIndex/run',
+      RunModuleCommandResult.fromJson,
+    );
   }
 
   /// Pins a message. Idempotent: pinning an already-pinned message leaves the

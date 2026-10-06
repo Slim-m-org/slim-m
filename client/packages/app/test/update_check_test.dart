@@ -21,6 +21,10 @@ Map<String, dynamic> rel(
   'html_url': 'https://github.com/Slim-m-org/slim-m/releases/tag/$tag',
   'draft': draft,
   'prerelease': prerelease,
+  'assets': [
+    {'name': 'manifest.json'},
+    {'name': 'manifest.json.sig'},
+  ],
 };
 
 void main() {

@@ -166,4 +166,50 @@ void main() {
       expect(find.byKey(const ValueKey(ResizeEdge.top)), findsOneWidget);
     });
   });
+
+  group('WindowResizeFrame, full screen', () {
+    testWidgets('a full-screen event removes every handle', (tester) async {
+      final port = FakeDesktopWindowPort();
+      await _pump(tester, port);
+      expect(find.byKey(const ValueKey(ResizeEdge.top)), findsOneWidget);
+
+      port.emit(DesktopWindowEventKind.fullScreen);
+      await _flushPortEvent(tester);
+
+      expect(find.byKey(const ValueKey(ResizeEdge.top)), findsNothing);
+    });
+
+    testWidgets('already full screen at mount renders no handles', (
+      tester,
+    ) async {
+      final port = FakeDesktopWindowPort()..fullScreen = true;
+      await _pump(tester, port);
+
+      expect(find.byKey(const ValueKey(ResizeEdge.top)), findsNothing);
+    });
+
+    testWidgets('leaving full screen while maximized keeps handles away', (
+      tester,
+    ) async {
+      final port = FakeDesktopWindowPort()
+        ..maximized = true
+        ..fullScreen = true;
+      await _pump(tester, port);
+
+      port.emit(DesktopWindowEventKind.leaveFullScreen);
+      await _flushPortEvent(tester);
+
+      expect(find.byKey(const ValueKey(ResizeEdge.top)), findsNothing);
+    });
+
+    testWidgets('leaving full screen brings every handle back', (tester) async {
+      final port = FakeDesktopWindowPort()..fullScreen = true;
+      await _pump(tester, port);
+
+      port.emit(DesktopWindowEventKind.leaveFullScreen);
+      await _flushPortEvent(tester);
+
+      expect(find.byKey(const ValueKey(ResizeEdge.top)), findsOneWidget);
+    });
+  });
 }

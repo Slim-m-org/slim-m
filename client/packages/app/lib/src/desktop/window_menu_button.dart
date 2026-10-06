@@ -48,6 +48,8 @@ class WindowMenuButton extends ConsumerStatefulWidget {
 class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
   final _controller = OverlayPortalController();
   final _link = LayerLink();
+  // The kebab shares the menu's group so a click on it is not an outside tap.
+  final _group = Object();
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +72,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
             followerAnchor: Alignment.topRight,
             offset: const Offset(0, 4),
             child: TapRegion(
+              groupId: _group,
               onTapOutside: (_) => _controller.hide(),
               // Escape closes it and Tab reaches every item once open.
               child: ContextMenuKeyboardScope(
@@ -106,11 +109,14 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
             ),
           ),
         ),
-        child: AppIconButton(
-          icon: AppIcons.moreVertical,
-          semanticLabel: 'Window menu',
-          size: AppIconButtonSize.sm,
-          onPressed: _controller.toggle,
+        child: TapRegion(
+          groupId: _group,
+          child: AppIconButton(
+            icon: AppIcons.moreVertical,
+            semanticLabel: 'Window menu',
+            size: AppIconButtonSize.sm,
+            onPressed: _controller.toggle,
+          ),
         ),
       ),
     );

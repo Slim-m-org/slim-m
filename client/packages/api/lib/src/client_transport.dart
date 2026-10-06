@@ -268,3 +268,17 @@ Duration? _retryAfter(http.Response response) {
   if (seconds == null || seconds < 0) return null;
   return Duration(seconds: seconds);
 }
+
+/// [fromJson] over [json], or a [TransportException] when the reply is not the
+/// object shape [what] promises, so no TypeError escapes the ApiException catches.
+T _decodeShape<T>(
+  Object? json,
+  String what,
+  T Function(Map<String, dynamic>) fromJson,
+) {
+  try {
+    return fromJson(json as Map<String, dynamic>);
+  } on TypeError catch (e) {
+    throw TransportException('unexpected reply to $what: $e');
+  }
+}

@@ -64,17 +64,10 @@ abstract final class Perm {
     (viewModerationHistory, 'View moderation history'),
   ];
 
-  /// [editable] minus [administrator]: the server's evaluator returns every
-  /// permission the moment a caller's roles carry [administrator], before it
-  /// ever looks at a channel overwrite, so an allow or deny of it in a
-  /// per-channel overwrite can never change anything in either direction.
-  static final List<(int bit, String label)> channelOverwriteEditable =
-      List.unmodifiable(editable.where((p) => p.$1 != administrator));
-
   /// [groups] flattened, in the same order - the channel permissions grid's
   /// row list, since a grid has no room for group headers of its own and
-  /// [administrator] never applies to a per-channel overwrite (see
-  /// [channelOverwriteEditable]).
+  /// [administrator] never applies to a per-channel overwrite: the server's
+  /// evaluator returns every permission for it before any overwrite is read.
   static final List<PermSpec> gridRows = List.unmodifiable([
     for (final group in groups) ...group.permissions,
   ]);

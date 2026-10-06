@@ -10,7 +10,7 @@
 ///
 /// Grouping is by category now, not by kind - see docs/decisions/
 /// 0006-channel-categories.md - so a channel of any kind may sit in any
-/// category, and `currentOrderGroups` replaces the old `spliceKindOrder`.
+/// category.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -105,35 +105,6 @@ void main() {
         [textCat],
       );
       expect(ordered.single.categoryId, 'text-cat');
-    });
-  });
-
-  group('currentOrderGroups', () {
-    test('answers one group per category plus the implicit uncategorised '
-        'one, each in position order', () {
-      final textCat = _category('text-cat', position: 0);
-      final voiceCat = _category('voice-cat', position: 1);
-      final groups = currentOrderGroups(
-        [
-          _channel('t2', categoryId: 'text-cat', position: 1),
-          _channel('t1', categoryId: 'text-cat', position: 0),
-          _channel('v1', kind: 'voice', categoryId: 'voice-cat'),
-          _channel('loose'),
-        ],
-        [textCat, voiceCat],
-      );
-
-      expect(groups.map((g) => g.categoryId), [null, 'text-cat', 'voice-cat']);
-      expect(groups[0].channelIds, ['loose']);
-      expect(groups[1].channelIds, ['t1', 't2']);
-      expect(groups[2].channelIds, ['v1']);
-    });
-
-    test('a DM never appears in any group', () {
-      final groups = currentOrderGroups([
-        _channel('dm1', kind: 'dm'),
-      ], const []);
-      expect(groups.single.channelIds, isEmpty);
     });
   });
 }
