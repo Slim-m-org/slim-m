@@ -19,6 +19,11 @@ import 'package:slimm_data/data.dart' show CategoryStore;
 import '../api_failure.dart';
 import 'providers.dart';
 
+/// A store or parse failure has no API wording, and its raw text is a log line.
+String _failureMessage(String whatFailed, Object e) => e is api.ApiException
+    ? describeApiFailure(whatFailed, e)
+    : 'Could not $whatFailed.';
+
 /// What the rail should show while a reorder is in flight or has failed.
 class ChannelOrderState {
   const ChannelOrderState({this.pendingOrder, this.error});
@@ -63,11 +68,9 @@ class ChannelOrderController extends StateNotifier<ChannelOrderState> {
       await store.upsertChannels(updated);
       if (!mounted || generation != _generation) return;
       state = const ChannelOrderState();
-    } on api.ApiException catch (e) {
+    } catch (e) {
       if (!mounted || generation != _generation) return;
-      state = ChannelOrderState(
-        error: describeApiFailure('reorder channels', e),
-      );
+      state = ChannelOrderState(error: _failureMessage('reorder channels', e));
     }
   }
 
@@ -152,18 +155,23 @@ class CategoryOrderController extends StateNotifier<CategoryOrderState> {
       }),
     );
     if (!mounted || generation != _generation) return;
-    if (succeeded.isNotEmpty) {
-      final store = await _ref.read(storeProvider.future);
-      if (!mounted || generation != _generation) return;
-      for (final category in succeeded) {
-        await store.upsertCategory(category);
+    Object? failure = firstFailure;
+    try {
+      if (succeeded.isNotEmpty) {
+        final store = await _ref.read(storeProvider.future);
+        if (!mounted || generation != _generation) return;
+        for (final category in succeeded) {
+          await store.upsertCategory(category);
+        }
       }
+    } catch (e) {
+      failure ??= e;
     }
     if (!mounted || generation != _generation) return;
-    state = firstFailure == null
+    state = failure == null
         ? const CategoryOrderState()
         : CategoryOrderState(
-            error: describeApiFailure('reorder categories', firstFailure!),
+            error: _failureMessage('reorder categories', failure),
           );
   }
 
