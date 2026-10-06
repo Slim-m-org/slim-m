@@ -117,6 +117,10 @@ async fn run(
     if !permissions.contains(Permissions::VIEW_CHANNEL) {
         return Err(ApiError::NotFound("no such message"));
     }
+    // The run is stored and shown to the whole channel, so a timeout bars it like a message.
+    if state.store.timed_out_until(ctx.user_id).await?.is_some() {
+        return Err(ApiError::Forbidden);
+    }
 
     // An app surface owns its whole code-run surface; see this file's doc comment.
     let surface = state.store.app_surface_for_message(message_id).await?;
