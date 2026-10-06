@@ -70,13 +70,8 @@ Widget _harness(
   ),
 );
 
-Widget _body(api.UserProfile profile, {String? mentionChannelName}) =>
-    MemberProfileBody(
-      profile: profile,
-      mentionChannelName: mentionChannelName,
-      compact: false,
-      onDone: () {},
-    );
+Widget _body(api.UserProfile profile) =>
+    MemberProfileBody(profile: profile, compact: false, onDone: () {});
 
 void main() {
   testWidgets('a plain member gets the social verbs and block, nothing else', (
@@ -204,24 +199,6 @@ void main() {
     expect(find.text('maya'), findsOneWidget);
   });
 
-  testWidgets('the mention row names its channel, and is absent without one', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _harness(_body(_other, mentionChannelName: 'general')),
-    );
-    await tester.pump();
-    expect(find.text('Mention in #general'), findsOneWidget);
-
-    await tester.pumpWidget(_harness(_body(_other)));
-    await tester.pump();
-    expect(
-      find.textContaining('Mention in'),
-      findsNothing,
-      reason: 'no channel in view means no channel to mention them in',
-    );
-  });
-
   testWidgets('presence is a word beside its dot, never the dot alone', (
     tester,
   ) async {
@@ -254,18 +231,12 @@ void main() {
   testWidgets('the compact presentation carries the same rows', (tester) async {
     await tester.pumpWidget(
       _harness(
-        MemberProfileBody(
-          profile: _other,
-          mentionChannelName: 'general',
-          compact: true,
-          onDone: () {},
-        ),
+        MemberProfileBody(profile: _other, compact: true, onDone: () {}),
       ),
     );
     await tester.pump();
 
     expect(find.text('Message'), findsOneWidget);
-    expect(find.text('Mention in #general'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
   });
 

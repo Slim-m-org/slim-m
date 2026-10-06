@@ -62,11 +62,7 @@ Future<void> confirmAndRemoveSelectedMembers(
 /// No confirmation, matching the single member's own timeout chips: a timeout
 /// lapses on its own and re-issuing replaces it, so the act is reversible by
 /// doing it again.
-Future<void> timeOutSelectedMembers(
-  WidgetRef ref,
-  BuildContext context,
-  Duration duration,
-) async {
+Future<void> timeOutSelectedMembers(WidgetRef ref, Duration duration) async {
   final ids = ref.read(memberSelectionProvider).ids.toList();
   if (ids.isEmpty) return;
 

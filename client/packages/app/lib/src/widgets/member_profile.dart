@@ -70,10 +70,8 @@ const double _popoverWidth = 300;
 /// anything else runs, so a navigating action can close it as part of
 /// itself; see [MemberProfileBody.memberPaneScaffold].
 Future<void> showMemberProfile(
-  BuildContext anchor,
-  WidgetRef ref, {
+  BuildContext anchor, {
   required api.UserProfile profile,
-  String? mentionChannelName,
   String? callChannelName,
   bool initiallyModerating = false,
   String? channelId,
@@ -97,7 +95,6 @@ Future<void> showMemberProfile(
         top: false,
         child: MemberProfileBody(
           profile: profile,
-          mentionChannelName: mentionChannelName,
           callChannelName: callChannelName,
           compact: true,
           host: host,
@@ -128,7 +125,6 @@ Future<void> showMemberProfile(
       anchorSize: anchorSize,
       child: MemberProfileBody(
         profile: profile,
-        mentionChannelName: mentionChannelName,
         callChannelName: callChannelName,
         compact: false,
         host: host,
@@ -166,7 +162,6 @@ class MemberProfileBody extends ConsumerStatefulWidget {
     required this.profile,
     required this.compact,
     required this.onDone,
-    this.mentionChannelName,
     this.callChannelName,
     this.host,
     this.memberPaneScaffold,
@@ -184,10 +179,6 @@ class MemberProfileBody extends ConsumerStatefulWidget {
 
   /// The channel whose roster this card opened from, for "Remove from #channel".
   final String? channelId;
-
-  /// Named so "Mention in #general" can say which channel; absent where
-  /// there is no channel in view, and the row goes with it.
-  final String? mentionChannelName;
 
   /// The voice channel shared with this member, so the header can say "in
   /// lounge with you" instead of restating a presence everyone can see.
@@ -216,6 +207,27 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
   /// nothing outside this popover cares which view it is on, and it must
   /// reset to the profile every time the popover reopens fresh.
   late bool _moderating = widget.initiallyModerating;
+
+  Timer? _expiry;
+  int? _expiryFor;
+
+  @override
+  void dispose() {
+    _expiry?.cancel();
+    super.dispose();
+  }
+
+  // Repaints once at the deadline so the badge and chips follow the clock, not only a refetch.
+  void _watchExpiry(int? until) {
+    if (until == _expiryFor) return;
+    _expiry?.cancel();
+    _expiryFor = until;
+    if (!timeoutActive(until)) return;
+    final wait = until! - DateTime.now().millisecondsSinceEpoch;
+    _expiry = Timer(Duration(milliseconds: wait + 1), () {
+      if (mounted) setState(() {});
+    });
+  }
 
   api.UserProfile get _profile {
     // Live, so a timeout applied here repaints as the badge without reopening.
@@ -280,6 +292,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
+    _watchExpiry(profile.timedOutUntil);
     final controller = ref.read(voiceControllerProvider.notifier);
     final host = widget.host ?? context;
 
@@ -317,7 +330,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
         createdAt: profile.createdAt,
       ),
 
-      if (profile.timedOutUntil != null)
+      if (timeoutActive(profile.timedOutUntil))
         MemberTimeoutBadge(
           until: profile.timedOutUntil!,
           onLift: canTimeOut ? _liftTimeout : null,
@@ -351,16 +364,6 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
             run((container) => messageMember(host, container, profile));
           },
         ),
-        if (widget.mentionChannelName != null)
-          AppMenuItem(
-            label: 'Mention in #${widget.mentionChannelName}',
-            leading: AppIcons.hash,
-            onTap: () {
-              widget.onDone();
-              ref.read(pendingMentionProvider.notifier).state =
-                  profile.username;
-            },
-          ),
         MemberProfileNoteField(subjectId: profile.id),
         MemberNotifyOffHoursItem(host: host, profile: profile, run: run),
         if (widget.channelId case final channelId?)

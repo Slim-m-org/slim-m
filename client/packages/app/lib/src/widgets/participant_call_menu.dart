@@ -78,7 +78,7 @@ List<Widget> participantCallMenuItems(
       leading: AppIcons.account,
       onTap: () {
         close();
-        showMemberProfile(context, ref, profile: profile);
+        showMemberProfile(context, profile: profile);
       },
     ),
   );
@@ -95,7 +95,6 @@ List<Widget> participantCallMenuItems(
           close();
           showMemberProfile(
             context,
-            ref,
             profile: profile,
             initiallyModerating: true,
           );

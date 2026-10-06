@@ -443,9 +443,3 @@ final pushKeyStoreProvider = Provider<KeyStore>(
 final legacyPushKeyStoreProvider = Provider<KeyStore?>(
   (ref) => pushKeyHasItsOwnStore ? ref.watch(keyStoreProvider) : null,
 );
-
-/// A username the composer should insert as a mention, set by the member
-/// profile popover and consumed once by whichever channel is open. A
-/// provider rather than a direct call because the popover has no handle on
-/// the composer's controller, and should not need one.
-final pendingMentionProvider = StateProvider<String?>((ref) => null);

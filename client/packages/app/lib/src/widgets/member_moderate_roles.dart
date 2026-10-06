@@ -101,6 +101,9 @@ class _RolesSummaryRow extends StatelessWidget {
       button: true,
       expanded: open,
       label: 'Roles',
+      value: held
+          .map((r) => r.isManagedByBot ? '${r.name} (bot)' : r.name)
+          .join(', '),
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(

@@ -107,7 +107,6 @@ _Rig _rig({required Brightness brightness, int permissions = _manager}) {
               builder: (context, ref, _) => TextButton(
                 onPressed: () => showMemberProfile(
                   context,
-                  ref,
                   profile: _maya,
                   initiallyModerating: true,
                 ),

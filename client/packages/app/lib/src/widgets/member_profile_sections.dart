@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../format.dart';
 import '../providers/presence_view.dart';
+import 'member_moderation_gates.dart' show timeoutActive;
 import 'user_avatar.dart';
 
 /// Avatar, name, role badge, and the presence word beside its dot - never the
@@ -43,7 +44,7 @@ class MemberProfileHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final word = ref.watch(presenceForProvider(profile.id)).word;
-    final timedOut = profile.timedOutUntil != null;
+    final timedOut = timeoutActive(profile.timedOutUntil);
 
     final handleLine = Text(
       [

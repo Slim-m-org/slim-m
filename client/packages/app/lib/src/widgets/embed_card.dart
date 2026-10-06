@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../external_link.dart';
 import '../format.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/display_preferences.dart';
@@ -18,13 +18,7 @@ import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import 'image_decode.dart';
-
-/// Opens an http or https link outside the app, and ignores anything else.
-Future<void> launchIfHttp(String rawUrl) async {
-  final uri = Uri.tryParse(rawUrl);
-  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
-}
+import 'text_link.dart';
 
 Color _accentColor(api.EmbedAccent accent) => switch (accent) {
   api.EmbedAccent.red => AppEmbedAccents.red,
@@ -177,12 +171,9 @@ class _EmbedAuthorRow extends StatelessWidget {
     );
     final authorUrl = url;
     if (authorUrl == null) return row;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => unawaited(launchIfHttp(authorUrl)),
-        child: row,
-      ),
+    return TextLink(
+      onOpen: () => unawaited(openExternalHttpUrl(authorUrl)),
+      child: row,
     );
   }
 }
@@ -205,12 +196,9 @@ class _EmbedTitle extends StatelessWidget {
     );
     final targetUrl = url;
     if (targetUrl == null) return text;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => unawaited(launchIfHttp(targetUrl)),
-        child: text,
-      ),
+    return TextLink(
+      onOpen: () => unawaited(openExternalHttpUrl(targetUrl)),
+      child: text,
     );
   }
 }
