@@ -151,7 +151,7 @@ class _Versions extends ConsumerWidget {
       count > 2 ? '${index + 1} of $count' : null;
 }
 
-class _VersionTile extends StatelessWidget {
+class _VersionTile extends StatefulWidget {
   const _VersionTile({
     required this.version,
     required this.previous,
@@ -170,14 +170,35 @@ class _VersionTile extends StatelessWidget {
   final bool use24Hour;
 
   @override
+  State<_VersionTile> createState() => _VersionTileState();
+}
+
+class _VersionTileState extends State<_VersionTile> {
+  late List<DiffBlock> _blocks = _diff();
+
+  List<DiffBlock> _diff() => widget.previous == null
+      ? plainBlocks(widget.version.content)
+      : diffMessage(widget.previous!.content, widget.version.content);
+
+  @override
+  void didUpdateWidget(_VersionTile old) {
+    super.didUpdateWidget(old);
+    if (old.version.content != widget.version.content ||
+        old.previous?.content != widget.previous?.content) {
+      _blocks = _diff();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final version = widget.version;
+    final label = widget.label;
+    final ordinal = widget.ordinal;
+    final blocks = _blocks;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final when =
         '${formatMessageDay(version.at)} at '
-        '${formatMessageTime(version.at, use24Hour: use24Hour)}';
-    final blocks = previous == null
-        ? plainBlocks(version.content)
-        : diffMessage(previous!.content, version.content);
+        '${formatMessageTime(version.at, use24Hour: widget.use24Hour)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +215,7 @@ class _VersionTile extends StatelessWidget {
             if (ordinal != null) ...[
               const SizedBox(width: AppSpacing.s8),
               Text(
-                ordinal!,
+                ordinal,
                 style: AppText.micro.copyWith(color: tokens.textSecondary),
               ),
             ],
