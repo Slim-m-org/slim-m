@@ -7,7 +7,7 @@
 //! ceiling rather than for any reason about what belongs where; every item
 //! here is still `push`-private and reachable only through `super::`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ids::{ChannelId, UserId};
@@ -15,7 +15,7 @@ use crate::store::{Store, now_ms};
 
 use super::debounce::Debounce;
 use super::recipients::message_audience;
-use super::{Enabled, SentMessage, dispatch, envelope, narrow_for_attention, relay};
+use super::{Enabled, SentMessage, dispatch, envelope, narrow_for_attention};
 
 /// How long a device's `foreground` report counts as still current, the same
 /// window a websocket viewing report gets. Past this
@@ -156,48 +156,14 @@ pub(super) async fn deliver(
         return;
     }
 
-    match relay::send(&enabled.http, &enabled.send_url, &enabled.key, &messages).await {
-        Ok(results) => {
-            // Only a Delivered device counts as a wake; see this function's own doc.
-            let mut delivered: HashSet<UserId> = HashSet::new();
-            for result in results {
-                // The relay echoes back a bare token; resolve it to the device this batch actually sent it to.
-                let Some(target) = messages.iter().find(|m| m.token == result.token) else {
-                    continue;
-                };
-                match result.parsed_status() {
-                    Some(relay::RelayStatus::Delivered) => {
-                        delivered.insert(target.user_id);
-                    }
-                    Some(relay::RelayStatus::Unregistered) => {
-                        dispatch::clear_dead(&store, target).await;
-                    }
-                    Some(
-                        relay::RelayStatus::Forbidden
-                        | relay::RelayStatus::Error
-                        | relay::RelayStatus::NotAttempted,
-                    ) => {}
-                    None => {
-                        // Inactionable and logged since it should never happen; see this function's own doc.
-                        tracing::warn!(
-                            status = %result.status,
-                            "push: relay reported a status this server does not recognize"
-                        );
-                    }
-                }
-            }
-            for (&user_id, &fired_at) in &opened {
-                if !delivered.contains(&user_id) {
-                    debounce.release_if_undelivered(channel_id, user_id, fired_at);
-                }
-            }
-        }
-        Err(err) => {
-            tracing::warn!(error = %err, %channel_id, "push: relay send failed");
-            // Transport failure notified nobody, so no window may stick; see this function's own doc.
-            for (&user_id, &fired_at) in &opened {
-                debounce.release_if_undelivered(channel_id, user_id, fired_at);
-            }
+    // Only a Delivered device counts as a wake; see this function's own doc.
+    // Transport failure notified nobody, so no window may stick; see this function's own doc.
+    let delivered = dispatch::send_and_prune(&enabled, &store, &messages, "message")
+        .await
+        .unwrap_or_default();
+    for (&user_id, &fired_at) in &opened {
+        if !delivered.contains(&user_id) {
+            debounce.release_if_undelivered(channel_id, user_id, fired_at);
         }
     }
 }
