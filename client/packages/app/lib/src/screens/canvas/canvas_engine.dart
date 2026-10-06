@@ -225,8 +225,10 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
   /// a refused write. A null message clears it, the same as `_refresh(() =>
   /// _error = null)` used to.
-  void reportError(String? message) =>
-      state = state.copyWith(error: message, clearError: message == null);
+  void reportError(String? message) {
+    if (!mounted) return;
+    state = state.copyWith(error: message, clearError: message == null);
+  }
 
   void _onEvent(api.ServerEvent event) => dispatchCanvasLiveEvent(
     event,
