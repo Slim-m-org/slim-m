@@ -21,6 +21,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/attachment_view.dart' show formatByteSize;
+import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/success_flash.dart';
@@ -124,36 +125,21 @@ class _RetentionSection extends ConsumerStatefulWidget {
 }
 
 class _RetentionSectionState extends ConsumerState<_RetentionSection>
-    with GuardedActionState<_RetentionSection> {
-  bool _saving = false;
-  int? _optimisticDays;
-
-  Future<void> _setDays(int days) async {
-    setState(() {
-      _saving = true;
-      _optimisticDays = days;
-    });
-    final ok = await guard(
-      whatFailed: 'change the message retention window',
-      action: () => ref.read(apiProvider).setSpaceMessageRetentionDays(days),
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (!ok) _optimisticDays = null;
-    });
-    if (ok) ref.invalidate(spaceRetentionProvider);
-  }
+    with
+        GuardedActionState<_RetentionSection>,
+        OptimisticSettingState<_RetentionSection, int> {
+  Future<void> _setDays(int days) => saveOptimistic(
+    days,
+    whatFailed: 'change the message retention window',
+    action: () => ref.read(apiProvider).setSpaceMessageRetentionDays(days),
+    refresh: spaceRetentionProvider,
+  );
 
   @override
   Widget build(BuildContext context) {
     final retention = ref.watch(spaceRetentionProvider);
-    ref.listen(spaceRetentionProvider, (previous, next) {
-      if (next.hasValue && !next.isLoading && _optimisticDays != null) {
-        setState(() => _optimisticDays = null);
-      }
-    });
-    final current = _optimisticDays ?? retention.valueOrNull ?? 0;
+    ref.listen(spaceRetentionProvider, (_, next) => retireOptimistic(next));
+    final current = shown(retention.valueOrNull, 0);
     final selectedIndex = _retentionDayOptions.indexWhere(
       (o) => o.$2 == current,
     );
@@ -167,7 +153,7 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
           semanticLabel: 'Message retention window',
           options: [
             for (final option in _retentionDayOptions)
-              AppSegmentedOption(label: option.$1, disabled: _saving),
+              AppSegmentedOption(label: option.$1, disabled: saving),
           ],
           selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
           onSegmentSelected: (i) => _setDays(_retentionDayOptions[i].$2),

@@ -13,6 +13,7 @@ import 'package:slimm_rtc/rtc.dart' show ScreenShareQuality;
 
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
+import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/success_flash.dart';
@@ -63,37 +64,24 @@ class ScreenShareCapSection extends ConsumerStatefulWidget {
 }
 
 class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
-    with GuardedActionState<ScreenShareCapSection> {
-  bool _saving = false;
-  int? _optimisticMaxHeight;
-
-  Future<void> _setMaxHeight(int maxHeight) async {
-    setState(() {
-      _saving = true;
-      _optimisticMaxHeight = maxHeight;
-    });
-    final ok = await guard(
-      whatFailed: 'change the screen-share resolution ceiling',
-      action: () =>
-          ref.read(apiProvider).setSpaceScreenShareMaxHeight(maxHeight),
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (!ok) _optimisticMaxHeight = null;
-    });
-    if (ok) ref.invalidate(spaceScreenShareCeilingProvider);
-  }
+    with
+        GuardedActionState<ScreenShareCapSection>,
+        OptimisticSettingState<ScreenShareCapSection, int> {
+  Future<void> _setMaxHeight(int maxHeight) => saveOptimistic(
+    maxHeight,
+    whatFailed: 'change the screen-share resolution ceiling',
+    action: () => ref.read(apiProvider).setSpaceScreenShareMaxHeight(maxHeight),
+    refresh: spaceScreenShareCeilingProvider,
+  );
 
   @override
   Widget build(BuildContext context) {
     final ceiling = ref.watch(spaceScreenShareCeilingProvider);
-    ref.listen(spaceScreenShareCeilingProvider, (previous, next) {
-      if (next.hasValue && !next.isLoading && _optimisticMaxHeight != null) {
-        setState(() => _optimisticMaxHeight = null);
-      }
-    });
-    final current = _optimisticMaxHeight ?? ceiling.valueOrNull ?? 2160;
+    ref.listen(
+      spaceScreenShareCeilingProvider,
+      (_, next) => retireOptimistic(next),
+    );
+    final current = shown(ceiling.valueOrNull, 2160);
     final selectedIndex = _screenShareCapOptions.indexWhere(
       (o) => o.$2 == current,
     );
@@ -106,7 +94,7 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
           semanticLabel: 'Screen share resolution ceiling',
           options: [
             for (final option in _screenShareCapOptions)
-              AppSegmentedOption(label: option.$1, disabled: _saving),
+              AppSegmentedOption(label: option.$1, disabled: saving),
           ],
           selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
           onSegmentSelected: (i) => _setMaxHeight(_screenShareCapOptions[i].$2),
