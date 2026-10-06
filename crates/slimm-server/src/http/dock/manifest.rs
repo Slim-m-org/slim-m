@@ -299,6 +299,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
 
 fn validate_artifact(raw: RawArtifact) -> Result<ManifestArtifact, ManifestError> {
     let kind = bounded(&raw.kind, MAX_SLUG, "artifact.kind")?;
+    supported::require_artifact_kind(&kind)?;
     if raw.path.is_empty()
         || raw.path.len() > MAX_LONG_FIELD
         || !artifact_path::is_plain_relative_path(&raw.path)
@@ -317,6 +318,7 @@ fn validate_artifact(raw: RawArtifact) -> Result<ManifestArtifact, ManifestError
 
 fn validate_runtime(raw: RawRuntime) -> Result<ManifestRuntime, ManifestError> {
     let backend = bounded(&raw.backend, MAX_SLUG, "runtime.backend")?;
+    supported::require_runtime_backend(&backend)?;
     for (value, field, max) in [
         (raw.limits.memory_mb, "memory_mb", MAX_MEMORY_MB),
         (raw.limits.wall_ms, "wall_ms", MAX_WALL_MS),
@@ -484,6 +486,7 @@ fn is_sha256_hex(value: &str) -> bool {
 
 mod artifact_path;
 mod names;
+mod supported;
 
 #[cfg(test)]
 mod tests;

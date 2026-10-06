@@ -152,3 +152,16 @@ fn an_artifact_path_that_url_join_would_reinterpret_is_refused() {
         );
     }
 }
+
+#[test]
+fn refuses_a_runtime_backend_the_host_does_not_provide() {
+    let reason =
+        refusal(&GOOD_MANIFEST.replace(r#""backend": "wasm""#, r#""backend": "container""#));
+    assert!(reason.contains("runtime.backend"), "{reason}");
+}
+
+#[test]
+fn refuses_an_artifact_kind_the_host_cannot_run() {
+    let reason = refusal(&GOOD_MANIFEST.replace(r#""kind": "wasm""#, r#""kind": "oci-image""#));
+    assert!(reason.contains("artifact.kind"), "{reason}");
+}
