@@ -18,10 +18,12 @@
 
 use sqlx::QueryBuilder;
 
-use super::attachment_refs::{held_sql, is_referenced};
+pub(super) mod refs;
+
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
+use refs::{held_sql, is_referenced};
 
 /// Most attachments one message may carry. Without a cap the join table (and
 /// the per-send linking work, and the permission check on fetch) is an

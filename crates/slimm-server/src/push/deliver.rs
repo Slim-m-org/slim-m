@@ -156,8 +156,7 @@ pub(super) async fn deliver(
         return;
     }
 
-    // Only a Delivered device counts as a wake; see this function's own doc.
-    // Transport failure notified nobody, so no window may stick; see this function's own doc.
+    // Only a Delivered device counts as a wake, and a transport failure releases every window; see this function's doc.
     let delivered = dispatch::send_and_prune(&enabled, &store, &messages, "message")
         .await
         .unwrap_or_default();

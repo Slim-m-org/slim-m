@@ -27,8 +27,8 @@ use std::collections::HashMap;
 
 use sqlx::QueryBuilder;
 
-use super::attachment_refs::is_referenced;
 use super::attachments::ORPHAN_GRACE_MS;
+use super::attachments::refs::is_referenced;
 use super::forward_cascade::{
     Copy, DetachedForward, detach_forward, live_copies_of, orphaned_copies,
 };

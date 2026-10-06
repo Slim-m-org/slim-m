@@ -15,7 +15,7 @@ const HOLDER_TABLES: [&str; 3] = [
 ];
 
 /// SQL true when a permanent holder references the blob whose hash is `sha_column`.
-pub(super) fn held_sql(sha_column: &str) -> String {
+pub(in crate::store) fn held_sql(sha_column: &str) -> String {
     HOLDER_TABLES
         .iter()
         .map(|table| format!("EXISTS (SELECT 1 FROM {table} h WHERE h.sha256 = {sha_column})"))
@@ -26,7 +26,7 @@ pub(super) fn held_sql(sha_column: &str) -> String {
 /// Whether the blob `sha256` must outlive the release of `releasing` messages: a permanent
 /// holder, or an upload from someone other than those messages' authors still inside the
 /// compose window (`pending_cutoff` is its start), which the orphan sweep reclaims later.
-pub(super) async fn is_referenced(
+pub(in crate::store) async fn is_referenced(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     sha256: &[u8],
     releasing: &[MessageId],

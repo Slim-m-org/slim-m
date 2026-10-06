@@ -9,7 +9,8 @@ use super::AppState;
 use super::error::ApiError;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::store::{now_ms, slow_mode_retry_after_seconds};
+use crate::store::channel_slow_mode::slow_mode_retry_after_seconds;
+use crate::store::now_ms;
 
 /// The highest interval a channel may be set to: six hours. A policy choice,
 /// not a hard invariant, so it lives here rather than as a `CHECK` in the

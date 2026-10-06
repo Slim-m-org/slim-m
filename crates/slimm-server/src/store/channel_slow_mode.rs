@@ -94,7 +94,7 @@ pub fn slow_mode_retry_after_seconds(window_ms: i64, last_sent_at: i64, now: i64
 
 /// The in-transaction half of slow mode: reads the author's last send on the writer's own
 /// connection, so concurrent sends queue behind each other rather than all reading the same one.
-pub(super) async fn retry_after_in_tx(
+pub(in crate::store) async fn retry_after_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     author_id: UserId,
