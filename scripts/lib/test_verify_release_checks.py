@@ -85,8 +85,10 @@ sys.exit(1)
 '''
 
 
-def _check_run(name, status, conclusion=None, started_at="2026-01-01T00:00:00Z"):
+def _check_run(name, status, conclusion=None, started_at="2026-01-01T00:00:00Z", suite=None):
     run = {"name": name, "status": status, "started_at": started_at}
+    if suite is not None:
+        run["check_suite"] = {"id": suite}
     if conclusion is not None:
         run["conclusion"] = conclusion
     return run
@@ -236,6 +238,34 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         })
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("required checks passed", result.stdout)
+
+    def test_a_newer_green_run_of_the_same_name_from_another_workflow_does_not_mask_a_pending_one(self):
+        """Two workflows both made a check named `check`; the newest one was read alone."""
+        seq = self._seq_dir("checkruns", [[
+            _check_run("check", "in_progress", started_at="2026-01-01T00:00:00Z", suite=1),
+            _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=2),
+        ]])
+        result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("timed out", result.stdout)
+        self.assertNotIn("required checks passed", result.stdout)
+
+    def test_a_newer_green_run_of_the_same_name_from_another_workflow_does_not_mask_a_failure(self):
+        seq = self._seq_dir("checkruns", [[
+            _check_run("check", "completed", "failure", started_at="2026-01-01T00:00:00Z", suite=1),
+            _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=2),
+        ]])
+        result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("check:failure", result.stdout)
+
+    def test_a_rerun_in_the_same_suite_replaces_its_failed_attempt(self):
+        seq = self._seq_dir("checkruns", [[
+            _check_run("check", "completed", "failure", started_at="2026-01-01T00:00:00Z", suite=1),
+            _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=1),
+        ]])
+        result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
+        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_a_tag_works_wherever_a_ref_is_accepted(self):
         """Bug 3 exactly: `actions/runs?head_sha=` accepts a SHA only, so a

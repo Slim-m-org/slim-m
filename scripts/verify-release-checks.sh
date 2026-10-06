@@ -41,17 +41,23 @@ while :; do
   fi
   missing=() pending=() failed=()
   for name in "${required[@]}"; do
-    status=$(jq -r --arg n "$name" \
-      '[.[] | select(.name==$n)] | sort_by(.started_at) | last | .status // "absent"' \
+    # Newest run per check suite: a rerun replaces its failed attempt, but a same-named job in another workflow does not.
+    verdicts=$(jq -r --arg n "$name" \
+      '[.[] | select(.name==$n)] | group_by(.check_suite.id // 0) | .[] | sort_by(.started_at) | last | "\(.status) \(.conclusion // "none")"' \
       <<<"$runs")
-    conclusion=$(jq -r --arg n "$name" \
-      '[.[] | select(.name==$n)] | sort_by(.started_at) | last | .conclusion // "none"' \
-      <<<"$runs")
-    case "$status" in
-      absent) missing+=("$name") ;;
-      completed) [[ "$conclusion" = success ]] || failed+=("$name:$conclusion") ;;
-      *) pending+=("$name") ;;
-    esac
+    if [[ -z "$verdicts" ]]; then
+      missing+=("$name")
+      continue
+    fi
+    is_pending=0
+    while read -r status conclusion; do
+      if [[ "$status" = completed ]]; then
+        [[ "$conclusion" = success ]] || failed+=("$name:$conclusion")
+      else
+        is_pending=1
+      fi
+    done <<<"$verdicts"
+    [[ "$is_pending" -eq 0 ]] || pending+=("$name")
   done
   if [[ "${#failed[@]}" -gt 0 ]]; then
     echo "::error::required check(s) failed on ${SHA}: ${failed[*]}"

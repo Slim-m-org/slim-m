@@ -593,6 +593,7 @@ A required name **absent** from the response is treated the same as one that fai
 A `cancelled` check is pinned as a hard failure too, on purpose: see client-ios-ci.yml's own header on the concurrency group that used to cancel it on every push to `main`.
 
 The polling loop itself is `scripts/verify-release-checks.sh`, not inlined in the workflow, so `scripts/lib/test_verify_release_checks.py` can drive it against a fake `gh`.
+It reads the newest run of each required name per check suite, so a rerun replaces its failed attempt but a same-named job in another workflow cannot stand in for it; `copr-catch-up`'s `check` job is named `is copr behind` for that reason, and `test_release_required_checks_exist.py` requires every required name to belong to exactly one job.
 It shipped three separate incidents before anything tested it: a cancelled check read as success, the release-please path verified `github.sha` instead of the commit it actually released, and a tag was passed to an endpoint that only accepts a SHA.
 All three are now regression tests, not just fixed code.
 

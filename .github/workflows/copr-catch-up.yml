@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   check:
+    name: is copr behind
     runs-on: ubuntu-24.04
     permissions:
       contents: read
