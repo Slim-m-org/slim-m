@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
+import 'account_state_refresh.dart';
 import 'channel_history.dart';
 import 'channel_notification_overrides_controller.dart';
 import 'channel_refresher.dart';
@@ -135,6 +136,10 @@ class SyncController extends StateNotifier<SyncStatus> {
   final ReconnectBackoff _backoff;
   final _channelRefresher = ChannelRefresher();
 
+  /// Whether this controller has been live before, which tells a reconnect from
+  /// the first connect of a session.
+  bool _wasLive = false;
+
   /// Bumped by every [stop], every fresh [start] and [dispose], so a run
   /// superseded mid-flight (a sign-out landing during catch-up, or a second
   /// start racing the first) notices at its next checkpoint rather than
@@ -245,6 +250,8 @@ class SyncController extends StateNotifier<SyncStatus> {
 
       _backoff.reset();
       state = SyncStatus.live;
+      refreshAccountNotificationState(_ref, reconnect: _wasLive);
+      _wasLive = true;
       _ref.read(hasFailedSinceLiveProvider.notifier).state = false;
       _ref.read(syncFailureProvider.notifier).state = null;
       // A DB read failure here must not read as this connect itself having failed; retryMessage's own catch already covers a failed resend.
