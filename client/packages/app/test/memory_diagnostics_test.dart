@@ -9,18 +9,23 @@ import 'package:slimm_app/src/widgets/memory_diagnostics.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 void main() {
-  group('formatBytes', () {
-    test('scales through B / KB / MB / GB', () {
-      expect(formatBytes(512), '512 B');
-      expect(formatBytes(1536), '1.5 KB');
-      expect(formatBytes(400 * 1024 * 1024), '400 MB');
-      expect(formatBytes(3 * 1024 * 1024 * 1024), '3.0 GB');
-    });
-
-    test('drops the decimal past 100 of a unit, keeps it below', () {
-      expect(formatBytes(150 * 1024 * 1024), '150 MB');
-      expect(formatBytes((1.5 * 1024 * 1024).round()), '1.5 MB');
-    });
+  testWidgets('sizes read like every other byte size in the app', (
+    tester,
+  ) async {
+    final cache = PaintingBinding.instance.imageCache;
+    final before = cache.maximumSizeBytes;
+    addTearDown(() => cache.maximumSizeBytes = before);
+    cache.clear();
+    cache.maximumSizeBytes = 150 * 1024 * 1024;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: const Scaffold(
+          body: SingleChildScrollView(child: MemoryDiagnostics()),
+        ),
+      ),
+    );
+    expect(find.text('0 B of 150.0 MB'), findsOneWidget);
   });
 
   testWidgets('renders the image-cache line against its cap', (tester) async {
