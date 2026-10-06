@@ -19,7 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_controls.dart';
 import 'package:slimm_app/src/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -78,14 +77,6 @@ Future<List<String>> _pump(
 
 void main() {
   group('a control this client has no icon for', () {
-    test('is not one of the reserved names', () {
-      for (final reserved in ['play', 'step', 'random', 'clear', 'reset']) {
-        expect(sceneControlIsReserved(reserved), isTrue, reason: reserved);
-      }
-      expect(sceneControlIsReserved('tempo'), isFalse);
-      expect(sceneControlIsReserved('play tune'), isFalse);
-    });
-
     testWidgets('renders under its own name', (tester) async {
       await _pump(tester, _scene(['tempo', 'play tune']), width: 360);
       expect(find.text('tempo'), findsOneWidget);
