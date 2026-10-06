@@ -166,6 +166,8 @@ class _ReportCardState extends ConsumerState<ReportCard>
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final report = widget.report;
     final profiles = ref.watch(batchProfilesControllerProvider);
+    // A reconnect clears the cache and a rename evicts an id; ask again for what went missing.
+    ref.listen(batchProfilesControllerProvider, (_, _) => _requestProfiles());
     final me = ref.watch(meProvider).valueOrNull;
     final mine = ref.watch(myPermissionsProvider);
     final knownUsernames = knownUsernamesFrom(ref.watch(membersProvider));
