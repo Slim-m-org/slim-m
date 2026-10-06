@@ -32,27 +32,26 @@ pub struct ProfileUpdate<'a> {
     pub profile_color: Option<i64>,
 }
 
-impl Store {
-    /// A user's public profile: id, username, display name, and creation
-    /// time. Nothing from the auth tables (password hash, sessions, tokens)
-    /// is reachable through this path.
-    ///
-    /// A deleted or anonymized account answers `None`, the same as an id
-    /// that was never used, so this cannot confirm someone deleted their
-    /// account.
-    pub async fn user_profile(&self, id: UserId) -> anyhow::Result<Option<User>> {
-        let row = sqlx::query!(
-            r#"SELECT id AS "id!: UserId", username AS "username!",
-                      display_name AS "display_name!", created_at AS "created_at!",
-                      avatar_updated_at, status_text, pronouns, about,
-                      profile_color, is_bot AS "is_bot!",
-                      is_webhook AS "is_webhook!"
-               FROM users WHERE id = ? AND deleted_at IS NULL"#,
-            id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.map(|r| User {
+/// One `users` row as every public-profile read selects it; the one place the
+/// column list becomes a [`User`].
+#[derive(sqlx::FromRow)]
+struct UserRow {
+    id: UserId,
+    username: String,
+    display_name: String,
+    created_at: i64,
+    avatar_updated_at: Option<i64>,
+    status_text: Option<String>,
+    pronouns: Option<String>,
+    about: Option<String>,
+    profile_color: Option<i64>,
+    is_bot: i64,
+    is_webhook: i64,
+}
+
+impl From<UserRow> for User {
+    fn from(r: UserRow) -> Self {
+        Self {
             id: r.id,
             username: r.username,
             display_name: r.display_name,
@@ -64,7 +63,32 @@ impl Store {
             profile_color: r.profile_color,
             is_bot: r.is_bot != 0,
             is_webhook: r.is_webhook != 0,
-        }))
+        }
+    }
+}
+
+impl Store {
+    /// A user's public profile: id, username, display name, and creation
+    /// time. Nothing from the auth tables (password hash, sessions, tokens)
+    /// is reachable through this path.
+    ///
+    /// A deleted or anonymized account answers `None`, the same as an id
+    /// that was never used, so this cannot confirm someone deleted their
+    /// account.
+    pub async fn user_profile(&self, id: UserId) -> anyhow::Result<Option<User>> {
+        let row = sqlx::query_as!(
+            UserRow,
+            r#"SELECT id AS "id!: UserId", username AS "username!",
+                      display_name AS "display_name!", created_at AS "created_at!",
+                      avatar_updated_at, status_text, pronouns, about,
+                      profile_color, is_bot AS "is_bot!",
+                      is_webhook AS "is_webhook!"
+               FROM users WHERE id = ? AND deleted_at IS NULL"#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(User::from))
     }
 
     /// Public profiles for a batch of ids, in one query. An id with nothing
@@ -73,8 +97,6 @@ impl Store {
     /// expecting one entry per input, the same contract
     /// [`Store::reactions_for_messages`] has for a message with no reactions.
     pub async fn user_profiles(&self, ids: &[UserId]) -> anyhow::Result<Vec<User>> {
-        use sqlx::Row;
-
         // Chunked under SQLite's bind limit so a large id list cannot fail the query; empty makes no chunks.
         let mut users = Vec::with_capacity(ids.len());
         for chunk in ids.chunks(super::MAX_IDS_PER_QUERY) {
@@ -91,21 +113,11 @@ impl Store {
             }
             builder.push(")");
 
-            for row in builder.build().fetch_all(&self.pool).await? {
-                users.push(User {
-                    id: row.try_get("id")?,
-                    username: row.try_get("username")?,
-                    display_name: row.try_get("display_name")?,
-                    created_at: row.try_get("created_at")?,
-                    avatar_updated_at: row.try_get("avatar_updated_at")?,
-                    status_text: row.try_get("status_text")?,
-                    pronouns: row.try_get("pronouns")?,
-                    about: row.try_get("about")?,
-                    profile_color: row.try_get("profile_color")?,
-                    is_bot: row.try_get::<i64, _>("is_bot")? != 0,
-                    is_webhook: row.try_get::<i64, _>("is_webhook")? != 0,
-                });
-            }
+            let rows = builder
+                .build_query_as::<UserRow>()
+                .fetch_all(&self.pool)
+                .await?;
+            users.extend(rows.into_iter().map(User::from));
         }
         Ok(users)
     }
@@ -269,7 +281,8 @@ impl Store {
         limit: i64,
     ) -> anyhow::Result<Vec<User>> {
         let after = after.unwrap_or(UserId(Uuid::nil()));
-        let rows = sqlx::query!(
+        let rows = sqlx::query_as!(
+            UserRow,
             r#"SELECT id AS "id!: UserId", username AS "username!",
                       display_name AS "display_name!", created_at AS "created_at!",
                       avatar_updated_at, status_text, pronouns, about,
@@ -283,22 +296,7 @@ impl Store {
         )
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows
-            .into_iter()
-            .map(|r| User {
-                id: r.id,
-                username: r.username,
-                display_name: r.display_name,
-                created_at: r.created_at,
-                avatar_updated_at: r.avatar_updated_at,
-                status_text: r.status_text,
-                pronouns: r.pronouns,
-                about: r.about,
-                profile_color: r.profile_color,
-                is_bot: r.is_bot != 0,
-                is_webhook: r.is_webhook != 0,
-            })
-            .collect())
+        Ok(rows.into_iter().map(User::from).collect())
     }
 
     /// The live members who can view `channel_id`, in the same order and with
