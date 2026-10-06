@@ -201,18 +201,7 @@ async fn decline(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Writes the record a finished call leaves in its DM, and fans it out live.
-///
-/// Best-effort on purpose: a call that happened is more important than its
-/// record, and a store error here must not fail the request that ended the
-/// ring. It is logged instead.
-///
-/// Every terminal outcome writes one, including `Answered` - the transcript is
-/// the call history, so a call that did happen belongs in it as much as one
-/// that did not. `duration_ms` is left null for now even on an answered call:
-/// how long it lasted is only known when the last participant leaves, which is
-/// the voice roster's business rather than the ring's, and filling it in is a
-/// follow-up on top of this.
+/// [`crate::voice::record_finished_call`] for a handler holding the whole `AppState`.
 pub(crate) async fn record_call(
     state: &AppState,
     channel_id: ChannelId,
@@ -220,43 +209,14 @@ pub(crate) async fn record_call(
     caller_id: crate::ids::UserId,
     outcome: CallRingOutcome,
 ) {
-    state
-        .push
-        .notify_call_end(state.store.clone(), channel_id, ring_id, caller_id);
-    let (sent, record) = match state
-        .store
-        .record_call(channel_id, caller_id, outcome.as_str(), None)
-        .await
-    {
-        Ok(sent) => sent,
-        Err(err) => {
-            tracing::warn!(error = %err, %channel_id, "failed to record a finished call");
-            return;
-        }
-    };
-    // A ring the caller gave up on is a missed call to the callee, as a timed-out one is.
-    if outcome == CallRingOutcome::Canceled {
-        state.push.notify_message(
-            state.store.clone(),
-            crate::push::SentMessage {
-                channel_id,
-                author_id: caller_id,
-                message_id: sent.message.id,
-                seq: sent.message.seq,
-                content: sent.message.content.clone(),
-                presence: state.hub.presence(),
-            },
-        );
-    }
-    state.hub.publish(Event::MessageCreated {
-        message: std::sync::Arc::new(sent.message),
-        attachments: std::sync::Arc::new(Vec::new()),
-        forwarded: None,
-        app_surface: None,
-        code_run: None,
-        poll: None,
-        embeds: std::sync::Arc::new(Vec::new()),
-        call: Some(std::sync::Arc::new(record)),
-        components: std::sync::Arc::new(Vec::new()),
-    });
+    crate::voice::record_finished_call(
+        &state.store,
+        &state.hub,
+        &state.push,
+        channel_id,
+        ring_id,
+        caller_id,
+        outcome,
+    )
+    .await;
 }

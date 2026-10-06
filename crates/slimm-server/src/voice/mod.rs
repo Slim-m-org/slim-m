@@ -43,6 +43,7 @@ use crate::config::Config;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
+mod call_record;
 mod heartbeat;
 mod live_state;
 mod ring;
@@ -50,6 +51,7 @@ mod room_lifecycle;
 mod roster;
 mod token;
 mod webhook;
+pub(crate) use call_record::record_finished_call;
 use heartbeat::{CallHeartbeats, STALE_AFTER as HEARTBEAT_STALE_AFTER};
 pub use live_state::RoomLiveState;
 pub use ring::{CallRingOutcome, CallRings, RING_TIMEOUT};
