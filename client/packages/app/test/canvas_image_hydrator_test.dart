@@ -239,17 +239,17 @@ void main() {
     },
   );
 
-  test('a bound past maxDecodedBytes evicts the oldest bitmap, and a later '
-      'hydrate call re-fetches it', () async {
+  test('a bound past maxDecodedBytes evicts the oldest off-screen bitmap, and '
+      'a later hydrate call re-fetches it', () async {
     final fetchedIds = <String>[];
     final document = CanvasDocument()..setViewport(const Size(200, 200));
-    for (final id in ['a', 'b']) {
+    for (final (id, x) in [('a', 0.0), ('b', 5000.0)]) {
       document.applyPlaced(
         CanvasStrokeInput(
           id: id,
           seq: 1,
           zIndex: 1,
-          x: 0,
+          x: x,
           y: 0,
           w: 20,
           h: 20,
@@ -275,25 +275,25 @@ void main() {
     );
     addTearDown(hydrator.dispose);
 
-    CanvasStroke strokeById(String id) => document.paintOrder
-        .map(document.strokeAt)
-        .firstWhere((stroke) => stroke.id == id);
-
     hydrator.hydrate(_imageObject('a', attachment: 'sha-a'));
     // A decode is engine work `pumpEventQueue` cannot wait out; see `_settleUntil`.
-    await _settleUntil(() => strokeById('a').image != null);
+    await _settleUntil(() => document.hasImageBitmap('a'));
 
+    // The view moves to b, so a is now the one off screen.
+    document
+      ..setCamera(const Camera(x: 4900, y: 0))
+      ..refresh();
     hydrator.hydrate(_imageObject('b', attachment: 'sha-b'));
     await _settleUntil(
-      () => strokeById('b').image != null && strokeById('a').image == null,
+      () => document.hasImageBitmap('b') && !document.hasImageBitmap('a'),
     );
 
     expect(
-      strokeById('a').image,
-      isNull,
-      reason: 'evicted to make room for the more recently hydrated one',
+      document.hasImageBitmap('a'),
+      isFalse,
+      reason: 'off screen and oldest, so evicted to make room',
     );
-    expect(strokeById('b').image, isNotNull);
+    expect(document.hasImageBitmap('b'), isTrue);
 
     hydrator.hydrate(_imageObject('a', attachment: 'sha-a'));
     await _settleUntil(
@@ -303,7 +303,7 @@ void main() {
     expect(
       fetchedIds.where((id) => id == 'sha-a').length,
       2,
-      reason: 'an evicted id is forgotten, so the next arrival re-fetches',
+      reason: 'an evicted image still awaits a bitmap, so it fetches again',
     );
   });
 

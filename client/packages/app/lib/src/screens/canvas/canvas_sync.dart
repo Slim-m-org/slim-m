@@ -53,9 +53,14 @@ CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
   };
 }
 
+/// Props are opaque to the server, so every field is checked with `is`: a
+/// hard cast on a stored row that is wrong-typed would throw out of the
+/// whole page or catch-up that carries it.
 CanvasStrokeInput? _strokeInputFrom(api.CanvasObject object) {
   final raw = object.props['points'];
   if (raw is! List) return null;
+  final width = object.props['width'];
+  final color = object.props['color'];
   return CanvasStrokeInput(
     id: object.id,
     seq: object.seq,
@@ -65,8 +70,8 @@ CanvasStrokeInput? _strokeInputFrom(api.CanvasObject object) {
     w: object.w,
     h: object.h,
     points: raw.whereType<num>().map((n) => n.toDouble()).toList(),
-    width: (object.props['width'] as num?)?.toDouble() ?? 3,
-    colorKey: object.props['color'] as String? ?? 'annotation',
+    width: width is num && width.isFinite && width > 0 ? width.toDouble() : 3,
+    colorKey: color is String ? color : 'annotation',
     authorId: object.authorId,
   );
 }

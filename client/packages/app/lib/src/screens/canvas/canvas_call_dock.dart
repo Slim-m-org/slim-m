@@ -42,7 +42,6 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../call_leave_button.dart';
@@ -148,9 +147,9 @@ class CanvasDockData {
   final VoidCallback onToggleFullscreen;
 }
 
-/// [call] whenever this device is actually connected to a call in
-/// [channelId], null otherwise - the one question `canvas_pane.dart` has to
-/// ask before it can hand this dock a call section at all. Read fresh on
+/// [call] whenever this device is connected to a call in [channelId], or is
+/// auto-rejoining one there, null otherwise - the one question
+/// `canvas_pane.dart` has to ask before it can hand this dock a call section at all. Read fresh on
 /// every build rather than cached, since a call joined or left while the
 /// canvas stays open must show up here on the very next frame.
 CallDockData? callDockDataFor(
@@ -158,8 +157,7 @@ CallDockData? callDockDataFor(
   VoiceController controller,
   String channelId,
 ) {
-  if (voice.channelId != channelId) return null;
-  if (voice.state != VoiceSessionState.connected) return null;
+  if (!voice.inCallStageFor(channelId)) return null;
   return CallDockData(voice: voice, controller: controller);
 }
 

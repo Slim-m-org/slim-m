@@ -43,6 +43,44 @@ extension CanvasDocumentQueries on CanvasDocument {
     return slot != null && (_strokes[slot]?.alive ?? false);
   }
 
+  /// True for a live image with no bitmap that has not failed to load: the
+  /// one state worth fetching for. Asked of the document rather than
+  /// remembered by the fetcher, because a removal, a restore and a hard reset
+  /// each replace the stroke, and a remembered "already done" goes stale.
+  bool imageAwaitsBitmap(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    return stroke != null &&
+        stroke.alive &&
+        stroke.kind == CanvasObjectKind.image &&
+        stroke.image == null &&
+        !stroke.imageLoadFailed;
+  }
+
+  /// Whether [id] is a live object currently holding a decoded bitmap.
+  bool hasImageBitmap(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    return stroke != null && stroke.alive && stroke.image != null;
+  }
+
+  /// Ids of the live objects the last cull kept, so a bitmap cache can tell
+  /// what is on screen from what is merely fetched.
+  Set<String> get visibleIds => {
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?) stroke.id,
+      };
+
+  /// The on-screen images that still wait for a bitmap, with the attachment
+  /// to fetch for each: what a pan inside an already fetched region needs to
+  /// bring back an image evicted while it was off screen.
+  List<({String id, String attachmentId})> get visibleImagesAwaitingBitmap => [
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?)
+            if (imageAwaitsBitmap(stroke.id) && stroke.attachmentId != null)
+              (id: stroke.id, attachmentId: stroke.attachmentId!),
+      ];
+
   /// Live object counts by kind, across the whole document rather than only
   /// what the last cull kept - the one query the accessibility summary
   /// needs and nothing else here does, so it is a scan rather than a

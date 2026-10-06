@@ -65,6 +65,7 @@ class CanvasOpsController {
     required this.document,
     required this.commits,
     required this.onError,
+    this.onRemoveFailed,
   });
 
   final String channelId;
@@ -74,6 +75,10 @@ class CanvasOpsController {
 
   /// A sentence to show once an op this controller submitted fails.
   final void Function(String message) onError;
+
+  /// Reads the region again after a remove the server refused, so the
+  /// objects hidden for it come back from the server, the way a restore does.
+  final Future<void> Function()? onRemoveFailed;
 
   final Queue<_UndoEntry> _undoStack = Queue<_UndoEntry>();
   final Set<String> _dragBatch = <String>{};
@@ -156,7 +161,11 @@ class CanvasOpsController {
       }
     }
     document.refresh();
-    if (immediate.isNotEmpty) await _submitRemove(immediate);
+    if (immediate.isEmpty) return;
+    // A refused remove leaves the draw standing, so its undo entry goes back.
+    if (await _submitRemove(immediate) == null) {
+      _pushUndo(_DrawEntry(immediate));
+    }
   }
 
   /// Erases the topmost stroke under [world] the caller is allowed to
@@ -240,6 +249,9 @@ class CanvasOpsController {
       return result.op.id;
     } on api.ApiException {
       onError(errorMessage);
+      // The objects were hidden before asking; they still exist for everyone else.
+      document.forgetRemoved(ids);
+      unawaited(onRemoveFailed?.call());
       return null;
     }
   }

@@ -181,6 +181,10 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     document: document,
     commits: commits,
     onError: reportError,
+    onRemoveFailed: () {
+      _fetched = null;
+      return fetch(keepError: true);
+    },
   );
 
   CanvasCursorRelay? _cursorRelay;
@@ -286,6 +290,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     if (fetched != null &&
         fetched.contains(view.topLeft) &&
         fetched.contains(view.bottomRight)) {
+      // Inside what is already fetched, only a bitmap evicted off screen can be missing.
+      _panDebounce?.cancel();
+      _panDebounce = Timer(
+        const Duration(milliseconds: 150),
+        hydrator.hydrateVisible,
+      );
       return;
     }
     _panDebounce?.cancel();
@@ -309,7 +319,9 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     );
   }
 
-  Future<void> fetch() async {
+  /// [keepError] spares the message a failed action just reported, which a
+  /// successful read would otherwise clear along with a load error.
+  Future<void> fetch({bool keepError = false}) async {
     final region = _padded(document.worldView);
     if (region.width <= 0 || region.height <= 0) return;
     try {
@@ -334,7 +346,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       // Set before refresh(), not after: refresh() reaches _onCameraMoved synchronously and must see this fetch's own answer, not the value from before it ran.
       state = state.copyWith(
         loading: false,
-        clearError: true,
+        clearError: !keepError,
         // A truncated page is not coverage: recording it would let the next pan skip what this read never returned.
         truncated: page.hasMore,
       );
