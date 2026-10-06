@@ -23,6 +23,7 @@ import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
 import 'voice_call_lifecycle_report.dart';
 import 'voice_camera_failure.dart';
+import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
 import 'voice_settings_controller.dart';
 import 'voice_sfu_security.dart';
@@ -148,6 +149,7 @@ class VoiceController extends StateNotifier<VoiceState>
   @override
   final VoiceCallClock _callClock;
   final VoiceJoinMuted _joinMuted = VoiceJoinMuted();
+  final VoiceCameraPreference _cameraPreference = VoiceCameraPreference();
   final DateTime Function() _now;
   final CallActivityTracker _activity;
   late final StreamSubscription<VoiceSessionState> _states;
@@ -163,7 +165,7 @@ class VoiceController extends StateNotifier<VoiceState>
   /// live in-call control. Its microphone sibling died with the join lobby
   /// (d190a711) and was deleted rather than left as an uncalled method.
   void setCameraPreference(bool enabled) {
-    state = state.copyWith(cameraEnabled: enabled);
+    state = _cameraPreference.apply(state, enabled);
   }
 
   /// Seeds [setCameraPreference] from the persisted setting Voice Settings
@@ -310,7 +312,7 @@ class VoiceController extends StateNotifier<VoiceState>
     // The mic/camera preference survives the reset (no lobby left to re-set them on); justLeftChannelId/justLeftAt are set only here, see VoiceState.rejoinGuardWindow.
     state = VoiceState(
       microphoneEnabled: _joinMuted.preferenceAtLeave(state.microphoneEnabled),
-      cameraEnabled: state.cameraEnabled,
+      cameraEnabled: _cameraPreference.atLeave(state.cameraEnabled),
       recap: recap,
       justLeftChannelId: channelId,
       justLeftAt: channelId == null ? null : _now(),
