@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../format.dart';
 import '../../providers/admin_providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/attachment_view.dart' show formatByteSize;
@@ -270,7 +271,7 @@ String sweepLabel(String name) => switch (name) {
 /// when the sweep is one of the two that count bytes-adjacent file removals;
 /// every other sweep reports a plain count instead.
 String sweepSummary(api.SweepStatus sweep) {
-  final ago = _relativeTime(sweep.lastRunAt);
+  final ago = formatRelativeAgeMs(sweep.lastRunAt);
   if (sweep.lastReclaimed <= 0) return '$ago, nothing to reclaim';
   final unit = switch (sweep.name) {
     'attachments' => 'file(s) freed',
@@ -280,12 +281,4 @@ String sweepSummary(api.SweepStatus sweep) {
     _ => 'reclaimed',
   };
   return '$ago, ${sweep.lastReclaimed} $unit';
-}
-
-String _relativeTime(int epochMs) {
-  final delta = DateTime.now().millisecondsSinceEpoch - epochMs;
-  if (delta < 60 * 1000) return 'just now';
-  if (delta < 60 * 60 * 1000) return '${delta ~/ (60 * 1000)}m ago';
-  if (delta < 24 * 60 * 60 * 1000) return '${delta ~/ (60 * 60 * 1000)}h ago';
-  return '${delta ~/ (24 * 60 * 60 * 1000)}d ago';
 }
