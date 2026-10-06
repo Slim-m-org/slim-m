@@ -90,30 +90,18 @@ impl VoiceService {
             return Err(VoiceError::Unavailable);
         };
         let room = room_for_channel(channel_id);
-        let admin = self.admin_token(enabled, &room)?;
-
-        let response = enabled
-            .http
-            .post(format!(
-                "{}/twirp/livekit.RoomService/ListParticipants",
-                enabled.service_url
-            ))
-            .bearer_auth(admin)
-            .json(&serde_json::json!({ "room": room }))
-            .send()
-            .await
-            .map_err(|e| VoiceError::Internal(e.into()))?;
-
         // An empty room and a room that was never created answer the same way.
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
+        let Some(response) = self
+            .room_service_call(
+                enabled,
+                "ListParticipants",
+                &room,
+                serde_json::json!({ "room": room }),
+            )
+            .await?
+        else {
             return Ok(Vec::new());
-        }
-        if !response.status().is_success() {
-            let status = response.status();
-            return Err(VoiceError::Internal(anyhow::anyhow!(
-                "livekit room service refused listing participants: {status}"
-            )));
-        }
+        };
 
         let body: ListParticipantsResponse = response
             .json()

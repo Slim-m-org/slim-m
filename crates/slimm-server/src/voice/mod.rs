@@ -323,7 +323,7 @@ impl VoiceService {
         self.heartbeats.contains(user_id, channel_id)
     }
 
-    /// [`Self::record_heartbeat`] with an explicit clock, so a test can put a
+    /// [`Self::record_heartbeat_reporting_new`] with an explicit clock, so a test can put a
     /// heartbeat moments from staleness without a real sleep.
     pub fn record_heartbeat_at_for_test(
         &self,
@@ -373,35 +373,53 @@ impl VoiceService {
             return Err(VoiceError::Unavailable);
         };
         let room = room_for_channel(channel_id);
-        let admin = self.admin_token(enabled, &room)?;
-
-        let response = enabled
-            .http
-            .post(format!(
-                "{}/twirp/livekit.RoomService/RemoveParticipant",
-                enabled.service_url
-            ))
-            .bearer_auth(admin)
-            .json(&serde_json::json!({ "room": room, "identity": user_id.to_string() }))
-            .send()
-            .await
-            .map_err(|e| VoiceError::Internal(e.into()))?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            // Kicking someone not in the room is the ordinary case, not an error.
-            if status == reqwest::StatusCode::NOT_FOUND {
-                return Ok(());
-            }
-            return Err(VoiceError::Internal(anyhow::anyhow!(
-                "livekit room service refused the eviction: {status}"
-            )));
-        }
+        // Kicking someone not in the room is the ordinary case, not an error.
+        self.room_service_call(
+            enabled,
+            "RemoveParticipant",
+            &room,
+            serde_json::json!({ "room": room, "identity": user_id.to_string() }),
+        )
+        .await?;
         Ok(())
     }
 
-    /// A room-admin token good for one immediate call, the shape both
-    /// [`Self::remove_participant`] and `roster`'s `list_participants` need.
+    /// One authenticated room-service call, the single place that mints the admin token, posts the
+    /// request and reads the status. `Ok(None)` is a 404: the room, or the participant in it, is
+    /// already gone, which every caller treats as the state it asked for.
+    async fn room_service_call(
+        &self,
+        enabled: &Enabled,
+        method: &str,
+        room: &str,
+        body: serde_json::Value,
+    ) -> Result<Option<reqwest::Response>, VoiceError> {
+        let admin = self.admin_token(enabled, room)?;
+        let response = enabled
+            .http
+            .post(format!(
+                "{}/twirp/livekit.RoomService/{method}",
+                enabled.service_url
+            ))
+            .bearer_auth(admin)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| VoiceError::Internal(e.into()))?;
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            return Err(VoiceError::Internal(anyhow::anyhow!(
+                "livekit room service refused {method}: {status}"
+            )));
+        }
+        Ok(Some(response))
+    }
+
+    /// A room-admin token good for one immediate call, the shape
+    /// [`Self::room_service_call`] needs.
     fn admin_token(&self, enabled: &Enabled, room: &str) -> Result<String, VoiceError> {
         let now = unix_secs();
         self.sign(
