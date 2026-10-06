@@ -33,7 +33,6 @@ per deployment rather than per run.
 """
 import argparse
 import asyncio
-import json
 import os
 import pathlib
 import subprocess
@@ -44,10 +43,10 @@ import urllib.parse
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
-import e2e_api  # noqa: E402
 import load_report  # noqa: E402
 import load_pool  # noqa: E402
 import load_accounts  # noqa: E402
+import seed_guard  # noqa: E402
 
 _SERVER_PID = {}
 DEFAULT_PASSWORD = "loadtest-stable-password-1"
@@ -223,22 +222,25 @@ async def run(args):
                                   args.workers, args.per_account)
     print(f"opening {len(accounts) * args.per_account} sockets across "
           f"{args.workers} processes...", flush=True)
-    connected, attempted = pool.start()
-    print(f"  {connected} of {attempted} connected", flush=True)
+    try:
+        connected, attempted = pool.start()
+        print(f"  {connected} of {attempted} connected", flush=True)
 
-    sent_at = {}
-    cpu_before = server_cpu()
-    wall_before = time.monotonic()
-    print(f"sending {args.senders * args.messages} messages into "
-          f"{channel['name']!r}...", flush=True)
-    send_latencies, notes = await send_phase(
-        accounts, channel_id, args, sent_at)
+        sent_at = {}
+        cpu_before = server_cpu()
+        wall_before = time.monotonic()
+        print(f"sending {args.senders * args.messages} messages into "
+              f"{channel['name']!r}...", flush=True)
+        send_latencies, notes = await send_phase(
+            accounts, channel_id, args, sent_at)
 
-    await asyncio.sleep(SETTLE_SECONDS)
-    cpu_used = (server_cpu() or 0) - (cpu_before or 0)
-    wall = time.monotonic() - wall_before
-    after = scrape(admin)
-    harvest = await asyncio.to_thread(pool.finish)
+        await asyncio.sleep(SETTLE_SECONDS)
+        cpu_used = (server_cpu() or 0) - (cpu_before or 0)
+        wall = time.monotonic() - wall_before
+        after = scrape(admin)
+        harvest = await asyncio.to_thread(pool.finish)
+    finally:
+        pool.abort()
 
     seen = harvest["seen"]
     delivery = []
@@ -293,7 +295,7 @@ async def run(args):
 
 def main(argv=None):
     args = parse_args(argv)
-    if "npc-server.top" in args.base_url:
+    if seed_guard.is_known_production(args.base_url):
         raise SystemExit("refusing to load test the live deployment")
     _SERVER_PID["pid"] = args.server_pid or find_server_pid()
     asyncio.run(run(args))

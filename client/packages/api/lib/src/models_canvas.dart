@@ -73,7 +73,8 @@ class CanvasViewport {
   /// rather than a next page.
   final bool hasMore;
 
-  /// The channel's highest assigned canvas seq, to send back as `afterSeq`.
+  /// The channel's highest assigned canvas seq, a valid `after_seq` cursor for
+  /// the canvas op stream.
   final int latestSeq;
 
   factory CanvasViewport.fromJson(Map<String, dynamic> json) => CanvasViewport(

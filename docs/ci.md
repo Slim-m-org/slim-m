@@ -16,7 +16,7 @@ Each section below is named for its workflow file.
 | `client-windows-ci` | pushes to `main` that touch `client/` or `packaging/windows/`, a nightly schedule, and by hand; not pull requests | that the native plugin graph links against the Windows SDK, and the Windows launcher's Go tests. Compile-only, and not a required check |
 | `client-ios-ci` | changes under `client/packages/app/ios/`, `rtc/`, `platform/`, `data/`, the pubspec files, on pull requests and pushes to `main` | every `Runner` source file is registered in `project.pbxproj` (ubuntu, always), the iOS CallKit XCTest and extension-embeds-no-frameworks checks on macOS, and an unsigned Release-configuration device build when a native-relevant path changed |
 | `schema-ci` | changes under `schema/`, `redocly.yaml` on pull requests; every push to `main` unconditionally, and every merge queue entry (`merge_group`, which ignores path filters) | redocly lint, the additive-only oasdiff gate against a PR's base on pull requests, and the same gate against the immediate parent commit on every push to `main` (required for a release; see below) |
-| `audio-ci` | changes under `assets/audio/` | the seven notification sounds rebuild to the bytes that are committed, and the family is level with itself |
+| `audio-ci` | changes under `assets/audio/` or the client's bundled copy in `client/packages/app/assets/audio/` | the seven notification sounds rebuild to the bytes that are committed, and the family is level with itself |
 | `hygiene` | every pull request, and every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | iOS purpose strings, the iOS broadcast extension is wired up, orientation is locked on phones only, no emoji in UI source, SPDX headers on Rust source, the file-size budget, the comment cap, and the `scripts/lib` unit tests, which include the two structural gates on `required_checks` |
 | `advisory-watchdog` | a daily schedule, and by hand | nothing. It opens a deduplicated GitHub issue for a security advisory against a dependency and closes it once the tree is clean; the trigger `licenses` deliberately does not carry |
 | `licenses` | changes to any dependency manifest or lockfile or to `deny.toml`; every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | every Rust crate's and every pub package's license is in the one allowlist |
@@ -106,6 +106,9 @@ Flutter does not keep a failed hook's stderr (`stderr.txt` is empty), so the act
 CMake skips the download when the file exists and only MD5-checks what it just downloaded, so a stale entry is not a risk as long as only a successful build saves the cache, which `actions/cache` guarantees.
 A failed download leaves an empty archive and the log says only `Integrity check failed`, so `native-hooks-diagnose` reports a missing or empty archive as a failed download.
 With both caches restored and no network, a full `flutter build linux --release` succeeds.
+The `linux-tarball` composite carries the cache itself, but a composite cannot run a failure step after its caller's, so each job that calls it adds the `native-hooks-diagnose` step.
+`release`'s `linux-client` calls the same composite rather than keeping a copy of the build and staging commands.
+`scripts/lib/test_flutter_build_jobs_cache_and_diagnose_native_hooks.py` fails on a job that builds or tests Flutter without both.
 
 ### Logic tests also run as JavaScript
 
@@ -210,6 +213,7 @@ Two jobs run it, against two different bases, because one commit needs both.
 The PR's head commit is checked out explicitly rather than the default merge-ref checkout, so `HEAD:schema/openapi.yaml` is exactly the schema the PR proposes with no synthetic merge commit in between.
 oasdiff also needs the base branch's schema content, but that checkout only fetched the PR head commit, so the workflow fetches just that one base commit, shallowly, by its exact SHA from the `pull_request` event payload, landing it in the local object database without cloning the base branch's history.
 oasdiff then reads it straight out of git as `<base-sha>:schema/openapi.yaml`.
+That commit is the merge base of the PR and its base branch, found by `scripts/pr-merge-base.sh`, not the base branch's tip: against the tip, a path that `main` gained after the PR branched reads as removed by the PR, and the gate goes red for a change its author never made.
 
 `breaking-change-gate-main` runs on every push to `main` instead, diffing `HEAD~1` against `HEAD`.
 This is not redundant with the PR-time gate: `verify-release-checks.yml` (see below) polls check-runs on the exact commit a release verifies, a squash-merge mints a brand-new SHA that the PR-time gate's check-run was never attached to, and a release-please commit never touches `schema/**` at all - so `breaking-change-gate` structurally cannot ever appear on the commit a release actually checks, no matter how the required-checks list is written.
@@ -265,7 +269,9 @@ This step reads the iOS orientation arrays, the two Android `bools.xml` override
 ### No emoji in UI source
 
 Emoji are user content (reactions), never interface chrome; chrome uses Lucide icons.
-The gate fails on any emoji codepoint in client source.
+The gate is `scripts/check-no-emoji.sh`, tested by `scripts/lib/test_check_no_emoji.py`.
+It fails on any `Extended_Pictographic` codepoint, the regional-indicator flags, and the variation selector and zero-width joiner, except the copyright and registered signs, which are plain text here.
+A grep error is a failure, never a pass, because a scan that could not run proves nothing.
 It matches text sources only and passes `--binary-files=without-match`, so a compiled artifact that happens to contain those bytes cannot trip it.
 
 ### SPDX headers on Rust source
@@ -591,6 +597,7 @@ A required name **absent** from the response is treated the same as one that fai
 A `cancelled` check is pinned as a hard failure too, on purpose: see client-ios-ci.yml's own header on the concurrency group that used to cancel it on every push to `main`.
 
 The polling loop itself is `scripts/verify-release-checks.sh`, not inlined in the workflow, so `scripts/lib/test_verify_release_checks.py` can drive it against a fake `gh`.
+It reads the newest run of each required name per check suite, so a rerun replaces its failed attempt but a same-named job in another workflow cannot stand in for it; `copr-catch-up`'s `check` job is named `is copr behind` for that reason, and `test_release_required_checks_exist.py` requires every required name to belong to exactly one job.
 It shipped three separate incidents before anything tested it: a cancelled check read as success, the release-please path verified `github.sha` instead of the commit it actually released, and a tag was passed to an endpoint that only accepts a SHA.
 All three are now regression tests, not just fixed code.
 
@@ -900,6 +907,10 @@ Before it existed, the tag path published unconditionally with no test workflow 
 The `ref` input carries the sharp edge.
 It defaults to `github.sha`, which is right for the by-hand dispatch on a tag ref, but the release-please path must pass the created tag instead: release-please acts on the repository's current state while `github.sha` is whatever commit started the run, and the two diverge whenever a release merge lands while an earlier run is still going.
 Verifying `github.sha` then waits on a check a path filter correctly skipped, times out, and skips every publish job behind it, which is what happened to server 0.23.0 on 2026-08-01.
+The publish jobs follow the same rule: `release-please` exports `server_ref` and `client_ref` (the commit each tag sits on, `github.sha` on a by-hand run), and every publish checkout, `SLIMM_BUILD_ID` and `sha-` tag uses them, with `web-image` and `server-binaries` taking a `ref` input.
+`scripts/lib/test_release_publishes_the_commit_it_verified.py` fails on a publish checkout without one.
+The version and tag come from the same place: `release-please` outputs `server_version`, `server_tag`, `client_version` and `client_tag`, falling back to the tag a by-hand run names, so no publish job strips a `server-v` or `client-v` prefix itself (`scripts/lib/test_release_resolves_versions_once.py`).
+The Flutter version is spelled in every workflow, the `linux-tarball` action and `docker/web.Dockerfile`; `scripts/lib/test_flutter_version_is_pinned_once.py` fails if any of them disagree.
 A check run is attached to the commit, not to the event, so polling the commit's check-runs answers both trigger paths the same way.
 The names in `required_checks` are matched exactly, so a job renamed in `server-ci` or `client-ci` without the matching edit here blocks every release, which is the safe direction to fail.
 The deadline covers queueing, not running: client 0.23.0 timed out at the old thirty-minute ceiling with `client-ios-ci` still queued, and that check passed minutes later.
@@ -1121,6 +1132,10 @@ It reports `server: true` and never `server: false` - the paths filter beside it
 Every way of failing to resolve a base commit (a short history, a GitHub hiccup, an unreachable SHA) prints a line and stays quiet, leaving the filter as the only voice.
 That is the old behaviour, and it is the safe direction: an extra image costs minutes of runner time, a missed one costs a deploy nobody notices.
 `scripts/lib/test_server_image_base.py` pins the decision itself, including the cancelled-then-skipped shape this was built for, and that malformed API output degrades rather than fails.
+
+The web image closed the same hole later, because Watchtower follows it and a cancelled build left the live web client stale for a median of about 1.7 hours and once for 23.
+The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles, `web-image.yml` or `.github/actions/**` moved since.
+Both scripts share `scripts/image-needed.sh`, and `scripts/lib/test_main_builds_web_image_decides_from_what_is_deployed.py` pins that only `web-image` reads the new output.
 
 `client` and `packaging` still decide from the push diff alone and keep the same hole.
 That is deliberate for now: a missed TestFlight or COPR build is visible to whoever goes looking for it on their phone or in `dnf upgrade`, where a missed server image is invisible until somebody notices a fix is not live.

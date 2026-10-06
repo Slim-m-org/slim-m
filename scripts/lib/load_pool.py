@@ -16,6 +16,8 @@ parent. That is the whole reason the sender can stay in the orchestrator.
 import asyncio
 import multiprocessing as mp
 import os
+import queue
+import time
 
 import e2e_api
 import load_ws
@@ -55,9 +57,38 @@ def _worker(specs, base_url, ws_url, ready, stop, results):
     try:
         asyncio.run(_run_slice(specs, base_url, ws_url, ready, stop, results))
     except Exception as exc:  # noqa: BLE001 - reported, never silent
+        ready.put(("died", os.getpid(), 0, len(specs)))
         results.put({"pid": os.getpid(), "connected": 0,
                      "attempted": len(specs), "seen": {}, "resyncs": 0,
                      "failures": [f"worker died: {type(exc).__name__}: {exc}"]})
+
+
+def _drain(source, procs, key, timeout, poll=1.0):
+    """One message per worker from `source`, as (messages, workers_lost).
+
+    A worker that exited without reporting is returned as lost rather than
+    waited for, because nothing will ever arrive from it. The extra read
+    before giving up covers a message still in flight when the process ended.
+    """
+    pending = {p.pid: p for p in procs}
+    got = []
+    deadline = time.monotonic() + timeout
+    while pending:
+        try:
+            message = source.get(timeout=poll)
+        except queue.Empty:
+            gone = [p for p in pending.values() if not p.is_alive()]
+            if time.monotonic() > deadline:
+                raise
+            if not gone:
+                continue
+            try:
+                message = source.get(timeout=poll)
+            except queue.Empty:
+                return got, gone
+        if pending.pop(key(message), None) is not None:
+            got.append(message)
+    return got, []
 
 
 class ListenerPool:
@@ -97,18 +128,28 @@ class ListenerPool:
             if not chunk:
                 continue
             proc = self._ctx.Process(
-                target=_worker,
+                target=_worker, daemon=True,
                 args=(chunk, self.base_url, self.ws_url, self._ready,
                       self._stop, self._results))
             proc.start()
             self._procs.append(proc)
-        connected = 0
-        attempted = 0
-        for _ in self._procs:
-            _, _, live, tried = self._ready.get(timeout=timeout)
-            connected += live
-            attempted += tried
+        reports, lost = _drain(self._ready, self._procs, lambda m: m[1],
+                               timeout)
+        if lost:
+            raise RuntimeError("; ".join(
+                f"worker {p.pid} exited {p.exitcode} before reporting ready"
+                for p in lost))
+        connected = sum(m[2] for m in reports)
+        attempted = sum(m[3] for m in reports)
         return connected, attempted
+
+    def abort(self):
+        """Stops and reaps every worker; safe after finish() and repeatable."""
+        self._stop.set()
+        for proc in self._procs:
+            proc.join(timeout=5)
+            if proc.is_alive():
+                proc.terminate()
 
     def finish(self, timeout=600):
         """Signals stop, drains every worker, and merges what they saw."""
@@ -117,8 +158,12 @@ class ListenerPool:
         resyncs = 0
         failures = []
         connected = 0
-        for _ in self._procs:
-            got = self._results.get(timeout=timeout)
+        reports, lost = _drain(self._results, self._procs,
+                               lambda m: m["pid"], timeout)
+        failures.extend(
+            f"worker {p.pid} exited {p.exitcode} without reporting"
+            for p in lost)
+        for got in reports:
             connected += got["connected"]
             resyncs += got["resyncs"]
             failures.extend(got["failures"])

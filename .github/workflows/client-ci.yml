@@ -9,6 +9,7 @@ on:
     paths:
       - "client/**"
       - ".github/workflows/client-ci.yml"
+      - ".github/actions/**"
       # The client reads this: schema_coverage_test.dart fails when a route is
       # documented with no SlimmApi call behind it. A schema-only change used
       # to skip this workflow entirely and land that failure on main, which is
@@ -28,6 +29,7 @@ on:
     paths:
       - "client/**"
       - ".github/workflows/client-ci.yml"
+      - ".github/actions/**"
       # The client reads this: schema_coverage_test.dart fails when a route is
       # documented with no SlimmApi call behind it. A schema-only change used
       # to skip this workflow entirely and land that failure on main, which is

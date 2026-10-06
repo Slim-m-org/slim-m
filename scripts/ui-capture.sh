@@ -5,16 +5,14 @@
 # widths, every theme that matters: a single set of PNGs plus a manifest and
 # a contact sheet, for a reviewer to walk once rather than four times.
 #
-# This orchestrates existing test harnesses rather than adding new ones:
-# `test/ui_snapshot_test.dart` plus `test/ui_snapshot_settings_test.dart`
-# (resting screens, split the same way the overlay pair below is), `test/
-# ui_overlay_snapshot_test.dart` plus `test/ui_overlay_snapshot_menus_test.
-# dart` (sheets, dialogs, popovers, gesture-opened menus), `test/visual/
-# canvas_assembled_snapshot_test.dart` (the assembled canvas pane), and
-# voice_canvas's `test/visual/canvas_visual_render.dart` (the canvas
-# painters, no widget tree at all). Each already knows how to render its own
-# surfaces; this only runs them with the right env var in the right
-# directory and gathers what they wrote.
+# This orchestrates existing test harnesses rather than adding new ones: the
+# `ui_snapshot_*_test.dart` and `ui_overlay_snapshot_*_test.dart` files in the
+# app package's test/ (resting screens and overlays: sheets, dialogs,
+# popovers, gesture-opened menus), `test/visual/canvas_assembled_snapshot_
+# test.dart` (the assembled canvas pane), and voice_canvas's `test/visual/
+# canvas_visual_render.dart` (the canvas painters, no widget tree at all).
+# Each already knows how to render its own surfaces; this only runs them with
+# the right env var in the right directory and gathers what they wrote.
 #
 # A newly discovered screen, sheet or state does not need a change here: add
 # it to the relevant harness's own table (`_surfaces` or `_overlays` in the
@@ -31,11 +29,38 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/build/ui-capture"
 WORK="$OUT/_work"
 mkdir -p "$OUT/images" "$WORK"
+# A crash before the report step must not leave the last run's sheet looking current.
+rm -f "$OUT/index.html" "$OUT/manifest.json"
 
 # id|category|cwd (relative to ROOT)|env var|src dir (relative to cwd)|test file
 JOBS=(
   "screens|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_test.dart"
   "screens-settings|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_settings_test.dart"
+  "bot-buttons|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_bot_buttons_test.dart"
+  "bot-ui|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_bot_ui_test.dart"
+  "call-dock|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_dock_test.dart"
+  "call-header|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_header_test.dart"
+  "canvas-tool-options|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_canvas_tool_options_test.dart"
+  "canvas-tools|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_canvas_tools_test.dart"
+  "db-reset-notice|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_db_reset_notice_test.dart"
+  "dock-sources|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_dock_sources_test.dart"
+  "fullscreen-viewer|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_fullscreen_viewer_test.dart"
+  "hold-music|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_hold_music_test.dart"
+  "image-menu|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_image_menu_test.dart"
+  "member-roster|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_member_roster_test.dart"
+  "message-row|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_row_test.dart"
+  "message-toolbar|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_toolbar_test.dart"
+  "permissions-grid|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_permissions_grid_test.dart"
+  "personal-panes|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_personal_panes_test.dart"
+  "rail-avatars|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_avatars_test.dart"
+  "rail-declutter|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_declutter_test.dart"
+  "rail-status|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_status_test.dart"
+  "sign-in-matrix|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_sign_in_matrix_test.dart"
+  "space-panes|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_space_panes_test.dart"
+  "text-scale|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_text_scale_test.dart"
+  "update-chip|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_update_chip_test.dart"
+  "web-update|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_web_update_test.dart"
+  "whats-new|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_whats_new_test.dart"
   "overlays|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_test.dart"
   "overlay-menus|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_menus_test.dart"
   "overlay-confirm|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_confirm_test.dart"
@@ -44,6 +69,9 @@ JOBS=(
   "overlay-moderation|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_moderation_test.dart"
   "overlay-blocking|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_blocking_test.dart"
   "overlay-reports|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_reports_test.dart"
+  "overlay-activity|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_activity_test.dart"
+  "overlay-member-selection|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_member_selection_test.dart"
+  "overlay-remove-from-channel|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_remove_from_channel_test.dart"
   "canvas-assembled|canvas-assembled|client/packages/app|SLIMM_CANVAS_ASSEMBLED|build/canvas-assembled-snapshots|test/visual/canvas_assembled_snapshot_test.dart"
   "canvas-painters|canvas-painters|client/packages/voice_canvas|SLIMM_CANVAS_VISUAL|build/canvas-visual|test/visual/canvas_visual_render.dart"
 )

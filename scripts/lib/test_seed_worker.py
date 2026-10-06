@@ -11,7 +11,7 @@ import random
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -56,6 +56,15 @@ class RunAccountActionsOverrideTest(unittest.TestCase):
             ctx, 5, (0, 0), actions=(("vote_poll", 1),))
         self.assertEqual(set(stats), {"message_short"})
         ctx.api.call.assert_not_called()
+
+    def test_checking_for_an_own_message_does_not_count_as_a_recency_draw(self):
+        ctx = _ctx()
+        for i in range(10):
+            ctx.state.add_top_message(f"m{i}", "c1", "alice")
+        stubbed = {name: Mock() for name in seed_worker.HANDLERS}
+        with patch.dict(seed_worker.HANDLERS, stubbed):
+            seed_worker.run_account(ctx, 20, (0, 0))
+        self.assertEqual(ctx.state.recency_stats()["draws"], 0)
 
 
 def _ctx(corpus=None, api=None):

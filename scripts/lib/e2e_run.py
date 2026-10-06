@@ -39,9 +39,19 @@ import e2e_api
 from e2e_api import Api
 from e2e_client import Client
 
-# A private directory when unset, rather than a guessable shared one; e2e.sh
-# always sets it to a directory inside the run's own work area.
-FIXTURES = os.environ.get("E2E_FIXTURES") or tempfile.mkdtemp(prefix="e2e-")
+_fixtures_dir = None
+
+
+def fixtures_dir():
+    """A private directory when E2E_FIXTURES is unset, made on first use.
+
+    e2e.sh always sets it to a directory inside the run's own work area.
+    """
+    global _fixtures_dir
+    if _fixtures_dir is None:
+        _fixtures_dir = (os.environ.get("E2E_FIXTURES")
+                         or tempfile.mkdtemp(prefix="e2e-"))
+    return _fixtures_dir
 
 
 def sign_in(client, server, username, password):
@@ -74,8 +84,12 @@ def go_home(client):
 
 def scenarios(a, b, admin, member, room_id, server, secret):
     """Every scenario, as (name, callable). Named so a failure says which."""
-    picture = os.path.join(FIXTURES, "avatar.png")
-    upload = os.path.join(FIXTURES, "attachment.png")
+    def picture():
+        return os.path.join(fixtures_dir(), "avatar.png")
+
+    def upload():
+        return os.path.join(fixtures_dir(), "attachment.png")
+
     return [
         ("messaging: a message each way", lambda: (
             e2e_messaging.send_and_receive(
@@ -88,7 +102,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
             a, b, L.FIRST_MESSAGE, "grinning face", admin,
             L.TEXT_CHANNEL)),
         ("messaging: an attachment", lambda: e2e_messaging.attach(
-            a, b, L.TEXT_CHANNEL, upload, admin)),
+            a, b, L.TEXT_CHANNEL, upload(), admin)),
         ("messaging: a reply, and a reply to a deleted message",
          lambda: e2e_replies.reply_and_a_deleted_parent(
              a, b, L.TEXT_CHANNEL, admin)),
@@ -110,7 +124,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              a, L.TEXT_CHANNEL, admin)),
         ("emoji: a custom emoji cannot take a standard shortcode's name",
          lambda: e2e_composer.a_custom_emoji_cannot_take_a_standard_name(
-             admin, picture)),
+             admin, picture())),
         ("markdown: formatting applies without reaching the wire",
          lambda: e2e_markdown.formats_without_storing_the_markers(
              a, b, L.TEXT_CHANNEL, admin)),
@@ -129,7 +143,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("settings: personal settings stand alone",
          lambda: e2e_settings.personal_settings_reachable(a)),
         ("settings: a profile picture", lambda: e2e_settings.upload_avatar(
-            a, admin, picture)),
+            a, admin, picture())),
         ("settings: theme and status", lambda: (
             e2e_settings.change_theme(a),
             e2e_settings.change_status(a, admin))),
@@ -157,7 +171,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("canvas: a pasted image renders, not just a box",
          lambda: e2e_canvas.paste_image_and_hydrate(
              a, b, server, admin, admin.channel_named(L.VOICE_CHANNEL)["id"],
-             upload)),
+             upload())),
         ("canvas: moving and resizing it converges on both sides",
          lambda: e2e_canvas.move_and_resize_converges(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),

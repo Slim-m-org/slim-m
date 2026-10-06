@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
 # Builds the Linux client and stages dist/slim-m-client-<version>-linux-amd64.tar.gz.
-# Shared by main-builds.yml's linux-client and copr-catch-up.yml so both feed
-# copr-publish.yml the identical tarball, whose name matches the spec's Source0.
+# Shared by main-builds.yml's linux-client, copr-catch-up.yml and release.yml's linux-client,
+# so the snapshot and the release feed copr-publish.yml the identical tarball, whose name matches the spec's Source0.
 name: linux-tarball
 description: Build the Linux client release bundle and stage its portable tarball into dist/
 
@@ -25,6 +25,8 @@ runs:
       with:
         channel: stable
         flutter-version: 3.47.0
+
+    - uses: ./.github/actions/native-hooks-cache
 
     - name: build linux release
       shell: bash
@@ -50,5 +52,5 @@ runs:
         mkdir -p "stage/${name}" dist
         cp -a "${bundle}/." "stage/${name}/"
         cp LICENSES/LicenseRef-PolyForm-Noncommercial-1.0.0.txt "stage/${name}/LICENSE"
-        cp packaging/linux/README.md packaging/linux/slim-m packaging/linux/install.sh "stage/${name}/"
+        cp packaging/linux/README.md packaging/linux/slim-m packaging/linux/install.sh packaging/rpm/top.npcserver.slimm.desktop "stage/${name}/" && mkdir -p "stage/${name}/icons" && cp packaging/linux/icons/top.npcserver.slimm* "stage/${name}/icons/"
         tar -C stage -czf "dist/${name}-linux-amd64.tar.gz" "${name}"

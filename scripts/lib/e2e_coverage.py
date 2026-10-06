@@ -9,6 +9,7 @@ for as long as nobody checks.
 """
 import json
 import re
+from pathlib import Path
 
 UUID = re.compile(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 HEX = re.compile(r"/[0-9a-f]{32,64}")
@@ -27,7 +28,7 @@ def canon(path):
 
 
 def documented(schema_path):
-    lines = open(schema_path).read().splitlines()
+    lines = Path(schema_path).read_text().splitlines()
     inside, paths = False, []
     for line in lines:
         if line.startswith("paths:"):

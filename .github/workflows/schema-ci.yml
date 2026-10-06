@@ -56,17 +56,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      # oasdiff reads the base schema straight out of git, so that one commit is
-      # fetched shallowly by SHA rather than cloning history; see docs/ci.md.
-      - name: fetch base commit for diff
-        run: git fetch --depth=1 origin ${{ github.event.pull_request.base.sha }}
+      # The commit the PR branched from, not main's tip: a path main gained since reads as removed by a PR that predates it.
+      # oasdiff reads that schema straight out of git, so it is fetched shallowly by SHA; see docs/ci.md.
+      - name: find where the PR branched
+        id: merge-base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "sha=$(bash scripts/pr-merge-base.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")" >> "$GITHUB_OUTPUT"
 
       # `oasdiff breaking` flags only what breaks existing clients, which is what
       # makes this gate additive-only by construction; see docs/ci.md.
       - name: oasdiff breaking-change check
         uses: oasdiff/oasdiff-action/breaking@45c956ed8138f7f18f0425d34e3d66730b805cb2 # v0
         with:
-          base: "${{ github.event.pull_request.base.sha }}:schema/openapi.yaml"
+          base: "${{ steps.merge-base.outputs.sha }}:schema/openapi.yaml"
           revision: "HEAD:schema/openapi.yaml"
           fail-on: ERR
 

@@ -25,10 +25,8 @@ Both are checked against `origin/main` rather than against a recorded list,
 so nothing here can go stale.
 """
 
-import hashlib
 import json
 import pathlib
-import re
 import subprocess
 import sys
 
@@ -39,22 +37,15 @@ LOCKFILE = (
     / "migrations.lock.json"
 )
 MIGRATIONS = pathlib.Path("crates/slimm-server/migrations")
-NAME = re.compile(r"^(\d+)_.*\.sql$")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
-
-def version_of(name: str) -> int | None:
-    m = NAME.match(name)
-    return int(m.group(1)) if m else None
+from migration_files import migration_files, version_of  # noqa: E402
 
 
 def local_migrations() -> dict[int, tuple[str, str]]:
     found: dict[int, list[tuple[str, str]]] = {}
-    for path in sorted(MIGRATIONS.glob("*.sql")):
-        version = version_of(path.name)
-        if version is None:
-            continue
-        digest = hashlib.sha384(path.read_bytes()).hexdigest()
-        found.setdefault(version, []).append((path.name, digest))
+    for name, digest in migration_files(MIGRATIONS):
+        found.setdefault(version_of(name), []).append((name, digest))
 
     failed = False
     resolved: dict[int, tuple[str, str]] = {}

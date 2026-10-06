@@ -168,6 +168,19 @@ def _reachable(base_url, model):
     return True
 
 
+def _conversation_cache_seed(seed, requests):
+    """The seed plus a digest of the request list, so a different cohort or
+    volume under the same seed is its own cache entry."""
+    digest = hashlib.sha256(
+        json.dumps([[t, list(p), n] for t, p, n in requests]).encode()
+    ).hexdigest()[:12]
+    return f"{seed}-{digest}"
+
+
+def _is_conversation_list(data):
+    return isinstance(data, list) and all(isinstance(c, dict) for c in data)
+
+
 def _load_json_cache(path):
     try:
         with open(path, encoding="utf-8") as fh:
@@ -201,9 +214,10 @@ def load_or_generate_conversations(model, seed, requests, *,
     its own `_request` call, isolated the same way the pooled corpus
     isolates one pool's failure from the rest.
     """
-    path = _cache_path(model, seed, cache_dir, kind="conversations")
+    path = _cache_path(model, _conversation_cache_seed(seed, requests),
+                       cache_dir, kind="conversations")
     cached = _load_json_cache(path)
-    if cached:
+    if cached and _is_conversation_list(cached):
         _log(f"using cached conversations at {path}")
         return cached
 

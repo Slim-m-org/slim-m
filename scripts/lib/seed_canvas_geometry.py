@@ -5,7 +5,7 @@ Two straight-line endpoints read as machine-made the instant a real person
 looks at the canvas, so every generator here is a noisy path: a random walk
 with momentum for freehand doodles, a jittered ellipse, a wavy line, a
 zigzag, and a bounded scribble. `split_stroke` mirrors the client's own
-`splitStroke` (see CLAUDE.md's canvas section): a stroke is split by its
+`splitStroke` (client/packages/voice_canvas/lib/src/stroke_splitter.dart): a stroke is split by its
 *encoded byte size* against `MAX_PROPS_BYTES`, never by a point count, and a
 split repeats the previous segment's last point so no seam shows.
 """

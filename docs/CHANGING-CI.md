@@ -40,6 +40,7 @@ gh workflow run main-builds.yml --ref main -f server=true -f client=false -f pac
 
 Gate: partly.
 `scripts/server-image-needed.sh` decides the server side from what has changed since the last image that really built, so the next push of any kind picks up a cancelled build (`scripts/lib/test_server_image_base.py`).
+`scripts/web-image-needed.sh` does the same for the web image.
 `client` and `packaging` still decide from the push diff alone and keep the hole, by design.
 See "Concurrency" in the `main-builds` section of [ci.md](ci.md).
 

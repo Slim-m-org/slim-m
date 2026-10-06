@@ -13,6 +13,8 @@ SEND = "Send message"
 ATTACH = "Attach a file"
 ADD_REACTION = "Add reaction"
 REMOVE_ATTACHMENT = "Remove attachment"
+# The cover a spoiler wears until tapped (message_spoiler.dart).
+HIDDEN_SPOILER = "Hidden spoiler"
 
 # Rail and navigation
 SPACE_MENU = "Space menu"
@@ -20,7 +22,6 @@ SPACE_SETTINGS = "Space settings"
 PERSONAL_SETTINGS = "Personal settings"
 
 # Personal settings. Nav entries first: a control needs its own pane selected.
-PROFILE_PANE = "Profile"
 APPEARANCE_PANE = "Appearance"
 CHANGE_AVATAR = "Change profile picture"
 CROP_TITLE = "Crop your picture"

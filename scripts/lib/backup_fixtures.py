@@ -1,44 +1,33 @@
-# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""A minimal, schema-faithful SQLite database and media tree for the backup
-and restore-drill tests, so they exercise the real column shapes
-(crates/slimm-server/migrations/0002_core_schema.sql and 0013_attachments.sql)
-rather than a made-up one that could quietly drift from the real schema.
+"""A SQLite database and media tree for the backup and restore-drill tests,
+built by running the real migrations in crates/slimm-server/migrations in
+order, so a renamed or retyped column that backup_lib.py or
+restore_drill_lib.py reads (users.avatar_updated_at, attachments.sha256,
+attachments.size) breaks these tests instead of the first real backup.
 
-Deliberately narrower than the real schema: only the columns backup_lib.py
-and restore_drill_lib.py actually read are declared, since a wider fixture
-would just be more surface that could drift from the migrations unnoticed.
+Rows are inserted only into the columns those two libraries read; every other
+column takes its migration default.
 """
 import hashlib
 import sqlite3
 import uuid
 from pathlib import Path
 
-SCHEMA = """
-CREATE TABLE users (
-    id             BLOB PRIMARY KEY,
-    username       TEXT NOT NULL,
-    display_name   TEXT NOT NULL,
-    created_at     INTEGER NOT NULL,
-    avatar_updated_at INTEGER
-) STRICT;
-
-CREATE TABLE attachments (
-    sha256       BLOB PRIMARY KEY,
-    size         INTEGER NOT NULL,
-    content_type TEXT NOT NULL,
-    created_at   INTEGER NOT NULL
-) STRICT;
-"""
+MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "crates" / "slimm-server" / "migrations"
 
 
-def build_database(path, attachments=(), avatar_users=()):
+def apply_migrations(conn, migrations_dir=MIGRATIONS_DIR):
+    for migration in sorted(Path(migrations_dir).glob("*.sql")):
+        conn.executescript(migration.read_text())
+
+
+def build_database(path, attachments=(), avatar_users=(), migrations_dir=MIGRATIONS_DIR):
     """attachments: (sha256_bytes, size, content_type) tuples.
     avatar_users: (user_id_bytes, username) tuples, each marked as having
     an avatar (avatar_updated_at set)."""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path))
     try:
-        conn.executescript(SCHEMA)
+        apply_migrations(conn, migrations_dir)
         conn.executemany(
             "INSERT INTO attachments (sha256, size, content_type, created_at) "
             "VALUES (?, ?, ?, 0)",

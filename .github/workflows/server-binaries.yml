@@ -6,10 +6,14 @@ name: server-binaries
 on:
   workflow_call:
     inputs:
-      server_version:
-        description: "The release-please server version; empty on a tag push, where the tag names it"
+      ref:
+        description: "The commit to build; empty builds the commit that started the run"
         type: string
         default: ""
+      server_version:
+        description: "The server version being released"
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -31,16 +35,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ inputs.server_version }}" ]; then
-            version="${{ inputs.server_version }}"
-          else
-            version="${GITHUB_REF_NAME#server-v}"
-          fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+        with:
+          ref: ${{ inputs.ref }}
 
       # Each arch builds its own musl target natively, no cross and no QEMU, like the container image.
       - name: musl toolchain
@@ -52,13 +48,13 @@ jobs:
 
       - name: build static binary
         env:
-          SLIMM_BUILD_ID: ${{ github.sha }}
+          SLIMM_BUILD_ID: ${{ inputs.ref || github.sha }}
         run: cargo build --locked --release --target ${{ matrix.target }} --bin slimm-server
 
       - name: stage binary
         id: stage
         run: |
-          name="slimm-server-${{ steps.ver.outputs.version }}-linux-${{ matrix.arch }}"
+          name="slimm-server-${{ inputs.server_version }}-linux-${{ matrix.arch }}"
           install -Dm755 "target/${{ matrix.target }}/release/slimm-server" "dist/${name}"
           echo "name=${name}" >> "$GITHUB_OUTPUT"
 

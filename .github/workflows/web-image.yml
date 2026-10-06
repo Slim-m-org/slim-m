@@ -6,6 +6,10 @@ name: web-image
 on:
   workflow_call:
     inputs:
+      ref:
+        description: "The commit to build; empty builds the commit that started the run"
+        type: string
+        default: ""
       tags:
         description: "Newline-separated tags to put on the merged manifest"
         type: string
@@ -36,6 +40,8 @@ jobs:
       - name: name the image after this repo's owner, lowercased for GHCR
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-web" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
         with:
@@ -50,7 +56,7 @@ jobs:
           file: docker/web.Dockerfile
           platforms: linux/${{ matrix.arch }}
           build-args: |
-            SHA=${{ github.sha }}
+            SHA=${{ inputs.ref || github.sha }}
             SLIMM_SPOTIFY_CLIENT_ID=${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           sbom: true

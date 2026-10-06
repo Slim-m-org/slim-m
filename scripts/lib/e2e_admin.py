@@ -61,16 +61,12 @@ def report_a_message(reporter_api, admin_api, channel_id, needle):
 def block_and_unblock(api, other_id):
     """Blocking is account state the server keeps, not a local filter."""
     api.call('POST', f'/blocks/{other_id}')
-    blocked = api.blocks()
-    ids = [b if isinstance(b, str) else b.get('id', b.get('user_id'))
-           for b in blocked]
+    ids = api.blocks()
     assert other_id in ids, f'{other_id} is not in {ids}'
     print(f'  a block was stored: {ids}')
 
     api.call('DELETE', f'/blocks/{other_id}')
-    after = api.blocks()
-    ids = [b if isinstance(b, str) else b.get('id', b.get('user_id'))
-           for b in after]
+    ids = api.blocks()
     assert other_id not in ids, f'{other_id} survived the unblock: {ids}'
     print('  and unblocking removed it, so the run leaves nothing blocked')
 

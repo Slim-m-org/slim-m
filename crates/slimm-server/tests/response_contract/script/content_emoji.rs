@@ -54,6 +54,26 @@ pub(super) async fn emoji_calls(c: &mut Contract, root: &str) {
         Payload::None,
     )
     .await;
+    // A gif emoji is served as the type sniffed from its bytes, not as png.
+    let mut gif = b"GIF89a".to_vec();
+    gif.extend([0u8; 8]);
+    let animated = c
+        .call(
+            "uploadCustomEmoji",
+            "POST",
+            "/emoji?name=party_gif",
+            Some(root),
+            Payload::Bytes(gif),
+        )
+        .await;
+    c.call(
+        "fetchCustomEmojiImage",
+        "GET",
+        &format!("/emoji/{}/image", text(&animated, "id")),
+        Some(root),
+        Payload::None,
+    )
+    .await;
     c.call(
         "deleteCustomEmoji",
         "DELETE",

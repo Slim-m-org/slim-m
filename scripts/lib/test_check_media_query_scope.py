@@ -114,6 +114,18 @@ class OffenderCeilingTest(unittest.TestCase):
             "a commented-out call is not a subscription",
         )
 
+    def test_maybe_of_is_reported_like_of(self):
+        source = "final w = MediaQuery.maybeOf(context)?.size.width;\n"
+        self.assertEqual(
+            self.mod.offenders_in({"a.dart": source}, {}),
+            ["a.dart:1"],
+            "maybeOf subscribes to the whole MediaQueryData exactly like of",
+        )
+
+    def test_scoped_maybe_accessors_stay_allowed(self):
+        source = "MediaQuery.maybeSizeOf(context);\nMediaQuery.maybeViewInsetsOf(context);\n"
+        self.assertEqual(self.mod.offenders_in({"a.dart": source}, {}), [])
+
 
 if __name__ == "__main__":
     unittest.main()

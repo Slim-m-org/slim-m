@@ -59,6 +59,8 @@ def a_spoiler_hides_its_text(sender, receiver, channel, api):
 
     api.message_with(api.channel_named(channel)["id"], raw)
 
+    receiver.click(channel)
+    receiver.wait_for(L.HIDDEN_SPOILER)
     if receiver.find(secret) is not None:
         receiver.shot("spoiler-text-was-readable")
         raise AssertionError("a spoiler must not publish its text to the tree")

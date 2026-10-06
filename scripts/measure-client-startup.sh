@@ -5,18 +5,15 @@
 # build in a real headless `google-chrome-stable`, driven over the Chrome
 # DevTools Protocol by scripts/lib/client_startup_probe.py.
 #
-# This is a substitution, not the Linux desktop build: the Linux GTK target
-# needs a display connection to construct a window, and this host has
-# neither `Xvfb` installed nor passwordless `sudo` to add it (checked, not
-# assumed). Headless Chrome opens no window on this or any display either
-# way, so it is the offscreen route the job brief itself names as the
-# fallback when the native build cannot be made offscreen.
+# This measures the web build, not the Linux desktop build: headless Chrome
+# opens no window on any display, so it needs no Xvfb and runs the same on a
+# bare host or in CI. The native bundle under Xvfb is smoke-tested by
+# scripts/desktop-shell-smoke.sh.
 #
 # Usage: scripts/measure-client-startup.sh [--runs N] [--rebuild] [--out PATH]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORK="${CLIENT_STARTUP_WORK:-/tmp/client-startup-probe}"
 WEB_PORT="${CLIENT_STARTUP_WEB_PORT:-8357}"
 RUNS=3
 REBUILD=0
@@ -43,7 +40,6 @@ WEB_DIR="$ROOT/client/packages/app/build/web"
 cleanup() {
   local code=$?
   if [[ -n "${WEB_PID:-}" ]]; then kill "$WEB_PID" 2>/dev/null || true; fi
-  rm -rf "$WORK"
   exit $code
 }
 trap cleanup EXIT
@@ -60,7 +56,6 @@ if curl -sf -o /dev/null "http://localhost:$WEB_PORT/" 2>/dev/null; then
   echo "port $WEB_PORT is already serving something; stop that first" >&2
   exit 1
 fi
-mkdir -p "$WORK"
 python3 -m http.server "$WEB_PORT" --directory "$WEB_DIR" >/dev/null 2>&1 &
 WEB_PID=$!
 for asset in main.dart.js flutter_bootstrap.js sqlite3.wasm drift_worker.js; do

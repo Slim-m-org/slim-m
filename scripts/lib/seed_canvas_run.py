@@ -31,6 +31,10 @@ import seed_credentials
 import seed_guard
 import uuid7
 
+# The server's page clamp and its CANVAS_OP_GAP (store/canvas_ops.rs).
+_PAGE = 200
+_OP_GAP = 2000
+
 
 def run(args):
     try:
@@ -164,13 +168,34 @@ def _readback(api, channel_id, placed, centers):
     pad = 1500
     rect = (min(all_x) - pad, min(all_y) - pad, max(all_x) + pad, max(all_y) + pad)
     viewport = ops.viewport(api, channel_id, rect, limit=2000)
-    op_page = ops.ops_page(api, channel_id, after_seq=0, limit=200)
     return (
         {"objects": len(viewport["objects"]), "has_more": viewport["has_more"],
          "latest_seq": viewport["latest_seq"]},
-        {"count": len(op_page["ops"]), "latest_seq": op_page["latest_seq"],
-         "by_kind": _count_kinds(op_page["ops"])},
+        _ops_readback(api, channel_id),
     )
+
+
+def _ops_readback(api, channel_id):
+    """Every op the server will still replay, paged to the end.
+
+    A cursor more than `_OP_GAP` behind gets `reset` and no ops, so a long
+    stream is read from the oldest cursor the server accepts, and says so.
+    """
+    start = 0
+    page = ops.ops_page(api, channel_id, after_seq=start, limit=_PAGE)
+    if page["reset"]:
+        start = max(0, page["latest_seq"] - _OP_GAP)
+        page = ops.ops_page(api, channel_id, after_seq=start, limit=_PAGE)
+    collected = []
+    while not page["reset"]:
+        collected.extend(page["ops"])
+        if not (page["has_more"] and page["ops"]):
+            break
+        page = ops.ops_page(api, channel_id, after_seq=collected[-1]["seq"],
+                            limit=_PAGE)
+    return {"count": len(collected), "latest_seq": page["latest_seq"],
+            "by_kind": _count_kinds(collected), "from_seq": start,
+            "reset": page["reset"]}
 
 
 def _count_kinds(op_list):
@@ -203,7 +228,7 @@ def _print_report(base_url, channel, channel_name, accounts, password, report):
     print(f"composed a deliberate diagram: {report['diagram_placed']} "
           "objects (a box around the busiest cluster, an arrow to a "
           "callout note, a divider line, and 3 notes from a two-word "
-          "label up to one near the client's own length ceiling)")
+          "label up to a long one that tests wrapping)")
     h = report["history"]
     print(f"history: {h['moved']} moved ({h['resized']} also resized), "
           f"{h['reordered']} reordered, {h['removed']} objects removed "
@@ -214,8 +239,14 @@ def _print_report(base_url, channel, channel_name, accounts, password, report):
     print(f"viewport readback: {r['objects']} objects, "
           f"has_more={r['has_more']}, latest_seq={r['latest_seq']}")
     o = report["ops_readback"]
-    print(f"ops feed readback: {o['count']} ops, latest_seq={o['latest_seq']}, "
-          f"by kind: {o['by_kind']}")
+    window = ("" if o["from_seq"] == 0
+              else f" (only after seq {o['from_seq']}, the server's replay "
+                   "window)")
+    print(f"ops feed readback: {o['count']} ops{window}, "
+          f"latest_seq={o['latest_seq']}, by kind: {o['by_kind']}")
+    if o["reset"]:
+        print("note: the server answered the ops feed with reset, so no ops "
+              "could be read back")
     print("probes:")
     for finding in report["findings"]:
         mark = "ok" if finding["ok"] else "UNEXPECTED"

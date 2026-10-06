@@ -1,10 +1,12 @@
 # Redocly lint config for the slim-m wire schema.
 # The recommended ruleset's structural checks are kept; two opinionated rules
 # are relaxed for a minimal internal wire API:
-# - security-defined: auth is a WebSocket connect-time ticket, not per-operation
-#   HTTP security schemes, so requiring security on every REST operation is noise
-#   in Phase 0. Revisit when the authenticated surface is specified in Phase 1.
+# - security-defined: the document declares one global bearerAuth, and the few
+#   public operations (login, signup, version) opt out of it, so requiring a
+#   per-operation security entry on every one is noise.
 # - operation-4xx-response: liveness and version endpoints do not need a 4xx.
 rules:
+  # An undeclared tag lands in an ungrouped section of the rendered reference.
+  operation-tag-defined: error
   security-defined: off
   operation-4xx-response: off

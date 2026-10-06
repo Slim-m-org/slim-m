@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from dart_source import strip_block_comments  # noqa: E402
 
 ALLOWLIST_PATH = Path(__file__).resolve().parent / "media-query-of-allow.txt"
-MEDIA_QUERY_OF = re.compile(r"MediaQuery\.of\(")
+MEDIA_QUERY_OF = re.compile(r"MediaQuery\s*\.\s*(?:of|maybeOf)\s*\(")
 
 
 def load_allowlist(path: Path) -> dict[str, int]:

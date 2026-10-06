@@ -20,8 +20,8 @@ import json
 import sys
 
 
-def base_sha(runs, skip_sha=None):
-    """The head SHA of the newest run in `runs` that published a server image.
+def base_sha(runs, skip_sha=None, job="server-image"):
+    """The head SHA of the newest run in `runs` whose `job` succeeded, by default the server image.
 
     `runs` is newest-first, each entry `{"headSha": ..., "conclusion": ...,
     "jobs": [{"name": ..., "conclusion": ...}]}`. Returns None when no such run
@@ -36,14 +36,15 @@ def base_sha(runs, skip_sha=None):
         head = run.get("headSha")
         if not head or head == skip_sha:
             continue
-        for job in run.get("jobs") or []:
-            if job.get("name") == "server-image" and job.get("conclusion") == "success":
+        for item in run.get("jobs") or []:
+            if item.get("name") == job and item.get("conclusion") == "success":
                 return head
     return None
 
 
 def main(argv):
-    skip = argv[1] if len(argv) > 1 else None
+    skip = argv[1] if len(argv) > 1 and argv[1] else None
+    job = argv[2] if len(argv) > 2 and argv[2] else "server-image"
     try:
         runs = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
@@ -53,7 +54,7 @@ def main(argv):
     if not isinstance(runs, list):
         print("")
         return 0
-    print(base_sha(runs, skip) or "")
+    print(base_sha(runs, skip, job) or "")
     return 0
 
 

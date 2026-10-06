@@ -26,10 +26,18 @@ def run_throwaway_batch(admin_api, channel_id, count, place_fn):
     clear, then removes the same objects again individually - a genuine
     `clear` and a genuine `restore` in the op feed, without leaving
     placeholder art on the final canvas. All three ops are authored by
-    `admin_api`, since `clear` needs MANAGE_CANVAS unconditionally."""
+    `admin_api`, since `clear` needs MANAGE_CANVAS unconditionally. A refused
+    clear removes the placeholders itself, which needs no such permission."""
     placed = [place_fn() for _ in range(count)]
     before_seq = placed[-1]["seq"]
-    clear_op = ops.clear(admin_api, channel_id, uuid7.uuid7(), before_seq)["op"]
+    try:
+        clear_op = ops.clear(
+            admin_api, channel_id, uuid7.uuid7(), before_seq)["op"]
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            ops.remove(admin_api, channel_id, uuid7.uuid7(),
+                       [p["id"] for p in placed])
+        raise
     restore_op = ops.restore(
         admin_api, channel_id, uuid7.uuid7(), clear_op["id"])["op"]
     remove_op = ops.remove(
