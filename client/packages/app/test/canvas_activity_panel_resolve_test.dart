@@ -9,7 +9,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -46,7 +45,7 @@ ProviderContainer _container({Future<void>? gate}) => ProviderContainer(
               for (final id in ids)
                 {
                   'id': id,
-                  'username': '$id',
+                  'username': id,
                   'display_name': id == 'alice' ? 'Alice' : 'Name $id',
                   'created_at': 0,
                 },
