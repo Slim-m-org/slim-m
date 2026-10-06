@@ -42,6 +42,9 @@ class _TestDmCallRingController extends DmCallRingController {
   int declineCalls = 0;
 
   @override
+  Future<void> ensureChannelLoaded(String channelId) async {}
+
+  @override
   Future<void> decline(IncomingDmCallRing ring) async {
     declineCalls++;
     dismissIncoming();

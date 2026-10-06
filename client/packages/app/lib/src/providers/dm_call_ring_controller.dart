@@ -24,9 +24,15 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_platform/platform.dart';
 
+import '../routing/router.dart';
+import '../routing/routes.dart';
+import 'dm_call.dart';
+import 'ensure_dm_channel.dart';
 import 'live_events.dart';
 import 'providers.dart';
 import 'voice_controller.dart';
@@ -53,30 +59,95 @@ class OutgoingDmCallRing {
   final String ringId;
 }
 
+/// What the system call screen is doing about an incoming call right now.
+///
+/// CallKit and the websocket announce the same ring separately, and only the
+/// websocket says which channel it is, so this is how the two are joined.
+enum CallKitPhase { none, ringing, answered }
+
 class DmCallRingState {
-  const DmCallRingState({this.incoming, this.outgoing});
+  const DmCallRingState({
+    this.incoming,
+    this.outgoing,
+    this.callKit = CallKitPhase.none,
+  });
 
   final IncomingDmCallRing? incoming;
   final OutgoingDmCallRing? outgoing;
+  final CallKitPhase callKit;
+
+  /// The ring the in-app overlay should show: none while CallKit is already
+  /// ringing for it, since two prompts for one call is the bug this exists for.
+  IncomingDmCallRing? get visibleIncoming =>
+      callKit == CallKitPhase.none ? incoming : null;
 
   DmCallRingState copyWith({
     IncomingDmCallRing? incoming,
     bool clearIncoming = false,
     OutgoingDmCallRing? outgoing,
     bool clearOutgoing = false,
+    CallKitPhase? callKit,
   }) => DmCallRingState(
     incoming: clearIncoming ? null : (incoming ?? this.incoming),
     outgoing: clearOutgoing ? null : (outgoing ?? this.outgoing),
+    callKit: callKit ?? this.callKit,
   );
 }
 
 class DmCallRingController extends StateNotifier<DmCallRingState> {
   DmCallRingController(this._ref) : super(const DmCallRingState()) {
     _sub = _ref.read(liveEventsProvider).listen(_onEvent);
+    final callKit = _ref.read(callKitIncomingChannelProvider);
+    _callKitSub = callKit.events.listen(_onCallKit);
+    unawaited(
+      callKit.takePending().then((pending) => pending.forEach(_onCallKit)),
+    );
   }
 
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
+  late final StreamSubscription<CallKitIncomingEvent> _callKitSub;
+  DateTime? _answeredAt;
+
+  /// How long an answer waits for its `call.ringing` frame: the server's own
+  /// ring timeout, past which no frame for that call can still come.
+  static const _answerWindow = Duration(seconds: 30);
+
+  bool get _answerIsFresh {
+    final at = _answeredAt;
+    return state.callKit == CallKitPhase.answered &&
+        at != null &&
+        DateTime.now().difference(at) < _answerWindow;
+  }
+
+  void _onCallKit(CallKitIncomingEvent event) {
+    if (!mounted) return;
+    switch (event.kind) {
+      case CallKitIncomingKind.ringing:
+        if (state.callKit == CallKitPhase.none) {
+          state = state.copyWith(callKit: CallKitPhase.ringing);
+        }
+      case CallKitIncomingKind.answered:
+        final ring = state.incoming;
+        _answeredAt = DateTime.now();
+        state = state.copyWith(callKit: CallKitPhase.answered);
+        if (ring != null) unawaited(_answerFromCallKit(ring));
+      case CallKitIncomingKind.ended:
+        final declined = state.callKit == CallKitPhase.ringing;
+        final ring = state.incoming;
+        state = state.copyWith(callKit: CallKitPhase.none);
+        if (declined && ring != null) unawaited(decline(ring));
+    }
+  }
+
+  /// The answer happened on the system call screen, so the ring is consumed
+  /// here and the call joined without asking again.
+  Future<void> _answerFromCallKit(IncomingDmCallRing ring) async {
+    state = state.copyWith(callKit: CallKitPhase.none);
+    await accept(ring);
+    if (!mounted) return;
+    await _ref.read(voiceControllerProvider.notifier).join(ring.channelId);
+  }
 
   /// A DM's two participants are the whole audience for its own
   /// `call.ringing`/`call.ring_ended` frames, so the caller's own client
@@ -88,13 +159,21 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         // Own ring already known from starting it; see this method's own doc.
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId) return;
-        state = state.copyWith(
-          incoming: IncomingDmCallRing(
-            channelId: channelId,
-            ringId: ringId,
-            callerId: callerId,
-          ),
+        final ring = IncomingDmCallRing(
+          channelId: channelId,
+          ringId: ringId,
+          callerId: callerId,
         );
+        final stale = state.callKit == CallKitPhase.answered && !_answerIsFresh;
+        state = state.copyWith(
+          incoming: ring,
+          callKit: stale ? CallKitPhase.none : null,
+        );
+        if (_answerIsFresh) {
+          unawaited(_answerFromCallKit(ring));
+        } else {
+          unawaited(ensureChannelLoaded(channelId));
+        }
       case api.CallRingEnded(:final ringId, :final outcome):
         _onRingEnded(ringId, outcome);
       default:
@@ -112,7 +191,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// [api.CallRingOutcome.canceled] need nothing further here.
   void _onRingEnded(String ringId, api.CallRingOutcome outcome) {
     if (state.incoming?.ringId == ringId) {
-      state = state.copyWith(clearIncoming: true);
+      state = state.copyWith(clearIncoming: true, callKit: CallKitPhase.none);
     }
     final outgoing = state.outgoing;
     if (outgoing != null && outgoing.ringId == ringId) {
@@ -160,6 +239,20 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     if (mounted) state = state.copyWith(clearIncoming: true);
   }
 
+  /// The DM must be in the local store before anything routes to it.
+  @visibleForTesting
+  Future<void> ensureChannelLoaded(String channelId) =>
+      ensureDmChannelLoaded(_ref, channelId);
+
+  /// Accepts an incoming ring: opens the DM's call pane and navigates there.
+  Future<void> accept(IncomingDmCallRing ring) async {
+    dismissIncoming();
+    await ensureChannelLoaded(ring.channelId);
+    if (!mounted) return;
+    _ref.read(dmCallOpenProvider.notifier).state = ring.channelId;
+    _ref.read(routerProvider).go(Routes.channel(ring.channelId));
+  }
+
   /// Declines an incoming ring.
   Future<void> decline(IncomingDmCallRing ring) async {
     dismissIncoming();
@@ -175,15 +268,23 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// `call.ring_ended` that will never arrive). [SyncController.start] calls
   /// this on every (re)connect, `DmCallActivityController.clear`'s own shape.
   void clear() {
-    if (mounted) state = const DmCallRingState();
+    if (mounted) state = DmCallRingState(callKit: state.callKit);
   }
 
   @override
   void dispose() {
     unawaited(_sub.cancel());
+    unawaited(_callKitSub.cancel());
     super.dispose();
   }
 }
+
+/// The platform seam, overridable in tests.
+final callKitIncomingChannelProvider = Provider<CallKitIncomingChannel>((ref) {
+  final channel = CallKitIncomingChannel();
+  ref.onDispose(channel.dispose);
+  return channel;
+});
 
 final dmCallRingControllerProvider =
     StateNotifierProvider<DmCallRingController, DmCallRingState>(

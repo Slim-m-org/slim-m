@@ -68,7 +68,7 @@ class NotificationSoundController {
       _onVoiceStateChanged,
     );
     _ringSub = _ref.listen<IncomingDmCallRing?>(
-      dmCallRingControllerProvider.select((s) => s.incoming),
+      dmCallRingControllerProvider.select((s) => s.visibleIncoming),
       _onIncomingRingChanged,
     );
   }

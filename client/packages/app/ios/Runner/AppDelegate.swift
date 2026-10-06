@@ -15,7 +15,14 @@ import UserNotifications
   /// `packages/platform/lib/src/notification_tap_channel.dart`.
   private static let tapChannelName = "top.npcserver.slimm/push_tap"
 
+  /// CallKit's answer and end events, held until Dart takes them; see
+  /// `packages/platform/lib/src/callkit_incoming_channel.dart`.
+  private static let callKitChannelName = "top.npcserver.slimm/callkit_incoming"
+
   private var pushChannel: FlutterMethodChannel?
+  private var callKitChannel: FlutterMethodChannel?
+  private var pendingCallKitEvents: [[String: String]] = []
+  private var dartTakesCallKitEvents = false
   private var tapChannel: FlutterMethodChannel?
 
   // A tap is what launches the app from a killed state, so it routinely
@@ -56,7 +63,30 @@ import UserNotifications
       self?.cachedVoipTokenHex = hex
       self?.pushChannel?.invokeMethod("onVoipToken", arguments: hex)
     }
+    registrar.onCallEvent = { [weak self] event in self?.deliverCallKitEvent(event) }
     voipRegistrar = registrar
+  }
+
+  /// An answer can land before Dart exists to hear it, so events are held until
+  /// Dart asks and sent live afterwards, never both.
+  private func deliverCallKitEvent(_ event: CallKitCallEvent) {
+    guard dartTakesCallKitEvents else {
+      pendingCallKitEvents.append(event.wire)
+      return
+    }
+    callKitChannel?.invokeMethod("onCallKitEvent", arguments: event.wire)
+  }
+
+  private func handleCallKitCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "takePending":
+      dartTakesCallKitEvents = true
+      let pending = pendingCallKitEvents
+      pendingCallKitEvents = []
+      result(pending)
+    default:
+      result(FlutterMethodNotImplemented)
+    }
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -74,6 +104,13 @@ import UserNotifications
       self?.handleTapCall(call, result: result)
     }
     tapChannel = tap
+
+    let callKit = FlutterMethodChannel(
+      name: AppDelegate.callKitChannelName, binaryMessenger: messenger)
+    callKit.setMethodCallHandler { [weak self] call, result in
+      self?.handleCallKitCall(call, result: result)
+    }
+    callKitChannel = callKit
 
     let broadcast = FlutterMethodChannel(name: BroadcastChannel.name, binaryMessenger: messenger)
     broadcast.setMethodCallHandler { call, result in
