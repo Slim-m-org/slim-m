@@ -182,4 +182,40 @@ void main() {
       expect(called, isFalse);
     });
   });
+
+  group('an android build', () {
+    test('is told about a newer client release', () async {
+      final update = await checkForClientUpdate(
+        currentVersion: '0.1.0',
+        client: releasing([rel('client-v9.9.9')]),
+        format: InstallFormat.apk,
+        failedVersion: '0.0.0',
+      );
+
+      expect(update?.version, '9.9.9');
+      expect(update?.format, InstallFormat.apk);
+    });
+
+    test('is told nothing when it is already current', () async {
+      final update = await checkForClientUpdate(
+        currentVersion: '9.9.9',
+        client: releasing([rel('client-v9.9.9')]),
+        format: InstallFormat.apk,
+        failedVersion: '0.0.0',
+      );
+
+      expect(update, isNull);
+    });
+  });
+
+  test('a host with no known packaging is still told nothing', () async {
+    final update = await checkForClientUpdate(
+      currentVersion: '0.1.0',
+      client: releasing([rel('client-v9.9.9')]),
+      format: InstallFormat.unknown,
+      failedVersion: '0.0.0',
+    );
+
+    expect(update, isNull);
+  });
 }

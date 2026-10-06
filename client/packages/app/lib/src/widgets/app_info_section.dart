@@ -97,6 +97,7 @@ String automaticUpdatesDescription(InstallFormat format) => switch (format) {
   InstallFormat.flatpak ||
   InstallFormat.appImage ||
   InstallFormat.tarball ||
+  InstallFormat.apk ||
   InstallFormat.unknown =>
     'Tell me at startup when a new version is available.',
 };

@@ -59,4 +59,54 @@ void main() {
     expect(InstallFormat.rpm.canSelfApply, isFalse);
     expect(InstallFormat.deb.canSelfApply, isFalse);
   });
+
+  group('the format for a kind of host', () {
+    InstallFormat forHost({
+      bool web = false,
+      bool android = false,
+      bool desktop = false,
+      InstallFormat sniffed = InstallFormat.tarball,
+    }) =>
+        installFormatForHost(
+          isWeb: web,
+          isAndroid: android,
+          isDesktop: desktop,
+          desktop: () => sniffed,
+        );
+
+    test('a sideloaded android build is an apk', () {
+      expect(forHost(android: true), InstallFormat.apk);
+    });
+
+    test('an apk can only be pointed at the release page', () {
+      expect(InstallFormat.apk.canSelfApply, isFalse);
+    });
+
+    test('a desktop host answers what its packaging sniffs as', () {
+      expect(
+        forHost(desktop: true, sniffed: InstallFormat.flatpak),
+        InstallFormat.flatpak,
+      );
+    });
+
+    test('a host that is neither stays unknown, and never sniffs', () {
+      var sniffed = false;
+      final format = installFormatForHost(
+        isWeb: false,
+        isAndroid: false,
+        isDesktop: false,
+        desktop: () {
+          sniffed = true;
+          return InstallFormat.tarball;
+        },
+      );
+
+      expect(format, InstallFormat.unknown);
+      expect(sniffed, isFalse);
+    });
+
+    test('the web is unknown even where it reports a desktop host', () {
+      expect(forHost(web: true, desktop: true), InstallFormat.unknown);
+    });
+  });
 }

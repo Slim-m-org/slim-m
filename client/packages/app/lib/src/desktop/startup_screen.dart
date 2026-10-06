@@ -82,6 +82,7 @@ String updateActionHint(InstallFormat format) => switch (format) {
   InstallFormat.deb => 'Update with your package manager.',
   InstallFormat.appImage ||
   InstallFormat.tarball ||
+  InstallFormat.apk ||
   InstallFormat.unknown => 'Open the release page to download the new version.',
 };
 
