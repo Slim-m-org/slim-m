@@ -39,6 +39,11 @@ class ActivityPublisher {
   late final StreamSubscription<api.ServerEvent> _events;
   final _open = <ActivityFeed, StreamSubscription<api.PresenceActivity?>>{};
   final _readings = <ActivityFeed, api.PresenceActivity>{};
+
+  /// What the server refused from each feed. A refusal is about the value, so
+  /// it will never be accepted on a retry: the feed is passed over until it
+  /// reads something different, and the next feed is shared instead.
+  final _rejected = <ActivityFeed, api.PresenceActivity>{};
   api.PresenceActivity? _sent;
 
   bool get _hidden =>
@@ -57,6 +62,7 @@ class ActivityPublisher {
       } else if (!_wanted(feed) && running) {
         unawaited(_open.remove(feed)!.cancel());
         _readings.remove(feed);
+        _rejected.remove(feed);
       }
     }
     unawaited(_push());
@@ -68,6 +74,7 @@ class ActivityPublisher {
     } else {
       _readings[feed] = activity;
     }
+    if (_rejected[feed] != activity) _rejected.remove(feed);
     unawaited(_push());
   }
 
@@ -85,7 +92,9 @@ class ActivityPublisher {
     if (_hidden) return null;
     for (final feed in _ref.read(activityFeedsProvider)) {
       final reading = _readings[feed];
-      if (reading != null && _wanted(feed)) return (feed, reading);
+      if (reading == null || !_wanted(feed)) continue;
+      if (_rejected[feed] == reading) continue;
+      return (feed, reading);
     }
     return null;
   }
@@ -105,6 +114,12 @@ class ActivityPublisher {
       }
       _ref.read(sharedActivityProvider.notifier).state = wanted;
       _ref.read(sharedFeedProvider.notifier).state = choice?.$1;
+    } on api.BadRequestException {
+      _sent = previous;
+      if (choice != null) {
+        _rejected[choice.$1] = choice.$2;
+        unawaited(_push());
+      }
     } on api.ApiException {
       // Retried by the next change; the server forgets it with the socket anyway.
       _sent = previous;
