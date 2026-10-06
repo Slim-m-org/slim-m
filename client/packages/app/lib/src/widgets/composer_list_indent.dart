@@ -149,6 +149,11 @@ TextEditingValue? indentList(TextEditingValue value) => _shiftLines(value, 1);
 TextEditingValue? outdentList(TextEditingValue value) =>
     leaveEmptyItem(value) ?? _shiftLines(value, -1);
 
+/// The offset where the line holding [caret] starts. `lastIndexOf` rejects a
+/// negative start, so a caret at the very start of the text is its own line start.
+int lineStartAt(String text, int caret) =>
+    caret == 0 ? 0 : text.lastIndexOf('\n', caret - 1) + 1;
+
 /// What Enter, Backspace or Shift+Tab does at the end of an item with nothing
 /// typed in it: a nested item steps out one level, a top-level one loses its
 /// marker and so ends the list. Null when the caret is not at such an item.
@@ -158,7 +163,7 @@ TextEditingValue? leaveEmptyItem(TextEditingValue value) {
   }
   final caret = value.selection.baseOffset;
   final text = value.text;
-  final lineStart = text.lastIndexOf('\n', caret - 1) + 1;
+  final lineStart = lineStartAt(text, caret);
   final lineEnd = text.indexOf('\n', caret);
   if (lineEnd != -1 && lineEnd != caret) return null;
   final item = ListLine.parse(text.substring(lineStart, caret));
