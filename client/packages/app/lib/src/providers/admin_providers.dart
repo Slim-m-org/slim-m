@@ -225,18 +225,13 @@ final dockCatalogProvider = FutureProvider.autoDispose<DockCatalog>((
   ref,
 ) async {
   final client = ref.watch(apiProvider);
-  final entries = await client.listDockModules();
-  final installed = await client.listInstalledDockModules();
-  var communitySources = <api.DockSource>[];
-  var sourcesFailed = false;
-  try {
-    communitySources = [
-      for (final s in await client.listDockSources())
-        if (!s.official) s,
-    ];
-  } catch (_) {
-    sourcesFailed = true;
-  }
+  final (entries, installed, sources) = await (
+    client.listDockModules(),
+    client.listInstalledDockModules(),
+    _communitySources(client),
+  ).wait;
+  final communitySources = sources ?? const <api.DockSource>[];
+  final sourcesFailed = sources == null;
   final sections = await Future.wait([
     for (final source in communitySources) _loadSection(client, source),
   ]);
@@ -247,6 +242,18 @@ final dockCatalogProvider = FutureProvider.autoDispose<DockCatalog>((
     sourcesFailed: sourcesFailed,
   );
 });
+
+/// The non-official sources, or null when the list could not be read.
+Future<List<api.DockSource>?> _communitySources(api.SlimmApi client) async {
+  try {
+    return [
+      for (final s in await client.listDockSources())
+        if (!s.official) s,
+    ];
+  } catch (_) {
+    return null;
+  }
+}
 
 Future<DockSourceSection> _loadSection(
   api.SlimmApi client,
