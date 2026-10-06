@@ -29,6 +29,10 @@ http.Client _releases(List<String> versions) => MockClient(
           'html_url': 'https://example.test/$v',
           'draft': false,
           'prerelease': false,
+          'assets': [
+            {'name': 'manifest.json'},
+            {'name': 'manifest.json.sig'},
+          ],
         },
     ]),
     200,

@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:slimm_platform/platform.dart';
 
 import '../update_check.dart' show parseVersion;
+import 'install_fs.dart';
 import 'linux_layout.dart';
 import 'rollback_record.dart';
 import 'self_update.dart';
@@ -56,9 +57,9 @@ Future<void> installLinuxUpdate({
       _swapLink(layout, LayoutNames.previous, before);
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
-    _delete(File(layout.path(LayoutNames.pendingTries)));
+    safeDelete(File(layout.path(LayoutNames.pendingTries)));
     _swapLink(layout, LayoutNames.current, update.version);
-    _delete(update.file);
+    safeDelete(update.file);
   } on FileSystemException catch (error) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.installFailed,
@@ -78,17 +79,17 @@ Future<void> _publishVersion(
   final scratch = Directory(
     layout.path('${LayoutNames.unpackPrefix}${update.version}'),
   );
-  _delete(scratch);
+  safeDelete(scratch);
   try {
     await scratch.create(recursive: true);
     await unpack(update.file, scratch);
     if (!_isComplete(scratch)) {
       throw const FileSystemException('the tarball has no slimm_app or slim-m');
     }
-    _delete(target);
+    safeDelete(target);
     await scratch.rename(target.path);
   } catch (_) {
-    _delete(scratch);
+    safeDelete(scratch);
     rethrow;
   }
 }
@@ -106,20 +107,12 @@ void _swapLink(LinuxInstallLayout layout, String name, String version) {
   temp.renameSync(layout.path(name));
 }
 
-void _delete(FileSystemEntity entity) {
-  try {
-    entity.deleteSync(recursive: true);
-  } on FileSystemException {
-    // Already gone, or the next cleanup pass takes it.
-  }
-}
-
 /// Run once the new version has stayed up: clears the pending-start marker so
 /// the launcher stops counting, and prunes every version directory except
 /// `current` and `previous` (the one kept for rollback).
 void confirmCleanStart(LinuxInstallLayout layout) {
-  _delete(File(layout.path(LayoutNames.pending)));
-  _delete(File(layout.path(LayoutNames.pendingTries)));
+  safeDelete(File(layout.path(LayoutNames.pending)));
+  safeDelete(File(layout.path(LayoutNames.pendingTries)));
   final keep = {
     layout.linkedVersion(LayoutNames.current),
     layout.linkedVersion(LayoutNames.previous),
@@ -132,7 +125,7 @@ void confirmCleanStart(LinuxInstallLayout layout) {
         (parseVersion(name) != null ||
             name == LayoutNames.staging ||
             name.startsWith(LayoutNames.unpackPrefix));
-    if (stale) _delete(entry);
+    if (stale) safeDelete(entry);
   }
 }
 

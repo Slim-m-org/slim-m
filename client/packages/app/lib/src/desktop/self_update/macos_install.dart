@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:slimm_platform/platform.dart';
 
+import 'install_fs.dart';
 import 'linux_install.dart' show Unpack;
 import 'macos_layout.dart';
 import 'rollback_record.dart';
@@ -74,8 +75,8 @@ Future<void> installMacosUpdate({
     await _prepareNewBundle(layout, update, unpack, verify, stripQuarantine);
     _swapIn(layout);
     File(layout.path(MacosNames.pending)).writeAsStringSync(update.version);
-    _delete(File(layout.path(MacosNames.pendingTries)));
-    _delete(update.file);
+    safeDelete(File(layout.path(MacosNames.pendingTries)));
+    safeDelete(update.file);
   } on FileSystemException catch (error) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.installFailed,
@@ -92,8 +93,8 @@ Future<void> _prepareNewBundle(
   BundleCheck verify,
   BundleCheck stripQuarantine,
 ) async {
-  _delete(layout.newBundle);
-  _delete(layout.unpackDir);
+  safeDelete(layout.newBundle);
+  safeDelete(layout.unpackDir);
   try {
     await layout.unpackDir.create(recursive: true);
     await unpack(update.file, layout.unpackDir);
@@ -102,10 +103,10 @@ Future<void> _prepareNewBundle(
     await verify(layout.newBundle);
     await stripQuarantine(layout.newBundle);
   } catch (_) {
-    _delete(layout.newBundle);
+    safeDelete(layout.newBundle);
     rethrow;
   } finally {
-    _delete(layout.unpackDir);
+    safeDelete(layout.unpackDir);
   }
 }
 
@@ -138,21 +139,13 @@ Directory _theBundleIn(Directory unpacked, String executableName) {
 /// Two renames on one volume: the bundle aside, then the new one in. If the
 /// second fails the first is undone, so a failed swap never leaves no app.
 void _swapIn(MacosInstallLayout layout) {
-  _delete(layout.previousBundle);
+  safeDelete(layout.previousBundle);
   layout.bundle.renameSync(layout.previousBundle.path);
   try {
     layout.newBundle.renameSync(layout.bundle.path);
   } on FileSystemException {
     layout.previousBundle.renameSync(layout.bundle.path);
     rethrow;
-  }
-}
-
-void _delete(FileSystemEntity entity) {
-  try {
-    entity.deleteSync(recursive: true);
-  } on FileSystemException {
-    // Already gone, or the next cleanup pass takes it.
   }
 }
 
@@ -172,16 +165,16 @@ bool rollBackMacosIfStuck(MacosInstallLayout layout) {
   }
   final failedVersion = pending.readAsStringSync().trim();
   try {
-    _delete(layout.failedBundle);
+    safeDelete(layout.failedBundle);
     layout.bundle.renameSync(layout.failedBundle.path);
     layout.previousBundle.renameSync(layout.bundle.path);
   } on FileSystemException {
     return false;
   }
   File(layout.path(MacosNames.rolledBack)).writeAsStringSync(failedVersion);
-  _delete(pending);
-  _delete(triesFile);
-  _delete(layout.failedBundle);
+  safeDelete(pending);
+  safeDelete(triesFile);
+  safeDelete(layout.failedBundle);
   return true;
 }
 
@@ -196,12 +189,12 @@ String _readOr(File file, String fallback) {
 /// Run once the new bundle has stayed up: stops the start counting and deletes
 /// every leftover of an earlier attempt, keeping one previous bundle to go back to.
 void confirmMacosCleanStart(MacosInstallLayout layout) {
-  _delete(File(layout.path(MacosNames.pending)));
-  _delete(File(layout.path(MacosNames.pendingTries)));
-  _delete(layout.failedBundle);
-  _delete(layout.newBundle);
-  _delete(layout.unpackDir);
-  _delete(layout.stagingDir);
+  safeDelete(File(layout.path(MacosNames.pending)));
+  safeDelete(File(layout.path(MacosNames.pendingTries)));
+  safeDelete(layout.failedBundle);
+  safeDelete(layout.newBundle);
+  safeDelete(layout.unpackDir);
+  safeDelete(layout.stagingDir);
 }
 
 /// The version the app rolled back from since the last call, if any.
