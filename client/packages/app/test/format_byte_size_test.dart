@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/attachment_view.dart';
+import 'package:slimm_app/src/widgets/attachment_format.dart';
 
 const _kb = 1024;
 const _mb = 1024 * 1024;
