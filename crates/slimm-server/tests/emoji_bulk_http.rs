@@ -354,3 +354,32 @@ async fn bulk_upload_requires_manage_server() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     assert_eq!(emoji_count(&app, &member).await, 0);
 }
+
+/// The single upload's 1 MiB cap is a body limit, not just the handler's own
+/// refusal: a 413 is the limit, the handler's `TooLarge` is a 400. It holds
+/// only while the `/emoji` layer outranks the bulk route's far larger one.
+#[tokio::test]
+async fn a_single_upload_over_one_mib_is_refused_by_the_body_limit() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let oversized = png(&vec![0u8; 1024 * 1024]);
+    let response = single_upload(&app, &admin, "huge", oversized).await;
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+/// The bulk route must keep its own, larger limit: a request well past the
+/// single cap is read and judged by the handler, not cut off at 1 MiB.
+#[tokio::test]
+async fn a_bulk_body_over_one_mib_is_not_cut_off_by_the_single_limit() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let images: Vec<(&str, Vec<u8>)> = (0..3)
+        .map(|_| ("padding", png(&vec![0u8; 700 * 1024])))
+        .collect();
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_ne!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
