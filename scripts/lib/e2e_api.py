@@ -121,12 +121,6 @@ class Api:
         got = self.call("GET", "/members")
         return _list_body(got)
 
-    def member_named(self, display_name):
-        for m in self.members():
-            if m.get("display_name") == display_name:
-                return m
-        raise AssertionError(f"no member named {display_name!r}")
-
     def pins(self, channel_id):
         got = self.call("GET", f"/channels/{channel_id}/pins")
         return _list_body(got)
