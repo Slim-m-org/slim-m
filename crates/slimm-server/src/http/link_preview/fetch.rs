@@ -170,14 +170,13 @@ pub(super) async fn fetch_preview(
     Ok(Some(preview))
 }
 
-/// Fetches [start] as an image for proxying, returning its bytes and
-/// content type. The same SSRF guard applies: the image host is as
+/// Fetches [start] as an image for proxying, returning its bytes. The same SSRF guard applies: the image host is as
 /// attacker-controlled as the page host.
 pub(super) async fn fetch_image(
     client: &Client,
     start: &str,
     allow_private: bool,
-) -> Result<(Vec<u8>, String), FetchError> {
+) -> Result<Vec<u8>, FetchError> {
     let (_, response) = follow(client, start, allow_private).await?;
     let ctype = content_type(&response);
     if !ctype.starts_with("image/") {
@@ -187,5 +186,5 @@ pub(super) async fn fetch_image(
     if bytes.is_empty() {
         return Err(FetchError::Unavailable);
     }
-    Ok((bytes, ctype))
+    Ok(bytes)
 }
