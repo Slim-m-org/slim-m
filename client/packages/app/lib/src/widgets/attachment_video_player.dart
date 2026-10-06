@@ -22,6 +22,7 @@ import '../providers/providers.dart';
 import 'attachment_format.dart';
 import 'attachment_save.dart';
 import 'attachment_video_fullscreen.dart';
+import 'attachment_video_reopen.dart';
 import 'attachment_video_source_io.dart'
     if (dart.library.js_interop) 'attachment_video_source_web.dart';
 import 'run_guarded.dart';
@@ -52,6 +53,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   bool _saving = false;
   double? _fetchProgress;
   StreamSubscription<String>? _errorSub;
+  late final StaleTokenReopener _reopener;
 
   api.Attachment get attachment => widget.attachment;
 
@@ -62,6 +64,15 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     _errorSub = _player.stream.error.listen((_) {
       if (mounted) setActionError('Could not play ${attachment.filename}.');
     });
+    _reopener = StaleTokenReopener(
+      player: _player,
+      source: _source,
+      apiClient: ref.read(apiProvider),
+      attachment: attachment,
+      onFailure: () {
+        if (mounted) setActionError('Could not play ${attachment.filename}.');
+      },
+    )..start();
     unawaited(_load());
   }
 
@@ -116,6 +127,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   @override
   void dispose() {
     unawaited(_errorSub?.cancel());
+    unawaited(_reopener.dispose());
     _player.dispose();
     _source.dispose();
     super.dispose();

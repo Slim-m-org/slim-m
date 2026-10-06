@@ -86,6 +86,10 @@ class _WebAttachmentVideoSource implements AttachmentVideoSource {
     return completer.future;
   }
 
+  // The whole file is fetched up front, so no later request carries a token.
+  @override
+  bool isStale(api.SlimmApi apiClient) => false;
+
   @override
   void dispose() {
     _request?.abort();
