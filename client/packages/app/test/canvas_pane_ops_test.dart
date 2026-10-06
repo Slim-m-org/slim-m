@@ -414,8 +414,8 @@ void main() {
 
   /// A move already shows its new position optimistically (the property the
   /// first test above checks); a failed submit has to put that back, the
-  /// same "revert what was already shown" shape a failed erase never needs
-  /// because erasing shows nothing until the drag ends.
+  /// same "put back what was already shown" shape a failed remove gets from
+  /// a region read (`canvas_pane_remove_failure_test.dart`).
   testWidgets('a failed move reverts the object locally and shows an error', (
     tester,
   ) async {
