@@ -80,7 +80,7 @@ final voiceRosterProvider = StreamProvider.autoDispose
       final controller = StreamController<List<api.VoiceRosterParticipant>>();
       var consecutiveFailures = 0;
 
-      Future<void> tick(Timer? self) async {
+      Future<void> poll(Timer? self) async {
         try {
           final roster = await client.voiceRoster(channelId);
           consecutiveFailures = 0;
@@ -99,6 +99,28 @@ final voiceRosterProvider = StreamProvider.autoDispose
               !controller.isClosed) {
             controller.addError(e);
           }
+        }
+      }
+
+      var inFlight = false;
+      var askedAgain = false;
+
+      // Single-flight: a nudge during a poll re-asks once when it finishes, so
+      // answers cannot reorder and a burst is one failure, not several.
+      Future<void> tick(Timer? self) async {
+        if (inFlight) {
+          askedAgain = true;
+          return;
+        }
+        inFlight = true;
+        try {
+          await poll(self);
+        } finally {
+          inFlight = false;
+        }
+        if (askedAgain && !controller.isClosed) {
+          askedAgain = false;
+          await tick(self);
         }
       }
 
