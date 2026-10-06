@@ -97,7 +97,8 @@ class ReactionUsersBody extends ConsumerWidget {
               itemCount: ids.length + (state.hasMore || state.failed ? 1 : 0),
               itemBuilder: (context, i) {
                 if (i < ids.length) {
-                  if (i == ids.length - 1 && state.hasMore) {
+                  // A failed page waits for Retry; loading it again from here is a loop.
+                  if (i == ids.length - 1 && state.hasMore && !state.failed) {
                     scheduleMicrotask(controller.loadMore);
                   }
                   return ReactionUserRow(userId: ids[i]);
