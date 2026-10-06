@@ -39,6 +39,7 @@ import '../widgets/channel_rail_frame.dart' show serverInfoProvider;
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
 import 'update_chip.dart';
+import 'window_maximized_tracker.dart';
 import 'window_menu_button.dart';
 
 /// The proposed height, a step on the 4dp grid and a real reduction from a
@@ -51,7 +52,7 @@ const double titleBarHeight = AppSpacing.s40;
 /// this number can be checked against a real window.
 const double _macOSTrafficLightInset = 78;
 
-class TitleBar extends ConsumerWidget {
+class TitleBar extends ConsumerStatefulWidget {
   const TitleBar({
     super.key,
     required this.port,
@@ -69,7 +70,23 @@ class TitleBar extends ConsumerWidget {
   final Future<void> Function() onRequestClose;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TitleBar> createState() => _TitleBarState();
+}
+
+class _TitleBarState extends ConsumerState<TitleBar> {
+  late final WindowMaximizedTracker _maximized = WindowMaximizedTracker(
+    widget.port,
+  );
+
+  @override
+  void dispose() {
+    _maximized.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final platform = widget.platform;
     final tokens = Theme.of(context).extension<AppTokens>() ?? AppTokens.dark;
     final isMac = platform == DesktopPlatform.macOS;
 
@@ -98,7 +115,8 @@ class TitleBar extends ConsumerWidget {
             // The one flex child - a second one here split the leftover width and stranded the controls mid-bar.
             Expanded(
               child: _DragRegion(
-                port: port,
+                port: widget.port,
+                onToggleMaximize: _maximized.toggle,
                 child: Row(
                   children: [
                     Flexible(
@@ -124,7 +142,11 @@ class TitleBar extends ConsumerWidget {
               ),
             ),
             if (!isMac)
-              _WindowControls(port: port, onRequestClose: onRequestClose),
+              _WindowControls(
+                port: widget.port,
+                maximized: _maximized,
+                onRequestClose: widget.onRequestClose,
+              ),
           ],
         ),
       ),
@@ -138,98 +160,66 @@ class TitleBar extends ConsumerWidget {
 /// rather than beside this so dragging the text itself also moves the window,
 /// the same as a native bar's own title.
 class _DragRegion extends StatelessWidget {
-  const _DragRegion({required this.port, this.child});
+  const _DragRegion({
+    required this.port,
+    required this.onToggleMaximize,
+    this.child,
+  });
 
   final DesktopWindowPort port;
+  final Future<void> Function() onToggleMaximize;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: HitTestBehavior.translucent,
     onPanStart: (_) => port.startDragging(),
-    onDoubleTap: _toggleMaximize,
+    onDoubleTap: onToggleMaximize,
     child: SizedBox.expand(child: child),
   );
-
-  Future<void> _toggleMaximize() async {
-    if (await port.isMaximized()) {
-      await port.unmaximize();
-    } else {
-      await port.maximize();
-    }
-  }
 }
 
-class _WindowControls extends StatefulWidget {
-  const _WindowControls({required this.port, required this.onRequestClose});
+class _WindowControls extends StatelessWidget {
+  const _WindowControls({
+    required this.port,
+    required this.maximized,
+    required this.onRequestClose,
+  });
 
   final DesktopWindowPort port;
+  final WindowMaximizedTracker maximized;
   final Future<void> Function() onRequestClose;
 
   @override
-  State<_WindowControls> createState() => _WindowControlsState();
-}
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: maximized, builder: (context, _) => _row());
 
-class _WindowControlsState extends State<_WindowControls> {
-  bool _maximized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_syncMaximized());
-  }
-
-  Future<void> _syncMaximized() async {
-    try {
-      final value = await widget.port.isMaximized();
-      if (mounted) setState(() => _maximized = value);
-    } catch (_) {
-      // An early-startup plugin failure leaves the icon at its default.
-    }
-  }
-
-  /// Re-queries [DesktopWindowPort.isMaximized] after acting rather than
-  /// flipping [_maximized] by assumption, so a window manager that refuses
-  /// the maximize/unmaximize request cannot desync the icon from reality.
-  Future<void> _maximizeOrRestore() async {
-    try {
-      if (await widget.port.isMaximized()) {
-        await widget.port.unmaximize();
-      } else {
-        await widget.port.maximize();
-      }
-      final value = await widget.port.isMaximized();
-      if (mounted) setState(() => _maximized = value);
-    } catch (_) {
-      // A WM refusal or plugin error leaves the icon as it was.
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Row(
+  Widget _row() => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      UpdateChip(port: widget.port),
-      WindowMenuButton(port: widget.port),
+      UpdateChip(port: port),
+      WindowMenuButton(port: port),
       const SizedBox(width: AppSpacing.s4),
       AppIconButton(
         icon: AppIcons.windowMinimize,
         semanticLabel: 'Minimize',
         size: AppIconButtonSize.sm,
-        onPressed: widget.port.minimize,
+        onPressed: port.minimize,
       ),
       AppIconButton(
-        icon: _maximized ? AppIcons.windowRestore : AppIcons.windowMaximize,
-        semanticLabel: _maximized ? 'Restore' : 'Maximize',
+        icon: maximized.maximized
+            ? AppIcons.windowRestore
+            : AppIcons.windowMaximize,
+        semanticLabel: maximized.maximized ? 'Restore' : 'Maximize',
         size: AppIconButtonSize.sm,
-        onPressed: _maximizeOrRestore,
+        onPressed: maximized.toggle,
       ),
       AppIconButton(
         icon: AppIcons.windowClose,
         semanticLabel: 'Close',
         size: AppIconButtonSize.sm,
         variant: AppIconButtonVariant.dangerGhost,
-        onPressed: widget.onRequestClose,
+        onPressed: onRequestClose,
       ),
       const SizedBox(width: AppSpacing.s4),
     ],
