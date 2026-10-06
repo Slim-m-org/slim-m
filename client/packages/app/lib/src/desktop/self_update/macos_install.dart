@@ -72,9 +72,14 @@ Future<void> installMacosUpdate({
   }
   try {
     await _prepareNewBundle(layout, update, unpack, verify, stripQuarantine);
-    _swapIn(layout);
     File(layout.path(MacosNames.pending)).writeAsStringSync(update.version);
     _delete(File(layout.path(MacosNames.pendingTries)));
+    try {
+      _swapIn(layout);
+    } on FileSystemException {
+      _delete(File(layout.path(MacosNames.pending)));
+      rethrow;
+    }
     _delete(update.file);
   } on FileSystemException catch (error) {
     throw SelfUpdateFailure(
