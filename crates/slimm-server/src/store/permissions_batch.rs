@@ -95,8 +95,7 @@ impl Store {
 
         let (everyone_id, everyone_perms) = self.everyone_role().await?;
 
-        // One built query for every candidate's roles (no array binding in SQLite), the same shape roles_for_users uses.
-        // Joined from `users` so a webhook candidate is recognised without a second round trip.
+        // One built query (no array binding in SQLite), joined from `users` so a webhook is recognised too.
         let mut builder = sqlx::QueryBuilder::new(
             "SELECT u.id AS user_id, u.is_webhook AS is_webhook, \
                     r.id AS role_id, r.permissions AS permissions \
