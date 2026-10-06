@@ -23,6 +23,8 @@ import 'package:slimm_app/src/widgets/avatar_settings_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'composer_harness.dart' show usePicker;
+
 /// The badge's own `InkWell`, found through the camera glyph it always
 /// carries rather than through its `Semantics` label: once `AppErrorState`
 /// is also on screen, `tester.tap(find.bySemanticsLabel(...))` no longer
@@ -41,10 +43,6 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-const _filePickerChannel = MethodChannel(
-  'miguelruivo.flutter.plugins.filepicker',
-);
-
 void main() {
   testWidgets(
     'a picker retry that opens fine, even with nothing picked, clears the '
@@ -54,14 +52,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_filePickerChannel, (call) async {
-            throw PlatformException(code: 'no_portal', message: 'no portal');
-          });
-      addTearDown(
-        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(_filePickerChannel, null),
-      );
+      usePicker(null, failure: PlatformException(code: 'no_portal'));
 
       final container = ProviderContainer(
         overrides: [
@@ -116,9 +107,8 @@ void main() {
         reason: 'the first, real failure must still be said',
       );
 
-      // The channel now answers rather than throws, the same shape a cancelled pick returns.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_filePickerChannel, (call) async => null);
+      // The picker now answers rather than throws, the same shape a cancelled pick returns.
+      usePicker(null);
 
       await tester.tap(_cameraBadge());
       await tester.pumpAndSettle();

@@ -92,7 +92,7 @@ Kept here because the reason is not obvious and the trap can recur.
 9.x was held because 10.x moves to `win32` 6, while every other Windows-only package in the tree sat on `win32` 5: `device_info_plus` (which `livekit_client` pulls in), `flutter_secure_storage_windows`, and `win32_registry`.
 The non-obvious part is that this was never a Windows-only concern: those libraries type-check on a Linux build even though none of their code ever runs there, so a `win32` major mismatch is a hard build failure on every platform.
 
-`file_picker` 12 needs `win32` 6, so the whole tree moved rather than the hold being lifted on its own merits.
+`file_picker` 12 and later need `win32` 6, so the whole tree moved rather than the hold being lifted on its own merits.
 That is also why `device_info_plus` now carries a `dependency_overrides` entry: `livekit_client` 2.8.1 pins `^12.3.0`, and forcing 13.x is what lets `win32` 6 resolve.
 That override was checked rather than assumed - see the pull request that introduced it - but it is the thing to look at first if voice starts misbehaving on a client build.
 

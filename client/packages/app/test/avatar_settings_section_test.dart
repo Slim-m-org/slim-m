@@ -24,6 +24,8 @@ import 'package:slimm_app/src/widgets/avatar_settings_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'composer_harness.dart' show usePicker;
+
 const _tokens = TokenPair(
   userId: 'self',
   accessToken: 'access',
@@ -287,17 +289,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    const filePickerChannel = MethodChannel(
-      'miguelruivo.flutter.plugins.filepicker',
-    );
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(filePickerChannel, (call) async {
-          throw PlatformException(code: 'no_portal', message: 'no portal');
-        });
-    addTearDown(
-      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(filePickerChannel, null),
-    );
+    usePicker(null, failure: PlatformException(code: 'no_portal'));
 
     final container = ProviderContainer(
       overrides: [

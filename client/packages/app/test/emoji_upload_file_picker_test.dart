@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The emoji upload card's default picker, proven at the `file_picker`
-/// method channel: nothing on this box can drive a real OS picker.
+/// platform interface: nothing on this box can drive a real OS picker.
 ///
 /// Proves: the plugin request now asks for `FileType.custom` with an
 /// extension filter, not `FileType.image`, which is what selects
@@ -11,43 +11,30 @@
 /// roll decodes as a usable image; neither is checkable without a phone.
 library;
 
-import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/screens/admin/emoji_upload_card.dart';
 
-const _channel = MethodChannel('miguelruivo.flutter.plugins.filepicker');
-
-void _mock(Future<Object?> Function(MethodCall call)? handler) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_channel, handler);
-}
+import 'composer_harness.dart' show usePicker;
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  tearDown(() => _mock(null));
-
   test('the picker asks the plugin for FileType.custom with an extension '
       'filter, not FileType.image', () async {
-    MethodCall? seen;
-    _mock((call) async {
-      seen = call;
-      return null; // no selection, the same shape a cancelled pick returns
-    });
+    // A null file is the shape a cancelled pick returns.
+    final picker = usePicker(null);
 
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final picked = await container.read(emojiImagePickerProvider)();
 
     expect(picked, isNull);
-    expect(seen, isNotNull);
+    expect(picker.calls, 1);
     expect(
-      seen!.method,
-      'custom',
-      reason: 'FileType.image would send method "image" instead',
+      picker.lastType,
+      FileType.custom,
+      reason: 'FileType.image would select the Photos-backed picker on iOS',
     );
-    final arguments = seen!.arguments as Map;
-    expect(arguments['allowedExtensions'], acceptedEmojiExtensions);
+    expect(picker.lastAllowedExtensions, acceptedEmojiExtensions);
   });
 }

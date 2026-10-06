@@ -40,14 +40,12 @@ typedef EmojiZipPicker = Future<List<int>?> Function();
 final emojiZipPickerProvider = Provider<EmojiZipPicker>((ref) => _pickZipBytes);
 
 Future<List<int>?> _pickZipBytes() async {
-  final result = await FilePicker.pickFiles(
+  final file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: const ['zip'],
   );
-  final files = result?.files ?? const <PlatformFile>[];
-  if (files.isEmpty) return null;
   // readAsBytes streams from disk since eager loading OOMs on a large pick.
-  return files.first.readAsBytes();
+  return file?.readAsBytes();
 }
 
 enum _Outcome { uploaded, failed }

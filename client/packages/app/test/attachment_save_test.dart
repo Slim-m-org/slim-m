@@ -34,20 +34,23 @@ class _FakeSaver extends FilePickerPlatform {
   Uint8List? savedBytes;
 
   @override
-  Future<String?> saveFile({
+  Future<Uri?> saveFile({
     String? dialogTitle,
     required String fileName,
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
     required Uint8List bytes,
-    void Function(FilePickerStatus)? onFileLoading,
-    bool lockParentWindow = false,
+    String mimeType = 'application/octet-stream',
+    void Function(FilePickerStatus)? onFileSaving,
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
   }) async {
     if (failure != null) throw failure!;
     savedFileName = fileName;
     savedBytes = bytes;
-    return '/home/user/Downloads/$fileName';
+    return Uri.file('/home/user/Downloads/$fileName');
   }
 }
 

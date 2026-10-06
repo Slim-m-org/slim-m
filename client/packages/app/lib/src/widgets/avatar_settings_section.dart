@@ -83,18 +83,16 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
   }
 
   Future<void> _pickFile(AttachmentSource source) async {
-    final FilePickerResult? result;
+    final PlatformFile? file;
     try {
-      result = await ref.read(attachmentPickerProvider(source))();
+      file = await ref.read(attachmentPickerProvider(source))();
     } catch (e) {
       setActionError('Could not open the file picker.');
       return;
     }
-    final files = result?.files ?? const <PlatformFile>[];
-    if (files.isEmpty) return;
-    // readAsBytes streams from disk; file_picker 12 deprecated withData and
-    // PlatformFile.bytes because eager loading OOMs on a large pick.
-    await _crop(await files.first.readAsBytes());
+    if (file == null) return;
+    // readAsBytes streams from disk, since eager loading OOMs on a large pick.
+    await _crop(await file.readAsBytes());
   }
 
   Future<void> _crop(Uint8List? picked) async {
