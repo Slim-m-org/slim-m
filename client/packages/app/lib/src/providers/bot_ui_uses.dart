@@ -30,7 +30,10 @@ const Duration botUiUseTimeout = Duration(seconds: 5);
 /// A menu entry is keyed by the message it was used on, a call control by
 /// its call, so each surface shows its own failure in its own place.
 String menuUseKey(String messageId, String botId, String entryId) =>
-    'menu|$messageId|$botId|$entryId';
+    '${menuUsePrefix(messageId)}$botId|$entryId';
+
+/// What every menu use on [messageId] starts with.
+String menuUsePrefix(String messageId) => 'menu|$messageId|';
 
 String controlUseKey(String channelId, String botId, String entryId) =>
     'call|$channelId|$botId|$entryId';
