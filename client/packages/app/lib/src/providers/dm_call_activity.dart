@@ -98,15 +98,17 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
     }
   }
 
-  /// Forgets every cached state, for a session that may have missed a
-  /// [api.VoiceActivityChanged] frame while disconnected: [SyncController.start]
-  /// (`sync_controller.dart`) calls this on every (re)connect, mirroring
-  /// `BatchProfilesController.clear` - there is no cursor to catch up from,
-  /// so asking fresh on the next row build is the correct answer.
+  /// Forgets every cached state and asks again about each tracked channel,
+  /// for a session that may have missed a [api.VoiceActivityChanged] frame
+  /// while disconnected: [SyncController.start] (`sync_controller.dart`)
+  /// calls this on every (re)connect. There is no cursor to catch up from, and
+  /// a row that already reads false never rebuilds to ask for itself.
   void clear() {
-    _tracked.clear();
-    _queue.clear();
+    _queue
+      ..clear()
+      ..addAll(_tracked);
     if (mounted) state = const {};
+    _pump();
   }
 
   @override
