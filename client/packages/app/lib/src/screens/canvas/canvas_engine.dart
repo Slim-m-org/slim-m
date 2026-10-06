@@ -286,6 +286,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     if (fetched != null &&
         fetched.contains(view.topLeft) &&
         fetched.contains(view.bottomRight)) {
+      // Inside what is already fetched, only a bitmap evicted off screen can be missing.
+      _panDebounce?.cancel();
+      _panDebounce = Timer(
+        const Duration(milliseconds: 150),
+        hydrator.hydrateVisible,
+      );
       return;
     }
     _panDebounce?.cancel();
