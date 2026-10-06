@@ -8,14 +8,11 @@
 /// docs/decisions/0039-bot-message-buttons.md.
 library;
 
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../api_failure.dart';
-import '../ids.dart';
-import 'live_events.dart';
+import 'pending_interactions.dart';
 import 'providers.dart';
 
 /// How long a press waits for the bot before it is shown as failed.
@@ -47,62 +44,52 @@ class ButtonPress {
 
 String _keyOf(String messageId, String customId) => '$messageId|$customId';
 
-class ButtonPressesController extends StateNotifier<Map<String, ButtonPress>> {
+class ButtonPressesController extends PendingInteractions<ButtonPress> {
   ButtonPressesController(this._ref, {Duration timeout = buttonPressTimeout})
-    : _timeout = timeout,
-      super(const {}) {
-    _sub = _ref.read(liveEventsProvider).listen((event) {
-      if (event case api.InteractionAnswered(:final interactionId)) {
-        _answered(interactionId);
-      }
-    });
-  }
+    : super(_ref, timeout);
 
   final Ref _ref;
-  final Duration _timeout;
-  late final StreamSubscription<api.ServerEvent> _sub;
-  final Map<String, Timer> _timers = {};
+
+  @override
+  String idOf(ButtonPress value) => value.id;
+
+  @override
+  bool isPending(ButtonPress value) => value.pending;
+
+  @override
+  ButtonPress failed(ButtonPress current, String failure) => ButtonPress(
+    id: current.id,
+    channelId: current.channelId,
+    messageId: current.messageId,
+    customId: current.customId,
+    status: ButtonPressStatus.failed,
+    failure: failure,
+  );
 
   /// Ignored while the same button on the same message is already pending.
   Future<void> press({
     required String channelId,
     required String messageId,
     required String customId,
-  }) async {
-    final key = _keyOf(messageId, customId);
-    if (state[key]?.pending ?? false) return;
-    final id = newMessageId();
-    _put(
-      key,
-      ButtonPress(
-        id: id,
-        channelId: channelId,
-        messageId: messageId,
-        customId: customId,
-        status: ButtonPressStatus.pending,
-      ),
-    );
-    _timers[key]?.cancel();
-    _timers[key] = Timer(_timeout, () {
-      _fail(
-        key,
-        id,
-        'The bot did not answer. It may be offline, so try again in a moment.',
-      );
-    });
-    try {
-      await _ref
-          .read(apiProvider)
-          .pressMessageButton(
-            channelId: channelId,
-            messageId: messageId,
-            id: id,
-            customId: customId,
-          );
-    } on api.ApiException catch (e) {
-      _fail(key, id, _describe(e));
-    }
-  }
+  }) => start(
+    _keyOf(messageId, customId),
+    pending: (id) => ButtonPress(
+      id: id,
+      channelId: channelId,
+      messageId: messageId,
+      customId: customId,
+      status: ButtonPressStatus.pending,
+    ),
+    send: (id) => _ref
+        .read(apiProvider)
+        .pressMessageButton(
+          channelId: channelId,
+          messageId: messageId,
+          id: id,
+          customId: customId,
+        ),
+    describe: _describe,
+  );
 
   String _describe(api.ApiException e) => switch (e) {
     api.NotFoundException() =>
@@ -110,56 +97,9 @@ class ButtonPressesController extends StateNotifier<Map<String, ButtonPress>> {
     _ => describeApiFailure('press that button', e),
   };
 
-  void _answered(String interactionId) {
-    for (final entry in state.entries) {
-      if (entry.value.id != interactionId) continue;
-      _timers.remove(entry.key)?.cancel();
-      _remove(entry.key);
-      return;
-    }
-  }
-
-  void _fail(String key, String id, String failure) {
-    final current = state[key];
-    if (current == null || current.id != id || !current.pending) return;
-    _timers.remove(key)?.cancel();
-    _put(
-      key,
-      ButtonPress(
-        id: id,
-        channelId: current.channelId,
-        messageId: current.messageId,
-        customId: current.customId,
-        status: ButtonPressStatus.failed,
-        failure: failure,
-      ),
-    );
-  }
-
   /// Clears a failure the person has read or wants to retry past.
-  void dismiss(String messageId, String customId) {
-    final key = _keyOf(messageId, customId);
-    if (state[key]?.pending ?? true) return;
-    _remove(key);
-  }
-
-  void _put(String key, ButtonPress press) => state = {...state, key: press};
-
-  void _remove(String key) {
-    state = {
-      for (final entry in state.entries)
-        if (entry.key != key) entry.key: entry.value,
-    };
-  }
-
-  @override
-  void dispose() {
-    unawaited(_sub.cancel());
-    for (final timer in _timers.values) {
-      timer.cancel();
-    }
-    super.dispose();
-  }
+  void dismiss(String messageId, String customId) =>
+      dismissKey(_keyOf(messageId, customId));
 }
 
 /// Not `autoDispose`: a press must keep waiting while its channel is off

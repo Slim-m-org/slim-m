@@ -8,14 +8,11 @@
 /// docs/decisions/0045-bot-contributed-ui.md.
 library;
 
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../api_failure.dart';
-import '../ids.dart';
-import 'live_events.dart';
+import 'pending_interactions.dart';
 import 'providers.dart';
 
 /// Channel-scoped because a bot's visibility is per channel.
@@ -53,21 +50,25 @@ class BotUiUse {
   final String? failure;
 }
 
-class BotUiUsesController extends StateNotifier<Map<String, BotUiUse>> {
+class BotUiUsesController extends PendingInteractions<BotUiUse> {
   BotUiUsesController(this._ref, {Duration timeout = botUiUseTimeout})
-    : _timeout = timeout,
-      super(const {}) {
-    _sub = _ref.read(liveEventsProvider).listen((event) {
-      if (event case api.InteractionAnswered(:final interactionId)) {
-        _answered(interactionId);
-      }
-    });
-  }
+    : super(_ref, timeout);
 
   final Ref _ref;
-  final Duration _timeout;
-  late final StreamSubscription<api.ServerEvent> _sub;
-  final Map<String, Timer> _timers = {};
+
+  @override
+  String idOf(BotUiUse value) => value.id;
+
+  @override
+  bool isPending(BotUiUse value) => value.pending;
+
+  @override
+  BotUiUse failed(BotUiUse current, String failure) => BotUiUse(
+    id: current.id,
+    pending: false,
+    failure: failure,
+    retry: current.retry,
+  );
 
   Future<void> useMenuEntry({
     required String channelId,
@@ -110,30 +111,16 @@ class BotUiUsesController extends StateNotifier<Map<String, BotUiUse>> {
     () => useCallControl(channelId: channelId, botId: botId, entryId: entryId),
   );
 
-  /// Ignored while the same entry is already pending.
   Future<void> _use(
     String key,
     Future<void> Function(String id) send,
     Future<void> Function() again,
-  ) async {
-    if (state[key]?.pending ?? false) return;
-    final id = newMessageId();
-    _put(key, BotUiUse(id: id, pending: true, retry: again));
-    _timers[key]?.cancel();
-    _timers[key] = Timer(_timeout, () {
-      _fail(
-        key,
-        id,
-        'The bot did not answer. It may be offline, so try again in a moment.',
-        again,
-      );
-    });
-    try {
-      await send(id);
-    } on api.ApiException catch (e) {
-      _fail(key, id, _describe(e), again);
-    }
-  }
+  ) => start(
+    key,
+    pending: (id) => BotUiUse(id: id, pending: true, retry: again),
+    send: send,
+    describe: _describe,
+  );
 
   String _describe(api.ApiException e) => switch (e) {
     api.NotFoundException() =>
@@ -143,50 +130,7 @@ class BotUiUsesController extends StateNotifier<Map<String, BotUiUse>> {
     _ => describeApiFailure('use that', e),
   };
 
-  void _answered(String interactionId) {
-    for (final entry in state.entries) {
-      if (entry.value.id != interactionId) continue;
-      _timers.remove(entry.key)?.cancel();
-      _remove(entry.key);
-      return;
-    }
-  }
-
-  void _fail(
-    String key,
-    String id,
-    String failure,
-    Future<void> Function() again,
-  ) {
-    final current = state[key];
-    if (current == null || current.id != id || !current.pending) return;
-    _timers.remove(key)?.cancel();
-    _put(key, BotUiUse(id: id, pending: false, failure: failure, retry: again));
-  }
-
-  /// Clears a failure the person has read; a pending use stays.
-  void dismiss(String key) {
-    if (state[key]?.pending ?? false) return;
-    _remove(key);
-  }
-
-  void _remove(String key) {
-    state = {
-      for (final entry in state.entries)
-        if (entry.key != key) entry.key: entry.value,
-    };
-  }
-
-  void _put(String key, BotUiUse use) => state = {...state, key: use};
-
-  @override
-  void dispose() {
-    unawaited(_sub.cancel());
-    for (final timer in _timers.values) {
-      timer.cancel();
-    }
-    super.dispose();
-  }
+  void dismiss(String key) => dismissKey(key);
 }
 
 /// Not `autoDispose`: a use must keep waiting while its screen is off for a
