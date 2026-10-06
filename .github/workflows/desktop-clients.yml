@@ -84,8 +84,11 @@ jobs:
         working-directory: packaging/windows/launcher
         run: |
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go build -ldflags "-H=windowsgui -s -w" -o slim-m.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: archive the release bundle
         shell: pwsh

@@ -60,6 +60,8 @@ jobs:
         working-directory: packaging/windows/launcher
         run: |
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
