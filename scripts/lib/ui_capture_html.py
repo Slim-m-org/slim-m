@@ -84,46 +84,54 @@ def _e(text):
     return html.escape(str(text))
 
 
+def job_failures(category, job):
+    """Every reason one job leaves the set incomplete, as failure rows."""
+    out = []
+    if job["exit_code"] != 0 and not job["summary"]["failed"]:
+        out.append(
+            {
+                "category": category,
+                "job": job["id"],
+                "name": None,
+                "error": f"flutter test exited {job['exit_code']}",
+            }
+        )
+    for test in job["summary"]["failed"]:
+        out.append(
+            {
+                "category": category,
+                "job": job["id"],
+                "name": test["name"],
+                "error": test.get("error") or "(no error captured)",
+            }
+        )
+    if job["summary"]["silent_gap"]:
+        out.append(
+            {
+                "category": category,
+                "job": job["id"],
+                "name": None,
+                "error": (
+                    f"{job['summary']['passed']} test(s) passed but "
+                    "wrote zero images; the write helper silently "
+                    "did not run"
+                ),
+            }
+        )
+    return out
+
+
 def collect_failures(manifest):
     """Every reason the set is incomplete, flattened: a harness that would
     not run, a test that failed, or a test that passed while writing no
     image at all - the "silently missing file" shape this tool exists to
     surface rather than let hide behind a green run."""
-    out = []
-    for category, entry in manifest["categories"].items():
-        for job in entry["jobs"]:
-            if job["exit_code"] != 0 and not job["summary"]["failed"]:
-                out.append(
-                    {
-                        "category": category,
-                        "job": job["id"],
-                        "name": None,
-                        "error": f"flutter test exited {job['exit_code']}",
-                    }
-                )
-            for test in job["summary"]["failed"]:
-                out.append(
-                    {
-                        "category": category,
-                        "job": job["id"],
-                        "name": test["name"],
-                        "error": test.get("error") or "(no error captured)",
-                    }
-                )
-            if job["summary"]["silent_gap"]:
-                out.append(
-                    {
-                        "category": category,
-                        "job": job["id"],
-                        "name": None,
-                        "error": (
-                            f"{job['summary']['passed']} test(s) passed but "
-                            "wrote zero images; the write helper silently "
-                            "did not run"
-                        ),
-                    }
-                )
-    return out
+    return [
+        failure
+        for category, entry in manifest["categories"].items()
+        for job in entry["jobs"]
+        for failure in job_failures(category, job)
+    ]
 
 
 def _render_failure(failure):
@@ -146,7 +154,7 @@ def _render_category(category_id, info, entry):
     parts.append("<table class=jobs><tr><th>job</th><th>tests</th><th>passed</th><th>images</th></tr>")
     for job in entry["jobs"]:
         summary = job["summary"]
-        ok = job["exit_code"] == 0 and not summary["failed"] and not summary["silent_gap"]
+        ok = not job_failures(category_id, job)
         parts.append(
             f'<tr class={"ok" if ok else "bad"}><td>{_e(job["id"])}</td>'
             f'<td>{summary["total"]}</td><td>{summary["passed"]}</td>'

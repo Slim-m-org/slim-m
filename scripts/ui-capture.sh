@@ -31,6 +31,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/build/ui-capture"
 WORK="$OUT/_work"
 mkdir -p "$OUT/images" "$WORK"
+# A crash before the report step must not leave the last run's sheet looking current.
+rm -f "$OUT/index.html" "$OUT/manifest.json"
 
 # id|category|cwd (relative to ROOT)|env var|src dir (relative to cwd)|test file
 JOBS=(
