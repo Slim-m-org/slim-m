@@ -10,7 +10,7 @@
 //! to install - an unsafe id or permission key, an empty or oversized field,
 //! a `sha256` that is not 64 hex characters.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::super::hidden_chars::is_hidden_char;
 use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
@@ -52,7 +52,7 @@ struct RawIndexEntry {
 }
 
 /// One row of the marketplace listing.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct IndexEntry {
     pub(super) id: String,
     pub(super) name: String,
@@ -168,34 +168,34 @@ struct RawExtensionPoint {
 
 /// A module's declared permission, validated: `key` is a safe slug, `name`
 /// and `description` are non-empty and bounded.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct ManifestPermission {
     pub(super) key: String,
     pub(super) name: String,
     pub(super) description: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct ManifestArtifact {
     pub(super) kind: String,
     pub(super) path: String,
     pub(super) sha256: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct ManifestLimits {
     pub(super) memory_mb: Option<u64>,
     pub(super) wall_ms: Option<u64>,
     pub(super) fuel: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct ManifestRuntime {
     pub(super) backend: String,
     pub(super) limits: ManifestLimits,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct ManifestExtensionPoint {
     pub(super) kind: String,
     pub(super) name: String,
@@ -206,7 +206,7 @@ pub(super) struct ManifestExtensionPoint {
 }
 
 /// A fully parsed and validated module manifest.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(super) struct Manifest {
     pub(super) id: String,
     pub(super) name: String,

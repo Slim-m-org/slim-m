@@ -5,8 +5,8 @@
 
 use serde::Serialize;
 
-use super::manifest::{IndexEntry, Manifest};
-use crate::store::InstalledModule;
+use super::manifest::{IndexEntry, Manifest, ManifestExtensionPoint};
+use crate::store::{InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec};
 
 #[derive(Serialize)]
 pub(super) struct IndexEntryDto {
@@ -126,18 +126,7 @@ impl From<Manifest> for ManifestDto {
                 })
                 .collect(),
             capabilities: m.capabilities,
-            extension_points: m
-                .extension_points
-                .into_iter()
-                .map(|e| ExtensionPointDto {
-                    kind: e.kind,
-                    name: e.name,
-                    description: e.description,
-                    permission: e.permission,
-                    command: e.command,
-                    language: e.language,
-                })
-                .collect(),
+            extension_points: m.extension_points.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -174,21 +163,49 @@ impl From<InstalledModule> for InstalledModuleDto {
             artifact_sha256: m.artifact_sha256,
             approved_capabilities: m.approved_capabilities,
             approved_host_capabilities: m.approved_host_capabilities,
-            extension_points: m
-                .extension_points
-                .into_iter()
-                .map(|e| ExtensionPointDto {
-                    kind: e.kind,
-                    name: e.name,
-                    description: e.description,
-                    permission: e.permission,
-                    command: e.command,
-                    language: e.language,
-                })
-                .collect(),
+            extension_points: m.extension_points.into_iter().map(Into::into).collect(),
             enabled: m.enabled,
             installed_at: m.installed_at,
             source_repo: m.source_repo,
+        }
+    }
+}
+
+impl From<ManifestExtensionPoint> for ExtensionPointDto {
+    fn from(e: ManifestExtensionPoint) -> Self {
+        Self {
+            kind: e.kind,
+            name: e.name,
+            description: e.description,
+            permission: e.permission,
+            command: e.command,
+            language: e.language,
+        }
+    }
+}
+
+impl From<ModuleExtensionPoint> for ExtensionPointDto {
+    fn from(e: ModuleExtensionPoint) -> Self {
+        Self {
+            kind: e.kind,
+            name: e.name,
+            description: e.description,
+            permission: e.permission,
+            command: e.command,
+            language: e.language,
+        }
+    }
+}
+
+impl<'a> From<&'a ManifestExtensionPoint> for ModuleExtensionPointSpec<'a> {
+    fn from(e: &'a ManifestExtensionPoint) -> Self {
+        Self {
+            kind: &e.kind,
+            name: &e.name,
+            description: e.description.as_deref(),
+            permission: e.permission.as_deref(),
+            command: e.command.as_deref(),
+            language: e.language.as_deref(),
         }
     }
 }

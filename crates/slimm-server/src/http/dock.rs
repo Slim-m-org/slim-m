@@ -357,18 +357,8 @@ async fn install(
             description: &p.description,
         })
         .collect();
-    let extension_points: Vec<ModuleExtensionPointSpec> = manifest
-        .extension_points
-        .iter()
-        .map(|e| ModuleExtensionPointSpec {
-            kind: &e.kind,
-            name: &e.name,
-            description: e.description.as_deref(),
-            permission: e.permission.as_deref(),
-            command: e.command.as_deref(),
-            language: e.language.as_deref(),
-        })
-        .collect();
+    let extension_points: Vec<ModuleExtensionPointSpec> =
+        manifest.extension_points.iter().map(Into::into).collect();
     let runtime_limits = ModuleRuntimeLimits {
         memory_mb: manifest.runtime.limits.memory_mb,
         wall_ms: manifest.runtime.limits.wall_ms,
