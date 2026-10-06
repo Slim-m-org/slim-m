@@ -34,7 +34,7 @@ the canvas API itself, not just a content generator.
 
 Long strokes are split by their *encoded byte size* against
 `MAX_PROPS_BYTES`, the same way the client's own `splitStroke` works (see
-CLAUDE.md's canvas section) - never by a point count, since a point's
+client/packages/voice_canvas/lib/src/stroke_splitter.dart) - never by a point count, since a point's
 encoded length varies from four characters to seventeen.
 
     python3 scripts/seed-canvas.py --base-url http://localhost:8080 --confirm
