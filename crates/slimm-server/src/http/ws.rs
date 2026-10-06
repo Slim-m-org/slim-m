@@ -94,18 +94,14 @@ async fn connect(ws: WebSocketUpgrade, State(state): State<AppState>) -> Respons
 async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit) {
     let (mut sink, mut stream) = socket.split();
 
+    // Subscribed before the ticket is redeemed, so a revocation published during the handshake is buffered.
+    let mut events = state.hub.subscribe();
+    let mut ephemeral_events = state.hub.subscribe_ephemeral();
+
     let ctx = match authenticate(&mut sink, &mut stream, &state).await {
         Some(ctx) => ctx,
         None => return,
     };
-
-    // Subscribe before acking the hello, so an event published during the
-    // handshake is buffered rather than missed. Two channels, matching
-    // `Hub`'s own split: `events` is durable and a `Lagged` closes the
-    // connection below, `ephemeral_events` is not and a `Lagged` there is
-    // skipped in place.
-    let mut events = state.hub.subscribe();
-    let mut ephemeral_events = state.hub.subscribe_ephemeral();
 
     // Per connection, and dropped with it; see `permission_cache`.
     let mut cache = PermissionCache::new();
