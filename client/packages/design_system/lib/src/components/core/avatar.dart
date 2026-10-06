@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../stable_index.dart';
 import 'avatar_geometry.dart';
 import 'speaking_ring.dart';
 import 'status_dot.dart';
@@ -32,13 +33,8 @@ const List<Color> _avatarTints = [
   Color(0xFF4F5B66),
 ];
 
-Color _tintFor(String source) {
-  var n = 0;
-  for (final unit in source.codeUnits) {
-    n = (n + unit) % _avatarTints.length;
-  }
-  return _avatarTints[n];
-}
+Color _tintFor(String source) =>
+    _avatarTints[stableIndexFor(source, _avatarTints.length)];
 
 /// Alphanumeric characters only, first two, uppercased. Not "first letter of
 /// first and last word": a punctuation-stripped prefix is what the source

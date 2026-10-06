@@ -11,6 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_design_system/design_system.dart' show stableIndexFor;
 
 /// A closed set distinct from `AppAvatar`'s own tint list, so a role dot and
 /// a member avatar never read as the same kind of thing at a glance.
@@ -25,10 +26,5 @@ const List<Color> _roleTints = [
 
 /// Hashes [roleId] to one of [_roleTints]. `@everyone` and every ordinary
 /// role are hashed the same way; nothing here treats either specially.
-Color roleColor(String roleId) {
-  var n = 0;
-  for (final unit in roleId.codeUnits) {
-    n = (n + unit) % _roleTints.length;
-  }
-  return _roleTints[n];
-}
+Color roleColor(String roleId) =>
+    _roleTints[stableIndexFor(roleId, _roleTints.length)];

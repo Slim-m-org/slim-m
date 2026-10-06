@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:clock/clock.dart';
+import 'package:slimm_design_system/design_system.dart' show stableIndexFor;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 /// How often this device's own pointer position is relayed at most. Well
@@ -101,17 +102,10 @@ class CanvasCursorRelay {
   }
 }
 
-/// A stable, evenly-spread index into a palette of [paletteSize] colours,
-/// the same sum-of-code-units hash `AppAvatar`'s own tint picker uses so a
-/// cursor, an in-flight stroke, and their owner's avatar do not need three
-/// different ideas of "consistent colour for this id". Shared with
-/// `canvas_stroke_preview_relay.dart` so a participant's ink and their
-/// cursor read as the same person.
-int canvasParticipantColorIndex(String userId, int paletteSize) {
-  if (paletteSize <= 0) return 0;
-  var sum = 0;
-  for (final unit in userId.codeUnits) {
-    sum = (sum + unit) % paletteSize;
-  }
-  return sum;
-}
+/// A stable index into a palette of [paletteSize] colours, through the same
+/// `stableIndexFor` hash the avatar tint and role dot use. The cursor palette
+/// is its own set of colours, so only the slot number lines up with those, not
+/// the colour. Shared with `canvas_stroke_preview_relay.dart` so a
+/// participant's ink and their cursor read as the same person.
+int canvasParticipantColorIndex(String userId, int paletteSize) =>
+    stableIndexFor(userId, paletteSize);
