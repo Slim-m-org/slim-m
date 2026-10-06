@@ -22,6 +22,7 @@ mod fixtures;
 mod message_filenames;
 mod ranges;
 mod serving;
+mod shared_staging;
 mod slow_upload;
 mod uploading;
 

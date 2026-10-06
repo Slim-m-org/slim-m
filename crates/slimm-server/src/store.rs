@@ -18,6 +18,7 @@ use crate::ids::{ChannelCategoryId, ChannelId, MessageId, Seq, UserId};
 mod account_deletion;
 mod analytics;
 mod apps;
+mod attachment_refs;
 mod attachments;
 mod bootstrap;
 mod bot_commands;

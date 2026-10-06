@@ -18,6 +18,7 @@
 
 use sqlx::QueryBuilder;
 
+use super::attachment_refs::{held_sql, is_referenced};
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -31,7 +32,7 @@ pub const MAX_ATTACHMENTS_PER_MESSAGE: usize = 10;
 /// sweep reclaims it. Generous: nothing about a normal compose flow (upload,
 /// then send the message that references it) should take anywhere near this
 /// long.
-const ORPHAN_GRACE_MS: i64 = 24 * 60 * 60 * 1000;
+pub(super) const ORPHAN_GRACE_MS: i64 = 24 * 60 * 60 * 1000;
 
 /// How many orphaned rows one sweep pass deletes, bounding how long it can
 /// hold the write lock. Smaller than `Store::sweep_expired_tokens`'s batch:
@@ -304,27 +305,21 @@ impl Store {
     /// from under a still-live canvas object.
     pub async fn sweep_orphaned_attachments(&self) -> anyhow::Result<Vec<String>> {
         let cutoff = now_ms() - ORPHAN_GRACE_MS;
-        let rows = sqlx::query!(
-            r#"DELETE FROM attachments
-               WHERE sha256 IN (
-                   SELECT sha256 FROM attachments a
-                   WHERE a.created_at < ?
-                     AND NOT EXISTS (SELECT 1 FROM message_attachments ma WHERE ma.sha256 = a.sha256)
-                     AND NOT EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256)
-                     AND NOT EXISTS (
-                         SELECT 1 FROM canvas_object_attachments coa WHERE coa.sha256 = a.sha256
-                     )
-                   LIMIT ?
-               )
-               RETURNING sha256 AS "sha256!: Vec<u8>""#,
-            cutoff,
-            ORPHAN_SWEEP_BATCH
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let sql = format!(
+            "DELETE FROM attachments WHERE sha256 IN (
+                 SELECT a.sha256 FROM attachments a
+                 WHERE a.created_at < ? AND NOT ({}) LIMIT ?
+             ) RETURNING sha256",
+            held_sql("a.sha256")
+        );
+        let rows: Vec<Vec<u8>> = sqlx::query_scalar(&sql)
+            .bind(cutoff)
+            .bind(ORPHAN_SWEEP_BATCH)
+            .fetch_all(&self.pool)
+            .await?;
         Ok(rows
             .into_iter()
-            .map(|r| crate::media::to_hex(&r.sha256))
+            .map(|sha256| crate::media::to_hex(&sha256))
             .collect())
     }
 
@@ -421,23 +416,7 @@ pub(super) async fn may_link(
     author_id: UserId,
     sha256: &[u8],
 ) -> Result<bool, LinkError> {
-    let uploaded = sqlx::query_scalar!(
-        r#"SELECT 1 AS "one!: i64" FROM attachment_uploaders
-           WHERE sha256 = ? AND uploaded_by = ?"#,
-        sha256,
-        author_id
-    )
-    .fetch_optional(&store.pool)
-    .await?
-    .is_some();
-    if uploaded {
-        return Ok(true);
-    }
-    let channels = store.channels_referencing_attachment(sha256).await?;
-    let perms = store.permissions_in_channels(author_id, &channels).await?;
-    Ok(perms
-        .values()
-        .any(|p| p.contains(Permissions::VIEW_CHANNEL)))
+    Ok(store.can_fetch_attachment(author_id, sha256).await?)
 }
 
 /// Removes a message's attachment links, returning the hex ids of any
@@ -466,22 +445,8 @@ pub(super) async fn release_message_attachments(
 
     let mut freed = Vec::new();
     for row in linked {
-        // A custom emoji or a canvas object counts as a reference, not just a
-        // message: content addressing makes bytes shared across all three the
-        // normal case, and canvas_object_attachments has no ON DELETE guard, so
-        // freeing under it fails the DELETE's FK. See sweep_orphaned_attachments.
-        let still_referenced = sqlx::query_scalar!(
-            r#"SELECT 1 AS "one!: i64"
-               WHERE EXISTS (SELECT 1 FROM message_attachments WHERE sha256 = ?)
-                  OR EXISTS (SELECT 1 FROM custom_emoji WHERE sha256 = ?)
-                  OR EXISTS (SELECT 1 FROM canvas_object_attachments WHERE sha256 = ?)"#,
-            row.sha256,
-            row.sha256,
-            row.sha256
-        )
-        .fetch_optional(&mut **tx)
-        .await?
-        .is_some();
+        let still_referenced =
+            is_referenced(tx, &row.sha256, &[message_id], now_ms() - ORPHAN_GRACE_MS).await?;
         if still_referenced {
             continue;
         }
