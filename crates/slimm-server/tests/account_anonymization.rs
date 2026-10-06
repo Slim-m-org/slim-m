@@ -6,6 +6,7 @@
 //! in the change that pushed it over the 500-line ceiling.
 
 mod support;
+use support::reports::StoreReportExt;
 
 use slimm_server::ids::{EmojiId, MessageId};
 use slimm_server::store::{NewMessage, Store};

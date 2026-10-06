@@ -29,6 +29,7 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
+use support::reports::StoreReportExt;
 
 async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
