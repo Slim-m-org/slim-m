@@ -52,11 +52,7 @@ void leaveRecapScreen(
 }
 
 class VoiceConnecting extends StatelessWidget {
-  const VoiceConnecting({super.key, this.label = 'Connecting'});
-
-  /// What this spinner says it is doing, so an automatic rejoin after a
-  /// dropped call does not claim to be a first connection.
-  final String label;
+  const VoiceConnecting({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +70,7 @@ class VoiceConnecting extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.s16),
-          Text(label, style: TextStyle(color: tokens.textSecondary)),
+          Text('Connecting', style: TextStyle(color: tokens.textSecondary)),
           const SizedBox(height: AppSpacing.s24),
           _EmptySeats(tokens: tokens),
         ],

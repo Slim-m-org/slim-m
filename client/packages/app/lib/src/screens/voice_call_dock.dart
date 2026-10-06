@@ -142,7 +142,6 @@ class _VoiceCallDockState extends State<VoiceCallDock>
     Widget callRow({Widget? toggle}) => CallControls(
       controller: widget.controller,
       voice: widget.voice,
-      showLeave: false,
       extraControl: toggle,
     );
     final botRow = widget.botControls;

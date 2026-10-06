@@ -57,7 +57,7 @@ import '../widgets/camera_source_sheet.dart';
 import '../widgets/control_options_menu.dart';
 import '../widgets/screen_source_sheet.dart';
 import 'call_dock_button.dart';
-import 'call_leave_button.dart';
+import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
 export 'call_dock_button.dart';
 
@@ -66,14 +66,10 @@ class CallControls extends ConsumerStatefulWidget {
     super.key,
     required this.controller,
     required this.voice,
-    this.showLeave = true,
     this.extraControl,
   });
 
   final VoiceController controller;
-
-  /// False when the surrounding dock draws leave itself, at its far edge.
-  final bool showLeave;
 
   /// One more control, drawn straight after share - the canvas toggle.
   final Widget? extraControl;
@@ -228,10 +224,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
         if (widget.extraControl case final extra?) ...[
           const SizedBox(width: AppSpacing.s8),
           extra,
-        ],
-        if (widget.showLeave) ...[
-          const SizedBox(width: AppSpacing.s8),
-          CallLeaveButton(controller: widget.controller),
         ],
       ],
     );

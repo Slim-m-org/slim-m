@@ -255,7 +255,6 @@ class CanvasCallDock extends StatelessWidget {
   static Widget _callRow(CallDockData call, {Widget? toggle}) => CallControls(
     controller: call.controller,
     voice: call.voice,
-    showLeave: false,
     extraControl: toggle,
   );
 

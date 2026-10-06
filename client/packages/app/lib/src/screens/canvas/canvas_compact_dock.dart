@@ -53,11 +53,7 @@ class CanvasCompactDock extends StatelessWidget {
             FloatingDockCard(
               trailing: CallLeaveButton(controller: call.controller),
               rows: [
-                CallControls(
-                  controller: call.controller,
-                  voice: call.voice,
-                  showLeave: false,
-                ),
+                CallControls(controller: call.controller, voice: call.voice),
               ],
             ),
         ],
