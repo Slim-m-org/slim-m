@@ -61,9 +61,12 @@ extension SlimmApiModeration on SlimmApi {
       '/reports/history',
       query: query.isEmpty ? null : query,
     );
-    return (json as List<dynamic>)
-        .map((e) => ModerationHistoryItem.fromJson(e as Map<String, dynamic>))
-        .toList(growable: false);
+    return [
+      for (final e in json as List<dynamic>)
+        if (ModerationHistoryItem.tryFromJson(e as Map<String, dynamic>)
+            case final item?)
+          item,
+    ];
   }
 
   /// A reporter's own, narrow view of a report they filed: whether it is

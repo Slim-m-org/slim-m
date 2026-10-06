@@ -3,8 +3,11 @@
 //! [`build`]. See `docs/decisions/0030-incoming-webhooks.md`.
 
 mod build;
+mod rfc3339;
+mod webhook;
 
 pub(crate) use build::{RawEmbed, build_embeds};
+pub(crate) use webhook::{WebhookEmbed, null_as_empty};
 
 use serde::Serialize;
 

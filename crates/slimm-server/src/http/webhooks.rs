@@ -83,8 +83,8 @@ struct DeliverRequest {
     #[serde(default)]
     username: Option<String>,
     /// Structured content; caps are shared with the ordinary send route.
-    #[serde(default)]
-    embeds: Vec<embeds::RawEmbed>,
+    #[serde(default, deserialize_with = "embeds::null_as_empty")]
+    embeds: Vec<embeds::WebhookEmbed>,
 }
 
 #[derive(Deserialize)]
@@ -161,7 +161,10 @@ async fn deliver(
         }
         _ => None,
     };
-    let embeds = embeds::build_embeds(body.embeds, &state.link_previews)?;
+    let embeds = embeds::build_embeds(
+        body.embeds.into_iter().map(Into::into).collect(),
+        &state.link_previews,
+    )?;
 
     let id = idempotent_message_id(&parts, webhook_id);
     let channel_id = context.channel_id;

@@ -95,20 +95,39 @@ class ReportHistoryRow extends ConsumerWidget {
   }
 }
 
-(AppBadgeVariant, String) _auditBadge(api.AuditLogAction action) =>
-    switch (action) {
-      api.AuditLogAction.remove => (AppBadgeVariant.warn, 'Removed'),
-      api.AuditLogAction.restore => (AppBadgeVariant.tag, 'Restored'),
-      api.AuditLogAction.timeout => (AppBadgeVariant.warn, 'Timed out'),
-      api.AuditLogAction.timeoutCleared => (
-        AppBadgeVariant.tag,
-        'Timeout cleared',
-      ),
-      api.AuditLogAction.messagesDeleted => (
-        AppBadgeVariant.warn,
-        'Messages deleted',
-      ),
-    };
+(AppBadgeVariant, String) _auditBadge(
+  api.AuditLogAction action,
+) => switch (action) {
+  api.AuditLogAction.remove => (AppBadgeVariant.warn, 'Removed'),
+  api.AuditLogAction.restore => (AppBadgeVariant.tag, 'Restored'),
+  api.AuditLogAction.timeout => (AppBadgeVariant.warn, 'Timed out'),
+  api.AuditLogAction.timeoutCleared => (AppBadgeVariant.tag, 'Timeout cleared'),
+  api.AuditLogAction.messagesDeleted => (
+    AppBadgeVariant.warn,
+    'Messages deleted',
+  ),
+  api.AuditLogAction.botCreate => (AppBadgeVariant.tag, 'Bot created'),
+  api.AuditLogAction.botRevoke => (AppBadgeVariant.warn, 'Bot revoked'),
+  api.AuditLogAction.botPermissionGrant => (
+    AppBadgeVariant.tag,
+    'Bot permission granted',
+  ),
+  api.AuditLogAction.webhookCreate => (AppBadgeVariant.tag, 'Webhook created'),
+  api.AuditLogAction.webhookRevoke => (AppBadgeVariant.warn, 'Webhook revoked'),
+  api.AuditLogAction.webhookRotate => (AppBadgeVariant.tag, 'Webhook rotated'),
+  api.AuditLogAction.totpCleared => (
+    AppBadgeVariant.warn,
+    'Two-factor cleared',
+  ),
+  api.AuditLogAction.accountDelete => (AppBadgeVariant.warn, 'Account deleted'),
+  api.AuditLogAction.resetCodeIssue => (
+    AppBadgeVariant.tag,
+    'Reset code issued',
+  ),
+  api.AuditLogAction.nicknameSet => (AppBadgeVariant.tag, 'Nickname set'),
+  api.AuditLogAction.nicknameClear => (AppBadgeVariant.tag, 'Nickname cleared'),
+  api.AuditLogAction.unknown => (AppBadgeVariant.tag, 'Other action'),
+};
 
 (AppBadgeVariant, String) _reportBadge(api.ReportResolution? resolution) =>
     switch (resolution) {

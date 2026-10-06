@@ -99,12 +99,12 @@ class ModerationHistoryController
         loading: false,
         more: page.length >= moderationHistoryPageSize,
       );
-    } on api.ApiException catch (e) {
+    } on Object catch (e) {
       if (!mounted || generation != _generation) return;
       state = ModerationHistoryState(
         items: onto,
         loading: false,
-        error: e.message,
+        error: e is api.ApiException ? e.message : 'Could not read the feed.',
         more: more,
       );
     }

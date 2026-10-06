@@ -20,9 +20,11 @@
 /// found no overlay and rendered as a stray band instead of a menu. This
 /// overlay spans the whole window, so the menu opens below the title bar over
 /// the content. Theme and media changes reach the content through it the way
-/// any inherited value does, and the routed `child` a `MaterialApp` hands its
-/// builder is a stable widget across rebuilds, so its single entry does not go
-/// stale on navigation.
+/// any inherited value does, because [Overlay.wrap] rebuilds its single entry
+/// from the current `child` whenever this widget rebuilds. A plain
+/// `initialEntries` list is read once, so the first `MediaQuery` would stay in
+/// place for the whole session and a resize or a reduce-motion change would
+/// never reach the routed app.
 library;
 
 import 'package:flutter/material.dart';
@@ -47,36 +49,32 @@ class DesktopChrome extends StatelessWidget {
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
     return Material(
       type: MaterialType.transparency,
-      child: Overlay(
-        initialEntries: [
-          OverlayEntry(
-            // expand: the resize frame below needs the whole window, not just the Column's content size.
-            builder: (context) => Stack(
-              fit: StackFit.expand,
+      child: Overlay.wrap(
+        // expand: the resize frame below needs the whole window, not just the Column's content size.
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Column(
               children: [
-                Column(
-                  children: [
-                    // frameless is only ever set true on the Linux branch below.
-                    if (DesktopWindowShell.frameless)
-                      TitleBar(
-                        port: DesktopWindowShell.port,
-                        platform: DesktopPlatform.linux,
-                        onRequestClose: DesktopWindowShell.requestClose,
-                      ),
-                    const FirstRunTrayNoticeBanner(),
-                    // The frameless title bar carries the compact update chip instead.
-                    if (!DesktopWindowShell.frameless)
-                      const UpdateAvailableBanner(),
-                    const SelfUpdateFailureBanner(),
-                    Expanded(child: child),
-                  ],
-                ),
+                // frameless is only ever set true on the Linux branch below.
                 if (DesktopWindowShell.frameless)
-                  WindowResizeFrame(port: DesktopWindowShell.port),
+                  TitleBar(
+                    port: DesktopWindowShell.port,
+                    platform: DesktopPlatform.linux,
+                    onRequestClose: DesktopWindowShell.requestClose,
+                  ),
+                const FirstRunTrayNoticeBanner(),
+                // The frameless title bar carries the compact update chip instead.
+                if (!DesktopWindowShell.frameless)
+                  const UpdateAvailableBanner(),
+                const SelfUpdateFailureBanner(),
+                Expanded(child: child),
               ],
             ),
-          ),
-        ],
+            if (DesktopWindowShell.frameless)
+              WindowResizeFrame(port: DesktopWindowShell.port),
+          ],
+        ),
       ),
     );
   }

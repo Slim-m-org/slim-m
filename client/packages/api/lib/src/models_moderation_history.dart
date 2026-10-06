@@ -17,13 +17,15 @@ import 'models.dart';
 sealed class ModerationHistoryItem {
   const ModerationHistoryItem();
 
-  factory ModerationHistoryItem.fromJson(Map<String, dynamic> json) =>
+  /// Null for a `kind` this client does not know. A kind has no generic
+  /// form: a row of it carries no cursor the server would accept back, so
+  /// [SlimmApiModeration.moderationHistory] drops it instead of failing the
+  /// page.
+  static ModerationHistoryItem? tryFromJson(Map<String, dynamic> json) =>
       switch (json['kind']) {
         'resolved_report' => ResolvedReportHistoryEntry.fromJson(json),
         'audit_log' => AuditLogHistoryEntry.fromJson(json),
-        _ => throw FormatException(
-            'unknown moderation history kind: ${json['kind']}',
-          ),
+        _ => null,
       };
 
   /// This item's own id: a UUID for a resolved report, a decimal row-id
@@ -112,14 +114,28 @@ ReportResolution? _resolutionOf(Object? raw) => switch (raw) {
       _ => null,
     };
 
-/// One moderation act against a member: a removal, a restore, a timeout, a
-/// timeout being lifted, or a bulk message delete.
+/// What an audit row records: the five moderation acts plus the account,
+/// bot, webhook and nickname events the server also writes into
+/// `moderation_audit_log`. [unknown] is the documented fallback for an action
+/// a newer server adds, so the feed keeps loading and shows a generic row.
 enum AuditLogAction {
   remove,
   restore,
   timeout,
   timeoutCleared,
-  messagesDeleted;
+  messagesDeleted,
+  botCreate,
+  botRevoke,
+  botPermissionGrant,
+  webhookCreate,
+  webhookRevoke,
+  webhookRotate,
+  totpCleared,
+  accountDelete,
+  resetCodeIssue,
+  nicknameSet,
+  nicknameClear,
+  unknown;
 
   static AuditLogAction parse(String wire) => switch (wire) {
         'remove' => AuditLogAction.remove,
@@ -127,7 +143,18 @@ enum AuditLogAction {
         'timeout' => AuditLogAction.timeout,
         'timeout_cleared' => AuditLogAction.timeoutCleared,
         'messages_deleted' => AuditLogAction.messagesDeleted,
-        _ => throw FormatException('unknown audit-log action: $wire'),
+        'bot_create' => AuditLogAction.botCreate,
+        'bot_revoke' => AuditLogAction.botRevoke,
+        'bot_permission_grant' => AuditLogAction.botPermissionGrant,
+        'webhook_create' => AuditLogAction.webhookCreate,
+        'webhook_revoke' => AuditLogAction.webhookRevoke,
+        'webhook_rotate' => AuditLogAction.webhookRotate,
+        'totp_cleared' => AuditLogAction.totpCleared,
+        'account_delete' => AuditLogAction.accountDelete,
+        'reset_code_issue' => AuditLogAction.resetCodeIssue,
+        'nickname_set' => AuditLogAction.nicknameSet,
+        'nickname_clear' => AuditLogAction.nicknameClear,
+        _ => AuditLogAction.unknown,
       };
 }
 
