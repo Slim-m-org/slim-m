@@ -33,6 +33,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -119,31 +120,37 @@ void expectConverged(
 
 void main() {
   group('canvas convergence', () {
-    test('randomised logs converge across delivery patterns', () async {
-      for (var seed = 0; seed < 40; seed++) {
-        final log = CanvasLogGenerator(seed).generate(40);
-        final oracle = CanvasLogOracle.replay(log);
-        final rng = math.Random(seed);
+    // Fewer seeds as JavaScript, which runs this about ten times slower; the point there is JS number semantics, not volume.
+    final seeds = kIsWeb ? 10 : 40;
+    test(
+      'randomised logs converge across delivery patterns',
+      timeout: const Timeout(Duration(minutes: 2)),
+      () async {
+        for (var seed = 0; seed < seeds; seed++) {
+          final log = CanvasLogGenerator(seed).generate(40);
+          final oracle = CanvasLogOracle.replay(log);
+          final rng = math.Random(seed);
 
-        expectConverged(
-          await liveInOrder('seed-$seed-a', log),
-          oracle,
-          label: 'seed $seed / live in order',
-        );
-        expectConverged(
-          await liveScrambled('seed-$seed-b', log, rng),
-          oracle,
-          label: 'seed $seed / live scrambled',
-        );
-        final joined = await lateJoiner('seed-$seed-c', log, rng);
-        expectConverged(
-          joined.document,
-          oracle,
-          label: 'seed $seed / late joiner',
-          onlyIds: joined.reachableIds,
-        );
-      }
-    });
+          expectConverged(
+            await liveInOrder('seed-$seed-a', log),
+            oracle,
+            label: 'seed $seed / live in order',
+          );
+          expectConverged(
+            await liveScrambled('seed-$seed-b', log, rng),
+            oracle,
+            label: 'seed $seed / live scrambled',
+          );
+          final joined = await lateJoiner('seed-$seed-c', log, rng);
+          expectConverged(
+            joined.document,
+            oracle,
+            label: 'seed $seed / late joiner',
+            onlyIds: joined.reachableIds,
+          );
+        }
+      },
+    );
 
     test('a remove tombstones an id this client never placed at all - the '
         'viewport-read-in-flight race the tombstone set exists for, where the '

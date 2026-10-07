@@ -1,0 +1,12 @@
+app/test/desktop/desktop_window_shell_setup_test.dart	desktop only: drives the desktop window shell through a fake window port
+app/test/desktop_call_notifier_test.dart	desktop only: the notifier returns early unless isDesktopHost, which is false on the web
+app/test/load_real_fonts_test.dart	reads font files from disk through ui_snapshot_support (dart:io)
+app/test/message_extras_authority_test.dart	channel_history_harness uses drift's native in-memory database (dart:ffi)
+app/test/message_extras_local_reaction_test.dart	channel_history_harness uses drift's native in-memory database (dart:ffi)
+app/test/message_extras_local_vote_test.dart	channel_history_harness uses drift's native in-memory database (dart:ffi)
+app/test/message_extras_poll_tally_test.dart	channel_history_harness uses drift's native in-memory database (dart:ffi)
+app/test/message_extras_thread_test.dart	channel_history_harness uses drift's native in-memory database (dart:ffi)
+app/test/presence_resolve_test.dart	call_header_fixture pulls in ui_snapshot_support (dart:io, drift native)
+app/test/startup_updates_test.dart	desktop only: the rpm and self-update paths run processes through dart:io
+app/test/surface_registry_test.dart	support/surface_registry pulls in ui_snapshot_support (dart:io, drift native)
+platform/test/game_source_test.dart	tests game_source_io, which lists /proc through dart:io
