@@ -78,7 +78,7 @@ List<Widget> channelRowMenuItems(
         }
       },
     ),
-    markUnreadMenuItem(context, container, channel.id, close),
+    markReadStateMenuItem(context, container, channel, close, isDm: false),
     const AppMenuDivider(),
     ...notificationMenuItems(
       context,
