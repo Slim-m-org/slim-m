@@ -48,6 +48,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required int permissions,
   Size size = const Size(1280, 800),
+  VoiceParticipant participant = _bob,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -74,11 +75,11 @@ Future<void> _pump(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(
+        home: Scaffold(
           body: SizedBox(
             width: 240,
             child: RailParticipantList(
-              participants: [_bob],
+              participants: [participant],
               channelId: 'voice-1',
             ),
           ),
@@ -86,7 +87,13 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  // The speaking ring animates forever, so a speaking participant never settles.
+  if (participant.isSpeaking) {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  } else {
+    await tester.pumpAndSettle();
+  }
 }
 
 Future<void> _rightClick(WidgetTester tester, Finder target) async {
@@ -138,5 +145,24 @@ void main() {
     await tester.tap(find.text('Bob'));
     await tester.pumpAndSettle();
     expect(find.byType(MemberProfileBody), findsOneWidget);
+  });
+
+  testWidgets('a speaking participant still reads as speaking', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(
+      tester,
+      permissions: 0,
+      participant: const VoiceParticipant(
+        identity: 'user-bob',
+        name: 'Bob',
+        isLocal: false,
+        isSpeaking: true,
+        isMuted: false,
+        isScreenSharing: false,
+      ),
+    );
+    // The e2e harness matches a node's label by substring, as here.
+    expect(find.bySemanticsLabel(RegExp('Bob, speaking')), findsOneWidget);
+    semantics.dispose();
   });
 }
