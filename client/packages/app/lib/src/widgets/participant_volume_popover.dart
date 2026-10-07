@@ -39,16 +39,15 @@ Future<void> showParticipantVolumePopover(
     controller: controller,
   );
 
+  // A sheet is already a surface, so on a phone the controls sit straight in it (desktop-vs-mobile.md rule 3).
   if (compact) {
-    final noAnimation = AppMotion.isReduced(anchor)
-        ? AnimationStyle.noAnimation
-        : null;
-    return showModalBottomSheet<void>(
-      context: anchor,
-      isScrollControlled: true,
-      showDragHandle: true,
-      sheetAnimationStyle: noAnimation,
-      builder: (context) => SafeArea(top: false, child: content),
+    return showAppSheet<void>(
+      anchor,
+      builder: (context) => _ParticipantVolumeSheetBody(
+        name: name,
+        identity: identity,
+        controller: controller,
+      ),
     );
   }
 
@@ -106,8 +105,57 @@ class _ParticipantVolumePopoverBody extends StatelessWidget {
             style: AppText.ui.copyWith(color: tokens.textPrimary),
           ),
           const SizedBox(height: AppSpacing.s8),
-          ParticipantVolumeControl(identity: identity, controller: controller),
+          ParticipantVolumeControl(
+            identity: identity,
+            controller: controller,
+            showLabel: false,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// The phone sheet's body: one title over the control, no card of its own.
+class _ParticipantVolumeSheetBody extends StatelessWidget {
+  const _ParticipantVolumeSheetBody({
+    required this.name,
+    required this.identity,
+    required this.controller,
+  });
+
+  final String name;
+  final String identity;
+  final VoiceController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s16,
+          AppSpacing.s4,
+          AppSpacing.s16,
+          AppSpacing.s16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Volume for $name',
+              style: AppText.ui.copyWith(color: tokens.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.s8),
+            ParticipantVolumeControl(
+              identity: identity,
+              controller: controller,
+              showLabel: false,
+            ),
+          ],
+        ),
       ),
     );
   }

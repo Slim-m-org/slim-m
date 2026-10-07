@@ -81,15 +81,22 @@ class MemberLocalAudioSection extends StatelessWidget {
 /// Caller's job to gate this on [VoiceController.supportsParticipantVolume]
 /// first - this widget renders unconditionally once asked to, the same
 /// "absent, never disabled" split every caller of it already makes.
+/// How close to normal, as a fraction of it, a drag snaps to normal.
+const double _snapToNormal = 0.04;
+
 class ParticipantVolumeControl extends StatefulWidget {
   const ParticipantVolumeControl({
     super.key,
     required this.identity,
     required this.controller,
+    this.showLabel = true,
   });
 
   final String identity;
   final VoiceController controller;
+
+  /// Off where a title above already names whose volume this is.
+  final bool showLabel;
 
   @override
   State<ParticipantVolumeControl> createState() =>
@@ -106,6 +113,10 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
   /// [VoiceController.setVolumeFor] already makes for the full member card -
   /// see `local_audio.dart`'s own `applyToRefs`, which this ends up calling.
   void _setVolume(double volume) {
+    // Within a few points of normal snaps to it, so normal is easy to find again by feel.
+    if ((volume - kDefaultParticipantVolume).abs() < _snapToNormal) {
+      volume = kDefaultParticipantVolume;
+    }
     setState(() => _volume = volume);
     widget.controller.setVolumeFor(widget.identity, volume);
   }
@@ -121,34 +132,28 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'Volume for you',
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption.copyWith(
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ),
-                  // Absent at the default, never disabled - see this widget's own doc.
-                  if (!atDefault)
-                    AppIconButton(
-                      icon: AppIcons.undo,
-                      semanticLabel: 'Reset volume to normal',
-                      tooltip: 'Reset to normal',
-                      size: AppIconButtonSize.sm,
-                      iconSize: AppSizes.icon16,
-                      onPressed: () => _setVolume(kDefaultParticipantVolume),
-                    ),
-                ],
+            if (widget.showLabel)
+              Expanded(
+                child: Text(
+                  'Volume for you',
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+              )
+            else
+              const Spacer(),
+            // Absent at the default, never disabled - see this widget's own doc; beside the number it resets.
+            if (!atDefault)
+              AppIconButton(
+                icon: AppIcons.undo,
+                semanticLabel: 'Reset volume to normal',
+                tooltip: 'Reset to normal',
+                size: AppIconButtonSize.sm,
+                iconSize: AppSizes.icon16,
+                touch: AppTouchTargets.of(context),
+                onPressed: () => _setVolume(kDefaultParticipantVolume),
               ),
-            ),
             Text(
               '${(_volume * 100).round()}%',
               style: AppText.code.copyWith(
