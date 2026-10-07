@@ -48,15 +48,6 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
   Widget build(BuildContext context) {
     final permissions = ref.watch(myPermissionsProvider);
     final canManageChannels = permissions.hasPermission(Perm.manageChannels);
-    final container = ProviderScope.containerOf(context, listen: false);
-    // Watched so the entry appears and goes with the badges it clears.
-    ref.watch(channelNotificationOverridesProvider);
-    final markAllRead = markAllReadMenuItem(
-      context,
-      container,
-      ref.watch(spaceChannelsProvider).valueOrNull ?? const [],
-      _controller.hide,
-    );
 
     return AnchoredMenu(
       controller: _controller,
@@ -81,7 +72,7 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
               },
             ),
           ],
-          ?markAllRead,
+          _MarkAllReadEntry(close: _controller.hide),
           // Above settings and outside the manage gate: keeping messages is something every member does.
           AppMenuItem(
             label: 'Saved messages',
@@ -109,5 +100,27 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
         onPressed: _controller.toggle,
       ),
     );
+  }
+}
+
+/// The space-wide Mark all as read, absent when nothing is unread. Its own
+/// widget so the channel list is watched only while the menu is open, not for
+/// as long as the rail shows the button.
+class _MarkAllReadEntry extends ConsumerWidget {
+  const _MarkAllReadEntry({required this.close});
+
+  final VoidCallback close;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watched so the entry appears and goes with the badges it clears.
+    ref.watch(channelNotificationOverridesProvider);
+    final entry = markAllReadMenuItem(
+      context,
+      ProviderScope.containerOf(context, listen: false),
+      ref.watch(spaceChannelsProvider).valueOrNull ?? const [],
+      close,
+    );
+    return entry ?? const SizedBox.shrink();
   }
 }
