@@ -127,6 +127,8 @@ pub(super) enum ServerFrame {
         status: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         activity: Option<crate::presence_activity::Activity>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        devices: Vec<&'static str>,
     },
     #[serde(rename = "member.timeout")]
     MemberTimeoutChanged {

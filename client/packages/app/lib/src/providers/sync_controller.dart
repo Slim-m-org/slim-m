@@ -19,6 +19,7 @@ import 'dm_call_ring_controller.dart';
 import 'ephemeral_messages.dart';
 import 'presence_activity.dart';
 import 'presence_controller.dart';
+import 'presence_devices.dart';
 import 'voice_controller.dart';
 import 'failed_send_retry.dart';
 import 'last_text_channel.dart';
@@ -430,6 +431,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     _ref.read(dmCallActivityProvider.notifier).clear();
     _ref.read(presenceControllerProvider.notifier).clear();
     _ref.read(presenceActivityProvider.notifier).clear();
+    _ref.read(presenceDevicesProvider.notifier).clear();
     _ref.invalidate(presenceVisibilityDisplayProvider);
     _ref.invalidate(memberProfileOverridesProvider);
     // A session can end without the user asking; see this method's own doc.

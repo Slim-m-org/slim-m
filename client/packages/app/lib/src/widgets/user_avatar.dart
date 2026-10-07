@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/avatar_bytes.dart';
+import '../providers/presence_devices.dart';
 import '../providers/presence_view.dart';
 import '../providers/providers.dart';
 import '../providers/user_profiles.dart';
@@ -102,6 +103,9 @@ class UserAvatar extends ConsumerWidget {
       status: presence && id != null
           ? ref.watch(presenceForProvider(id))
           : null,
+      mobileOnly: presence && id != null
+          ? ref.watch(memberMobileOnlyProvider(id))
+          : false,
       speaking: speaking,
       ringColor: ringColor,
       semanticLabel: semanticLabel,

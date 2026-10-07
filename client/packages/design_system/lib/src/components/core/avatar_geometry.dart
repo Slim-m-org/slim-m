@@ -15,9 +15,13 @@ import 'package:flutter/foundation.dart';
 /// (origin at its top-left corner).
 @immutable
 class AppAvatarGeometry {
-  const AppAvatarGeometry(this.size);
+  const AppAvatarGeometry(this.size, {this.phone = false});
 
   final double size;
+
+  /// Whether the presence mark is the phone glyph rather than the dot, which
+  /// needs a few more pixels to read.
+  final bool phone;
 
   /// A caller-supplied ring's stroke, drawn inside the avatar's edge.
   static const double ringWidth = 2;
@@ -27,6 +31,7 @@ class AppAvatarGeometry {
   static const double dotHalo = 1.5;
 
   static const double _minDot = 8;
+  static const double _phoneExtra = 4;
   static const double _dotShare = 0.3;
   static const double _initialsShare = 0.36;
   static const double _minInitials = 9;
@@ -42,7 +47,10 @@ class AppAvatarGeometry {
   double get dotDiameter =>
       math.max(_minDot, (size * _dotShare).roundToDouble());
 
-  double get dotHaloRadius => dotDiameter / 2 + dotHalo;
+  /// The presence mark's box: [dotDiameter], or a little more for the phone.
+  double get markDiameter => dotDiameter + (phone ? _phoneExtra : 0);
+
+  double get dotHaloRadius => markDiameter / 2 + dotHalo;
 
   /// On the avatar's edge at the bottom-right diagonal, nudged outward so the
   /// dot reads as attached to the picture rather than sitting on it.

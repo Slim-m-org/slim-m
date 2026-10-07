@@ -267,6 +267,11 @@ abstract final class AppIcons {
   static const IconData deviceLaptop = LucideIcons.laptop300;
   static const IconData deviceDesktop = LucideIcons.monitor300;
 
+  /// The presence mark for a member online only from a phone. A heavier
+  /// weight than the rest: it is drawn about 12px tall, where the 300 stroke
+  /// would be under a pixel wide.
+  static const IconData presencePhone = LucideIcons.smartphone500;
+
   /// The settings avatar's "tap to change" badge. Distinct from [camera]
   /// above, which is a video camera for call controls; this is a still one.
   static const IconData avatarCamera = LucideIcons.camera300;
