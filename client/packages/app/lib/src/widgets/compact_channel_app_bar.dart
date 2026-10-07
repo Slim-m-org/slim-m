@@ -20,7 +20,8 @@ import '../providers/channel_search_controller.dart';
 import '../providers/pins_controller.dart';
 import '../screens/canvas/canvas_open_button.dart';
 import '../screens/dm_call_button.dart';
-import '../screens/voice_text_pane.dart' show VoiceChatAction;
+import '../screens/voice_text_pane.dart'
+    show VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';
 import 'pinned_messages_sheet.dart';
 import 'threads_sheet.dart';
@@ -54,11 +55,11 @@ class CompactChannelAppBar extends ConsumerWidget
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-    return _bar(channel, tokens);
+    return _bar(channel, tokens, ref.watch(voiceChatPaneVisibleProvider));
   }
 
   // `ChannelHeader` and the wide voice header draw this hairline on a `Container`; a Material `AppBar` needs its own.
-  AppBar _bar(Channel? channel, AppTokens tokens) {
+  AppBar _bar(Channel? channel, AppTokens tokens, bool voiceChatOpen) {
     final isVoice = channel?.kind == 'voice';
     // See `ChannelHeader.isDm`'s own doc comment for why.
     final isDm = channel?.kind == 'dm';
@@ -67,7 +68,7 @@ class CompactChannelAppBar extends ConsumerWidget
       shape: Border(bottom: BorderSide(color: tokens.borderSubtle)),
       leading: IconButton(
         icon: const Icon(AppIcons.back),
-        tooltip: 'Back to channels',
+        tooltip: isVoice && voiceChatOpen ? 'Back to call' : 'Back to channels',
         onPressed: onBack,
       ),
       titleSpacing: 0,
