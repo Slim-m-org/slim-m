@@ -114,7 +114,10 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
     String? callChannel,
   ) {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
-    final controlsHeight = AppTouchTargets.of(context)
+    // Compact has the call strip right below, so the card is only its video.
+    final controlsHeight = compact
+        ? 0.0
+        : AppTouchTargets.of(context)
         ? AppSizes.rowTouch
         : AppSizes.rowPointer;
     final width = compact ? _compactPlayerWidth : _widePlayerWidth;
@@ -165,6 +168,7 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
             },
             child: _MiniPlayerCard(
               feed: feed,
+              compact: compact,
               onReturn: () => _returnToCall(callChannel),
               onHide: () => setState(() {
                 _hidden = true;
@@ -188,11 +192,15 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
 class _MiniPlayerCard extends ConsumerWidget {
   const _MiniPlayerCard({
     required this.feed,
+    required this.compact,
     required this.onReturn,
     required this.onHide,
   });
 
   final MiniPlayerFeed feed;
+
+  /// The compact call strip already carries mute and leave, so the card drops them.
+  final bool compact;
   final VoidCallback onReturn;
   final VoidCallback onHide;
 
@@ -207,6 +215,12 @@ class _MiniPlayerCard extends ConsumerWidget {
       FeedKind.screenShare => controller.screenShareViewFor(feed.identity),
       FeedKind.camera => controller.cameraViewFor(feed.identity),
     };
+    final hide = AppIconButton(
+      icon: AppIcons.dismiss,
+      semanticLabel: 'Hide the mini-player',
+      tooltip: 'Hide the mini-player',
+      onPressed: onHide,
+    );
     final label = switch (feed.kind) {
       FeedKind.screenShare => "${feed.name}'s screen",
       FeedKind.camera => feed.name,
@@ -238,6 +252,7 @@ class _MiniPlayerCard extends ConsumerWidget {
                         color: Colors.black,
                         child: IgnorePointer(child: view),
                       ),
+                      if (compact) Positioned(top: 0, right: 0, child: hide),
                       Positioned(
                         left: AppSpacing.s8,
                         right: AppSpacing.s8,
@@ -254,38 +269,34 @@ class _MiniPlayerCard extends ConsumerWidget {
                 ),
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                AppIconButton(
-                  icon: micOn ? AppIcons.mic : AppIcons.micOff,
-                  semanticLabel: micOn ? 'Mute' : 'Unmute',
-                  tooltip: micOn ? 'Mute' : 'Unmute',
-                  onPressed: controller.toggleMicrophone,
-                ),
-                AppIconButton(
-                  icon: AppIcons.leaveCall,
-                  semanticLabel: 'Leave call',
-                  tooltip: 'Leave call',
-                  variant: AppIconButtonVariant.danger,
-                  onPressed: controller.leave,
-                ),
-                if (ref.watch(popOutSupportedProvider))
+            if (!compact)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
                   AppIconButton(
-                    icon: AppIcons.popOut,
-                    semanticLabel: 'Pop out',
-                    tooltip: 'Pop out',
-                    onPressed: () =>
-                        ref.read(popOutFeedProvider.notifier).state = feed,
+                    icon: micOn ? AppIcons.mic : AppIcons.micOff,
+                    semanticLabel: micOn ? 'Mute' : 'Unmute',
+                    tooltip: micOn ? 'Mute' : 'Unmute',
+                    onPressed: controller.toggleMicrophone,
                   ),
-                AppIconButton(
-                  icon: AppIcons.dismiss,
-                  semanticLabel: 'Hide the mini-player',
-                  tooltip: 'Hide the mini-player',
-                  onPressed: onHide,
-                ),
-              ],
-            ),
+                  AppIconButton(
+                    icon: AppIcons.leaveCall,
+                    semanticLabel: 'Leave call',
+                    tooltip: 'Leave call',
+                    variant: AppIconButtonVariant.danger,
+                    onPressed: controller.leave,
+                  ),
+                  if (ref.watch(popOutSupportedProvider))
+                    AppIconButton(
+                      icon: AppIcons.popOut,
+                      semanticLabel: 'Pop out',
+                      tooltip: 'Pop out',
+                      onPressed: () =>
+                          ref.read(popOutFeedProvider.notifier).state = feed,
+                    ),
+                  hide,
+                ],
+              ),
           ],
         ),
       ),

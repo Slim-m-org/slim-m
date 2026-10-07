@@ -376,11 +376,12 @@ void main() {
       await ctx.done();
     });
 
-    testWidgets('mute and leave act on the call', (tester) async {
+    testWidgets('mute and leave act on the call, wide', (tester) async {
       final ctx = await _pump(
         tester,
         location: '/channels/c-general',
         voice: _call([_remoteShare]),
+        size: _desktop,
       );
       await tester.tap(_inPlayer('Mute'));
       await tester.pump();
@@ -389,6 +390,29 @@ void main() {
         isFalse,
       );
       await tester.tap(_inPlayer('Leave call'));
+      await _settle(tester);
+      expect(player, findsNothing);
+      await ctx.done();
+    });
+
+    testWidgets('on a phone the card leaves mute and leave to the strip', (
+      tester,
+    ) async {
+      final ctx = await _pump(
+        tester,
+        location: '/channels/c-general',
+        voice: _call([_remoteShare]),
+      );
+      final strip = find.byType(VoiceStripIndicator);
+      for (final action in ['Mute', 'Leave call']) {
+        expect(_inPlayer(action), findsNothing, reason: '$action shows twice');
+        expect(
+          find.descendant(of: strip, matching: find.byTooltip(action)),
+          findsOneWidget,
+          reason: 'the strip keeps $action',
+        );
+      }
+      await tester.tap(_inPlayer('Hide the mini-player'));
       await _settle(tester);
       expect(player, findsNothing);
       await ctx.done();
