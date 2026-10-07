@@ -307,7 +307,7 @@ class _ChannelCategorySectionsState
       ),
       onDragStart: () => setState(() => _dragging = true),
       onDragEnd: () => setState(() => _dragging = false),
-      onLiftedInPlace: (channel) => _menuKeys[channel.id]?.currentState?.open(),
+      onHeldInPlace: (channel) => _menuKeys[channel.id]?.currentState?.open(),
     );
   }
 }
