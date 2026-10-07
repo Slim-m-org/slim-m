@@ -149,6 +149,9 @@ sealed class ServerEvent {
       'profile.changed' when decoded['user_id'] is String => ProfileChanged(
           userId: decoded['user_id'] as String,
         ),
+      'bot_ui.changed' when decoded['bot_user_id'] is String => BotUiChanged(
+          botUserId: decoded['bot_user_id'] as String,
+        ),
       'typing.started'
           when decoded['channel_id'] is String &&
               decoded['user_id'] is String =>

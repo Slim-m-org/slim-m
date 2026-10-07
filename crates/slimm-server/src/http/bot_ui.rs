@@ -17,6 +17,7 @@ use super::hidden_chars::is_hidden_char;
 use super::interactions::{InteractionDto, record_and_publish};
 use super::messages::parse_uuid;
 use crate::bot_ui::{self, Surface, UiEntry, UiRegistration};
+use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -49,6 +50,7 @@ async fn set_ui(
     }
     let reg = bot_ui::validate(body, is_hidden_char).map_err(ApiError::BadRequest)?;
     state.store.set_bot_ui(ctx.user_id, &reg).await?;
+    state.hub.publish(Event::BotUiChanged(ctx.user_id));
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -12957,6 +12957,7 @@ components:
         - $ref: "#/components/schemas/MemberRestored"
         - $ref: "#/components/schemas/MemberJoined"
         - $ref: "#/components/schemas/ProfileChanged"
+        - $ref: "#/components/schemas/BotUiChanged"
         - $ref: "#/components/schemas/TypingStarted"
         - $ref: "#/components/schemas/TypingStopped"
         - $ref: "#/components/schemas/RoleChanged"
@@ -13705,6 +13706,23 @@ components:
           type: string
           enum: [profile.changed]
         user_id:
+          type: string
+          format: uuid
+
+    BotUiChanged:
+      type: object
+      required: [type, bot_user_id]
+      description: >
+        A bot replaced its message menu entries or call controls with
+        `PUT /bots/ui`. Carries only the bot: a receiving client refetches
+        `GET /channels/{channelId}/bot-ui` for the channels it has open,
+        which applies each channel's visibility. Broadcast to every
+        connection, since which accounts are bots is already public.
+      properties:
+        type:
+          type: string
+          enum: [bot_ui.changed]
+        bot_user_id:
           type: string
           format: uuid
 
