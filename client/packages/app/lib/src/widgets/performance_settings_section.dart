@@ -23,6 +23,7 @@ import '../providers/media_preferences.dart';
 import '../providers/message_page_size.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
+import 'start_on_login_row.dart';
 
 class PerformanceSettingsSection extends ConsumerWidget {
   const PerformanceSettingsSection({super.key});
@@ -110,6 +111,7 @@ class PerformanceSettingsSection extends ConsumerWidget {
   /// choice, so off and how-long are the same control.
   List<Widget> _splashRows(WidgetRef ref) {
     return [
+      const StartOnLoginRow(),
       SettingsSelectRow<SplashDuration>(
         label: 'Startup splash',
         sheetTitle: 'Startup splash',
