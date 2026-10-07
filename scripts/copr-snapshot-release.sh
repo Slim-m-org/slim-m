@@ -22,6 +22,9 @@ if [ -z "$base" ]; then
   exit 1
 fi
 
-stamp="$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M%S "$rev")"
-sha="$(git rev-parse --short=7 "$rev")"
+# The submit job runs in a container whose checkout belongs to another user, and git refuses to read such a repo unless told it is trusted.
+trusted() { git -c "safe.directory=$PWD" "$@"; }
+
+stamp="$(TZ=UTC trusted log -1 --format=%cd --date=format-local:%Y%m%d%H%M%S "$rev")"
+sha="$(trusted rev-parse --short=7 "$rev")"
 printf '%s.%sgit%s\n' "$base" "$stamp" "$sha"
