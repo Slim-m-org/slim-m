@@ -19,6 +19,8 @@ SPAWN = re.compile(r"\bProcess\s*\.\s*(run|runSync|start)\b")
 GUARDED = {
     "client/packages/data/lib/src/connection/encrypted_database.dart":
         "_narrowsMode: linux and macos only",
+    "client/packages/platform/lib/src/autostart_io.dart":
+        "hostAutostart builds the reg.exe backend on windows only, and returns null on a phone",
     "client/packages/platform/lib/src/game_source_io.dart":
         "createGameSource returns null off linux, windows and macos",
     "client/packages/platform/lib/src/persistent_key_store.dart":
