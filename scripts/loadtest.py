@@ -12,10 +12,13 @@ every delivered message re-derives per-connection state, so one message into
 a hundred-person channel is a few hundred reads against a pool of eight
 connections shared with every write.
 
-Measured on 2026-09-15, that costs about thirty microseconds of processor
-time per delivery. A hundred listeners taking two hundred and fifty messages
-a second, fifty thousand deliveries, used eighteen percent of one core and
-dropped nobody. The amplification is real and it is affordable.
+Measured on 2026-10-07, that costs about ninety microseconds of processor
+time per delivery on the shipped musl build with jemalloc (about 260 with
+musl's own allocator, 87 on glibc): `--users 100 --senders 50 --gap 0.2`,
+the server CPU difference between `--messages 10` and `--messages 40`, so
+connecting the hundred sockets cancels out. An earlier "thirty microseconds"
+did not reproduce on any build. Nobody was dropped, and the amplification is
+affordable; docs/dependencies.md has the allocator comparison.
 
 What that run did not find is the ceiling, because this harness saturates
 before the server does: a hundred listeners in one event loop is where the

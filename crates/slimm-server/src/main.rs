@@ -2,6 +2,17 @@
 //! slim-m home server binary. All logic lives in the `slimm_server` library;
 //! this only picks which entry point an invocation asked for.
 
+/// musl's own allocator cost the shipped image about three times glibc's CPU
+/// per delivered message; see docs/dependencies.md for the measurement.
+#[global_allocator]
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
+/// Hands a burst's freed pages back to the system within about a second
+/// instead of jemalloc's default ten.
+#[unsafe(export_name = "_rjem_malloc_conf")]
+pub static MALLOC_CONF: &[u8; 63] =
+    b"background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:1000\0";
+
 const USAGE: &str =
     "usage: slimm-server [--healthcheck | import-emoji <directory> | clear-totp <username>]";
 
