@@ -6,10 +6,12 @@ The thread is opened the way a person opens one, from the message's own menu
 ("Reply in thread", reached with a right-click; see e2e_input.py). It used to
 be opened at the API and entered by writing `#/thread/<id>` into the location,
 because the menu looked unreachable.
-That substitution also hid a difference: a thread entered by an in-page hash
-change appeared to come up with a composer that takes text and sends nothing,
-where one opened from the menu, or by loading the address cold, sent normally
-(seen once, cause not chased).
+That substitution also hid a real bug: a thread entered by an in-page hash
+change came up with a composer that took text and sent nothing. The route
+docked the thread in the same frame it navigated to the parent, so on the web
+the composer focused an input the outgoing page owned. The sender now closes
+the thread and comes back to it by a link before replying, so that path stays
+covered.
 The menu is also the path that carries what this scenario now checks: the
 docked pane focuses its composer and shows the parent message first.
 
@@ -85,6 +87,13 @@ def open_reply_and_stay_off_the_rail(sender, receiver, channel, admin_api,
     _open_from_menu(receiver, root_text)
     print('  the other client opened the same thread from its own menu')
 
+    # Back in by a pasted link: docked mid-navigation, this composer once took text and sent nothing.
+    sender.click(L.THREAD_HEADER, settle=1.5)
+    sender.ev(f"location.hash = '#/thread/{thread_id}'")
+    sender.wait_for(L.THREAD_HEADER)
+    sender.wait_for(L.THREAD_COMPOSER)
+    time.sleep(2)
+    print('  the sender closed the thread and came back to it by a link')
     sender.type_into(L.THREAD_COMPOSER, thread_text)
     sender.click(L.THREAD_SEND, settle=2)
     receiver.wait_for(thread_text, timeout=30)
