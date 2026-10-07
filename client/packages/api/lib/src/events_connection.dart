@@ -108,10 +108,16 @@ class EventConnection {
       );
 
   /// Reports the channels this device has open and focused, replacing its
-  /// previous report; empty clears it. The server lets a report lapse after
-  /// 90 seconds, so the caller re-sends it periodically while it holds.
-  void viewing(Iterable<String> channelIds) => _channel.sink.add(
-        jsonEncode({'type': 'viewing', 'channel_ids': channelIds.toList()}),
+  /// previous report; empty clears it. [active] says the user has used this
+  /// device recently, which skips message pushes to their other devices. The
+  /// server lets a report lapse, so the caller re-sends it while it holds.
+  void viewing(Iterable<String> channelIds, {bool active = false}) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'viewing',
+          'channel_ids': channelIds.toList(),
+          if (active) 'active': true,
+        }),
       );
 
   /// Reports this user's pointer position on a channel's canvas.

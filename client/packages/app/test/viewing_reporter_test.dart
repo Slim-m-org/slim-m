@@ -16,6 +16,7 @@ final _focus = StateProvider<bool>((ref) => true);
 void main() {
   late ProviderContainer container;
   late List<Set<String>> sent;
+  late List<bool> actives;
   late ViewingReporter reporter;
 
   setUp(() {
@@ -23,11 +24,15 @@ void main() {
       overrides: [appFocusedProvider.overrideWith((ref) => ref.watch(_focus))],
     );
     sent = [];
+    actives = [];
     reporter = container.read(
       Provider((ref) {
         return ViewingReporter(
           ref,
-          send: sent.add,
+          send: (channels, active) {
+            sent.add(channels);
+            actives.add(active);
+          },
           interval: const Duration(seconds: 30),
         );
       }),
@@ -71,5 +76,34 @@ void main() {
   test('a device that never opened anything stays silent', () {
     reporter.refresh();
     expect(sent, isEmpty);
+  });
+
+  test(
+    'input marks the device active even with no channel open, until the window lapses',
+    () {
+      fakeAsync((async) {
+        reporter.noteInput();
+        expect(sent.last, isEmpty);
+        expect(actives.last, isTrue, reason: 'a settings screen still counts');
+        async.elapse(const Duration(seconds: 61));
+        expect(actives.last, isTrue, reason: 're-sent inside the server lapse');
+        async.elapse(activeInputWindow);
+        expect(actives.last, isFalse, reason: 'walking away restores push');
+        final count = sent.length;
+        async.elapse(const Duration(minutes: 5));
+        expect(sent.length, count, reason: 'an idle device goes quiet again');
+      });
+    },
+  );
+
+  test('input in an unfocused window is not activity', () {
+    container.read(_focus.notifier).state = false;
+    reporter.noteInput();
+    expect(actives, isNot(contains(true)));
+  });
+
+  test('a focused window with a channel open but no input is not active', () {
+    container.read(mountedChannelsProvider).register('c1');
+    expect(actives.last, isFalse);
   });
 }
