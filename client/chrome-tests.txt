@@ -60,6 +60,7 @@ app/test/camera_failure_message_test.dart
 app/test/canvas_activity_log_test.dart
 app/test/canvas_activity_sentences_test.dart
 app/test/canvas_commit_queue_test.dart
+app/test/canvas_convergence_property_test.dart
 app/test/canvas_cursor_relay_test.dart
 app/test/canvas_engine_test.dart
 app/test/canvas_forbidden_message_test.dart
