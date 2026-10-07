@@ -65,6 +65,8 @@ class MessageAlertPolicy {
   String? _selfForId;
   DateTime? _selfAt;
   DateTime? _selfFailedAt;
+  String? _selfFailedForId;
+  String? _selfLookupForId;
   Future<({String username, List<String> roles})?>? _selfLookup;
 
   /// A thread's parent channel never changes, so each is asked for once.
@@ -147,14 +149,22 @@ class MessageAlertPolicy {
         loadedAt != null &&
         now.difference(loadedAt) <= alertStateMaxAge;
     final failedAt = _selfFailedAt;
+    // Scoped to the account that failed, so signing in as another one looks it up straight away.
     final backingOff =
-        failedAt != null && now.difference(failedAt) < selfLookupRetryAfter;
+        _selfFailedForId == selfId &&
+        failedAt != null &&
+        now.difference(failedAt) < selfLookupRetryAfter;
     if (fresh || backingOff) {
       return Future.value(_selfForId == selfId ? _self : null);
     }
-    return _selfLookup ??= _lookUpSelf(
-      selfId,
-    ).whenComplete(() => _selfLookup = null);
+    final inFlight = _selfLookup;
+    if (inFlight != null && _selfLookupForId == selfId) return inFlight;
+    _selfLookupForId = selfId;
+    final lookup = _lookUpSelf(selfId);
+    _selfLookup = lookup;
+    return lookup.whenComplete(() {
+      if (identical(_selfLookup, lookup)) _selfLookup = null;
+    });
   }
 
   Future<({String username, List<String> roles})?> _lookUpSelf(
@@ -167,9 +177,11 @@ class MessageAlertPolicy {
       _selfForId = selfId;
       _selfAt = DateTime.now();
       _selfFailedAt = null;
+      _selfFailedForId = null;
     } on api.ApiException {
       // Keeps the cache for this account, if there is one.
       _selfFailedAt = DateTime.now();
+      _selfFailedForId = selfId;
     }
     return _selfForId == selfId ? _self : null;
   }

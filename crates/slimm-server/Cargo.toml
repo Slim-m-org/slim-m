@@ -47,6 +47,8 @@ tower = { version = "0.5", features = ["util", "limit"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+# A paused clock, so a test of a minutes-long timeout runs in a moment.
+tokio = { workspace = true, features = ["test-util"] }
 # Compiles hand-written WAT fixtures at test time so their behavior is readable in the test.
 wat = "1"
 # A real client for the fan-out test; the round-trip tests use tower above.

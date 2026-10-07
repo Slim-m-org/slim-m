@@ -2,7 +2,7 @@
 //! A slow but steadily progressing upload must not be cut by the router-wide
 //! 30 s request timeout.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -12,6 +12,13 @@ use tower::ServiceExt;
 use crate::fixtures::*;
 
 async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration) {
+    let started = tokio::time::Instant::now();
+    let status = upload(chunks, gap, 64, false).await;
+    (status, started.elapsed())
+}
+
+/// Sends `chunks` chunks `gap` apart, every one after the first `tail` bytes long.
+async fn upload(chunks: usize, gap: Duration, tail: usize, paused: bool) -> StatusCode {
     let (store, _guard) = new_store().await;
     store
         .create_role(
@@ -34,7 +41,7 @@ async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration)
             if i > 0 {
                 tokio::time::sleep(gap).await;
             }
-            let chunk = if i == 0 { first } else { vec![0u8; 64] };
+            let chunk = if i == 0 { first } else { vec![0u8; tail] };
             Some((Ok::<_, std::io::Error>(bytes_from(chunk)), i + 1))
         }
     });
@@ -44,9 +51,11 @@ async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration)
         .header("authorization", format!("Bearer {token}"))
         .body(Body::from_stream(stream))
         .unwrap();
-    let started = Instant::now();
-    let response = app.oneshot(request).await.unwrap();
-    (response.status(), started.elapsed())
+    // Paused only now: setup opens the pool, whose connect timeout a paused clock would fire.
+    if paused {
+        tokio::time::pause();
+    }
+    app.oneshot(request).await.unwrap().status()
 }
 
 fn bytes_from(v: Vec<u8>) -> axum::body::Bytes {
@@ -78,4 +87,27 @@ async fn a_stalled_upload_is_still_cut() {
     let (status, took) = streamed_upload(2, Duration::from_secs(16)).await;
     assert_ne!(status, StatusCode::CREATED, "a stalled upload was accepted");
     assert!(took < Duration::from_secs(30), "cut only after {took:?}");
+}
+
+/// A sender that never stalls past the body idle timeout but drips a byte every
+/// 10 s is still cut once the upload's total time runs out. On a paused clock,
+/// so 33 simulated minutes take a moment.
+#[tokio::test]
+async fn a_dripping_upload_is_cut_by_the_total_upload_timeout() {
+    let started = tokio::time::Instant::now();
+    let status = upload(200, Duration::from_secs(10), 1, true).await;
+    let took = started.elapsed();
+    assert_ne!(
+        status,
+        StatusCode::CREATED,
+        "a dripping upload ran {took:?}"
+    );
+    assert!(
+        took < Duration::from_secs(31 * 60),
+        "cut only after {took:?}"
+    );
+    assert!(
+        took >= Duration::from_secs(29 * 60),
+        "cut early after {took:?}"
+    );
 }
