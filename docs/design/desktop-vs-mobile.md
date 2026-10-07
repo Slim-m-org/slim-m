@@ -92,7 +92,7 @@ Every desktop affordance must state its compact equivalent, or it is not done.
 | member pane | an end drawer from the right edge (header button or edge swipe), closed by selecting a member or tapping the scrim | a second routed screen for a list the channel stays behind |
 | pins | `pinned_messages_sheet`, a bottom sheet (rule 3) | a drawer that traps scroll |
 | inline edit-in-place | the same, composer expanded to fit | a separate edit screen |
-| drag to reorder (click and hold lifts, a line shows the landing place) | long-press lifts, same drop rules | a permanent grip, or reorder hidden behind an edit mode |
+| drag to reorder (click and hold lifts, a line shows the landing place) | a still hold opens the options, a hold then a move lifts, same drop rules | a permanent grip, or reorder hidden behind an edit mode |
 | full-focus overlay (floating card) | full-screen takeover, same two actions | a desktop-only accept/decline pair |
 
 ## The review question
