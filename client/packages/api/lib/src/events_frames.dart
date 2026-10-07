@@ -238,6 +238,14 @@ class ProfileChanged extends ServerEvent {
   final String userId;
 }
 
+/// A bot replaced its message menu entries or call controls; refetch the bot
+/// UI of any open channel, which applies that channel's own visibility.
+class BotUiChanged extends ServerEvent {
+  const BotUiChanged({required this.botUserId});
+
+  final String botUserId;
+}
+
 /// Someone started typing in a channel. There is no explicit stop frame past
 /// [TypingStopped]: the state also lapses on its own without a refresh.
 class TypingStarted extends ServerEvent {

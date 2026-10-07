@@ -109,6 +109,31 @@ async fn only_a_bot_registers_and_a_bad_set_changes_nothing() {
 }
 
 #[tokio::test]
+async fn a_registration_tells_every_connection_which_bot_changed() {
+    let w = world().await;
+    let addr = serve(w.state.clone()).await;
+    let mut bob = connect(&w, addr, &w.bob.1).await;
+
+    assert_eq!(
+        register(&w, &w.bot.1, registration()).await,
+        StatusCode::NO_CONTENT
+    );
+    let frame = frame_of_kind(&mut bob, "bot_ui.changed")
+        .await
+        .expect("a connected member hears that the bot's controls changed");
+    assert_eq!(frame["bot_user_id"], w.bot.0.to_string());
+
+    assert_eq!(
+        register(&w, &w.bob.1, registration()).await,
+        StatusCode::FORBIDDEN
+    );
+    assert!(
+        frame_of_kind(&mut bob, "bot_ui.changed").await.is_none(),
+        "a refused registration announces nothing"
+    );
+}
+
+#[tokio::test]
 async fn a_registration_replaces_the_last_whole() {
     let w = world().await;
     register(&w, &w.bot.1, registration()).await;
