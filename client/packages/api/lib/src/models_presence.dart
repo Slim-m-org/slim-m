@@ -28,6 +28,26 @@ enum PresenceState {
       };
 }
 
+/// A kind of client a member is connected from, as the server classifies the
+/// device each live socket signed in on.
+enum PresenceDevice {
+  mobile,
+  desktop,
+  web,
+  unknown;
+
+  /// A kind this client does not know reads as [unknown], which is never
+  /// [mobile]: a newer server's new kind must not look like a phone.
+  static PresenceDevice parse(Object? value) =>
+      PresenceDevice.values.where((d) => d.name == value).firstOrNull ??
+      PresenceDevice.unknown;
+
+  /// The kinds in a frame's or response's `devices` list; empty when absent.
+  static Set<PresenceDevice> parseAll(Object? json) => json is List<dynamic>
+      ? {for (final value in json) PresenceDevice.parse(value)}
+      : const {};
+}
+
 /// The caller's own visibility preference. [hidden] is the appear-offline
 /// choice: the caller's own client still sees their true state; everyone
 /// else sees [PresenceState.offline].
@@ -166,15 +186,21 @@ class PresenceStatus {
     required this.userId,
     required this.status,
     this.activity,
+    this.devices = const {},
   });
 
   final String userId;
   final PresenceState status;
   final PresenceActivity? activity;
 
+  /// The kinds of client the member is connected from. Empty when offline or
+  /// hidden from this caller, and from a server too old to say.
+  final Set<PresenceDevice> devices;
+
   factory PresenceStatus.fromJson(Map<String, dynamic> json) => PresenceStatus(
         userId: json['user_id'] as String,
         status: PresenceState.parse(json['status'] as String),
         activity: PresenceActivity.tryFromJson(json['activity']),
+        devices: PresenceDevice.parseAll(json['devices']),
       );
 }

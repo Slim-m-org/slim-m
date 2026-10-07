@@ -32,6 +32,11 @@ use crate::ids::UserId;
 use crate::presence_activity::Activity;
 use crate::viewing::ViewingTracker;
 
+mod devices;
+
+use devices::DeviceCounts;
+pub use devices::DeviceKind;
+
 /// How long a connected user with no observed activity (a ping, a typing
 /// refresh, anything inbound) is shown as away rather than online, absent an
 /// explicit away/dnd/hidden preference. Only affects the `Online` preference;
@@ -144,6 +149,8 @@ struct Entry {
     visibility: Option<Visibility>,
     /// What the user last said they are doing; dies with the entry.
     activity: Option<Activity>,
+    /// Live sockets per kind of client, so a viewer can tell phone from desktop.
+    devices: DeviceCounts,
 }
 
 impl Default for PresenceTracker {
@@ -177,16 +184,30 @@ impl PresenceTracker {
     /// [`Self::connect`] with an explicit clock, so a test can drive idle
     /// timing deterministically instead of sleeping.
     pub fn connect_at(&self, user_id: UserId, now: Instant) -> bool {
+        self.connect_kind_at(user_id, DeviceKind::Unknown, now)
+    }
+
+    /// [`Self::connect`] naming the client's kind. Returns `true` when the
+    /// user's presence visibly changed: their first socket, or a kind they
+    /// were not yet connected from.
+    pub fn connect_as(&self, user_id: UserId, kind: DeviceKind) -> bool {
+        self.connect_kind_at(user_id, kind, Instant::now())
+    }
+
+    fn connect_kind_at(&self, user_id: UserId, kind: DeviceKind, now: Instant) -> bool {
         let mut state = lock(&self.state);
         let entry = state.entry(user_id).or_insert(Entry {
             connections: 0,
             last_active: now,
             visibility: None,
             activity: None,
+            devices: DeviceCounts::default(),
         });
+        let before = entry.devices.signature();
         entry.connections += 1;
+        entry.devices.add(kind);
         entry.last_active = now;
-        entry.connections == 1
+        entry.connections == 1 || before != entry.devices.signature()
     }
 
     /// Records a connection closing. Returns `true` if that was the user's
@@ -197,17 +218,29 @@ impl PresenceTracker {
 
     /// [`Self::disconnect`] with an explicit clock.
     pub fn disconnect_at(&self, user_id: UserId, now: Instant) -> bool {
+        self.disconnect_kind_at(user_id, DeviceKind::Unknown, now)
+    }
+
+    /// [`Self::disconnect`] naming the closing client's kind. Returns `true`
+    /// when presence visibly changed: the last socket, or the last of a kind.
+    pub fn disconnect_as(&self, user_id: UserId, kind: DeviceKind) -> bool {
+        self.disconnect_kind_at(user_id, kind, Instant::now())
+    }
+
+    fn disconnect_kind_at(&self, user_id: UserId, kind: DeviceKind, now: Instant) -> bool {
         let mut state = lock(&self.state);
         let Some(entry) = state.get_mut(&user_id) else {
             return false;
         };
+        let before = entry.devices.signature();
         entry.connections = entry.connections.saturating_sub(1);
+        entry.devices.remove(kind);
         entry.last_active = now;
         if entry.connections == 0 {
             state.remove(&user_id);
             true
         } else {
-            false
+            before != entry.devices.signature()
         }
     }
 

@@ -130,6 +130,7 @@ sealed class ServerEvent {
           userId: decoded['user_id'] as String,
           status: _presenceStateOf(decoded['status'])!,
           activity: PresenceActivity.tryFromJson(decoded['activity']),
+          devices: PresenceDevice.parseAll(decoded['devices']),
         ),
       'member.timeout' when decoded['user_id'] is String =>
         MemberTimeoutChanged(

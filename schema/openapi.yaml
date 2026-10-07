@@ -9459,6 +9459,16 @@ components:
             true state when they ask about their own id.
         activity:
           $ref: "#/components/schemas/PresenceActivity"
+        devices:
+          type: array
+          items:
+            type: string
+            enum: [mobile, desktop, web, unknown]
+          description: >
+            The kinds of client the member is connected from right now, as
+            each client named itself in its `hello`; `unknown` is a client
+            that named none. Absent whenever `status` is `offline`, so a
+            member who chose `hidden` leaks nothing here either.
 
     PresenceActivity:
       type: object
@@ -13662,6 +13672,16 @@ components:
           enum: [online, away, dnd, offline]
         activity:
           $ref: "#/components/schemas/PresenceActivity"
+        devices:
+          type: array
+          items:
+            type: string
+            enum: [mobile, desktop, web, unknown]
+          description: >
+            The kinds of client the member is connected from right now, as
+            each client named itself in its `hello`; `unknown` is a client
+            that named none. Absent whenever `status` is `offline`, so a
+            member who chose `hidden` leaks nothing here either.
 
     MemberTimeout:
       type: object

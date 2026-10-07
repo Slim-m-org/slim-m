@@ -174,6 +174,7 @@ class PresenceChanged extends ServerEvent {
     required this.userId,
     required this.status,
     this.activity,
+    this.devices = const {},
   });
 
   final String userId;
@@ -182,6 +183,10 @@ class PresenceChanged extends ServerEvent {
   /// What they are listening to or playing, when they share it and this
   /// viewer may see their presence.
   final PresenceActivity? activity;
+
+  /// The kinds of client they are connected from, when this viewer may see
+  /// their presence.
+  final Set<PresenceDevice> devices;
 }
 
 /// A member was timed out, or their timeout was lifted.
