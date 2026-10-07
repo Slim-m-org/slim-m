@@ -108,15 +108,16 @@ class ChannelSettingsPane extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (canManageChannels) ChannelGeneralSection(channel: channel),
-        if (canManageChannels) ...[
-          const SizedBox(height: AppSpacing.s16),
-          ChannelSlowModeSection(channel: channel),
-          if (channel.kind == 'voice') ...[
-            const SizedBox(height: AppSpacing.s16),
-            ChannelJoinMutedSection(channel: channel),
-          ],
-        ],
+        // One card: the owner read three separate cards as one list of general settings.
+        if (canManageChannels)
+          ChannelGeneralSection(
+            channel: channel,
+            rows: [
+              ChannelSlowModeSection(channel: channel, embedded: true),
+              if (channel.kind == 'voice')
+                ChannelJoinMutedSection(channel: channel, embedded: true),
+            ],
+          ),
         if (canManageChannels && canManageRoles)
           const SizedBox(height: AppSpacing.s16),
         if (canManageRoles)

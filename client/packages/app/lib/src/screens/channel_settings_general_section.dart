@@ -29,9 +29,17 @@ import '../widgets/settings_section_header.dart';
 const int channelTopicMaxChars = 256;
 
 class ChannelGeneralSection extends ConsumerStatefulWidget {
-  const ChannelGeneralSection({super.key, required this.channel});
+  const ChannelGeneralSection({
+    super.key,
+    required this.channel,
+    this.rows = const [],
+  });
 
   final Channel channel;
+
+  /// Settings that apply on their own (slow mode, join muted), under the save
+  /// button in the same card, so one channel's general settings read as one list.
+  final List<Widget> rows;
 
   @override
   ConsumerState<ChannelGeneralSection> createState() =>
@@ -147,6 +155,10 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
           disabled: !_canSave,
           onPressed: _save,
         ),
+        for (final row in widget.rows) ...[
+          const SizedBox(height: AppSpacing.s12),
+          row,
+        ],
       ],
     );
   }
