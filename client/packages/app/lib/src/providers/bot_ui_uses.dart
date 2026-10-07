@@ -97,10 +97,13 @@ class BotUiUsesController extends PendingInteractions<BotUiUse> {
     ),
   );
 
+  /// [optionId] is the choice made on a control that offers options; a retry
+  /// sends the same one.
   Future<void> useCallControl({
     required String channelId,
     required String botId,
     required String entryId,
+    String? optionId,
   }) => _use(
     controlUseKey(channelId, botId, entryId),
     (id) => _ref
@@ -110,8 +113,14 @@ class BotUiUsesController extends PendingInteractions<BotUiUse> {
           botId: botId,
           entryId: entryId,
           id: id,
+          optionId: optionId,
         ),
-    () => useCallControl(channelId: channelId, botId: botId, entryId: entryId),
+    () => useCallControl(
+      channelId: channelId,
+      botId: botId,
+      entryId: entryId,
+      optionId: optionId,
+    ),
   );
 
   Future<void> _use(

@@ -32,6 +32,25 @@ const _jellyfin = api.ChannelBotUi(
   ],
 );
 
+const _withQuality = api.ChannelBotUi(
+  botUserId: 'jelly',
+  botUsername: 'jellyfin',
+  botDisplayName: 'Jellyfin',
+  messageMenu: [],
+  callControls: [
+    api.BotUiEntry(id: 'pause', label: 'Pause', icon: 'pause'),
+    api.BotUiEntry(
+      id: 'quality',
+      label: 'Quality',
+      icon: 'settings',
+      options: [
+        api.BotUiOption(id: 'low', label: 'Low 480p'),
+        api.BotUiOption(id: 'high', label: 'High 1080p'),
+      ],
+    ),
+  ],
+);
+
 const _quiet = api.ChannelBotUi(
   botUserId: 'quiet',
   botUsername: 'quiet',
@@ -48,6 +67,7 @@ _pump(
   List<Map<String, dynamic>> requests, {
   double width = 360,
   int status = 200,
+  List<api.ChannelBotUi> bots = const [_jellyfin, _quiet],
 }) async {
   final events = StreamController<api.ServerEvent>.broadcast();
   addTearDown(events.close);
@@ -93,10 +113,7 @@ _pump(
               width: width,
               child: BotCallControls(
                 channelId: 'call-1',
-                groups: botCallGroups(
-                  [_jellyfin, _quiet],
-                  {'me', 'jelly', 'quiet'},
-                ),
+                groups: botCallGroups(bots, {'me', 'jelly', 'quiet'}),
               ),
             ),
           ),
@@ -195,5 +212,70 @@ void main() {
     await tester.tap(find.text('Dismiss'));
     await tester.pump();
     expect(find.byType(AppErrorState), findsNothing);
+  });
+
+  group('a control that offers options', () {
+    Future<void> answer(
+      WidgetTester tester,
+      StreamController<api.ServerEvent> events,
+      List<Map<String, dynamic>> requests,
+    ) async {
+      events.add(
+        api.InteractionAnswered(
+          interactionId: requests.last['id'] as String,
+          channelId: 'call-1',
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('opens them and sends the one picked', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final requests = <Map<String, dynamic>>[];
+      final h = await _pump(tester, requests, bots: const [_withQuality]);
+      expect(find.byIcon(AppIcons.settings), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Quality'));
+      await tester.pumpAndSettle();
+      expect(requests, isEmpty, reason: 'opening the options is not a use');
+      expect(find.byType(BottomSheet), findsNothing, reason: 'a menu here');
+      await tester.tap(find.text('High 1080p'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(requests.single['entry_id'], 'quality');
+      expect(requests.single['option_id'], 'high');
+      expect(find.text('Low 480p'), findsNothing, reason: 'the menu closed');
+      await answer(tester, h.events, requests);
+    });
+
+    testWidgets('opens them as a sheet on a phone', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final requests = <Map<String, dynamic>>[];
+      final h = await _pump(tester, requests, bots: const [_withQuality]);
+
+      await tester.tap(find.byTooltip('Quality'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      await tester.tap(find.text('Low 480p'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(requests.single['option_id'], 'low');
+      await answer(tester, h.events, requests);
+    });
+
+    testWidgets('a plain control beside it sends no option', (tester) async {
+      final requests = <Map<String, dynamic>>[];
+      final h = await _pump(tester, requests, bots: const [_withQuality]);
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      expect(requests.single.containsKey('option_id'), isFalse);
+      await answer(tester, h.events, requests);
+    });
   });
 }

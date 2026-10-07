@@ -95,6 +95,60 @@ void main() {
     });
   });
 
+  test('a call control with options reads them and sends the choice', () async {
+    Map<String, dynamic>? sent;
+    final api = _client(
+      MockClient((request) async {
+        if (request.method == 'POST') {
+          sent = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response('{"id": "i1", "created_at": 0}', 200);
+        }
+        return http.Response(
+          jsonEncode([
+            {
+              'bot_user_id': 'b1',
+              'bot_username': 'jf',
+              'bot_display_name': 'Jellyfin',
+              'message_menu': <Object>[],
+              'call_controls': [
+                {'id': 'pause', 'label': 'Pause', 'icon': 'pause'},
+                {
+                  'id': 'quality',
+                  'label': 'Quality',
+                  'icon': 'settings',
+                  'options': [
+                    {'id': 'low', 'label': 'Low 480p'},
+                    {'id': 'high', 'label': 'High 1080p'},
+                  ],
+                },
+              ],
+            },
+          ]),
+          200,
+        );
+      }),
+    );
+    final controls = (await api.listChannelBotUi('c1')).single.callControls;
+    expect(controls[0].options, isEmpty);
+    expect(controls[1].options.map((o) => o.label), ['Low 480p', 'High 1080p']);
+
+    await api.useBotCallControl(
+      channelId: 'c1',
+      botId: 'b1',
+      entryId: 'quality',
+      id: 'u-1',
+      optionId: 'high',
+    );
+    expect(sent?['option_id'], 'high');
+    await api.useBotCallControl(
+      channelId: 'c1',
+      botId: 'b1',
+      entryId: 'pause',
+      id: 'u-2',
+    );
+    expect(sent!.containsKey('option_id'), isFalse);
+  });
+
   test('interaction.answered parses without a message id', () {
     final event = ServerEvent.parse(
       jsonEncode({

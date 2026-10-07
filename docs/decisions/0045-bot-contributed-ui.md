@@ -65,12 +65,25 @@ A call control's icon comes from a fixed list drawn from the app's own icon set.
 
 ### Call controls: what a bot may render, who sees it, and when the bot goes away
 
-A bot may render up to 8 labelled buttons, each with one of ten glyphs, and nothing else: no text field, no progress or position display and no layout choice.
+A bot may render up to 8 labelled buttons, each with one of eleven glyphs, and nothing else: no text field, no progress or position display and no layout choice.
 Position, and any state that changes as it plays, stay out for now (see below).
 They appear in the call's dock only while the bot is a participant of that call, read off the roster the client already holds, so a bot that leaves takes its controls with it and nothing is left pointing at a process that is not there.
 Everyone on the call sees them, since anyone on the call can use them.
 A member who is not on the call gets a 403 on use: viewing a voice channel is not being in its call, and the server already knows who is on a call from the call heartbeat.
 A control's use is best effort like a press: silence shows an error on the control with a retry, and a bot that is offline simply never answers.
+
+### A call control may offer a choice
+
+Added 2026-10-07, after the owner asked for "a gear icon button control for menus to handle other bot settings like video quality in the call" (backlog 211).
+A call control may carry 2 to 8 `options`, each an id and a label held to the same rules as an entry and unique within the control.
+Pressing it opens the options with the app's own menu, a sheet on a compact window, and picking one is the use: the interaction carries the option's id as `option_id`.
+Fewer than two is refused, because one option is just a button.
+A plain button and a menu entry refuse an `option_id`, a control with options requires one, and an option the control no longer offers is the same 404 as a dropped entry.
+The option is part of the use's identity, so a retry naming a different option under the same id is a 409.
+The glyph list gains `settings`, the gear that groups a bot's secondary settings.
+Options carry no "current" mark: a registration is one per bot while a bot can run in several calls at once, so a selected state would be wrong in all but one of them.
+The bot confirms the change in its private answer instead.
+Storage is a nullable JSON column on `bot_ui_entries` and a nullable `option_id` on `interactions` (migration 0100).
 
 ### Liveness, idempotency and older libraries
 

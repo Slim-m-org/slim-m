@@ -42,6 +42,16 @@ const _bots = [
       api.BotUiEntry(id: 'pause', label: 'Pause', icon: 'pause'),
       api.BotUiEntry(id: 'skip', label: 'Skip', icon: 'skip_next'),
       api.BotUiEntry(id: 'stop', label: 'Stop', icon: 'stop'),
+      api.BotUiEntry(
+        id: 'quality',
+        label: 'Quality',
+        icon: 'settings',
+        options: [
+          api.BotUiOption(id: 'low', label: 'Low 480p'),
+          api.BotUiOption(id: 'medium', label: 'Medium 720p'),
+          api.BotUiOption(id: 'high', label: 'High 1080p'),
+        ],
+      ),
     ],
   ),
   api.ChannelBotUi(
@@ -211,6 +221,13 @@ void main() {
         expect(find.text('Mod helper'), findsNothing);
         await expectSettled(tester, dockName);
         await writeSnapshot(tester, dockName);
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.byTooltip('Quality'));
+        await tester.pumpAndSettle();
+        expect(find.text('Medium 720p'), findsOneWidget);
+        await expectSettled(tester, '$dockName-options');
+        await writeSnapshot(tester, '$dockName-options');
         expect(tester.takeException(), isNull);
       });
     }
