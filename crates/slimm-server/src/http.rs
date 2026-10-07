@@ -90,6 +90,7 @@ mod module_host;
 mod module_permissions;
 mod notification_schedule;
 mod overwrites;
+pub mod panic_guard;
 mod pins;
 mod polls;
 mod post_commit;
@@ -182,6 +183,14 @@ pub struct AppState {
     pub code_runner: CodeRunner,
 }
 
+/// Wraps `router` so a panicking handler answers 500 and the process keeps
+/// serving; see [`panic_guard`]. Public so a test can wrap a route that panics.
+pub fn guard_panics<S: Clone + Send + Sync + 'static>(router: Router<S>) -> Router<S> {
+    router
+        .layer(axum::middleware::from_fn(panic_guard::mark_request))
+        .layer(panic_guard::catch_layer())
+}
+
 /// Builds the router over the shared application state.
 ///
 /// The trailing `TraceLayer` is given a `make_span_with` that labels its span
@@ -207,7 +216,7 @@ pub fn router(state: AppState) -> Router {
             state.media.upload_timeout(),
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
-    Router::new()
+    let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/version", get(version))
         .merge(analytics::routes())
@@ -285,7 +294,8 @@ pub fn router(state: AppState) -> Router {
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT))
         .merge(uploads)
-        .merge(ws::routes())
+        .merge(ws::routes());
+    guard_panics(app)
         // Route-template span labeling; see this function's own doc comment.
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::extract::Request| {
