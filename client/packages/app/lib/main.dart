@@ -81,7 +81,7 @@ import 'src/widgets/toast_overlay.dart';
 /// ever been shown raced the still-pending splash resize and won, so the
 /// window mapped at the native 1280x720 default instead of the small splash
 /// size. Waiting for the real first frame avoids that race entirely.
-Future<void> main() async {
+Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
   // First, so a launch that dies in any later step still counts toward a rollback.
   await countLaunch();
@@ -104,7 +104,9 @@ Future<void> main() async {
   installDiagnostics(container);
 
   container.read(appReadyProvider.notifier).state = false;
-  unawaited(_bootstrapApp(container));
+  unawaited(
+    _bootstrapApp(container, launchedAtLogin: args.contains(autostartArgument)),
+  );
 
   runApp(
     UncontrolledProviderScope(container: container, child: const SlimMApp()),
@@ -143,7 +145,10 @@ Future<void> main() async {
 /// a disabled splash still goes through it: the window is born small by the
 /// native runner before any preference can be read, so even "off" cannot
 /// skip that first small frame, only the added dwell on top of it.
-Future<void> _bootstrapApp(ProviderContainer container) async {
+Future<void> _bootstrapApp(
+  ProviderContainer container, {
+  required bool launchedAtLogin,
+}) async {
   // Guarded: a step that throws must not leave the splash up for good, the handoff below always runs.
   await runStartupStep(container, 'startup', () async {
     final floor = await _resolveSplashFloor(container);
@@ -158,6 +163,8 @@ Future<void> _bootstrapApp(ProviderContainer container) async {
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
   await DesktopWindowShell.revealAfterHandoff();
   container.read(appReadyProvider.notifier).state = true;
+  // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
+  if (launchedAtLogin) unawaited(DesktopWindowShell.requestClose());
   unawaited(container.read(selfUpdateProvider).confirmStart());
 }
 

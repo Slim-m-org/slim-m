@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import ServiceManagement
 
 class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
@@ -10,6 +11,7 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     ClipboardImageChannel.register(with: flutterViewController.engine.binaryMessenger)
+    AutostartChannel.register(with: flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
@@ -38,6 +40,44 @@ enum ClipboardImageChannel {
         pasteboard.clearContents()
         result(pasteboard.writeObjects([image]) ? nil : FlutterError(
           code: "write_failed", message: "The image could not be copied.", details: nil))
+      }
+  }
+}
+
+/// Answers `autostart_io.dart`'s login item calls with SMAppService's main-app
+/// item, which needs macOS 13; older systems report it unsupported and the
+/// setting is not offered. A login item gets no launch arguments, so a login
+/// launch here opens normally rather than in the menu bar.
+enum AutostartChannel {
+  static let name = "top.npcserver.slimm/autostart"
+
+  static func register(with messenger: FlutterBinaryMessenger) {
+    FlutterMethodChannel(name: name, binaryMessenger: messenger)
+      .setMethodCallHandler { call, result in
+        guard #available(macOS 13.0, *) else {
+          result(call.method == "isSupported" ? false : FlutterError(
+            code: "unsupported", message: "Login items need macOS 13 or newer.", details: nil))
+          return
+        }
+        switch call.method {
+        case "isSupported":
+          result(true)
+        case "isEnabled":
+          result(SMAppService.mainApp.status == .enabled)
+        case "setEnabled":
+          do {
+            if (call.arguments as? Bool) == true {
+              try SMAppService.mainApp.register()
+            } else {
+              try SMAppService.mainApp.unregister()
+            }
+            result(nil)
+          } catch {
+            result(FlutterError(code: "login_item_failed", message: error.localizedDescription, details: nil))
+          }
+        default:
+          result(FlutterMethodNotImplemented)
+        }
       }
   }
 }

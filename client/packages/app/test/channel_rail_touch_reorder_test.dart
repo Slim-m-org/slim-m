@@ -161,6 +161,68 @@ void main() {
     },
   );
 
+  testWidgets('a still hold opens the menu and never lifts the row', (
+    tester,
+  ) async {
+    await _pumpRail(tester);
+    final gesture = await tester.startGesture(tester.getCenter(_row('a-03')));
+    for (var ms = 0; ms < 1200; ms += 50) {
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        find.byType(RailDragLift),
+        findsNothing,
+        reason: 'lifted at ${ms + 50}ms',
+      );
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(find.byType(RailDragLift), findsNothing);
+    expect(
+      find.text('Move up'),
+      findsOneWidget,
+      reason: 'the hold opened the menu',
+    );
+  });
+
+  testWidgets('a hold then a move lifts the row and the drop reorders', (
+    tester,
+  ) async {
+    final rail = await _pumpRail(tester);
+    final start = tester.getCenter(_row('a-01'));
+    final gesture = await tester.startGesture(start);
+    await tester.pump(kLongPressTimeout + kPressTimeout);
+    expect(
+      find.byType(RailDragLift),
+      findsNothing,
+      reason: 'held, not yet moved',
+    );
+    for (var i = 0; i < 6; i++) {
+      await gesture.moveBy(const Offset(0, 12));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(
+      find.byType(RailDragLift),
+      findsOneWidget,
+      reason: 'the move lifted it',
+    );
+    await gesture.moveTo(tester.getCenter(_row('a-03')) + const Offset(0, 4));
+    await tester.pump(const Duration(milliseconds: 300));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Move up'),
+      findsNothing,
+      reason: 'a drag does not open the menu',
+    );
+    final alpha = rail.reports.single.firstWhere(
+      (g) => g.categoryId == 'cat-a',
+    );
+    expect(
+      alpha.channelIds.indexOf('a-01'),
+      greaterThan(alpha.channelIds.indexOf('a-02')),
+    );
+  });
+
   testWidgets('Move down in a row menu reports the same payload as a drag', (
     tester,
   ) async {

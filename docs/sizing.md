@@ -43,6 +43,7 @@ Deliveries, not messages, are the unit that decides how much processor a deploym
 ## Processor
 
 Measured at a constant offered load of roughly 26,000 deliveries per second, varying only the quota.
+These runs used a native build under systemd limits, not the musl image, and until 2026-10-07 the image's allocator cost it about three times the processor per delivery; since the server switched to jemalloc the image costs what a native build does, so the table now holds for it (docs/dependencies.md, tikv-jemallocator).
 
 | Quota | Cores actually used | Median delivery | Verdict |
 | --- | --- | --- | --- |

@@ -152,7 +152,24 @@ start_event_log() {
   EVENT_LOG="$(mktemp)"
   stdbuf -oL xev -root -event substructure >"$EVENT_LOG" 2>/dev/null &
   XEV_PID=$!
-  sleep 0.5
+  wait_for_event_log 15
+}
+
+# xev prints nothing until it has selected the root's events, so only a window it reports proves it is listening; a launch before that loses the splash.
+wait_for_event_log() {
+  local timeout_s="$1" waited=0 probe
+  until grep -q "CreateNotify" "$EVENT_LOG"; do
+    xev -name smoke-probe -geometry 1x1+0+0 >/dev/null 2>&1 &
+    probe=$!
+    sleep 0.2
+    kill "$probe" 2>/dev/null || true
+    wait "$probe" 2>/dev/null || true
+    waited=$((waited + 1))
+    if [[ "$waited" -ge "$((timeout_s * 5))" ]]; then
+      echo "::error::xev reported no probe window within ${timeout_s}s" >&2
+      exit 1
+    fi
+  done
 }
 
 stop_event_log() {
@@ -166,6 +183,8 @@ assert_splash_seen() {
     return 0
   fi
   echo "::error::no window of the splash size ${SPLASH_WIDTH}x${SPLASH_HEIGHT} appeared in the X event log; sampled sequence: ${SIZES[*]:-none}" >&2
+  echo "sizes the X server reported:" >&2
+  grep -oE "width [0-9]+, height [0-9]+" "$EVENT_LOG" | sort | uniq -c >&2 || true
   exit 1
 }
 

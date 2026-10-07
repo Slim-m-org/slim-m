@@ -6444,8 +6444,11 @@ paths:
         an id is 1 to 64 characters of letters, digits and `-_.`, unique within
         its surface. `icon` is one of `play`, `pause`, `stop`, `skip_next`,
         `skip_previous`, `volume`, `volume_off`, `repeat`, `shuffle`, `list`,
-        and only a call control takes one. `permission` is one
-        `Permissions` bit the member must hold in the channel.
+        `settings`, and only a call control takes one. `permission` is one
+        `Permissions` bit the member must hold in the channel. A call control
+        may offer 2 to 8 `options`, each an id and label held to the same
+        rules and unique within the control; the member picks one, and the
+        bot hears it as `option_id` on `interaction.created`.
       requestBody:
         required: true
         content:
@@ -10223,6 +10226,21 @@ components:
         permission:
           type: integer
           format: int64
+        options:
+          type: array
+          description: >-
+            The choices a call control offers; absent for a plain button and
+            for a menu entry.
+          items:
+            $ref: "#/components/schemas/BotUiOption"
+    BotUiOption:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
     SetBotUiRequest:
       type: object
       properties:
@@ -10276,6 +10294,11 @@ components:
           type: string
           format: uuid
           description: Required for a menu entry, absent for a call control.
+        option_id:
+          type: string
+          description: >-
+            Required for a call control that offers options, and one of them;
+            absent otherwise. An option the control no longer offers is a 404.
     InteractionCreated:
       type: object
       required:
@@ -10315,6 +10338,9 @@ components:
           enum: [button, message_menu, call_control]
         custom_id:
           type: string
+        option_id:
+          type: string
+          description: The choice made on a call control that offers options.
         user_id:
           type: string
           format: uuid

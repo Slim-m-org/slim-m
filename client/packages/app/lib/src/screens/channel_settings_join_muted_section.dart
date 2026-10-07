@@ -18,9 +18,16 @@ import '../widgets/settings_toggle_row.dart';
 import '../widgets/success_flash.dart';
 
 class ChannelJoinMutedSection extends ConsumerStatefulWidget {
-  const ChannelJoinMutedSection({super.key, required this.channel});
+  const ChannelJoinMutedSection({
+    super.key,
+    required this.channel,
+    this.embedded = false,
+  });
 
   final Channel channel;
+
+  /// One toggle row inside another card instead of its own card.
+  final bool embedded;
 
   @override
   ConsumerState<ChannelJoinMutedSection> createState() =>
@@ -61,6 +68,26 @@ class _ChannelJoinMutedSectionState
     final stored =
         ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
         widget.channel;
+    final rows = [
+      SettingsToggleRow(
+        label: 'Join muted',
+        description: 'Members start with their mic off and can unmute.',
+        value: _optimistic ?? stored.joinMuted,
+        onChanged: _saving ? null : _set,
+        semanticLabel: 'Members join this channel muted',
+      ),
+      SuccessFlash(tick: successTick),
+      if (actionError != null) ...[
+        const SizedBox(height: AppSpacing.s8),
+        AppErrorState(message: actionError!, onDismiss: clearActionError),
+      ],
+    ];
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      );
+    }
     return SettingsSectionCard(
       title: 'Voice',
       crossAxisAlignment: CrossAxisAlignment.stretch,

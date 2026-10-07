@@ -4,7 +4,7 @@
 
 use sqlx::Row;
 
-use crate::bot_ui::{Surface, UiEntry, UiRegistration};
+use crate::bot_ui::{Surface, UiEntry, UiOption, UiRegistration};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
@@ -36,8 +36,8 @@ impl Store {
             for (position, entry) in entries.iter().enumerate() {
                 sqlx::query(
                     "INSERT INTO bot_ui_entries
-                        (bot_user_id, surface, entry_id, label, icon, permission, position)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (bot_user_id, surface, entry_id, label, icon, permission, position, options)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 )
                 .bind(bot)
                 .bind(surface.as_str())
@@ -46,6 +46,7 @@ impl Store {
                 .bind(&entry.icon)
                 .bind(entry.permission)
                 .bind(position as i64)
+                .bind(options_json(&entry.options)?)
                 .execute(&mut *tx)
                 .await?;
             }
@@ -76,7 +77,7 @@ impl Store {
         entry_id: &str,
     ) -> anyhow::Result<Option<UiEntry>> {
         let row = sqlx::query(
-            "SELECT entry_id, label, icon, permission FROM bot_ui_entries
+            "SELECT entry_id, label, icon, permission, options FROM bot_ui_entries
              WHERE bot_user_id = ? AND surface = ? AND entry_id = ?",
         )
         .bind(bot)
@@ -97,7 +98,7 @@ impl Store {
     ) -> anyhow::Result<Vec<VisibleBotUi>> {
         let rows = sqlx::query(
             "SELECT u.id AS bot_id, u.username, u.display_name, e.surface,
-                    e.entry_id, e.label, e.icon, e.permission
+                    e.entry_id, e.label, e.icon, e.permission, e.options
              FROM bot_ui_entries e
              JOIN users u ON u.id = e.bot_user_id
              WHERE u.is_bot = 1 AND u.deleted_at IS NULL
@@ -160,5 +161,17 @@ fn entry_of(row: &sqlx::sqlite::SqliteRow) -> anyhow::Result<UiEntry> {
         label: row.try_get("label")?,
         icon: row.try_get("icon")?,
         permission: row.try_get("permission")?,
+        options: match row.try_get::<Option<String>, _>("options")? {
+            Some(json) => serde_json::from_str(&json)?,
+            None => Vec::new(),
+        },
     })
+}
+
+/// NULL for a plain button, so a row written before options existed reads the same.
+fn options_json(options: &[UiOption]) -> anyhow::Result<Option<String>> {
+    if options.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(serde_json::to_string(options)?))
 }

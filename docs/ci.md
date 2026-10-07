@@ -89,6 +89,13 @@ The binary size budget step exists because the brief treats binary size as a fir
 
 Path-gated so a server-only or schema-only change never triggers the Flutter client build.
 
+### The web bundle budget
+
+`scripts/check-web-bundle-budget.sh` runs right after the web release build and fails when `main.dart.js`, gzipped at level 9, is over 2,400,000 bytes.
+It was 1,906,651 when the budget landed (2026-10-07), so the budget is about a quarter of headroom: normal growth fits for a while, and something like an accidentally pulled-in heavy dependency trips it.
+Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's 20 MiB binary budget.
+Run it locally after `flutter build web --release` in `client/packages/app`.
+
 ### Native build hooks are cached, and explain their own failures
 
 Every job that runs `flutter build` or `flutter test` (here, in `client-macos-ci`, `client-windows-ci`, `client-ios-ci`, `desktop-clients`, `main-builds`, `release` and `flatpak-ci`) uses two composite actions.

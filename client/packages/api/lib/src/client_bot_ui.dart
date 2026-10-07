@@ -33,15 +33,22 @@ extension SlimmApiBotUi on SlimmApi {
       );
 
   /// Uses the call control [entryId] of [botId] on the call in [channelId].
+  /// [optionId] is the choice made on a control that offers options.
   Future<void> useBotCallControl({
     required String channelId,
     required String botId,
     required String entryId,
     required String id,
+    String? optionId,
   }) =>
       _send(
         'POST',
         '/channels/$channelId/bot-ui/$botId/interactions',
-        body: {'id': id, 'surface': 'call_control', 'entry_id': entryId},
+        body: {
+          'id': id,
+          'surface': 'call_control',
+          'entry_id': entryId,
+          if (optionId != null) 'option_id': optionId,
+        },
       );
 }

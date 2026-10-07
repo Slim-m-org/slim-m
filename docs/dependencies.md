@@ -67,6 +67,24 @@ The notification schedule (`docs/decisions/0033-notification-schedule.md`) needs
 Built with `default-features = false` plus `std`, `tzdb-bundle-always` and `serde`: `tzdb-bundle-always` compiles the whole IANA database into the binary, since the release image (`gcr.io/distroless/static-debian12`) ships no `/usr/share/zoneinfo` for a runtime `TZDIR` lookup to find.
 `chrono-tz` was the obvious alternative and was rejected only because this project has no existing `chrono` dependency to piggyback on; see the decision record for the full comparison.
 
+## tikv-jemallocator
+
+The server binary's global allocator, set in `crates/slimm-server/src/main.rs`.
+The shipped image and the release binaries are static musl builds, and musl's own allocator is slow under a multi-threaded runtime: measured 2026-10-07 with `scripts/loadtest.py` (100 listeners, 50 senders at 5 messages a second, the marginal server CPU between 10 and 40 messages per sender, three runs each, same commit), musl cost about 260 microseconds of processor time per delivery against 87 for a glibc build.
+With jemalloc the musl binary costs about 92, so the shipped image now does the work of the glibc one.
+The 2026-10-01 performance audit's 88 microseconds was taken on a glibc dev build, which is how the musl gap went unnoticed.
+
+Two alternatives were measured on the same runs and rejected.
+mimalloc idled at 35 to 47 MB against a 30 MB budget, from its per-thread heaps across Tokio's workers.
+Keeping musl's allocator keeps the lowest memory (12 MB idle, back to 18 MB after load), but at three times the processor.
+jemalloc idles at 17 MB and settles at 39 MB after 1.2 million deliveries, against 18 MB for musl's: about 20 MB more after a heavy burst, for a third of the processor.
+Its config is compiled in (`_rjem_malloc_conf`): a background thread and one-second decay, so a burst's freed pages go back within a second or so.
+A glibc build without it kept 60 MB after the same burst, and never returned it.
+
+jemalloc fixes its page size at build time and refuses to start on a kernel whose pages are bigger.
+The arm64 image and release binary therefore build with `JEMALLOC_SYS_WITH_LG_PAGE=16` (64K), since 16K page kernels (the Raspberry Pi 5's default) and 64K ones (some arm servers) are both real self-host targets; amd64 pins the native 12 (4K).
+The image's builder stage gains `make`, which `tikv-jemalloc-sys` needs to build the bundled jemalloc.
+
 ## The release profile
 
 `opt-level = "z"`, LTO, one codegen unit, stripped, and `panic = "abort"`.

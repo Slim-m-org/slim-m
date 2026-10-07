@@ -56,6 +56,9 @@ void main() {
       reason: 'a fresh channel starts with slow mode off',
     );
 
+    // One row in the General card now; its choices open in a sheet.
+    await tester.tap(find.text('Slow mode'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('30s'));
     await tester.pumpAndSettle();
 
@@ -64,5 +67,10 @@ void main() {
     expect(jsonDecode(patched.first.body) as Map<String, dynamic>, {
       'slow_mode_seconds': 30,
     });
+    expect(
+      find.text('30s'),
+      findsOneWidget,
+      reason: 'the row shows the choice',
+    );
   });
 }

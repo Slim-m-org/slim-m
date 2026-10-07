@@ -6,7 +6,9 @@
 /// tokens and type never scale with width): a bot is one row, its name as a
 /// small label, then an icon chip per control, the same chip the call's own
 /// controls use, labelled by tooltip and semantics. The chips grow to the
-/// touch floor by themselves and wrap rather than scroll.
+/// touch floor by themselves and wrap rather than scroll. A control that
+/// offers options opens them as a menu, a sheet on a compact window, the same
+/// way every other menu here does (rule 1).
 library;
 
 import 'dart:async';
@@ -18,6 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/bot_ui_uses.dart';
 import '../screens/call_dock_button.dart';
+import 'context_menu_region.dart';
 
 /// One bot's controls for the call.
 class BotCallGroup {
@@ -38,6 +41,9 @@ List<BotCallGroup> botCallGroups(
       BotCallGroup(bot: bot, controls: bot.callControls),
 ];
 
+/// A control used, with the option chosen when it offers a choice.
+typedef _OnUse = void Function(api.BotUiEntry control, String? optionId);
+
 /// Widest a bot's name grows beside its chips before it ellipsizes.
 const double _compactNameMaxWidth = 88;
 
@@ -55,6 +61,7 @@ IconData _iconFor(String? name) => switch (name) {
   'repeat' => AppIcons.callRepeat,
   'shuffle' => AppIcons.callShuffle,
   'list' => AppIcons.callList,
+  'settings' => AppIcons.settings,
   _ => AppIcons.callControl,
 };
 
@@ -91,11 +98,12 @@ class BotCallControls extends ConsumerWidget {
                         control.id,
                       )],
               },
-              onUse: (control) => unawaited(
+              onUse: (control, optionId) => unawaited(
                 controller.useCallControl(
                   channelId: channelId,
                   botId: group.bot.botUserId,
                   entryId: control.id,
+                  optionId: optionId,
                 ),
               ),
               onDismiss: (control) => controller.dismiss(
@@ -118,7 +126,7 @@ class _Group extends StatelessWidget {
 
   final BotCallGroup group;
   final Map<String, BotUiUse?> uses;
-  final ValueChanged<api.BotUiEntry> onUse;
+  final _OnUse onUse;
   final ValueChanged<api.BotUiEntry> onDismiss;
 
   @override
@@ -182,7 +190,7 @@ class _CompactRow extends StatelessWidget {
   final Widget name;
   final List<api.BotUiEntry> controls;
   final Map<String, BotUiUse?> uses;
-  final ValueChanged<api.BotUiEntry> onUse;
+  final _OnUse onUse;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -198,16 +206,69 @@ class _CompactRow extends StatelessWidget {
           runAlignment: WrapAlignment.end,
           children: [
             for (final control in controls)
-              CallDockButton(
-                icon: _iconFor(control.icon),
-                tooltip: control.label,
-                active: false,
+              _ControlChip(
+                control: control,
                 pending: uses[control.id]?.pending ?? false,
-                onPressed: () => onUse(control),
+                onUse: onUse,
               ),
           ],
         ),
       ),
     ],
   );
+}
+
+/// One control's chip. A plain control is used on press; one that offers
+/// options opens them, and the pick is the use.
+class _ControlChip extends StatefulWidget {
+  const _ControlChip({
+    required this.control,
+    required this.pending,
+    required this.onUse,
+  });
+
+  final api.BotUiEntry control;
+  final bool pending;
+  final _OnUse onUse;
+
+  @override
+  State<_ControlChip> createState() => _ControlChipState();
+}
+
+class _ControlChipState extends State<_ControlChip> {
+  final _menu = GlobalKey<ContextMenuRegionState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final control = widget.control;
+    final chip = CallDockButton(
+      icon: _iconFor(control.icon),
+      tooltip: control.label,
+      active: false,
+      pending: widget.pending,
+      onPressed: control.options.isEmpty
+          ? () => widget.onUse(control, null)
+          : () => _menu.currentState?.open(),
+    );
+    if (control.options.isEmpty) return chip;
+    return ContextMenuRegion(
+      key: _menu,
+      // The chip is already a tab stop and owns its press.
+      ownsFocusNode: false,
+      enableLongPress: false,
+      opensAbove: true,
+      itemsBuilder: (context, close) => [
+        AppMenuLabel(control.label),
+        for (final option in control.options)
+          AppMenuItem(
+            label: option.label,
+            onTap: () {
+              close();
+              widget.onUse(control, option.id);
+            },
+          ),
+      ],
+      child: chip,
+    );
+  }
 }
