@@ -238,6 +238,9 @@ jobs:
         working-directory: client/packages/app
         run: flutter build web --release
 
+      - name: web bundle size budget
+        run: scripts/check-web-bundle-budget.sh
+
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
   # Dart compiled to JavaScript, which the VM suites cannot see: see docs/ci.md, `client-ci`.
