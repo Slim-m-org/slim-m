@@ -110,6 +110,7 @@ async fn click(
         message_id: Some(message_id),
         custom_id: req.custom_id,
         kind: InteractionKind::Button,
+        option_id: None,
         created_at: now_ms(),
         answered: false,
     };

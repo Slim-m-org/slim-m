@@ -109,6 +109,9 @@ pub(super) enum ServerFrame {
         message_id: Option<String>,
         custom_id: String,
         kind: String,
+        /// The choice made on a call control that offers options.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        option_id: Option<String>,
         user_id: String,
         user_display_name: String,
         created_at: i64,

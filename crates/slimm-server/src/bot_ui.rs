@@ -13,10 +13,12 @@ pub const MAX_MENU_ENTRIES: usize = 5;
 pub const MAX_CALL_CONTROLS: usize = 8;
 pub const MAX_LABEL_CHARS: usize = 32;
 pub const MAX_ENTRY_ID_CHARS: usize = 64;
+/// Choices one call control may offer; fewer than two is a plain button.
+pub const MAX_CONTROL_OPTIONS: usize = 8;
 
 /// Glyphs a call control may name. The client draws them from its own icon
 /// set, so a bot chooses a picture but never supplies one.
-pub const CALL_ICONS: [&str; 10] = [
+pub const CALL_ICONS: [&str; 11] = [
     "play",
     "pause",
     "stop",
@@ -27,6 +29,7 @@ pub const CALL_ICONS: [&str; 10] = [
     "repeat",
     "shuffle",
     "list",
+    "settings",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,6 +74,17 @@ pub struct UiEntry {
     /// A single `Permissions` bit the member must hold in the channel.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission: Option<i64>,
+    /// The choices a call control offers; empty for a plain button.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options: Vec<UiOption>,
+}
+
+/// One choice a call control offers. The member's pick reaches the bot as the
+/// interaction's `option_id`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiOption {
+    pub id: String,
+    pub label: String,
 }
 
 /// A bot's whole registration across both surfaces.
@@ -122,26 +136,8 @@ fn validate_entry(
     surface: Surface,
     hidden: fn(char) -> bool,
 ) -> Result<(), &'static str> {
-    entry.label = entry.label.trim().to_owned();
-    if entry.label.is_empty() {
-        return Err("an entry needs a label");
-    }
-    if entry.label.chars().count() > MAX_LABEL_CHARS {
-        return Err("entry label is too long");
-    }
-    if entry.label.chars().any(hidden) {
-        return Err("an entry label cannot hold control or invisible characters");
-    }
-    if entry.id.is_empty() || entry.id.chars().count() > MAX_ENTRY_ID_CHARS {
-        return Err("an entry id must be 1 to 64 characters");
-    }
-    if !entry
-        .id
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
-    {
-        return Err("an entry id may only hold letters, digits, - _ and .");
-    }
+    entry.label = checked_label(&entry.label, hidden)?;
+    check_id(&entry.id)?;
     match (&entry.icon, surface) {
         (Some(_), Surface::MessageMenu) => return Err("only a call control takes an icon"),
         (Some(icon), Surface::CallControl) if !CALL_ICONS.contains(&icon.as_str()) => {
@@ -155,6 +151,58 @@ fn validate_entry(
         if !single_bit || !crate::permissions::Permissions::ALL.contains(known) {
             return Err("an entry's permission must be exactly one known permission bit");
         }
+    }
+    validate_options(&mut entry.options, surface, hidden)
+}
+
+fn validate_options(
+    options: &mut [UiOption],
+    surface: Surface,
+    hidden: fn(char) -> bool,
+) -> Result<(), &'static str> {
+    if options.is_empty() {
+        return Ok(());
+    }
+    if surface != Surface::CallControl {
+        return Err("only a call control offers options");
+    }
+    if options.len() < 2 || options.len() > MAX_CONTROL_OPTIONS {
+        return Err("a call control offers 2 to 8 options");
+    }
+    let mut seen = std::collections::HashSet::new();
+    for option in options {
+        option.label = checked_label(&option.label, hidden)?;
+        check_id(&option.id)?;
+        if !seen.insert(option.id.clone()) {
+            return Err("an option id must be unique within its control");
+        }
+    }
+    Ok(())
+}
+
+fn checked_label(label: &str, hidden: fn(char) -> bool) -> Result<String, &'static str> {
+    let label = label.trim();
+    if label.is_empty() {
+        return Err("an entry needs a label");
+    }
+    if label.chars().count() > MAX_LABEL_CHARS {
+        return Err("entry label is too long");
+    }
+    if label.chars().any(hidden) {
+        return Err("an entry label cannot hold control or invisible characters");
+    }
+    Ok(label.to_owned())
+}
+
+fn check_id(id: &str) -> Result<(), &'static str> {
+    if id.is_empty() || id.chars().count() > MAX_ENTRY_ID_CHARS {
+        return Err("an entry id must be 1 to 64 characters");
+    }
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        return Err("an entry id may only hold letters, digits, - _ and .");
     }
     Ok(())
 }
@@ -173,6 +221,14 @@ mod tests {
             label: label.into(),
             icon: None,
             permission: None,
+            options: Vec::new(),
+        }
+    }
+
+    fn option(id: &str, label: &str) -> UiOption {
+        UiOption {
+            id: id.into(),
+            label: label.into(),
         }
     }
 
@@ -226,5 +282,34 @@ mod tests {
         assert!(validate(controls(vec![with_icon.clone()]), hidden).is_ok());
         with_icon.icon = Some("skull".into());
         assert!(validate(controls(vec![with_icon]), hidden).is_err());
+    }
+
+    #[test]
+    fn a_call_control_may_offer_two_to_eight_options() {
+        let mut quality = entry("quality", "Quality");
+        quality.icon = Some("settings".into());
+        quality.options = vec![option("low", " Low 480p "), option("high", "High 1080p")];
+        let reg = validate(controls(vec![quality.clone()]), hidden).unwrap();
+        assert_eq!(reg.call_controls[0].options[0].label, "Low 480p");
+
+        quality.options.truncate(1);
+        assert!(validate(controls(vec![quality.clone()]), hidden).is_err());
+        quality.options = (0..=MAX_CONTROL_OPTIONS)
+            .map(|i| option(&format!("o{i}"), "x"))
+            .collect();
+        assert!(validate(controls(vec![quality]), hidden).is_err());
+    }
+
+    #[test]
+    fn options_are_checked_like_entries_and_belong_to_call_controls() {
+        let mut picker = entry("p", "Pick");
+        picker.options = vec![option("a", "One"), option("b", "Two")];
+        assert!(validate(menu(vec![picker.clone()]), hidden).is_err());
+        picker.options = vec![option("a", "One"), option("a", "Two")];
+        assert!(validate(controls(vec![picker.clone()]), hidden).is_err());
+        picker.options = vec![option("a b", "One"), option("c", "Two")];
+        assert!(validate(controls(vec![picker.clone()]), hidden).is_err());
+        picker.options = vec![option("a", "On\u{202E}e"), option("c", "Two")];
+        assert!(validate(controls(vec![picker]), hidden).is_err());
     }
 }
