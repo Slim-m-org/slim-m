@@ -23,7 +23,7 @@ import 'channel_kind_icon.dart';
 import 'channel_move.dart';
 import 'channel_row_menu.dart';
 import 'context_menu_region.dart';
-import 'user_avatar.dart';
+import 'rail_voice_participants.dart';
 import 'voice_channel_tap.dart';
 
 /// Pairs a channel row with its kebab, handed to
@@ -268,7 +268,10 @@ class VoiceChannelRow extends ConsumerWidget {
           ),
         ),
         if (participants.isNotEmpty)
-          _ParticipantList(participants: participants),
+          RailParticipantList(
+            participants: participants,
+            channelId: channel.id,
+          ),
       ],
     );
   }
@@ -288,98 +291,3 @@ VoiceParticipant _asVoiceParticipant(api.VoiceRosterParticipant p) =>
       isScreenSharing: p.isSharingScreen,
       isCameraOn: p.hasVideo,
     );
-
-/// Left indent that puts the list under a channel row's *label* rather than
-/// its icon, so a name reads as belonging to the channel named above it.
-/// Off the 4dp grid because it tracks the icon column's width, not the grid.
-const double _stripIndent = 30;
-
-/// A sub-grid optical gap: the list sits just under the row's text baseline,
-/// close enough to read as part of that row rather than as its own row.
-const double _stripTop = 2;
-
-/// More rows than this and the list stops naming people and states a count
-/// instead: an unbounded list would let one crowded voice channel push
-/// every category below it off screen, the way `_maxMemberPages` bounds
-/// paging for the same reason it exists at all - a defensive ceiling, not a
-/// number any real channel is expected to reach.
-const int _maxNamedParticipants = 8;
-
-/// Who is in a voice channel: real-time for the one the caller has joined,
-/// a periodic snapshot ([voiceRosterProvider]) for every other one.
-///
-/// Named rows, not a strip of faces: each participant gets their own row
-/// (a small avatar and their name), the way a member pane names people
-/// rather than just showing a row of pictures. `isSpeaking` already reaches
-/// here for the joined channel's own live roster; [_asVoiceParticipant]
-/// hardcodes it false for every other channel's periodic snapshot, which is
-/// a real gap but not this one's - only the layout was a strip.
-class _ParticipantList extends StatelessWidget {
-  const _ParticipantList({required this.participants});
-
-  final List<VoiceParticipant> participants;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final shown = participants.take(_maxNamedParticipants).toList();
-    final overflow = participants.length - shown.length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        _stripIndent,
-        _stripTop,
-        AppSpacing.s8,
-        AppSpacing.s4,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final participant in shown)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: [
-                  UserAvatar(
-                    name: participant.name,
-                    userId: participant.identity,
-                    size: AppAvatarSize.s16,
-                    speaking: participant.isSpeaking,
-                  ),
-                  const SizedBox(width: AppSpacing.s4),
-                  Expanded(
-                    child: Text(
-                      participant.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.micro.copyWith(
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ),
-                  if (participant.isScreenSharing)
-                    Icon(
-                      AppIcons.screenShare,
-                      size: 12,
-                      color: tokens.textSecondary,
-                    ),
-                  if (participant.isMuted)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Icon(
-                        AppIcons.micOff,
-                        size: 12,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          if (overflow > 0)
-            Text(
-              '+$overflow more',
-              style: AppText.micro.copyWith(color: tokens.textSecondary),
-            ),
-        ],
-      ),
-    );
-  }
-}
