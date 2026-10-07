@@ -14,7 +14,7 @@ repository = "https://github.com/Slim-m-org/slim-m"
 [workspace.dependencies]
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "io-util", "sync", "time", "fs"] }
-tower-http = { version = "0.6", features = ["trace", "cors", "timeout"] }
+tower-http = { version = "0.6", features = ["trace", "cors", "timeout", "catch-panic"] }
 # Splitting a WebSocket into independent read and write halves (StreamExt/SinkExt).
 futures-util = "0.3"
 # Streams a std/tokio file as an axum response body without buffering it (ReaderStream).
@@ -82,4 +82,5 @@ opt-level = "z"
 lto = true
 codegen-units = 1
 strip = true
-panic = "abort"
+# Unwind so a request panic answers 500; any other panic still aborts (http::panic_guard).
+panic = "unwind"
