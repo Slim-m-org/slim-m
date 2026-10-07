@@ -67,8 +67,9 @@ void main() {
   testWidgets('the banner goes away by itself once the timeout expires', (
     tester,
   ) async {
+    // Seconds of headroom, since a loaded CI runner can take well over half a second to pump the first frame.
     final until = DateTime.now()
-        .add(const Duration(milliseconds: 600))
+        .add(const Duration(seconds: 3))
         .millisecondsSinceEpoch;
     await tester.pumpWidget(_harness(me: _me(timedOutUntil: until)));
     await tester.pump();
@@ -76,8 +77,9 @@ void main() {
     expect(find.textContaining('You are timed out'), findsOneWidget);
 
     // Wall clock moves past the expiry; the widget tree is pumped as a user session would be.
+    final pastExpiry = until - DateTime.now().millisecondsSinceEpoch + 300;
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 900)),
+      () => Future<void>.delayed(Duration(milliseconds: pastExpiry)),
     );
     expect(DateTime.now().millisecondsSinceEpoch, greaterThan(until));
     for (var i = 0; i < 10; i++) {
