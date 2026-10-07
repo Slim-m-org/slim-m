@@ -166,7 +166,7 @@ class DmRow extends ConsumerWidget {
         leading: UserAvatar(
           name: channel.name,
           userId: channel.dmParticipantId,
-          size: AppAvatarSize.s24,
+          size: AppAvatarSize.s28,
           presence: true,
         ),
         trailing: inCall

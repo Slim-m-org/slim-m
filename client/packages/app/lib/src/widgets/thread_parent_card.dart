@@ -28,7 +28,7 @@ import 'user_avatar.dart';
 const int _snippetMaxRunes = 600;
 
 /// The parent's author avatar, the size a message row uses.
-const double _avatarSize = AppAvatarSize.s36;
+const double _avatarSize = AppAvatarSize.s40;
 
 /// Resolves [threadParentProvider] for [channelId] and shows the parent once
 /// it is known; nothing before then or for a channel that is not a thread, so

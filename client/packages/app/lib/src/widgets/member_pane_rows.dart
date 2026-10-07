@@ -169,7 +169,7 @@ class MemberRow extends ConsumerWidget {
           userId: profile.id,
           avatarUpdatedAt: displayed.avatarUpdatedAt,
           name: displayed.displayName,
-          size: AppAvatarSize.s28,
+          size: AppAvatarSize.s32,
           presence: true,
         ),
         selected: selected,

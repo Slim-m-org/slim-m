@@ -131,15 +131,20 @@ abstract final class AppAvatarSize {
   static const double s16 = 16;
   static const double s20 = 20;
 
-  /// The smallest size that carries a presence dot: a DM row.
+  /// The smallest size that carries a presence dot.
   static const double s24 = 24;
 
-  /// A member row, the rail footer, a pinned or saved message.
+  /// A DM row, the rail footer, a pinned or saved message.
   static const double s28 = 28;
+
+  /// A member row.
   static const double s32 = 32;
 
-  /// A message row's author, and the default.
+  /// The default, for a picture with no surface-specific size.
   static const double s36 = 36;
+
+  /// A message row's author.
+  static const double s40 = 40;
 
   /// The member card.
   static const double s44 = 44;
