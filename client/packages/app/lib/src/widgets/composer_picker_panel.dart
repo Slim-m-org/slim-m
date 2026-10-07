@@ -17,6 +17,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -25,6 +26,8 @@ import 'composer_emoji_browse.dart';
 import 'emoji_picker_panel.dart' show pickerWidth;
 import 'emoji_picker_sheets.dart' show SpaceEmojiSheetBody;
 import 'gif_picker.dart' show GifPickerBody;
+import '../providers/gif_preview_bytes.dart';
+import '../providers/gif_trending.dart';
 
 /// Which half of the panel is showing.
 enum ComposerPickerTab { emoji, gif }
@@ -99,6 +102,7 @@ List<Widget> _pickerBody({
   required Widget emojiBody,
   required ValueChanged<api.Attachment> onPickedGif,
 }) => [
+  if (showGifTab) const _WarmTrendingGifs(),
   if (showGifTab)
     Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -193,4 +197,39 @@ class _ComposerPickerSheetState extends State<_ComposerPickerSheet> {
       ),
     );
   }
+}
+
+/// How many trending thumbnails to fetch before the GIFs tab opens: about one row.
+const _warmThumbnails = 6;
+
+/// Starts the trending fetch and its first thumbnails as the picker opens, so
+/// switching to GIFs shows tiles at once; draws nothing.
+class _WarmTrendingGifs extends ConsumerStatefulWidget {
+  const _WarmTrendingGifs();
+
+  @override
+  ConsumerState<_WarmTrendingGifs> createState() => _WarmTrendingGifsState();
+}
+
+class _WarmTrendingGifsState extends ConsumerState<_WarmTrendingGifs> {
+  @override
+  void initState() {
+    super.initState();
+    _warm();
+  }
+
+  Future<void> _warm() async {
+    try {
+      final trending = await ref.read(trendingGifsProvider.future);
+      if (!mounted) return;
+      for (final gif in trending.take(_warmThumbnails)) {
+        ref.read(gifPreviewBytesProvider(gif.id).future).ignore();
+      }
+    } on Object {
+      // The GIFs tab shows its own error and retry when opened; a warm-up has nothing to say.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
