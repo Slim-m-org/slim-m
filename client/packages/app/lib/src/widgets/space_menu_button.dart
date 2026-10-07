@@ -14,13 +14,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
-import '../providers/channel_notification_overrides_controller.dart';
 import '../routing/routes.dart';
 import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
-import 'mark_read_action.dart';
 import 'row_menu_notifications.dart';
 import 'saved_messages_sheet.dart';
 import 'space_settings_section.dart';
@@ -72,7 +70,11 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
               },
             ),
           ],
-          _MarkAllReadEntry(close: _controller.hide),
+          markSpaceReadMenuItem(
+            context,
+            ProviderScope.containerOf(context, listen: false),
+            _controller.hide,
+          ),
           // Above settings and outside the manage gate: keeping messages is something every member does.
           AppMenuItem(
             label: 'Saved messages',
@@ -100,27 +102,5 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
         onPressed: _controller.toggle,
       ),
     );
-  }
-}
-
-/// The space-wide Mark all as read, absent when nothing is unread. Its own
-/// widget so the channel list is watched only while the menu is open, not for
-/// as long as the rail shows the button.
-class _MarkAllReadEntry extends ConsumerWidget {
-  const _MarkAllReadEntry({required this.close});
-
-  final VoidCallback close;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watched so the entry appears and goes with the badges it clears.
-    ref.watch(channelNotificationOverridesProvider);
-    final entry = markAllReadMenuItem(
-      context,
-      ProviderScope.containerOf(context, listen: false),
-      ref.watch(spaceChannelsProvider).valueOrNull ?? const [],
-      close,
-    );
-    return entry ?? const SizedBox.shrink();
   }
 }
