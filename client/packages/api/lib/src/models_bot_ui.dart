@@ -6,7 +6,12 @@ library;
 /// One entry a bot registered: a row in a message's menu, or a control in a
 /// call. [id] is what the bot gets back when it is used.
 class BotUiEntry {
-  const BotUiEntry({required this.id, required this.label, this.icon});
+  const BotUiEntry({
+    required this.id,
+    required this.label,
+    this.icon,
+    this.options = const [],
+  });
 
   final String id;
   final String label;
@@ -15,10 +20,30 @@ class BotUiEntry {
   /// app draws it, so a bot never supplies a picture.
   final String? icon;
 
+  /// The choices a call control offers; empty for a plain button. Using one
+  /// sends the chosen option's id.
+  final List<BotUiOption> options;
+
   factory BotUiEntry.fromJson(Map<String, dynamic> json) => BotUiEntry(
         id: json['id'] as String,
         label: json['label'] as String,
         icon: json['icon'] as String?,
+        options: (json['options'] as List<dynamic>? ?? [])
+            .map((o) => BotUiOption.fromJson(o as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+/// One choice a call control offers, such as a stream quality.
+class BotUiOption {
+  const BotUiOption({required this.id, required this.label});
+
+  final String id;
+  final String label;
+
+  factory BotUiOption.fromJson(Map<String, dynamic> json) => BotUiOption(
+        id: json['id'] as String,
+        label: json['label'] as String,
       );
 }
 

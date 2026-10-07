@@ -103,6 +103,9 @@ struct UseEntryRequest {
     /// The message a menu entry was used on; absent for a call control.
     #[serde(default)]
     message_id: Option<String>,
+    /// The choice made on a call control that offers options; absent otherwise.
+    #[serde(default)]
+    option_id: Option<String>,
 }
 
 /// A member uses a bot's entry. Every refusal that depends on the bot, the
@@ -168,6 +171,7 @@ async fn use_entry(
             (None, InteractionKind::CallControl)
         }
     };
+    let option_id = chosen_option(&entry, req.option_id)?;
     let display_name = state
         .store
         .user_profile(ctx.user_id)
@@ -182,10 +186,24 @@ async fn use_entry(
         message_id,
         custom_id: entry.id,
         kind,
+        option_id,
         created_at: now_ms(),
         answered: false,
     };
     record_and_publish(&state, fresh, display_name).await
+}
+
+/// A control that offers options needs one of them, and nothing else takes
+/// one. An option the bot no longer offers is the same 404 as a dropped entry,
+/// since a re-registration can remove it between listing and use.
+fn chosen_option(entry: &UiEntry, option_id: Option<String>) -> Result<Option<String>, ApiError> {
+    match (entry.options.is_empty(), option_id) {
+        (true, None) => Ok(None),
+        (true, Some(_)) => Err(ApiError::BadRequest("this entry offers no options")),
+        (false, None) => Err(ApiError::BadRequest("this call control needs an option_id")),
+        (false, Some(id)) if entry.options.iter().any(|o| o.id == id) => Ok(Some(id)),
+        (false, Some(_)) => Err(ApiError::NotFound("entry not found")),
+    }
 }
 
 /// A call control acts on a live call, so the member must be on it: viewing a

@@ -29,6 +29,7 @@ pub(super) async fn authorize(
                     message_id: interaction.message_id.map(|m| m.to_string()),
                     custom_id: interaction.custom_id.clone(),
                     kind: interaction.kind.as_str().to_owned(),
+                    option_id: interaction.option_id.clone(),
                     user_id: interaction.clicker_id.to_string(),
                     user_display_name: clicker_display_name.clone(),
                     created_at: interaction.created_at,

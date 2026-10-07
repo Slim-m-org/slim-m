@@ -19,11 +19,11 @@ fn registration() -> Value {
     })
 }
 
-async fn register(w: &World, token: &str, body: Value) -> StatusCode {
+pub(super) async fn register(w: &World, token: &str, body: Value) -> StatusCode {
     call(w, "PUT", "/bots/ui", token, Some(body)).await.0
 }
 
-async fn listed(w: &World, channel: ChannelId, token: &str) -> Value {
+pub(super) async fn listed(w: &World, channel: ChannelId, token: &str) -> Value {
     let (status, body) = call(
         w,
         "GET",
@@ -36,7 +36,7 @@ async fn listed(w: &World, channel: ChannelId, token: &str) -> Value {
     body
 }
 
-async fn use_entry(
+pub(super) async fn use_entry(
     w: &World,
     channel: ChannelId,
     token: &str,
@@ -64,7 +64,7 @@ fn control_use(entry: &str) -> Value {
     json!({ "surface": "call_control", "entry_id": entry })
 }
 
-async fn voice_channel(w: &World) -> ChannelId {
+pub(super) async fn voice_channel(w: &World) -> ChannelId {
     w.state
         .store
         .create_channel("call", "voice")

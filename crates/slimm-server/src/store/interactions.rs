@@ -47,6 +47,8 @@ pub struct Interaction {
     /// The button's `custom_id`, or the id of the menu entry or call control.
     pub custom_id: String,
     pub kind: InteractionKind,
+    /// The option a member chose on a call control that offers a choice.
+    pub option_id: Option<String>,
     pub created_at: i64,
     pub answered: bool,
 }
@@ -60,8 +62,9 @@ impl Store {
     ) -> anyhow::Result<Option<(Interaction, bool)>> {
         let inserted = sqlx::query(
             "INSERT OR IGNORE INTO interactions
-                (id, bot_id, clicker_id, channel_id, message_id, custom_id, created_at, kind)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (id, bot_id, clicker_id, channel_id, message_id, custom_id, created_at, kind,
+                 option_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(new.id)
         .bind(new.bot_id)
@@ -71,6 +74,7 @@ impl Store {
         .bind(&new.custom_id)
         .bind(new.created_at)
         .bind(new.kind.as_str())
+        .bind(&new.option_id)
         .execute(&self.pool)
         .await?
         .rows_affected()
@@ -84,6 +88,7 @@ impl Store {
                     && s.custom_id == new.custom_id
                     && s.channel_id == new.channel_id
                     && s.message_id == new.message_id
+                    && s.option_id == new.option_id
             })
             .map(|s| (s, inserted)))
     }
@@ -92,7 +97,7 @@ impl Store {
     pub async fn interaction(&self, id: InteractionId) -> anyhow::Result<Option<Interaction>> {
         let row = sqlx::query(
             "SELECT id, bot_id, clicker_id, channel_id, message_id, custom_id,
-                    created_at, answered_at, kind
+                    created_at, answered_at, kind, option_id
              FROM interactions WHERE id = ? AND created_at > ?",
         )
         .bind(id)
@@ -111,6 +116,7 @@ impl Store {
                 custom_id: r.try_get("custom_id")?,
                 created_at: r.try_get("created_at")?,
                 kind: InteractionKind::parse(&kind),
+                option_id: r.try_get("option_id")?,
                 answered: answered_at.is_some(),
             })
         })
