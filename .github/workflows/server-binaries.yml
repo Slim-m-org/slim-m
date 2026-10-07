@@ -24,12 +24,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # jemalloc fixes its page size at build time; arm64 builds for 64K so 16K and 64K page kernels can run it.
           - target: x86_64-unknown-linux-musl
             arch: amd64
             runner: ubuntu-24.04
+            jemalloc_lg_page: "12"
           - target: aarch64-unknown-linux-musl
             arch: arm64
             runner: ubuntu-24.04-arm
+            jemalloc_lg_page: "16"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -49,6 +52,7 @@ jobs:
       - name: build static binary
         env:
           SLIMM_BUILD_ID: ${{ inputs.ref || github.sha }}
+          JEMALLOC_SYS_WITH_LG_PAGE: ${{ matrix.jemalloc_lg_page }}
         run: cargo build --locked --release --target ${{ matrix.target }} --bin slimm-server
 
       - name: stage binary

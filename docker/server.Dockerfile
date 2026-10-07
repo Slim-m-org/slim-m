@@ -14,14 +14,17 @@
 # no cross-linking toolchain to maintain.
 
 FROM rust:1-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088a8c3324d40900 AS builder
-RUN apk add --no-cache musl-dev
+# make builds the bundled jemalloc (tikv-jemalloc-sys).
+RUN apk add --no-cache musl-dev make
 # Build against the committed .sqlx query cache; no database at build time.
 ENV SQLX_OFFLINE=true
 WORKDIR /build
 COPY . .
 # Reported by /version; empty leaves the field off. Declared late so it only busts the build layer.
 ARG SLIMM_BUILD_ID=
-RUN cargo build --locked --release --bin slimm-server \
+# jemalloc fixes its page size at build time and refuses a kernel with bigger pages, so arm64 (16K/64K kernels exist) builds for 64K.
+RUN if [ "$(uname -m)" = aarch64 ]; then export JEMALLOC_SYS_WITH_LG_PAGE=16; else export JEMALLOC_SYS_WITH_LG_PAGE=12; fi \
+    && cargo build --locked --release --bin slimm-server \
     && mkdir -p /out/data \
     && cp target/release/slimm-server /out/slimm-server
 
