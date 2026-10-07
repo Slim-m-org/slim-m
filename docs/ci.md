@@ -137,6 +137,9 @@ Over the last 400 runs (2026-10-01 15:33 to 2026-10-02 01:25 UTC, 399 completed,
 The test steps are balanced and fast.
 The tail was apt: about 45 shard jobs were cancelled at the 25 minute limit while still inside the `libmpv` step, never inside a test.
 So the eight-shard split stays, `libmpv2` (213 packages) replaces `libmpv-dev` (413) in the shards, the apt steps retry and carry their own step timeout, and the shard limit is 30 minutes, twice the slowest observed test step plus setup.
+Retrying the same slow mirror still failed four PRs and a release run on 2026-10-06, so the shards' `libmpv` step and the `linux-build-deps` action now go through `scripts/apt-install.sh` (the `apt-install` composite action for a plain step).
+It bounds each attempt (4 minutes for `update`, 6 for `install`) and, when the runner's Azure mirror stalls or fails, points the sources at `archive.ubuntu.com` and tries once more.
+`server-binaries` keeps its own apt line, because it checks out an arbitrary release ref that may predate the script.
 Runner-minutes per client PR, from the same data: the dart2js job 21, eight shards about 104, `other-packages` 6, `linux desktop compiles` 4 to 23, the rest under 6.
 
 Cancellation is already per pull request: every workflow with a `pull_request` trigger groups on `github.ref` and cancels in progress, and none cancels on `main`.
