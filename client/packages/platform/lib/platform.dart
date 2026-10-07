@@ -18,6 +18,7 @@ export 'src/fcm_token_channel.dart';
 export 'src/game_allowlist.dart';
 export 'src/game_source.dart';
 export 'src/host_platform.dart';
+export 'src/autostart.dart';
 export 'src/install_format.dart';
 export 'src/key_store.dart';
 export 'src/local_notifications.dart';
