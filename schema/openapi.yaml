@@ -34,7 +34,7 @@
 openapi: 3.1.0
 info:
   title: slim-m API
-  version: 0.82.0 # x-release-please-version
+  version: 0.83.0 # x-release-please-version
   description: >
     The server surface: liveness, auth with opaque rotating tokens, channel
     management, text messaging with reactions, polls, deletion, and full-text
