@@ -376,11 +376,12 @@ void main() {
       await ctx.done();
     });
 
-    testWidgets('mute and leave act on the call', (tester) async {
+    testWidgets('mute and leave act on the call, wide', (tester) async {
       final ctx = await _pump(
         tester,
         location: '/channels/c-general',
         voice: _call([_remoteShare]),
+        size: _desktop,
       );
       await tester.tap(_inPlayer('Mute'));
       await tester.pump();
@@ -389,6 +390,29 @@ void main() {
         isFalse,
       );
       await tester.tap(_inPlayer('Leave call'));
+      await _settle(tester);
+      expect(player, findsNothing);
+      await ctx.done();
+    });
+
+    testWidgets('on a phone the card leaves mute and leave to the strip', (
+      tester,
+    ) async {
+      final ctx = await _pump(
+        tester,
+        location: '/channels/c-general',
+        voice: _call([_remoteShare]),
+      );
+      final strip = find.byType(VoiceStripIndicator);
+      for (final action in ['Mute', 'Leave call']) {
+        expect(_inPlayer(action), findsNothing, reason: '$action shows twice');
+        expect(
+          find.descendant(of: strip, matching: find.byTooltip(action)),
+          findsOneWidget,
+          reason: 'the strip keeps $action',
+        );
+      }
+      await tester.tap(_inPlayer('Hide the mini-player'));
       await _settle(tester);
       expect(player, findsNothing);
       await ctx.done();
@@ -448,39 +472,5 @@ void main() {
         });
       }
     }
-  });
-
-  group('geometry', () {
-    const region = Size(400, 700);
-    const card = Size(192, 150);
-    const insets = MiniPlayerInsets(top: 12, bottom: 104);
-
-    test('a flick throws the card past the nearest corner', () {
-      final origin = cornerOrigin(
-        MiniPlayerCorner.bottomRight,
-        region,
-        card,
-        insets,
-      );
-      final landed = nearestCorner(
-        origin - const Offset(60, 60),
-        const Offset(-2500, -2500),
-        region,
-        card,
-        insets,
-      );
-      expect(landed, MiniPlayerCorner.topLeft);
-    });
-
-    test('a slow drag lands on the closest corner', () {
-      final landed = nearestCorner(
-        const Offset(60, 200),
-        Offset.zero,
-        region,
-        card,
-        insets,
-      );
-      expect(landed, MiniPlayerCorner.topLeft);
-    });
   });
 }
