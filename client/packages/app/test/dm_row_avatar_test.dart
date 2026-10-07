@@ -131,7 +131,7 @@ void main() {
     await _pump(tester, hasAvatar: true);
     final avatar = tester.widget<AppAvatar>(find.byType(AppAvatar));
     expect(avatar.image, isNotNull);
-    expect(avatar.size, AppAvatarSize.s24);
+    expect(avatar.size, AppAvatarSize.s28);
     expect(avatar.status, AppPresence.unknown);
   });
 
