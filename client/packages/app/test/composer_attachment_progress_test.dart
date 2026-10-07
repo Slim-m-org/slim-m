@@ -16,7 +16,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -92,9 +91,7 @@ void main() {
 
   testWidgets('an image shows a thumbnail, needing no network', (tester) async {
     final gate = Completer<void>();
-    usePicker(
-      PlatformFile(name: 'photo.png', size: _pngBytes.length, bytes: _pngBytes),
-    );
+    usePicker(FakePlatformFile('photo.png', _pngBytes));
     await tester.pumpWidget(
       composerHarness(
         controller: controller,
@@ -125,13 +122,7 @@ void main() {
   testWidgets('a non-image attachment shows a file glyph, not a thumbnail', (
     tester,
   ) async {
-    usePicker(
-      PlatformFile(
-        name: 'notes.txt',
-        size: 4,
-        bytes: Uint8List.fromList([1, 2, 3, 4]),
-      ),
-    );
+    usePicker(FakePlatformFile('notes.txt', Uint8List.fromList([1, 2, 3, 4])));
     await tester.pumpWidget(
       composerHarness(
         controller: controller,

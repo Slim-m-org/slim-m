@@ -114,7 +114,7 @@ void main() {
     test('an explicit choice not yet accepted is sent once, then not '
         'again', () async {
       final requests = await registerOnce(
-        prefs: {pushIncludeContentKey: false},
+        prefs: {pushIncludeContentKeyFor('user-1'): false},
       );
 
       expect(requests[0]['include_content'], isFalse);
@@ -127,7 +127,7 @@ void main() {
         'choice on a later registration', () async {
       var reads = 0;
       final requests = await registerOnce(
-        prefs: {pushIncludeContentKey: true},
+        prefs: {pushIncludeContentKeyFor('user-1'): true},
         extra: [
           preferencesProvider.overrideWith((ref) async {
             if (reads++ == 0) throw StateError('storage not readable yet');

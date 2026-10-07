@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 
 import '../update_check.dart';
+import 'latest_client_release.dart';
 import 'self_update_failure.dart';
 import 'update_download.dart';
 import 'update_keys.dart';
@@ -134,21 +135,18 @@ Future<String?> _latestClientTag(http.Client client) async {
       'https://api.github.com/repos/$clientReleaseRepo/releases?per_page=30',
     ),
   );
-  final releases = jsonDecode(utf8.decode(bytes, allowMalformed: true));
-  if (releases is! List) return null;
-  String? best;
-  for (final entry in releases) {
-    if (entry is! Map<String, dynamic>) continue;
-    if (entry['draft'] == true || entry['prerelease'] == true) continue;
-    final tag = entry['tag_name'];
-    if (tag is! String || !tag.startsWith('client-v')) continue;
-    final version = tag.substring('client-v'.length);
-    if (!isPlainVersion(version)) continue;
-    if (best == null || isNewer(version, best.substring('client-v'.length))) {
-      best = tag;
-    }
+  final Object? releases;
+  try {
+    releases = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+  } on FormatException catch (error) {
+    throw SelfUpdateFailure(
+      SelfUpdateFailureKind.unreachable,
+      'Could not reach the update server.',
+      detail: '$error',
+    );
   }
-  return best;
+  if (releases is! List) return null;
+  return latestClientRelease(releases)?.tag;
 }
 
 Future<Uint8List> _getBytes(http.Client client, Uri url) async {

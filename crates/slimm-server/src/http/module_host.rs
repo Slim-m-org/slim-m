@@ -178,7 +178,7 @@ impl ChannelPoster {
         self.charge_rate_limits()?;
         let content = validate_content(content, false)
             .map_err(|_| PostRefused("content is empty or too long"))?;
-        enforce_slow_mode(state, channel_id, self.user_id)
+        let slow_mode_window_ms = enforce_slow_mode(state, channel_id, self.user_id)
             .await
             .map_err(|_| PostRefused("slow mode is active in that channel"))?;
 
@@ -186,10 +186,11 @@ impl ChannelPoster {
         let footer = format!("via {}", self.module_name);
         let sent = state
             .store
-            .send_module_message(
+            .send_module_message_with_slow_mode(
                 NewMessage::plain(channel_id, self.user_id, id, content),
                 &self.module_id,
                 &footer,
+                slow_mode_window_ms,
             )
             .await
             .map_err(|_| PostRefused("message.post is unavailable"))?;

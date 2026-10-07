@@ -22,11 +22,14 @@ not - fails here rather than in production. Adding a NEW migration adds a new
 entry; that is the only edit to this file that is ever correct.
 """
 
-import hashlib
 import json
 import pathlib
-import re
+import sys
 import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from migration_files import migration_files  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 MIGRATIONS = REPO_ROOT / "crates" / "slimm-server" / "migrations"
@@ -34,11 +37,7 @@ LOCKFILE = REPO_ROOT / "crates" / "slimm-server" / "migrations.lock.json"
 
 
 def on_disk() -> dict[str, str]:
-    found = {}
-    for path in sorted(MIGRATIONS.glob("*.sql")):
-        if re.match(r"^\d+_", path.name):
-            found[path.name] = hashlib.sha384(path.read_bytes()).hexdigest()
-    return found
+    return dict(migration_files(MIGRATIONS))
 
 
 class MigrationsAreImmutableTest(unittest.TestCase):

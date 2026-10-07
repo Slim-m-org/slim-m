@@ -71,7 +71,12 @@ class CanvasImagePaste {
   /// this call apart from a *different* caller's still-active registration
   /// - see that function's own doc for the race a bare, argument-less stop
   /// used to lose.
-  void stop() => stopClipboardImagePaste(_handleNativePaste);
+  void stop() {
+    _stopped = true;
+    stopClipboardImagePaste(_handleNativePaste);
+  }
+
+  bool _stopped = false;
 
   /// The toolbar's "Paste image" action: the manual poll-and-tap route that
   /// works unconditionally on every platform, the same fallback the
@@ -97,7 +102,7 @@ class CanvasImagePaste {
 
   Future<void> _stage(Uint8List bytes, String filename, {ui.Offset? at}) async {
     final placed = await _place(bytes, at: at);
-    if (placed != null) onPlaced(placed.id);
+    if (placed != null && !_stopped) onPlaced(placed.id);
   }
 
   /// Decodes [bytes], uploads them, and places an image object centered on
@@ -111,8 +116,13 @@ class CanvasImagePaste {
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       decoded = frame.image;
+      codec.dispose();
     } catch (_) {
-      onError('That image could not be read.');
+      if (!_stopped) onError('That image could not be read.');
+      return null;
+    }
+    if (_stopped) {
+      decoded.dispose();
       return null;
     }
 
@@ -122,9 +132,21 @@ class CanvasImagePaste {
         bytes,
         filename: 'pasted-image.png',
       );
-    } on api.ApiException {
+    } on api.ApiException catch (e) {
       decoded.dispose();
-      onError('That image could not be uploaded.');
+      if (!_stopped) {
+        onError(switch (e) {
+          api.ServerException(statusCode: 413) =>
+            'That image is too big to upload.',
+          api.ServerException(statusCode: 507) =>
+            'This server has no storage left. Tell an admin.',
+          _ => 'That image could not be uploaded.',
+        });
+      }
+      return null;
+    }
+    if (_stopped) {
+      decoded.dispose();
       return null;
     }
 
@@ -154,7 +176,11 @@ class CanvasImagePaste {
       );
     } on api.ApiException catch (error) {
       decoded.dispose();
-      onError(_explain(error, timedOutUntil()));
+      if (!_stopped) onError(_explain(error, timedOutUntil()));
+      return null;
+    }
+    if (_stopped) {
+      decoded.dispose();
       return null;
     }
 

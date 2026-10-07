@@ -36,11 +36,13 @@ on:
       - "packaging/flatpak/top.npcserver.slimm.yaml"
       - "packaging/flatpak/shared-modules/**"
       - ".github/workflows/flatpak-ci.yml"
+      - ".github/actions/**"
   pull_request:
     paths:
       - "packaging/flatpak/top.npcserver.slimm.yaml"
       - "packaging/flatpak/shared-modules/**"
       - ".github/workflows/flatpak-ci.yml"
+      - ".github/actions/**"
   workflow_dispatch:
 
 permissions:

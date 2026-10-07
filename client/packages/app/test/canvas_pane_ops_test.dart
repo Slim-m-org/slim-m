@@ -215,7 +215,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear canvas'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('all 2 objects'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'removes everything on this canvas, including objects outside '
+          'your current view',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('all 2 objects'), findsNothing);
 
       await tester.tap(find.text('Clear canvas').last);
       await tester.pumpAndSettle();

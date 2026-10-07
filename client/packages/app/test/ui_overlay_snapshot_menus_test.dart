@@ -24,6 +24,7 @@ import 'package:slimm_app/src/screens/canvas/canvas_object_context_menu.dart';
 import 'package:slimm_app/src/widgets/channel_rail.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -92,15 +93,17 @@ Future<void> _pumpMessageRow(WidgetTester tester, Size window) async {
                 grouped: false,
                 showNewDivider: false,
                 knownUsernames: const {},
-                onRetry: () {},
-                onDiscard: () {},
-                onPickReaction: (_) {},
-                onReactionTap: (_) {},
-                onVote: (_) {},
                 actions: _fullActions,
                 editing: false,
-                onSubmitEdit: (_) {},
-                onCancelEdit: () {},
+                callbacks: MessageRowCallbacks(
+                  onRetry: () {},
+                  onDiscard: () {},
+                  onPickReaction: (_) {},
+                  onReactionTap: (_) {},
+                  onVote: (_) {},
+                  onSubmitEdit: (_) {},
+                  onCancelEdit: () {},
+                ),
               ),
             ),
           ),

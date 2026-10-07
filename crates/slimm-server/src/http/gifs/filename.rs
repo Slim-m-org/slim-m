@@ -13,14 +13,15 @@ pub(super) fn slug_filename(title: &str) -> String {
     let mut pending_underscore = false;
     for c in title.chars() {
         if c.is_ascii_alphanumeric() {
-            if pending_underscore && !slug.is_empty() {
+            let separator = usize::from(pending_underscore && !slug.is_empty());
+            if slug.len() + separator + 1 > GIF_SLUG_MAX_CHARS {
+                break;
+            }
+            if separator == 1 {
                 slug.push('_');
             }
             pending_underscore = false;
             slug.extend(c.to_lowercase());
-            if slug.len() >= GIF_SLUG_MAX_CHARS {
-                break;
-            }
         } else {
             pending_underscore = true;
         }

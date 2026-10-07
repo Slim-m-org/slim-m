@@ -24,16 +24,6 @@ List<Widget> sceneControls({
   return widgets;
 }
 
-/// Whether [control] is one of the names with behaviour of its own.
-///
-/// Named so the doc in `docs/modules/building-modules.md` and this list cannot
-/// drift: a module author reads that page, and it promises `controls` is "a
-/// list of button labels". It is, for everything outside this set.
-bool sceneControlIsReserved(String control) => switch (control) {
-  'play' || 'step' || 'random' || 'clear' || 'reset' => true,
-  _ => false,
-};
-
 /// One control's button.
 ///
 /// A reserved name gets its icon. Anything else is what the module called it,

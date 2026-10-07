@@ -21,6 +21,8 @@
 /// message id in a channel the reader can already see.
 library;
 
+import 'link_query.dart';
+
 const _scheme = 'slimm';
 const _host = 'message';
 
@@ -52,9 +54,11 @@ MessageLink? parseMessageLink(String text) {
   final uri = Uri.tryParse(text.trim());
   if (uri == null || uri.scheme != _scheme || uri.host != _host) return null;
 
-  final rawServer = uri.queryParameters['server']?.trim() ?? '';
-  final channelId = uri.queryParameters['channel']?.trim() ?? '';
-  final messageId = uri.queryParameters['id']?.trim() ?? '';
+  final query = queryOrNull(uri);
+  if (query == null) return null;
+  final rawServer = query['server']?.trim() ?? '';
+  final channelId = query['channel']?.trim() ?? '';
+  final messageId = query['id']?.trim() ?? '';
   if (rawServer.isEmpty || channelId.isEmpty || messageId.isEmpty) return null;
 
   final server = Uri.tryParse(rawServer);

@@ -13,6 +13,7 @@ import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 import 'package:slimm_platform/platform.dart';
 
+import 'install_fs.dart';
 import 'linux_install.dart' show Unpack;
 import 'linux_layout.dart' show LayoutNames;
 import 'rollback_record.dart';
@@ -66,9 +67,9 @@ Future<void> installWindowsUpdate({
       _writePointer(layout, LayoutNames.previous, before);
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
-    _delete(File(layout.path(LayoutNames.pendingTries)));
+    safeDelete(File(layout.path(LayoutNames.pendingTries)));
     _writePointer(layout, LayoutNames.current, update.version);
-    _delete(update.file);
+    safeDelete(update.file);
   } on FileSystemException catch (error) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.installFailed,
@@ -88,7 +89,7 @@ Future<void> _publishVersion(
   final scratch = Directory(
     layout.path('${LayoutNames.unpackPrefix}${update.version}'),
   );
-  _delete(scratch);
+  safeDelete(scratch);
   try {
     await scratch.create(recursive: true);
     await unpack(update.file, scratch);
@@ -97,10 +98,10 @@ Future<void> _publishVersion(
         'the zip has no ${WindowsNames.appExecutable}',
       );
     }
-    _delete(target);
+    safeDelete(target);
     await scratch.rename(target.path);
   } catch (_) {
-    _delete(scratch);
+    safeDelete(scratch);
     rethrow;
   }
 }
@@ -115,20 +116,12 @@ void _writePointer(WindowsInstallLayout layout, String name, String version) {
   temp.renameSync(layout.path(name));
 }
 
-void _delete(FileSystemEntity entity) {
-  try {
-    entity.deleteSync(recursive: true);
-  } on FileSystemException {
-    // Locked by a still-running old version, or gone; the next pass retries.
-  }
-}
-
 /// Run once the new version has stayed up: clears the pending-start marker so
 /// the launcher stops counting, and prunes every version folder except
 /// `current` and `previous` (the one kept for rollback).
 void confirmWindowsCleanStart(WindowsInstallLayout layout) {
-  _delete(File(layout.path(LayoutNames.pending)));
-  _delete(File(layout.path(LayoutNames.pendingTries)));
+  safeDelete(File(layout.path(LayoutNames.pending)));
+  safeDelete(File(layout.path(LayoutNames.pendingTries)));
   final keep = {
     layout.pointedVersion(LayoutNames.current),
     layout.pointedVersion(LayoutNames.previous),
@@ -141,7 +134,7 @@ void confirmWindowsCleanStart(WindowsInstallLayout layout) {
         ((version != null && !keep.contains(version)) ||
             name == LayoutNames.staging ||
             name.startsWith(LayoutNames.unpackPrefix));
-    if (stale) _delete(entry);
+    if (stale) safeDelete(entry);
   }
 }
 

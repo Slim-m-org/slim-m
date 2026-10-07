@@ -14,15 +14,16 @@
 #   status code, content type, fields, types, enums and nullability. Both
 #   directions fail - a field promised here that the server omits, and a field
 #   the server sends that nothing here documents - and an operation the test
-#   never drives fails too, so coverage cannot quietly lapse. Three operations
+#   never drives fails too, so coverage cannot quietly lapse. A few operations
 #   are exempt by name in that test's UNCOVERED list, each with its reason;
 #   a stale entry there fails in both directions, so the exemptions cannot
 #   quietly grow either.
 # - The WebSocket frame set, by crates/slimm-server/tests/ws_frame_contract.rs,
-#   which compares ServerFrame.oneOf against the frames ws/frames.rs really
-#   serialises and fails on drift in either direction. Frame *bodies* are not
-#   checked against a live socket the way response bodies are; connectWebSocket
-#   is one of the response contract's three exemptions.
+#   which compares ServerFrame.oneOf and ClientFrame.oneOf against the frames
+#   ws/frames.rs really serialises and accepts and fails on drift in either
+#   direction. Frame *bodies* are not checked against a live socket the way
+#   response bodies are; connectWebSocket is one of the response contract's
+#   exemptions.
 # - Additive-only evolution, by the oasdiff breaking-change gate in schema-ci.
 # - Valid OpenAPI, by redocly lint.
 #
@@ -116,6 +117,18 @@ tags:
       The Voice Canvas: reading the objects in a region of a channel's
       canvas, the delta a client receives as it pans, and the ordered op
       stream a client catches up from after a reconnect.
+  - name: members
+    description: Bulk member actions, such as removing or timing out several at once.
+  - name: gifs
+    description: GIF search and trending through the configured provider, and link previews.
+  - name: voice
+    description: Voice room tokens, the roster, heartbeats, and the LiveKit webhook.
+  - name: space
+    description: >
+      Deployment-wide settings, analytics, storage, retention, the Dock, and
+      the other things an admin configures for the whole community.
+  - name: emoji
+    description: The deployment's custom emoji - upload, list, fetch, and remove.
 
 security:
   - bearerAuth: []
@@ -580,6 +593,8 @@ paths:
       responses:
         "204":
           description: The factor is cleared and the account's sessions are revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -614,6 +629,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResetCodeIssued"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -765,9 +782,10 @@ paths:
           in: query
           description: >
             Narrow the page to members who can view this channel, for a member
-            list shown beside it. A display filter, not a confidentiality
-            boundary - the unfiltered roster stays readable from this route.
-            Paging is unchanged: a page shorter than `limit` is still the last.
+            list shown beside it. The caller must be able to view the channel
+            too; one they cannot view is a 404, the same as one that does not
+            exist. Paging is unchanged: a page shorter than `limit` is still
+            the last.
           schema:
             type: string
             format: uuid
@@ -784,6 +802,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -975,6 +995,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1105,6 +1127,8 @@ paths:
       responses:
         "204":
           description: The device was signed out.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1164,6 +1188,8 @@ paths:
       responses:
         "204":
           description: The user is no longer blocked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -1205,6 +1231,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Report"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1409,6 +1437,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MyReportStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1659,6 +1689,8 @@ paths:
       responses:
         "204":
           description: The channel was deleted (or was already gone).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1687,7 +1719,7 @@ paths:
         `docs/decisions/0011-per-channel-permissions.md` for why a raw
         pass-through would leak channel existence. There is accordingly no
         403 or 404 here: an unreachable channel is a 200 of all zeros, the
-        same "refuse identically" precedent `setOverwrite` already
+        same "refuse identically" precedent `setChannelOverwrite` already
         documents for this API.
       responses:
         "200":
@@ -1839,11 +1871,12 @@ paths:
         in any category, since a category only decides placement, never
         behaviour). Sending neither, or both, is a 400. The channel ids
         named - flattened, for the grouped shape - must add up to exactly
-        the live, non-DM, non-thread channels - no more, no fewer, no
-        repeats - and every named category id must be a live category, or
-        the request is refused with a 400 naming what was wrong; a partial
-        list is never applied. Submitting the arrangement already in effect
-        is not an error and changes nothing.
+        the live, non-DM, non-thread channels the caller can view - no more,
+        no fewer, no repeats - and every named category id must be a live
+        category, or the request is refused with a 400 naming what was
+        wrong; a partial list is never applied. A channel the caller cannot
+        view keeps its place and is never named. Submitting the arrangement
+        already in effect is not an error and changes nothing.
       requestBody:
         required: true
         content:
@@ -1852,7 +1885,7 @@ paths:
               $ref: "#/components/schemas/ReorderChannelsRequest"
       responses:
         "200":
-          description: Every live, non-DM channel, in its new order.
+          description: Every live, non-DM channel the caller can view, in its new order.
           content:
             application/json:
               schema:
@@ -1971,6 +2004,8 @@ paths:
       responses:
         "204":
           description: The category was deleted (or was already gone).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2216,6 +2251,8 @@ paths:
       responses:
         "204":
           description: The role was deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2274,6 +2311,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GrantedModulePermission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2308,6 +2347,8 @@ paths:
       responses:
         "204":
           description: The role now holds the permission.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2324,6 +2365,8 @@ paths:
       responses:
         "204":
           description: The role no longer holds the permission.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2360,6 +2403,8 @@ paths:
       responses:
         "204":
           description: The role is assigned.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2379,6 +2424,8 @@ paths:
       responses:
         "204":
           description: The role is no longer assigned (or never was).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2451,7 +2498,7 @@ paths:
       summary: Time several members out in one act.
       description: >
         Requires KICK_MEMBERS, with the same per-target containment as
-        `timeoutMember`. The deadline is computed once for the batch, so every
+        `timeOutMember`. The deadline is computed once for the batch, so every
         member in it comes back at the same moment. Replaces any timeout
         already in force on a named member, as the single verb does. Nothing is
         applied unless every target passes; an id that is not a member answers
@@ -2477,7 +2524,8 @@ paths:
                   minimum: 1
                   description: >
                     From now. The deadline is computed server-side, so a skewed
-                    client clock cannot ask for one already past.
+                    client clock cannot ask for one already past. At most 28
+                    days (2,419,200 seconds); more answers 400.
                 reason:
                   type: string
       responses:
@@ -2571,6 +2619,8 @@ paths:
       responses:
         "204":
           description: No nickname is in force.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2653,6 +2703,8 @@ paths:
       responses:
         "204":
           description: The member is no longer timed out.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2746,6 +2798,8 @@ paths:
       responses:
         "204":
           description: The member is removed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2766,6 +2820,8 @@ paths:
       responses:
         "204":
           description: The member may sign in again.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2796,6 +2852,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2939,6 +2997,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3009,6 +3069,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -3054,6 +3116,8 @@ paths:
       responses:
         "204":
           description: The message was deleted (or was already gone).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3292,11 +3356,13 @@ paths:
       tags: [attachments]
       summary: Fetch an attachment's bytes.
       description: >
-        Gated on VIEW_CHANNEL in a channel that has a live message attaching
-        it - the same permission reading that message already requires, not
-        a bare "the id is hard to guess". An id nothing has ever attached
-        (still mid-compose, or already reclaimed) answers 404 for anyone,
-        including whoever uploaded it. The response always carries
+        Readable by whoever uploaded it, so a file staged in the composer
+        previews before it is sent, and by anyone with VIEW_CHANNEL in a
+        channel that has a live message or a canvas object attaching it,
+        including a canvas object that was erased and can still be restored -
+        the same permission reading that message already requires, not a
+        bare "the id is hard to guess". An id nothing attaches (or already
+        reclaimed) answers 404 for everyone but its uploader. The response always carries
         `X-Content-Type-Options: nosniff` and a Content-Disposition that
         forces a download for every content type except the handful of
         image types the allowlist marks safe to render inline.
@@ -3505,6 +3571,8 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/GifResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3885,6 +3953,8 @@ paths:
       responses:
         "204":
           description: The message is not saved (whether or not it was).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -3976,6 +4046,8 @@ paths:
       responses:
         "204":
           description: The message was unpinned (or was already not pinned).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4060,6 +4132,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PinnedMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4084,6 +4158,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PinCount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4393,6 +4469,8 @@ paths:
       responses:
         "204":
           description: The reaction was removed (or was already absent).
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4760,6 +4838,8 @@ paths:
       responses:
         "204":
           description: The channel now follows the account default.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -4794,12 +4874,10 @@ paths:
         converted to UTC before this call, so the server never needs to
         know the account's time zone. `start_minute` may be greater than
         `end_minute` for a window that crosses midnight - 23:00-08:00 is the
-        ordinary shape, not an edge case. Enforced where push recipients are
-        computed (`push::recipients::narrow_for_notification_preference`),
-        the same choke point `setNotificationPreference` already goes
-        through: an in-window `everything` account is narrowed to
-        `mentions`, never to `nothing`, and an account already at `mentions`
-        or `nothing` is unaffected either way.
+        ordinary shape, not an edge case. Legacy: the window is stored and read
+        back, but nothing uses it to decide push since the notification
+        schedule replaced it, so use `setNotificationSchedule` to silence an
+        account.
       requestBody:
         required: true
         content:
@@ -4920,6 +4998,8 @@ paths:
       responses:
         "204":
           description: userId is now on the caller's off-hours people allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -4933,6 +5013,8 @@ paths:
       responses:
         "204":
           description: userId is no longer on the caller's off-hours people allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -4958,6 +5040,8 @@ paths:
       responses:
         "204":
           description: channelId is now on the caller's off-hours channel allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4971,6 +5055,8 @@ paths:
       responses:
         "204":
           description: channelId is no longer on the caller's off-hours channel allow-list.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -5029,6 +5115,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/ReadStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -5071,6 +5159,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/ReadStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -5092,17 +5182,12 @@ paths:
         then `seq`), backed by a spatial index rather than a scan of the canvas.
 
 
-        A client that is panning also sends the rectangle it is leaving as
-        `prev_min_x` and the rest, plus the `latest_seq` it last saw as
-        `after_seq`. The answer is then the delta: objects in the new rectangle
-        that are not in the old one, plus anything inside both that is newer
-        than the cursor. All four previous bounds are sent together or not at
-        all. Omitting them is a cold fetch of the whole region.
-
-
-        The delta covers objects arriving, not objects removed. A soft delete
-        does not advance an object's `seq`, so no cursor over this endpoint can
-        report one; removals belong to `listCanvasOps`, the ordered op stream
+        This is a cold fetch of the whole region. The `prev_*` and `after_seq`
+        parameters below once let a panning client ask for a delta, but
+        `listCanvasOps` replaced that and no known client sends them; they are
+        still accepted for older callers. The delta never covered removals: a
+        soft delete does not advance an object's `seq`, so removals belong to
+        `listCanvasOps`, the ordered op stream
         this operation's `latest_seq` is also a valid cursor into.
       parameters:
         - name: min_x
@@ -5231,8 +5316,9 @@ paths:
 
 
         A 409 also means the channel's canvas is full: a canvas holds at most
-        20,000 live objects, refused in the same transaction that counts them,
-        because this slice ships no way to remove one.
+        20,000 live objects by default (an admin can set it between 100 and
+        100,000 through `/space/canvas-cap`), refused in the same transaction
+        that counts them. A `remove` or `clear` op frees room again.
       requestBody:
         required: true
         content:
@@ -5286,8 +5372,9 @@ paths:
         cursor cannot be paged from: discard local canvas state and cold-fetch
         the viewport instead. It is returned when the caller is more than
         2,000 ops behind, when `after_seq` names a point before the oldest op
-        this server still retains (nothing sweeps the op stream yet, so this
-        cannot happen today, but the wire is ready for when something does),
+        this server still retains (a background sweep compacts `remove`,
+        `clear` and `restore` rows older than 30 days, so a client that has
+        been offline for a month can hit this),
         or when `after_seq` is past `latest_seq`, which happens after a
         restore from backup.
 
@@ -5380,9 +5467,9 @@ paths:
 
 
         `reorder` sets a single live object's `z_index` to an explicit value,
-        touching nothing about its bounds or `props`. Any integer is legal,
-        including negative: there is no ceiling on paint order the way there
-        is on bounds. The caller computes the target itself - typically one
+        touching nothing about its bounds or `props`. Any integer from -2^52
+        to 2^52 is legal, including negative: no practical ceiling on paint
+        order, yet a client can add one without overflowing. The caller computes the target itself - typically one
         above or below every `z_index` it currently knows about, for "bring
         to front"/"send to back" - and the server only applies and
         broadcasts whatever value is sent, the same explicit-value shape
@@ -5948,7 +6035,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SpaceSettings"
+              $ref: "#/components/schemas/UpdateSpaceSettings"
       responses:
         "200":
           description: The settings as stored.
@@ -5996,6 +6083,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Bot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6056,6 +6145,8 @@ paths:
       responses:
         "204":
           description: Revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6294,6 +6385,8 @@ paths:
       responses:
         "204":
           description: Acknowledged. Repeating it is harmless.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -6423,6 +6516,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WatchSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -6476,6 +6571,8 @@ paths:
       responses:
         "204":
           description: Ended.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6817,6 +6914,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NewWebhook"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6846,6 +6945,8 @@ paths:
       responses:
         "204":
           description: Revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -7750,6 +7851,18 @@ paths:
               schema:
                 type: string
                 format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -8088,8 +8201,8 @@ components:
             `block` means a member can block someone (`POST /blocks/{userId}`).
             `webhooks` means this build serves incoming webhook delivery
             (`POST /webhooks/{webhookId}/{token}`) - a client uses it to
-            decide whether the webhook admin surface is worth showing, since
-            there is no admin route to mint one in this build yet.
+            decide whether the webhook admin surface is worth showing; minting
+            and rotating one is `createWebhook` and `rotateWebhook`.
 
 
             slim-m's safety model is manual reporting plus blocking and
@@ -8712,6 +8825,19 @@ components:
             default every deployment keeps on upgrade. `open` means anyone
             who can reach the server may register; a code is still accepted,
             so an invite granting a role keeps working.
+    UpdateSpaceSettings:
+      type: object
+      minProperties: 1
+      properties:
+        join_policy:
+          type: string
+          enum: [invite, open]
+        totp_policy:
+          type: string
+          enum: [off, optional, required_for_elevated]
+      description: >
+        Only the fields present are written, so a client changing one setting
+        cannot overwrite another from a stale copy. An empty body is refused.
     UpdateSpaceAnalytics:
       type: object
       required: [enabled]
@@ -10577,7 +10703,7 @@ components:
             `@everyone` as usual. Requires MANAGE_ROLES in addition to the
             MANAGE_CHANNELS this route already needs; there is no role
             picker here, others are granted afterwards through
-            `setRoleOverwrite`/`setMemberOverwrite`.
+            `setChannelOverwrite`.
         join_muted:
           type: boolean
           description: >
@@ -11028,7 +11154,7 @@ components:
         z_index:
           type: integer
           format: int64
-          description: A `reorder`'s new paint order. Any integer is legal.
+          description: A `reorder`'s new paint order, from -2^52 to 2^52.
 
     CanvasOpPage:
       type: object
@@ -12689,6 +12815,7 @@ components:
         - $ref: "#/components/schemas/ClientPing"
         - $ref: "#/components/schemas/ClientTyping"
         - $ref: "#/components/schemas/ClientViewing"
+        - $ref: "#/components/schemas/ClientCanvasCursor"
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
 
     ClientHello:
@@ -12749,6 +12876,29 @@ components:
           items:
             type: string
             format: uuid
+
+    ClientCanvasCursor:
+      type: object
+      required: [type, channel_id, x, y]
+      description: >
+        A pointer position on a channel's canvas: ephemeral, relayed to the
+        other viewers but never persisted, with no "stop" frame. Rate-limited
+        silently, and dropped without an error when a coordinate is not finite
+        or lies outside the canvas world (5,000,000 units from the origin on
+        either axis), or when the member lacks view and canvas permission.
+      properties:
+        type:
+          type: string
+          enum: [canvas.cursor]
+        channel_id:
+          type: string
+          format: uuid
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
 
     ClientCanvasStrokePreview:
       type: object
@@ -13739,7 +13889,7 @@ components:
       required: [type, channel_id, last_read_seq]
       description: >
         This account's read marker in a channel moved, from any of its
-        devices: a `putRead` from one, or a message the account itself sent.
+        devices: a `markRead` from one, or a message the account itself sent.
         Delivered only to the account's own connections, so a badge clears on
         every device; nobody else receives it, and it is not a read receipt.
         `last_read_seq` is the stored marker, which only moves forward, so a

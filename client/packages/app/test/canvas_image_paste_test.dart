@@ -103,4 +103,32 @@ void main() {
       expect(movedBounds.y, placedBounds.y + 20);
     },
   );
+
+  for (final refusal in {
+    413: 'That image is too big to upload.',
+    507: 'This server has no storage left. Tell an admin.',
+  }.entries) {
+    testWidgets('a ${refusal.key} on upload says why, not a bare failure', (
+      tester,
+    ) async {
+      _mockClipboard(canvasPngFixture);
+      final fixture = CanvasPaneFixture(attachmentUploadStatus: refusal.key);
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
+      await pumpCanvasPane(tester, container);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('More canvas actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Paste image'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(refusal.value), findsOneWidget);
+      expect(fixture.posted, isEmpty);
+    });
+  }
 }

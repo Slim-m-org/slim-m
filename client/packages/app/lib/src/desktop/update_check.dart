@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:slimm_platform/platform.dart';
 
+import 'self_update/latest_client_release.dart';
 import 'self_update/self_update_target.dart' show recordedFailedVersion;
 
 /// The repository whose `client-v*` releases this build updates from.
@@ -100,21 +101,9 @@ Future<ClientUpdate?> checkForClientUpdate({
     final releases = jsonDecode(response.body);
     if (releases is! List) return null;
 
-    String? bestVersion;
-    String? bestUrl;
-    for (final entry in releases) {
-      if (entry is! Map<String, dynamic>) continue;
-      if (entry['draft'] == true || entry['prerelease'] == true) continue;
-      final tag = entry['tag_name'];
-      if (tag is! String || !tag.startsWith('client-v')) continue;
-      final version = tag.substring('client-v'.length);
-      if (parseVersion(version) == null) continue;
-      if (bestVersion == null || isNewer(version, bestVersion)) {
-        bestVersion = version;
-        bestUrl = entry['html_url'] as String?;
-      }
-    }
-
+    final best = latestClientRelease(releases);
+    final bestVersion = best?.version;
+    final bestUrl = best?.htmlUrl;
     if (bestVersion == null || bestUrl == null) return null;
     if (!isNewer(bestVersion, currentVersion)) return null;
     final failed = failedVersion ?? recordedFailedVersion();

@@ -35,7 +35,7 @@ class FiledReportsController extends StateNotifier<List<String>> {
   FiledReportsController(this._ref) : super(const []) {
     _account = _ref.read(sessionProvider).tokens?.userId;
     _sub = _ref.read(sessionProvider).changes.listen(_onSessionChanged);
-    unawaited(_load());
+    _loading = _load();
   }
 
   final Ref _ref;
@@ -44,6 +44,9 @@ class FiledReportsController extends StateNotifier<List<String>> {
   /// Whose list is held; see `PersonalSpaceVisibilityController`'s own field
   /// for why this is tracked separately from a token rotation.
   String? _account;
+
+  /// The newest stored-list read, which [record] waits on so it never builds on a list that has not loaded yet.
+  Future<void> _loading = Future<void>.value();
 
   /// Bumped by every account change, so a load that answers after the
   /// account already changed again is dropped instead of stomping the newer
@@ -56,7 +59,7 @@ class FiledReportsController extends StateNotifier<List<String>> {
     _account = userId;
     _generation++;
     state = const [];
-    if (userId != null) unawaited(_load());
+    if (userId != null) _loading = _load();
   }
 
   Future<void> _load() async {
@@ -90,6 +93,8 @@ class FiledReportsController extends StateNotifier<List<String>> {
   /// the write entirely rather than persisting anything for an account this
   /// call no longer belongs to.
   Future<void> record(String reportId) async {
+    await _loading;
+    if (!mounted) return;
     final userId = _account;
     if (userId == null) return;
     final generation = ++_generation;

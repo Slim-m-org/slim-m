@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Gates `ServerFrame`'s `oneOf` in schema/openapi.yaml against the frames the
-//! WebSocket actually serialises.
+//! Gates `ServerFrame`'s and `ClientFrame`'s `oneOf` in schema/openapi.yaml
+//! against the frames the WebSocket actually serialises and accepts.
 //!
 //! The route surface has had `tests/openapi_contract.rs` since 2026-07-25 and
 //! response bodies have `tests/response_contract/`; the socket half of the
@@ -40,15 +40,24 @@ fn repo_root() -> PathBuf {
 /// the Rust variant name, so the frame would go out as `MessageCreated`
 /// instead of `message.created`.
 fn served_frames() -> BTreeSet<String> {
+    frames_of("ServerFrame")
+}
+
+/// The `type` discriminators `ClientFrame` accepts, by the same scan.
+fn accepted_frames() -> BTreeSet<String> {
+    frames_of("ClientFrame")
+}
+
+fn frames_of(enum_name: &str) -> BTreeSet<String> {
     let path = repo_root().join("crates/slimm-server/src/http/ws/frames.rs");
     let source = fs::read_to_string(&path).expect("read frames.rs");
 
     let body = source
-        .split_once("enum ServerFrame {")
-        .expect("ServerFrame enum")
+        .split_once(&format!("enum {enum_name} {{"))
+        .unwrap_or_else(|| panic!("{enum_name} enum"))
         .1
         .split_once("\n}")
-        .expect("ServerFrame enum close")
+        .unwrap_or_else(|| panic!("{enum_name} enum close"))
         .0;
 
     let mut names = BTreeSet::new();
@@ -58,7 +67,7 @@ fn served_frames() -> BTreeSet<String> {
             let name = rest.split('"').next().expect("rename value");
             assert!(
                 names.insert(name.to_string()),
-                "two ServerFrame variants both serialise as `{name}`",
+                "two {enum_name} variants both use `{name}`",
             );
         }
         // A variant declaration: the enum's own indent, an uppercase start.
@@ -72,12 +81,15 @@ fn served_frames() -> BTreeSet<String> {
     assert_eq!(
         variants,
         names.len(),
-        "{variants} ServerFrame variants but {} `#[serde(rename)]` attributes: \
-         a variant without one serialises as its Rust name and breaks the wire \
+        "{variants} {enum_name} variants but {} `#[serde(rename)]` attributes: \
+         a variant without one uses its Rust name and breaks the wire \
          contract",
         names.len(),
     );
-    assert!(!names.is_empty(), "parsed no ServerFrame variants at all");
+    assert!(
+        !names.is_empty(),
+        "parsed no variants of the frame enum at all"
+    );
     names
 }
 
@@ -88,6 +100,15 @@ fn served_frames() -> BTreeSet<String> {
 /// schema pins no discriminator documents no frame, and fails here rather
 /// than counting as coverage.
 fn documented_frames() -> BTreeSet<String> {
+    documented_in("ServerFrame")
+}
+
+/// Every `type` value the schema's `ClientFrame.oneOf` documents.
+fn documented_client_frames() -> BTreeSet<String> {
+    documented_in("ClientFrame")
+}
+
+fn documented_in(frame_schema: &str) -> BTreeSet<String> {
     let path = repo_root().join("schema/openapi.yaml");
     let text = fs::read_to_string(&path).expect("read openapi.yaml");
     let doc: serde_yaml_ng::Value = serde_yaml_ng::from_str(&text).expect("parse openapi.yaml");
@@ -97,23 +118,23 @@ fn documented_frames() -> BTreeSet<String> {
         .and_then(|c| c.get("schemas"))
         .expect("components.schemas");
     let one_of = schemas
-        .get("ServerFrame")
+        .get(frame_schema)
         .and_then(|f| f.get("oneOf"))
         .and_then(|o| o.as_sequence())
-        .expect("ServerFrame.oneOf");
+        .unwrap_or_else(|| panic!("{frame_schema}.oneOf"));
 
     let mut names = BTreeSet::new();
     for member in one_of {
         let reference = member
             .get("$ref")
             .and_then(|r| r.as_str())
-            .unwrap_or_else(|| panic!("ServerFrame.oneOf member is not a $ref: {member:?}"));
+            .unwrap_or_else(|| panic!("{frame_schema}.oneOf member is not a $ref: {member:?}"));
         let schema_name = reference
             .strip_prefix("#/components/schemas/")
-            .unwrap_or_else(|| panic!("unresolvable ServerFrame.oneOf $ref: {reference}"));
-        let target = schemas
-            .get(schema_name)
-            .unwrap_or_else(|| panic!("ServerFrame.oneOf names {schema_name}, which is undefined"));
+            .unwrap_or_else(|| panic!("unresolvable {frame_schema}.oneOf $ref: {reference}"));
+        let target = schemas.get(schema_name).unwrap_or_else(|| {
+            panic!("{frame_schema}.oneOf names {schema_name}, which is undefined")
+        });
 
         let discriminator = target
             .get("properties")
@@ -133,7 +154,7 @@ fn documented_frames() -> BTreeSet<String> {
             .unwrap_or_else(|| panic!("{schema_name}'s `type` enum value is not a string"));
         assert!(
             names.insert(value.to_string()),
-            "two ServerFrame.oneOf members both document `{value}`",
+            "two {frame_schema}.oneOf members both document `{value}`",
         );
     }
     names
@@ -170,6 +191,34 @@ fn every_documented_frame_is_served() {
     );
 }
 
+#[test]
+fn every_accepted_client_frame_is_documented() {
+    let undocumented: Vec<_> = accepted_frames()
+        .difference(&documented_client_frames())
+        .cloned()
+        .collect();
+    assert!(
+        undocumented.is_empty(),
+        "the WebSocket accepts these client frames and schema/openapi.yaml's \
+         ClientFrame.oneOf does not document them: {undocumented:?}\n\
+         Add a schema for each and list it in the oneOf, or a client or bot \
+         written from the schema never learns the frame exists.",
+    );
+}
+
+#[test]
+fn every_documented_client_frame_is_accepted() {
+    let unaccepted: Vec<_> = documented_client_frames()
+        .difference(&accepted_frames())
+        .cloned()
+        .collect();
+    assert!(
+        unaccepted.is_empty(),
+        "schema/openapi.yaml documents these client frames and ClientFrame \
+         does not accept them: {unaccepted:?}",
+    );
+}
+
 /// Both directions rest on parsing actually finding something, and a scanner
 /// that silently returns an empty set would make either assertion above pass
 /// vacuously. This is the check that the checks are checking.
@@ -187,4 +236,9 @@ fn both_sides_parse_to_a_real_set() {
     );
     assert!(served.contains("message.created"));
     assert!(documented.contains("message.created"));
+    assert!(
+        accepted_frames().len() >= 5,
+        "suspiciously few client frames"
+    );
+    assert!(documented_client_frames().contains("hello"));
 }

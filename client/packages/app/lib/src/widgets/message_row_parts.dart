@@ -313,9 +313,7 @@ class NewMessagesDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // The rows' own gutter, or the divider sits 10dp right of them on phones.
-    final gutter = LayoutClass.of(context) == LayoutClass.compact
-        ? AppSizes.paneGutterCompact
-        : AppSizes.paneGutter;
+    final gutter = paneGutterOf(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         gutter,
@@ -353,9 +351,7 @@ class DayDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final gutter = LayoutClass.of(context) == LayoutClass.compact
-        ? AppSizes.paneGutterCompact
-        : AppSizes.paneGutter;
+    final gutter = paneGutterOf(context);
     Widget rule() =>
         Expanded(child: Container(height: 1, color: tokens.borderSubtle));
     return Padding(

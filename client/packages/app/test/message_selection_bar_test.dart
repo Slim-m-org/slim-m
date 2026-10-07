@@ -198,7 +198,7 @@ void main() {
     // runAsync: under testWidgets' FakeAsync drift's stream never delivers.
     await tester.runAsync(
       () => bulkDeleteMessagesAction(
-        capturedRef,
+        capturedRef.read,
         channelId: _channel,
         messageIds: container
             .read(messageSelectionProvider(_channel))

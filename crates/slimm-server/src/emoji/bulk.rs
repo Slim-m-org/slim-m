@@ -13,7 +13,8 @@
 //!
 //! Bounded three ways, so an admin-authorized bulk act cannot become a bigger
 //! bug than the one it replaces: [`MAX_BULK_IMAGES`] caps how many images one
-//! call may carry, [`MAX_BULK_TOTAL_BYTES`] caps their total decoded size, and
+//! call may carry, [`MAX_BULK_TOTAL_BYTES`] caps their total decoded size (both
+//! enforced by `http::emoji` before it decodes the request), and
 //! every image still passes [`super::validate_image`] - the exact rule
 //! [`super::add_emoji`] enforces one at a time, run here before a single byte
 //! is written.
@@ -58,15 +59,11 @@ pub const MAX_BULK_IMAGES: usize = 50;
 /// well short of that worst case.
 pub const MAX_BULK_TOTAL_BYTES: u64 = 20 * 1024 * 1024;
 
-/// Why a bulk create was refused. Distinguishes a property of the whole
-/// batch (too many images, too much data) from a property of one image in
-/// it, so `http::emoji` can report each the way it deserves.
+/// Why a bulk create was refused. The batch-wide limits are the caller's to
+/// enforce before it decodes anything; only a per-image refusal or a storage
+/// failure can come back from here.
 #[derive(Debug)]
 pub enum BulkAddError {
-    /// More than [`MAX_BULK_IMAGES`] images in one call.
-    TooMany,
-    /// Over [`MAX_BULK_TOTAL_BYTES`] of decoded image data in one call.
-    TooMuchData,
     /// The image at this index failed the same check [`super::add_emoji`]
     /// would refuse it for, including a name already taken - by another
     /// image earlier in this same batch, or by an existing emoji.
@@ -77,6 +74,9 @@ pub enum BulkAddError {
 
 /// Validates every `(raw_name, bytes)` pair in `items`, then creates them all
 /// as one act, or none of them.
+///
+/// Does not enforce [`MAX_BULK_IMAGES`] or [`MAX_BULK_TOTAL_BYTES`]: the one
+/// caller, `http::emoji`, checks both before it has decoded the request.
 ///
 /// Validation - name, size, content type, and no two items sharing a
 /// normalised name - runs over the whole list before any bytes are written,
@@ -97,17 +97,8 @@ pub async fn add_emoji_bulk(
     items: Vec<(String, Vec<u8>)>,
     uploader: Option<UserId>,
 ) -> Result<Vec<CustomEmoji>, BulkAddError> {
-    if items.len() > MAX_BULK_IMAGES {
-        return Err(BulkAddError::TooMany);
-    }
-
     let mut validated: Vec<ValidatedImage> = Vec::with_capacity(items.len());
-    let mut total_bytes: u64 = 0;
     for (index, (raw_name, bytes)) in items.into_iter().enumerate() {
-        total_bytes = total_bytes.saturating_add(bytes.len() as u64);
-        if total_bytes > MAX_BULK_TOTAL_BYTES {
-            return Err(BulkAddError::TooMuchData);
-        }
         let image = validate_image(&raw_name, bytes)
             .map_err(|error| BulkAddError::Item { index, error })?;
         if validated.iter().any(|v| v.name == image.name) {

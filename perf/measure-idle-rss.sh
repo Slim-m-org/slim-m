@@ -13,6 +13,8 @@
 #   - nothing else on this machine is under heavy load while it runs: RSS is
 #     sensitive to what else is competing for pages, not only this process
 #
+# Exits non-zero when a requested measurement did not produce numbers.
+#
 # Usage: perf/measure-idle-rss.sh [--bin PATH] [--image TAG]
 #                                  [--skip-glibc] [--skip-musl]
 #                                  [--port-glibc PORT] [--port-musl PORT]
@@ -48,7 +50,7 @@ peak_rss_musl=""
 
 wait_for_health() {
   local url="$1" code
-  for _ in $(seq 1 30); do
+  for _ in $(seq 1 "${SLIMM_RSS_HEALTH_ATTEMPTS:-30}"); do
     code="$(curl -s -o /dev/null -w '%{http_code}' "${url}" 2>/dev/null || echo 000)"
     [[ "${code}" == "200" ]] && return 0
     sleep 0.5
@@ -88,7 +90,7 @@ measure_glibc() {
   pid=$!
   trap 'kill "'"${pid}"'" 2>/dev/null || true; rm -f "'"${db}"'" "'"${db}"'-wal" "'"${db}"'-shm"' RETURN
 
-  wait_for_health "http://localhost:${port_glibc}/healthz"
+  wait_for_health "http://localhost:${port_glibc}/healthz" || return 1
   idle_rss_glibc="$(read_stable_rss "${pid}")"
   peak_rss_glibc="$(read_hwm "${pid}")"
   echo "  idle_rss_glibc = ${idle_rss_glibc} kB"
@@ -112,7 +114,7 @@ measure_musl() {
   docker run -d --name "${name}" -p "${port_musl}:8080" "${image}" >/dev/null
   trap 'docker rm -f "'"${name}"'" >/dev/null 2>&1 || true' RETURN
 
-  wait_for_health "http://localhost:${port_musl}/healthz"
+  wait_for_health "http://localhost:${port_musl}/healthz" || return 1
   host_pid="$(docker inspect --format '{{.State.Pid}}' "${name}")"
   idle_rss_musl="$(read_stable_rss "${host_pid}")"
   peak_rss_musl="$(read_hwm "${host_pid}")"
@@ -120,8 +122,9 @@ measure_musl() {
   echo "  peak_rss_musl = ${peak_rss_musl} kB"
 }
 
-[[ "${skip_glibc}" -eq 0 ]] && { measure_glibc || true; }
-[[ "${skip_musl}" -eq 0 ]] && { measure_musl || true; }
+failed=0
+if [[ "${skip_glibc}" -eq 0 ]]; then measure_glibc || failed=1; fi
+if [[ "${skip_musl}" -eq 0 ]]; then measure_musl || failed=1; fi
 
 echo
 echo "== metrics entries, ready to paste into perf/baselines/<version>.json =="
@@ -129,5 +132,9 @@ for pair in "idle_rss_glibc:${idle_rss_glibc}" "peak_rss_glibc:${peak_rss_glibc}
             "idle_rss_musl:${idle_rss_musl}" "peak_rss_musl:${peak_rss_musl}"; do
   name="${pair%%:*}"
   value="${pair#*:}"
-  [[ -n "${value}" ]] && printf '{ "name": "%s", "value": %s, "unit": "kB" }\n' "${name}" "${value}"
+  if [[ -n "${value}" ]]; then
+    printf '{ "name": "%s", "value": %s, "unit": "kB" }\n' "${name}" "${value}"
+  fi
 done
+
+exit "${failed}"

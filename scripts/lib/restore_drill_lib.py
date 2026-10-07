@@ -50,6 +50,12 @@ def parse_args(argv):
         help="where to restore into; defaults to a fresh directory under "
         "<backup-root>/restore-drill/",
     )
+    parser.add_argument(
+        "--keep-scratch",
+        action="store_true",
+        help="keep the default scratch directory after the run; one given "
+        "with --scratch-dir is always kept",
+    )
     return parser.parse_args(argv)
 
 
@@ -65,9 +71,12 @@ def restore_database(snapshot, scratch_dir):
 
 
 def check_integrity(restored_db):
+    """`ok`, or what is wrong, including a file too damaged to be queried."""
     conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
     try:
         return conn.execute("PRAGMA integrity_check").fetchone()[0]
+    except sqlite3.DatabaseError as error:
+        return f"unreadable: {error}"
     finally:
         conn.close()
 
@@ -136,27 +145,7 @@ def check_avatars(restored_db, mirror_dir):
     }
 
 
-def run(args):
-    backup_root = Path(args.backup_root)
-    snapshot = Path(args.db_snapshot) if args.db_snapshot else latest_snapshot(backup_root)
-    if snapshot is None or not snapshot.is_file():
-        print(f"no database snapshot found under {backup_root}/db/", file=sys.stderr)
-        return 1
-
-    if args.scratch_dir:
-        scratch_dir = Path(args.scratch_dir)
-    else:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        scratch_dir = backup_root / "restore-drill" / timestamp
-    scratch_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"restoring {snapshot.name} into {scratch_dir}")
-    restored_db = restore_database(snapshot, scratch_dir)
-
-    integrity = check_integrity(restored_db)
-    print(f"integrity_check: {integrity}")
-    ok = integrity == "ok"
-
+def _report_attachments(restored_db, backup_root):
     attachments = check_attachments(restored_db, backup_root)
     print(
         f"attachments: {attachments['verified']}/{attachments['total']} verified, "
@@ -173,13 +162,12 @@ def run(args):
         )
     for reason in attachments["malformed"]:
         print(f"  MALFORMED  attachments: {reason}", file=sys.stderr)
-    ok = (
-        ok
-        and not attachments["missing"]
-        and not attachments["mismatched"]
-        and not attachments["malformed"]
+    return not (
+        attachments["missing"] or attachments["mismatched"] or attachments["malformed"]
     )
 
+
+def _report_avatars(restored_db, backup_root):
     avatars = check_avatars(restored_db, backup_root)
     print(f"avatars: {avatars['verified']}/{avatars['total']} verified, "
           f"{len(avatars['missing'])} missing")
@@ -187,7 +175,51 @@ def run(args):
         print(f"  MISSING    avatars/{name} (user {username})", file=sys.stderr)
     for reason in avatars["malformed"]:
         print(f"  MALFORMED  avatars: {reason}", file=sys.stderr)
-    ok = ok and not avatars["missing"] and not avatars["malformed"]
+    return not (avatars["missing"] or avatars["malformed"])
 
+
+def _drill(snapshot, scratch_dir, backup_root):
+    print(f"restoring {snapshot.name} into {scratch_dir}")
+    restored_db = restore_database(snapshot, scratch_dir)
+
+    integrity = check_integrity(restored_db)
+    print(f"integrity_check: {integrity}")
+    if integrity != "ok":
+        print("attachments and avatars: skipped, the database failed its "
+              "integrity check")
+        print("FAIL")
+        return 1
+
+    ok = _report_attachments(restored_db, backup_root)
+    ok = _report_avatars(restored_db, backup_root) and ok
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
+
+
+def _remove_default_scratch(scratch_dir):
+    shutil.rmtree(scratch_dir, ignore_errors=True)
+    try:
+        scratch_dir.parent.rmdir()
+    except OSError:
+        pass
+
+
+def run(args):
+    backup_root = Path(args.backup_root)
+    snapshot = Path(args.db_snapshot) if args.db_snapshot else latest_snapshot(backup_root)
+    if snapshot is None or not snapshot.is_file():
+        print(f"no database snapshot found under {backup_root}/db/", file=sys.stderr)
+        return 1
+
+    if args.scratch_dir:
+        scratch_dir = Path(args.scratch_dir)
+    else:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        scratch_dir = backup_root / "restore-drill" / timestamp
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        return _drill(snapshot, scratch_dir, backup_root)
+    finally:
+        if not args.scratch_dir and not args.keep_scratch:
+            _remove_default_scratch(scratch_dir)

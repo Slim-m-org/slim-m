@@ -28,12 +28,7 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
-/// True: the browser's `paste` event is a real, working source of image
-/// bytes on this target.
-const bool clipboardImagePasteSupported = true;
-
-/// False here, and deliberately the inverse of [clipboardImagePasteSupported]
-/// rather than a coincidence: the browser hands the bytes over on its own
+/// False here: the browser hands the bytes over on its own
 /// `paste` event, so a keystroke that also polled would stage the same image
 /// twice. [hasClipboardImage] answers false on web anyway, so this is belt
 /// and braces rather than the only thing stopping it.
@@ -92,10 +87,6 @@ Future<bool> hasClipboardImage() async => false;
 
 /// Always null, matching [hasClipboardImage].
 Future<Uint8List?> readClipboardImage() async => null;
-
-/// Always false: the edit-menu swizzle this backs on iOS
-/// (`composer_clipboard_image_stub.dart`) has no browser equivalent.
-Future<bool> editMenuPasteSwizzleInstalled() async => false;
 
 void _handlePaste(web.ClipboardEvent event) =>
     unawaited(_readPastedImage(event));

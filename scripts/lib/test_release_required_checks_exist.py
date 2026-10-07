@@ -36,12 +36,12 @@ JOB_KEY = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
 JOB_NAME = re.compile(r"^    name:\s*(.+?)\s*$")
 
 
-def _job_names(text: str) -> set[str]:
+def _job_names(text: str) -> list[str]:
     lines = text.splitlines()
     start = next((i for i, line in enumerate(lines) if JOBS_LINE.match(line)), None)
     if start is None:
-        return set()
-    found: set[str] = set()
+        return []
+    found: list[str] = []
     pending: str | None = None
     for line in lines[start + 1 :]:
         if line.strip() and not line.startswith(" "):
@@ -49,24 +49,24 @@ def _job_names(text: str) -> set[str]:
         key = JOB_KEY.match(line)
         if key:
             if pending:
-                found.add(pending)
+                found.append(pending)
             pending = key.group(1)
             continue
         name = JOB_NAME.match(line)
         if name and pending:
-            found.discard(pending)
-            found.add(name.group(1).strip("\"'"))
+            found.append(name.group(1).strip("\"'"))
             pending = None
     if pending:
-        found.add(pending)
+        found.append(pending)
     return found
 
 
 class ReleaseRequiredChecksExistTest(unittest.TestCase):
     def setUp(self):
-        self.names = set()
+        self.all_names = []
         for path in sorted(WORKFLOWS.glob("*.yml")):
-            self.names |= _job_names(path.read_text())
+            self.all_names += _job_names(path.read_text())
+        self.names = set(self.all_names)
         self.lists = re.findall(
             r'required_checks:\s*"([^"]*)"', RELEASE_WORKFLOW.read_text()
         )
@@ -89,4 +89,15 @@ class ReleaseRequiredChecksExistTest(unittest.TestCase):
                     f"required_checks names {check!r}, which is no job's name in "
                     ".github/workflows/; the release gate would wait for a check "
                     "run that never appears",
+                )
+
+    def test_every_required_check_names_exactly_one_job(self):
+        """Two jobs with one name let a green run of one stand in for the other."""
+        for entries in self.lists:
+            for check in entries.split("|"):
+                self.assertEqual(
+                    self.all_names.count(check),
+                    1,
+                    f"required_checks names {check!r}, which more than one job "
+                    "in .github/workflows/ is called; give the others a distinct name:",
                 )

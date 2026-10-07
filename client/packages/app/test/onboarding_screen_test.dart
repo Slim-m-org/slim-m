@@ -163,7 +163,8 @@ void main() {
 
     expect(find.text('Confirm this server'), findsOneWidget);
     expect(find.text(_server), findsOneWidget);
-    expect(find.text('dead  beef  cafe  babe'), findsOneWidget);
+    // Derived from the pinned key (sha256 of 32 zero bytes), not the wire field.
+    expect(find.text('6668  7aad  f862  bd77'), findsOneWidget);
     expect(chosen, isNull, reason: 'must wait for explicit confirmation');
 
     await _tapButton(tester, 'It matches - continue');

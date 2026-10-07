@@ -179,7 +179,7 @@ class _DockPaneState extends ConsumerState<DockPane>
       whatFailed: 'remove ${source.repo}',
       action: () => ref.read(apiProvider).removeDockSource(source.id),
     );
-    if (ok) ref.invalidate(dockCatalogProvider);
+    if (ok && mounted) ref.invalidate(dockCatalogProvider);
   }
 
   @override

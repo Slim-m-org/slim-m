@@ -32,6 +32,7 @@ import '../../providers/user_profiles.dart';
 import 'canvas_activity_log.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
+import 'canvas_forbidden_message.dart';
 import 'canvas_image_hydrator.dart';
 import 'canvas_live_event_dispatch.dart';
 import 'canvas_media_slot_sync.dart';
@@ -220,13 +221,15 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// failure - shared with `CanvasPane`'s `onRetryError` gate, so the one
   /// error this engine can meaningfully retry (re-running [fetch]) is
   /// identified by more than a string literal repeated in two places.
-  static const genericLoadError = 'The canvas could not be loaded.';
+  static const genericLoadError = canvasLoadFailedMessage;
 
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
   /// a refused write. A null message clears it, the same as `_refresh(() =>
   /// _error = null)` used to.
-  void reportError(String? message) =>
-      state = state.copyWith(error: message, clearError: message == null);
+  void reportError(String? message) {
+    if (!mounted) return;
+    state = state.copyWith(error: message, clearError: message == null);
+  }
 
   void _onEvent(api.ServerEvent event) => dispatchCanvasLiveEvent(
     event,
@@ -356,10 +359,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       await sync.catchUp();
     } on api.ForbiddenException {
       if (mounted) {
-        state = state.copyWith(
-          loading: false,
-          error: 'The canvas is not available in this channel.',
-        );
+        state = state.copyWith(loading: false, error: canvasUnavailableMessage);
       }
     } on api.ApiException {
       if (mounted) {

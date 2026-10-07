@@ -21,6 +21,7 @@ import 'package:slimm_app/src/widgets/bot_menu_sections.dart';
 import 'package:slimm_app/src/widgets/bot_ui_failure.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -66,15 +67,17 @@ Widget _row(MessageActions actions) => harness(
     grouped: false,
     showNewDivider: false,
     knownUsernames: const {},
-    onRetry: () {},
-    onDiscard: () {},
-    onPickReaction: (_) {},
-    onReactionTap: (_) {},
-    onVote: (_) {},
     actions: actions,
     editing: false,
-    onSubmitEdit: (_) {},
-    onCancelEdit: () {},
+    callbacks: MessageRowCallbacks(
+      onRetry: () {},
+      onDiscard: () {},
+      onPickReaction: (_) {},
+      onReactionTap: (_) {},
+      onVote: (_) {},
+      onSubmitEdit: (_) {},
+      onCancelEdit: () {},
+    ),
   ),
 );
 

@@ -100,6 +100,14 @@ while IFS= read -r file; do
     else
       echo "::error file=$file::$count multi-line comment run(s); a plain comment is capped at one line (a doc comment is not)" >&2
     fi
+  elif ((count < allowed)); then
+    over=$((over + 1))
+    status=1
+    if ((count > 0)); then
+      echo "::error file=$allowfile::$file is down to $count multi-line comment runs; lower the entry from $allowed to $count" >&2
+    else
+      echo "::error file=$allowfile::$file has no multi-line comment runs left; drop the line" >&2
+    fi
   fi
 done < <(git ls-files '*.dart' '*.rs' '*.py' '*.sh' '*.yml' '*.yaml' '*.toml')
 

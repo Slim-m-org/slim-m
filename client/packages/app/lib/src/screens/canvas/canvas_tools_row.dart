@@ -52,7 +52,6 @@ class CanvasToolsRow extends StatefulWidget {
     required this.canUndo,
     required this.onUndo,
     required this.canManage,
-    required this.objectCount,
     required this.onClear,
     required this.onPasteImage,
     required this.onRecenter,
@@ -87,9 +86,9 @@ class CanvasToolsRow extends StatefulWidget {
   final CanvasTool tool;
   final ValueChanged<CanvasTool> onToolChanged;
 
-  /// False while the pane's own error banner is up - an active refusal
-  /// (forbidden, or a timeout freeze) that would make placing a new object
-  /// fail the identical way again. Disarms pen, note and shape (and the
+  /// False while the pane's error banner is an active refusal (forbidden, a
+  /// timeout freeze, or a canvas that did not load) that would make placing a
+  /// new object fail the identical way again; any other banner leaves it true. Disarms pen, note and shape (and the
   /// overflow's "Paste image"), the exact tools the empty-canvas CTA this
   /// screen-review finding names invites - a still-selectable pen tool
   /// underneath a banner reading "the canvas is not available" or "you
@@ -114,9 +113,6 @@ class CanvasToolsRow extends StatefulWidget {
 
   /// Whether the signed-in member holds MANAGE_CANVAS, deployment-wide.
   final bool canManage;
-
-  /// The live count [CanvasOverflowMenu]'s confirm names.
-  final ValueListenable<int> objectCount;
 
   final Future<void> Function() onClear;
   final VoidCallback onPasteImage;
@@ -231,7 +227,6 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           canDraw: widget.canDraw,
           onRecenter: widget.onRecenter,
           canManage: widget.canManage,
-          objectCount: widget.objectCount,
           onClear: widget.onClear,
           selection: widget.selection,
           onBringToFront: widget.onBringToFront,

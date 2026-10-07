@@ -94,7 +94,15 @@ Future<_FakeClient> _server(
       return _ok(
         utf8.encode(
           jsonEncode([
-            {'tag_name': 'client-v0.90.0', 'draft': false, 'prerelease': false},
+            {
+              'tag_name': 'client-v0.90.0',
+              'draft': false,
+              'prerelease': false,
+              'assets': [
+                {'name': 'manifest.json'},
+                {'name': 'manifest.json.sig'},
+              ],
+            },
             {'tag_name': 'v9.9.9', 'draft': false, 'prerelease': false},
           ]),
         ),

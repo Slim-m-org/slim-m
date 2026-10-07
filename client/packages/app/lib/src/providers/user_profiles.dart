@@ -38,11 +38,21 @@ import 'rate_limit_retry.dart';
 /// labels of a page of messages ask `GET /users?ids=` once between them
 /// rather than `GET /users/{id}` once each, and an author already held is
 /// never asked for again.
+///
+/// Re-resolves when its id is evicted (a [api.ProfileChanged] frame, or the
+/// reconnect [BatchProfilesController.clear]), so a mounted avatar sees the
+/// new picture. Listens for the held-to-evicted edge only: watching the
+/// whole key would also re-run when the fetch itself lands.
 final userProfileProvider = FutureProvider.autoDispose
-    .family<api.UserProfile?, String>(
-      (ref, userId) =>
-          ref.read(batchProfilesControllerProvider.notifier).profile(userId),
-    );
+    .family<api.UserProfile?, String>((ref, userId) {
+      ref.listen(
+        batchProfilesControllerProvider.select((m) => m.containsKey(userId)),
+        (held, now) {
+          if (held == true && !now) ref.invalidateSelf();
+        },
+      );
+      return ref.read(batchProfilesControllerProvider.notifier).profile(userId);
+    });
 
 /// Resolves several ids in one round trip, for a caller that needs more than
 /// one at a time (a report card needs its reporter and, for a user report,

@@ -168,7 +168,7 @@ extension SlimmApiMemberModeration on SlimmApi {
 
   /// Gives a member or bot a space-local name that every reader sees, leaving
   /// the account's own name alone. Requires KICK_MEMBERS, and refuses the same
-  /// targets a timeout does. Decision 0053.
+  /// targets a timeout does. Decision 0055.
   Future<void> setMemberNickname({
     required String userId,
     required String nickname,

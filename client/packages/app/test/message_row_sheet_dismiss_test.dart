@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -22,15 +23,17 @@ Widget _row() => harness(
         grouped: false,
         showNewDivider: false,
         knownUsernames: const {},
-        onRetry: () {},
-        onDiscard: () {},
-        onPickReaction: (_) {},
-        onReactionTap: (_) {},
-        onVote: (_) {},
         actions: noActions,
         editing: false,
-        onSubmitEdit: (_) {},
-        onCancelEdit: () {},
+        callbacks: MessageRowCallbacks(
+          onRetry: () {},
+          onDiscard: () {},
+          onPickReaction: (_) {},
+          onReactionTap: (_) {},
+          onVote: (_) {},
+          onSubmitEdit: (_) {},
+          onCancelEdit: () {},
+        ),
       ),
       const SizedBox(height: 1200),
     ],

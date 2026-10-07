@@ -7,6 +7,7 @@ the server stored anything, and a client that only ever agrees with itself
 would pass a run where nothing was persisted at all.
 """
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -18,6 +19,23 @@ TOUCHED = set()
 
 # Cloudflare 403s ("error code: 1010") a default urllib UA; see CLAUDE.md.
 USER_AGENT = "Mozilla/5.0 (compatible; slim-m-scripts/1.0)"
+
+
+def _list_body(got):
+    """A list endpoint sends a bare array; anything else is a wire break."""
+    assert isinstance(got, list), f"expected a bare array, got {type(got).__name__}: {got!r}"
+    return got
+
+
+def wait_until(read, satisfied, failure_message, timeout=15):
+    """Polls `read` until `satisfied` accepts it; raises `failure_message` on timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        current = read()
+        if satisfied(current):
+            return current
+        time.sleep(0.5)
+    raise AssertionError(failure_message)
 
 
 class Api:
@@ -77,7 +95,7 @@ class Api:
 
     def messages(self, channel_id):
         got = self.call("GET", f"/channels/{channel_id}/messages")
-        return got["messages"] if isinstance(got, dict) else got
+        return _list_body(got)
 
     def message_with(self, channel_id, needle):
         for m in self.messages(channel_id):
@@ -113,29 +131,23 @@ class Api:
 
     def members(self):
         got = self.call("GET", "/members")
-        return got["members"] if isinstance(got, dict) else got
-
-    def member_named(self, display_name):
-        for m in self.members():
-            if m.get("display_name") == display_name:
-                return m
-        raise AssertionError(f"no member named {display_name!r}")
+        return _list_body(got)
 
     def pins(self, channel_id):
         got = self.call("GET", f"/channels/{channel_id}/pins")
-        return got["messages"] if isinstance(got, dict) else got
+        return _list_body(got)
 
     def reports(self):
         got = self.call("GET", "/reports")
-        return got["reports"] if isinstance(got, dict) else got
+        return _list_body(got)
 
     def blocks(self):
         got = self.call("GET", "/blocks")
-        return got["blocked"] if isinstance(got, dict) else got
+        return _list_body(got)
 
     def roles(self):
         got = self.call("GET", "/roles")
-        return got["roles"] if isinstance(got, dict) else got
+        return _list_body(got)
 
     def space_settings(self):
         return self.call("GET", "/space/settings")
@@ -145,7 +157,7 @@ class Api:
         q = (f"min_x=-{half_width}&min_y=-{half_width}"
              f"&max_x={half_width}&max_y={half_width}")
         got = self.call("GET", f"/channels/{channel_id}/canvas/objects?{q}")
-        return got["objects"] if isinstance(got, dict) else got
+        return got["objects"]
 
     def canvas_object(self, channel_id, object_id):
         for obj in self.canvas_objects(channel_id):
@@ -155,7 +167,7 @@ class Api:
 
     def canvas_media_slots(self, channel_id):
         got = self.call("GET", f"/channels/{channel_id}/canvas/media-slots")
-        return got["slots"] if isinstance(got, dict) else got
+        return got["slots"]
 
     def canvas_media_slot(self, channel_id, kind, user_id):
         """None until a drag, resize, lock or depth toggle has ever

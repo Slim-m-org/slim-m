@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The composer's own entry point into `composer_picker_panel.dart`: a GIF
-/// icon (only when this deployment has search enabled) and an Emoji smile,
-/// sharing one floating panel anchored above them and right-aligned, the
-/// same anchored-overlay shape `emoji_picker.dart`'s `EmojiPickerButton`
-/// uses for the reaction picker below a message.
+/// The composer's own entry point into `composer_picker_panel.dart`: one
+/// smile button that toggles a floating panel anchored above it and
+/// right-aligned, the same anchored-overlay shape `emoji_picker.dart`'s
+/// `EmojiPickerButton` uses for the reaction picker below a message. The
+/// panel's own tab strip carries the emoji or GIF choice (GIF only when this
+/// deployment has search enabled).
 ///
 /// Desktop-only: `composer_action_bar.dart` renders this at
 /// `kCompactWidth` and above and falls back to the existing bottom sheets
@@ -40,22 +41,15 @@ class ComposerPickerButton extends StatefulWidget {
 class _ComposerPickerButtonState extends State<ComposerPickerButton> {
   final _controller = AnimatedMenuController();
   Offset _anchor = Offset.zero;
-  ComposerPickerTab _tab = ComposerPickerTab.emoji;
 
-  /// Opens on [tab], switches to it if the panel is already open on a
-  /// different one, or closes it if [tab] is the one already showing -
-  /// each icon button toggling its own tab the way a single button toggles
-  /// open/closed elsewhere in this app.
-  void _open(ComposerPickerTab tab) {
-    if (_controller.isShowing && _tab == tab) {
+  /// Closes the panel if it is open, otherwise opens it above this button.
+  void _toggle() {
+    if (_controller.isShowing) {
       _controller.hide();
       return;
     }
-    setState(() {
-      _tab = tab;
-      _anchor = _anchorOffset();
-    });
-    if (!_controller.isShowing) _controller.show();
+    setState(() => _anchor = _anchorOffset());
+    _controller.show();
   }
 
   void _close() => _controller.hide();
@@ -99,7 +93,7 @@ class _ComposerPickerButtonState extends State<ComposerPickerButton> {
             child: TapRegion(
               onTapOutside: (_) => _close(),
               child: ComposerPickerPanel(
-                initialTab: _tab,
+                initialTab: ComposerPickerTab.emoji,
                 showGifTab: widget.gifSearchEnabled,
                 onSelectEmoji: _selectEmoji,
                 onPickedGif: _pickedGif,
@@ -118,7 +112,7 @@ class _ComposerPickerButtonState extends State<ComposerPickerButton> {
         tooltip: widget.gifSearchEnabled
             ? 'Insert emoji or a GIF'
             : 'Insert emoji',
-        onPressed: () => _open(ComposerPickerTab.emoji),
+        onPressed: _toggle,
       ),
     );
   }

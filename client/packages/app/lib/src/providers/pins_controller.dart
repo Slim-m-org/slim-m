@@ -59,7 +59,12 @@ class PinsController extends StateNotifier<PinsState> {
   final String _channelId;
   late final StreamSubscription<api.ServerEvent> _sub;
 
+  /// Bumped by every refresh, so an older response that lands after a newer
+  /// one was started is dropped instead of overwriting it.
+  int _generation = 0;
+
   Future<void> refresh() async {
+    final generation = ++_generation;
     // Guarded after every await, because this is an autoDispose family fired
     // unawaited from the constructor and the live-event listener: switching
     // channels mid-fetch disposes this instance, and assigning or even reading
@@ -67,7 +72,7 @@ class PinsController extends StateNotifier<PinsState> {
     // channel_search_controller, which guards the identical pattern.
     try {
       final all = await _ref.read(apiProvider).listPinnedMessages(_channelId);
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       // Somebody else's pin must not be a way around the viewer's own filter.
       final blocks = _ref.read(blocksProvider);
       final pinned = all
@@ -75,10 +80,10 @@ class PinsController extends StateNotifier<PinsState> {
           .toList(growable: false);
       state = PinsState(pinned: pinned);
     } on api.ForbiddenException {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true, forbidden: true);
     } on api.ApiException {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true);
     }
   }

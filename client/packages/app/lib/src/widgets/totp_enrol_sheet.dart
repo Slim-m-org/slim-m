@@ -26,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
 import 'reauth_sheet.dart';
+import 'totp_failures.dart';
 import 'totp_recovery_codes.dart';
 
 /// Opens the enrolment flow: the password first, since a session token alone
@@ -114,13 +115,8 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
   /// A wrong code is the ordinary case and gets its own sentence; everything
   /// else falls back to what the server said.
   String _confirmFailure(api.ApiException e) => switch (e) {
-    api.BadRequestException() =>
-      'That code was not accepted. Codes change every 30 seconds, so check '
-          'your phone is showing the current one.',
     api.ForbiddenException() => reauthFailure(e),
-    api.RateLimitedException() =>
-      'Too many incorrect codes. Wait a few minutes and try again.',
-    _ => e.message,
+    _ => totpCodeFailure(e),
   };
 
   void _copySecret(String secret) {
@@ -145,7 +141,7 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: SingleChildScrollView(child: _setup(context)),
     );

@@ -67,12 +67,14 @@ class _TotpCodeSheet extends StatefulWidget {
 
 class _TotpCodeSheetState extends State<_TotpCodeSheet> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
   bool _busy = false;
   String? _error;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -98,6 +100,9 @@ class _TotpCodeSheetState extends State<_TotpCodeSheet> {
       // Cleared so a retype starts empty rather than from the code just refused.
       _controller.clear();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
   }
 
   @override
@@ -108,7 +113,7 @@ class _TotpCodeSheetState extends State<_TotpCodeSheet> {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -130,6 +135,7 @@ class _TotpCodeSheetState extends State<_TotpCodeSheet> {
             const SizedBox(height: AppSpacing.s12),
             AppInput(
               controller: _controller,
+              focusNode: _focus,
               placeholder: '0' * _codeDigits,
               mono: true,
               autofocus: true,

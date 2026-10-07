@@ -150,13 +150,6 @@ class CanvasObjectMoved extends ServerEvent {
   final double h;
 }
 
-/// A placed object's paint order changed.
-///
-/// Carries the new [zIndex] outright, so a receiver needs no refetch to
-/// repaint it in its new stacking position. The actor is deliberately
-/// absent, matching [CanvasObjectMoved]: restacking another member's object
-/// needs `MANAGE_CANVAS` and so can be a moderation act the same way a move
-/// is.
 /// A participant's camera or screen-share tile was moved, resized, locked
 /// or sent to the back or front - shared and persistent since decision
 /// 0010's reversal, so this reaches every viewer, not only the one who
@@ -189,6 +182,13 @@ class CanvasMediaSlotChanged extends ServerEvent {
   final bool sentToBack;
 }
 
+/// A placed object's paint order changed.
+///
+/// Carries the new [zIndex] outright, so a receiver needs no refetch to
+/// repaint it in its new stacking position. The actor is deliberately
+/// absent, matching [CanvasObjectMoved]: restacking another member's object
+/// needs `MANAGE_CANVAS` and so can be a moderation act the same way a move
+/// is.
 class CanvasObjectReordered extends ServerEvent {
   const CanvasObjectReordered({
     required this.channelId,

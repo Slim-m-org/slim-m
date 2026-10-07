@@ -30,12 +30,6 @@
 /// share nothing else. It is inert on Android and Linux: nothing there ever
 /// calls `pastedImage`, so registering the handler costs nothing.
 ///
-/// [editMenuPasteSwizzleInstalled] reports only whether that swizzle
-/// installed, never whether the menu it targets actually offers Paste -
-/// confirmed on a real device 2026-08-01 that those are different things,
-/// see `composer_clipboard_paste.dart`'s doc comment for why nothing here
-/// gates the fallback row on it any more.
-///
 /// Windows and macOS register no platform-side handler at all, and neither
 /// does Android for the swizzle-only calls, so a call here simply finds
 /// nothing to answer it. That is treated as "not supported" rather than
@@ -48,12 +42,6 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
-/// False here; see `composer_clipboard_image_web.dart` for the one platform
-/// where a live Ctrl+V/paste-event listener is real. The native edit-menu
-/// route [startClipboardImagePaste] backs on iOS is a menu action, not a
-/// keystroke, so it is not what this flag is about.
-const bool clipboardImagePasteSupported = false;
 
 /// Whether a Ctrl+V keystroke should ask the image clipboard itself, rather
 /// than waiting to be handed an image by [startClipboardImagePaste].
@@ -147,32 +135,5 @@ Future<Uint8List?> readClipboardImage() async {
     throw ClipboardImageReadException(
       e.message ?? 'The clipboard image could not be read.',
     );
-  }
-}
-
-/// Whether `ClipboardPasteBridge.m`'s swizzle installed on the native side -
-/// true only on iOS, and only once `AppDelegate` has run; false with no
-/// platform handler at all (Android, desktop) and false if a future Flutter
-/// engine upgrade moved the private class or selectors it depends on.
-///
-/// This is **not**, by itself, whether the system edit menu offers Paste for
-/// an image: Flutter's default `contextMenuBuilder` on iOS 16+ routes
-/// through `SystemContextMenu`, which decided the menu's contents in Dart
-/// from `Clipboard.hasStrings()` alone, before any native call happened -
-/// confirmed on a real device 2026-08-01 that this value could be true while
-/// the menu still offered no Paste. `composer_context_menu.dart` closes that
-/// gap by forcing the platform's own Paste item into the list whenever the
-/// clipboard holds an image, which is what makes native ask
-/// `canPerformAction:` at all; confirmed working end to end on a real
-/// iPhone 2026-08-02. See `composer_clipboard_paste.dart`'s doc comment and
-/// PR #327 ("Image paste on iPhone, confirmed working").
-Future<bool> editMenuPasteSwizzleInstalled() async {
-  try {
-    return await _clipboardImageChannel.invokeMethod<bool>(
-          'editMenuPasteSwizzleInstalled',
-        ) ??
-        false;
-  } on MissingPluginException {
-    return false;
   }
 }

@@ -29,7 +29,7 @@ use crate::ids::{DeviceId, RoleId, SessionId, UserId};
 use crate::permissions::Permissions;
 
 use super::moderation_audit::{ModerationAudit, record_moderation_audit};
-use super::sessions::SessionContext;
+use super::sessions::{SessionContext, revoke_session_rows};
 use super::{Store, now_ms};
 
 /// Marks a bot token in its plaintext, so the auth extractor can route a
@@ -55,7 +55,7 @@ pub struct Bot {
     /// bot can currently do anything at all.
     pub token_name: Option<String>,
     pub token_last_used_at: Option<i64>,
-    /// The bot's managed role and its permissions. `NONE` once revoked.
+    /// The bot's managed role and its permissions; the role outlives a revoke (ADR 0028).
     pub role_id: Option<RoleId>,
     pub permissions: Permissions,
 }
@@ -82,8 +82,7 @@ impl From<sqlx::Error> for CreateBotError {
 /// Why changing a bot's permissions failed.
 #[derive(Debug)]
 pub enum UpdateBotPermissionsError {
-    /// No live bot by that id, or it has been revoked and has no managed
-    /// role left to change.
+    /// No bot by that id, or it has no managed role to change.
     NoSuchBot,
     Internal(anyhow::Error),
 }
@@ -307,8 +306,8 @@ impl Store {
     }
 
     /// Changes what a bot's managed role grants; `permissions` is already
-    /// validated by `http::bots`. `NoSuchBot` covers a revoked bot too, since
-    /// revocation deletes the managed role this looks up.
+    /// validated by `http::bots`. A revoked bot keeps its managed role (ADR 0028),
+    /// so this still succeeds for one; `NoSuchBot` means no managed role exists.
     pub async fn update_bot_permissions(
         &self,
         bot_user_id: UserId,
@@ -395,8 +394,9 @@ impl Store {
         Ok(row.is_some())
     }
 
-    /// Revokes a bot's token and session. The account and its roles stay, so
-    /// a role shared with a human is unaffected.
+    /// Revokes a bot's token and session in one transaction, so a failure leaves the token
+    /// live and the call retryable. The account and its roles stay, so a role shared with a
+    /// human is unaffected.
     ///
     /// Returns `None` if no bot by that id exists, and otherwise the sessions
     /// it revoked. The caller must publish
@@ -407,18 +407,19 @@ impl Store {
         revoked_by: UserId,
     ) -> anyhow::Result<Option<Vec<SessionId>>> {
         let now = now_ms();
+        let mut tx = self.begin_write().await?;
         let sessions = sqlx::query!(
             r#"SELECT session_id AS "session_id!: SessionId"
                FROM bot_tokens WHERE bot_user_id = ? AND revoked_at IS NULL"#,
             bot_user_id
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?;
         if sessions.is_empty() {
+            tx.rollback().await?;
             return Ok(self.is_bot(bot_user_id).await?.then(Vec::new));
         }
 
-        let mut tx = self.begin_write().await?;
         sqlx::query!(
             "UPDATE bot_tokens SET revoked_at = ? WHERE bot_user_id = ? AND revoked_at IS NULL",
             now,
@@ -438,13 +439,12 @@ impl Store {
             },
         )
         .await?;
-        tx.commit().await?;
-
         let mut revoked = Vec::with_capacity(sessions.len());
         for row in sessions {
-            self.revoke_session(row.session_id).await?;
+            revoke_session_rows(&mut tx, row.session_id, now).await?;
             revoked.push(row.session_id);
         }
+        tx.commit().await?;
         Ok(Some(revoked))
     }
 }

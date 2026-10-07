@@ -8,7 +8,7 @@ import random
 
 import seed_media
 
-# Wide, tall, small, a medium "screenshot", then one near the upload ceiling.
+# Wide, tall, small, a medium "screenshot", then one large photo.
 _IMAGE_SPECS = (
     ("seed-banner.png", lambda p, rng: seed_media.gradient_png(
         p, 1600, 360, (27, 111, 145), (216, 88, 55), axis="x")),
@@ -47,10 +47,10 @@ def build(scratch_dir, seed):
     five PNGs (see `_IMAGE_SPECS`), one PDF, a text log, a zip archive, a
     WAV tone, and - when ffmpeg is on `PATH` - a short real mp4 clip.
 
-    `seed-large-photo.png` targets roughly 8 MiB (80% of
-    `default_attachment_max_bytes` in `crates/slimm-server/src/config.rs`),
-    near a live deployment's per-upload ceiling without risking a 413 on one
-    that has not raised `SLIMM_ATTACHMENT_MAX_BYTES` past that default.
+    `seed-large-photo.png` is about 8 MiB of noise: a big upload to exercise
+    the image path, not a near-limit one, since the default per-upload cap
+    (`default_attachment_max_bytes` in `crates/slimm-server/src/config.rs`)
+    is 1 GiB.
     Nothing here is a file the server would refuse: see
     `scripts/seed-data.py`'s module doc for the real allowed set, sniffed
     from bytes rather than filename or declared type. Everything but the

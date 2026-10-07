@@ -34,6 +34,14 @@ const _other = api.UserProfile(
   createdAt: 0,
 );
 
+const _adminRole = api.Role(
+  id: 'role-admin',
+  name: 'Admin',
+  permissions: Perm.administrator,
+  isEveryone: false,
+  createdAt: 0,
+);
+
 data.Channel _channel(String kind) => data.Channel(
   id: _channelId,
   name: 'secret',
@@ -53,6 +61,8 @@ data.Channel _channel(String kind) => data.Channel(
   String kind = 'text',
   api.Me? selfProfile,
   bool failWrite = false,
+  List<api.Role> roles = const <api.Role>[],
+  api.UserProfile member = _other,
 }) {
   final writes = <http.Request>[];
   final container = ProviderContainer(
@@ -60,8 +70,8 @@ data.Channel _channel(String kind) => data.Channel(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
       myPermissionsProvider.overrideWithValue(0),
-      membersProvider.overrideWith((ref) async => [_other]),
-      rolesProvider.overrideWith((ref) async => const <api.Role>[]),
+      membersProvider.overrideWith((ref) async => [member]),
+      rolesProvider.overrideWith((ref) async => roles),
       channelByIdProvider.overrideWith(
         (ref, id) => Stream.value(_channel(kind)),
       ),
@@ -77,6 +87,13 @@ data.Channel _channel(String kind) => data.Channel(
             if (path == '/channels/$_channelId/permissions') {
               return http.Response(
                 jsonEncode({'permissions': channelPermissions}),
+                200,
+                headers: json,
+              );
+            }
+            if (path.endsWith('/note')) {
+              return http.Response(
+                jsonEncode({'body': null, 'updated_at': null}),
                 200,
                 headers: json,
               );
@@ -113,7 +130,11 @@ data.Channel _channel(String kind) => data.Channel(
   return (container: container, writes: writes);
 }
 
-Future<void> _open(WidgetTester tester, ProviderContainer container) async {
+Future<void> _open(
+  WidgetTester tester,
+  ProviderContainer container, {
+  api.UserProfile profile = _other,
+}) async {
   tester.view.physicalSize = const Size(800, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -121,7 +142,7 @@ Future<void> _open(WidgetTester tester, ProviderContainer container) async {
     reducedMotionApp(
       container: container,
       child: MemberProfileBody(
-        profile: _other,
+        profile: profile,
         compact: false,
         channelId: _channelId,
         onDone: () {},
@@ -138,6 +159,23 @@ void main() {
   testWidgets('hidden without MANAGE_ROLES in that channel', (tester) async {
     final wired = _wire(channelPermissions: Perm.viewChannel);
     await _open(tester, wired.container);
+    expect(find.text(label), findsNothing);
+  });
+
+  testWidgets('hidden for a member who holds administrator', (tester) async {
+    const admin = api.UserProfile(
+      id: 'user-maya',
+      username: 'maya',
+      displayName: 'maya',
+      createdAt: 0,
+      roleIds: ['role-admin'],
+    );
+    final wired = _wire(
+      channelPermissions: Perm.manageRoles,
+      roles: const [_adminRole],
+      member: admin,
+    );
+    await _open(tester, wired.container, profile: admin);
     expect(find.text(label), findsNothing);
   });
 

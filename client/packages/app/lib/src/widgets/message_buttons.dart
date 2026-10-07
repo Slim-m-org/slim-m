@@ -13,8 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../external_link.dart';
 import '../providers/button_presses.dart';
-import 'embed_card.dart' show launchIfHttp;
 
 /// A failure stays a readable line under the row, not a full-width banner.
 const double _errorMaxWidth = 480;
@@ -130,7 +130,7 @@ class _ButtonView extends StatelessWidget {
       disabled: disabled,
       busy: busy,
       onPressed: isLink
-          ? (url == null ? null : () => unawaited(launchIfHttp(url)))
+          ? (url == null ? null : () => unawaited(openExternalHttpUrl(url)))
           : onPressed,
     );
     if (isLink) return _WithHost(host: _hostOf(url), child: build(busy: false));

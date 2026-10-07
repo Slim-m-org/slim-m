@@ -6,8 +6,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/format.dart';
 import 'package:slimm_app/src/widgets/call_recap_card.dart';
-import 'package:slimm_app/src/widgets/member_profile_sections.dart';
 
 void main() {
   group('formatCallDuration', () {

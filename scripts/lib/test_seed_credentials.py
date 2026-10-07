@@ -45,6 +45,43 @@ class LoadOrCreateTest(unittest.TestCase):
         got = seed_credentials.load_or_create("http://x", cache_dir=self.cache_dir)
         self.assertTrue(got)
 
+    def test_a_cache_that_is_not_an_object_is_regenerated(self):
+        path = seed_credentials._cache_path("http://x", self.cache_dir)
+        for body in ("[]", '"text"', "7", '{"password": 7}'):
+            with self.subTest(body=body):
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(body)
+                got = seed_credentials.load_or_create(
+                    "http://x", cache_dir=self.cache_dir)
+                self.assertIsInstance(got, str)
+                self.assertTrue(got)
+
+    def test_the_cache_is_private_to_its_owner(self):
+        old = os.umask(0o022)
+        self.addCleanup(os.umask, old)
+        fresh = os.path.join(self.cache_dir, "nested")
+        seed_credentials.load_or_create("http://x", cache_dir=fresh)
+        path = seed_credentials._cache_path("http://x", fresh)
+        self.assertEqual(os.stat(fresh).st_mode & 0o077, 0)
+        self.assertEqual(os.stat(path).st_mode & 0o077, 0)
+
+    def test_an_existing_world_readable_cache_is_tightened_on_rewrite(self):
+        path = seed_credentials._cache_path("http://x", self.cache_dir)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("not json")
+        os.chmod(path, 0o644)
+        seed_credentials.load_or_create("http://x", cache_dir=self.cache_dir)
+        self.assertEqual(os.stat(path).st_mode & 0o077, 0)
+
+    def test_a_valid_world_readable_cache_is_tightened_when_read(self):
+        path = seed_credentials._cache_path("http://x", self.cache_dir)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"password": "kept"}')
+        os.chmod(path, 0o644)
+        got = seed_credentials.load_or_create("http://x", cache_dir=self.cache_dir)
+        self.assertEqual(got, "kept")
+        self.assertEqual(os.stat(path).st_mode & 0o077, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

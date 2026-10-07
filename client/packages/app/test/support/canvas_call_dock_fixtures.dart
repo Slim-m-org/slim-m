@@ -140,7 +140,6 @@ CanvasDockData buildCanvasDockData({
     canUndo: row.canUndo,
     onUndo: row.onUndo,
     canManage: row.canManage,
-    objectCount: row.objectCount,
     onClear: row.onClear,
     onPasteImage: row.onPasteImage,
     onRecenter: row.onRecenter,

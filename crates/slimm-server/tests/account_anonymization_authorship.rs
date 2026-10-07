@@ -6,6 +6,7 @@
 //! behind that decision still runs and still targets the right column.
 
 mod support;
+use support::reports::StoreReportExt;
 
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, MessageId};
 use slimm_server::store::{CanvasOpRequest, NewMessage, PlaceRequest, ReportSubject, Store};

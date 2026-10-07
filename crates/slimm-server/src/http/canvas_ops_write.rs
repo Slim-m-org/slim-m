@@ -33,6 +33,9 @@ use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq};
 use crate::permissions::Permissions;
 use crate::store::{CanvasOpRequest, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp};
 
+/// Widest `z_index` a reorder may carry: a client adds one for "bring to front", so it stays far inside the 2^53 integers every client holds exactly.
+const Z_INDEX_LIMIT: i64 = 1 << 52;
+
 #[derive(Deserialize)]
 pub(super) struct SubmitOpParams {
     /// Client-generated UUIDv7, and the idempotency key.
@@ -247,6 +250,9 @@ fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
             let z_index = params
                 .z_index
                 .ok_or(ApiError::BadRequest("reorder needs z_index"))?;
+            if !(-Z_INDEX_LIMIT..=Z_INDEX_LIMIT).contains(&z_index) {
+                return Err(ApiError::BadRequest("z_index is out of range"));
+            }
             Ok(CanvasOpRequest::Reorder { object_id, z_index })
         }
         _ => Err(ApiError::BadRequest("unknown canvas op kind")),

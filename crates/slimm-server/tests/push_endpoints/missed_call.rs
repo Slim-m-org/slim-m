@@ -115,6 +115,16 @@ async fn a_ring_nobody_answered_wakes_the_callee() {
         woken(&mock.all_messages()).contains(&"bobs-token".to_owned()),
         "the person who missed the call is the one woken"
     );
+    // The call-end signal alone moves the call count, so the transcript row's own wake is asserted by kind.
+    let woke_as_message = || {
+        mock.all_messages()
+            .iter()
+            .any(|m| m["kind"] == "message" && m["token"] == "bobs-token")
+    };
+    assert!(
+        wait_until(woke_as_message, WAIT_TIMEOUT).await,
+        "the missed call must wake the callee as a message, not only as a call-end signal"
+    );
 }
 
 /// The caller is not woken by their own unanswered call. `notify_message`

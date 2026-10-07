@@ -71,54 +71,55 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   Future<void> _save() async {
     setState(() => _saving = true);
+    final ok = await guard(whatFailed: 'save permissions', action: _applyAll);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ref.invalidate(rolesProvider);
+    ref.invalidate(roleModulePermissionsProvider(widget.role.id));
+    ref.invalidate(codeBlockRunnerProvider);
+    ref.invalidate(slashCommandProvider);
+    ref.invalidate(appLaunchProvider);
+    if (ok) _discard();
+  }
+
+  Future<void> _applyAll() async {
+    await _applyBits();
+    for (final entry in _moduleOverrides.entries.toList()) {
+      await _applyModule(entry.key, entry.value);
+      if (mounted) setState(() => _moduleOverrides.remove(entry.key));
+    }
+  }
+
+  Future<void> _applyBits() async {
     var permissions = widget.role.permissions;
     for (final entry in _bitOverrides.entries) {
       permissions = entry.value
           ? (permissions | entry.key)
           : (permissions & ~entry.key);
     }
-    final ok = await guard(
-      whatFailed: 'save permissions',
-      action: () async {
-        if (permissions != widget.role.permissions) {
-          await ref
-              .read(apiProvider)
-              .updateRole(roleId: widget.role.id, permissions: permissions);
-        }
-        for (final entry in _moduleOverrides.entries) {
-          final parts = entry.key.split(':');
-          final moduleId = parts[0];
-          final permKey = parts.sublist(1).join(':');
-          if (entry.value) {
-            await ref
-                .read(apiProvider)
-                .grantModulePermission(
-                  roleId: widget.role.id,
-                  moduleId: moduleId,
-                  permKey: permKey,
-                );
-          } else {
-            await ref
-                .read(apiProvider)
-                .revokeModulePermission(
-                  roleId: widget.role.id,
-                  moduleId: moduleId,
-                  permKey: permKey,
-                );
-          }
-        }
-      },
-    );
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (ok) {
-      ref.invalidate(rolesProvider);
-      ref.invalidate(roleModulePermissionsProvider(widget.role.id));
-      ref.invalidate(codeBlockRunnerProvider);
-      ref.invalidate(slashCommandProvider);
-      ref.invalidate(appLaunchProvider);
-      _discard();
-    }
+    if (permissions == widget.role.permissions) return;
+    await ref
+        .read(apiProvider)
+        .updateRole(roleId: widget.role.id, permissions: permissions);
+    if (mounted) setState(_bitOverrides.clear);
+  }
+
+  Future<void> _applyModule(String key, bool granted) {
+    final parts = key.split(':');
+    final moduleId = parts[0];
+    final permKey = parts.sublist(1).join(':');
+    final client = ref.read(apiProvider);
+    return granted
+        ? client.grantModulePermission(
+            roleId: widget.role.id,
+            moduleId: moduleId,
+            permKey: permKey,
+          )
+        : client.revokeModulePermission(
+            roleId: widget.role.id,
+            moduleId: moduleId,
+            permKey: permKey,
+          );
   }
 
   bool _matchesFilter(String label, String description) {
@@ -138,7 +139,8 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
         .watch(roleModulePermissionsProvider(widget.role.id))
         .valueOrNull;
     final grantedKeys = {
-      for (final g in granted ?? const []) '${g.moduleId}:${g.permKey}',
+      for (final g in granted ?? const <api.GrantedModulePermission>[])
+        '${g.moduleId}:${g.permKey}',
     };
 
     final showAdministrator = _matchesFilter(

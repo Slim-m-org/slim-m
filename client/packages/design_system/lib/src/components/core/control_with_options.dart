@@ -36,7 +36,6 @@ class AppControlWithOptions extends StatelessWidget {
     required this.optionsLabel,
     this.active = false,
     this.touch,
-    this.caretFocusNode,
     this.visualHeight = AppSizes.controlMd,
   });
 
@@ -54,8 +53,6 @@ class AppControlWithOptions extends StatelessWidget {
 
   /// Null means "whatever this subtree is at", read from [AppTouchTargets].
   final bool? touch;
-
-  final FocusNode? caretFocusNode;
 
   /// The caret's drawn height, to match a primary that is not a full chip.
   final double visualHeight;
@@ -88,7 +85,6 @@ class AppControlWithOptions extends StatelessWidget {
               label: optionsLabel,
               active: active,
               touch: touch ?? AppTouchTargets.of(context),
-              focusNode: caretFocusNode,
               visualHeight: visualHeight,
               onPressed: () {
                 AppHaptics.selection();
@@ -120,7 +116,6 @@ class _OptionsCaret extends StatelessWidget {
     required this.active,
     required this.touch,
     required this.onPressed,
-    required this.focusNode,
     required this.visualHeight,
   });
 
@@ -128,7 +123,6 @@ class _OptionsCaret extends StatelessWidget {
   final bool active;
   final bool touch;
   final VoidCallback onPressed;
-  final FocusNode? focusNode;
   final double visualHeight;
 
   @override
@@ -146,7 +140,6 @@ class _OptionsCaret extends StatelessWidget {
         child: AppInsetFocus(
           builder: (context, onFocusChange, focused) => InkWell(
             onTap: onPressed,
-            focusNode: focusNode,
             focusColor: Colors.transparent,
             onFocusChange: onFocusChange,
             borderRadius: _caretRadius,

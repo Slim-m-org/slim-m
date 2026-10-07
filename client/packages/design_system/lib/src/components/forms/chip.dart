@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A small token with two variants. `operator` is a static, non-interactive
-/// span used in a search bar (`from:priya`); `reaction` is a real button
-/// carrying an emoji (user content, never interface chrome), a count, and
-/// whether the current user is among the people who reacted.
+/// A small token: `reaction` is a real button carrying an emoji (user content,
+/// never interface chrome), a count, and whether the current user is among the
+/// people who reacted.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,19 +12,6 @@ import '../../app_typography.dart';
 import 'focusable_tap_target.dart';
 
 class AppChip extends StatelessWidget {
-  /// A static, non-interactive token: mono text on an accent-soft fill. Used
-  /// in the search bar for a structured operator like `from:priya`.
-  const AppChip.operator({
-    super.key,
-    required this.label,
-    this.icon,
-  })  : _isReaction = false,
-        emoji = null,
-        glyph = null,
-        count = 0,
-        active = false,
-        onTap = null;
-
   /// A real button: an emoji, a count, and whether the current user reacted.
   const AppChip.reaction({
     super.key,
@@ -34,19 +20,9 @@ class AppChip extends StatelessWidget {
     required this.active,
     this.glyph,
     this.onTap,
-  })  : _isReaction = true,
-        label = null,
-        icon = null;
+  });
 
-  final bool _isReaction;
-
-  /// Operator-only: the label text (e.g. `from:priya`).
-  final String? label;
-
-  /// Operator-only: an optional leading glyph, built by the caller.
-  final Widget? icon;
-
-  /// Reaction-only: the emoji glyph. User content, so it is a runtime string
+  /// the emoji glyph. User content, so it is a runtime string
   /// rather than a literal typed into source.
   ///
   /// Not always a codepoint: a deployment's own emoji is keyed by its
@@ -54,14 +30,14 @@ class AppChip extends StatelessWidget {
   /// names the reaction to a screen reader either way.
   final String? emoji;
 
-  /// Reaction-only: drawn instead of [emoji]'s text, for a reaction keyed by
+  /// drawn instead of [emoji]'s text, for a reaction keyed by
   /// something that has no glyph of its own. The caller sizes it.
   final Widget? glyph;
 
-  /// Reaction-only: how many people reacted.
+  /// how many people reacted.
   final int count;
 
-  /// Reaction-only: whether the current user is one of them, drawn as an
+  /// whether the current user is one of them, drawn as an
   /// accent-soft fill plus a heavier weight on the count - never an
   /// outline, which decision 0004 reserves for real focus, and never a
   /// separate marker glyph: the fill and the weight are enough on their
@@ -71,43 +47,9 @@ class AppChip extends StatelessWidget {
 
   final VoidCallback? onTap;
 
-  /// The operator's 7px horizontal padding does not match a step in
-  /// AppSpacing (nearest is s8). The design gives an exact pixel value,
-  /// used as a literal here and reported as a token gap.
-  static const double _operatorPaddingH = 7;
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-
-    if (!_isReaction) {
-      return Semantics(
-        label: label,
-        child: Container(
-          height: 24,
-          padding: const EdgeInsets.symmetric(horizontal: _operatorPaddingH),
-          decoration: BoxDecoration(
-            color: tokens.accentSoft,
-            borderRadius: BorderRadius.circular(AppRadii.control),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                icon!,
-                const SizedBox(width: AppSpacing.s4)
-              ],
-              Text(
-                label ?? '',
-                style: AppText.caption
-                    .copyWith(color: tokens.accent, fontFamily: AppFonts.mono),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     final semanticLabel =
         '${emoji ?? ''} reaction, $count, ${active ? 'you reacted' : 'tap to react'}';

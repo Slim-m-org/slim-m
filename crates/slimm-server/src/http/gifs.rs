@@ -282,7 +282,7 @@ fn mint_results(cache: &Cache, hits: &[provider::ProviderGif]) -> Vec<GifResultD
 
 /// Fetches `url` and refuses it past `max_bytes`, checked against
 /// `Content-Length` first (when a provider sends one, this refuses before
-/// downloading anything) and again against the real body (when it does not,
+/// downloading anything) and again while streaming the body (when it does not,
 /// or lied). This deployment's own configured provider is a trusted third
 /// party, not adversarial input the way an uploaded file is, so this is a
 /// sanity bound rather than the hardened boundary `media::sniff_content_type`
@@ -303,14 +303,12 @@ async fn fetch_capped(
     if response.content_length().is_some_and(|len| len > max_bytes) {
         return Err(GifError::Unavailable);
     }
-    let bytes = response.bytes().await.map_err(|err| {
-        tracing::warn!(%err, "could not read a gif provider's response body");
-        GifError::Unavailable
-    })?;
-    if bytes.len() as u64 > max_bytes {
-        return Err(GifError::Unavailable);
-    }
-    Ok(bytes.to_vec())
+    crate::net_guard::read_capped(response, max_bytes as usize)
+        .await
+        .map_err(|err| {
+            tracing::warn!(?err, "could not read a gif provider's response body");
+            GifError::Unavailable
+        })
 }
 
 impl From<GifError> for ApiError {

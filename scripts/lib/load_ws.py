@@ -31,6 +31,7 @@ class Subscriber:
         self.name = name
         self.api = api
         self.ws_url = ws_url
+        self.ws = None
         self.connected = False
         self.failure = None
         self.frames = 0
@@ -113,7 +114,8 @@ class Subscriber:
                 seen.setdefault(message_id, []).append(time.monotonic())
 
     async def close(self):
-        if self.connected:
+        """Closes whatever socket was opened, including a failed handshake's."""
+        if self.ws is not None:
             try:
                 await self.ws.close()
             except Exception:  # noqa: BLE001 - teardown is best effort

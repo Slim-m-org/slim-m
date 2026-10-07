@@ -88,7 +88,8 @@ async fn live_channels(
 /// Refuses `ordered` unless it names exactly the ids in `live` - no more, no
 /// fewer, no repeats - so a caller always knows whether its drag took
 /// effect. Shared by both reorder shapes, since a flat list and a
-/// flattened, grouped one are validated identically.
+/// flattened, grouped one are validated identically. `live` excludes the
+/// channels the caller cannot see, so a refusal never names one.
 fn validate_live_set(
     live: &[(ChannelId, Option<ChannelCategoryId>, i64)],
     ordered: &[ChannelId],
@@ -102,6 +103,48 @@ fn validate_live_set(
         });
     }
     Ok(())
+}
+
+/// The live channels the caller may see: everything but `hidden`, which keeps
+/// its place and is never named in a refusal.
+fn visible_part(
+    live: &[(ChannelId, Option<ChannelCategoryId>, i64)],
+    hidden: &HashSet<ChannelId>,
+) -> Vec<(ChannelId, Option<ChannelCategoryId>, i64)> {
+    live.iter()
+        .filter(|(id, ..)| !hidden.contains(id))
+        .cloned()
+        .collect()
+}
+
+/// `live` ids in current display order within one category (`Some(c)`), one
+/// section (`None`), or all of it (`any`).
+fn current_order(
+    live: &[(ChannelId, Option<ChannelCategoryId>, i64)],
+    section: Option<Option<ChannelCategoryId>>,
+) -> Vec<ChannelId> {
+    let mut rows: Vec<_> = live
+        .iter()
+        .filter(|(_, category, _)| section.is_none_or(|s| s == *category))
+        .collect();
+    rows.sort_by_key(|(id, _, position)| (*position, id.0));
+    rows.into_iter().map(|(id, ..)| *id).collect()
+}
+
+/// `shown` with every `hidden` channel put back at the index it holds in
+/// `current` (clamped to the end), so a caller who cannot see a channel
+/// neither moves it nor learns where it sits.
+fn splice_hidden(
+    mut shown: Vec<ChannelId>,
+    current: &[ChannelId],
+    hidden: &HashSet<ChannelId>,
+) -> Vec<ChannelId> {
+    for (index, id) in current.iter().enumerate() {
+        if hidden.contains(id) {
+            shown.insert(index.min(shown.len()), *id);
+        }
+    }
+    shown
 }
 
 impl Store {
@@ -125,9 +168,22 @@ impl Store {
         &self,
         ordered: &[ChannelId],
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
+        self.reorder_channels_flat_around(ordered, &HashSet::new())
+            .await
+    }
+
+    /// [`Self::reorder_channels_flat`] for a caller who cannot see the
+    /// `hidden` channels: `ordered` names only the rest, and each hidden
+    /// channel keeps its current slot in the global order.
+    pub async fn reorder_channels_flat_around(
+        &self,
+        ordered: &[ChannelId],
+        hidden: &HashSet<ChannelId>,
+    ) -> Result<ReorderOutcome, ReorderChannelsError> {
         let mut tx = self.begin_write().await?;
         let live = live_channels(&mut tx).await?;
-        validate_live_set(&live, ordered)?;
+        validate_live_set(&visible_part(&live, hidden), ordered)?;
+        let ordered = &splice_hidden(ordered.to_vec(), &current_order(&live, None), hidden);
 
         let before_position: HashMap<ChannelId, i64> = live
             .into_iter()
@@ -172,6 +228,17 @@ impl Store {
         &self,
         groups: &[ChannelOrderGroup],
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
+        self.reorder_channels_around(groups, &HashSet::new()).await
+    }
+
+    /// [`Self::reorder_channels`] for a caller who cannot see the `hidden`
+    /// channels: `groups` names only the rest, and each hidden channel stays
+    /// in its own section at the index it already holds there.
+    pub async fn reorder_channels_around(
+        &self,
+        groups: &[ChannelOrderGroup],
+        hidden: &HashSet<ChannelId>,
+    ) -> Result<ReorderOutcome, ReorderChannelsError> {
         let mut tx = self.begin_write().await?;
         let live = live_channels(&mut tx).await?;
 
@@ -179,7 +246,18 @@ impl Store {
             .iter()
             .flat_map(|group| group.channel_ids.iter().copied())
             .collect();
-        validate_live_set(&live, &ordered)?;
+        validate_live_set(&visible_part(&live, hidden), &ordered)?;
+        let groups: Vec<ChannelOrderGroup> = groups
+            .iter()
+            .map(|group| ChannelOrderGroup {
+                category_id: group.category_id,
+                channel_ids: splice_hidden(
+                    group.channel_ids.clone(),
+                    &current_order(&live, Some(group.category_id)),
+                    hidden,
+                ),
+            })
+            .collect();
 
         let named_categories: HashSet<ChannelCategoryId> = groups
             .iter()
@@ -209,7 +287,7 @@ impl Store {
             .collect();
 
         let mut moved = Vec::new();
-        for group in groups {
+        for group in &groups {
             for (position, id) in group.channel_ids.iter().enumerate() {
                 let position = position as i64;
                 let target = (group.category_id, position);

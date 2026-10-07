@@ -396,4 +396,29 @@ void main() {
       );
     },
   );
+
+  testWidgets('a shared run shows its output from the POST response when no '
+      'CodeRunChanged event is delivered', (tester) async {
+    final events = StreamController<api.ServerEvent>.broadcast();
+    addTearDown(events.close);
+    await _pump(
+      tester,
+      messageId: 'm1',
+      events: events.stream,
+      runners: const [
+        api.CodeBlockRunner(
+          moduleId: 'code-exec',
+          command: 'run',
+          language: 'javascript',
+        ),
+      ],
+      onRunRequest: (request) =>
+          _jsonResponse({'ok': true, 'output': 'long job done'}),
+    );
+
+    await tester.tap(find.bySemanticsLabel('Run with code-exec'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('long job done'), findsOneWidget);
+  });
 }

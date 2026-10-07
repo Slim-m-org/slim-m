@@ -48,14 +48,12 @@ const acceptedEmojiExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 /// roll. An extension filter opens `UIDocumentPickerViewController` instead,
 /// which can reach all of those (and is the Android SAF browser there too).
 Future<List<int>?> _pickImageBytes() async {
-  final result = await FilePicker.pickFiles(
+  final file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: acceptedEmojiExtensions,
   );
-  final files = result?.files ?? const <PlatformFile>[];
-  if (files.isEmpty) return null;
   // readAsBytes streams from disk since eager loading OOMs on a large pick.
-  return files.first.readAsBytes();
+  return file?.readAsBytes();
 }
 
 class EmojiUploadCard extends ConsumerStatefulWidget {

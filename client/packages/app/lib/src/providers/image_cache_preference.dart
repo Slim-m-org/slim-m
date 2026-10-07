@@ -15,6 +15,7 @@ library;
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'preference_controller.dart';
 import 'providers.dart';
 
 const imageCacheLimitKey = 'slimm.performance.image_cache_mb';
@@ -27,7 +28,8 @@ const int defaultImageCacheLimitMb = 100;
 /// less resident memory, the higher one favours scrolling back through media.
 const List<int> imageCacheLimitChoicesMb = [50, 100, 200];
 
-class ImageCacheLimitController extends StateNotifier<int> {
+class ImageCacheLimitController extends StateNotifier<int>
+    implements RestorablePreference {
   ImageCacheLimitController(this._ref) : super(defaultImageCacheLimitMb) {
     _apply(state);
   }
@@ -37,6 +39,7 @@ class ImageCacheLimitController extends StateNotifier<int> {
   /// A missing or unrecognised stored value leaves the default alone, the same
   /// degrade the display preferences use: a setting a later version dropped
   /// must not throw on an older install.
+  @override
   Future<void> restore() async {
     try {
       final prefs = await _ref.read(preferencesProvider.future);

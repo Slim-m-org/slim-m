@@ -19,7 +19,7 @@ use super::extract::{Authed, AuthedLimited, Json, PASSWORD, REFRESH, RateLimited
 use crate::hub::Event;
 use crate::ratelimit::Class;
 use crate::store::DeleteAccountError;
-use crate::store::{Bootstrap, IssuedTokens, JoinPolicy, RefreshOutcome, RegisterError};
+use crate::store::{IssuedTokens, JoinPolicy, RefreshOutcome, RegisterError};
 
 /// Auth payloads are a handful of short fields; cap the body well below any
 /// realistic request so an oversized body is rejected before it is buffered.
@@ -198,7 +198,8 @@ async fn register(
 ) -> Result<Json<TokenResponse>, ApiError> {
     validate_username(&req.username)?;
     validate_password(&req.password)?;
-    validate_label(&req.display_name, "display_name must be 1 to 64 characters")?;
+    let display_name = req.display_name.trim();
+    validate_label(display_name, "display_name must be 1 to 64 characters")?;
     validate_label(&req.device_name, "device_name must be 1 to 64 characters")?;
     let (client_kind, client_version) =
         parse_client_info(req.client_kind.as_deref(), req.client_version.as_deref())?;
@@ -222,7 +223,7 @@ async fn register(
     let hash = state.auth.hash_password(req.password).await?;
     let account = match state
         .store
-        .register_account(&req.username, &req.display_name, &hash, invite_code)
+        .register_account(&req.username, display_name, &hash, invite_code)
         .await
     {
         Ok(account) => account,
@@ -238,11 +239,6 @@ async fn register(
         Err(RegisterError::Internal(err)) => return Err(err.into()),
     };
 
-    // Seeds roles and a general channel on an unclaimed deployment; see the
-    // note on this function.
-    if let Bootstrap::Claimed = state.store.bootstrap_deployment(account.id).await? {
-        tracing::info!(user_id = %account.id, "deployment claimed by its first account");
-    }
     state.hub.publish(Event::MemberJoined(account.id));
 
     let tokens = state

@@ -18,6 +18,7 @@ use super::ephemeral_report;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::{DeviceId, MessageId, UserId};
 use crate::ratelimit::Class;
@@ -276,23 +277,7 @@ async fn file_report(
         // Reporting a message requires being able to see it, so the endpoint
         // cannot confirm a message exists in a channel you cannot read.
         ReportSubject::Message(message_id) => {
-            let message = state.store.message(message_id).await?;
-            let visible = match &message {
-                Some(m) => {
-                    state
-                        .store
-                        .has_permission(
-                            ctx.user_id,
-                            m.channel_id,
-                            crate::permissions::Permissions::VIEW_CHANNEL,
-                        )
-                        .await?
-                }
-                None => false,
-            };
-            let Some(message) = message.filter(|_| visible) else {
-                return Err(ApiError::NotFound("that message was not found"));
-            };
+            let (message, _) = viewable_message(&state, ctx.user_id, message_id).await?;
             if message.author_id == Some(ctx.user_id) {
                 return Err(ApiError::BadRequest("you cannot report your own message"));
             }

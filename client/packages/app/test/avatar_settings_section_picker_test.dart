@@ -10,8 +10,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -21,6 +21,8 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/avatar_settings_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+
+import 'composer_harness.dart' show usePicker;
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -88,35 +90,19 @@ void main() {
     expect(find.text('Browse files'), findsOneWidget);
   });
 
-  /// Mocked directly, rather than left unregistered like the rest of this
-  /// file's picks, so each row is pinned to the real plugin request its
-  /// source names: a routing bug (the wrong source popped, or the sheet's
-  /// choice never reaching `attachmentPickerProvider` at all) changes what
-  /// the plugin is asked for, where an unregistered channel would not tell
-  /// the two apart. Mirrors `attachment_picker_test.dart`'s own proof.
-  const filePickerChannel = MethodChannel(
-    'miguelruivo.flutter.plugins.filepicker',
-  );
-
-  for (final (label, expectedMethod) in [
-    ('Choose photo', 'image'),
-    ('Browse files', 'any'),
+  /// A recording picker, rather than the unimplemented default, so each row
+  /// is pinned to the real plugin request its source names: a routing bug (the
+  /// wrong source popped, or the sheet's choice never reaching
+  /// `attachmentPickerProvider` at all) changes what the plugin is asked for.
+  /// Mirrors `attachment_picker_test.dart`'s own proof.
+  for (final (label, expectedType) in [
+    ('Choose photo', FileType.image),
+    ('Browse files', FileType.any),
   ]) {
     testWidgets(
       'choosing $label routes to the plugin request that source names',
       (tester) async {
-        MethodCall? seen;
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(filePickerChannel, (call) async {
-              seen = call;
-              return null; // no selection, the same shape a cancelled pick returns
-            });
-        addTearDown(
-          () => TestDefaultBinaryMessengerBinding
-              .instance
-              .defaultBinaryMessenger
-              .setMockMethodCallHandler(filePickerChannel, null),
-        );
+        final picker = usePicker(null);
 
         final requests = <String>[];
         final container = ProviderContainer(
@@ -155,8 +141,8 @@ void main() {
         await tester.tap(find.text(label));
         await tester.pumpAndSettle();
 
-        expect(seen, isNotNull, reason: 'the picker was never invoked');
-        expect(seen!.method, expectedMethod);
+        expect(picker.calls, 1, reason: 'the picker was never invoked');
+        expect(picker.lastType, expectedType);
         expect(requests, isNot(contains('POST /me/avatar')));
       },
     );

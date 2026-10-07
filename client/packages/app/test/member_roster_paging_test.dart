@@ -209,7 +209,7 @@ void main() {
       expect(fetchCount, 1);
 
       events.add(const api.MemberJoined(userId: 'u002'));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(memberRosterRefetchDelay * 2);
       // Re-read, or an unread invalidation passes; see the library doc.
       await container.read(membersProvider.future);
       expect(fetchCount, 2, reason: 'a real join must refetch the roster');

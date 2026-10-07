@@ -18,25 +18,8 @@ import UIKit
 /// **prompts on every call** - confirmed on a real device 2026-08-01, not
 /// once per install as first assumed; see `ClipboardPasteBridge.m` for the
 /// route that does not prompt at all.
-///
-/// `editMenuPasteSwizzleInstalled` reports only whether
-/// `ClipboardPasteBridge.m`'s swizzle installed on the native side - not
-/// whether the system edit menu it targets actually offers Paste for an
-/// image. Confirmed on a real device 2026-08-01 that those are different
-/// claims: this composer's plain Material `TextField` routes its menu
-/// through Flutter's `SystemContextMenu`, which decided Paste's presence in
-/// Dart before any native call, so the swizzle below went unconsulted there
-/// until `composer_context_menu.dart` started forcing the platform's own
-/// Paste item into that list - confirmed working end to end on a real
-/// iPhone 2026-08-02. The "+" sheet's own row is never hidden on this signal
-/// regardless, since installed is still not the same claim as working -
-/// see `composer_clipboard_paste.dart`.
 enum ClipboardImagePlugin {
   static let name = "top.npcserver.slimm/clipboard_image"
-
-  /// Set once, from `AppDelegate`, to `SlimmInstallClipboardPasteBridge`'s
-  /// own return value.
-  static var editMenuPasteSwizzleInstalled = false
 
   static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -53,8 +36,6 @@ enum ClipboardImagePlugin {
       }
       UIPasteboard.general.image = image
       result(nil)
-    case "editMenuPasteSwizzleInstalled":
-      result(editMenuPasteSwizzleInstalled)
     default:
       result(FlutterMethodNotImplemented)
     }

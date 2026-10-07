@@ -35,8 +35,7 @@
 //! `super::canvas_ops_apply`, split out once `move` joining `remove`, `clear`
 //! and `restore` crossed the 500-line hard limit.
 
-use anyhow::Context;
-
+use super::canvas::next_canvas_seq;
 use super::canvas_audit::record_canvas_audit;
 use super::canvas_ops_apply::{
     affected_count_for, apply_move, apply_remove, apply_reorder, apply_restore, current_canvas_seq,
@@ -336,15 +335,7 @@ impl Store {
             });
         }
 
-        let seq = sqlx::query_scalar!(
-            r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
-               WHERE channel_id = ? AND stream = 'canvas'
-               RETURNING next_seq - 1 AS "seq!: i64""#,
-            channel_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?
-        .context("channel has no canvas sequence counter")?;
+        let seq = next_canvas_seq(&mut tx, channel_id).await?;
 
         let (move_x, move_y, move_w, move_h) = match move_bounds {
             Some((x, y, w, h)) => (Some(x), Some(y), Some(w), Some(h)),

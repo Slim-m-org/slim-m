@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'composer_list_indent.dart';
 
@@ -81,4 +82,21 @@ TextEditingValue wrapSelectionWithMarker(
           extentOffset: start + marker.length + selected.length,
         );
   return TextEditingValue(text: text, selection: newSelection);
+}
+
+/// Ctrl and Cmd + B and I, each wrapping [controller]'s selection.
+Map<ShortcutActivator, VoidCallback> emphasisShortcuts(
+  TextEditingController controller,
+) {
+  void wrap(String marker) =>
+      controller.value = wrapSelectionWithMarker(controller.value, marker);
+  return {
+    const SingleActivator(LogicalKeyboardKey.keyB, control: true): () =>
+        wrap('**'),
+    const SingleActivator(LogicalKeyboardKey.keyB, meta: true): () =>
+        wrap('**'),
+    const SingleActivator(LogicalKeyboardKey.keyI, control: true): () =>
+        wrap('*'),
+    const SingleActivator(LogicalKeyboardKey.keyI, meta: true): () => wrap('*'),
+  };
 }

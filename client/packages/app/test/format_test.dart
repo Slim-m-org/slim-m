@@ -56,4 +56,46 @@ void main() {
       '2026-03-07 11:09\u00A0PM',
     );
   });
+
+  group('formatRelativeAge', () {
+    String age(Duration d, {bool seconds = false, bool weeks = false}) =>
+        formatRelativeAge(d, seconds: seconds, weeks: weeks);
+
+    test('one threshold table: just now, minutes, hours, days', () {
+      expect(age(const Duration(seconds: 59)), 'just now');
+      expect(age(const Duration(seconds: 60)), '1m ago');
+      expect(age(const Duration(minutes: 59, seconds: 59)), '59m ago');
+      expect(age(const Duration(hours: 1)), '1h ago');
+      expect(age(const Duration(hours: 23, minutes: 59)), '23h ago');
+      expect(age(const Duration(days: 1)), '1d ago');
+      expect(age(const Duration(days: 20)), '20d ago');
+    });
+
+    test('the seconds tier starts after thirty seconds', () {
+      expect(age(const Duration(seconds: 29), seconds: true), 'just now');
+      expect(age(const Duration(seconds: 30), seconds: true), '30s ago');
+      expect(age(const Duration(seconds: 60), seconds: true), '1m ago');
+    });
+
+    test('the weeks tier replaces days from seven days', () {
+      expect(age(const Duration(days: 6), weeks: true), '6d ago');
+      expect(age(const Duration(days: 15), weeks: true), '2w ago');
+    });
+
+    test('a future time reads as just now', () {
+      expect(age(const Duration(seconds: -5)), 'just now');
+    });
+  });
+
+  test('formatPlaybackTime is m:ss, h:mm:ss from an hour, clamped at zero', () {
+    expect(formatPlaybackTime(const Duration(seconds: -1)), '0:00');
+    expect(formatPlaybackTime(Duration.zero), '0:00');
+    expect(formatPlaybackTime(const Duration(seconds: 7)), '0:07');
+    expect(formatPlaybackTime(const Duration(minutes: 3, seconds: 7)), '3:07');
+    expect(formatPlaybackTime(const Duration(hours: 1)), '1:00:00');
+    expect(
+      formatPlaybackTime(const Duration(hours: 1, minutes: 23, seconds: 45)),
+      '1:23:45',
+    );
+  });
 }

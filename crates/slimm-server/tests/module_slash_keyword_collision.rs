@@ -59,16 +59,19 @@ async fn install(s: &Store, id: &str, keyword: &str) {
         command: Some("run"),
         language: None,
     }];
-    s.install_module(InstallModuleRequest {
-        id,
-        name: id,
-        version: "1.0.0",
-        artifact_sha256: "00",
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[],
-        extension_points: &extension_points,
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id,
+            name: id,
+            version: "1.0.0",
+            artifact_sha256: "00",
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[],
+            extension_points: &extension_points,
+        },
+        b"stub-artifact",
+    )
     .await
     .unwrap();
 }

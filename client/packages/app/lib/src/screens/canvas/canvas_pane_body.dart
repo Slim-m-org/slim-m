@@ -23,13 +23,16 @@ import 'canvas_activity_panel.dart';
 import 'canvas_bar.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
+import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
+import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_presence_roster.dart';
 import 'canvas_summary.dart';
+import 'canvas_truncated_notice.dart';
 import 'canvas_selection_semantics.dart';
 import 'canvas_world_edge_glow.dart';
 import 'canvas_zoom_indicator.dart';
@@ -243,6 +246,9 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// right now outlives nothing beyond this body's own lifetime.
   final _menuRequests = CanvasObjectMenuRequests();
 
+  /// One resolution of the call tiles for both the backdrop and the layer.
+  final _presenceFrames = CanvasPresenceFrameResolver();
+
   /// Whether this caller has a camera bubble on the canvas at all right now
   /// - the dock's overflow item's own gate for whether "hide my camera
   /// bubble" means anything to offer.
@@ -282,20 +288,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                   onRetry: widget.onRetryError,
                 ),
               ),
-            if (widget.truncated)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s12,
-                  0,
-                  AppSpacing.s12,
-                  AppSpacing.s12,
-                ),
-                child: const AppCallout(
-                  child: Text(
-                    'Some ink in this region is not shown. Zoom in to see it.',
-                  ),
-                ),
-              ),
+            if (widget.truncated) const CanvasTruncatedNotice(),
             Expanded(
               child: Stack(
                 children: [
@@ -337,11 +330,10 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     tool: widget.tool,
     onToolChanged: widget.onToolChanged,
     // A banner already says a place would fail; pen/note/shape must not stay selectable underneath it.
-    canDraw: widget.error == null,
+    canDraw: !canvasErrorBlocksDrawing(widget.error),
     canUndo: widget.canUndo,
     onUndo: widget.onUndo,
     canManage: widget.canManage,
-    objectCount: widget.document.objectCount,
     onClear: widget.onClear,
     onPasteImage: widget.onPasteImage,
     onRecenter: widget.onRecenter,
@@ -416,6 +408,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           screenShareViewFor: widget.screenShareViewFor,
           overrides: widget.tileOverrides,
           hideSelfCamera: widget.selfBubbleHidden,
+          resolver: _presenceFrames,
         ),
         CanvasSurface(
           document: widget.document,
@@ -466,6 +459,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           onDeleteSelected: widget.onDeleteSelected,
           onPasteImageAt: widget.onPasteImageAt,
           onAddNoteAt: widget.onNotePlace,
+          canDraw: !canvasErrorBlocksDrawing(widget.error),
           onRecenter: widget.onRecenter,
         ),
         CanvasSelectionSemantics(
@@ -484,6 +478,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           hideSelfCamera: widget.selfBubbleHidden,
           tool: widget.tool,
           participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
+          resolver: _presenceFrames,
         ),
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.
         CanvasWorldEdgeGlow(

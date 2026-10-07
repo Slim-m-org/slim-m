@@ -302,17 +302,7 @@ jobs:
           exit $fail
 
       - name: no emoji in UI source
-        run: |
-          # Emoji are user content (reactions), never chrome; chrome is Lucide.
-          # Text sources only, so a compiled artifact cannot trip it.
-          if grep -rlP --binary-files=without-match \
-               --include='*.dart' --include='*.yaml' --include='*.arb' \
-               '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{FE0F}\x{200D}]' \
-               client/ 2>/dev/null; then
-            echo "::error::emoji found in UI source; use Lucide icons for chrome"
-            exit 1
-          fi
-          echo "no emoji in UI source"
+        run: scripts/check-no-emoji.sh
 
       # The client is the larger half of this codebase by file count and had
       # no license-header enforcement at all until this step existed. That is

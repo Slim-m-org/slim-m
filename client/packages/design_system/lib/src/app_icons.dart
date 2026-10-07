@@ -38,11 +38,6 @@ abstract final class AppIcons {
   /// fixed setting or a tally.
   static const IconData requestLatency = LucideIcons.activity300;
 
-  /// The collapsible channel rail, drawn as a panel rather than a hamburger:
-  /// it toggles one region of a visible layout rather than opening a drawer.
-  /// Also the collapsed rail's own edge handle (backlog item 54): a panel
-  /// glyph reads as "open this panel" without implying a drag direction.
-  static const IconData sidebar = LucideIcons.panelLeft300;
   static const IconData back = LucideIcons.arrowLeft300;
   static const IconData add = LucideIcons.plus300;
   static const IconData search = LucideIcons.search300;
@@ -211,10 +206,9 @@ abstract final class AppIcons {
   static const IconData undo = LucideIcons.undo2300;
 
   /// The canvas's two other tool-dock tools (decision 0004): a note holds
-  /// typed text, a shape is one of four primitives picked from the overflow
-  /// menu while this tool is active.
+  /// typed text, and the shape tool's primitives are picked from the overflow
+  /// menu while it is active.
   static const IconData note = LucideIcons.stickyNote300;
-  static const IconData shape = LucideIcons.shapes300;
   static const IconData shapeRectangle = LucideIcons.square300;
   static const IconData shapeEllipse = LucideIcons.circle300;
   static const IconData shapeLine = LucideIcons.minus300;
@@ -328,7 +322,6 @@ abstract final class AppIcons {
   /// somebody a credential.
   static const IconData resetCode = LucideIcons.keyRound300;
   static const IconData dismiss = LucideIcons.x300;
-  static const IconData assignRole = LucideIcons.userCog300;
   static const IconData permissions = LucideIcons.lock300;
 
   /// The biometric app lock: Face ID, a fingerprint, Windows Hello, or the

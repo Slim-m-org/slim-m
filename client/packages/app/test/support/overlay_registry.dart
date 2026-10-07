@@ -108,7 +108,7 @@ final overlays = <String, FutureOr<void> Function(BuildContext, WidgetRef)>{
   'whats-new-sheet': (context, ref) =>
       showWhatsNewSheet(context, whatsNewEntries),
   'member-profile-popover': (context, ref) =>
-      showMemberProfile(context, ref, profile: _adaProfile),
+      showMemberProfile(context, profile: _adaProfile),
   'command-palette': (context, ref) => openCommandPalette(context),
   'composer-actions-sheet': (context, ref) => showComposerActionsSheet(
     context,

@@ -13,18 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../format.dart' show formatPlaybackTime;
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/watch_room.dart';
-
-/// `1:23:45` past an hour, `3:07` before it.
-String formatWatchTime(Duration d) {
-  final total = d.inSeconds < 0 ? 0 : d.inSeconds;
-  final h = total ~/ 3600;
-  final m = (total % 3600) ~/ 60;
-  final s = total % 60;
-  String two(int n) => n.toString().padLeft(2, '0');
-  return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
-}
 
 /// Mounts [WatchSessionBar] only while a bot is on the call.
 ///
@@ -103,8 +94,8 @@ class _Bar extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final duration = room.duration;
     final readout = duration == null
-        ? formatWatchTime(position)
-        : '${formatWatchTime(position)} / ${formatWatchTime(duration)}';
+        ? formatPlaybackTime(position)
+        : '${formatPlaybackTime(position)} / ${formatPlaybackTime(duration)}';
     final state = room.playing ? 'playing' : 'paused';
     return Semantics(
       container: true,

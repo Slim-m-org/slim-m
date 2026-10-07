@@ -78,7 +78,11 @@ extension SyncControllerEvents on SyncController {
       case MemberRoleChanged():
       case CategoryChanged():
         // None say which channel (or category) changed; a refresh finds it.
-        await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
+        await _channelRefresher.refreshAfterChange(
+          api,
+          store,
+          isCurrent: isCurrent,
+        );
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
         unawaited(start());

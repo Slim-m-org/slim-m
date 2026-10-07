@@ -16,11 +16,11 @@
 //! another connection holds the write lock, and returns SQLITE_BUSY at once
 //! rather than queuing (see the module docs on `begin_write`).
 
-use anyhow::Context;
 use sqlx::QueryBuilder;
 
-use super::{Message, Sent, Store, now_ms};
-use crate::ids::{ChannelId, MessageId, Seq, UserId};
+use super::messages::row::{IdProbe, NewRow, insert_message_row, probe_id};
+use super::{Sent, Store, now_ms};
+use crate::ids::{ChannelId, MessageId, UserId};
 
 /// Fewest options a poll may have. Below this it is not a choice.
 pub const MIN_OPTIONS: usize = 2;
@@ -30,6 +30,14 @@ pub const MAX_OPTIONS: usize = 4;
 pub const MAX_QUESTION_CHARS: usize = 300;
 /// Longest one option's label may be, in characters.
 pub const MAX_OPTION_CHARS: usize = 100;
+
+/// The poll a message carries, as submitted: not yet validated.
+pub struct NewPoll<'a> {
+    pub question: &'a str,
+    pub options: &'a [String],
+    /// Unix milliseconds. `None` means the poll never closes.
+    pub close_at: Option<i64>,
+}
 
 /// One option within a poll, with its current public tally.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,17 +120,19 @@ impl From<anyhow::Error> for VoteError {
 impl Store {
     /// Sends a message carrying a poll. Idempotent by `id` within its
     /// `(channel, author)` scope, exactly like [`super::messages::Store::send_message`].
-    #[allow(clippy::too_many_arguments)]
     pub async fn send_poll_message(
         &self,
         channel_id: ChannelId,
         author_id: UserId,
         id: MessageId,
         content: &str,
-        question: &str,
-        options: &[String],
-        close_at: Option<i64>,
+        poll: NewPoll<'_>,
     ) -> Result<Sent, CreatePollError> {
+        let NewPoll {
+            question,
+            options,
+            close_at,
+        } = poll;
         if options.len() < MIN_OPTIONS || options.len() > MAX_OPTIONS {
             return Err(CreatePollError::InvalidOptionCount);
         }
@@ -139,40 +149,33 @@ impl Store {
         // Reads the message before deciding what to write; see Store::begin_write.
         let mut tx = self.begin_write().await?;
 
-        if let Some(existing) =
-            super::message_reads::fetch_message_including_deleted(&mut *tx, id).await?
-        {
-            tx.commit().await?;
-            if existing.channel_id == channel_id && existing.author_id == Some(author_id) {
+        match probe_id(&mut tx, channel_id, author_id, id).await? {
+            IdProbe::Free => {}
+            IdProbe::Replay(message) => {
+                tx.commit().await?;
                 return Ok(Sent {
-                    message: existing,
+                    message,
                     fresh: false,
                 });
             }
-            return Err(CreatePollError::IdConflict);
+            IdProbe::Conflict => {
+                tx.commit().await?;
+                return Err(CreatePollError::IdConflict);
+            }
         }
 
-        let seq = sqlx::query_scalar!(
-            r#"UPDATE channel_seq_counters SET next_seq = next_seq + 1
-               WHERE channel_id = ? AND stream = 'message'
-               RETURNING next_seq - 1 AS "seq!: i64""#,
-            channel_id
+        // A poll message is never created as a reply.
+        let message = insert_message_row(
+            &mut tx,
+            &NewRow {
+                channel_id,
+                author_id,
+                id,
+                content,
+                reply_to_id: None,
+                now,
+            },
         )
-        .fetch_optional(&mut *tx)
-        .await?
-        .context("channel has no message sequence counter")?;
-
-        sqlx::query!(
-            r#"INSERT INTO messages (id, channel_id, author_id, seq, content, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)"#,
-            id,
-            channel_id,
-            author_id,
-            seq,
-            content,
-            now
-        )
-        .execute(&mut *tx)
         .await?;
 
         sqlx::query!(
@@ -200,28 +203,9 @@ impl Store {
             .await?;
         }
 
-        let author_display_name = sqlx::query_scalar!(
-            r#"SELECT display_name AS "display_name!: String"
-               FROM users WHERE id = ? AND deleted_at IS NULL"#,
-            author_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
-
         tx.commit().await?;
         Ok(Sent {
-            message: Message {
-                id,
-                channel_id,
-                author_id: Some(author_id),
-                author_display_name,
-                seq: Seq(seq),
-                content: content.to_owned(),
-                created_at: now,
-                edited_at: None,
-                // A poll message is never created as a reply.
-                reply_to_id: None,
-            },
+            message,
             fresh: true,
         })
     }

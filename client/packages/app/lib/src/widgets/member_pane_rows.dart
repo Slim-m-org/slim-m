@@ -130,7 +130,7 @@ class MemberRow extends ConsumerWidget {
     final selectable = selecting && !isSelf;
 
     void open() => unawaited(
-      showMemberProfile(context, ref, profile: displayed, channelId: channelId),
+      showMemberProfile(context, profile: displayed, channelId: channelId),
     );
     void toggle() =>
         ref.read(memberSelectionProvider.notifier).toggle(profile.id);

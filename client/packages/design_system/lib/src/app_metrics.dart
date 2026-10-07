@@ -183,7 +183,8 @@ abstract final class AppShadows {
     ),
   ];
 
-  /// A live camera or screen tile resting on the canvas, which sits over the
+  /// A live camera or screen tile resting on the canvas (and the toast and call
+  /// mini-player, which also rest above the plane), which sits over the
   /// grid all the time rather than only while a drag lifts it. [float]'s deep,
   /// far-offset cast reads as a hard dark band under a permanent tile,
   /// especially against the dark-theme canvas; this is the same lift at a
@@ -197,7 +198,10 @@ abstract final class AppShadows {
   ];
 }
 
-/// Vertical rhythm, which is the only thing the density setting moves.
+/// Vertical rhythm, which is the only thing a density setting would move.
+///
+/// No setting selects a step yet: the app reads [normal] everywhere, and
+/// [compact] and [spacious] are reserved for the setting decision 0004 describes.
 ///
 /// Type sizes, avatar sizes and touch targets deliberately do not respond to
 /// it. Someone choosing "compact" wants more messages on screen, not smaller

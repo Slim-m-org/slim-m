@@ -56,18 +56,42 @@ class ReadMarker {
     if (seq == 0) return;
     if (seq <= lastReadSeq && !manuallyUnread) return;
     if (!manuallyUnread && (_sent[channelId] ?? 0) >= seq) return;
+    final previous = _sent[channelId];
     _sent[channelId] = seq;
-    unawaited(_write(channelId, seq));
+    unawaited(_write(channelId, seq, previous));
   }
 
-  Future<void> _write(String channelId, int seq) async {
-    final store = await _ref.read(storeProvider.future);
-    // Reading clears the manual mark here too, so the dot goes out at once.
-    await store.setReadMarker(channelId, seq, manuallyUnread: false);
+  Future<void> _write(String channelId, int seq, int? previous) async {
+    // Read before the first await: the widget can be disposed while this runs.
+    final storeFuture = _ref.read(storeProvider.future);
+    final client = _ref.read(apiProvider);
     try {
-      await _ref.read(apiProvider).markRead(channelId: channelId, seq: seq);
-    } on api.ApiException {
-      // Best-effort: the local marker already advanced, so the UI is correct.
+      final store = await storeFuture;
+      // Reading clears the manual mark here too, so the dot goes out at once.
+      await store.setReadMarker(channelId, seq, manuallyUnread: false);
+      await client.markRead(channelId: channelId, seq: seq);
+    } on api.ApiException catch (e) {
+      // The local marker already advanced; only the server one is behind.
+      if (_isTransient(e)) _forget(channelId, seq, previous);
+    } on Object {
+      _forget(channelId, seq, previous);
+    }
+  }
+
+  /// A 4xx is a refusal a retry cannot change, so it stays recorded as sent.
+  static bool _isTransient(api.ApiException e) =>
+      e is api.TransportException ||
+      e is api.RateLimitedException ||
+      e is api.UnavailableException ||
+      e is api.ServerException;
+
+  /// Lets the next [advance] for this seq send again, unless a newer one has since gone out.
+  void _forget(String channelId, int seq, int? previous) {
+    if (_sent[channelId] != seq) return;
+    if (previous == null) {
+      _sent.remove(channelId);
+    } else {
+      _sent[channelId] = previous;
     }
   }
 }

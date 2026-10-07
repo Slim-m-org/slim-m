@@ -17,6 +17,8 @@ import '../providers/providers.dart';
 import '../server_address_reduction.dart';
 import '../server_scheme_policy.dart';
 
+/// Redeeming an invite: check the code against the server before asking anyone
+/// to fill in a signup form, and accept the terms at the point of joining.
 class InviteDialog extends ConsumerStatefulWidget {
   const InviteDialog({this.initial, super.key});
 
@@ -101,6 +103,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     final client = ref.read(probeApiProvider)(reduced);
     try {
       final check = await client.checkInvite(_code.text.trim());
+      if (!mounted) return;
       if (check is api.InviteUnusable) {
         /// Deliberately vague, and it has to stay that way: the server answers
         /// expired, spent, revoked and never-issued identically so codes cannot
@@ -117,6 +120,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         Navigator.of(context).pop((reduced, _code.text.trim()));
       }
     } on api.ApiException catch (e) {
+      if (!mounted) return;
       setState(
         () => _error = e is api.TransportException
             ? 'Could not reach that server.'
@@ -136,7 +140,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         AppSpacing.s16,
         AppSpacing.s16,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -269,7 +273,7 @@ class ManualServerDialogState extends State<ManualServerDialog> {
         AppSpacing.s16,
         AppSpacing.s16,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

@@ -27,6 +27,8 @@ use std::collections::HashMap;
 
 use sqlx::QueryBuilder;
 
+use super::attachments::ORPHAN_GRACE_MS;
+use super::attachments::refs::is_referenced;
 use super::forward_cascade::{
     Copy, DetachedForward, detach_forward, live_copies_of, orphaned_copies,
 };
@@ -331,19 +333,13 @@ async fn release_message_attachments_batch(
         if !checked.insert(sha256.clone()) {
             continue;
         }
-        // The third holder, canvas_object_attachments, has no ON DELETE guard, so omitting it fails the FK below; see sweep_orphaned_attachments.
-        let still_referenced = sqlx::query_scalar!(
-            r#"SELECT 1 AS "one!: i64"
-               WHERE EXISTS (SELECT 1 FROM message_attachments WHERE sha256 = ?)
-                  OR EXISTS (SELECT 1 FROM custom_emoji WHERE sha256 = ?)
-                  OR EXISTS (SELECT 1 FROM canvas_object_attachments WHERE sha256 = ?)"#,
-            sha256,
-            sha256,
-            sha256
-        )
-        .fetch_optional(&mut **tx)
-        .await?
-        .is_some();
+        let linking: Vec<MessageId> = links
+            .iter()
+            .filter(|(_, linked)| linked == sha256)
+            .map(|(id, _)| *id)
+            .collect();
+        let still_referenced =
+            is_referenced(tx, sha256, &linking, now_ms() - ORPHAN_GRACE_MS).await?;
         if still_referenced {
             continue;
         }

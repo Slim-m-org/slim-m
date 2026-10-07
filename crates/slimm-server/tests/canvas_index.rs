@@ -18,6 +18,8 @@ use sqlx::{Row, SqlitePool};
 
 mod support;
 
+use support::canvas::{CanvasReads, remove_via_op};
+
 async fn new_pool(name: &str) -> (SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(&format!("slimm-{name}"));
     let config = Config {
@@ -84,7 +86,7 @@ async fn place(
     id
 }
 
-/// The exact SQL `Store::viewport_objects` runs, lifted out of its source.
+/// The exact SQL `Store::viewport_snapshot` runs, lifted out of its source.
 fn viewport_sql() -> String {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/store/canvas.rs");
     let text = fs::read_to_string(&source).expect("read the canvas store module");
@@ -218,7 +220,7 @@ async fn the_index_follows_a_move_and_a_removal() {
     );
     assert_eq!(visible(&store, channel, there).await, 1);
 
-    assert!(store.remove_canvas_object(id).await.unwrap());
+    remove_via_op(&store, channel, author, id).await;
     assert_eq!(
         visible(&store, channel, there).await,
         0,

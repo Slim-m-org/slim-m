@@ -116,6 +116,7 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } on api.ApiException catch (e) {
+      if (!mounted) return;
       setState(
         () => _error = e is api.TransportException
             ? 'Could not reach that server.'
@@ -135,7 +136,7 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: SingleChildScrollView(
         child: Column(

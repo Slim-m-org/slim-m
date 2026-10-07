@@ -86,6 +86,7 @@ jobs:
       client: ${{ steps.filter.outputs.client == 'true' || inputs.client }}
       server: ${{ steps.filter.outputs.server == 'true' || steps.undeployed.outputs.server == 'true' || inputs.server }}
       packaging: ${{ steps.filter.outputs.packaging == 'true' || inputs.packaging }}
+      web: ${{ steps.filter.outputs.client == 'true' || steps.undeployed.outputs.web == 'true' || inputs.client }}
     steps:
       # Full history, so the diff below can reach the last published commit.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -112,14 +113,12 @@ jobs:
               - 'packaging/**'
               - '.github/workflows/copr-publish.yml'
 
-      # The filter above asks what this push touched; this asks what is still
-      # undeployed, which is a different and more useful question. See the
-      # script's own header, and docs/ci.md's concurrency section.
+      # The filter asks what this push touched; this asks what is still undeployed. See docs/ci.md's concurrency section.
       - id: undeployed
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/server-image-needed.sh "${{ github.sha }}"
+        run: bash scripts/server-image-needed.sh "${{ github.sha }}" && bash scripts/web-image-needed.sh "${{ github.sha }}"
 
   # The Linux build and its portable tarball, which both the rpm below and the copr job downstream are built from.
   # Gated on `packaging` as well as `client`: a change to the rpm spec or the
@@ -146,6 +145,7 @@ jobs:
         with:
           version: ${{ steps.ver.outputs.version }}
           spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -244,7 +244,7 @@ jobs:
           channel: stable
           flutter-version: 3.47.0
 
-      - uses: ./.github/actions/native-hooks-cache
+      - {if: "steps.gate.outputs.ready == 'true'", uses: ./.github/actions/native-hooks-cache}
       # Build number from the run number, build name from pubspec's tracked version; never from local pubspec defaults.
       - name: build android release
         if: steps.gate.outputs.ready == 'true'
@@ -301,7 +301,7 @@ jobs:
             client/packages/app/build/app/outputs/flutter-apk/app-release.apk
             client/packages/app/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+      - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}
 
   # Signed ipa straight to TestFlight; inert without its six secrets, the same gate release.yml uses.
   # CONTINUOUS_TESTFLIGHT=false leaves iOS to release.yml alone; a hand-run dispatch still builds.
@@ -487,7 +487,7 @@ jobs:
   # The web client as ghcr.io/<owner>/slim-m-web, which Watchtower follows on the live host; see web-image.yml.
   web-image:
     needs: [changes]
-    if: needs.changes.outputs.client == 'true'
+    if: needs.changes.outputs.web == 'true'
     uses: ./.github/workflows/web-image.yml
     permissions:
       contents: read

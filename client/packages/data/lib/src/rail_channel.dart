@@ -28,6 +28,7 @@ typedef RailChannelKey = ({
   String? categoryId,
   bool isPersonalSpace,
   String? dmParticipantId,
+  bool? restricted,
   bool unread,
   bool mentioned,
 });
@@ -40,6 +41,7 @@ RailChannelKey railChannelKey(Channel channel) => (
       categoryId: channel.categoryId,
       isPersonalSpace: channel.isPersonalSpace,
       dmParticipantId: channel.dmParticipantId,
+      restricted: channel.restricted,
       unread: channel.cursor > channel.lastReadSeq ||
           (channel.manuallyUnread ?? false),
       mentioned: channel.mentionedSeq > channel.lastReadSeq,

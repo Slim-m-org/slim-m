@@ -342,7 +342,7 @@ classes! {
     /// The bot sends one every 5 seconds per session, 0.2 a second, so this
     /// is its own class rather than [`Class::CanvasCursor`]'s 15. Burst four
     /// absorbs a retry after a stall; a refill of one per two seconds is
-    /// ten times the honest rate and still refuses a loop.
+    /// two and a half times the honest rate and still refuses a loop.
     WatchTick,
 }
 

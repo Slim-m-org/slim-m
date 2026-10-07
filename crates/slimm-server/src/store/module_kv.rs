@@ -4,7 +4,6 @@
 //! cascades, so uninstalling a module wipes its data.
 
 use super::Store;
-use crate::ids::MessageId;
 
 /// Why a `kv.store` write was refused by the store.
 #[derive(Debug)]
@@ -92,19 +91,6 @@ impl Store {
             limit
         )
         .fetch_all(&self.pool)
-        .await?)
-    }
-
-    /// The module that posted `message_id`, or `None` for an ordinary message.
-    pub async fn module_message_origin(
-        &self,
-        message_id: MessageId,
-    ) -> anyhow::Result<Option<String>> {
-        Ok(sqlx::query_scalar!(
-            "SELECT module_id FROM module_message_origins WHERE message_id = ?",
-            message_id
-        )
-        .fetch_optional(&self.pool)
         .await?)
     }
 }

@@ -28,6 +28,7 @@ from pathlib import Path
 from ui_capture_html import collect_failures, render_html
 
 HIDDEN_TEST_NAMES = {"(setUpAll)", "(tearDownAll)"}
+UNREADABLE_LOG = "(unreadable log)"
 
 
 def parse_job_log(path):
@@ -36,11 +37,22 @@ def parse_job_log(path):
         return None
     starts, errors = {}, {}
     tests = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:
             continue
-        event = json.loads(line)
+        try:
+            event = json.loads(line)
+        except ValueError as exc:
+            tests.append(
+                {
+                    "name": UNREADABLE_LOG,
+                    "result": "error",
+                    "error": f"the log stops at a line that is not JSON ({exc}); "
+                    "the run was probably killed",
+                }
+            )
+            break
         kind = event.get("type")
         if kind == "testStart":
             starts[event["test"]["id"]] = event["test"]
@@ -67,8 +79,24 @@ def load_jobs(work):
     however many partial reruns produced the current build/ui-capture."""
     jobs = []
     for meta_path in sorted(work.glob("*.meta")):
-        meta = json.loads(meta_path.read_text())
-        meta["tests"] = parse_job_log(work / f"{meta['id']}.json")
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta["tests"] = parse_job_log(work / f"{meta['id']}.json")
+        except (OSError, ValueError, KeyError, TypeError):
+            meta = {
+                "id": meta_path.stem,
+                "category": "unreadable",
+                "test_file": None,
+                "exit_code": 1,
+                "images": 0,
+                "tests": [
+                    {
+                        "name": f"{meta_path.name} is unreadable",
+                        "result": "error",
+                        "error": "the job's meta file is not valid JSON",
+                    }
+                ],
+            }
         jobs.append(meta)
     return jobs
 
@@ -100,20 +128,12 @@ def build_manifest(out_dir, work_dir):
         image_dir = out_dir / "images" / category
         if image_dir.is_dir():
             entry["images"] = sorted(p.name for p in image_dir.glob("*.png"))
-    ok = True
-    for entry in categories.values():
-        for job in entry["jobs"]:
-            if job["exit_code"] != 0:
-                ok = False
-            if job["summary"]["failed"]:
-                ok = False
-            if job["summary"]["silent_gap"]:
-                ok = False
-    return {
+    manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "ok": ok,
         "categories": categories,
     }
+    manifest["ok"] = not collect_failures(manifest)
+    return manifest
 
 
 def main():

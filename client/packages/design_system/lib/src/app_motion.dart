@@ -2,8 +2,10 @@
 /// Motion, and the one question every animated widget in this system has to
 /// ask before it moves anything.
 ///
-/// The design language allows no decorative motion in the chrome, and decision
-/// 0004 allows exactly one thing that loops: the speaking ring. Everything
+/// The design language allows no decorative motion in the chrome. Decision
+/// 0004 allows one loop there, the speaking ring; the typing dots and the
+/// screen-share loading shape also loop, as content that says something is
+/// in progress, and all three stop under reduce-motion. Everything
 /// animated routes its duration through [AppMotion.reduced], so honouring the
 /// OS setting is one call rather than a policy each widget reinvents.
 ///
@@ -44,6 +46,9 @@ abstract final class AppMotion {
   /// One direction of the speaking ring's pulse. It reverses, so a full cycle
   /// is twice this; the chrome's 280ms ceiling governs transitions, not a loop.
   static const Duration speakingPulse = Duration(milliseconds: 600);
+
+  /// One full cycle of the typing dots' wave, which loops while someone types.
+  static const Duration typingWave = Duration(milliseconds: 900);
 
   /// Whether this viewer has asked for less motion.
   ///

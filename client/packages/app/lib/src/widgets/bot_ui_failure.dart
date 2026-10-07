@@ -21,14 +21,19 @@ class BotUiFailureLine extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final prefix = 'menu|$messageId|';
-    final failed = ref.watch(
+    final prefix = menuUsePrefix(messageId);
+    // Selects the key and the use, which keep their identity, never a fresh entry.
+    final key = ref.watch(
       botUiUsesProvider.select(
         (uses) => uses.entries
             .where((e) => e.key.startsWith(prefix) && e.value.failure != null)
-            .firstOrNull,
+            .firstOrNull
+            ?.key,
       ),
     );
+    final failed = key == null
+        ? null
+        : ref.watch(botUiUsesProvider.select((uses) => uses[key]));
     if (failed == null) return const SizedBox.shrink();
     final controller = ref.read(botUiUsesProvider.notifier);
     return Padding(
@@ -36,12 +41,12 @@ class BotUiFailureLine extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _maxWidth),
         child: AppErrorState(
-          message: failed.value.failure!,
+          message: failed.failure!,
           onRetry: () {
-            controller.dismiss(failed.key);
-            unawaited(failed.value.retry());
+            controller.dismiss(key!);
+            unawaited(failed.retry());
           },
-          onDismiss: () => controller.dismiss(failed.key),
+          onDismiss: () => controller.dismiss(key!),
         ),
       ),
     );

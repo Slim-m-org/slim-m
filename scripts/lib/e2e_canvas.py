@@ -68,10 +68,11 @@ produces is what draw_stroke_and_see_it_live already checks on both
 clients.
 """
 import json
-import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import e2e_labels as L
+from e2e_api import wait_until
 
 # Offsets from the canvas's own top-left; the midpoint is the eraser's target.
 STROKE_START = (60, 280)
@@ -279,9 +280,8 @@ def erase_undo_clear_and_restore(a, b, admin_api, channel_id):
     for c in (a, b):
         wait_for_summary(c, "no objects")
     print("  clearing wiped all four kinds on both clients")
-    deadline = time.time() + 15
-    while time.time() < deadline and admin_api.canvas_objects(channel_id):
-        time.sleep(0.5)
+    wait_until(lambda: admin_api.canvas_objects(channel_id), lambda objects: not objects,
+               "the server still holds canvas objects after the clear")
 
     a.click(L.UNDO)
     for c in (a, b):
@@ -330,6 +330,27 @@ def close_on_both(a, b):
         c.click(L.LEAVE_CALL, settle=6)
 
 
+def drag_together(jobs):
+    """Runs each (client, centre, dx, dy) drag at once, on its own thread.
+
+    A drag that fails must fail the scenario, and must not leave pointer
+    gestures on for the next one.
+    """
+    def drag(client, centre, dx, dy):
+        cx, cy = centre
+        client.gestures(True)
+        try:
+            client.drag(
+                [(cx, cy), (cx + dx / 2, cy + dy / 2), (cx + dx, cy + dy)])
+        finally:
+            client.gestures(False)
+
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures = [pool.submit(drag, *job) for job in jobs]
+        for future in futures:
+            future.result()
+
+
 def concurrent_edits_converge(a, b, admin_api, channel_id):
     """Both clients drag the same object at once, and everything settles.
 
@@ -371,20 +392,7 @@ def concurrent_edits_converge(a, b, admin_api, channel_id):
     centre_b = (org_b[0] + before["x"] + before["w"] / 2,
                 org_b[1] + before["y"] + before["h"] / 2)
 
-    def drag(client, centre, dx, dy):
-        cx, cy = centre
-        client.gestures(True)
-        client.drag([(cx, cy), (cx + dx / 2, cy + dy / 2), (cx + dx, cy + dy)])
-        client.gestures(False)
-
-    threads = [
-        threading.Thread(target=drag, args=(a, centre_a, 120, 0)),
-        threading.Thread(target=drag, args=(b, centre_b, 0, 120)),
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    drag_together([(a, centre_a, 120, 0), (b, centre_b, 0, 120)])
     time.sleep(3)
 
     settled = admin_api.canvas_object(channel_id, image_id)

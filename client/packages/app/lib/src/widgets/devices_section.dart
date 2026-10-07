@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../format.dart';
 import '../providers/live_events.dart';
 import '../providers/providers.dart';
 import 'confirm_dialog.dart';
@@ -220,13 +221,11 @@ IconData deviceIcon(String name, {String? clientKind}) {
 /// every row said, about every device, and so told a reader nothing.
 String lastUsed(int? lastSeenAt) {
   if (lastSeenAt == null) return 'Signed in';
-  final delta = DateTime.now().millisecondsSinceEpoch - lastSeenAt;
-  if (delta < 60 * 1000) return 'Active now';
-  if (delta < 60 * 60 * 1000) return 'Last used ${delta ~/ (60 * 1000)}m ago';
-  if (delta < 24 * 60 * 60 * 1000) {
-    return 'Last used ${delta ~/ (60 * 60 * 1000)}h ago';
-  }
-  return 'Last used ${delta ~/ (24 * 60 * 60 * 1000)}d ago';
+  final elapsed = DateTime.now().difference(
+    DateTime.fromMillisecondsSinceEpoch(lastSeenAt),
+  );
+  if (elapsed.inMinutes < 1) return 'Active now';
+  return 'Last used ${formatRelativeAge(elapsed)}';
 }
 
 /// Names a device for the list: `Platform - host` as new builds send it,

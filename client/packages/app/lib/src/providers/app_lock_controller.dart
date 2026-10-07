@@ -98,14 +98,20 @@ class AppLockController extends StateNotifier<bool>
   /// is unlocked afterward - true on a real success, and also true on the
   /// one outcome this must never trap someone behind: a device that reports
   /// it cannot check an owner at all any more (biometrics unenrolled, the
-  /// passcode cleared) after the setting was turned on. That case also turns
-  /// the preference back off, so the settings row stops claiming a
-  /// protection this device can no longer provide.
+  /// passcode cleared) after the setting was turned on. That case also turns the
+  /// preference back off, so the settings row stops claiming a protection this
+  /// device can no longer provide. An error while asking is not that case: it
+  /// stays locked and the user can retry.
   Future<bool> unlock({String reason = 'Unlock slim-m'}) async {
     final channel = _ref.read(biometricAuthChannelProvider);
-    if (!await channel.isAvailable()) {
-      await _giveUpAndUnlock();
-      return true;
+    switch (await channel.checkSupport()) {
+      case BiometricSupport.unsupported:
+        await _giveUpAndUnlock();
+        return true;
+      case BiometricSupport.error:
+        return false;
+      case BiometricSupport.supported:
+        break;
     }
     switch (await channel.authenticate(reason)) {
       case BiometricAuthResult.success:

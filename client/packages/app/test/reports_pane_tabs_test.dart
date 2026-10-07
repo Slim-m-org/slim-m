@@ -8,6 +8,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/permissions.dart';
+import 'package:slimm_app/src/providers/admin_providers.dart';
 
 import 'report_card_harness.dart';
 
@@ -51,6 +53,26 @@ void main() {
             'switching back must not have lost the open queue\'s own '
             'state',
       );
+    },
+  );
+  testWidgets(
+    'a history-only holder gets the History feed with no Open tab and no '
+    'queue request',
+    (tester) async {
+      final h = await pumpReports(
+        tester,
+        reports: [],
+        history: [_auditJson('a1')],
+        profiles: {'mod-1': 'Mod One', 'user-1': 'Some User'},
+        permissions: Perm.viewModerationHistory,
+        overrides: [
+          myPermissionsProvider.overrideWithValue(Perm.viewModerationHistory),
+        ],
+      );
+
+      expect(find.text('Some User'), findsOneWidget);
+      expect(find.text('Open'), findsNothing);
+      expect(h.calls.any((c) => c.path == '/reports'), isFalse);
     },
   );
 }

@@ -63,6 +63,8 @@ def _bsd(flat: str) -> str | None:
     """Which BSD, by the clauses actually present."""
     if BSD_STEM not in flat:
         return None
+    if "all advertising materials mentioning features" in flat:
+        return "BSD-4-Clause"
     if "endorse or promote" in flat:
         return "BSD-3-Clause"
     if "reproduce the above copyright" in flat:

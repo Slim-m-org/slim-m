@@ -39,11 +39,6 @@ String? channelIdInPath(String path) {
   return id.isEmpty ? null : id;
 }
 
-/// The route the router puts a channel id into; read here to highlight the
-/// selected row, and by [HomeShell] to decide which pane to show.
-///
-/// Only valid under a `RouteBase.builder` subtree. A dialog, sheet or overlay
-/// pushed on the root navigator must read [channelIdInPath] off
 /// Whether the channel rail is at its full width, or at
 /// [ChannelRail.compactWidth]. `RailDragHandle` flips it at the rail's edge.
 ///
@@ -59,6 +54,11 @@ final channelRailExpandedProvider = StateProvider<bool>((ref) => true);
 /// [ChannelRail.compactWidth] they left room for three letters of Search.
 const double _searchHintMinWidth = 200;
 
+/// The route the router puts a channel id into; read here to highlight the
+/// selected row, and by [HomeShell] to decide which pane to show.
+///
+/// Only valid under a `RouteBase.builder` subtree. A dialog, sheet or overlay
+/// pushed on the root navigator must read [channelIdInPath] off
 /// `GoRouter.of(context).state` instead, or [GoRouterState.of] throws a
 /// [GoError], which is an `Error` and so escapes every `on ...Exception` catch.
 String? selectedChannelId(BuildContext context) =>

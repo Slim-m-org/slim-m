@@ -58,32 +58,32 @@ async fn install(s: &Store, scene: &Value) {
     let output = serde_json::to_string(&scene.to_string()).unwrap();
     let wasm = canned_raw_wasm(format!(r#"{{"ok":true,"output":{output}}}"#).as_bytes());
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "clock",
-        name: "clock",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "play",
-            name: "Play",
-            description: "play it",
-        }],
-        extension_points: &[ModuleExtensionPointSpec {
-            kind: "command",
-            name: "run",
-            description: Some("runs it"),
-            permission: Some("play"),
-            command: None,
-            language: None,
-        }],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "clock",
+            name: "clock",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "play",
+                name: "Play",
+                description: "play it",
+            }],
+            extension_points: &[ModuleExtensionPointSpec {
+                kind: "command",
+                name: "run",
+                description: Some("runs it"),
+                permission: Some("play"),
+                command: None,
+                language: None,
+            }],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("clock", &sha256, &wasm)
-        .await
-        .unwrap();
     s.set_module_enabled("clock", true).await.unwrap();
 }
 

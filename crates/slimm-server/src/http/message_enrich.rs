@@ -107,17 +107,7 @@ pub(crate) async fn with_reactions(
         dto.webhook_username = webhook_usernames.remove(&id);
         if let Some(pos) = embeds_by_message.iter().position(|(mid, _)| *mid == id) {
             let (_, stored) = embeds_by_message.swap_remove(pos);
-            dto.embeds = stored
-                .into_iter()
-                .map(|embed| {
-                    let (image_url, thumbnail_url) = embeds::image_urls(&embed);
-                    let image_token =
-                        image_url.and_then(|url| state.link_previews.embed_image_token(url));
-                    let thumbnail_token =
-                        thumbnail_url.and_then(|url| state.link_previews.embed_image_token(url));
-                    embeds::to_dto(embed, image_token, thumbnail_token)
-                })
-                .collect();
+            dto.embeds = embeds::dtos_from_stored(&state.link_previews, stored);
         }
         if let Some(pos) = components_by_message.iter().position(|(mid, _)| *mid == id) {
             dto.components = components_by_message.swap_remove(pos).1;

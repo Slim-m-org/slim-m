@@ -12,6 +12,8 @@ AttachmentVideoSource createAttachmentVideoSource() =>
     _NativeAttachmentVideoSource();
 
 class _NativeAttachmentVideoSource implements AttachmentVideoSource {
+  String? _openedToken;
+
   @override
   Future<Media> open({
     required api.SlimmApi apiClient,
@@ -22,11 +24,16 @@ class _NativeAttachmentVideoSource implements AttachmentVideoSource {
     if (token == null) {
       throw const api.UnauthorizedException('not signed in');
     }
+    _openedToken = token;
     return Media(
       apiClient.attachmentUrl(attachment.id).toString(),
       httpHeaders: {'authorization': 'Bearer $token'},
     );
   }
+
+  @override
+  bool isStale(api.SlimmApi apiClient) =>
+      _openedToken != apiClient.session.tokens?.accessToken;
 
   // Nothing was fetched or opened outside the player itself, which its own caller disposes.
   @override

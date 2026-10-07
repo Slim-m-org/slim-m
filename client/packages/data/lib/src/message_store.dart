@@ -53,19 +53,7 @@ class MessageStore {
   /// Dart, or a channel holding 200 delivered rows would cut the sender's own
   /// unsent message off the end.
   Stream<List<Message>> watchChannel(String channelId, {int limit = 200}) {
-    final query = db.select(db.messages)
-      ..where((m) => m.channelId.equals(channelId))
-      ..orderBy([
-        // Pending first here, so the reverse below puts them last.
-        (m) => OrderingTerm(
-              expression: m.seq.equals(0),
-              mode: OrderingMode.desc,
-            ),
-        (m) => OrderingTerm(expression: m.seq, mode: OrderingMode.desc),
-        (m) => OrderingTerm(expression: m.createdAt, mode: OrderingMode.desc),
-      ])
-      ..limit(limit);
-    return query.watch().map(
+    return _channelMessagesQuery(channelId, limit).watch().map(
           (rows) => rows.reversed.map((r) => r.toDto()).toList(growable: false),
         );
   }
@@ -78,7 +66,15 @@ class MessageStore {
   /// zero-duration cleanup timer pending past the test's end.
   Future<List<Message>> channelSnapshot(String channelId,
       {int limit = 200}) async {
-    final query = db.select(db.messages)
+    final rows = await _channelMessagesQuery(channelId, limit).get();
+    return rows.reversed.map((r) => r.toDto()).toList(growable: false);
+  }
+
+  /// The newest [limit] rows, pending first so the callers' reverse puts them
+  /// last: the one query [watchChannel] and [channelSnapshot] must agree on.
+  SimpleSelectStatement<$MessagesTable, MessageRow> _channelMessagesQuery(
+      String channelId, int limit) {
+    return db.select(db.messages)
       ..where((m) => m.channelId.equals(channelId))
       ..orderBy([
         (m) => OrderingTerm(
@@ -89,8 +85,17 @@ class MessageStore {
         (m) => OrderingTerm(expression: m.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
-    final rows = await query.get();
-    return rows.reversed.map((r) => r.toDto()).toList(growable: false);
+  }
+
+  /// Rail order over the ordinary list: [watchChannels], [watchRailChannels]
+  /// and [allChannels] all read this one query.
+  SimpleSelectStatement<$ChannelsTable, Channel> _ordinaryChannelsQuery() {
+    return db.select(db.channels)
+      ..where((c) => c.parentMessageId.isNull())
+      ..orderBy([
+        (c) => OrderingTerm(expression: c.position),
+        (c) => OrderingTerm(expression: c.createdAt),
+      ]);
   }
 
   /// Position first, then creation order as the tiebreak every DM (whose
@@ -103,12 +108,7 @@ class MessageStore {
   /// (singular, by id) is unaffected, so a thread's own messages still watch
   /// and send normally once a caller already holds its id.
   Stream<List<Channel>> watchChannels() {
-    final query = db.select(db.channels)
-      ..where((c) => c.parentMessageId.isNull())
-      ..orderBy([
-        (c) => OrderingTerm(expression: c.position),
-        (c) => OrderingTerm(expression: c.createdAt),
-      ]);
+    final query = _ordinaryChannelsQuery();
     return query.watch();
   }
 
@@ -134,24 +134,14 @@ class MessageStore {
   /// that state is a real rebuild for a text channel row, a DM row or the
   /// personal space row to make. See `rail_channel.dart` for the projection.
   Stream<List<Channel>> watchRailChannels() {
-    final query = db.select(db.channels)
-      ..where((c) => c.parentMessageId.isNull())
-      ..orderBy([
-        (c) => OrderingTerm(expression: c.position),
-        (c) => OrderingTerm(expression: c.createdAt),
-      ]);
+    final query = _ordinaryChannelsQuery();
     return query.watch().distinct(railChannelsUnchanged);
   }
 
   /// [watchChannels]'s own snapshot, for a caller that wants today's list
   /// once rather than a subscription it would only ever read one value from.
   Future<List<Channel>> allChannels() {
-    final query = db.select(db.channels)
-      ..where((c) => c.parentMessageId.isNull())
-      ..orderBy([
-        (c) => OrderingTerm(expression: c.position),
-        (c) => OrderingTerm(expression: c.createdAt),
-      ]);
+    final query = _ordinaryChannelsQuery();
     return query.get();
   }
 
@@ -328,14 +318,8 @@ class MessageStore {
   /// channel removed on the server would otherwise sit in the local list
   /// forever; this is the direct path for one already-known id.
   /// [replaceChannels] is the other, for a full server refresh.
-  Future<void> removeChannel(String channelId) async {
-    await db.transaction(() async {
-      await (db.delete(db.messages)
-            ..where((m) => m.channelId.equals(channelId)))
-          .go();
-      await (db.delete(db.channels)..where((c) => c.id.equals(channelId))).go();
-    });
-  }
+  Future<void> removeChannel(String channelId) =>
+      db.transaction(() => _deleteChannelRows(db, channelId));
 
   /// Drops everything this device has cached: every channel, every message,
   /// every cursor and read marker, including pending sends.
@@ -349,6 +333,7 @@ class MessageStore {
     await db.transaction(() async {
       await db.delete(db.messages).go();
       await db.delete(db.channels).go();
+      await db.delete(db.channelCategories).go();
       // Drafts: the one thing here nobody else has a copy of. See clear's doc.
       await db.delete(db.channelDrafts).go();
       await db.delete(db.pendingAttachments).go();
@@ -362,8 +347,6 @@ class MessageStore {
   /// Saves [text] as [channelId]'s draft, or deletes the row when it is empty.
   Future<void> saveDraft(String channelId, String text, {required int now}) =>
       _saveDraft(this, channelId, text, now);
-
-  Future<void> clearDraft(String channelId) => _clearDraft(this, channelId);
 
   /// Records a message the user just sent, before the server has seen it, so it
   /// appears immediately. Replaced in place by [applyMessage] on acknowledgement

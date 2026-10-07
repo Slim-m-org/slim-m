@@ -164,9 +164,10 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
   }
 
   Future<void> _ensureThreadChannelRow() async {
+    final channelId = widget.channelId;
     final api.ThreadParent parent;
     try {
-      parent = await ref.read(threadParentProvider(widget.channelId).future);
+      parent = await ref.read(threadParentProvider(channelId).future);
     } on api.ApiException {
       // Best effort: the title stays "Thread" and the read marker stays unfixed for this session, same as today.
       return;
@@ -175,7 +176,7 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
     final store = await ref.read(storeProvider.future);
     await store.upsertChannels([
       api.Channel(
-        id: widget.channelId,
+        id: channelId,
         name: threadChannelName,
         kind: 'text',
         createdAt: 0,

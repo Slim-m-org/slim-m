@@ -3,9 +3,8 @@
 /// channel: nothing on this box can drive a real iOS or Android pasteboard,
 /// or a real Objective-C method swizzle.
 ///
-/// Proves the Dart-side contract only - that [hasClipboardImage],
-/// [readClipboardImage] and [editMenuPasteSwizzleInstalled] call the right
-/// method with the right shape, that a platform failure becomes
+/// Proves the Dart-side contract only - that [hasClipboardImage] and
+/// [readClipboardImage] call the right method with the right shape, that a platform failure becomes
 /// [ClipboardImageReadException] rather than a silent null, and that
 /// [startClipboardImagePaste] reaches its callback when the platform side
 /// invokes `pastedImage` on this same channel. It does not and cannot prove
@@ -103,25 +102,6 @@ void main() {
       ),
     );
   });
-
-  test('editMenuPasteSwizzleInstalled asks the platform for '
-      'editMenuPasteSwizzleInstalled', () async {
-    MethodCall? seen;
-    _mock((call) async {
-      seen = call;
-      return true;
-    });
-
-    expect(await editMenuPasteSwizzleInstalled(), isTrue);
-    expect(seen?.method, 'editMenuPasteSwizzleInstalled');
-  });
-
-  test(
-    'editMenuPasteSwizzleInstalled answers false with no platform handler',
-    () async {
-      expect(await editMenuPasteSwizzleInstalled(), isFalse);
-    },
-  );
 
   group('startClipboardImagePaste/stopClipboardImagePaste', () {
     // stop() now only tears down its own still-registered callback, so tearDown needs each test's own reference.

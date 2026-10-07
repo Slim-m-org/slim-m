@@ -9,13 +9,16 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/reaction_users_list.dart';
 import 'package:slimm_app/src/widgets/reactions_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -107,16 +110,18 @@ class _Fixture {
     grouped: false,
     showNewDivider: false,
     knownUsernames: const {},
-    onRetry: () {},
-    onDiscard: () {},
-    onPickReaction: (_) {},
-    onReactionTap: (r) => tapped.add(r.emoji),
-    onVote: (_) {},
     actions: row.noActions,
     editing: false,
-    onSubmitEdit: (_) {},
-    onCancelEdit: () {},
-    reactions: _reactions,
+    callbacks: MessageRowCallbacks(
+      onRetry: () {},
+      onDiscard: () {},
+      onPickReaction: (_) {},
+      onReactionTap: (r) => tapped.add(r.emoji),
+      onVote: (_) {},
+      onSubmitEdit: (_) {},
+      onCancelEdit: () {},
+    ),
+    extras: MessageExtras(reactions: _reactions),
   );
 
   Widget app() => ProviderScope(
@@ -395,6 +400,22 @@ void main() {
     expect(popover.right, lessThanOrEqualTo(desktop.width));
     expect(popover.bottom, lessThanOrEqualTo(desktop.height));
     expect(fixture.tapped, isEmpty);
+  });
+
+  testWidgets('the context-menu key on a focused chip opens the list', (
+    tester,
+  ) async {
+    final fixture = _Fixture(_ada());
+    await _pump(tester, fixture, desktop);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppMenu), findsOneWidget);
+    expect(find.text('Ada'), findsOneWidget);
+    expect(fixture.tapped, isEmpty, reason: 'opening the list must not toggle');
   });
 
   testWidgets('hovering a chip summarises the first names', (tester) async {

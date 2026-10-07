@@ -27,6 +27,11 @@ async fn store() -> (Store, support::TestDbGuard) {
     (Store::new(pool), guard)
 }
 
+async fn is_removed(s: &Store, user_id: slimm_server::ids::UserId) -> bool {
+    let removals = s.list_removals().await.unwrap();
+    removals.iter().any(|r| r.user_id == user_id)
+}
+
 const VIEW: Permissions = Permissions::VIEW_CHANNEL;
 const SEND: Permissions = Permissions::SEND_MESSAGES;
 
@@ -263,10 +268,10 @@ async fn a_removal_can_be_undone() {
     s.remove_from_space(member.id, admin.id, None)
         .await
         .unwrap();
-    assert!(s.is_removed(member.id).await.unwrap());
+    assert!(is_removed(&s, member.id).await);
 
     assert!(s.restore_to_space(member.id, admin.id).await.unwrap());
-    assert!(!s.is_removed(member.id).await.unwrap());
+    assert!(!is_removed(&s, member.id).await);
     assert!(s.open_session(member.id, "phone").await.is_ok());
     assert!(s.list_removals().await.unwrap().is_empty());
 

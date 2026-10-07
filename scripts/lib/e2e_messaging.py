@@ -79,16 +79,17 @@ def mention(sender, receiver, channel, who, api):
 def attach(client, other, channel, path, api):
     """Upload a file and check the server kept it, not just that a chip drew."""
     client.click(channel)
+    channel_id = api.channel_named(channel)['id']
+    already = {m['id'] for m in api.messages(channel_id) if m.get('attachments')}
     client.attach_file(L.ATTACH, path)
     client.wait_for(L.REMOVE_ATTACHMENT)
     client.click(L.SEND, settle=4)
 
-    channel_id = api.channel_named(channel)['id']
     deadline = time.time() + 40
     found = None
     while time.time() < deadline and not found:
         for m in api.messages(channel_id):
-            if m.get('attachments'):
+            if m.get('attachments') and m['id'] not in already:
                 found = m
                 break
         if not found:

@@ -7,8 +7,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -25,22 +27,34 @@ void main() {
             grouped: false,
             showNewDivider: false,
             knownUsernames: const {},
-            onRetry: () {},
-            onDiscard: () {},
-            onPickReaction: (_) {},
-            onReactionTap: (_) {},
-            onVote: (_) {},
             actions: noActions,
             editing: false,
-            onSubmitEdit: (_) {},
-            onCancelEdit: () {},
-            reactions: const [
-              /// Escaped rather than literal: the hygiene gate forbids emoji
-              /// codepoints in client source, and these are user content standing in
-              /// for a reaction, not interface chrome.
-              api.ReactionSummary(emoji: '\u{1F44D}', count: 3, reacted: true),
-              api.ReactionSummary(emoji: '\u{1F389}', count: 1, reacted: false),
-            ],
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (_) {},
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
+            extras: MessageExtras(
+              reactions: const [
+                /// Escaped rather than literal: the hygiene gate forbids emoji
+                /// codepoints in client source, and these are user content standing in
+                /// for a reaction, not interface chrome.
+                api.ReactionSummary(
+                  emoji: '\u{1F44D}',
+                  count: 3,
+                  reacted: true,
+                ),
+                api.ReactionSummary(
+                  emoji: '\u{1F389}',
+                  count: 1,
+                  reacted: false,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -62,18 +76,26 @@ void main() {
             grouped: false,
             showNewDivider: false,
             knownUsernames: const {},
-            onRetry: () {},
-            onDiscard: () {},
-            onPickReaction: (_) {},
-            onReactionTap: (r) => tapped = r,
-            onVote: (_) {},
             actions: noActions,
             editing: false,
-            onSubmitEdit: (_) {},
-            onCancelEdit: () {},
-            reactions: const [
-              api.ReactionSummary(emoji: '\u{1F44D}', count: 3, reacted: true),
-            ],
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (r) => tapped = r,
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
+            extras: MessageExtras(
+              reactions: const [
+                api.ReactionSummary(
+                  emoji: '\u{1F44D}',
+                  count: 3,
+                  reacted: true,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -94,23 +116,27 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (_) {},
           actions: noActions,
           editing: false,
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
-          attachments: const [
-            api.Attachment(
-              id: 'a1',
-              filename: 'notes.txt',
-              contentType: 'text/plain',
-              size: 2048,
-            ),
-          ],
+          callbacks: MessageRowCallbacks(
+            onRetry: () {},
+            onDiscard: () {},
+            onPickReaction: (_) {},
+            onReactionTap: (_) {},
+            onVote: (_) {},
+            onSubmitEdit: (_) {},
+            onCancelEdit: () {},
+          ),
+          extras: MessageExtras(
+            attachments: const [
+              api.Attachment(
+                id: 'a1',
+                filename: 'notes.txt',
+                contentType: 'text/plain',
+                size: 2048,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -135,15 +161,17 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (e) => picked = e,
-          onReactionTap: (_) {},
-          onVote: (_) {},
           actions: noActions,
           editing: false,
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
+          callbacks: MessageRowCallbacks(
+            onRetry: () {},
+            onDiscard: () {},
+            onPickReaction: (e) => picked = e,
+            onReactionTap: (_) {},
+            onVote: (_) {},
+            onSubmitEdit: (_) {},
+            onCancelEdit: () {},
+          ),
         ),
       ),
     );
@@ -203,19 +231,23 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (_) {},
           actions: noActions,
           editing: false,
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
-          reactions: const [
-            api.ReactionSummary(emoji: 'a', count: 1, reacted: false),
-            api.ReactionSummary(emoji: 'b', count: 1, reacted: false),
-          ],
+          callbacks: MessageRowCallbacks(
+            onRetry: () {},
+            onDiscard: () {},
+            onPickReaction: (_) {},
+            onReactionTap: (_) {},
+            onVote: (_) {},
+            onSubmitEdit: (_) {},
+            onCancelEdit: () {},
+          ),
+          extras: MessageExtras(
+            reactions: const [
+              api.ReactionSummary(emoji: 'a', count: 1, reacted: false),
+              api.ReactionSummary(emoji: 'b', count: 1, reacted: false),
+            ],
+          ),
         ),
       ),
     );

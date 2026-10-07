@@ -43,6 +43,18 @@ Set<String> presenceTileKeys(List<VoiceParticipant> participants) {
 /// no translation.
 String presenceTileKind(String key) => videoSubscriptionKind(key);
 
+/// The tile key for a server slot of [kind] held by [userId], built through
+/// the one `videoSubscriptionKey` so slots line up with `presenceTileKeys`.
+String presenceTileKeyForSlot(String kind, String userId) =>
+    videoSubscriptionKey(
+      identity: userId,
+      screenShare: kind == screenTrackKind,
+    );
+
+/// "Your screen" or "the name's screen", the one label for a screen-share tile.
+String presenceScreenLabel(VoiceParticipant participant) =>
+    participant.isLocal ? 'Your screen' : "${participant.name}'s screen";
+
 /// The participant a tile key names, stripped of its `kind:` prefix.
 String presenceTileIdentity(String key) => key.substring(key.indexOf(':') + 1);
 

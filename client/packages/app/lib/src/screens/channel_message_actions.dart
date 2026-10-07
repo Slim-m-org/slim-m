@@ -113,19 +113,24 @@ Future<void> confirmAndDeleteSelectedMessages(
     confirmLabel: 'Delete',
   );
   if (!confirmed || !context.mounted) return;
+  // The container outlives the screen the delete can be left behind by.
+  final container = ProviderScope.containerOf(context, listen: false);
   // runGuarded directly rather than _reporting, which cannot say it succeeded.
   final error = messageBulkDeleteErrorProvider(channelId);
-  ref.read(error.notifier).state = null;
+  container.read(error.notifier).state = null;
   final failure = await runGuarded(
     whatFailed: ids.length == 1 ? 'delete the message' : 'delete the messages',
-    action: () =>
-        bulkDeleteMessagesAction(ref, channelId: channelId, messageIds: ids),
+    action: () => bulkDeleteMessagesAction(
+      container.read,
+      channelId: channelId,
+      messageIds: ids,
+    ),
   );
   if (failure != null) {
-    ref.read(error.notifier).state = failure;
+    container.read(error.notifier).state = failure;
     return;
   }
-  ref.read(messageSelectionProvider(channelId).notifier).clear();
+  container.read(messageSelectionProvider(channelId).notifier).clear();
 }
 
 /// Keeps a message in the caller's own saved list.

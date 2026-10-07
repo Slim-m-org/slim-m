@@ -4,14 +4,14 @@
 #
 # The scan itself lives in advisory-watchdog.yml, because the pinned
 # cargo-deny action is what runs it; this is only the reporting half, split
-# out for the same reason check-e2e-red-streak.sh is - so the part with real
+# out for the same reason check-workflow-red-streak.sh is - so the part with real
 # branching can be driven against a fixture instead of only in production.
 #
 # Reporting by issue rather than by this job's own colour is deliberate, and
 # is the whole point: docs/ci.md already records why advisories must not
 # redden an unrelated pull request, and a scheduled workflow that only fails
-# itself is a second red tab nobody opens - the exact failure the e2e red
-# streak watchdog exists to correct. An issue is durable, deduplicated, and
+# itself is a second red tab nobody opens - the exact failure the workflow
+# red streak watchdog exists to correct. An issue is durable, deduplicated, and
 # closes itself when the cause goes away.
 #
 # Reads ADVISORY_STATUS ("clean" or "found") and RUN_URL from the

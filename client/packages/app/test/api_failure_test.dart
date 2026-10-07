@@ -136,4 +136,22 @@ void main() {
     expect(message, contains('4s'));
     expect(message, isNot(contains('too many requests')));
   });
+
+  test('a 413 says the file is too big and a 507 says storage is out', () {
+    expect(
+      describeApiFailure(
+        'attach the file',
+        const api.ServerException('x', 413),
+      ),
+      'Could not attach the file: it is too big.',
+    );
+    expect(
+      describeApiFailure(
+        'attach the file',
+        const api.ServerException('x', 507),
+      ),
+      'Could not attach the file: this server has no storage left. '
+      'Tell an admin.',
+    );
+  });
 }

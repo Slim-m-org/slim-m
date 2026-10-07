@@ -288,6 +288,11 @@ impl From<SendError> for ApiError {
             SendError::InvalidReplyTarget => ApiError::BadRequest(
                 "reply_to_id must name a live or deleted message in this channel",
             ),
+            SendError::SlowMode {
+                retry_after_seconds,
+            } => ApiError::SlowMode {
+                retry_after_seconds,
+            },
             SendError::Internal(e) => {
                 tracing::error!(error = %e, "message send failed");
                 ApiError::Internal

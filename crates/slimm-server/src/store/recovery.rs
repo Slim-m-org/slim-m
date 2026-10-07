@@ -146,10 +146,9 @@ impl Store {
     /// transaction means a failure anywhere in the middle rolls the whole
     /// thing back: the code stays live and the caller can simply try again.
     ///
-    /// The transaction opens with a plain `BEGIN` rather than
-    /// [`Store::begin_write`]: its first statement is already the claiming
-    /// `UPDATE`, so it takes SQLite's write lock immediately regardless, and
-    /// there is no read-then-upgrade window for `begin_write` to close.
+    /// The transaction opens with [`Store::begin_write`]. The claiming
+    /// `UPDATE` is its first statement either way, so no read precedes the
+    /// write lock.
     pub async fn consume_reset_code(
         &self,
         code: &str,

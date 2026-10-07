@@ -232,11 +232,13 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final replyToId = _replyingTo?.id;
     setState(() => _replyingTo = null);
 
+    // The container outlives this screen, which a send can be left behind by.
+    final container = ProviderScope.containerOf(context, listen: false);
     await sendOptimistically(
-      ref.read,
+      container.read,
       id: newMessageId(),
       channelId: widget.channelId,
-      authorId: ref.read(sessionProvider).tokens?.userId ?? '',
+      authorId: container.read(sessionProvider).tokens?.userId ?? '',
       content: text,
       attachmentIds: attachmentIds,
       replyToId: replyToId,
@@ -265,9 +267,12 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
         manuallyUnread: manuallyUnread,
       );
 
-  void _scrollToLatest() => _scrollTracker.scrollToLatest(
-    duration: AppMotion.reduced(context, AppMotion.slow),
-  );
+  void _scrollToLatest() {
+    if (!mounted) return;
+    _scrollTracker.scrollToLatest(
+      duration: AppMotion.reduced(context, AppMotion.slow),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -16,7 +16,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/presence_controller.dart';
 import '../providers/presence_view.dart';
 import '../providers/providers.dart';
-import 'context_menu_focus.dart';
+import 'anchored_menu.dart';
+import 'animated_menu_portal.dart';
 import 'presence_indicator.dart';
 import 'presence_status_field.dart';
 import 'run_guarded.dart';
@@ -78,8 +79,7 @@ class PresenceMenuButton extends ConsumerStatefulWidget {
 }
 
 class _PresenceMenuButtonState extends ConsumerState<PresenceMenuButton> {
-  final _controller = OverlayPortalController();
-  final _link = LayerLink();
+  final _controller = AnimatedMenuController();
 
   /// Finger-down feedback, the same shape [AppIconButton] uses: nothing else
   /// here draws a hover fill for a tap to interrupt.
@@ -116,65 +116,45 @@ class _PresenceMenuButtonState extends ConsumerState<PresenceMenuButton> {
   Widget build(BuildContext context) {
     final me = ref.watch(meProvider);
 
-    return CompositedTransformTarget(
-      link: _link,
-      child: OverlayPortal(
-        controller: _controller,
-        // Positioned so the follower sizes to its content: an overlay child
-        // is otherwise laid out against the whole screen, which a Column
-        // fills. Only ever shown on a pointer layout; see [_open].
-        overlayChildBuilder: (context) => Positioned(
-          left: 0,
-          top: 0,
-          child: CompositedTransformFollower(
-            link: _link,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.topLeft,
-            followerAnchor: Alignment.bottomLeft,
-            offset: const Offset(0, -4),
-            child: TapRegion(
-              onTapOutside: (_) => _controller.hide(),
-              // Escape closes it and Tab reaches every item once open.
-              child: ContextMenuKeyboardScope(
-                onDismiss: _controller.hide,
-                child: _PresenceMenuItems(onDone: _controller.hide),
-              ),
+    return AnchoredMenu(
+      controller: _controller,
+      // Only ever shown on a pointer layout; see [_open].
+      targetAnchor: Alignment.topLeft,
+      followerAnchor: Alignment.bottomLeft,
+      offset: const Offset(0, -4),
+      menu: _PresenceMenuItems(onDone: _controller.hide),
+      // A 28pt avatar is well under the touch minimum, so the tap area is
+      // grown around it rather than the glyph being grown to match.
+      child: Semantics(
+        button: true,
+        label: 'Change your status',
+        onTap: () => _open(context),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTap: () {
+            AppHaptics.selection();
+            _open(context);
+          },
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: AppSizes.rowTouch,
+              minHeight: AppSizes.rowTouch,
             ),
-          ),
-        ),
-        // A 28pt avatar is well under the touch minimum, so the tap area is
-        // grown around it rather than the glyph being grown to match.
-        child: Semantics(
-          button: true,
-          label: 'Change your status',
-          onTap: () => _open(context),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            onTap: () {
-              AppHaptics.selection();
-              _open(context);
-            },
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: AppSizes.rowTouch,
-                minHeight: AppSizes.rowTouch,
-              ),
-              // heightFactor: a bare Center fills any bounded height, which stretched the whole footer row and sent the menu off the top.
-              child: Center(
-                heightFactor: 1,
-                child: AnimatedScale(
-                  scale: _pressed ? AppMotion.pressScale : 1,
-                  duration: AppMotion.reduced(context, AppMotion.fast),
-                  curve: AppMotion.entrance,
-                  child: UserAvatar(
-                    userId: ref.watch(sessionProvider).tokens?.userId,
-                    name: me.valueOrNull?.displayName ?? '',
-                    size: AppAvatarSize.s28,
-                    presence: true,
-                  ),
+            // heightFactor: a bare Center fills any bounded height, which stretched the whole footer row and sent the menu off the top.
+            child: Center(
+              heightFactor: 1,
+              child: AnimatedScale(
+                scale: _pressed ? AppMotion.pressScale : 1,
+                duration: AppMotion.reduced(context, AppMotion.fast),
+                curve: AppMotion.entrance,
+                child: UserAvatar(
+                  userId: ref.watch(sessionProvider).tokens?.userId,
+                  name: me.valueOrNull?.displayName ?? '',
+                  size: AppAvatarSize.s28,
+                  presence: true,
                 ),
               ),
             ),

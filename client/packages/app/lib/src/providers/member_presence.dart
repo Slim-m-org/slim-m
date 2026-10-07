@@ -31,13 +31,16 @@ const _memberPageLimit = 200;
 /// rather than looping forever.
 const _maxMemberPages = 500;
 
+/// How long a burst of roster events settles before the roster is refetched.
+const memberRosterRefetchDelay = Duration(milliseconds: 400);
+
 /// The deployment's members, real endpoint, real data, paged to completion.
 /// A single request never returns more than [_memberPageLimit] rows, so
 /// anything past the first page needs a follow-up keyed on the last id
 /// already seen; a page shorter than [_memberPageLimit] is the contract's
 /// own signal that there is no next one.
 final membersProvider = FutureProvider.autoDispose<List<api.UserProfile>>(
-  (ref) => _pagedMembers(ref.watch(apiProvider), null),
+  (ref) => _pagedMembers(ref, ref.watch(apiProvider), null),
 );
 
 /// The members who can view [channelId], for a member pane sitting beside
@@ -51,16 +54,19 @@ final membersProvider = FutureProvider.autoDispose<List<api.UserProfile>>(
 /// it under them would hide exactly the people they exist to reach.
 final channelMembersProvider = FutureProvider.autoDispose
     .family<List<api.UserProfile>, String>(
-      (ref, channelId) => _pagedMembers(ref.watch(apiProvider), channelId),
+      (ref, channelId) => _pagedMembers(ref, ref.watch(apiProvider), channelId),
     );
 
 Future<List<api.UserProfile>> _pagedMembers(
+  Ref ref,
   api.SlimmApi client,
   String? channelId,
 ) async {
+  var superseded = false;
+  ref.onDispose(() => superseded = true);
   final members = <api.UserProfile>[];
   String? after;
-  for (var page = 0; page < _maxMemberPages; page++) {
+  for (var page = 0; page < _maxMemberPages && !superseded; page++) {
     final batch = await client.listMembers(
       after: after,
       limit: _memberPageLimit,
@@ -106,10 +112,12 @@ final presenceSeedProvider = FutureProvider.autoDispose.family<void, String?>((
 /// role was edited (its name, order or hoist flag places members in the pane).
 ///
 /// One provider for all of these because every one of them is explicit and
-/// exact: unlike the join this used to infer from a presence frame or a
-/// first message before `Event::MemberJoined` existed on the wire, there is
-/// nothing here to hedge with a debounce or a per-id refetch bound.
+/// exact. The events are exact but a bulk role change or a registration wave
+/// sends many, and each refetch pages the whole roster, so a burst settles
+/// for [memberRosterRefetchDelay] into one refetch.
 final memberModerationWatcherProvider = Provider.autoDispose<void>((ref) {
+  Timer? settle;
+  ref.onDispose(() => settle?.cancel());
   final sub = ref.read(liveEventsProvider).listen((event) {
     if (event is api.MemberJoined ||
         event is api.MemberTimeoutChanged ||
@@ -117,9 +125,12 @@ final memberModerationWatcherProvider = Provider.autoDispose<void>((ref) {
         event is api.MemberRestored ||
         event is api.MemberRoleChanged ||
         event is api.RoleChanged) {
-      ref.invalidate(membersProvider);
-      // A role change can also change who may view a channel at all.
-      ref.invalidate(channelMembersProvider);
+      settle?.cancel();
+      settle = Timer(memberRosterRefetchDelay, () {
+        ref.invalidate(membersProvider);
+        // A role change can also change who may view a channel at all.
+        ref.invalidate(channelMembersProvider);
+      });
     }
   });
   // A roster that failed during an outage has no event coming to refill it. Watches the latch rather than the controller, which a pane has no business starting.
@@ -181,6 +192,7 @@ class MemberProfileOverridesController
   Future<void> _refetch(String userId) async {
     try {
       final profile = await _ref.read(apiProvider).getUser(userId);
+      if (!mounted) return;
       state = {...state, userId: profile};
     } on api.ApiException {
       // Left stale; the next ProfileChanged (or a roster refetch) corrects it.

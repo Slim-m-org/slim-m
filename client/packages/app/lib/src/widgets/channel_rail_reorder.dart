@@ -42,11 +42,11 @@ import 'package:slimm_design_system/design_system.dart';
 import 'desktop_rail_reorder.dart';
 import 'rail_drag_lift.dart';
 
-/// One category's ordered channels, `null` for the implicit uncategorised
-/// section, which always renders first.
 /// The gap a channel row keeps from the rail's left edge.
 const kRailRowInset = AppSpacing.s8;
 
+/// One category's ordered channels, `null` for the implicit uncategorised
+/// section, which always renders first.
 typedef ChannelSection = (ChannelCategoryRow? category, List<Channel> channels);
 
 /// Exposed (not library-private) only so `groupsFromRailItems` can be driven

@@ -58,7 +58,8 @@ class RemovedMembersPane extends ConsumerWidget {
           ? const SettingsEmpty('Nobody has been removed from this Space.')
           : SettingsSectionCard(
               children: [
-                for (final removal in list) _RemovalRow(removal: removal),
+                for (final removal in list)
+                  _RemovalRow(key: ValueKey(removal.userId), removal: removal),
               ],
             ),
     );
@@ -66,7 +67,7 @@ class RemovedMembersPane extends ConsumerWidget {
 }
 
 class _RemovalRow extends ConsumerStatefulWidget {
-  const _RemovalRow({required this.removal});
+  const _RemovalRow({super.key, required this.removal});
 
   final api.SpaceRemoval removal;
 

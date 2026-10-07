@@ -9,11 +9,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/author_is_bot.dart';
+import '../providers/message_extras.dart' show MessageExtras;
 import 'app_surface_view.dart';
 import 'attachment_view.dart';
 import 'bot_ui_failure.dart';
@@ -24,6 +24,7 @@ import 'link_preview_card.dart';
 import 'message_buttons.dart';
 import 'message_context_menu.dart';
 import 'message_edit_field.dart';
+import 'message_row_callbacks.dart';
 import 'message_hover_toolbar.dart';
 import 'message_inline.dart' show extractLinkPreviewUrls;
 import 'message_row_identity.dart';
@@ -44,29 +45,11 @@ class MessageRowColumn extends ConsumerWidget {
     required this.knownUsernames,
     required this.knownRoleNames,
     required this.customEmoji,
-    required this.onRetry,
-    required this.onDiscard,
-    required this.onReactionTap,
-    required this.onVote,
-    required this.onSubmitEdit,
-    required this.onCancelEdit,
-    this.onEditFailed,
-    this.onViewEditHistory,
-    this.onReplyTap,
+    required this.callbacks,
+    required this.extras,
     this.replyTo,
     this.replyParentAdjacent = false,
-    this.webhookUsername,
-    this.reactions = const [],
-    this.attachments = const [],
-    this.embeds = const [],
-    this.components = const [],
-    this.poll,
-    this.appSurface,
-    this.call,
     this.viewerIsCaller = false,
-    this.threadReplyCount,
-    this.threadLastReplyAt,
-    this.threadUnreadCount,
   });
 
   final Message message;
@@ -77,31 +60,13 @@ class MessageRowColumn extends ConsumerWidget {
   final Set<String> knownUsernames;
   final Set<String> knownRoleNames;
   final Map<String, String> customEmoji;
-  final VoidCallback onRetry;
-  final VoidCallback onDiscard;
-  final ValueChanged<api.ReactionSummary> onReactionTap;
-  final ValueChanged<int> onVote;
-  final ValueChanged<String> onSubmitEdit;
-  final VoidCallback onCancelEdit;
-  final VoidCallback? onEditFailed;
-  final VoidCallback? onViewEditHistory;
-  final VoidCallback? onReplyTap;
+  final MessageRowCallbacks callbacks;
+  final MessageExtras extras;
   final Message? replyTo;
 
   /// True when the quoted parent is the row directly above this one.
   final bool replyParentAdjacent;
-  final String? webhookUsername;
-  final List<api.ReactionSummary> reactions;
-  final List<api.Attachment> attachments;
-  final List<api.Embed> embeds;
-  final List<api.ComponentRow> components;
-  final api.Poll? poll;
-  final api.AppSurface? appSurface;
-  final api.CallRecord? call;
   final bool viewerIsCaller;
-  final int? threadReplyCount;
-  final int? threadLastReplyAt;
-  final int? threadUnreadCount;
 
   /// The command a bot is answering is already the line above it.
   static bool _isCommand(Message? parent) {
@@ -116,7 +81,7 @@ class MessageRowColumn extends ConsumerWidget {
     final isBot = ref.watch(authorIsBotProvider(message.authorId));
     // A bot edits its own status as it goes, so the marker says nothing.
     final edited = message.editedAt != null && !editing && !isBot
-        ? EditedMarker(onTap: onViewEditHistory)
+        ? EditedMarker(onTap: callbacks.onViewEditHistory)
         : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +92,7 @@ class MessageRowColumn extends ConsumerWidget {
             padding: MessageHoverToolbar.clearance(compact: compact),
             child: MessageRowHeader(
               message: message,
-              webhookUsername: webhookUsername,
+              webhookUsername: extras.webhookUsername,
               editing: editing,
             ),
           )
@@ -138,15 +103,15 @@ class MessageRowColumn extends ConsumerWidget {
           ),
         if (message.replyToId != null &&
             !(isBot && replyParentAdjacent && _isCommand(replyTo)))
-          ReplyQuote(resolved: replyTo, onTap: onReplyTap ?? () {}),
+          ReplyQuote(resolved: replyTo, onTap: callbacks.onReplyTap ?? () {}),
         if (editing)
           Padding(
             // The row is raised while editing; the field needs air above the fill's edge.
             padding: const EdgeInsets.only(bottom: AppSpacing.s8),
             child: MessageEditField(
               initialContent: message.content,
-              onSubmit: onSubmitEdit,
-              onCancel: onCancelEdit,
+              onSubmit: callbacks.onSubmitEdit,
+              onCancel: callbacks.onCancelEdit,
             ),
           )
         // An attachment-only message has no body; an empty one still adds a blank line above the image. A forward's own note is often empty too.
@@ -169,12 +134,13 @@ class MessageRowColumn extends ConsumerWidget {
           ),
         if (!editing && message.content.isNotEmpty)
           LinkPreviewList(urls: extractLinkPreviewUrls(message.content)),
-        if (!editing && embeds.isNotEmpty) EmbedList(embeds: embeds),
-        if (!editing && components.isNotEmpty)
+        if (!editing && extras.embeds.isNotEmpty)
+          EmbedList(embeds: extras.embeds),
+        if (!editing && extras.components.isNotEmpty)
           MessageButtons(
             channelId: message.channelId,
             messageId: message.id,
-            rows: components,
+            rows: extras.components,
             unavailable: message.authorId == null,
           ),
         BotUiFailureLine(messageId: message.id),
@@ -191,63 +157,63 @@ class MessageRowColumn extends ConsumerWidget {
                       knownRoleNames: knownRoleNames,
                       customEmoji: customEmoji,
                     ),
-              attachments: attachments,
+              attachments: extras.attachments,
               currentChannelId: message.channelId,
             ),
           ),
         if (edited != null && message.content.isEmpty)
           Padding(padding: const EdgeInsets.only(top: 2), child: edited),
-        if (poll != null)
+        if (extras.poll != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
-            child: PollView(poll: poll!, onVote: onVote),
+            child: PollView(poll: extras.poll!, onVote: callbacks.onVote),
           ),
-        if (call != null)
+        if (extras.call != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
             child: CallRecordView(
-              record: call!,
+              record: extras.call!,
               viewerIsCaller: viewerIsCaller,
             ),
           ),
-        if (appSurface != null)
+        if (extras.appSurface != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
             child: AppSurfaceView(
               messageId: message.id,
-              surface: appSurface!,
-              title: appSurface!.moduleId,
+              surface: extras.appSurface!,
+              title: extras.appSurface!.moduleId,
             ),
           ),
         // A forward's attachments are part of what was forwarded, and are drawn inside its card instead.
         if (message.forwarded == null)
-          for (final attachment in attachments)
+          for (final attachment in extras.attachments)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s4),
               child: AttachmentView(
                 attachment: attachment,
-                siblings: openableImages(attachments),
+                siblings: openableImages(extras.attachments),
               ),
             ),
         if (!_unsent)
           ReactionsRow(
             messageId: message.id,
-            reactions: reactions,
-            onReactionTap: onReactionTap,
+            reactions: extras.reactions,
+            onReactionTap: callbacks.onReactionTap,
             customEmoji: customEmoji,
           ),
-        if ((threadReplyCount ?? 0) > 0)
+        if ((extras.threadReplyCount ?? 0) > 0)
           ThreadReplySummary(
-            replyCount: threadReplyCount!,
-            lastReplyAt: threadLastReplyAt,
-            unread: (threadUnreadCount ?? 0) > 0,
+            replyCount: extras.threadReplyCount!,
+            lastReplyAt: extras.threadLastReplyAt,
+            unread: (extras.threadUnreadCount ?? 0) > 0,
             onTap: actions.canOpenThread ? actions.onOpenThread : null,
           ),
         if (message.failed)
           FailedRow(
-            onRetry: onRetry,
-            onEdit: onEditFailed,
-            onDiscard: onDiscard,
+            onRetry: callbacks.onRetry,
+            onEdit: callbacks.onEditFailed,
+            onDiscard: callbacks.onDiscard,
             reason: message.failureReason,
           ),
       ],

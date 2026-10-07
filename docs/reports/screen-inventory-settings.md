@@ -54,7 +54,7 @@ Four routed admin screens have **zero coverage in the surfaces harness**, confir
 ## Channel permission overwrites (`/settings/permissions`, `MANAGE_ROLES` in the target channel)
 
 - **admin-overwrites-blank** — persistent info callout plus "Choose a channel," nothing else. Coverage: covered (`admin-overwrites` surface, this exact blank state).
-- **admin-overwrites-role-picked**, **-member-picked** — full `Perm.channelOverwriteEditable` list plus Clear/Set, after a target is chosen. Coverage: none.
+- **admin-overwrites-role-picked**, **-member-picked** - full `Perm.gridRows` list plus Clear/Set, after a target is chosen. Coverage: none.
 - **overwrite-picker-sheet-channel** — no async states of its own. Coverage: overlay harness covers it.
 - **overwrite-picker-sheet-role**, **-member** — each has loading/error(+retry text link)/empty/populated. Coverage: overlay harness covers only the populated default of each.
 - **overwrite-allow-disabled-lacking-bit** — the "Allow" segment specifically is dimmed and inert when the caller lacks that bit themselves; Deny is always offered. One of the few deliberate disabled-not-absent cases. Coverage: none.

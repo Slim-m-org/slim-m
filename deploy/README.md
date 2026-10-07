@@ -184,6 +184,8 @@ docker run --rm \
 ```
 
 It copies the newest snapshot to a fresh scratch path, runs `PRAGMA integrity_check` on that standalone copy, then checks that every attachment the database references exists in the mirror *and* that the file's real, recomputed sha256 actually matches its name (not merely that a same-named file exists), and the same existence check for every user's avatar.
+A snapshot too damaged to query is reported as a failed integrity check rather than a traceback, and the later checks are skipped.
+The scratch copy is deleted when the run ends; `--keep-scratch` keeps it, and a directory given with `--scratch-dir` is always yours.
 It prints exactly what is missing or corrupt and exits non-zero if anything is, which is the property a restore drill exists for.
 Run it after every backup, or at least on a schedule of its own - a backup nobody has restored is a guess.
 

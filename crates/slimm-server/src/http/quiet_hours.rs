@@ -4,13 +4,10 @@
 //! minutes since midnight UTC, so the server never needs to know the
 //! account's time zone.
 //!
-//! Enforced exactly once, in
-//! `push::recipients::narrow_for_notification_preference` - the same choke
-//! point `GET`/`PUT /push/preference` already goes through - never a filter
-//! a client applies after a device has already buzzed. An in-window
-//! `everything` account is narrowed to `mentions`, never to `nothing`: see
-//! that function's own doc comment for why silencing a genuine mention is
-//! not this feature's job.
+//! Legacy: nothing reads this window to decide push any more. Since
+//! decision 0033 `push::recipients` reads only the notification schedule
+//! (`notification_schedule.rs`), so these routes keep answering for older
+//! clients but a window set here changes nothing about a live account's push.
 
 use axum::Router;
 use axum::extract::State;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'message_store.dart';
 
-/// The bodies behind [MessageStore.drafts], [MessageStore.saveDraft] and
-/// [MessageStore.clearDraft], split out of `message_store.dart` once the drafts
-/// table pushed that file past its line budget - the same `part of` shape
+/// The bodies behind [MessageStore.drafts] and [MessageStore.saveDraft], split
+/// out of `message_store.dart` once the drafts table pushed that file past its
+/// line budget - the same `part of` shape
 /// `message_store_channels.dart` and `message_store_batch.dart` already use.
 ///
 /// Worth keeping together for a reason beyond the budget: this is the only table

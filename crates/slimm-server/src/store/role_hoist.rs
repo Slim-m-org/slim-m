@@ -17,14 +17,6 @@ pub struct HoistedRole {
 }
 
 impl Store {
-    /// Sets a role's `hoist` flag; false when the role does not exist.
-    pub async fn set_role_hoist(&self, role_id: RoleId, hoist: bool) -> anyhow::Result<bool> {
-        let result = sqlx::query!("UPDATE roles SET hoist = ? WHERE id = ?", hoist, role_id)
-            .execute(&self.pool)
-            .await?;
-        Ok(result.rows_affected() > 0)
-    }
-
     /// Each given member's top hoisted role in one query; members with none are absent.
     ///
     /// Ordered exactly as [`Store::roles_for_users`] orders a member's roles, so

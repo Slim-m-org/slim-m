@@ -49,7 +49,15 @@ Future<File> downloadArtifact({
   required http.Client client,
   FreeSpace freeSpace = freeSpaceOf,
 }) async {
-  await stagingDir.create(recursive: true);
+  try {
+    await stagingDir.create(recursive: true);
+  } on FileSystemException catch (error) {
+    throw SelfUpdateFailure(
+      SelfUpdateFailureKind.downloadFailed,
+      'The update could not be saved to disk. Try again in a moment.',
+      detail: '$error',
+    );
+  }
   final free = await freeSpace(stagingDir);
   if (free != null && free < artifact.size * 2) {
     throw SelfUpdateFailure(
@@ -62,7 +70,15 @@ Future<File> downloadArtifact({
   final part = File(p.join(stagingDir.path, '$name.part'));
   await _fillPart(artifact, part, client);
   await _verifyOrDiscard(artifact, part);
-  return part.rename(p.join(stagingDir.path, name));
+  try {
+    return await part.rename(p.join(stagingDir.path, name));
+  } on FileSystemException catch (error) {
+    throw SelfUpdateFailure(
+      SelfUpdateFailureKind.downloadFailed,
+      'The update could not be saved to disk. Try again in a moment.',
+      detail: '$error',
+    );
+  }
 }
 
 Future<void> _fillPart(

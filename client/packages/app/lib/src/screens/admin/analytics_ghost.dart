@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../widgets/settings_section_header.dart';
+import 'admin_stat_tile.dart' show adminStatTileWidth;
 
 /// A fixed, deterministic silhouette rather than random heights, so the
 /// ghost renders identically on every build - this feeds the ui-snapshot
@@ -69,20 +70,20 @@ class _GhostStatTiles extends StatelessWidget {
     spacing: AppSpacing.s12,
     runSpacing: AppSpacing.s12,
     children: [
-      _GhostStatTile(),
-      _GhostStatTile(),
-      _GhostStatTile(),
-      _GhostStatTile(),
+      AdminStatTileGhost(),
+      AdminStatTileGhost(),
+      AdminStatTileGhost(),
+      AdminStatTileGhost(),
     ],
   );
 }
 
-class _GhostStatTile extends StatelessWidget {
-  const _GhostStatTile();
+class AdminStatTileGhost extends StatelessWidget {
+  const AdminStatTileGhost({super.key});
 
   @override
   Widget build(BuildContext context) => const SizedBox(
-    width: 150,
+    width: adminStatTileWidth,
     child: AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

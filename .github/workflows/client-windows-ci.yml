@@ -8,6 +8,7 @@ on:
       - "client/**"
       - "packaging/windows/**"
       - ".github/workflows/client-windows-ci.yml"
+      - ".github/actions/**"
       # A release-please bump touches these three only; a real dependency change still runs through the lock file.
       - "!client/CHANGELOG.md"
       - "!client/pubspec.yaml"
@@ -59,6 +60,8 @@ jobs:
         working-directory: packaging/windows/launcher
         run: |
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}

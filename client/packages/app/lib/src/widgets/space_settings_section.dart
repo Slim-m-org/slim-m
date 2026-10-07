@@ -49,6 +49,7 @@ import '../action_labels.dart';
 /// exactly this condition rather than open onto a screen with nothing on it.
 bool spaceSettingsReachable(int permissions) =>
     permissions.hasPermission(Perm.manageMessages) ||
+    permissions.hasPermission(Perm.viewModerationHistory) ||
     permissions.hasPermission(Perm.createInvite) ||
     permissions.hasPermission(Perm.manageRoles) ||
     permissions.hasPermission(Perm.manageServer) ||
@@ -64,7 +65,9 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
   WidgetRef ref,
 ) {
   final permissions = ref.watch(myPermissionsProvider);
-  final canModerate = permissions.hasPermission(Perm.manageMessages);
+  final canModerate =
+      permissions.hasPermission(Perm.manageMessages) ||
+      permissions.hasPermission(Perm.viewModerationHistory);
   final canInvite = permissions.hasPermission(Perm.createInvite);
   final canManageRoles = permissions.hasPermission(Perm.manageRoles);
   final canManageServer = permissions.hasPermission(Perm.manageServer);
@@ -92,7 +95,8 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
             // The queue pages its own list; see ReportsScreen's same pair.
             scrollable: false,
             padding: EdgeInsets.zero,
-            builder: (_) => const ReportsPane(),
+            builder: (_) =>
+                ReportsPane(historyOnly: reportsHistoryOnly(permissions)),
           ),
         if (canBan)
           SettingsPane(

@@ -221,6 +221,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(world.installs, ['a source=null', 'c source=comm']);
+    expect(
+      world.bodies.every((b) => !b.containsKey('approved_host_capabilities')),
+      isTrue,
+      reason: 'an empty list would withdraw every approval the module holds',
+    );
   });
 
   testWidgets('a module installed from another source is not this source\'s '

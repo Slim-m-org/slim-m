@@ -15,6 +15,7 @@ import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_edit_field.dart';
 import 'package:slimm_app/src/widgets/message_hover_toolbar.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -34,15 +35,17 @@ Widget _row({
         grouped: grouped,
         showNewDivider: false,
         knownUsernames: const {},
-        onRetry: noop,
-        onDiscard: noop,
-        onPickReaction: (_) {},
-        onReactionTap: (_) {},
-        onVote: (_) {},
         actions: noActions,
         editing: editing,
-        onSubmitEdit: onSubmit ?? (_) {},
-        onCancelEdit: noop,
+        callbacks: MessageRowCallbacks(
+          onRetry: noop,
+          onDiscard: noop,
+          onPickReaction: (_) {},
+          onReactionTap: (_) {},
+          onVote: (_) {},
+          onSubmitEdit: onSubmit ?? (_) {},
+          onCancelEdit: noop,
+        ),
       ),
     ),
   ),
@@ -173,15 +176,17 @@ void main() {
           grouped: false,
           showNewDivider: false,
           knownUsernames: const {},
-          onRetry: noop,
-          onDiscard: noop,
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (_) {},
           actions: noActions,
           editing: true,
-          onSubmitEdit: (_) {},
-          onCancelEdit: noop,
+          callbacks: MessageRowCallbacks(
+            onRetry: noop,
+            onDiscard: noop,
+            onPickReaction: (_) {},
+            onReactionTap: (_) {},
+            onVote: (_) {},
+            onSubmitEdit: (_) {},
+            onCancelEdit: noop,
+          ),
         ),
         platform: TargetPlatform.android,
       ),

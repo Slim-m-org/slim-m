@@ -10,6 +10,7 @@ use crate::fixtures::{
     app, clear, general, get_ops, id, member, new_store, new_store_and_pool, place, post_object,
     register, remove, stroke, submit_op,
 };
+use crate::support::canvas::CanvasReads;
 
 /// The property the whole op stream rests on: every mutation, of any kind,
 /// allocates exactly one seq and writes exactly one row, with no gap.

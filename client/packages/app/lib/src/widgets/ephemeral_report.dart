@@ -21,8 +21,9 @@ String ephemeralSnapshot(api.EphemeralMessage message) {
     for (final file in message.attachments) '[file] ${file.filename}',
   ];
   final text = lines.join('\n');
-  if (text.length <= maxEphemeralSnapshotChars) return text;
-  return text.substring(0, maxEphemeralSnapshotChars);
+  final runes = text.runes;
+  if (runes.length <= maxEphemeralSnapshotChars) return text;
+  return String.fromCharCodes(runes.take(maxEphemeralSnapshotChars));
 }
 
 Iterable<String> _embedLines(api.Embed embed) => [

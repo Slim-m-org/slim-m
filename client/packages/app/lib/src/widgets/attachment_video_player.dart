@@ -22,6 +22,8 @@ import '../providers/providers.dart';
 import 'attachment_format.dart';
 import 'attachment_save.dart';
 import 'attachment_video_fullscreen.dart';
+import 'attachment_video_reopen.dart';
+import 'attachment_video_source.dart' show AttachmentVideoSource;
 import 'attachment_video_source_io.dart'
     if (dart.library.js_interop) 'attachment_video_source_web.dart';
 import 'run_guarded.dart';
@@ -31,6 +33,14 @@ import 'video_playback_controls.dart';
 /// the same 16:9 box every shipped platform's player fills as it loads
 /// before the real video dimensions are known.
 const double kInlineVideoMax = kMessageColumnMax;
+
+/// How each player gets its media, injectable because the real source talks
+/// to the network (and, on the web, to `XMLHttpRequest`), which a widget test
+/// cannot reach.
+final attachmentVideoSourceProvider =
+    Provider<AttachmentVideoSource Function()>(
+      (ref) => createAttachmentVideoSource,
+    );
 
 class AttachmentVideoPlayer extends ConsumerStatefulWidget {
   const AttachmentVideoPlayer({super.key, required this.attachment});
@@ -46,12 +56,15 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     with GuardedActionState<AttachmentVideoPlayer> {
   final Player _player = Player();
   late final VideoController _videoController = VideoController(_player);
-  final _source = createAttachmentVideoSource();
+  late final AttachmentVideoSource _source = ref.read(
+    attachmentVideoSourceProvider,
+  )();
 
   bool _ready = false;
   bool _saving = false;
   double? _fetchProgress;
   StreamSubscription<String>? _errorSub;
+  late final StaleTokenReopener _reopener;
 
   api.Attachment get attachment => widget.attachment;
 
@@ -62,6 +75,15 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     _errorSub = _player.stream.error.listen((_) {
       if (mounted) setActionError('Could not play ${attachment.filename}.');
     });
+    _reopener = StaleTokenReopener(
+      player: _player,
+      source: _source,
+      apiClient: ref.read(apiProvider),
+      attachment: attachment,
+      onFailure: () {
+        if (mounted) setActionError('Could not play ${attachment.filename}.');
+      },
+    )..start();
     unawaited(_load());
   }
 
@@ -116,6 +138,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   @override
   void dispose() {
     unawaited(_errorSub?.cancel());
+    unawaited(_reopener.dispose());
     _player.dispose();
     _source.dispose();
     super.dispose();

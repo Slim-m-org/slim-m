@@ -38,6 +38,15 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     });
   }
 
+  /// A pane that mounts while its channel is still fullscreen (the provider
+  /// outlives it) gets the same disarmed pen [_toggleFullscreen] gives one
+  /// that entered it, and the same tool to restore on the way out.
+  void _disarmIfAlreadyFullscreen() {
+    if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
+    _toolBeforeFullscreen = _tool;
+    _tool = CanvasTool.pan;
+  }
+
   /// Closes the canvas outright. Clears fullscreen in the same motion, or a
   /// channel reopened later would come back with its chrome already dropped
   /// and no memory of why.

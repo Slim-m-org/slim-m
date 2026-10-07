@@ -246,7 +246,10 @@ async fn sync(
         let ops = ops_for_scope(&state, channel_id, cursor.after_op_seq, &mut bytes).await?;
 
         let latest = state.store.latest_message_seq(channel_id).await?;
-        let (messages, has_more, message_reset) = if cursor.after_seq >= latest {
+        let (messages, has_more, message_reset) = if cursor.after_seq > latest {
+            // A cursor past the head is what a Litestream restore produces; see `sync_ops`.
+            (Vec::new(), false, true)
+        } else if cursor.after_seq == latest {
             (Vec::new(), false, false)
         } else if latest.saturating_sub(cursor.after_seq) > SNAPSHOT_GAP {
             (Vec::new(), true, true)

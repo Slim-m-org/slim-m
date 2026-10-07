@@ -32,7 +32,7 @@ import '../widgets/reply_banner.dart';
 import '../widgets/timeout_banner.dart';
 import 'channel_message_actions.dart';
 
-class ChannelComposerArea extends ConsumerWidget {
+class ChannelComposerArea extends ConsumerStatefulWidget {
   const ChannelComposerArea({
     required this.channelId,
     required this.controller,
@@ -55,7 +55,36 @@ class ChannelComposerArea extends ConsumerWidget {
   final bool autofocus;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChannelComposerArea> createState() =>
+      _ChannelComposerAreaState();
+}
+
+class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
+  Timer? _expiry;
+  int? _expiryFor;
+
+  @override
+  void dispose() {
+    _expiry?.cancel();
+    super.dispose();
+  }
+
+  /// Rebuilds once at [until] so the banner leaves with the timeout, not at the next unrelated rebuild.
+  void _scheduleExpiry(int? until) {
+    if (until == _expiryFor) return;
+    _expiry?.cancel();
+    _expiryFor = until;
+    if (until == null) return;
+    final remaining = until - DateTime.now().millisecondsSinceEpoch;
+    if (remaining <= 0) return;
+    _expiry = Timer(Duration(milliseconds: remaining), () {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final channelId = widget.channelId;
     if (ref.watch(messageSelectionProvider(channelId)).active) {
       final error = messageBulkDeleteErrorProvider(channelId);
       final failure = ref.watch(error);
@@ -83,14 +112,15 @@ class ChannelComposerArea extends ConsumerWidget {
     }
     final me = ref.watch(meProvider).valueOrNull;
     final timedOutUntil = me?.timedOutUntil;
+    _scheduleExpiry(timedOutUntil);
     final stillTimedOut =
         timedOutUntil != null &&
         timedOutUntil > DateTime.now().millisecondsSinceEpoch;
     final composer = Composer(
-      controller: controller,
+      controller: widget.controller,
       channelId: channelId,
-      channelName: channelName,
-      onSend: onSend,
+      channelName: widget.channelName,
+      onSend: widget.onSend,
     );
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -101,12 +131,15 @@ class ChannelComposerArea extends ConsumerWidget {
               : null,
         ),
         AppRevealBand(
-          child: replyingTo == null
+          child: widget.replyingTo == null
               ? null
-              : ReplyBanner(message: replyingTo!, onCancel: onCancelReply),
+              : ReplyBanner(
+                  message: widget.replyingTo!,
+                  onCancel: widget.onCancelReply,
+                ),
         ),
         EphemeralTray(channelId: channelId),
-        if (autofocus)
+        if (widget.autofocus)
           ComposerAutofocus(channelId: channelId, child: composer)
         else
           composer,

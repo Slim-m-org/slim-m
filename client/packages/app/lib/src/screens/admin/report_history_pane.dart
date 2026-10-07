@@ -39,6 +39,8 @@ class ReportHistoryPane extends ConsumerWidget {
     final controller = ref.read(moderationHistoryControllerProvider.notifier);
     final items = history.items;
 
+    // Watched so a cleared or evicted profile re-runs the call below.
+    ref.watch(batchProfilesControllerProvider);
     // See this pane's own class doc for why this call sits here.
     resolveAuthorProfiles(ref, items.expand(_namedIds));
 

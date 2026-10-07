@@ -52,7 +52,7 @@ class _Present {
   final String name;
 }
 
-/// Positioned top-right by default - the error/truncation banners already
+/// Positioned top-right - the error/truncation banners already
 /// claim the top-left-to-center band, and the floating dock owns the bottom.
 /// [IgnorePointer]-wrapped throughout, the same treatment `CanvasPresenceLayer`
 /// already gives camera bubbles: this is presence chrome, never a drawing
@@ -64,8 +64,7 @@ class _Present {
 /// to watch it and swap to top-left when the two would collide. The self
 /// bubble is a world-anchored, freely draggable tile now, like every other
 /// camera or screen-share tile, so it has no screen corner of its own left
-/// to collide with - [alignment] is unused with any value but the default
-/// today. What a world-anchored tile *can* still do is pan underneath this
+/// to collide with, and the corner is fixed. What a world-anchored tile *can* still do is pan underneath this
 /// fixed corner, controls included; that residual is recorded, not solved,
 /// in decision 0010's own "What was left" section.
 class CanvasPresenceRoster extends StatefulWidget {
@@ -73,7 +72,6 @@ class CanvasPresenceRoster extends StatefulWidget {
     super.key,
     required this.callParticipants,
     this.cursors,
-    this.alignment = Alignment.topRight,
   });
 
   /// Read only to exclude anyone already on this channel's call from
@@ -85,10 +83,6 @@ class CanvasPresenceRoster extends StatefulWidget {
   /// follows.
   final List<VoiceParticipant> callParticipants;
   final CanvasCursors? cursors;
-
-  /// See this class's own doc for why this is ever anything but the
-  /// default top-right.
-  final Alignment alignment;
 
   @override
   State<CanvasPresenceRoster> createState() => _CanvasPresenceRosterState();
@@ -145,7 +139,7 @@ class _CanvasPresenceRosterState extends State<CanvasPresenceRoster> {
   Widget build(BuildContext context) {
     final present = _present();
     return Align(
-      alignment: widget.alignment,
+      alignment: Alignment.topRight,
       child: SafeArea(
         minimum: const EdgeInsets.all(AppSpacing.s12),
         child: IgnorePointer(

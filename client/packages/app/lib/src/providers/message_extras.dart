@@ -129,6 +129,9 @@ class MessageExtras {
     api.AppSurface? appSurface,
     api.CallRecord? call,
     List<api.ComponentRow>? components,
+    String? threadChannelId,
+    int? threadReplyCount,
+    int? threadLastReplyAt,
   }) => MessageExtras(
     reactions: reactions ?? this.reactions,
     attachments: attachments ?? this.attachments,
@@ -139,9 +142,9 @@ class MessageExtras {
     embeds: embeds,
     webhookUsername: webhookUsername,
     components: components ?? this.components,
-    threadChannelId: threadChannelId,
-    threadReplyCount: threadReplyCount,
-    threadLastReplyAt: threadLastReplyAt,
+    threadChannelId: threadChannelId ?? this.threadChannelId,
+    threadReplyCount: threadReplyCount ?? this.threadReplyCount,
+    threadLastReplyAt: threadLastReplyAt ?? this.threadLastReplyAt,
     threadUnreadCount: threadUnreadCount,
   );
 
@@ -169,7 +172,7 @@ class MessageExtrasController
       case api.ReactionsChanged(:final messageId, :final reactions):
         _applyReactionsChanged(messageId, reactions);
       case api.CodeRunChanged(:final messageId, :final run):
-        _applyCodeRunChanged(messageId, run);
+        applyCodeRun(messageId, run);
       case api.CodeRunsCleared(:final messageId):
         _applyCodeRunsCleared(messageId);
       case api.PollVoted(:final messageId, :final options):
@@ -295,8 +298,9 @@ class MessageExtrasController
 
   /// Replaces the one block's shared result from a broadcast, so everyone
   /// viewing sees a run someone else triggered without rerunning it. Keyed by
-  /// block index; a re-run of the same block overwrites its entry.
-  void _applyCodeRunChanged(String messageId, api.CodeRun run) {
+  /// block index; a re-run of the same block overwrites its entry. Also the
+  /// runner's own POST response, so the output shows without the broadcast.
+  void applyCodeRun(String messageId, api.CodeRun run) {
     final existing = extrasFor(messageId).codeRuns;
     final next = [
       for (final r in existing)
@@ -327,22 +331,13 @@ class MessageExtrasController
     required int replyCount,
     required int? lastReplyAt,
   }) {
-    final existing = extrasFor(parentMessageId);
+    // threadUnreadCount is kept: no per-viewer answer rides this frame, see its own doc comment.
     _set(
       parentMessageId,
-      MessageExtras(
-        reactions: existing.reactions,
-        attachments: existing.attachments,
-        codeRuns: existing.codeRuns,
-        poll: existing.poll,
-        embeds: existing.embeds,
-        webhookUsername: existing.webhookUsername,
-        components: existing.components,
+      extrasFor(parentMessageId).copyWith(
         threadChannelId: threadChannelId,
         threadReplyCount: replyCount,
         threadLastReplyAt: lastReplyAt,
-        // No per-viewer answer rides this frame; see threadUnreadCount's own doc comment.
-        threadUnreadCount: existing.threadUnreadCount,
       ),
     );
   }

@@ -18,7 +18,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/personal_space_visibility.dart';
 import '../providers/toasts.dart';
-import 'context_menu_focus.dart';
+import 'anchored_menu.dart';
+import 'animated_menu_portal.dart';
 
 /// The message shown when the row is hidden, naming the one way back:
 /// searching the caller's own display name surfaces it again in the command
@@ -44,8 +45,7 @@ class PersonalSpaceKebab extends ConsumerStatefulWidget {
 }
 
 class _PersonalSpaceKebabState extends ConsumerState<PersonalSpaceKebab> {
-  final _controller = OverlayPortalController();
-  final _link = LayerLink();
+  final _controller = AnimatedMenuController();
 
   Future<void> _remove() async {
     _controller.hide();
@@ -58,56 +58,34 @@ class _PersonalSpaceKebabState extends ConsumerState<PersonalSpaceKebab> {
 
   @override
   Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _link,
-      child: OverlayPortal(
-        controller: _controller,
-        // Positioned so the follower sizes to its content, not the screen.
-        overlayChildBuilder: (context) => Positioned(
-          left: 0,
-          top: 0,
-          child: CompositedTransformFollower(
-            link: _link,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.bottomRight,
-            followerAnchor: Alignment.topRight,
-            offset: const Offset(0, 4),
-            child: TapRegion(
-              onTapOutside: (_) => _controller.hide(),
-              // Escape closes it and Tab reaches every item once open.
-              child: ContextMenuKeyboardScope(
-                onDismiss: _controller.hide,
-                child: AppMenu(
-                  width: 220,
-                  children: [
-                    AppMenuItem(
-                      label: 'Remove from list',
-                      leading: AppIcons.removeFromList,
-                      onTap: () => unawaited(_remove()),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return AnchoredMenu(
+      controller: _controller,
+      menu: AppMenu(
+        width: 220,
+        children: [
+          AppMenuItem(
+            label: 'Remove from list',
+            leading: AppIcons.removeFromList,
+            onTap: () => unawaited(_remove()),
           ),
-        ),
-        child: Focus(
-          skipTraversal: true,
-          canRequestFocus: false,
-          onFocusChange: widget.onFocusChange,
-          child: AnimatedOpacity(
-            opacity: widget.visible ? 1 : 0,
-            duration: AppMotion.reduced(context, AppMotion.fast),
-            // Hidden from the eye is not hidden from a screen reader.
-            alwaysIncludeSemantics: true,
-            child: AppIconButton(
-              icon: AppIcons.moreVertical,
-              semanticLabel: 'Personal space options',
-              size: AppIconButtonSize.sm,
-              onPressed: _controller.toggle,
-              // The row's own tint already covers this kebab; see the param's own doc.
-              suppressOwnHoverFill: true,
-            ),
+        ],
+      ),
+      child: Focus(
+        skipTraversal: true,
+        canRequestFocus: false,
+        onFocusChange: widget.onFocusChange,
+        child: AnimatedOpacity(
+          opacity: widget.visible ? 1 : 0,
+          duration: AppMotion.reduced(context, AppMotion.fast),
+          // Hidden from the eye is not hidden from a screen reader.
+          alwaysIncludeSemantics: true,
+          child: AppIconButton(
+            icon: AppIcons.moreVertical,
+            semanticLabel: 'Personal space options',
+            size: AppIconButtonSize.sm,
+            onPressed: _controller.toggle,
+            // The row's own tint already covers this kebab; see the param's own doc.
+            suppressOwnHoverFill: true,
           ),
         ),
       ),

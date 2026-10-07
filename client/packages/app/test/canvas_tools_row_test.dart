@@ -327,17 +327,13 @@ void main() {
   );
 
   testWidgets(
-    'clearing goes through a menu, then a confirm naming the count, and '
+    'clearing goes through a menu, then a confirm that names no count, and '
     'only calls onClear once confirmed',
     (tester) async {
       var cleared = 0;
       await tester.pumpWidget(
         wrapCanvasToolsRow(
-          buildCanvasToolsRow(
-            canManage: true,
-            objectCount: ValueNotifier<int>(42),
-            onClear: () async => cleared++,
-          ),
+          buildCanvasToolsRow(canManage: true, onClear: () async => cleared++),
         ),
       );
 
@@ -351,9 +347,9 @@ void main() {
 
       expect(find.text('Clear this canvas?'), findsOneWidget);
       expect(
-        find.textContaining('all 42 objects'),
+        find.textContaining('everything on this canvas'),
         findsOneWidget,
-        reason: 'the confirm must name the live count, not a stale one',
+        reason: 'the pane holds only part of the canvas, so no count is true',
       );
       expect(cleared, 0);
 

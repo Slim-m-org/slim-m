@@ -23,6 +23,9 @@ set -euo pipefail
 DEADLINE_SECONDS="${DEADLINE_SECONDS:-10800}"
 CREATION_GRACE_SECONDS="${CREATION_GRACE_SECONDS:-300}"
 POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-30}"
+# This script runs inside the release run, so that run must not count as work still in flight.
+SELF_RUN_ID="${GITHUB_RUN_ID:-0}"
+[[ "$SELF_RUN_ID" =~ ^[0-9]+$ ]] || SELF_RUN_ID=0
 
 IFS='|' read -r -a required <<< "$REQUIRED_CHECKS"
 # Resolved once: the check-runs path takes a tag, the runs query does not.
@@ -41,17 +44,23 @@ while :; do
   fi
   missing=() pending=() failed=()
   for name in "${required[@]}"; do
-    status=$(jq -r --arg n "$name" \
-      '[.[] | select(.name==$n)] | sort_by(.started_at) | last | .status // "absent"' \
+    # Newest run per check suite: a rerun replaces its failed attempt, but a same-named job in another workflow does not.
+    verdicts=$(jq -r --arg n "$name" \
+      '[.[] | select(.name==$n)] | group_by(.check_suite.id // 0) | .[] | sort_by(.started_at) | last | "\(.status) \(.conclusion // "none")"' \
       <<<"$runs")
-    conclusion=$(jq -r --arg n "$name" \
-      '[.[] | select(.name==$n)] | sort_by(.started_at) | last | .conclusion // "none"' \
-      <<<"$runs")
-    case "$status" in
-      absent) missing+=("$name") ;;
-      completed) [[ "$conclusion" = success ]] || failed+=("$name:$conclusion") ;;
-      *) pending+=("$name") ;;
-    esac
+    if [[ -z "$verdicts" ]]; then
+      missing+=("$name")
+      continue
+    fi
+    is_pending=0
+    while read -r status conclusion; do
+      if [[ "$status" = completed ]]; then
+        [[ "$conclusion" = success ]] || failed+=("$name:$conclusion")
+      else
+        is_pending=1
+      fi
+    done <<<"$verdicts"
+    [[ "$is_pending" -eq 0 ]] || pending+=("$name")
   done
   if [[ "${#failed[@]}" -gt 0 ]]; then
     echo "::error::required check(s) failed on ${SHA}: ${failed[*]}"
@@ -65,7 +74,7 @@ while :; do
   # Absent-and-nothing-running is a typo; absent-while-running is a queue.
   if [[ "${#missing[@]}" -gt 0 ]] && [[ $(( now - started )) -ge "$CREATION_GRACE_SECONDS" ]] \
     && [[ "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" \
-          --jq '[.workflow_runs[] | select(.status != "completed")] | length' 2>/dev/null || echo 1)" = "0" ]]; then
+          --jq '[.workflow_runs[] | select(.status != "completed" and .id != '"${SELF_RUN_ID}"')] | length' 2>/dev/null || echo 1)" = "0" ]]; then
     echo "::error::no check run named ${missing[*]} exists on ${SHA} and nothing is still running for it; either it never ran or required_checks names it wrongly"
     exit 1
   fi

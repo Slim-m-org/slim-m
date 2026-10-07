@@ -44,12 +44,10 @@ import 'sign_in_session_ended_notice.dart';
 /// for the same reason an invite does: that button means there is no
 /// account here yet.
 ///
-/// Collapsed is not silent about the destination. The identity chip used to
-/// sit inside the branch that draws the address field, so the official-server
-/// path - the commonest way in, and the one that deliberately hides that
-/// field - named no server anywhere on screen. It is outside that branch now,
-/// with a quieter line standing in until the probe answers, so every state of
-/// this screen says where it is about to connect.
+/// Collapsed is not silent about the destination: the identity chip sits
+/// outside the branch that draws the address field, with a quieter line
+/// standing in until the probe answers, so every state of this screen says
+/// where it is about to connect.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -309,31 +307,34 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
 
-    final reduced = reduceServerAddress(address);
-    // Silent for the compiled-in address; see this method's own doc.
-    if (!await confirmServerIdentity(
-      context,
-      ref,
-      reduced,
-      silentFirstConnect: isOfficialServer(reduced),
-    )) {
-      if (mounted) setState(() => _busy = false);
-      return;
-    }
-    if (!mounted) return;
-
-    ref.read(chosenServerProvider.notifier).choose(reduced);
-    final api = ref.read(apiProvider);
-    final identity = await signInIdentity(
-      keyStore: ref.read(keyStoreProvider),
-      appInfo: ref.read(appInfoProvider.future),
-    );
-
     final invite = ref.read(pendingInviteProvider);
+    // Read before the awaits: the session redirect can dispose this screen mid-flight.
+    final pendingInvite = ref.read(pendingInviteProvider.notifier);
+    final justRegistered = ref.read(justRegisteredProvider.notifier);
+    final push = ref.read(pushControllerProvider.notifier);
     try {
+      final reduced = reduceServerAddress(address);
+      // Silent for the compiled-in address; see this method's own doc.
+      if (!await confirmServerIdentity(
+        context,
+        ref,
+        reduced,
+        silentFirstConnect: isOfficialServer(reduced),
+      )) {
+        return;
+      }
+      if (!mounted) return;
+
+      ref.read(chosenServerProvider.notifier).choose(reduced);
+      final api = ref.read(apiProvider);
+      final identity = await signInIdentity(
+        keyStore: ref.read(keyStoreProvider),
+        appInfo: ref.read(appInfoProvider.future),
+      );
+
       if (_creatingAccount) {
         // Before the call: its session change is what starts the what's-new check.
-        ref.read(justRegisteredProvider.notifier).state = true;
+        justRegistered.state = true;
         await api.register(
           username: _username.text.trim(),
           displayName: _displayName.text.trim().isEmpty
@@ -369,14 +370,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         // An existing account can still spend a code, for the role it grants.
         if (invite != null) await redeemInviteQuietly(api, invite);
       }
-      if (invite != null) {
-        ref.read(pendingInviteProvider.notifier).state = null;
-      }
-      unawaited(ref.read(pushControllerProvider.notifier).register());
+      if (invite != null) pendingInvite.state = null;
+      unawaited(push.register());
     } on ApiException catch (e) {
-      ref.read(justRegisteredProvider.notifier).state = false;
+      justRegistered.state = false;
       if (!mounted) return;
       setState(() => _error = signInErrorFor(e));
+    } catch (_) {
+      ref.read(justRegisteredProvider.notifier).state = false;
+      if (mounted) setState(() => _error = unexpectedSignInError);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

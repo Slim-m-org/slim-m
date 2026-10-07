@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: MessageId\" FROM messages\n                 INDEXED BY messages_author_channel_window\n               WHERE channel_id = ? AND author_id = ? AND created_at >= ?\n                 AND deleted_at IS NULL\n               LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: MessageId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "550620b50ecc1c0c3902a79d909067e6948972364d4acd86eac8e63fbf596873"
+}

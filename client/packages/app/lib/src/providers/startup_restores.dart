@@ -20,6 +20,7 @@ import 'display_preferences.dart';
 import 'image_cache_preference.dart';
 import 'media_preferences.dart';
 import 'message_page_size.dart';
+import 'preference_controller.dart';
 import 'providers.dart';
 import 'voice_controller.dart';
 
@@ -43,37 +44,33 @@ Future<void> restoreOrDefault(
   }
 }
 
+/// Every controller that restores itself at startup. A new preference
+/// controller is added here or `startup_restore_registry_test.dart` fails.
+final Map<String, RestorablePreference Function(ProviderContainer)>
+restorablePreferences = {
+  'theme': (c) => c.read(themeControllerProvider.notifier),
+  'time format': (c) => c.read(timeFormatControllerProvider.notifier),
+  'motion': (c) => c.read(motionPreferenceControllerProvider.notifier),
+  'high contrast': (c) => c.read(highContrastControllerProvider.notifier),
+  'image cache limit': (c) =>
+      c.read(imageCacheLimitControllerProvider.notifier),
+  'attachment preview quality': (c) =>
+      c.read(attachmentPreviewQualityControllerProvider.notifier),
+  'media auto download': (c) =>
+      c.read(mediaAutoDownloadControllerProvider.notifier),
+  'gif autoplay': (c) => c.read(gifAutoplayControllerProvider.notifier),
+  'message page size': (c) =>
+      c.read(messagePageSizeControllerProvider.notifier),
+  'app lock': (c) => c.read(appLockPreferenceProvider.notifier),
+};
+
 /// Restores every preference bootstrap needs, concurrently off the one cached
 /// preferences future, each degrading on its own.
 Future<void> restoreStartupPreferences(ProviderContainer container) {
   final voice = container.read(voiceControllerProvider.notifier);
   final restores = <String, Future<void>>{
-    'theme': container.read(themeControllerProvider.notifier).restore(),
-    'time format': container
-        .read(timeFormatControllerProvider.notifier)
-        .restore(),
-    'motion': container
-        .read(motionPreferenceControllerProvider.notifier)
-        .restore(),
-    'high contrast': container
-        .read(highContrastControllerProvider.notifier)
-        .restore(),
-    'image cache limit': container
-        .read(imageCacheLimitControllerProvider.notifier)
-        .restore(),
-    'attachment preview quality': container
-        .read(attachmentPreviewQualityControllerProvider.notifier)
-        .restore(),
-    'media auto download': container
-        .read(mediaAutoDownloadControllerProvider.notifier)
-        .restore(),
-    'gif autoplay': container
-        .read(gifAutoplayControllerProvider.notifier)
-        .restore(),
-    'message page size': container
-        .read(messagePageSizeControllerProvider.notifier)
-        .restore(),
-    'app lock': container.read(appLockPreferenceProvider.notifier).restore(),
+    for (final entry in restorablePreferences.entries)
+      entry.key: entry.value(container).restore(),
     'camera on join': voice.restoreCameraPreference(),
     'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
     'push to talk': voice.restorePushToTalkPreference(),

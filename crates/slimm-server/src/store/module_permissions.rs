@@ -154,15 +154,6 @@ impl Store {
         Ok(())
     }
 
-    /// Whether `user_id` holds `(module_id, perm_key)` through any role they
-    /// carry, `@everyone` included. Designed for the module host (Phase 3)
-    /// to answer "may this user do X" for its own declared permission
-    /// without ever seeing the core bitmask; nothing calls it yet.
-    ///
-    /// Deliberately does not bypass for `Permissions::ADMINISTRATOR`: module
-    /// permissions are a separate, module-scoped namespace the core
-    /// evaluator never resolves, so an administrator sees this the same way
-    /// every other role does, by holding the grant like anyone else.
     /// Every `(module_id, perm_key)` `user_id` holds, in one round trip.
     ///
     /// The batched form of [`Store::user_has_module_permission`], for the
@@ -203,6 +194,15 @@ impl Store {
             .collect()
     }
 
+    /// Whether `user_id` holds `(module_id, perm_key)` through any role they
+    /// carry, `@everyone` included. The module runtime's live gate: it answers
+    /// "may this user do X" for a module's own declared permission without
+    /// ever seeing the core bitmask.
+    ///
+    /// Deliberately does not bypass for `Permissions::ADMINISTRATOR`: module
+    /// permissions are a separate, module-scoped namespace the core
+    /// evaluator never resolves, so an administrator sees this the same way
+    /// every other role does, by holding the grant like anyone else.
     pub async fn user_has_module_permission(
         &self,
         user_id: UserId,

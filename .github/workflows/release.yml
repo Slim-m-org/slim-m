@@ -35,11 +35,14 @@ jobs:
       pull-requests: write
     outputs:
       server_released: ${{ steps.rp-server.outputs['crates/slimm-server--release_created'] }}
-      server_tag: ${{ steps.rp-server.outputs['crates/slimm-server--tag_name'] }}
-      server_version: ${{ steps.rp-server.outputs['crates/slimm-server--version'] }}
+      server_tag: ${{ steps.rp-server.outputs['crates/slimm-server--tag_name'] || steps.resolved.outputs.server_tag }}
+      server_version: ${{ steps.rp-server.outputs['crates/slimm-server--version'] || steps.resolved.outputs.server_version }}
       client_released: ${{ steps.rp-client.outputs['client--release_created'] }}
-      client_tag: ${{ steps.rp-client.outputs['client--tag_name'] }}
-      client_version: ${{ steps.rp-client.outputs['client--version'] }}
+      client_tag: ${{ steps.rp-client.outputs['client--tag_name'] || steps.resolved.outputs.client_tag }}
+      client_version: ${{ steps.rp-client.outputs['client--version'] || steps.resolved.outputs.client_version }}
+      # The commit each tag sits on; the publish jobs build this, as the verify jobs check it, and a by-hand run on a tag is already on it.
+      server_ref: ${{ steps.rp-server.outputs['crates/slimm-server--sha'] || github.sha }}
+      client_ref: ${{ steps.rp-client.outputs['client--sha'] || github.sha }}
     steps:
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: rp-server
@@ -55,6 +58,14 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           manifest-file: .release-please-manifest.client.json
           config-file: release-please-config.client.json
+      # A by-hand run on a tag has no release-please output, so the tag itself names the release.
+      - name: resolve the tag a by-hand run names
+        id: resolved
+        run: |
+          case "$GITHUB_REF_NAME" in
+            server-v*) echo "server_version=${GITHUB_REF_NAME#server-v}" >> "$GITHUB_OUTPUT"; echo "server_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT" ;;
+            client-v*) echo "client_version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"; echo "client_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT" ;;
+          esac
 
   # Requires server-ci, hygiene and the license gate to have passed on this
   # exact commit before any server publish job runs. See docs/ci.md.
@@ -111,6 +122,8 @@ jobs:
       - name: name the image after this repo's owner, lowercased for GHCR
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-server" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.server_ref }}
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
         with:
@@ -124,7 +137,7 @@ jobs:
           context: .
           file: docker/server.Dockerfile
           platforms: linux/${{ matrix.arch }}
-          build-args: SLIMM_BUILD_ID=${{ github.sha }}
+          build-args: SLIMM_BUILD_ID=${{ needs.release-please.outputs.server_ref }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true # by digest; the merge job tags it
           sbom: true
           provenance: mode=max
@@ -156,16 +169,8 @@ jobs:
       - name: name the image after this repo's owner, lowercased for GHCR
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-server" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.server_version }}" ]; then
-            version="${{ needs.release-please.outputs.server_version }}"
-          else
-            version="${GITHUB_REF_NAME#server-v}"
-          fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
+        with:
+          ref: ${{ needs.release-please.outputs.server_ref }}
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: server-image-digest-*
@@ -184,14 +189,14 @@ jobs:
         id: latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "move=$(bash scripts/decide-latest-tag.sh "$IMAGE" "${{ steps.ver.outputs.version }}")" >> "$GITHUB_OUTPUT"
+        run: echo "move=$(bash scripts/decide-latest-tag.sh "$IMAGE" "${{ needs.release-please.outputs.server_version }}")" >> "$GITHUB_OUTPUT"
       - name: create and inspect manifest
         id: manifest
         run: |
-          version="${{ steps.ver.outputs.version }}"
+          version="${{ needs.release-please.outputs.server_version }}"
           refs=()
           for f in /tmp/digests/*; do refs+=("${IMAGE}@$(cat "$f")"); done
-          tags=(-t "${IMAGE}:${version}" -t "${IMAGE}:sha-${GITHUB_SHA}")
+          tags=(-t "${IMAGE}:${version}" -t "${IMAGE}:sha-${{ needs.release-please.outputs.server_ref }}")
           if [ "${{ steps.latest.outputs.move }}" = "true" ]; then tags+=(-t "${IMAGE}:latest"); fi
           docker buildx imagetools create "${tags[@]}" "${refs[@]}"
           digest="$(docker buildx imagetools inspect "${IMAGE}:${version}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
@@ -211,7 +216,8 @@ jobs:
     uses: ./.github/workflows/web-image.yml
     permissions: {contents: read, packages: write, id-token: write}
     with:
-      version: ${{ needs.release-please.outputs.server_version || github.ref_name }}
+      ref: ${{ needs.release-please.outputs.server_ref }}
+      version: ${{ needs.release-please.outputs.server_version }}
 
   # Static musl binaries for direct download, built per arch into artifacts and
   # aggregated by server-release-assets.
@@ -222,6 +228,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/server-binaries.yml
     with:
+      ref: ${{ needs.release-please.outputs.server_ref }}
       server_version: ${{ needs.release-please.outputs.server_version }}
 
   # GPG-signable SHA256SUMS plus the raw binaries on the server GitHub Release.
@@ -238,15 +245,6 @@ jobs:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
-      - name: resolve tag
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.server_tag }}" ]; then
-            echo "tag=${{ needs.release-please.outputs.server_tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           sparse-checkout: scripts
@@ -275,7 +273,7 @@ jobs:
         env:
           # The same identity release-please creates the release with; see below.
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" 'dist/slimm-server-*' dist/SHA256SUMS '?dist/SHA256SUMS.asc'
+        run: scripts/upload-release-assets.sh "${{ needs.release-please.outputs.server_tag }}" 'dist/slimm-server-*' dist/SHA256SUMS '?dist/SHA256SUMS.asc'
 
   # The portable Linux tarball, always, plus whichever packaging formats have
   # their inputs in the repo. Each format gates on its own file. See docs/ci.md.
@@ -291,52 +289,17 @@ jobs:
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-            echo "tag=${{ needs.release-please.outputs.client_tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          fi
-
-      # libsecret-1-dev is here because flutter_secure_storage's Linux plugin
-      # will not even configure without it. Why that is unavoidable: docs/ci.md.
-      - name: linux build deps
-        uses: ./.github/actions/linux-build-deps
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          channel: stable
-          flutter-version: 3.47.0
+          ref: ${{ needs.release-please.outputs.client_ref }}
 
-      - uses: ./.github/actions/native-hooks-cache
-      - name: build linux release
-        run: |
-          flutter config --enable-linux-desktop
-          dart pub get --enforce-lockfile
-          flutter build linux --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}"
-        working-directory: client/packages/app
-
+      # The same build and staging as main-builds and copr-catch-up, so the snapshot and the release tarball cannot drift.
       # Published on every client release and gated on nothing. It is both the
       # download for a user with no packaging, and the spec's Source0.
-      - name: stage portable tarball
-        run: |
-          version="${{ steps.ver.outputs.version }}"
-          name="slim-m-client-${version}"
-          bundle="client/packages/app/build/linux/x64/release/bundle"
-          if [ ! -x "${bundle}/slimm_app" ]; then
-            echo "::error::no linux bundle at ${bundle}"
-            exit 1
-          fi
-          mkdir -p "stage/${name}" dist
-          cp -a "${bundle}/." "stage/${name}/"
-          cp LICENSES/LicenseRef-PolyForm-Noncommercial-1.0.0.txt "stage/${name}/LICENSE"
-          cp packaging/linux/README.md packaging/linux/slim-m packaging/linux/install.sh packaging/rpm/top.npcserver.slimm.desktop "stage/${name}/" && mkdir -p "stage/${name}/icons" && cp packaging/linux/icons/top.npcserver.slimm* "stage/${name}/icons/"
-          tar -C stage -czf "dist/${name}-linux-amd64.tar.gz" "${name}"
+      - name: build linux tarball
+        uses: ./.github/actions/linux-tarball
+        with:
+          version: ${{ needs.release-please.outputs.client_version }}
+          spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
 
       # One gate per format, so a working rpm is not held back by the absence of
       # a flatpak manifest. The tarball above ships either way.
@@ -371,7 +334,7 @@ jobs:
             --repo=dist/flatpak-repo build-dir \
             packaging/flatpak/top.npcserver.slimm.yaml
           flatpak build-bundle dist/flatpak-repo \
-            "dist/slim-m-client-${{ steps.ver.outputs.version }}.flatpak" \
+            "dist/slim-m-client-${{ needs.release-please.outputs.client_version }}.flatpak" \
             top.npcserver.slimm
 
       # In a Fedora container, not on the runner: the spec is written against
@@ -379,7 +342,7 @@ jobs:
       - name: build rpm
         if: steps.pkg.outputs.rpm == 'true'
         env:
-          VER: ${{ steps.ver.outputs.version }}
+          VER: ${{ needs.release-please.outputs.client_version }}
         run: |
           docker run --rm -v "${PWD}:/w" -w /w -e VER fedora:44 bash -eo pipefail -c '
             dnf -y install rpm-build patchelf desktop-file-utils tar gzip >/dev/null
@@ -400,7 +363,11 @@ jobs:
         working-directory: dist
         run: |
           shopt -s nullglob
-          sha256sum -- slim-m-client-*-linux-amd64.tar.gz *.flatpak */*.rpm > SHA256SUMS
+          sha256sum -- slim-m-client-*-linux-amd64.tar.gz *.flatpak > SHA256SUMS
+          # The rpm is attached by basename, so it is listed by basename too.
+          for rpm in */*.rpm; do
+            printf '%s  %s\n' "$(sha256sum < "$rpm" | cut -d' ' -f1)" "${rpm##*/}" >> SHA256SUMS
+          done
           cat SHA256SUMS
 
       - name: sign checksums (optional)
@@ -415,7 +382,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" \
+          scripts/upload-release-assets.sh "${{ needs.release-please.outputs.client_tag }}" \
             'dist/slim-m-client-*-linux-amd64.tar.gz' \
             '?dist/*.flatpak' '?dist/*/*.rpm' \
             dist/SHA256SUMS '?dist/SHA256SUMS.asc'
@@ -441,7 +408,7 @@ jobs:
       contents: write
     uses: ./.github/workflows/update-manifest.yml
     with:
-      tag: ${{ needs.release-please.outputs.client_tag || github.ref_name }}
+      tag: ${{ needs.release-please.outputs.client_tag }}
       defer: true
     secrets:
       UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
@@ -474,22 +441,14 @@ jobs:
         run: dnf -y install git copr-cli rpm-build rpmdevtools >/dev/null
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
-
-      - name: resolve version
-        if: steps.gate.outputs.ready == 'true'
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: submit to COPR
         if: steps.gate.outputs.ready == 'true'
         env:
-          VER: ${{ steps.ver.outputs.version }}
+          VER: ${{ needs.release-please.outputs.client_version }}
         run: |
           set -uo pipefail
           spec=packaging/rpm/slim-m-client.spec
@@ -552,21 +511,9 @@ jobs:
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
-
-      - name: resolve version
-        if: steps.gate.outputs.ready == 'true'
-        id: ver
-        run: |
-          # Both are needed: tag names the release, version feeds --build-name.
-          # Emitting only tag left --build-name= empty on every run so far.
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "tag=${{ needs.release-please.outputs.client_tag }}" >> "$GITHUB_OUTPUT"
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: write signing assets
         if: steps.gate.outputs.ready == 'true'
@@ -592,6 +539,7 @@ jobs:
           flutter-version: 3.47.0
 
       - uses: ./.github/actions/native-hooks-cache
+        if: steps.gate.outputs.ready == 'true'
       - name: build android release
         if: steps.gate.outputs.ready == 'true'
         working-directory: client/packages/app
@@ -601,10 +549,10 @@ jobs:
           # Build number from the run number and build name from the tag, never
           # from pubspec. Both stores reject a reuse; see docs/ci.md.
           flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
+            --build-name=${{ needs.release-please.outputs.client_version }} \
             --build-number=${{ github.run_number }}
           flutter build apk --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
+            --build-name=${{ needs.release-please.outputs.client_version }} \
             --build-number=${{ github.run_number }}
 
       - name: verify the signer is the upload key, not debug
@@ -654,7 +602,7 @@ jobs:
             "dist/slim-m-client-android.apk"
           cp build/app/outputs/bundle/release/app-release.aab \
             "dist/slim-m-client-android.aab"
-          (cd dist && sha256sum ./*.apk ./*.aab > SHA256SUMS.android)
+          (cd dist && sha256sum -- slim-m-client-android.apk > SHA256SUMS.android)
 
       # No aab: a Play upload format testers download by mistake; docs/INSTALL.md.
       - name: attach to the github release
@@ -662,10 +610,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          scripts/upload-release-assets.sh "${{ steps.ver.outputs.tag }}" \
+          scripts/upload-release-assets.sh "${{ needs.release-please.outputs.client_tag }}" \
             client/packages/app/dist/slim-m-client-android.apk \
             client/packages/app/dist/SHA256SUMS.android
-      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+      - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}
 
   # Signed ipa to TestFlight, reviewer-gated. Inert without its six secrets: it
   # warns and stops rather than faking an upload. See docs/ci.md.
@@ -686,15 +634,6 @@ jobs:
       IOS_BROADCAST_PROVISIONING_PROFILE: ${{ secrets.IOS_BROADCAST_PROVISIONING_PROFILE }}
       IOS_NSE_PROVISIONING_PROFILE: ${{ secrets.IOS_NSE_PROVISIONING_PROFILE }}
     steps:
-      - name: resolve version
-        id: ver
-        run: |
-          if [ -n "${{ needs.release-please.outputs.client_version }}" ]; then
-            echo "version=${{ needs.release-please.outputs.client_version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#client-v}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: check secrets
         id: gate
         run: |
@@ -710,6 +649,8 @@ jobs:
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
       - name: import signing assets
@@ -792,6 +733,7 @@ jobs:
           flutter-version: 3.47.0
 
       - uses: ./.github/actions/native-hooks-cache
+        if: steps.gate.outputs.ready == 'true'
       - name: build ipa
         if: steps.gate.outputs.ready == 'true'
         working-directory: client/packages/app
@@ -801,7 +743,7 @@ jobs:
           # Build number from the run number and build name from the tag, never
           # from pubspec. Both stores reject a reuse; see docs/ci.md.
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ steps.ver.outputs.version }} \
+            --build-name=${{ needs.release-please.outputs.client_version }} \
             --build-number=${{ github.run_number }}
 
       - name: upload to TestFlight
@@ -813,4 +755,4 @@ jobs:
             --file "${ipa[0]}" \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
-      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+      - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}

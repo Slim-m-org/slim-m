@@ -43,9 +43,9 @@ class SlowModeLastSent extends Notifier<Map<String, DateTime>> {
   @override
   Map<String, DateTime> build() => const {};
 
-  /// Recorded from the server's own `created_at` on a successful send (see
-  /// `sendOptimistically`), not the client's local clock, so this agrees
-  /// with the timestamp `enforce_slow_mode` actually compares against.
+  /// Recorded at the device's own time on a successful send (see
+  /// `sendOptimistically`), because the countdown compares it against the
+  /// device clock; it trails the server's stamp by about one round trip.
   void recordSent(String channelId, DateTime at) {
     final current = state[channelId];
     if (current != null && !at.isAfter(current)) return;

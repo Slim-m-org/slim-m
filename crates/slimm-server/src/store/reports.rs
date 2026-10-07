@@ -126,19 +126,6 @@ pub struct FiledReport {
 }
 
 impl Store {
-    /// Files a report for a human to review, under an id the server mints.
-    /// See [`Store::file_report_with_id`] for the idempotent form.
-    pub async fn file_report(
-        &self,
-        reporter: UserId,
-        subject: ReportSubject,
-        reason: &str,
-    ) -> Result<Uuid, ReportError> {
-        self.file_report_with_id(Uuid::now_v7(), reporter, subject, reason)
-            .await
-            .map(|filed| filed.id)
-    }
-
     /// Files a report for a human to review, idempotent by the client-minted
     /// `id` the way every other durable write is: a retry with the same id from
     /// the same reporter about the same subject replays the report already

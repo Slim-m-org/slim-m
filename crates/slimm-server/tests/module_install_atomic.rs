@@ -35,7 +35,7 @@ use tower::ServiceExt;
 mod support;
 use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
 
-async fn store(name: &str) -> (Store, support::TestDbGuard) {
+async fn store(name: &str) -> (Store, sqlx::SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
     let config = Config {
         port: 0,
@@ -44,7 +44,7 @@ async fn store(name: &str) -> (Store, support::TestDbGuard) {
         ..Config::default()
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
+    (Store::new(pool.clone()), pool, guard)
 }
 
 fn app(store: Store) -> Router {
@@ -70,12 +70,12 @@ async fn deployment(s: &Store) -> User {
 }
 
 /// Installs `code-exec` metadata approving `approved_sha256`'s bytes, one
-/// `run` command requiring the `run` permission, then stores `stored_wasm`
-/// under `stored_sha256` as the artifact - independently, the same two
-/// separate writes `http::dock::install` made before this fix, so the two
-/// can be given different versions on purpose.
+/// `run` command requiring the `run` permission, then overwrites the artifact
+/// row with `stored_wasm` under `stored_sha256`, the divergence the single
+/// install transaction now rules out, forced here with a raw write.
 async fn install_diverged(
     s: &Store,
+    pool: &sqlx::SqlitePool,
     approved_sha256: &str,
     stored_sha256: &str,
     stored_wasm: &[u8],
@@ -93,19 +93,25 @@ async fn install_diverged(
         command: None,
         language: None,
     }];
-    s.install_module(InstallModuleRequest {
-        id: "code-exec",
-        name: "Code Blocks",
-        version: "0.2.0",
-        artifact_sha256: approved_sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &permissions,
-        extension_points: &extension_points,
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "code-exec",
+            name: "Code Blocks",
+            version: "0.2.0",
+            artifact_sha256: approved_sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &permissions,
+            extension_points: &extension_points,
+        },
+        stored_wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("code-exec", stored_sha256, stored_wasm)
+    sqlx::query("UPDATE module_artifacts SET sha256 = ?, bytes = ? WHERE module_id = 'code-exec'")
+        .bind(stored_sha256)
+        .bind(stored_wasm)
+        .execute(pool)
         .await
         .unwrap();
     s.set_module_enabled("code-exec", true).await.unwrap();
@@ -139,7 +145,7 @@ fn req_json(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> 
 /// unapproved bytes.
 #[tokio::test]
 async fn execution_refuses_a_module_whose_stored_artifact_does_not_match_its_approved_sha() {
-    let (s, _guard) = store("slimm-module-install-atomic-mismatch").await;
+    let (s, pool, _guard) = store("slimm-module-install-atomic-mismatch").await;
     let member = deployment(&s).await;
 
     let approved_wasm = canned_ok_wasm("approved");
@@ -148,7 +154,14 @@ async fn execution_refuses_a_module_whose_stored_artifact_does_not_match_its_app
     let unapproved_sha256 = sha256_hex(&unapproved_wasm);
     assert_ne!(approved_sha256, unapproved_sha256);
 
-    install_diverged(&s, &approved_sha256, &unapproved_sha256, &unapproved_wasm).await;
+    install_diverged(
+        &s,
+        &pool,
+        &approved_sha256,
+        &unapproved_sha256,
+        &unapproved_wasm,
+    )
+    .await;
     grant_run_permission(&s, &member).await;
     let token = s.open_session(member.id, "phone").await.unwrap();
     let router = app(s);

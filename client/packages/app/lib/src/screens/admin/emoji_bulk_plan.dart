@@ -23,6 +23,7 @@ class ZipEntryData {
     required this.path,
     required this.bytes,
     this.isFile = true,
+    this.declaredSize,
   });
 
   /// The entry's full path inside the archive, `/`-separated regardless of
@@ -32,9 +33,19 @@ class ZipEntryData {
 
   /// False for a directory entry, which carries no bytes worth planning.
   final bool isFile;
+
+  /// The entry's uncompressed size when [bytes] was left empty rather than
+  /// inflated, so an oversized image is still reported as one.
+  final int? declaredSize;
+
+  int get size => declaredSize ?? bytes.length;
 }
 
 /// Decodes [zipBytes] into its entries.
+///
+/// Only an entry [planEmojiZip] could queue is inflated: a non-image, or an
+/// image already over [maxPlannedEmojiBytes] by its declared size, keeps empty
+/// bytes, so a zip bomb costs a header read rather than its inflated size.
 ///
 /// `ZipDecoder` is lenient: bytes that are not a zip at all decode to an
 /// empty list rather than throwing, which [planEmojiZip] then reports as
@@ -43,10 +54,23 @@ class ZipEntryData {
 /// a [FormatException]); callers catch those the same way.
 List<ZipEntryData> decodeEmojiZipEntries(List<int> zipBytes) {
   final archive = ZipDecoder().decodeBytes(zipBytes);
-  return [
-    for (final file in archive)
-      ZipEntryData(path: file.name, bytes: file.content, isFile: file.isFile),
-  ];
+  return [for (final file in archive) _entryFor(file)];
+}
+
+ZipEntryData _entryFor(ArchiveFile file) {
+  final wanted =
+      file.isFile &&
+      acceptedEmojiExtensions.contains(_extension(_baseName(file.name))) &&
+      file.size <= maxPlannedEmojiBytes;
+  if (!wanted) {
+    return ZipEntryData(
+      path: file.name,
+      bytes: const [],
+      isFile: file.isFile,
+      declaredSize: file.size,
+    );
+  }
+  return ZipEntryData(path: file.name, bytes: file.content);
 }
 
 /// One image [planEmojiZip] queues for upload.
@@ -167,13 +191,13 @@ EmojiZipPlan planEmojiZip(
       );
       continue;
     }
-    if (entry.bytes.isEmpty) {
+    if (entry.size == 0) {
       skipped.add(
         SkippedZipEntry(fileName: fileName, reason: 'the file is empty'),
       );
       continue;
     }
-    if (entry.bytes.length > maxPlannedEmojiBytes) {
+    if (entry.size > maxPlannedEmojiBytes) {
       skipped.add(
         SkippedZipEntry(fileName: fileName, reason: 'larger than 1 MB'),
       );

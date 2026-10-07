@@ -93,6 +93,23 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   GlobalKey _keyFor(String id) => _boxKeys.putIfAbsent(id, GlobalKey.new);
 
   @override
+  void didUpdateWidget(covariant DesktopRailReorder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_carry == null || _carriedStillListed()) return;
+    // Ending the carry notifies listeners, which a build must not do.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _carry != null && !_carriedStillListed()) _cancel();
+    });
+  }
+
+  bool _carriedStillListed() {
+    final id = _carry!.id;
+    return _carry!.isCategory
+        ? _categoryIds.contains(id)
+        : widget.sections.any((s) => s.$2.any((c) => c.id == id));
+  }
+
+  @override
   void dispose() {
     _stopCarry();
     _lift.dispose();
@@ -291,7 +308,8 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   Widget _carriedRow(String channelId) {
     final channel = [
       for (final (_, channels) in widget.sections) ...channels,
-    ].firstWhere((c) => c.id == channelId);
+    ].where((c) => c.id == channelId).firstOrNull;
+    if (channel == null) return const SizedBox.shrink();
     return widget.carriedRowBuilder?.call(channel) ??
         widget.rowBuilder(channel, true);
   }

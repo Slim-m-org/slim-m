@@ -30,6 +30,7 @@ use slimm_server::store::{NewMessage, ReportSubject, Store};
 use tower::ServiceExt;
 
 mod support;
+use support::reports::StoreReportExt;
 
 async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);

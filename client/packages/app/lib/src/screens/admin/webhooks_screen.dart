@@ -14,6 +14,7 @@ import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../api_failure.dart';
+import '../../format.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
@@ -333,16 +334,7 @@ class _WebhookRowState extends ConsumerState<_WebhookRow>
 
 /// "Last delivered 3h ago", so a silent integration reads as silent.
 String webhookDeliveryLabel(int deliveredAtMs, DateTime now) {
-  final elapsed = now.difference(
-    DateTime.fromMillisecondsSinceEpoch(deliveredAtMs),
-  );
-  final ago = switch (elapsed) {
-    Duration(inMinutes: < 1) => 'just now',
-    Duration(inHours: < 1) => '${elapsed.inMinutes}m ago',
-    Duration(inDays: < 1) => '${elapsed.inHours}h ago',
-    _ => '${elapsed.inDays}d ago',
-  };
-  return 'Last delivered $ago';
+  return 'Last delivered ${formatRelativeAgeMs(deliveredAtMs, now: now)}';
 }
 
 /// Opens the label editor for one webhook.
@@ -402,7 +394,7 @@ class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -419,10 +411,11 @@ class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(AppIcons.dismiss, color: tokens.textSecondary),
+              AppIconButton(
+                icon: AppIcons.dismiss,
+                semanticLabel: 'Close',
                 tooltip: 'Close',
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),

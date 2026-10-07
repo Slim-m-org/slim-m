@@ -11,8 +11,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/providers/user_profiles.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
@@ -79,19 +81,21 @@ void main() {
         harness(
           MessageRow(
             message: message(authorId: profile.id),
-            webhookUsername: webhookUsername,
             grouped: false,
             showNewDivider: false,
             knownUsernames: const {},
-            onRetry: () {},
-            onDiscard: () {},
-            onPickReaction: (_) {},
-            onReactionTap: (_) {},
-            onVote: (_) {},
             actions: noActions,
             editing: false,
-            onSubmitEdit: (_) {},
-            onCancelEdit: () {},
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (_) {},
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
+            extras: MessageExtras(webhookUsername: webhookUsername),
           ),
           overrides: [
             batchProfilesControllerProvider.overrideWith((ref) {
@@ -159,15 +163,17 @@ void main() {
             grouped: false,
             showNewDivider: false,
             knownUsernames: const {},
-            onRetry: () {},
-            onDiscard: () {},
-            onPickReaction: (_) {},
-            onReactionTap: (_) {},
-            onVote: (_) {},
             actions: noActions,
             editing: false,
-            onSubmitEdit: (_) {},
-            onCancelEdit: () {},
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (_) {},
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
           ),
         ),
       );

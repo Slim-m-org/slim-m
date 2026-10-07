@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT MAX(created_at) AS \"created_at: i64\" FROM messages\n           WHERE channel_id = ? AND author_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_at: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "47a6dcefe2b2d0b2be690a182bb83dad9254766c6e0083854192bebe93a59176"
+}

@@ -89,6 +89,13 @@ _wire({int permissions = 0, api.Me? selfProfile, bool refuseKick = false}) {
                 headers: {'content-type': 'application/json'},
               );
             }
+            if (request.url.path.endsWith('/note')) {
+              return http.Response(
+                jsonEncode({'body': null, 'updated_at': null}),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
             if (refuseKick && request.url.path.endsWith('/kick')) {
               return http.Response('boom', 500);
             }
@@ -340,8 +347,7 @@ void main() {
             builder: (context, state) => Scaffold(
               body: Consumer(
                 builder: (context, ref, _) => TextButton(
-                  onPressed: () =>
-                      showMemberProfile(context, ref, profile: _other),
+                  onPressed: () => showMemberProfile(context, profile: _other),
                   child: const Text('open'),
                 ),
               ),

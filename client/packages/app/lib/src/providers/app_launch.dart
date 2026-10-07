@@ -20,10 +20,6 @@ final appLaunchProvider = FutureProvider.autoDispose<List<api.App>>(
   (ref) => ref.watch(apiProvider).listApps(),
 );
 
-/// A slash keyword for [app]: its module id, a slug already, so `/game-of-life`
-/// launches it. Shown in the composer's `/` menu and matched by [matchApp].
-String appSlashKeyword(api.App app) => app.moduleId;
-
 /// The app [text] launches, or null when [text] is not `/name` for any app the
 /// caller may launch. Like [matchSlashCommand] a launch is the whole message
 /// (the `/` trigger only opens at offset zero); the keyword is the app's module

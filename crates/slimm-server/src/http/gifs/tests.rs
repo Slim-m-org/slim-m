@@ -142,3 +142,14 @@ fn slug_filename_caps_a_verbose_title() {
     let long = "a".repeat(200);
     assert!(slug_filename(&long).len() <= filename::GIF_SLUG_MAX_CHARS);
 }
+
+#[test]
+fn slug_filename_caps_word_separated_titles() {
+    let title = format!("{} b", "a".repeat(47));
+    let slug = slug_filename(&title);
+    assert!(
+        slug.len() <= filename::GIF_SLUG_MAX_CHARS,
+        "len {}",
+        slug.len()
+    );
+}

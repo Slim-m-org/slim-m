@@ -97,7 +97,7 @@ pub(crate) struct EmbedDto {
 
 /// Builds the wire DTO for one stored embed; the caller resolves the image
 /// tokens first.
-pub(crate) fn to_dto(
+fn to_dto(
     embed: StoreEmbed,
     image_token: Option<String>,
     thumbnail_token: Option<String>,
@@ -126,7 +126,7 @@ pub(crate) fn to_dto(
 }
 
 /// `(image_url, thumbnail_url)` to resolve before [`to_dto`].
-pub(crate) fn image_urls(embed: &StoreEmbed) -> (Option<&str>, Option<&str>) {
+fn image_urls(embed: &StoreEmbed) -> (Option<&str>, Option<&str>) {
     (embed.image_url.as_deref(), embed.thumbnail_url.as_deref())
 }
 

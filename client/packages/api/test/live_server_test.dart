@@ -17,6 +17,7 @@ library;
 import 'dart:io';
 import 'dart:math';
 
+import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
 
@@ -74,7 +75,7 @@ void main() {
   tearDown(() => api.close());
 
   test('the server is reachable and speaks our protocol', () async {
-    expect(await api.health(), isTrue);
+    expect((await http.get(base.replace(path: '/healthz'))).statusCode, 200);
     final version = await api.version();
     expect(version.name, 'slim-m');
     expect(
@@ -118,7 +119,7 @@ void main() {
       content: 'edited from the dart client',
     );
     expect(edited.content, 'edited from the dart client');
-    expect(edited.isEdited, isTrue);
+    expect(edited.editedAt, isNotNull);
   });
 
   test('read state and catch-up sync agree with what was sent', () async {

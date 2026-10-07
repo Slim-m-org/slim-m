@@ -34,6 +34,13 @@ String newCanvasOpId() => _uuidV7();
 /// once the gesture ends.
 String newCanvasDraftId() => _uuidV7();
 
+/// The same generator for a channel create, minted once per sheet so a retry
+/// after a lost response replays the first create.
+String newChannelId() => _uuidV7();
+
+/// The same generator for a category create, minted once per sheet.
+String newCategoryId() => _uuidV7();
+
 String _uuidV7() =>
     uuidV7At(DateTime.now().millisecondsSinceEpoch, Random.secure());
 

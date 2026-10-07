@@ -34,6 +34,7 @@ import load_accounts  # noqa: E402
 import load_report  # noqa: E402
 import load_ws  # noqa: E402
 import loadtest  # noqa: E402
+import seed_guard  # noqa: E402
 
 DEFAULT_PASSWORD = "loadtest-stable-password-1"
 SETTLE = 2.0
@@ -247,7 +248,7 @@ def render(report):
 
 def main(argv=None):
     args = parse_args(argv)
-    if "npc-server.top" in args.base_url:
+    if seed_guard.is_known_production(args.base_url):
         raise SystemExit("refusing to storm the live deployment")
     loadtest._SERVER_PID["pid"] = args.server_pid or loadtest.find_server_pid()
     asyncio.run(run(args))

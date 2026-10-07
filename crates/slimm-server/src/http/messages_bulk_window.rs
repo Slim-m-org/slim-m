@@ -47,8 +47,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::messages::parse_uuid;
-use super::messages_bulk::MAX_BULK_DELETE_IDS;
-use crate::hub::Event;
+use super::messages_bulk::{MAX_BULK_DELETE_IDS, delete_and_publish};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -127,36 +126,7 @@ async fn bulk_delete_by_author(
         ));
     }
 
-    let outcome = state
-        .store
-        .bulk_delete_messages(channel_id, &ids, ctx.user_id, &[author_id])
-        .await?;
-
-    // One event per message, each with its own seq; see this module's doc.
-    for deleted in &outcome.deleted {
-        state.hub.publish(Event::MessageDeleted {
-            op_seq: Some(deleted.op_seq),
-            channel_id,
-            message_id: deleted.message_id,
-        });
-        // The DB trigger already dropped the pin row; tell live clients too.
-        if deleted.was_pinned {
-            state.hub.publish(Event::MessageUnpinned {
-                channel_id,
-                message_id: deleted.message_id,
-            });
-        }
-    }
-    super::message_forwards::publish_cascaded(&state, outcome.cascade).await;
-    // One reply-summary refresh for the whole batch; see `threads::notify_reply`.
-    if !outcome.deleted.is_empty() {
-        super::threads::notify_reply(&state, channel_id).await;
-    }
-    for hex in &outcome.freed_attachments {
-        if let Err(err) = state.media.delete_attachment(hex).await {
-            tracing::warn!(%hex, error = %err, "failed to remove an orphaned attachment file");
-        }
-    }
+    delete_and_publish(&state, channel_id, &ids, ctx.user_id, &[author_id]).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }

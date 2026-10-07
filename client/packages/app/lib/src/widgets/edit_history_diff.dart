@@ -138,6 +138,33 @@ final RegExp _tokenPattern = RegExp(r'\s+|\S+');
 List<DiffSpan> diffWords(String oldText, String newText) {
   final a = _tokenPattern.allMatches(oldText).map((m) => m[0]!).toList();
   final b = _tokenPattern.allMatches(newText).map((m) => m[0]!).toList();
+  // An edit is usually a small change in a big message; only the middle needs the quadratic table.
+  var head = 0;
+  while (head < a.length && head < b.length && a[head] == b[head]) {
+    head++;
+  }
+  var tail = 0;
+  while (tail < a.length - head &&
+      tail < b.length - head &&
+      a[a.length - 1 - tail] == b[b.length - 1 - tail]) {
+    tail++;
+  }
+  final spans = <DiffSpan>[];
+  for (var k = 0; k < head; k++) {
+    _push(spans, a[k], DiffKind.equal);
+  }
+  _diffMiddle(
+    spans,
+    a.sublist(head, a.length - tail),
+    b.sublist(head, b.length - tail),
+  );
+  for (var k = a.length - tail; k < a.length; k++) {
+    _push(spans, a[k], DiffKind.equal);
+  }
+  return spans;
+}
+
+void _diffMiddle(List<DiffSpan> spans, List<String> a, List<String> b) {
   final n = a.length;
   final m = b.length;
   final dp = List.generate(n + 1, (_) => List<int>.filled(m + 1, 0));
@@ -148,7 +175,6 @@ List<DiffSpan> diffWords(String oldText, String newText) {
           : (dp[i + 1][j] >= dp[i][j + 1] ? dp[i + 1][j] : dp[i][j + 1]);
     }
   }
-  final spans = <DiffSpan>[];
   var i = 0;
   var j = 0;
   while (i < n && j < m) {
@@ -172,7 +198,6 @@ List<DiffSpan> diffWords(String oldText, String newText) {
     _push(spans, b[j], DiffKind.added);
     j++;
   }
-  return spans;
 }
 
 void _push(List<DiffSpan> spans, String text, DiffKind kind) {

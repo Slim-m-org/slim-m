@@ -11,6 +11,7 @@ use uuid::Uuid;
 use slimm_server::store::{CANVAS_OP_GAP, CanvasOpBody};
 
 use crate::fixtures::{new_store, new_store_and_pool, place};
+use crate::support::canvas::remove_via_op;
 
 #[tokio::test]
 async fn a_place_ops_object_is_present_and_matches_what_was_placed() {
@@ -36,14 +37,15 @@ async fn a_place_ops_object_is_absent_once_the_object_has_been_removed() {
     let author = store.create_user("ann", "Ann").await.unwrap().id;
     let channel = store.create_channel("canvas", "voice").await.unwrap().id;
     let placed = place(&store, channel, author, 0).await;
-    assert!(store.remove_canvas_object(placed).await.unwrap());
+    remove_via_op(&store, channel, author, placed).await;
 
     let page = store.list_canvas_ops(channel, 0, 100).await.unwrap();
-    assert_eq!(page.ops.len(), 1, "the op itself survives the removal");
+    assert_eq!(page.ops.len(), 2, "the place op survives the removal op");
     match &page.ops[0].body {
         CanvasOpBody::Place(None) => {}
         other => panic!("expected the object to read as gone, got {other:?}"),
     }
+    assert!(matches!(&page.ops[1].body, CanvasOpBody::Remove(ids) if ids == &[placed]));
 }
 
 /// Nothing writes a `remove`, `clear` or `restore` op yet, but the schema's

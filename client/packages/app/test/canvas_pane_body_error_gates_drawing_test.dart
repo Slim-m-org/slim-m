@@ -83,7 +83,10 @@ void main() {
     addTearDown(document.dispose);
 
     await tester.pumpWidget(
-      _pane(document, error: 'You cannot draw on this canvas right now.'),
+      _pane(
+        document,
+        error: "You don't have permission to draw here right now.",
+      ),
     );
     await tester.pump();
 

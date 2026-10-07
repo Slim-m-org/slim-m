@@ -331,6 +331,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   final DraftShape _shapeDraft = DraftShape();
   late final DraftShapePainter _shapeDraftPainter = DraftShapePainter(
     draft: _shapeDraft,
+    document: widget.document,
     color: widget.shapeColor ?? widget.ink,
   );
   late final RemoteDraftPainter? _remoteDraftPainter =

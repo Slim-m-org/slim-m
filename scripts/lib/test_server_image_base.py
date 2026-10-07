@@ -71,6 +71,33 @@ class BaseShaTest(unittest.TestCase):
         self.assertIsNone(m.base_sha([]))
 
 
+WEB = "web-image / merge"
+
+
+class WebImageBaseTest(unittest.TestCase):
+    """The web image has the same cancelled-then-skipped hole as the server image."""
+
+    def test_the_web_merge_job_is_what_counts(self):
+        runs = [
+            run("ccc", other=[("web-image", "skipped")]),
+            run("bbb", other=[("web-image / build (amd64, ubuntu-24.04)", "success"), (WEB, "cancelled")]),
+            run("aaa", other=[(WEB, "success")]),
+        ]
+        self.assertEqual(m.base_sha(runs, job=WEB), "aaa")
+
+    def test_a_server_publish_is_not_a_web_publish(self):
+        runs = [run("bbb", server="success"), run("aaa", other=[(WEB, "success")])]
+        self.assertEqual(m.base_sha(runs, job=WEB), "aaa")
+        self.assertEqual(m.base_sha(runs), "bbb")
+
+    def test_main_reads_the_job_name_from_the_second_argument(self):
+        body = '[{"headSha":"abc","jobs":[{"name":"web-image / merge","conclusion":"success"}]}]'
+        out = io.StringIO()
+        with patch.object(sys, "stdin", io.StringIO(body)), patch.object(sys, "stdout", out):
+            m.main(["server_image_base.py", "", WEB])
+        self.assertEqual(out.getvalue().strip(), "abc")
+
+
 class MainTest(unittest.TestCase):
     def _main(self, stdin_text, argv=("server_image_base.py",)):
         out = io.StringIO()

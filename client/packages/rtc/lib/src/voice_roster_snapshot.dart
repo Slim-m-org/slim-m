@@ -95,9 +95,9 @@ bool _publishesLiveVideo(lk.Participant? p, lk.TrackSource source) => p == null
 /// The muted half is load-bearing and was the bug: turning a camera off in
 /// LiveKit MUTES its publication rather than unpublishing it, so a
 /// presence-only check stayed true and the tile kept rendering a frozen last
-/// frame instead of reverting to the avatar. `camera_view.dart:149` and
-/// `screen_share_view.dart:130` already refuse a muted publication when
-/// picking a track to render, and the audio half of [_toParticipant] already
+/// frame instead of reverting to the avatar. `_cameraTrackFrom` and
+/// `_shareTrackFrom` already refuse a muted publication when picking a track
+/// to render, and the audio half of [_toParticipant] already
 /// reads `.muted` - this is the video half agreeing with all three.
 ///
 /// Pure, and takes plain records rather than an `lk.Participant`, so it is

@@ -25,32 +25,5 @@ set -euo pipefail
 current_sha="${1:?usage: server-image-needed.sh <current-sha>}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-runs=$(gh run list --workflow main-builds.yml --branch main \
-  --limit 25 --json databaseId 2>/dev/null || echo '[]')
-
-detailed='[]'
-for id in $(jq -r '.[].databaseId' <<<"$runs"); do
-  one=$(gh run view "$id" --json headSha,jobs 2>/dev/null || echo 'null')
-  detailed=$(jq -c --argjson r "$one" '. + [$r]' <<<"$detailed")
-done
-
-base=$(jq -c 'map(select(. != null))' <<<"$detailed" \
-  | python3 "$here/lib/server_image_base.py" "$current_sha")
-
-if [ -z "$base" ]; then
-  echo "no published server image in recent history; the push diff decides alone"
-  exit 0
-fi
-
-git fetch --quiet origin "$base" 2>/dev/null || true
-if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-  echo "last published commit $base is unreachable; the push diff decides alone"
-  exit 0
-fi
-
-if git diff --name-only "$base"..HEAD -- crates/ Cargo.toml Cargo.lock rust-toolchain.toml docker/server.Dockerfile .sqlx/ | grep -q .; then
-  echo "crates/ moved since $base, which is the commit latest holds"
-  echo "server=true" >> "${GITHUB_OUTPUT:-/dev/stdout}"
-else
-  echo "crates/ unchanged since $base"
-fi
+exec "$here/image-needed.sh" server server-image "$current_sha" \
+  crates/ Cargo.toml Cargo.lock rust-toolchain.toml docker/server.Dockerfile .sqlx/

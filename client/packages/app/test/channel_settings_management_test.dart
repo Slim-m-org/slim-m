@@ -8,6 +8,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart' show SizedBox;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/routing/routes.dart';
@@ -338,6 +339,10 @@ void main() {
         findsOneWidget,
         reason: 'deleting another channel must not navigate away',
       );
+      // Lets the closed screen's auto-dispose providers and drift's stream close run their zero-length timers.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 1));
     });
   });
 }

@@ -24,6 +24,14 @@ def _cache_path(base_url, cache_dir):
     return os.path.join(cache_dir, f"password-{key}.json")
 
 
+def _make_private(path):
+    """Tightens a cache an older run left world-readable; best effort."""
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
 def load_or_create(base_url, *, cache_dir=CACHE_DIR):
     """The same password on every call for one `base_url`.
 
@@ -34,14 +42,19 @@ def load_or_create(base_url, *, cache_dir=CACHE_DIR):
     path = _cache_path(base_url, cache_dir)
     try:
         with open(path, encoding="utf-8") as fh:
-            return json.load(fh)["password"]
-    except (OSError, ValueError, KeyError):
+            password = json.load(fh)["password"]
+        if isinstance(password, str) and password:
+            _make_private(path)
+            return password
+    except (OSError, ValueError, KeyError, TypeError):
         pass
 
     password = secrets.token_urlsafe(16)
     try:
-        os.makedirs(cache_dir, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
+        os.makedirs(cache_dir, mode=0o700, exist_ok=True)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump({"password": password}, fh)
     except OSError:
         pass

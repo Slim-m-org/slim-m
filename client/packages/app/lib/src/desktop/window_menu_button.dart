@@ -27,7 +27,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../widgets/context_menu_focus.dart';
+import '../widgets/anchored_menu.dart';
+import '../widgets/animated_menu_portal.dart';
 import 'desktop_window_port.dart';
 import 'self_update/self_update_controller.dart';
 import 'update_action.dart';
@@ -46,72 +47,44 @@ class WindowMenuButton extends ConsumerStatefulWidget {
 }
 
 class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
-  final _controller = OverlayPortalController();
-  final _link = LayerLink();
+  final _controller = AnimatedMenuController();
 
   @override
   Widget build(BuildContext context) {
     final update = ref.watch(inSessionUpdateProvider);
     final action = ref.watch(updateActionProvider);
     final installing = ref.watch(selfUpdateInstallingProvider);
-    return CompositedTransformTarget(
-      link: _link,
-      child: OverlayPortal(
-        controller: _controller,
-        // Positioned so the follower sizes to its content, not the screen.
-        overlayChildBuilder: (context) => Positioned(
-          left: 0,
-          top: 0,
-          child: CompositedTransformFollower(
-            link: _link,
-            showWhenUnlinked: false,
-            // A right-edge trigger opens leftward, or it runs off the window.
-            targetAnchor: Alignment.bottomRight,
-            followerAnchor: Alignment.topRight,
-            offset: const Offset(0, 4),
-            child: TapRegion(
-              onTapOutside: (_) => _controller.hide(),
-              // Escape closes it and Tab reaches every item once open.
-              child: ContextMenuKeyboardScope(
-                onDismiss: _controller.hide,
-                child: AppMenu(
-                  width: 220,
-                  children: [
-                    if (update != null && action != null)
-                      _updateItem(
-                        update,
-                        action: action,
-                        installing: installing,
-                      ),
-                    if (widget.port.canRelaunch)
-                      AppMenuItem(
-                        label: 'Restart slim-m',
-                        leading: AppIcons.retry,
-                        onTap: () {
-                          _controller.hide();
-                          unawaited(widget.port.relaunch());
-                        },
-                      ),
-                    AppMenuItem(
-                      label: 'Quit slim-m',
-                      leading: AppIcons.windowQuit,
-                      onTap: () {
-                        _controller.hide();
-                        widget.port.destroy();
-                      },
-                    ),
-                  ],
-                ),
-              ),
+    return AnchoredMenu(
+      controller: _controller,
+      menu: AppMenu(
+        width: 220,
+        children: [
+          if (update != null && action != null)
+            _updateItem(update, action: action, installing: installing),
+          if (widget.port.canRelaunch)
+            AppMenuItem(
+              label: 'Restart slim-m',
+              leading: AppIcons.retry,
+              onTap: () {
+                _controller.hide();
+                unawaited(widget.port.relaunch());
+              },
             ),
+          AppMenuItem(
+            label: 'Quit slim-m',
+            leading: AppIcons.windowQuit,
+            onTap: () {
+              _controller.hide();
+              widget.port.destroy();
+            },
           ),
-        ),
-        child: AppIconButton(
-          icon: AppIcons.moreVertical,
-          semanticLabel: 'Window menu',
-          size: AppIconButtonSize.sm,
-          onPressed: _controller.toggle,
-        ),
+        ],
+      ),
+      child: AppIconButton(
+        icon: AppIcons.moreVertical,
+        semanticLabel: 'Window menu',
+        size: AppIconButtonSize.sm,
+        onPressed: _controller.toggle,
       ),
     );
   }

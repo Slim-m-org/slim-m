@@ -18,6 +18,7 @@ use crate::fixtures::{
     QUERY, app, chrono_ms, general, id, new_store, new_store_and_pool, post, region, register,
     stroke,
 };
+use crate::support::canvas::{CanvasReads, remove_via_op};
 
 #[tokio::test]
 async fn a_placed_object_comes_straight_back_and_is_visible_to_a_viewport_read() {
@@ -315,7 +316,7 @@ async fn the_same_id_in_another_channel_is_a_conflict() {
 #[tokio::test]
 async fn replaying_the_id_of_a_removed_object_answers_a_distinct_conflict() {
     let (store, _guard) = new_store().await;
-    let (token, _) = register(&store, "root").await;
+    let (token, user) = register(&store, "root").await;
     let channel = general(&store).await;
     let app = app(store.clone());
     let object = id();
@@ -323,10 +324,13 @@ async fn replaying_the_id_of_a_removed_object_answers_a_distinct_conflict() {
     let (status, body) = post(&app, channel, &token, stroke(&object)).await;
     assert_eq!(status, StatusCode::CREATED);
     let placed = body["id"].as_str().unwrap().parse::<Uuid>().unwrap();
-    store
-        .remove_canvas_object(slimm_server::ids::CanvasObjectId(placed))
-        .await
-        .unwrap();
+    remove_via_op(
+        &store,
+        channel,
+        user,
+        slimm_server::ids::CanvasObjectId(placed),
+    )
+    .await;
 
     let (status, body) = post(&app, channel, &token, stroke(&object)).await;
     assert_eq!(status, StatusCode::CONFLICT);
@@ -343,7 +347,7 @@ async fn replaying_the_id_of_a_removed_object_answers_a_distinct_conflict() {
 #[tokio::test]
 async fn replaying_the_id_of_a_removed_object_is_a_conflict_not_a_crash() {
     let (store, _guard) = new_store().await;
-    let (token, _) = register(&store, "root").await;
+    let (token, user) = register(&store, "root").await;
     let channel = general(&store).await;
     let app = app(store.clone());
     let object = id();
@@ -351,10 +355,13 @@ async fn replaying_the_id_of_a_removed_object_is_a_conflict_not_a_crash() {
     let (status, body) = post(&app, channel, &token, stroke(&object)).await;
     assert_eq!(status, StatusCode::CREATED);
     let placed = body["id"].as_str().unwrap().parse::<Uuid>().unwrap();
-    store
-        .remove_canvas_object(slimm_server::ids::CanvasObjectId(placed))
-        .await
-        .unwrap();
+    remove_via_op(
+        &store,
+        channel,
+        user,
+        slimm_server::ids::CanvasObjectId(placed),
+    )
+    .await;
 
     let (status, _) = post(&app, channel, &token, stroke(&object)).await;
     assert_eq!(status, StatusCode::CONFLICT);

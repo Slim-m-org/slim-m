@@ -36,6 +36,7 @@ on:
       - "client/pubspec.lock"
       - "client/packages/app/pubspec.yaml"
       - ".github/workflows/client-ios-ci.yml"
+      - ".github/actions/**"
       # A release-please version bump is deliberately NOT excluded:
       # verify-release-checks.yml gates the client publish jobs on this
       # workflow's checks being present on the release commit, so it must run
@@ -50,6 +51,7 @@ on:
       - "client/pubspec.lock"
       - "client/packages/app/pubspec.yaml"
       - ".github/workflows/client-ios-ci.yml"
+      - ".github/actions/**"
       # A release-please version bump is deliberately NOT excluded:
       # verify-release-checks.yml gates the client publish jobs on this
       # workflow's checks being present on the release commit, so it must run

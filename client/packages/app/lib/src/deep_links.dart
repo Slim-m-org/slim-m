@@ -113,6 +113,6 @@ final deepLinkControllerProvider = Provider<void>((ref) {
     ref.read(tappedInviteProvider.notifier).state = invite;
     // The redirect keeps a signed-out user inside the join flow, so this can only land somewhere the invite is usable.
     ref.read(routerProvider).go(Routes.onboarding);
-  });
+  }, onError: (Object error) => debugPrint('deep link stream failed: $error'));
   ref.onDispose(sub.cancel);
 });

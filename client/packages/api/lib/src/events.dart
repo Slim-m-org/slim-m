@@ -242,11 +242,12 @@ sealed class ServerEvent {
       'call.ring_ended'
           when decoded['channel_id'] is String &&
               decoded['ring_id'] is String &&
-              _callRingOutcomeOf(decoded['outcome']) != null =>
+              decoded['outcome'] is String &&
+              CallOutcome.fromWire(decoded['outcome'] as String) != null =>
         CallRingEnded(
           channelId: decoded['channel_id'] as String,
           ringId: decoded['ring_id'] as String,
-          outcome: _callRingOutcomeOf(decoded['outcome'])!,
+          outcome: CallOutcome.fromWire(decoded['outcome'] as String)!,
         ),
       'reports.changed' => const ReportsChanged(),
       'read_state.changed'

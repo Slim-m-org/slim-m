@@ -86,9 +86,14 @@ extension SlimmApiChannelAdmin on SlimmApi {
   }
 
   /// Creates a category, appended after every live one. Requires
-  /// MANAGE_CHANNELS.
-  Future<ChannelCategory> createCategory(String name) async {
-    final json = await _send('POST', '/categories', body: {'name': name});
+  /// MANAGE_CHANNELS. [id] is an optional client-generated UUIDv7 that makes
+  /// the create idempotent on retry.
+  Future<ChannelCategory> createCategory(String name, {String? id}) async {
+    final json = await _send(
+      'POST',
+      '/categories',
+      body: {if (id != null) 'id': id, 'name': name},
+    );
     return ChannelCategory.fromJson(json as Map<String, dynamic>);
   }
 

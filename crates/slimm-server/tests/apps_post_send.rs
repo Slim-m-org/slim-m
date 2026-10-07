@@ -29,6 +29,11 @@ mod support;
 use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
 
 async fn store(name: &str) -> (Store, support::TestDbGuard) {
+    let (s, _path, guard) = store_with_path(name).await;
+    (s, guard)
+}
+
+async fn store_with_path(name: &str) -> (Store, String, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
     let config = Config {
         port: 0,
@@ -37,7 +42,7 @@ async fn store(name: &str) -> (Store, support::TestDbGuard) {
         ..Config::default()
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
+    (Store::new(pool), config.database_path.clone(), guard)
 }
 
 fn app(store: Store) -> Router {
@@ -74,42 +79,42 @@ async fn member(s: &Store) -> User {
 async fn install(s: &Store, enabled: bool) {
     let wasm = canned_ok_wasm("done");
     let sha256 = sha256_hex(&wasm);
-    s.install_module(InstallModuleRequest {
-        id: "widget",
-        name: "Widget",
-        version: "0.1.0",
-        artifact_sha256: &sha256,
-        approved_capabilities: &[],
-        runtime_limits: &ModuleRuntimeLimits::default(),
-        permissions: &[ModulePermissionSpec {
-            key: "play",
-            name: "Play the widget",
-            description: "launch and play it",
-        }],
-        extension_points: &[
-            ModuleExtensionPointSpec {
-                kind: "command",
-                name: "surf",
-                description: Some("draws a surface"),
-                permission: Some("play"),
-                command: None,
-                language: None,
-            },
-            ModuleExtensionPointSpec {
-                kind: "app",
-                name: "Widget",
-                description: Some("Launch the widget in chat"),
-                permission: Some("play"),
-                command: Some("surf"),
-                language: None,
-            },
-        ],
-    })
+    s.install_module_with_artifact(
+        InstallModuleRequest {
+            id: "widget",
+            name: "Widget",
+            version: "0.1.0",
+            artifact_sha256: &sha256,
+            approved_capabilities: &[],
+            runtime_limits: &ModuleRuntimeLimits::default(),
+            permissions: &[ModulePermissionSpec {
+                key: "play",
+                name: "Play the widget",
+                description: "launch and play it",
+            }],
+            extension_points: &[
+                ModuleExtensionPointSpec {
+                    kind: "command",
+                    name: "surf",
+                    description: Some("draws a surface"),
+                    permission: Some("play"),
+                    command: None,
+                    language: None,
+                },
+                ModuleExtensionPointSpec {
+                    kind: "app",
+                    name: "Widget",
+                    description: Some("Launch the widget in chat"),
+                    permission: Some("play"),
+                    command: Some("surf"),
+                    language: None,
+                },
+            ],
+        },
+        &wasm,
+    )
     .await
     .unwrap();
-    s.store_module_artifact("widget", &sha256, &wasm)
-        .await
-        .unwrap();
     if enabled {
         s.set_module_enabled("widget", true).await.unwrap();
     }
@@ -370,4 +375,89 @@ async fn a_retried_app_launch_is_not_refused_by_slow_mode() {
         StatusCode::OK,
         "an idempotent retry inside the window"
     );
+}
+
+fn created_frames(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> usize {
+    let mut n = 0;
+    while let Ok(ev) = rx.try_recv() {
+        if matches!(ev, Event::MessageCreated { .. }) {
+            n += 1;
+        }
+    }
+    n
+}
+
+/// A failing lookup after the launch committed must not turn it into a 500 whose
+/// retry sees the message as already sent and never announces it.
+#[tokio::test]
+async fn a_failing_post_commit_lookup_does_not_lose_the_live_frame() {
+    let (s, path, _guard) = store_with_path("slimm-apps-post-send-lookup").await;
+    let user = member(&s).await;
+    install(&s, true).await;
+    grant_play(&s, &user).await;
+    let channel = s.create_channel("general", "text").await.unwrap();
+    let token = s.open_session(user.id, "phone").await.unwrap();
+    let tok = token.access_token.as_str();
+    let hub = Hub::new();
+    let router = app_with_hub(s.clone(), hub.clone());
+    let mut rx = hub.subscribe();
+    let c = channel.id.to_string();
+    let id = Uuid::now_v7().to_string();
+
+    let side = sqlx::SqlitePool::connect(&format!("sqlite:{path}"))
+        .await
+        .unwrap();
+    sqlx::query("ALTER TABLE code_runs RENAME TO code_runs_away")
+        .execute(&side)
+        .await
+        .unwrap();
+    let first = router
+        .clone()
+        .oneshot(launch_with_id(&c, tok, "a", &id))
+        .await
+        .unwrap();
+    let first_status = first.status();
+    sqlx::query("ALTER TABLE code_runs_away RENAME TO code_runs")
+        .execute(&side)
+        .await
+        .unwrap();
+
+    let retry = router
+        .clone()
+        .oneshot(launch_with_id(&c, tok, "a", &id))
+        .await
+        .unwrap();
+    assert_eq!(retry.status(), StatusCode::OK, "retry");
+    let published = created_frames(&mut rx);
+    assert_eq!(
+        (first_status, published),
+        (StatusCode::OK, 1),
+        "the stored launch must answer 200 and publish exactly one MessageCreated"
+    );
+}
+
+#[tokio::test]
+async fn an_over_long_launch_caption_names_how_far_over_it_is() {
+    let (s, _guard) = store("slimm-apps-post-send-caption").await;
+    let user = member(&s).await;
+    install(&s, true).await;
+    grant_play(&s, &user).await;
+    let channel = s.create_channel("general", "text").await.unwrap();
+    let token = s.open_session(user.id, "phone").await.unwrap();
+    let router = app(s);
+    let caption = "x".repeat(4001);
+    let response = router
+        .oneshot(launch(
+            &channel.id.to_string(),
+            &token.access_token,
+            &caption,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let error = json_body(response).await["error"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(error.contains("1 characters over"), "{error}");
 }

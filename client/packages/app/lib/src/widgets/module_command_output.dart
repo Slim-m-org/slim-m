@@ -64,8 +64,10 @@ class ModuleCommandOutput extends ConsumerWidget {
         final blockIndex = this.blockIndex;
         // Shared when this scene belongs to a message: each action stores and broadcasts, so everyone watching sees the same evolving scene.
         final shared = messageId != null && blockIndex != null;
+        // The full-screen route outlives this widget, so its closures hold the container, never ref.
+        final container = ProviderScope.containerOf(context, listen: false);
         Future<api.RunModuleCommandResult> run(String input) => shared
-            ? ref
+            ? container
                   .read(apiProvider)
                   .runCodeBlock(
                     messageId: messageId,
@@ -74,7 +76,7 @@ class ModuleCommandOutput extends ConsumerWidget {
                     command: command,
                     input: input,
                   )
-            : ref
+            : container
                   .read(apiProvider)
                   .runModuleCommand(
                     moduleId: moduleId,
@@ -83,8 +85,10 @@ class ModuleCommandOutput extends ConsumerWidget {
                   );
         // The other half of "never plays without interaction": see NotesOp's own doc comment for the full defence.
         void notes(List<SceneNote> played) {
-          if (!ref.read(moduleSoundSettingsProvider)) return;
-          unawaited(ref.read(moduleSoundPlayerProvider).playNotes(played));
+          if (!container.read(moduleSoundSettingsProvider)) return;
+          unawaited(
+            container.read(moduleSoundPlayerProvider).playNotes(played),
+          );
         }
 
         return ModuleSceneView(

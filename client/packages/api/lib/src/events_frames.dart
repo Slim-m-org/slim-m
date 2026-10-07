@@ -390,7 +390,7 @@ class CallRinging extends ServerEvent {
   final String callerId;
 }
 
-/// A DM call ring reached a terminal state - see [CallRingOutcome] for what
+/// A DM call ring reached a terminal state - see [CallOutcome] for what
 /// each value means.
 class CallRingEnded extends ServerEvent {
   const CallRingEnded({
@@ -401,36 +401,8 @@ class CallRingEnded extends ServerEvent {
 
   final String channelId;
   final String ringId;
-  final CallRingOutcome outcome;
+  final CallOutcome outcome;
 }
-
-/// How a DM call ring ended.
-enum CallRingOutcome {
-  /// The callee joined the call before the timeout.
-  answered,
-
-  /// The callee explicitly declined it.
-  declined,
-
-  /// The caller hung up, or left the call, before it was answered.
-  canceled,
-
-  /// Nobody answered before the server's own ring timeout elapsed; the
-  /// caller's own call has already been torn down server-side by the time
-  /// this arrives.
-  timedOut,
-}
-
-/// Resolves a frame's raw `outcome` string to a known [CallRingOutcome], or
-/// null for anything else, the same forward-compatible shape
-/// [_presenceStateOf] already uses for [PresenceState].
-CallRingOutcome? _callRingOutcomeOf(Object? raw) => switch (raw) {
-      'answered' => CallRingOutcome.answered,
-      'declined' => CallRingOutcome.declined,
-      'canceled' => CallRingOutcome.canceled,
-      'timed_out' => CallRingOutcome.timedOut,
-      _ => null,
-    };
 
 /// The moderation queue or history changed: a report was filed or resolved,
 /// or a moderation act was recorded. Carries nothing beyond the type tag,

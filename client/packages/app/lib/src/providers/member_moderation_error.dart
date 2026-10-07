@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The last refused moderation write, held for `ModerationErrorHost` to show.
+/// The last refused moderation write (or card note save), held for `ModerationErrorHost` to show.
 ///
 /// Row menus and the profile popover close before their request answers, so
 /// they have no place of their own for a failure. The app-level host outlives

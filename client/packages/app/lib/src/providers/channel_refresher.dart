@@ -7,6 +7,8 @@
 /// not disturb the reconnect logic around it.
 library;
 
+import 'dart:async';
+
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
@@ -18,6 +20,8 @@ import 'rate_limit_retry.dart';
 /// already running rather than starting a second.
 class ChannelRefresher {
   Future<void>? _inFlight;
+  Completer<void>? _trailing;
+  _Request? _trailingRequest;
 
   /// Refreshes both channel listings the server keeps apart: the
   /// deployment's own channels, and the caller's DM conversations (which
@@ -70,6 +74,7 @@ class ChannelRefresher {
       ...dms.map((dm) => channelFromDm(dm, selfId: selfId)),
     ];
     await store.replaceChannels(all);
+    if (!isCurrent()) return;
     await store.replaceCategories(categories);
 
     await _hydrateReadMarkers(api, store, isCurrent: isCurrent, wait: wait);
@@ -114,6 +119,7 @@ class ChannelRefresher {
     required bool Function() isCurrent,
   }) async {
     final channels = await store.allChannels();
+    if (!isCurrent()) return;
     await Future.wait(
       channels.map((channel) async {
         try {
@@ -132,17 +138,48 @@ class ChannelRefresher {
   }
 
   /// [refresh], but a concurrent caller joins the one already running
-  /// instead of starting a second.
+  /// instead of starting a second. For a caller that only needs the listing
+  /// to be current by the time the run ends, such as a message in a channel
+  /// not held yet.
   Future<void> refreshOnce(
     SlimmApi api,
     MessageStore store, {
     required bool Function() isCurrent,
+  }) => _inFlight ?? _start(_Request(api, store, isCurrent));
+
+  /// [refreshOnce] for a caller told that server state just changed. The
+  /// running refresh may already have read the old state, so a caller
+  /// arriving mid-run waits on one trailing run instead of joining it.
+  Future<void> refreshAfterChange(
+    SlimmApi api,
+    MessageStore store, {
+    required bool Function() isCurrent,
   }) {
-    return _inFlight ??= refresh(api, store, isCurrent: isCurrent).whenComplete(
-      () {
-        _inFlight = null;
-      },
-    );
+    if (_inFlight == null) return _start(_Request(api, store, isCurrent));
+    _trailingRequest = _Request(api, store, isCurrent);
+    return (_trailing ??= Completer<void>()).future;
+  }
+
+  Future<void> _start(_Request request) {
+    late final Future<void> run;
+    run = refresh(request.api, request.store, isCurrent: request.isCurrent)
+        .whenComplete(() {
+          if (identical(_inFlight, run)) _inFlight = null;
+          _startTrailing();
+        });
+    return _inFlight = run;
+  }
+
+  void _startTrailing() {
+    final waiting = _trailing;
+    final request = _trailingRequest;
+    _trailing = null;
+    _trailingRequest = null;
+    if (waiting == null || request == null || _inFlight != null) {
+      waiting?.complete();
+      return;
+    }
+    _start(request).then(waiting.complete, onError: waiting.completeError);
   }
 
   /// Stops a later caller joining a refresh started before it, without
@@ -150,5 +187,17 @@ class ChannelRefresher {
   /// Sharing across that boundary would hand a caller from the new session a
   /// future guarded by the old one's predicate, which aborts, so the work it
   /// asked for silently never happens.
-  void discardInFlight() => _inFlight = null;
+  void discardInFlight() {
+    _inFlight = null;
+    _trailingRequest = null;
+    _trailing?.complete();
+    _trailing = null;
+  }
+}
+
+class _Request {
+  const _Request(this.api, this.store, this.isCurrent);
+  final SlimmApi api;
+  final MessageStore store;
+  final bool Function() isCurrent;
 }

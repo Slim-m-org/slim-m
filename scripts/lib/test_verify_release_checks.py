@@ -72,6 +72,15 @@ if "check-runs" in path:
     sys.stdout.write(out or "")
     sys.exit(0)
 
+if "actions/runs" in path and os.environ.get("FAKE_ACTIONSRUNS_JSON"):
+    import subprocess
+    expr = args[args.index("--jq") + 1]
+    done = subprocess.run(
+        ["jq", "-r", expr], input=os.environ["FAKE_ACTIONSRUNS_JSON"],
+        capture_output=True, text=True, check=True)
+    sys.stdout.write(done.stdout)
+    sys.exit(0)
+
 if "actions/runs" in path:
     n = _next_call("actionsruns")
     out = _sequenced("FAKE_ACTIONSRUNS_SEQ_DIR", n)
@@ -85,8 +94,10 @@ sys.exit(1)
 '''
 
 
-def _check_run(name, status, conclusion=None, started_at="2026-01-01T00:00:00Z"):
+def _check_run(name, status, conclusion=None, started_at="2026-01-01T00:00:00Z", suite=None):
     run = {"name": name, "status": status, "started_at": started_at}
+    if suite is not None:
+        run["check_suite"] = {"id": suite}
     if conclusion is not None:
         run["conclusion"] = conclusion
     return run
@@ -217,6 +228,45 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         self.assertIn("no check run named", result.stdout)
         self.assertIn("test", result.stdout)
 
+    def test_the_release_run_itself_does_not_count_as_something_still_running(self):
+        """This script runs inside the release run, which is in progress the
+        whole time, so counting it would make a wrong required_checks name
+        wait out the three hour deadline instead of failing at once."""
+        seq = self._seq_dir("checkruns", [[
+            _check_run("build", "completed", "success"),
+        ]])
+        result = self._run({
+            "FAKE_CHECKRUNS_SEQ_DIR": seq,
+            "GITHUB_RUN_ID": "100",
+            "FAKE_ACTIONSRUNS_JSON": json.dumps({"workflow_runs": [
+                {"id": 100, "status": "in_progress"},
+                {"id": 99, "status": "completed"},
+            ]}),
+        }, required_checks="build|bogus-name")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("no check run named bogus-name", result.stdout)
+        self.assertNotIn("timed out", result.stdout)
+
+    def test_another_workflow_still_running_on_the_commit_keeps_waiting(self):
+        checkruns = self._seq_dir("checkruns", [
+            [_check_run("build", "completed", "success")],
+            [_check_run("build", "completed", "success")],
+            [
+                _check_run("build", "completed", "success"),
+                _check_run("late", "completed", "success"),
+            ],
+        ])
+        result = self._run({
+            "FAKE_CHECKRUNS_SEQ_DIR": checkruns,
+            "GITHUB_RUN_ID": "100",
+            "FAKE_ACTIONSRUNS_JSON": json.dumps({"workflow_runs": [
+                {"id": 100, "status": "in_progress"},
+                {"id": 200, "status": "queued"},
+            ]}),
+        }, required_checks="build|late")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("required checks passed", result.stdout)
+
     def test_an_absent_check_with_a_run_still_queued_keeps_waiting(self):
         """The distinction bug 1's own gate exists for: absent-and-nothing-
         running is a typo, absent-while-something-is-still-running is a
@@ -236,6 +286,34 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         })
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("required checks passed", result.stdout)
+
+    def test_a_newer_green_run_of_the_same_name_from_another_workflow_does_not_mask_a_pending_one(self):
+        """Two workflows both made a check named `check`; the newest one was read alone."""
+        seq = self._seq_dir("checkruns", [[
+            _check_run("check", "in_progress", started_at="2026-01-01T00:00:00Z", suite=1),
+            _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=2),
+        ]])
+        result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("timed out", result.stdout)
+        self.assertNotIn("required checks passed", result.stdout)
+
+    def test_a_newer_green_run_of_the_same_name_from_another_workflow_does_not_mask_a_failure(self):
+        seq = self._seq_dir("checkruns", [[
+            _check_run("check", "completed", "failure", started_at="2026-01-01T00:00:00Z", suite=1),
+            _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=2),
+        ]])
+        result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("check:failure", result.stdout)
+
+    def test_a_rerun_in_the_same_suite_replaces_its_failed_attempt(self):
+        seq = self._seq_dir("checkruns", [[
+            _check_run("check", "completed", "failure", started_at="2026-01-01T00:00:00Z", suite=1),
+            _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=1),
+        ]])
+        result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
+        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_a_tag_works_wherever_a_ref_is_accepted(self):
         """Bug 3 exactly: `actions/runs?head_sha=` accepts a SHA only, so a

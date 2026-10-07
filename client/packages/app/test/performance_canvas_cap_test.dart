@@ -139,4 +139,70 @@ void main() {
       reason: 'an extrapolated estimate must still say it is one',
     );
   });
+
+  AppSegmentedControl capControl(WidgetTester tester) =>
+      tester.widget<AppSegmentedControl>(
+        find.byWidgetPredicate(
+          (w) =>
+              w is AppSegmentedControl &&
+              w.semanticLabel == 'Canvas object cap',
+        ),
+      );
+
+  testWidgets('an off-preset cap selects no preset and states the real '
+      'number', (tester) async {
+    final client = MockClient((request) async {
+      if (request.url.path == '/space/retention') {
+        return _json({'retention_days': 0});
+      }
+      if (request.url.path == '/space/canvas-cap') {
+        return _json({'object_cap': 1000});
+      }
+      return _json({'enabled': false});
+    });
+    final container = _containerFor(client);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('5,000'));
+
+    expect(capControl(tester).selectedIndex, -1);
+    expect(find.textContaining('1,000 objects'), findsOneWidget);
+  });
+
+  testWidgets('a failed cap load shows a retryable error, not a default '
+      'preset', (tester) async {
+    var capCalls = 0;
+    final client = MockClient((request) async {
+      if (request.url.path == '/space/retention') {
+        return _json({'retention_days': 0});
+      }
+      if (request.url.path == '/space/screen-share') {
+        return _json({'max_height': 2160});
+      }
+      if (request.url.path == '/space/canvas-cap') {
+        capCalls++;
+        if (capCalls == 1) return http.Response('boom', 500);
+        return _json({'object_cap': 10000});
+      }
+      return _json({'enabled': false});
+    });
+    final container = _containerFor(client);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not load the canvas object cap.'), findsOneWidget);
+    expect(find.text('20,000'), findsNothing);
+
+    await tester.ensureVisible(find.text('Retry'));
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not load the canvas object cap.'), findsNothing);
+    await tester.ensureVisible(find.text('10,000'));
+    expect(capControl(tester).selectedIndex, 1);
+  });
 }

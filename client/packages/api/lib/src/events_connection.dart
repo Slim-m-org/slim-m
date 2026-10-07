@@ -17,9 +17,6 @@ class EventConnection {
   /// Events after a successful handshake.
   Stream<ServerEvent> get events => _events;
 
-  /// Resolves when the socket closes, for any reason.
-  Future<void> get closed => _channel.sink.done;
-
   /// Connects, mints nothing itself: pass a ticket from
   /// [SlimmApi.webSocketTicket]. Completes once the server's hello arrives, so
   /// a returned connection is authenticated and ready.
@@ -98,9 +95,6 @@ class EventConnection {
         );
     }
   }
-
-  /// Sends a keepalive. The server answers with [PongEvent].
-  void ping() => _channel.sink.add(jsonEncode({'type': 'ping'}));
 
   /// Refreshes "this user is typing" in a channel.
   ///

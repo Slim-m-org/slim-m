@@ -180,10 +180,14 @@ void main() {
     expect(requests, hasLength(1));
     expect(requests.single.method, 'POST');
     expect(requests.single.url.path, '/channels');
-    expect(jsonDecode(requests.single.body), {
-      'name': 'roadmap',
-      'kind': 'text',
-    });
+    expect(
+      jsonDecode(requests.single.body),
+      allOf(
+        containsPair('name', 'roadmap'),
+        containsPair('kind', 'text'),
+        containsPair('id', isA<String>()),
+      ),
+    );
     expect(find.text('channel:new-1'), findsOneWidget);
   });
 
@@ -223,7 +227,10 @@ void main() {
       expect(requests, hasLength(1));
       expect(requests.single.method, 'POST');
       expect(requests.single.url.path, '/categories');
-      expect(jsonDecode(requests.single.body), {'name': 'dev'});
+      expect(
+        jsonDecode(requests.single.body),
+        allOf(containsPair('name', 'dev'), containsPair('id', isA<String>())),
+      );
     },
   );
 }

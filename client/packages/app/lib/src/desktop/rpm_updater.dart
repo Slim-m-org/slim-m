@@ -10,6 +10,7 @@
 /// "nothing to do" against a release page it cannot see.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'update_check.dart' show isNewer;
@@ -45,18 +46,36 @@ class RpmUpdateResult {
   final String detail;
 }
 
+/// How long any one dnf or rpm step may take before the splash stops waiting.
+///
+/// Generous because an upgrade is legitimately slow and the polkit prompt is
+/// the consent step, but finite: dnf waiting on another package manager's lock
+/// would otherwise hold the app unstarted forever. The process itself is not
+/// killed, since pkexec runs it as root and this user cannot signal it.
+const rpmStepTimeout = Duration(minutes: 10);
+
 class RpmUpdater {
-  const RpmUpdater({ProcessRunner run = _realRunner}) : _run = run;
+  const RpmUpdater({
+    ProcessRunner run = _realRunner,
+    Duration stepTimeout = rpmStepTimeout,
+  }) : _run = run,
+       _stepTimeout = stepTimeout;
 
   final ProcessRunner _run;
+  final Duration _stepTimeout;
 
   /// Whether the COPR repo is enabled, read from `dnf repolist --enabled`,
   /// which needs no privilege.
   Future<bool> repoEnabled() async {
     try {
-      final result = await _run('dnf', ['repolist', '--enabled']);
+      final result = await _run('dnf', [
+        'repolist',
+        '--enabled',
+      ]).timeout(_stepTimeout);
       return result.exitCode == 0 && repoListed('${result.stdout}');
     } on ProcessException {
+      return false;
+    } on TimeoutException {
       return false;
     }
   }
@@ -69,11 +88,13 @@ class RpmUpdater {
         '--queryformat',
         '%{VERSION}',
         rpmPackage,
-      ]);
+      ]).timeout(_stepTimeout);
       if (result.exitCode != 0) return null;
       final version = '${result.stdout}'.trim();
       return version.isEmpty ? null : version;
     } on ProcessException {
+      return null;
+    } on TimeoutException {
       return null;
     }
   }
@@ -148,13 +169,18 @@ class RpmUpdater {
 
   Future<RpmUpdateResult> _privileged(List<String> command) async {
     try {
-      final result = await _run('pkexec', command);
+      final result = await _run('pkexec', command).timeout(_stepTimeout);
       return RpmUpdateResult(
         ok: result.exitCode == 0,
         detail: lastLines('${result.stdout}\n${result.stderr}'),
       );
     } on ProcessException catch (e) {
       return RpmUpdateResult(ok: false, detail: e.message);
+    } on TimeoutException {
+      return RpmUpdateResult(
+        ok: false,
+        detail: 'dnf did not finish within ${_stepTimeout.inMinutes} minutes.',
+      );
     }
   }
 }

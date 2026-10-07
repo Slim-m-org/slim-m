@@ -61,8 +61,6 @@ class MessageActions {
   /// itself offers. See decision 0045.
   final List<BotMenuSection> botSections;
 
-  /// Gated on SEND_MESSAGES in this channel, unlike [canEdit] and [canDelete]:
-  /// replying is a new send, not an act on a message you already authored.
   /// Keeping a message in your own private list. Needs no permission beyond
   /// reading it, and is nobody else's business - so unlike [canManagePins]
   /// there is no moderator gate, and unlike [pinned] no shared toggled state
@@ -71,6 +69,8 @@ class MessageActions {
   final bool canSave;
   final VoidCallback onSave;
 
+  /// Gated on SEND_MESSAGES in this channel, unlike [canEdit] and [canDelete]:
+  /// replying is a new send, not an act on a message you already authored.
   final bool canReply;
   final VoidCallback onReply;
 
@@ -113,16 +113,16 @@ class MessageActions {
   /// [MessageContextMenuRegion]'s own `_items` for how it renders.
   final bool hasExistingThread;
 
+  /// Whether a link to this message can be built; see [canCopyMessageLink].
+  final bool canCopyLink;
+  final VoidCallback onCopyLink;
+
   /// False for a pending or failed send, matching [canReply]: there is
   /// nothing settled yet to forward. Unlike edit and delete this needs no
   /// authorship or per-channel permission check here - forwarding reads
   /// [content], it never re-sends this exact message, and the destination
   /// picker itself only ever offers a channel or DM the caller can actually
   /// send to.
-  /// Whether a link to this message can be built; see [canCopyMessageLink].
-  final bool canCopyLink;
-  final VoidCallback onCopyLink;
-
   final bool canForward;
   final VoidCallback onForward;
 }

@@ -114,8 +114,32 @@ class LoadOrGenerateConversationsTest(unittest.TestCase):
             got = seed_ollama.load_or_generate_conversations(
                 "m", "seed-1", [("topic", ["Alan"], 4)], cache_dir=self.cache_dir)
         self.assertEqual(got, [])
-        path = seed_ollama._cache_path("m", "seed-1", self.cache_dir, kind="conversations")
-        self.assertFalse(Path(path).exists())
+        self.assertEqual(list(Path(self.cache_dir).iterdir()), [])
+
+    def test_a_different_cohort_under_the_same_seed_is_not_a_cache_hit(self):
+        def fake_fetch(base_url, model, participants, topic, turn_count, timeout):
+            return [{"speaker": participants[0], "text": "hi"}]
+
+        with patch("seed_ollama._reachable", return_value=True), \
+             patch("seed_ollama._fetch_conversation", side_effect=fake_fetch) as fetch:
+            seed_ollama.load_or_generate_conversations(
+                "m", 7, [("topic", ["Alan", "Bea"], 4)], cache_dir=self.cache_dir)
+            got = seed_ollama.load_or_generate_conversations(
+                "m", 7, [("topic", ["Cy"], 4)], cache_dir=self.cache_dir)
+        self.assertEqual(fetch.call_count, 2)
+        self.assertEqual(got[0]["participants"], ["Cy"])
+
+    def test_a_cache_file_of_the_wrong_shape_is_a_miss(self):
+        requests = [("topic", ["Alan"], 4)]
+        for payload in ({"a": 1}, [1, 2]):
+            path = seed_ollama._cache_path(
+                "m", seed_ollama._conversation_cache_seed(7, requests),
+                self.cache_dir, kind="conversations")
+            Path(path).write_text(json.dumps(payload))
+            with patch("seed_ollama._reachable", return_value=False):
+                got = seed_ollama.load_or_generate_conversations(
+                    "m", 7, requests, cache_dir=self.cache_dir)
+            self.assertEqual(got, [], payload)
 
 
 if __name__ == "__main__":
