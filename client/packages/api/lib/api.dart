@@ -108,6 +108,7 @@ export 'src/events.dart'
         PongEvent,
         PresenceChanged,
         ProfileChanged,
+        BotUiChanged,
         ReactionsChanged,
         ReadStateChanged,
         ReactionTally,

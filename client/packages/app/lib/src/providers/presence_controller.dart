@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import 'live_events.dart';
 import 'presence_activity.dart';
+import 'presence_devices.dart';
 import 'providers.dart';
 
 /// The most ids `GET /presence` accepts in one request.
@@ -29,6 +30,9 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
         _ref
             .read(presenceActivityProvider.notifier)
             .apply(event.userId, event.activity);
+        _ref
+            .read(presenceDevicesProvider.notifier)
+            .apply(event.userId, event.devices);
       }
     });
   }
@@ -84,6 +88,7 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
         for (final status in statuses) status.userId: status.status,
       };
       _ref.read(presenceActivityProvider.notifier).applyBatch(statuses);
+      _ref.read(presenceDevicesProvider.notifier).applyBatch(statuses);
     } on api.ApiException {
       // Nothing useful to do; the next refresh (or a live event) corrects it.
     }

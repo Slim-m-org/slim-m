@@ -50,6 +50,8 @@ struct PresenceDto {
     status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     activity: Option<Activity>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    devices: Vec<&'static str>,
 }
 
 #[derive(Deserialize)]
@@ -104,6 +106,7 @@ async fn list(
             user_id: target.to_string(),
             status: status.as_str().to_owned(),
             activity: tracker.activity_visible_at(target, status),
+            devices: tracker.device_names_visible_at(target, status),
         });
     }
     Ok(Json(dtos))

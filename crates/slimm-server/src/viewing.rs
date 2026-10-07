@@ -34,6 +34,12 @@ pub fn is_foreground_label(state: &str) -> bool {
     state == "foreground"
 }
 
+/// How long after a connection last reported its user active that the account
+/// counts as in front of a device, so a phone push for a message would only
+/// duplicate what that device already shows. Two minutes: long enough to cover
+/// reading without typing, short enough that walking away soon restores push.
+pub const ACTIVE_WINDOW: Duration = Duration::from_secs(120);
+
 /// The most channels one connection may report at once; a thread and its
 /// parent are the realistic ceiling, the rest is abuse.
 pub const MAX_VIEWED_CHANNELS: usize = 8;
@@ -47,6 +53,7 @@ struct Report {
 #[derive(Clone, Default)]
 pub struct ViewingTracker {
     reports: Arc<Mutex<HashMap<UserId, HashMap<u64, Report>>>>,
+    active: Arc<Mutex<HashMap<UserId, HashMap<u64, Instant>>>>,
     next_connection: Arc<AtomicU64>,
 }
 
@@ -92,7 +99,7 @@ impl ViewingTracker {
         );
     }
 
-    /// Forgets a connection, on every exit path of its socket.
+    /// Forgets a connection's channel report.
     pub fn clear(&self, user_id: UserId, connection: u64) {
         let mut reports = lock(&self.reports);
         if let Some(own) = reports.get_mut(&user_id) {
@@ -101,6 +108,43 @@ impl ViewingTracker {
                 reports.remove(&user_id);
             }
         }
+    }
+
+    /// Forgets everything a connection reported, on every exit path of its socket.
+    pub fn forget_connection(&self, user_id: UserId, connection: u64) {
+        self.clear(user_id, connection);
+        let mut active = lock(&self.active);
+        if let Some(own) = active.get_mut(&user_id) {
+            own.remove(&connection);
+            if own.is_empty() {
+                active.remove(&user_id);
+            }
+        }
+    }
+
+    /// Records that `connection`'s user was just using that device.
+    pub fn mark_active(&self, user_id: UserId, connection: u64) {
+        self.mark_active_at(user_id, connection, Instant::now());
+    }
+
+    pub fn mark_active_at(&self, user_id: UserId, connection: u64, now: Instant) {
+        let mut active = lock(&self.active);
+        let own = active.entry(user_id).or_default();
+        own.retain(|_, at| now.duration_since(*at) < ACTIVE_WINDOW);
+        own.insert(connection, now);
+    }
+
+    /// Whether any live connection of `user_id` reported its user active
+    /// within [`ACTIVE_WINDOW`].
+    pub fn is_recently_active(&self, user_id: UserId) -> bool {
+        self.is_recently_active_at(user_id, Instant::now())
+    }
+
+    pub fn is_recently_active_at(&self, user_id: UserId, now: Instant) -> bool {
+        lock(&self.active).get(&user_id).is_some_and(|own| {
+            own.values()
+                .any(|at| now.duration_since(*at) < ACTIVE_WINDOW)
+        })
     }
 
     /// Drops every report from one device, for when its lifecycle report says
@@ -249,5 +293,30 @@ mod tests {
             one(channel),
         );
         assert!(!tracker.is_viewing(UserId::generate(), channel));
+    }
+
+    #[test]
+    fn activity_counts_for_a_half_open_window() {
+        let tracker = ViewingTracker::default();
+        let user = UserId::generate();
+        let start = Instant::now();
+        tracker.mark_active_at(user, 1, start);
+        assert!(tracker.is_recently_active_at(user, start));
+        assert!(
+            tracker.is_recently_active_at(user, start + ACTIVE_WINDOW - Duration::from_millis(1))
+        );
+        assert!(!tracker.is_recently_active_at(user, start + ACTIVE_WINDOW));
+    }
+
+    #[test]
+    fn a_closed_connection_stops_counting_as_active() {
+        let tracker = ViewingTracker::default();
+        let user = UserId::generate();
+        tracker.mark_active(user, 1);
+        tracker.mark_active(user, 2);
+        tracker.forget_connection(user, 1);
+        assert!(tracker.is_recently_active(user));
+        tracker.forget_connection(user, 2);
+        assert!(!tracker.is_recently_active(user));
     }
 }

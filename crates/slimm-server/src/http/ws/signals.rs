@@ -8,7 +8,7 @@ use super::frames::ServerFrame;
 use crate::hub::{Event, Hub};
 use crate::ids::{CanvasObjectId, ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
-use crate::presence::{self, Status, Visibility};
+use crate::presence::{self, DeviceKind, Status, Visibility};
 use crate::ratelimit::{Class, RateLimiter};
 use crate::store::{SessionContext, Store, WORLD_LIMIT};
 
@@ -20,6 +20,7 @@ pub(super) struct PresenceGuard {
     hub: Hub,
     user_id: UserId,
     device_id: DeviceId,
+    kind: DeviceKind,
     connection: u64,
     idle_watch: tokio::task::AbortHandle,
 }
@@ -34,7 +35,8 @@ impl PresenceGuard {
         user_id: UserId,
         device_id: DeviceId,
     ) -> Self {
-        let first = hub.presence().connect(user_id);
+        let kind = store.device_kind(device_id).await;
+        let first = hub.presence().connect_as(user_id, kind);
         // Fill the cache without clobbering a concurrent visibility change (see load_visibility).
         if let Ok(Some(visibility)) = store.presence_visibility(user_id).await {
             hub.presence().load_visibility(user_id, visibility);
@@ -48,6 +50,7 @@ impl PresenceGuard {
             hub,
             user_id,
             device_id,
+            kind,
             connection,
             idle_watch,
         }
@@ -57,17 +60,18 @@ impl PresenceGuard {
     ///
     /// Unparseable ids are skipped and the list is capped: it only ever
     /// shortens this account's own push, so a bad frame costs nothing else.
-    pub(super) fn set_viewing(&self, channel_ids: &[String]) {
+    pub(super) fn set_viewing(&self, channel_ids: &[String], active: bool) {
         let channels = channel_ids
             .iter()
             .take(crate::viewing::MAX_VIEWED_CHANNELS)
             .filter_map(|raw| uuid::Uuid::parse_str(raw).ok())
             .map(ChannelId)
             .collect();
-        self.hub
-            .presence()
-            .viewing()
-            .set(self.user_id, self.device_id, self.connection, channels);
+        let viewing = self.hub.presence().viewing();
+        viewing.set(self.user_id, self.device_id, self.connection, channels);
+        if active {
+            viewing.mark_active(self.user_id, self.connection);
+        }
     }
 }
 
@@ -77,8 +81,8 @@ impl Drop for PresenceGuard {
         self.hub
             .presence()
             .viewing()
-            .clear(self.user_id, self.connection);
-        if self.hub.presence().disconnect(self.user_id) {
+            .forget_connection(self.user_id, self.connection);
+        if self.hub.presence().disconnect_as(self.user_id, self.kind) {
             self.hub.publish(Event::PresenceChanged(self.user_id));
         }
     }
@@ -195,6 +199,7 @@ pub(super) fn presence_frame(hub: &Hub, target: UserId, status: Status) -> Serve
         user_id: target.to_string(),
         status: status.as_str().to_owned(),
         activity: hub.presence().activity_visible_at(target, status),
+        devices: hub.presence().device_names_visible_at(target, status),
     }
 }
 

@@ -19,11 +19,11 @@ import 'author_profile_tap_target.dart';
 import 'user_avatar.dart';
 
 /// The avatar column's width, and therefore also the continuation gutter's:
-/// the design's 36px message-row avatar, named once so both agree.
-const double _avatarSize = AppAvatarSize.s36;
+/// the design's 40px message-row avatar, named once so both agree.
+const double _avatarSize = AppAvatarSize.s40;
 
 /// `HH:mm` or a 12-hour equivalent, following [use24Hour]. Fixed width
-/// matters here: a grouped message puts its time in a 36px gutter, and a
+/// matters here: a grouped message puts its time in the avatar-wide gutter, and a
 /// spelled-out "12:05 PM" wraps to two lines in it, which is why the 12-hour
 /// form drops the leading zero and the space before its suffix ("12:05p")
 /// rather than reusing `formatDateTime`'s longer one.
@@ -84,10 +84,10 @@ class MessageTimeMark extends ConsumerWidget {
 
   final Message message;
 
-  /// Glyph-only pending/failed marks, for the 36px continuation gutter where
+  /// Glyph-only pending/failed marks, for the avatar-wide continuation gutter where
   /// a word cannot fit. The sent branch has no glyph fallback: no string
   /// `formatMessageTime` produces fits a mono face at the type scale's
-  /// smallest legible size into 36px, so the gutter positions this mark as
+  /// smallest legible size into the gutter, so the gutter positions this mark as
   /// an unconstrained overlay instead (see [MessageRowLeading]) rather than
   /// shrinking or wrapping it.
   final bool compact;
@@ -139,7 +139,7 @@ class MessageTimeMark extends ConsumerWidget {
   }
 }
 
-/// The 36px continuation gutter's delivery/timestamp mark, rendered as an
+/// The continuation gutter's delivery/timestamp mark, rendered as an
 /// unconstrained overlay rather than laid out in flow.
 ///
 /// No string [formatMessageTime] produces fits this column at the type

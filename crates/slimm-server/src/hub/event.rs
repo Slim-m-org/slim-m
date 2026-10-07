@@ -261,6 +261,11 @@ pub enum Event {
     /// the client re-resolves a message's author against this event instead
     /// of trusting that stored copy for the rest of the session.
     ProfileChanged(UserId),
+    /// A bot replaced its message menu entries or call controls. Carries only
+    /// the bot, like [`Event::ProfileChanged`]: each client refetches the bot
+    /// UI for the channels it has open, and that read applies the channel's
+    /// own visibility, so nothing is masked per reader on the live path.
+    BotUiChanged(UserId),
     /// Someone started or refreshed typing in a channel.
     TypingStarted {
         channel_id: ChannelId,

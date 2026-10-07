@@ -89,7 +89,7 @@ class DmRow extends ConsumerWidget {
           onTap: () =>
               run(() => hideDmConversation(container, peerId, channel.id)),
         ),
-      markUnreadMenuItem(context, container, channel.id, close),
+      markReadStateMenuItem(context, container, channel, close, isDm: true),
       const AppMenuDivider(),
       ...notificationMenuItems(
         context,
@@ -166,7 +166,7 @@ class DmRow extends ConsumerWidget {
         leading: UserAvatar(
           name: channel.name,
           userId: channel.dmParticipantId,
-          size: AppAvatarSize.s24,
+          size: AppAvatarSize.s28,
           presence: true,
         ),
         trailing: inCall

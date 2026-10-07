@@ -280,13 +280,15 @@ class _ChannelCategorySectionsState
                 onFocusChange: onFocusChange,
               ),
       );
-      // Only a real category is manageable; the null section is the id-less implicit 'Channels' bucket.
-      if (category == null || !canManage || carried) return label;
+      // Only a real category has a menu; the null section is the id-less implicit 'Channels' bucket.
+      if (category == null || carried) return label;
       return CategoryHeaderMenu(
         category: category,
         categories: categories,
         collapsed: collapsed,
         label: label,
+        channels: byCategory[category.id] ?? const [],
+        canManage: canManage,
       );
     }
 

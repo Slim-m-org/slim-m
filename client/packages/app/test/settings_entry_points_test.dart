@@ -220,14 +220,18 @@ void main() {
   );
 
   testWidgets(
-    'the Space menu is hidden entirely for a member holding none of the '
-    'four gating bits, rather than opening onto an empty screen',
+    'the Space menu opens for a member holding none of the four gating bits, '
+    'without Space settings, so it never leads onto an empty screen',
     (tester) async {
       final container = _setup(0);
       addTearDown(container.dispose);
       await _pump(tester, container);
 
-      expect(find.bySemanticsLabel('Space menu'), findsNothing);
+      await tester.tap(find.bySemanticsLabel('Space menu'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Saved messages'), findsOneWidget);
+      expect(find.text('Space settings'), findsNothing);
       // Unaffected: the footer's control never leads to Space settings.
       expect(find.bySemanticsLabel('Personal settings'), findsOneWidget);
     },

@@ -180,7 +180,7 @@ async fn put_unread(
 
 /// The three reads every read-state answer needs, in one place so the two
 /// handlers that return one cannot drift apart.
-async fn read_state_for(
+pub(super) async fn read_state_for(
     state: &AppState,
     user_id: crate::ids::UserId,
     channel_id: ChannelId,

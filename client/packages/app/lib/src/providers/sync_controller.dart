@@ -19,6 +19,7 @@ import 'dm_call_ring_controller.dart';
 import 'ephemeral_messages.dart';
 import 'presence_activity.dart';
 import 'presence_controller.dart';
+import 'presence_devices.dart';
 import 'voice_controller.dart';
 import 'failed_send_retry.dart';
 import 'last_text_channel.dart';
@@ -175,8 +176,8 @@ class SyncController extends StateNotifier<SyncStatus> {
 
   /// Tells the server which channels this device has open and focused; a
   /// no-op while the socket is down, like [notifyTyping].
-  void notifyViewing(Iterable<String> channelIds) =>
-      _connection?.viewing(channelIds);
+  void notifyViewing(Iterable<String> channelIds, {bool active = false}) =>
+      _connection?.viewing(channelIds, active: active);
 
   /// Tells the server this user's pointer moved on a channel's canvas.
   ///
@@ -430,6 +431,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     _ref.read(dmCallActivityProvider.notifier).clear();
     _ref.read(presenceControllerProvider.notifier).clear();
     _ref.read(presenceActivityProvider.notifier).clear();
+    _ref.read(presenceDevicesProvider.notifier).clear();
     _ref.invalidate(presenceVisibilityDisplayProvider);
     _ref.invalidate(memberProfileOverridesProvider);
     // A session can end without the user asking; see this method's own doc.

@@ -127,6 +127,8 @@ pub(super) enum ServerFrame {
         status: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         activity: Option<crate::presence_activity::Activity>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        devices: Vec<&'static str>,
     },
     #[serde(rename = "member.timeout")]
     MemberTimeoutChanged {
@@ -151,6 +153,8 @@ pub(super) enum ServerFrame {
     MemberJoined { user_id: String },
     #[serde(rename = "profile.changed")]
     ProfileChanged { user_id: String },
+    #[serde(rename = "bot_ui.changed")]
+    BotUiChanged { bot_user_id: String },
     #[serde(rename = "typing.started")]
     TypingStarted { channel_id: String, user_id: String },
     #[serde(rename = "typing.stopped")]
@@ -386,8 +390,14 @@ pub(super) enum ClientFrame {
     /// its previous report; empty when none. Lapses after
     /// [`crate::viewing::VIEWING_TTL`], so a client refreshes it periodically.
     /// Used only to skip push for what this account is already reading.
+    /// `active` says the user has used this device recently, which skips
+    /// message pushes to their other devices for a short while.
     #[serde(rename = "viewing")]
-    Viewing { channel_ids: Vec<String> },
+    Viewing {
+        channel_ids: Vec<String>,
+        #[serde(default)]
+        active: bool,
+    },
     /// A pointer position on a channel's canvas. Rate-limited and authorized
     /// the same bar the canvas HTTP routes use (view plus `USE_CANVAS`); see
     /// [`super::signals::handle_canvas_cursor`]. No "stop" frame either, for

@@ -98,6 +98,7 @@ fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::ProfileChanged(_)
+        | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }
         | Event::MemberRoleChanged { .. }
         | Event::ChannelDeleted { .. }
@@ -250,6 +251,11 @@ pub(super) async fn authorize_unstamped(
                 user_id: user_id.to_string(),
             }));
         }
+        Event::BotUiChanged(bot_user_id) => {
+            return Authorization::Deliver(Box::new(ServerFrame::BotUiChanged {
+                bot_user_id: bot_user_id.to_string(),
+            }));
+        }
         Event::CategoryChanged => {
             return Authorization::Deliver(Box::new(ServerFrame::CategoryChanged));
         }
@@ -318,6 +324,7 @@ pub(super) async fn authorize_unstamped(
             | Event::MemberRestored(_)
             | Event::MemberJoined(_)
             | Event::ProfileChanged(_)
+            | Event::BotUiChanged(_)
             | Event::RoleChanged { .. }
             | Event::MemberRoleChanged { .. }
             | Event::ChannelDeleted { .. }
@@ -670,6 +677,7 @@ pub(super) async fn authorize_unstamped(
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::ProfileChanged(_)
+        | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }
         | Event::MemberRoleChanged { .. }
         | Event::ChannelDeleted { .. }

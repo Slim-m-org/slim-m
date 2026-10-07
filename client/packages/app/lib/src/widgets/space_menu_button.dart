@@ -19,14 +19,15 @@ import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
+import 'row_menu_notifications.dart';
 import 'saved_messages_sheet.dart';
 import 'space_settings_section.dart';
 import '../action_labels.dart';
 
-/// Hidden entirely for a caller holding none of [spaceSettingsReachable]'s
-/// gating bits: its one item at minimum is Space settings, and a member who
-/// cannot reach that screen must not be offered a menu that opens onto it
-/// empty. "Add channel" and "Add category" are gated separately, on
+/// Every member gets it: "Saved messages" and "Mark all as read" are theirs
+/// regardless of role. "Space settings" is offered only to a caller holding
+/// one of [spaceSettingsReachable]'s gating bits, so no member is sent to that
+/// screen empty. "Add channel" and "Add category" are gated separately, on
 /// [Perm.manageChannels] specifically - the same bit the rail's own channel
 /// rows already require to be dragged and reordered - so a moderator who can
 /// see reports but not manage channels sees the menu without those two items
@@ -44,7 +45,6 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
   @override
   Widget build(BuildContext context) {
     final permissions = ref.watch(myPermissionsProvider);
-    if (!spaceSettingsReachable(permissions)) return const SizedBox.shrink();
     final canManageChannels = permissions.hasPermission(Perm.manageChannels);
 
     return AnchoredMenu(
@@ -70,6 +70,11 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
               },
             ),
           ],
+          markSpaceReadMenuItem(
+            context,
+            ProviderScope.containerOf(context, listen: false),
+            _controller.hide,
+          ),
           // Above settings and outside the manage gate: keeping messages is something every member does.
           AppMenuItem(
             label: 'Saved messages',
@@ -79,14 +84,16 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
               showSavedMessagesSheet(context);
             },
           ),
-          AppMenuItem(
-            label: 'Space settings',
-            leading: AppIcons.settings,
-            onTap: () {
-              _controller.hide();
-              context.push(Routes.spaceSettings);
-            },
-          ),
+          // Settings stays behind the gate that makes its screen worth opening.
+          if (spaceSettingsReachable(permissions))
+            AppMenuItem(
+              label: 'Space settings',
+              leading: AppIcons.settings,
+              onTap: () {
+                _controller.hide();
+                context.push(Routes.spaceSettings);
+              },
+            ),
         ],
       ),
       child: AppIconButton(

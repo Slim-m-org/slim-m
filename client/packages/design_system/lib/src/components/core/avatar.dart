@@ -15,6 +15,7 @@ import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../stable_index.dart';
 import 'avatar_geometry.dart';
+import 'presence_phone_mark.dart';
 import 'speaking_ring.dart';
 import 'status_dot.dart';
 
@@ -72,6 +73,7 @@ class AppAvatar extends StatelessWidget {
     this.size = AppAvatarSize.s36,
     this.shape = AppAvatarShape.circle,
     this.status,
+    this.mobileOnly = false,
     this.speaking = false,
     this.ringColor,
     this.placeholder,
@@ -101,6 +103,11 @@ class AppAvatar extends StatelessWidget {
   /// [AppPresence.unknown] both draw nothing.
   final AppPresence? status;
 
+  /// The member is online from a phone and nothing else: an online [status]
+  /// then draws a phone glyph in place of its dot. Away and do-not-disturb
+  /// keep their dot, whose shape is what tells those states apart.
+  final bool mobileOnly;
+
   /// A live-speaking ring. Takes priority over [ringColor], matching the
   /// source design's own precedence.
   ///
@@ -129,9 +136,10 @@ class AppAvatar extends StatelessWidget {
     final round = shape == AppAvatarShape.circle;
     final radius = round ? size / 2 : AppRadii.control;
     final initials = round ? initialsFor(name) : '';
-    final geometry = AppAvatarGeometry(size);
     final presence = status;
     final dot = presence != null && presence != AppPresence.unknown;
+    final phone = dot && mobileOnly && presence == AppPresence.online;
+    final geometry = AppAvatarGeometry(size, phone: phone);
 
     Widget content = image == null
         ? _Face(
@@ -205,10 +213,12 @@ class AppAvatar extends StatelessWidget {
                 padding: const EdgeInsets.all(AppAvatarGeometry.dotHalo),
                 decoration: BoxDecoration(
                     color: tokens.surfaceBase, shape: BoxShape.circle),
-                child: AppStatusDot(
-                    status: presence,
-                    size: geometry.dotDiameter,
-                    backgroundColor: tokens.surfaceBase),
+                child: phone
+                    ? AppPresencePhoneMark(size: geometry.markDiameter)
+                    : AppStatusDot(
+                        status: presence,
+                        size: geometry.dotDiameter,
+                        backgroundColor: tokens.surfaceBase),
               ),
             ),
           ],

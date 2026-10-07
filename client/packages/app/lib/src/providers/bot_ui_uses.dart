@@ -12,14 +12,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../api_failure.dart';
+import 'live_events.dart';
 import 'pending_interactions.dart';
 import 'providers.dart';
 
 /// Channel-scoped because a bot's visibility is per channel.
 final channelBotUiProvider = FutureProvider.autoDispose
-    .family<List<api.ChannelBotUi>, String>(
-      (ref, channelId) => ref.watch(apiProvider).listChannelBotUi(channelId),
-    );
+    .family<List<api.ChannelBotUi>, String>((ref, channelId) {
+      // A bot that re-registers its controls would otherwise show stale ones until this channel remounts.
+      final changes = ref.read(liveEventsProvider).listen((event) {
+        if (event is api.BotUiChanged) ref.invalidateSelf();
+      });
+      ref.onDispose(changes.cancel);
+      return ref.watch(apiProvider).listChannelBotUi(channelId);
+    });
 
 /// How long a use waits for the bot before it is shown as failed.
 const Duration botUiUseTimeout = Duration(seconds: 5);

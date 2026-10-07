@@ -65,6 +65,10 @@ ProviderContainer _setup(
                 headers: {'content-type': 'application/json'},
               );
             }
+            // The menu now watches the per-channel overrides, which the rail loads on mount.
+            if (request.url.path == '/notification-preferences/channels') {
+              return http.Response('[]', 200);
+            }
             return (handler ?? (_) => http.Response('{}', 404))(request);
           }),
         );

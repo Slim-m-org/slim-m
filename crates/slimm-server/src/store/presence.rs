@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use sqlx::{QueryBuilder, Row};
 
 use super::Store;
-use crate::ids::UserId;
-use crate::presence::Visibility;
+use crate::ids::{DeviceId, UserId};
+use crate::presence::{DeviceKind, Visibility};
 
 impl Store {
     /// The visibility a live user has chosen, or `None` if the account is
@@ -31,6 +31,19 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|r| Visibility::parse(&r.presence_visibility).unwrap_or_default()))
+    }
+
+    /// The kind of client a device signed in as, for presence. Unknown on any
+    /// failure or a session older than the column: presence is not worth an
+    /// error over a label.
+    pub async fn device_kind(&self, device_id: DeviceId) -> DeviceKind {
+        let kind: Option<Option<String>> =
+            sqlx::query_scalar("SELECT client_kind FROM devices WHERE id = ?")
+                .bind(device_id)
+                .fetch_optional(&self.pool)
+                .await
+                .unwrap_or(None);
+        DeviceKind::from_client_kind(kind.flatten().as_deref())
     }
 
     /// [`Self::presence_visibility`] for several users in one query, mirroring
