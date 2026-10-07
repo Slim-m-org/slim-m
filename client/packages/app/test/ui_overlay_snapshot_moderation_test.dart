@@ -118,6 +118,25 @@ Future<void> _finish(WidgetTester tester, String name) async {
   expect(tester.takeException(), isNull);
 }
 
+/// Unmounts the tree and disposes the container inside the test body.
+// The pending-timer check runs before tearDowns, so a disposal left to one sees the sync retry timer.
+Future<void> _unmountAndDispose(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(const SizedBox());
+  container.dispose();
+}
+
+/// Leaves the call, then [_unmountAndDispose].
+Future<void> _endCall(
+  WidgetTester tester,
+  ({ProviderContainer container}) wired,
+) async {
+  await wired.container.read(voiceControllerProvider.notifier).leave();
+  await _unmountAndDispose(tester, wired.container);
+}
+
 /// Joins a real, live-participant call for real (a mocked token round trip
 /// plus a driven [FakeSession]), the shared shape `member_profile_eject_
 /// test.dart` uses for both the call section and the Eject row: both need
@@ -292,7 +311,7 @@ void main() {
     (tester) async {
       final wired = await _pumpInCall(tester, permissions: 0);
       await _finish(tester, 'member-popover-call-audio-only-desktop');
-      await wired.container.read(voiceControllerProvider.notifier).leave();
+      await _endCall(tester, wired);
     },
   );
 
@@ -300,7 +319,7 @@ void main() {
       'true', (tester) async {
     final wired = await _pumpInCall(tester, permissions: Perm.kickMembers);
     await _finish(tester, 'member-popover-eject-desktop');
-    await wired.container.read(voiceControllerProvider.notifier).leave();
+    await _endCall(tester, wired);
   });
 
   testWidgets('a timeout attempt that the row offered and the server '
@@ -364,5 +383,6 @@ void main() {
     // A plain 403 gives the same "not allowed" sentence any denied caller sees; there is no distinct wording for a containment gap.
     expect(find.textContaining('not allowed to do that'), findsOneWidget);
     await _finish(tester, 'member-popover-admin-containment-gap-desktop');
+    await _unmountAndDispose(tester, container);
   });
 }
