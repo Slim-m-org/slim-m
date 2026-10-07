@@ -21,6 +21,7 @@ import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
 import '../widgets/settings_section_header.dart';
+import '../widgets/settings_select_row.dart';
 import '../widgets/success_flash.dart';
 
 /// The interval choices offered here, index-matched to the segmented
@@ -45,9 +46,16 @@ String slowModeLabel(int seconds) {
 }
 
 class ChannelSlowModeSection extends ConsumerStatefulWidget {
-  const ChannelSlowModeSection({super.key, required this.channel});
+  const ChannelSlowModeSection({
+    super.key,
+    required this.channel,
+    this.embedded = false,
+  });
 
   final Channel channel;
+
+  /// One select row inside another card instead of its own card.
+  final bool embedded;
 
   @override
   ConsumerState<ChannelSlowModeSection> createState() =>
@@ -94,6 +102,30 @@ class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
     final options = presetsIncluding(slowModeOptions, current, slowModeLabel);
     final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SettingsSelectRow<int>(
+            label: 'Slow mode',
+            sheetTitle: 'Slow mode',
+            value: current,
+            choices: [
+              for (final option in options)
+                SettingsChoice(value: option.$2, label: option.$1),
+            ],
+            sheetFootnote:
+                'How long a member waits between their own messages.',
+            onChanged: (seconds) => _saving ? null : _setSeconds(seconds),
+          ),
+          SuccessFlash(tick: successTick),
+          if (actionError != null) ...[
+            const SizedBox(height: AppSpacing.s8),
+            AppErrorState(message: actionError!, onDismiss: clearActionError),
+          ],
+        ],
+      );
+    }
     return SettingsSectionCard(
       title: 'Slow mode',
       description: 'How long a member waits between their own messages.',
