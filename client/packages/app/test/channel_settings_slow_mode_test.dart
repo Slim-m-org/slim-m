@@ -67,6 +67,10 @@ void main() {
     expect(jsonDecode(patched.first.body) as Map<String, dynamic>, {
       'slow_mode_seconds': 30,
     });
-    expect(find.text('30s'), findsOneWidget, reason: 'the row shows the choice');
+    expect(
+      find.text('30s'),
+      findsOneWidget,
+      reason: 'the row shows the choice',
+    );
   });
 }
