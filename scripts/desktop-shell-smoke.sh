@@ -22,12 +22,12 @@
 # rather than reading geometry at one specific poll: a bootstrap fast enough
 # to beat one poll (observed both on an unrelated PR and on a release commit,
 # see the incident notes this PR's description links) used to read as the
-# splash never having appeared, when it plainly had. This still cannot rule
-# out a bootstrap so fast it beats the 100ms sample interval itself - that
-# residual race is real, just far smaller than racing a single poll - and it
-# still asserts the same claim decision 0012 makes (a real splash size, then
-# a real settle), only at whatever instant it actually happened rather than
-# at one guessed instant.
+# splash never having appeared, when it plainly had. Sampling still lost the
+# race on loaded CI runners, so the splash check now reads an xev log of the
+# root window's substructure events started before each launch: the X server
+# reports every create and configure, however brief, so the 380x460 window is
+# seen whenever it existed. A launch that never shows the splash still fails,
+# because no window of that size ever appears in the log.
 #
 # There is no org.kde.StatusNotifierWatcher on this bus - fluxbox is a plain
 # window manager, not a full desktop shell - so the close path here always
@@ -80,6 +80,7 @@ FLUXBOX_PID=$!
 sleep 1
 
 cleanup() {
+  stop_event_log
   kill "${APP_PID:-0}" 2>/dev/null || true
   kill "$FLUXBOX_PID" 2>/dev/null || true
   # Letting fluxbox actually exit before Xvfb goes quiets its own XIOError.
@@ -146,16 +147,30 @@ track_to_settled_size() {
   done
 }
 
+# Line-buffered so the log is complete by the time the window has settled; started before the launch so the first create is in it.
+start_event_log() {
+  EVENT_LOG="$(mktemp)"
+  stdbuf -oL xev -root -event substructure >"$EVENT_LOG" 2>/dev/null &
+  XEV_PID=$!
+  sleep 0.5
+}
+
+stop_event_log() {
+  kill "${XEV_PID:-0}" 2>/dev/null || true
+  wait "${XEV_PID:-0}" 2>/dev/null || true
+}
+
 assert_splash_seen() {
-  local size
-  for size in "${SIZES[@]}"; do
-    [[ "$size" == "${SPLASH_WIDTH}x${SPLASH_HEIGHT}" ]] && return 0
-  done
-  echo "::error::window never passed through the splash size ${SPLASH_WIDTH}x${SPLASH_HEIGHT}; observed sequence: ${SIZES[*]:-none}" >&2
+  stop_event_log
+  if grep -q "width ${SPLASH_WIDTH}, height ${SPLASH_HEIGHT}," "$EVENT_LOG"; then
+    return 0
+  fi
+  echo "::error::no window of the splash size ${SPLASH_WIDTH}x${SPLASH_HEIGHT} appeared in the X event log; sampled sequence: ${SIZES[*]:-none}" >&2
   exit 1
 }
 
 echo "::group::fresh launch starts in the small splash shape, then settles into the documented default size"
+start_event_log
 "$BIN" &
 APP_PID=$!
 track_to_settled_size 1280 720 50
@@ -172,6 +187,7 @@ wait "$APP_PID" 2>/dev/null || true
 echo "::endgroup::"
 
 echo "::group::relaunch starts in the splash shape again, then settles into the geometry saved mid-session, not the default"
+start_event_log
 "$BIN" &
 APP_PID=$!
 track_to_settled_size 900 650 50

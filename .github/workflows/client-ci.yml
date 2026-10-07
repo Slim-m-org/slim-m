@@ -338,7 +338,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            xvfb fluxbox wmctrl xdotool libgl1-mesa-dri mesa-utils \
+            xvfb fluxbox wmctrl xdotool x11-utils libgl1-mesa-dri mesa-utils \
             libgtk-3-0 libsecret-1-0 libgstreamer1.0-0 dbus-daemon \
             libgstreamer-plugins-base1.0-0 libayatana-appindicator3-1 libpulse0 \
             libmpv2 libepoxy0
