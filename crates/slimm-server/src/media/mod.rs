@@ -25,6 +25,7 @@
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures_util::Stream;
 use uuid::Uuid;
@@ -38,6 +39,14 @@ pub use stream::{PendingAttachment, StreamError};
 /// which builds a handle without a `Config` to read the real default from.
 /// Matches `default_attachment_max_bytes` in `src/config.rs`.
 const DEFAULT_ATTACHMENT_MAX_BYTES: u64 = 1024 * 1024 * 1024;
+
+/// How long one attachment upload may take in total.
+///
+/// The body idle timeout only bounds the gap between chunks, so a sender that
+/// drips a byte every few seconds would otherwise hold an upload slot and its
+/// temp file for as long as it likes. Long enough for a gigabyte over a slow
+/// home uplink, and still finite.
+const DEFAULT_UPLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// Longest a sanitized filename may be, in characters.
 const FILENAME_MAX_CHARS: usize = 200;
@@ -107,6 +116,7 @@ pub struct Media {
     /// read out of `Config` already lives, and because `AppState` is built by
     /// hand in dozens of test files that have no opinion about it.
     max_total_attachment_bytes: Option<u64>,
+    upload_timeout: Duration,
     /// Set only by [`Media::for_tests`]; always `None` in a real deployment,
     /// whose media root outlives the process on purpose.
     temp_root: Option<Arc<TempRoot>>,
@@ -142,6 +152,7 @@ impl Media {
             avatars_dir,
             max_attachment_bytes,
             max_total_attachment_bytes: None,
+            upload_timeout: DEFAULT_UPLOAD_TIMEOUT,
             temp_root: None,
         })
     }
@@ -182,6 +193,17 @@ impl Media {
 
     pub fn max_total_attachment_bytes(&self) -> Option<u64> {
         self.max_total_attachment_bytes
+    }
+
+    /// Overrides the total upload time, so a test of the cut need not wait
+    /// half an hour.
+    pub fn with_upload_timeout(mut self, upload_timeout: Duration) -> Self {
+        self.upload_timeout = upload_timeout;
+        self
+    }
+
+    pub fn upload_timeout(&self) -> Duration {
+        self.upload_timeout
     }
 
     fn attachment_path(&self, sha256_hex: &str) -> PathBuf {

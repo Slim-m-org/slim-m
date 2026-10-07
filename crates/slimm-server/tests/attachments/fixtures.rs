@@ -34,11 +34,15 @@ pub async fn new_store() -> (Store, crate::support::TestDbGuard) {
     (Store::new(pool), guard)
 }
 
-fn media_for_test() -> Media {
+pub fn media_for_test() -> Media {
     Media::for_tests().with_attachment_max(TEST_MAX_ATTACHMENT_BYTES)
 }
 
 pub fn app(store: Store) -> Router {
+    app_with_media(store, media_for_test())
+}
+
+pub fn app_with_media(store: Store, media: Media) -> Router {
     http::router(AppState {
         store,
         auth: Auth::new(2).unwrap(),
@@ -46,7 +50,7 @@ pub fn app(store: Store) -> Router {
         limiter: RateLimiter::new(),
         push: PushSender::disabled(),
         voice: slimm_server::voice::VoiceService::disabled(),
-        media: media_for_test(),
+        media,
         gifs: slimm_server::http::gifs::GifSearch::disabled(),
         link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
         dock: slimm_server::http::dock::Dock::disabled(),

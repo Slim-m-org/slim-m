@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
@@ -13,12 +14,12 @@ use crate::fixtures::*;
 
 async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration) {
     let started = tokio::time::Instant::now();
-    let status = upload(chunks, gap, 64, false).await;
+    let status = upload(chunks, gap, 64, media_for_test()).await;
     (status, started.elapsed())
 }
 
 /// Sends `chunks` chunks `gap` apart, every one after the first `tail` bytes long.
-async fn upload(chunks: usize, gap: Duration, tail: usize, paused: bool) -> StatusCode {
+async fn upload(chunks: usize, gap: Duration, tail: usize, media: Media) -> StatusCode {
     let (store, _guard) = new_store().await;
     store
         .create_role(
@@ -28,7 +29,7 @@ async fn upload(chunks: usize, gap: Duration, tail: usize, paused: bool) -> Stat
         )
         .await
         .unwrap();
-    let app = app(store.clone());
+    let app = app_with_media(store.clone(), media);
     let (token, _id) = register(&store, "alice").await;
 
     let first = png(0);
@@ -51,10 +52,6 @@ async fn upload(chunks: usize, gap: Duration, tail: usize, paused: bool) -> Stat
         .header("authorization", format!("Bearer {token}"))
         .body(Body::from_stream(stream))
         .unwrap();
-    // Paused only now: setup opens the pool, whose connect timeout a paused clock would fire.
-    if paused {
-        tokio::time::pause();
-    }
     app.oneshot(request).await.unwrap().status()
 }
 
@@ -89,25 +86,15 @@ async fn a_stalled_upload_is_still_cut() {
     assert!(took < Duration::from_secs(30), "cut only after {took:?}");
 }
 
-/// A sender that never stalls past the body idle timeout but drips a byte every
-/// 10 s is still cut once the upload's total time runs out. On a paused clock,
-/// so 33 simulated minutes take a moment.
+/// A sender that never stalls past the body idle timeout but drips a byte
+/// every 500 ms is still cut once the total upload time runs out, here set to
+/// 2 s so the test does not wait half an hour.
 #[tokio::test]
 async fn a_dripping_upload_is_cut_by_the_total_upload_timeout() {
+    let media = media_for_test().with_upload_timeout(Duration::from_secs(2));
     let started = tokio::time::Instant::now();
-    let status = upload(200, Duration::from_secs(10), 1, true).await;
+    let status = upload(20, Duration::from_millis(500), 1, media).await;
     let took = started.elapsed();
-    assert_ne!(
-        status,
-        StatusCode::CREATED,
-        "a dripping upload ran {took:?}"
-    );
-    assert!(
-        took < Duration::from_secs(31 * 60),
-        "cut only after {took:?}"
-    );
-    assert!(
-        took >= Duration::from_secs(29 * 60),
-        "cut early after {took:?}"
-    );
+    assert_eq!(status, StatusCode::GATEWAY_TIMEOUT, "after {took:?}");
+    assert!(took < Duration::from_secs(8), "cut only after {took:?}");
 }

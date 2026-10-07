@@ -142,17 +142,9 @@ pub(crate) const PROTOCOL_VERSION: u32 = 1;
 /// indefinitely. The HTTP surface had none, against a process whose measured
 /// idle RSS is 7 MB and whose committed budget is under 30 MB. Generous enough
 /// for the heaviest real request (a bundled `/sync`) and far short of forever.
-/// An attachment upload gets [`UPLOAD_TIMEOUT`] instead: a gigabyte over a home
-/// uplink needs minutes.
+/// An attachment upload gets [`Media::upload_timeout`] instead: a gigabyte over
+/// a home uplink needs minutes.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// How long one attachment upload may take in total.
-///
-/// [`BODY_READ_TIMEOUT`] only bounds the gap between chunks, so a sender that
-/// drips a byte every few seconds would otherwise hold an upload slot and its
-/// temp file for as long as it likes. Long enough for a gigabyte over a slow
-/// home uplink, and still finite.
-const UPLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// How long a request body may trickle in before it is abandoned.
 ///
@@ -210,7 +202,7 @@ pub fn router(state: AppState) -> Router {
         .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::GATEWAY_TIMEOUT,
-            UPLOAD_TIMEOUT,
+            state.media.upload_timeout(),
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     Router::new()
