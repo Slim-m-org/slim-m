@@ -150,10 +150,11 @@ class OpenapiVersionIsReleaseManagedTest(unittest.TestCase):
         )
         perf = (REPO_ROOT / ".github" / "workflows" / "perf.yml").read_text()
         self.assertIn(
-            "!startsWith(github.event.release.tag_name, 'schema-v')",
+            "startsWith(github.event.release.tag_name, 'server-v')",
             perf,
-            "a schema-v* release would start the release-only benchmark run a "
-            "second time per server version",
+            "perf's release job must run for server-v* releases only: a "
+            "schema-v* release would measure and commit a second baseline per "
+            "server version",
         )
 
     def test_both_packages_start_from_the_same_version(self):

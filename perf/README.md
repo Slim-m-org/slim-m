@@ -118,37 +118,19 @@ without being able to measure it.
 not compare a `_glibc` figure against a `_musl` one, or either against the
 unqualified `idle_rss`/`peak_rss` names 0.8.0 used before this split existed.
 
-**This is deliberately not wired into CI.**
-The criterion benchmarks above are fine to run on a shared GitHub Actions
-runner because they measure relative cost, not an absolute budget.
-RSS is the opposite: the whole reason 0.8.0's number carries a glibc-versus-musl
-caveat is that the exact host matters, and a virtualized CI runner is a third
-environment, not a stand-in for either the release binary's real deployment
-target or a contributor's own machine.
-A number captured there would look exactly as authoritative as this one while
-measuring something different, which is a worse failure mode than the manual
-step it would replace.
-Take this measurement by hand, on real hardware, at each release.
+**Every server release now measures itself in CI.**
+`perf.yml`'s `baseline` job runs on each published `server-v*` release, on that release's own commit: the criterion benchmarks, then `perf/measure-idle-rss.sh` five times on both libcs, and `scripts/lib/perf_baseline.py` keeps each benchmark's mean and each RSS figure's median.
+It commits the result to main as `perf/baselines/<version>.json`, with an `environment` field naming the runner.
+The owner chose this on 2026-10-07 over hand-measuring each release, because the server releases several times a week and the hand step lapsed twice.
+
+A runner is not the machine a deployment runs on, so a CI baseline's RSS is comparable only with another baseline from the same `environment`, never with the hand-measured ones from 0.38.0 and earlier, which carry no `environment` field.
+For a question about real hardware, measure by hand as above and say so in the report rather than committing it as a baseline.
 
 ## Adding a new baseline
 
-1. Let the release workflow run and download its `criterion-report` artifact.
-2. Open the `estimates.json` file under each benchmark's directory (or read
-   the numbers straight off the HTML report).
-3. Separately, on real hardware, build the release binary and run
-   `perf/measure-idle-rss.sh` (see "Measuring idle RSS" above).
-4. Copy `perf/baseline.example.json` to `perf/baselines/<version>.json`.
-5. Fill in the `version` field, one `metrics` entry per criterion benchmark,
-   and the four RSS entries the script printed.
-6. Commit the new baseline file alongside the release.
-
-This step lapsed silently for nine releases (0.38.0 through 0.45.2) because
-nothing noticed a skipped one.
-`scripts/lib/test_perf_baseline_freshness.py` now fails once the newest
-committed baseline falls more than a few releases behind the newest
-`server-v*` tag, so a skipped release surfaces instead of going unnoticed
-again; its own module docstring has the reasoning for a bounded lag instead
-of exact equality.
+Nothing to do for a normal release: the `baseline` job commits it.
+If a run failed or was skipped, run `perf.yml` by hand from main with the release's tag (`gh workflow run perf.yml -f tag=server-vX.Y.Z`); it measures that tag's commit and commits the file the same way.
+`scripts/lib/test_perf_baseline_freshness.py` fails once the newest committed baseline falls more than a few releases behind the newest `server-v*` tag, so a missed run shows up.
 
 ## Measuring client cold start and idle memory
 
