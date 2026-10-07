@@ -2,16 +2,24 @@
 //! A slow but steadily progressing upload must not be cut by the router-wide
 //! 30 s request timeout.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
 use crate::fixtures::*;
 
 async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration) {
+    let started = tokio::time::Instant::now();
+    let status = upload(chunks, gap, 64, media_for_test()).await;
+    (status, started.elapsed())
+}
+
+/// Sends `chunks` chunks `gap` apart, every one after the first `tail` bytes long.
+async fn upload(chunks: usize, gap: Duration, tail: usize, media: Media) -> StatusCode {
     let (store, _guard) = new_store().await;
     store
         .create_role(
@@ -21,7 +29,7 @@ async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration)
         )
         .await
         .unwrap();
-    let app = app(store.clone());
+    let app = app_with_media(store.clone(), media);
     let (token, _id) = register(&store, "alice").await;
 
     let first = png(0);
@@ -34,7 +42,7 @@ async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration)
             if i > 0 {
                 tokio::time::sleep(gap).await;
             }
-            let chunk = if i == 0 { first } else { vec![0u8; 64] };
+            let chunk = if i == 0 { first } else { vec![0u8; tail] };
             Some((Ok::<_, std::io::Error>(bytes_from(chunk)), i + 1))
         }
     });
@@ -44,9 +52,7 @@ async fn streamed_upload(chunks: usize, gap: Duration) -> (StatusCode, Duration)
         .header("authorization", format!("Bearer {token}"))
         .body(Body::from_stream(stream))
         .unwrap();
-    let started = Instant::now();
-    let response = app.oneshot(request).await.unwrap();
-    (response.status(), started.elapsed())
+    app.oneshot(request).await.unwrap().status()
 }
 
 fn bytes_from(v: Vec<u8>) -> axum::body::Bytes {
@@ -78,4 +84,17 @@ async fn a_stalled_upload_is_still_cut() {
     let (status, took) = streamed_upload(2, Duration::from_secs(16)).await;
     assert_ne!(status, StatusCode::CREATED, "a stalled upload was accepted");
     assert!(took < Duration::from_secs(30), "cut only after {took:?}");
+}
+
+/// A sender that never stalls past the body idle timeout but drips a byte
+/// every 500 ms is still cut once the total upload time runs out, here set to
+/// 2 s so the test does not wait half an hour.
+#[tokio::test]
+async fn a_dripping_upload_is_cut_by_the_total_upload_timeout() {
+    let media = media_for_test().with_upload_timeout(Duration::from_secs(2));
+    let started = tokio::time::Instant::now();
+    let status = upload(20, Duration::from_millis(500), 1, media).await;
+    let took = started.elapsed();
+    assert_eq!(status, StatusCode::GATEWAY_TIMEOUT, "after {took:?}");
+    assert!(took < Duration::from_secs(8), "cut only after {took:?}");
 }

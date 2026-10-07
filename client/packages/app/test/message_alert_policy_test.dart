@@ -437,6 +437,26 @@ void main() {
       expect(rig.meRequests, 1);
     });
 
+    test('a refused lookup does not hold back another account', () async {
+      await wire(_Rig(overrides: {'group-1': 'mentions'})..meFails = true);
+      expect(await _alerts(rig, _message('group-1', 'hi @nick')), isFalse);
+
+      rig.meFails = false;
+      rig.container
+          .read(sessionProvider)
+          .set(
+            const api.TokenPair(
+              userId: 'other',
+              accessToken: 'access-2',
+              refreshToken: 'refresh-2',
+              accessExpiresAt: 0,
+            ),
+          );
+
+      expect(await _alerts(rig, _message('group-1', 'hi @nick')), isTrue);
+      expect(rig.meRequests, 2);
+    });
+
     test('a refused lookup is tried again once the wait passes', () async {
       final saved = selfLookupRetryAfter;
       selfLookupRetryAfter = Duration.zero;

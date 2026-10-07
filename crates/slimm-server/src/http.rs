@@ -142,8 +142,8 @@ pub(crate) const PROTOCOL_VERSION: u32 = 1;
 /// indefinitely. The HTTP surface had none, against a process whose measured
 /// idle RSS is 7 MB and whose committed budget is under 30 MB. Generous enough
 /// for the heaviest real request (a bundled `/sync`) and far short of forever.
-/// An attachment upload is exempt: a gigabyte over a home uplink needs minutes,
-/// and [`BODY_READ_TIMEOUT`] plus the byte ceiling already bound a stuck one.
+/// An attachment upload gets [`Media::upload_timeout`] instead: a gigabyte over
+/// a home uplink needs minutes.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// How long a request body may trickle in before it is abandoned.
@@ -200,6 +200,10 @@ pub fn router(state: AppState) -> Router {
         .route_layer(axum::middleware::from_fn(route_timing::record))
         .layer(Extension(route_timings.clone()))
         .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::GATEWAY_TIMEOUT,
+            state.media.upload_timeout(),
+        ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     Router::new()
         .route("/healthz", get(healthz))
