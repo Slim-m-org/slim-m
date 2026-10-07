@@ -14,6 +14,8 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_lifecycle.dart';
@@ -23,10 +25,14 @@ import 'sync_controller.dart';
 /// Comfortably inside the server's 60 second lapse.
 const viewingRefreshInterval = Duration(seconds: 30);
 
+/// How long after the last keyboard or pointer input this device reports its
+/// user active; the server's own window is the same two minutes.
+const activeInputWindow = Duration(minutes: 2);
+
 class ViewingReporter {
   ViewingReporter(
     this._ref, {
-    required void Function(Set<String>) send,
+    required void Function(Set<String> channels, bool active) send,
     Duration interval = viewingRefreshInterval,
   }) : _send = send,
        _interval = interval {
@@ -34,30 +40,50 @@ class ViewingReporter {
   }
 
   final Ref _ref;
-  final void Function(Set<String>) _send;
+  final void Function(Set<String> channels, bool active) _send;
   final Duration _interval;
   Timer? _timer;
-  bool _reportedOpen = false;
+  Timer? _inputLapse;
+  bool _recentInput = false;
+  bool _reporting = false;
 
-  Set<String> _open() => _ref.read(appFocusedProvider)
-      ? _ref.read(mountedChannelsProvider).openChannelIds
-      : const {};
+  bool get _focused => _ref.read(appFocusedProvider);
+
+  Set<String> _open() =>
+      _focused ? _ref.read(mountedChannelsProvider).openChannelIds : const {};
+
+  bool _active() => _focused && _recentInput;
+
+  /// Keyboard or pointer input on this device; marks it active for [activeInputWindow].
+  void noteInput() {
+    _inputLapse?.cancel();
+    _inputLapse = Timer(activeInputWindow, () {
+      _recentInput = false;
+      refresh();
+    });
+    if (_recentInput) return;
+    _recentInput = true;
+    refresh();
+  }
 
   /// Reports now and restarts the refresh timer; call on anything that can
-  /// change what is open or focused, or that gave the server a new socket.
+  /// change what is open, focused or active, or that gave the server a new socket.
   void refresh() {
     _timer?.cancel();
     final open = _open();
-    if (open.isEmpty && !_reportedOpen) return;
-    _send(open);
-    _reportedOpen = open.isNotEmpty;
-    if (open.isNotEmpty) {
-      _timer = Timer.periodic(_interval, (_) => _send(_open()));
+    final active = _active();
+    final reporting = open.isNotEmpty || active;
+    if (!reporting && !_reporting) return;
+    _send(open, active);
+    _reporting = reporting;
+    if (reporting) {
+      _timer = Timer.periodic(_interval, (_) => _send(_open(), _active()));
     }
   }
 
   void dispose() {
     _timer?.cancel();
+    _inputLapse?.cancel();
     _ref.read(mountedChannelsProvider).removeListener(refresh);
   }
 }
@@ -65,13 +91,26 @@ class ViewingReporter {
 final viewingReporterProvider = Provider<ViewingReporter>((ref) {
   final reporter = ViewingReporter(
     ref,
-    send: (channels) =>
-        ref.read(syncControllerProvider.notifier).notifyViewing(channels),
+    send: (channels, active) => ref
+        .read(syncControllerProvider.notifier)
+        .notifyViewing(channels, active: active),
   );
   ref.listen(appFocusedProvider, (_, _) => reporter.refresh());
   ref.listen(syncControllerProvider, (_, status) {
     if (status == SyncStatus.live) reporter.refresh();
   });
-  ref.onDispose(reporter.dispose);
+  void onPointer(PointerEvent event) => reporter.noteInput();
+  bool onKey(KeyEvent event) {
+    reporter.noteInput();
+    return false;
+  }
+
+  GestureBinding.instance.pointerRouter.addGlobalRoute(onPointer);
+  HardwareKeyboard.instance.addHandler(onKey);
+  ref.onDispose(() {
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(onPointer);
+    HardwareKeyboard.instance.removeHandler(onKey);
+    reporter.dispose();
+  });
   return reporter;
 });

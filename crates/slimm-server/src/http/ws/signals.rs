@@ -57,17 +57,18 @@ impl PresenceGuard {
     ///
     /// Unparseable ids are skipped and the list is capped: it only ever
     /// shortens this account's own push, so a bad frame costs nothing else.
-    pub(super) fn set_viewing(&self, channel_ids: &[String]) {
+    pub(super) fn set_viewing(&self, channel_ids: &[String], active: bool) {
         let channels = channel_ids
             .iter()
             .take(crate::viewing::MAX_VIEWED_CHANNELS)
             .filter_map(|raw| uuid::Uuid::parse_str(raw).ok())
             .map(ChannelId)
             .collect();
-        self.hub
-            .presence()
-            .viewing()
-            .set(self.user_id, self.device_id, self.connection, channels);
+        let viewing = self.hub.presence().viewing();
+        viewing.set(self.user_id, self.device_id, self.connection, channels);
+        if active {
+            viewing.mark_active(self.user_id, self.connection);
+        }
     }
 }
 
@@ -77,7 +78,7 @@ impl Drop for PresenceGuard {
         self.hub
             .presence()
             .viewing()
-            .clear(self.user_id, self.connection);
+            .forget_connection(self.user_id, self.connection);
         if self.hub.presence().disconnect(self.user_id) {
             self.hub.publish(Event::PresenceChanged(self.user_id));
         }

@@ -142,9 +142,9 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                     break;
                                 }
                             }
-                            Ok(ClientFrame::Viewing { channel_ids }) => {
-                                // Not a touch: a timer on a focused window is not the user being active.
-                                presence_guard.set_viewing(&channel_ids);
+                            Ok(ClientFrame::Viewing { channel_ids, active }) => {
+                                // Not a presence touch: the client decides `active` from real input, not this timer.
+                                presence_guard.set_viewing(&channel_ids, active);
                             }
                             Ok(ClientFrame::Typing { channel_id }) => {
                                 signals::handle_typing(

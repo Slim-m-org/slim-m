@@ -12876,6 +12876,15 @@ components:
           items:
             type: string
             format: uuid
+        active:
+          type: boolean
+          description: >
+            True when the user has used this device recently (keyboard or
+            pointer input while it is in front of them). For two minutes after
+            the last such report, message and mention pushes to the account's
+            other devices are skipped; calls and security alerts are not.
+            Absent means false. A client may send this frame with an empty
+            channel_ids and active true, for example from a settings screen.
 
     ClientCanvasCursor:
       type: object

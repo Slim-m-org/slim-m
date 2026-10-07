@@ -386,8 +386,14 @@ pub(super) enum ClientFrame {
     /// its previous report; empty when none. Lapses after
     /// [`crate::viewing::VIEWING_TTL`], so a client refreshes it periodically.
     /// Used only to skip push for what this account is already reading.
+    /// `active` says the user has used this device recently, which skips
+    /// message pushes to their other devices for a short while.
     #[serde(rename = "viewing")]
-    Viewing { channel_ids: Vec<String> },
+    Viewing {
+        channel_ids: Vec<String>,
+        #[serde(default)]
+        active: bool,
+    },
     /// A pointer position on a channel's canvas. Rate-limited and authorized
     /// the same bar the canvas HTTP routes use (view plus `USE_CANVAS`); see
     /// [`super::signals::handle_canvas_cursor`]. No "stop" frame either, for
