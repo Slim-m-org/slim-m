@@ -99,6 +99,7 @@ async fn warn_if_unclaimed(store: &store::Store) -> anyhow::Result<()> {
 /// serves the HTTP surface until a shutdown signal.
 pub async fn run() -> anyhow::Result<()> {
     init_tracing();
+    http::panic_guard::install_hook();
     let config = config::Config::from_env()?;
     // Before the database is touched, so a misconfigured origin list is a
     // startup error and not a half-initialized deployment.

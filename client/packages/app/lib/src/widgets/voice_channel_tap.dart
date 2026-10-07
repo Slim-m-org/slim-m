@@ -18,9 +18,33 @@
 /// row asks directly instead of depending on one.
 library;
 
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import '../routing/routes.dart';
+
+/// What opening a voice channel from the rail does: navigate, then rejoin on
+/// a re-click. Shared by the row's tap and its menu's "Open channel", which
+/// otherwise diverge on a channel that is already the open one.
+void openVoiceChannel(
+  BuildContext context,
+  ProviderContainer container,
+  String channelId, {
+  required bool alreadySelected,
+}) {
+  context.go(Routes.channel(channelId));
+  if (voiceChannelTapShouldRejoin(
+    voice: container.read(voiceFlagsProvider),
+    channelId: channelId,
+    alreadySelected: alreadySelected,
+  )) {
+    container.read(voiceControllerProvider.notifier).join(channelId);
+  }
+}
 
 /// [alreadySelected] is whether this row's channel was already the one on
 /// screen the instant it was tapped - a re-click, not a fresh navigation

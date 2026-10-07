@@ -10,7 +10,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -18,10 +17,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/unread_indicator_rules.dart';
-import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_roster.dart';
-import '../routing/routes.dart';
 import 'channel_kind_icon.dart';
 import 'channel_move.dart';
 import 'channel_row_menu.dart';
@@ -263,17 +260,12 @@ class VoiceChannelRow extends ConsumerWidget {
                   ),
                 ),
           trailingExtra: trailingExtra,
-          onTap: () {
-            context.go(Routes.channel(channel.id));
-            // A re-click already open; see voice_channel_tap.dart for why. Read fresh, not the watched tuple: this only runs on a tap.
-            if (voiceChannelTapShouldRejoin(
-              voice: ref.read(voiceFlagsProvider),
-              channelId: channel.id,
-              alreadySelected: selected,
-            )) {
-              ref.read(voiceControllerProvider.notifier).join(channel.id);
-            }
-          },
+          onTap: () => openVoiceChannel(
+            context,
+            ProviderScope.containerOf(context, listen: false),
+            channel.id,
+            alreadySelected: selected,
+          ),
         ),
         if (participants.isNotEmpty)
           _ParticipantList(participants: participants),
