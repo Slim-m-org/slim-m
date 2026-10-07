@@ -182,10 +182,9 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
           cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
+          // The avatar's own label stays: it carries "<name>, speaking", which the e2e harness reads.
           child: Semantics(
             button: true,
-            label: 'Open ${participant.name}',
-            excludeSemantics: true,
             onTap: () => _open(profile),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
