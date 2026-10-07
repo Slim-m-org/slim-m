@@ -19,7 +19,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/mark_read_action.dart';
 import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -43,10 +42,6 @@ ProviderContainer _setup(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      // A drift stream cancelled as the widget tree goes leaves a timer FakeAsync rejects.
-      spaceChannelsProvider.overrideWith(
-        (ref) => Stream.value(const <Channel>[]),
-      ),
       storeProvider.overrideWith((ref) async {
         final db = SlimmDatabase(NativeDatabase.memory());
         ref.onDispose(db.close);

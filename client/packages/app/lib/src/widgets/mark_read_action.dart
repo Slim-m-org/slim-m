@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
-import '../providers/dms.dart';
 import '../providers/providers.dart';
 import '../providers/unread_indicator_rules.dart';
 
@@ -54,13 +53,3 @@ Future<void> markChannelsRead(
     );
   }
 }
-
-/// Every channel the rail lists outside Direct messages, live, for the space menu.
-final spaceChannelsProvider = StreamProvider.autoDispose<List<Channel>>((
-  ref,
-) async* {
-  final store = await ref.watch(storeProvider.future);
-  yield* store.watchRailChannels().map(
-    (all) => all.where((c) => c.kind != dmChannelKind).toList(growable: false),
-  );
-});

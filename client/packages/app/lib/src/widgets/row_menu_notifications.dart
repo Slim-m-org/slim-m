@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/notification_schedule_controller.dart';
+import '../providers/dms.dart' show dmChannelKind;
 import '../providers/providers.dart';
 import 'app_snackbar.dart';
 import 'mark_read_action.dart';
@@ -98,6 +99,45 @@ AppMenuItem? markAllReadMenuItem(
           'mark these channels read',
           () => markChannelsRead(container, unreadIds),
         ),
+      );
+    },
+  );
+}
+
+/// The space menu's Mark all as read. Always offered: the channels are read
+/// when it is chosen, not watched while the menu is drawn, so the menu holds no
+/// live query of every channel.
+AppMenuItem markSpaceReadMenuItem(
+  BuildContext context,
+  ProviderContainer container,
+  VoidCallback close,
+) {
+  return AppMenuItem(
+    label: 'Mark all as read',
+    leading: AppIcons.check,
+    onTap: () {
+      close();
+      unawaited(
+        _say(context, 'mark these channels read', () async {
+          final store = await container.read(storeProvider.future);
+          final channels = await store.watchRailChannels().first;
+          final overrides = container.read(
+            channelNotificationOverridesProvider,
+          );
+          final unreadIds = [
+            for (final channel in channels)
+              if (channel.kind != dmChannelKind &&
+                  channelShowsUnread(
+                    channel,
+                    overrides.overrideFor(channel.id),
+                    isDm: false,
+                  ))
+                channel.id,
+          ];
+          if (unreadIds.isNotEmpty) {
+            await markChannelsRead(container, unreadIds);
+          }
+        }),
       );
     },
   );

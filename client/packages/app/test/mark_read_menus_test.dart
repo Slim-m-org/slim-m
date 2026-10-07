@@ -76,7 +76,6 @@ class _Harness {
   _Harness({
     int permissions = 0,
     Map<String, api.NotificationPreference> muted = const {},
-    List<Channel>? spaceChannels,
   }) {
     SharedPreferences.setMockInitialValues({});
     final db = SlimmDatabase(NativeDatabase.memory());
@@ -94,10 +93,6 @@ class _Harness {
         channelNotificationOverridesProvider.overrideWith(
           (ref) => _FixedOverrides(ref, muted),
         ),
-        if (spaceChannels != null)
-          spaceChannelsProvider.overrideWith(
-            (ref) => Stream.value(spaceChannels),
-          ),
         meProvider.overrideWith(
           (ref) async => api.Me(
             id: 'self',
@@ -343,24 +338,30 @@ void main() {
   });
 
   group('space menu', () {
-    testWidgets('lists Mark all as read for a plain member, one request over '
-        'every unread, audible channel', (tester) async {
-      final h = _Harness(
-        muted: {'quiet': api.NotificationPreference.nothing},
-        spaceChannels: [
-          _channel('a', cursor: 3),
-          _channel('b', cursor: 2, lastReadSeq: 2),
-          _channel('c', categoryId: 'cat', cursor: 6),
-          _channel('quiet', cursor: 6),
-        ],
-      );
+    // The entry reads the channels when chosen, so they live in the store, not in an override.
+    Future<void> openSpaceMenu(
+      WidgetTester tester,
+      _Harness h,
+      List<Channel> seeded,
+    ) async {
+      await tester.runAsync(() => _seed(h.store, seeded));
       await h.pump(
         tester,
         const Align(alignment: Alignment.topRight, child: SpaceMenuButton()),
       );
-
       await tester.tap(find.bySemanticsLabel('Space menu'));
       await tester.pumpAndSettle();
+    }
+
+    testWidgets('a plain member marks every unread, audible channel in one '
+        'request', (tester) async {
+      final h = _Harness(muted: {'quiet': api.NotificationPreference.nothing});
+      await openSpaceMenu(tester, h, [
+        _channel('a', cursor: 3),
+        _channel('b', cursor: 2, lastReadSeq: 2),
+        _channel('c', categoryId: 'cat', cursor: 6),
+        _channel('quiet', cursor: 6),
+      ]);
       expect(find.text('Space settings'), findsNothing);
       await _tapAndSettleRequests(tester, find.text('Mark all as read'));
 
@@ -371,34 +372,29 @@ void main() {
       expect(h.markedIds, ['a', 'c']);
     });
 
-    testWidgets('with nothing unread the entry is absent', (tester) async {
-      final h = _Harness(
-        spaceChannels: [_channel('b', cursor: 2, lastReadSeq: 2)],
-      );
-      await h.pump(
-        tester,
-        const Align(alignment: Alignment.topRight, child: SpaceMenuButton()),
-      );
-
-      await tester.tap(find.bySemanticsLabel('Space menu'));
-      await tester.pumpAndSettle();
-      expect(find.text('Mark all as read'), findsNothing);
-      expect(find.text('Saved messages'), findsOneWidget);
+    testWidgets('Direct messages are left out', (tester) async {
+      final h = _Harness();
+      await openSpaceMenu(tester, h, [
+        _channel('a', cursor: 3),
+        _channel('dm1', kind: dmChannelKind, cursor: 3),
+      ]);
+      await _tapAndSettleRequests(tester, find.text('Mark all as read'));
+      expect(h.markedIds, ['a']);
     });
-  });
 
-  test('the space list leaves Direct messages out', () async {
-    final h = _Harness();
-    addTearDown(h.container.dispose);
-    addTearDown(h.store.db.close);
-    await _seed(h.store, [
-      _channel('a', cursor: 3),
-      _channel('dm1', kind: dmChannelKind, cursor: 3),
-    ]);
-
-    final listed = await h.container.read(spaceChannelsProvider.future);
-
-    expect(listed.map((c) => c.id), ['a']);
+    testWidgets('with nothing unread choosing it sends nothing', (
+      tester,
+    ) async {
+      final h = _Harness();
+      await openSpaceMenu(tester, h, [
+        _channel('b', cursor: 2, lastReadSeq: 2),
+      ]);
+      await _tapAndSettleRequests(tester, find.text('Mark all as read'));
+      expect(
+        h.requests.where((r) => r.url.path == '/read-states/read'),
+        isEmpty,
+      );
+    });
   });
 
   test('markChannelsRead moves the local rows to the answer', () async {
@@ -422,8 +418,9 @@ Future<void> _seed(MessageStore store, List<Channel> channels) async {
   ]);
   for (final c in channels) {
     await store.db.customStatement(
-      'UPDATE channels SET cursor = ?, manually_unread = ? WHERE id = ?',
-      [c.cursor, if (c.manuallyUnread ?? false) 1 else 0, c.id],
+      'UPDATE channels SET cursor = ?, last_read_seq = ?, manually_unread = ? '
+      'WHERE id = ?',
+      [c.cursor, c.lastReadSeq, if (c.manuallyUnread ?? false) 1 else 0, c.id],
     );
   }
 }
