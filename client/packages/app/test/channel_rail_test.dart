@@ -358,14 +358,18 @@ void main() {
     expect(find.text('Space settings'), findsOneWidget);
   });
 
-  // Its one item leads to Space settings, unreachable for this caller.
-  testWidgets('the header menu is hidden entirely for a member holding none '
-      'of the Space settings gating bits', (tester) async {
+  // Every member keeps the menu for Saved messages and Mark all as read; only Space settings is gated.
+  testWidgets('the header menu for a member holding none of the Space settings '
+      'gating bits offers no Space settings', (tester) async {
     final setup = _setup(SyncStatus.live);
     addTearDown(setup.container.dispose);
     await _pumpHeader(tester, setup.container);
 
-    expect(find.bySemanticsLabel('Space menu'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved messages'), findsOneWidget);
+    expect(find.text('Space settings'), findsNothing);
   });
 
   // A version is not a property of the Space; it duplicated the desktop title bar's own copy.

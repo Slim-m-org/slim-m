@@ -32,4 +32,12 @@ pub(crate) async fn read_state(c: &mut Contract, root: &str, channel: &str, seq:
     )
     .await;
     c.get("listReadStates", "/read-states", root).await;
+    c.json(
+        "markChannelsRead",
+        "POST",
+        "/read-states/read",
+        root,
+        json!({ "channel_ids": [channel] }),
+    )
+    .await;
 }

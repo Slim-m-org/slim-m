@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The notification and mark-unread entries a channel row and a DM row share.
+/// The notification and read-state entries a channel row and a DM row share.
 ///
 /// The menu is dismissed before the server answers, so a refusal is said on
 /// the row's own context through [runGuarded]'s sentence, which outlives it.
@@ -10,12 +10,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
 import 'app_snackbar.dart';
+import 'mark_read_action.dart';
 import 'mark_unread_action.dart';
 import 'run_guarded.dart';
 
@@ -28,26 +30,78 @@ Future<void> _say(
   if (failure != null && context.mounted) showAppSnackbar(context, failure);
 }
 
-/// "Mark as unread" for [channelId].
-AppMenuItem markUnreadMenuItem(
+/// "Mark as read" while [channel] shows a badge, otherwise "Mark as unread".
+///
+/// One slot, never both: the entry that would change nothing is not offered.
+AppMenuItem markReadStateMenuItem(
   BuildContext context,
   ProviderContainer container,
-  String channelId,
+  Channel channel,
+  VoidCallback close, {
+  required bool isDm,
+}) {
+  final showsUnread = channelShowsUnread(
+    channel,
+    container
+        .read(channelNotificationOverridesProvider)
+        .overrideFor(channel.id),
+    isDm: isDm,
+  );
+  return AppMenuItem(
+    label: showsUnread ? 'Mark as read' : 'Mark as unread',
+    leading: showsUnread ? AppIcons.check : AppIcons.unread,
+    onTap: () {
+      close();
+      unawaited(
+        _say(
+          context,
+          showsUnread
+              ? 'mark this conversation read'
+              : 'mark this conversation unread',
+          () => showsUnread
+              ? markChannelsRead(container, [channel.id])
+              : markChannelUnread(container, channel.id),
+        ),
+      );
+    },
+  );
+}
+
+/// "Mark all as read" over [channels], or null when none of them shows a badge.
+///
+/// One request for the lot, and one failure sentence rather than one per channel.
+AppMenuItem? markAllReadMenuItem(
+  BuildContext context,
+  ProviderContainer container,
+  Iterable<Channel> channels,
   VoidCallback close,
-) => AppMenuItem(
-  label: 'Mark as unread',
-  leading: AppIcons.unread,
-  onTap: () {
-    close();
-    unawaited(
-      _say(
-        context,
-        'mark this conversation unread',
-        () => markChannelUnread(container, channelId),
-      ),
-    );
-  },
-);
+) {
+  final overrides = container.read(channelNotificationOverridesProvider);
+  final unreadIds = [
+    for (final channel in channels)
+      if (channelShowsUnread(
+        channel,
+        overrides.overrideFor(channel.id),
+        isDm: false,
+      ))
+        channel.id,
+  ];
+  if (unreadIds.isEmpty) return null;
+  return AppMenuItem(
+    label: 'Mark all as read',
+    leading: AppIcons.check,
+    onTap: () {
+      close();
+      unawaited(
+        _say(
+          context,
+          'mark these channels read',
+          () => markChannelsRead(container, unreadIds),
+        ),
+      );
+    },
+  );
+}
 
 /// Mute, mentions only and off-hours entries for [channelId].
 ///

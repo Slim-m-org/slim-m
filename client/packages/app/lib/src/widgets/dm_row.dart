@@ -89,7 +89,7 @@ class DmRow extends ConsumerWidget {
           onTap: () =>
               run(() => hideDmConversation(container, peerId, channel.id)),
         ),
-      markUnreadMenuItem(context, container, channel.id, close),
+      markReadStateMenuItem(context, container, channel, close, isDm: true),
       const AppMenuDivider(),
       ...notificationMenuItems(
         context,

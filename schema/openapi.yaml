@@ -7687,6 +7687,39 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /read-states/read:
+    post:
+      operationId: markChannelsRead
+      tags: [sync]
+      summary: Read several channels up to their newest message at once.
+      description: >
+        For marking a category or a whole space read in one request. Each
+        listed channel behaves as `PUT /channels/{channelId}/read` with its
+        newest `seq`, including clearing a manual unread mark, and is
+        announced to the caller's other devices. A channel the caller cannot
+        view is omitted from the response rather than refused. At most 200
+        ids per request; more is a 400. Order of the response is unspecified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkChannelsReadRequest"
+      responses:
+        "200":
+          description: The new marker for each channel that was read.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChannelReadState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /sync:
     post:
       operationId: sync
@@ -12683,6 +12716,16 @@ components:
           type: integer
           format: int64
           minimum: 0
+
+    MarkChannelsReadRequest:
+      type: object
+      required: [channel_ids]
+      properties:
+        channel_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     SyncRequest:
       type: object

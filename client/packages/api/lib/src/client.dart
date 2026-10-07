@@ -275,6 +275,22 @@ class SlimmApi {
     return ReadState.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Reads every channel in [channelIds] up to its newest message in one request.
+  ///
+  /// Channels the caller cannot view are left out of the answer.
+  Future<List<ChannelReadState>> markChannelsRead(
+    List<String> channelIds,
+  ) async {
+    final json = await _send(
+      'POST',
+      '/read-states/read',
+      body: {'channel_ids': channelIds},
+    );
+    return (json as List<dynamic>)
+        .map((r) => ChannelReadState.fromJson(r as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
   /// Marks a channel unread without moving the read marker.
   ///
   /// The marker is monotonic server-side, so this records an intention beside
