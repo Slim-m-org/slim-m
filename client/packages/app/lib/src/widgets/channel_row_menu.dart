@@ -30,6 +30,7 @@ import '../screens/channel_settings_screen.dart';
 import 'channel_move.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'row_menu_notifications.dart';
+import 'voice_channel_tap.dart';
 
 /// Opening it always, muting it or narrowing it to mentions only (the same
 /// two toggles the header used to duplicate until 2026-08-13, tapping the
@@ -65,7 +66,16 @@ List<Widget> channelRowMenuItems(
       leading: AppIcons.hash,
       onTap: () {
         close();
-        context.go(Routes.channel(channel.id));
+        if (channel.kind == 'voice') {
+          openVoiceChannel(
+            context,
+            container,
+            channel.id,
+            alreadySelected: selectedChannelId(context) == channel.id,
+          );
+        } else {
+          context.go(Routes.channel(channel.id));
+        }
       },
     ),
     markUnreadMenuItem(context, container, channel.id, close),
