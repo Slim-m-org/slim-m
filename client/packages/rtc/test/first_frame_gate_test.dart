@@ -108,4 +108,44 @@ void main() {
       expect(find.text('TEXTURE'), findsOneWidget);
     });
   });
+  group('OwnedRendererView', () {
+    testWidgets('a new renderer gets a fresh state, not the old one reused',
+        (tester) async {
+      final created = <rtc.RTCVideoRenderer?>[];
+      Widget view(OwnedVideoRenderer owned) => OwnedRendererView(
+            owned: owned,
+            builder: (renderer) => _Probe(renderer, created),
+          );
+      final first = OwnedVideoRenderer();
+      final second = OwnedVideoRenderer();
+
+      await tester.pumpWidget(view(first));
+      await tester.pumpWidget(view(second));
+
+      expect(created.length, 2, reason: 'the second track reused the state');
+    });
+  });
+}
+
+/// Records every state it is mounted as, like `VideoTrackRenderer` reading its
+/// cached renderer once in `initState`.
+class _Probe extends StatefulWidget {
+  const _Probe(this.renderer, this.created);
+
+  final rtc.RTCVideoRenderer? renderer;
+  final List<rtc.RTCVideoRenderer?> created;
+
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.created.add(widget.renderer);
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

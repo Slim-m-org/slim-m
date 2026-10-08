@@ -73,6 +73,27 @@ class OwnedVideoRenderer {
   }
 }
 
+/// Builds a renderer's video view under a key unique to [owned].
+///
+/// `VideoTrackRenderer` reads `cachedRenderer` once, in `initState`, so a state
+/// reused for the next track keeps drawing into the renderer already disposed.
+class OwnedRendererView extends StatelessWidget {
+  const OwnedRendererView({
+    super.key,
+    required this.owned,
+    required this.builder,
+  });
+
+  final OwnedVideoRenderer owned;
+  final Widget Function(rtc.RTCVideoRenderer? renderer) builder;
+
+  @override
+  Widget build(BuildContext context) => KeyedSubtree(
+        key: ObjectKey(owned),
+        child: builder(owned.renderer),
+      );
+}
+
 /// Shows [placeholder] over [child] until [tracker] reports a first frame,
 /// then shows [child] alone from then on.
 ///
