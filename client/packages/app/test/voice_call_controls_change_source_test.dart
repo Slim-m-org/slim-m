@@ -71,7 +71,7 @@ void main() {
         session: session,
       );
 
-      await tester.tap(find.byTooltip(RegExp(r'^Stop sharing')));
+      await tester.tap(find.byTooltip(RegExp(r'Stop sharing')));
       await tester.pumpAndSettle();
 
       expect(session.screenShareCalls, hasLength(1));
@@ -209,7 +209,7 @@ void main() {
     );
 
     expect(find.byTooltip(_caretLabel), findsNothing);
-    await tester.longPress(find.byTooltip(RegExp(r'^Stop sharing')));
+    await tester.longPress(find.byTooltip(RegExp(r'Stop sharing')));
     await tester.pumpAndSettle();
 
     expect(find.text('Switch screen...'), findsNothing);
@@ -253,7 +253,7 @@ void main() {
       session: InertSession(needsSource: true, sources: Future.value(_sources)),
     );
 
-    await tester.longPress(find.byTooltip(RegExp(r'^Stop sharing')));
+    await tester.longPress(find.byTooltip(RegExp(r'Stop sharing')));
     await tester.pumpAndSettle();
 
     expect(find.text('Switch screen...'), findsOneWidget);
@@ -288,7 +288,7 @@ void main() {
       session: InertSession(needsSource: true, sources: Future.value(_sources)),
     );
     expect(find.bySemanticsLabel(_caretLabel), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp(r'^Stop sharing')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'Stop sharing')), findsOneWidget);
     handle.dispose();
   });
 }

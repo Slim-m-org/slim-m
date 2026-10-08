@@ -303,6 +303,7 @@ async fn a_store_error_authorizing_fan_out_closes_the_connection() {
         embeds: Arc::new(Vec::new()),
         call: None,
         components: Arc::new(Vec::new()),
+        lookups: Default::default(),
     });
 
     let closed = tokio::time::timeout(Duration::from_secs(2), wait_closed(&mut bob_ws)).await;

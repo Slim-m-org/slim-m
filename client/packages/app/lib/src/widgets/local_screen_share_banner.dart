@@ -1,42 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A live share is easy to forget about once the button that started it has
-/// scrolled out of view; this says so plainly, wherever the call view is.
-///
-/// Its own file because `voice_screen.dart` was over this repo's line
-/// budget already, the same reason `voice_call_controls.dart` split out.
+/// The pending half of a screen share: a system picker the caller has to go
+/// answer. A live share has no banner (decision 0047, point 8): the share
+/// control and the stage caption carry it.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-/// Deliberately keyed to `VoiceState.screenSharing` alone:
-/// `VoiceState.awaitingBroadcast` is a request nobody can see yet, and
-/// showing this banner for it would be the exact lie that field exists to
-/// stop.
-///
-/// `call_stage_layout.dart` withholds this once the stage itself is already
-/// showing the local mirrored tile: that tile's own caption
-/// (`screen_share_stage.dart`) says the identical fact, and stacking both
-/// read as one thing said twice. This banner is what is left to say so
-/// before the roster catches up and the stage has nothing to show yet.
-class LocalScreenShareBanner extends StatelessWidget {
-  const LocalScreenShareBanner({super.key});
-
-  @override
-  Widget build(BuildContext context) => const AppCallout(
-    tone: AppCalloutTone.accent,
-    icon: AppIcons.screenShare,
-    child: Text('You are sharing your screen.'),
-  );
-}
-
-/// The `awaitingBroadcast` half [LocalScreenShareBanner]'s own doc
-/// deliberately declines to cover: a real system picker the caller has to
-/// go answer, with nothing on screen saying so beyond a bare spinner
-/// swapped into the share button, reachable only by a desktop hover or a
-/// mobile long-press tooltip. `info`, never [AppCalloutTone.accent] - a
-/// share is not yet happening, and the two states must stay visually
-/// distinguishable from each other, not just from their own copy.
+/// Says a share is requested but not yet live, which a bare spinner on the
+/// share button cannot. `info`, never accent: nothing is being shared yet.
 class LocalScreenSharePendingBanner extends StatelessWidget {
   const LocalScreenSharePendingBanner({super.key});
 

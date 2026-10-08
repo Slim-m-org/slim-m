@@ -25,7 +25,13 @@ void main() {
     addTearDown(document.dispose);
 
     await tester.pumpWidget(
-      _wrap(CanvasZoomIndicator(document: document, tokens: AppTokens.dark)),
+      _wrap(
+        CanvasZoomIndicator(
+          document: document,
+          tokens: AppTokens.dark,
+          onFit: () {},
+        ),
+      ),
     );
 
     expect(find.text('100%'), findsOneWidget);
@@ -39,7 +45,13 @@ void main() {
     document.setViewport(const Size(400, 400));
 
     await tester.pumpWidget(
-      _wrap(CanvasZoomIndicator(document: document, tokens: AppTokens.dark)),
+      _wrap(
+        CanvasZoomIndicator(
+          document: document,
+          tokens: AppTokens.dark,
+          onFit: () {},
+        ),
+      ),
     );
     expect(find.text('100%'), findsOneWidget);
 
@@ -50,22 +62,45 @@ void main() {
     expect(find.text('100%'), findsNothing);
   });
 
-  testWidgets('never intercepts a pointer meant for the surface below', (
+  testWidgets('tapping the chip fits the view', (tester) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    var fitted = 0;
+
+    await tester.pumpWidget(
+      _wrap(
+        CanvasZoomIndicator(
+          document: document,
+          tokens: AppTokens.dark,
+          onFit: () => fitted++,
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('Fit view'));
+
+    expect(fitted, 1);
+  });
+
+  testWidgets('is 28px tall and leaves the rest of the surface untouched', (
     tester,
   ) async {
     final document = CanvasDocument();
     addTearDown(document.dispose);
+    var fitted = 0;
 
     await tester.pumpWidget(
-      _wrap(CanvasZoomIndicator(document: document, tokens: AppTokens.dark)),
-    );
-
-    final ignore = tester.widget<IgnorePointer>(
-      find.descendant(
-        of: find.byType(CanvasZoomIndicator),
-        matching: find.byType(IgnorePointer),
+      _wrap(
+        CanvasZoomIndicator(
+          document: document,
+          tokens: AppTokens.dark,
+          onFit: () => fitted++,
+        ),
       ),
     );
-    expect(ignore.ignoring, isTrue);
+
+    final chip = tester.getRect(find.byType(InkWell));
+    expect(chip.height, 28);
+    await tester.tapAt(const Offset(700, 300));
+    expect(fitted, 0);
   });
 }

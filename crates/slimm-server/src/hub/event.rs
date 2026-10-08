@@ -63,6 +63,8 @@ pub enum Event {
         call: Option<Arc<CallRecord>>,
         /// The buttons a bot posted with the message; see decision 0039.
         components: Arc<Vec<ComponentRow>>,
+        /// Mentions and webhook label, looked up once for every subscriber.
+        lookups: Arc<super::CreatedLookups>,
     },
     /// A message was edited. `op_seq` is its place in the *message-op* stream,
     /// a different sequence from the message's own `seq`, which an edit does

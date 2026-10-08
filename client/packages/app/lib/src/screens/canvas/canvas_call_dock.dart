@@ -73,10 +73,11 @@ class CanvasDockData {
     required this.canDraw,
     required this.canUndo,
     required this.onUndo,
+    required this.canRedo,
+    required this.onRedo,
     required this.canManage,
     required this.onClear,
     required this.onPasteImage,
-    required this.onRecenter,
     required this.selection,
     required this.onBringToFront,
     required this.onSendToBack,
@@ -106,10 +107,11 @@ class CanvasDockData {
   final bool canDraw;
   final bool canUndo;
   final VoidCallback onUndo;
+  final bool canRedo;
+  final VoidCallback onRedo;
   final bool canManage;
   final Future<void> Function() onClear;
   final VoidCallback onPasteImage;
-  final VoidCallback onRecenter;
   final ValueListenable<String?> selection;
   final ValueChanged<String> onBringToFront;
   final ValueChanged<String> onSendToBack;

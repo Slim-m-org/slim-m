@@ -70,6 +70,8 @@ dependencies:
   url_launcher: ^6.3.2
   share_plus: ^13.3.0
   gal: ^2.3.3
+  # Recent photos for the phone composer's inline strip; see docs/dependencies.md.
+  photo_manager: ^3.12.0
 dev_dependencies:
   # Only imported from test/, for the XFile a fake PlatformFile must declare.
   cross_file: ^0.3.5

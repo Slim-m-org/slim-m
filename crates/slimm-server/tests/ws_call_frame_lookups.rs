@@ -170,6 +170,7 @@ async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
         embeds: Arc::new(Vec::new()),
         call: Some(Arc::new(record)),
         components: Arc::new(Vec::new()),
+        lookups: Default::default(),
     });
     for ws in &mut watchers {
         let frame = read_frame(ws).await;

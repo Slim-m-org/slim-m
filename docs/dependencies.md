@@ -255,3 +255,16 @@ It also fixes the plugin's Linux and Windows task runners, which ran each task w
 It is an override rather than a dependency of `slimm_rtc` because `livekit_client` 2.10.0 requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.
 `scripts/check-dart-licenses.py` reads the fork's LICENSE (MIT) from the pub cache's checkout, so it is classified like a hosted package.
 Rebase steps are in `docs/research/linux-wayland-share-switch-2026-09-29/README.md`.
+
+### `photo_manager`, for the phone composer's photo strip
+
+The composer on a phone shows a strip of recent photos where the keyboard sits (`composer_photo_strip.dart`), instead of sending the user out to a system picker.
+`file_picker` (already a dependency) cannot do this: it only opens the OS picker and returns the chosen file, and has no way to list the library or draw thumbnails in our own UI.
+`photo_manager` (fluttercandies, Apache-2.0) is the maintained plugin that lists assets, renders thumbnails and reports the permission state, including the limited grant on iOS 14+ and Android 14+.
+Its platform list is Android, iOS, macOS and OpenHarmony; it has no Linux, Windows or web implementation, so `photo_library_native.dart` is only reached through a `dart.library.io` conditional import and only builds a library on iOS and Android.
+Everywhere else `photoLibraryProvider` is null and the Photos menu entry opens the system picker as before.
+
+Permissions: iOS reuses the existing `NSPhotoLibraryUsageDescription` (checked by `hygiene.yml`'s purpose-string step), whose text already says the app opens the photo library to attach an image.
+Android declares `READ_MEDIA_IMAGES` (API 33+) and `READ_MEDIA_VISUAL_USER_SELECTED` (API 34+, the partial grant); the plugin supplies `READ_EXTERNAL_STORAGE` up to API 32.
+A denied grant shows an inline panel with a button into the system picker, and a limited grant shows the allowed photos with an "Allow more" button that reopens the OS selection UI.
+`image_picker` was not considered: it, too, only opens the OS picker.

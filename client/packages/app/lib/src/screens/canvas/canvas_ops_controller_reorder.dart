@@ -9,6 +9,14 @@ class _ReorderEntry extends _UndoEntry {
   final int fromZIndex;
 }
 
+/// The `z_index` an undone reorder left, which a redo restores.
+class _RedoReorder extends _RedoEntry {
+  _RedoReorder(this.objectId, this.toZIndex);
+
+  final String objectId;
+  final int toZIndex;
+}
+
 /// Bring-to-front and send-to-back, called from a button rather than a
 /// drag gesture - unlike resize and move, there is no in-progress state to
 /// track here, only a request and its undo.
@@ -58,10 +66,20 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
     }
   }
 
-  /// Reverses a reorder by resubmitting the object's own prior `z_index` -
-  /// exact, unlike undoing a relative "bring to front"/"send to back",
-  /// because the op stream carries the literal value rather than a delta.
-  Future<void> _undoReorder(String objectId, int z) async {
+  Future<_RedoEntry?> _undoReorder(String objectId, int z) async {
+    final before = await _reorderTo(objectId, z, 'undone');
+    return before == null ? null : _RedoReorder(objectId, before);
+  }
+
+  Future<_UndoEntry?> _redoReorder(String objectId, int z) async {
+    final before = await _reorderTo(objectId, z, 'redone');
+    return before == null ? null : _ReorderEntry(objectId, before);
+  }
+
+  /// Resubmits an exact `z_index` a history step names - exact, unlike a
+  /// relative "bring to front", because the op stream carries the literal
+  /// value - and returns the one it replaced, or null on failure.
+  Future<int?> _reorderTo(String objectId, int z, String verb) async {
     final before = document.zIndexOf(objectId);
     document.setZIndex(objectId, z);
     document.refresh();
@@ -73,12 +91,14 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
         objectId: objectId,
         zIndex: z,
       );
+      return before;
     } on api.ApiException {
       if (before != null) {
         document.setZIndex(objectId, before);
         document.refresh();
       }
-      onError('That could not be undone.');
+      onError('That could not be $verb.');
+      return null;
     }
   }
 }

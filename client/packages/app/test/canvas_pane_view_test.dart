@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Recenter view and Delete/Backspace over a selection, driven through the
+/// the zoom chip's fit and Delete/Backspace over a selection, driven through the
 /// full pane the same way `canvas_pane_ops_test.dart` drives erase, undo and
 /// clear.
 ///
@@ -21,38 +21,33 @@ void main() {
   /// is - see `worldLimit`'s own doc for why this was previously missing.
   /// An empty canvas has no content to fit, so the origin is still correct
   /// here - `cameraToFit`'s own fallback for a null `contentBounds`.
-  testWidgets(
-    'the overflow\'s Recenter view jumps an empty canvas back to the world '
-    'origin',
-    (tester) async {
-      final fixture = CanvasPaneFixture();
-      final container = fixture.container();
-      addTearDown(container.dispose);
-      addTearDown(fixture.events.close);
-      await pumpCanvasPane(tester, container);
-      await tester.pumpAndSettle();
+  testWidgets('the zoom chip\'s fit jumps an empty canvas back to the world '
+      'origin', (tester) async {
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container);
+    await tester.pumpAndSettle();
 
-      surfaceDocument(
-        tester,
-      ).setCamera(const Camera(x: 4000, y: -1500, zoom: 3.2));
-      expect(
-        surfaceDocument(tester).camera,
-        const Camera(x: 4000, y: -1500, zoom: 3.2),
-      );
+    surfaceDocument(
+      tester,
+    ).setCamera(const Camera(x: 4000, y: -1500, zoom: 3.2));
+    expect(
+      surfaceDocument(tester).camera,
+      const Camera(x: 4000, y: -1500, zoom: 3.2),
+    );
 
-      await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Recenter view'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Fit view'));
+    await tester.pumpAndSettle();
 
-      expect(surfaceDocument(tester).camera, const Camera());
-    },
-  );
+    expect(surfaceDocument(tester).camera, const Camera());
+  });
 
   /// With real content, Recenter fits that content into view rather than
   /// resetting to the origin - the bug this replaced: "Recenter" used to be
   /// "reset to origin" regardless of where the drawing actually lived.
-  testWidgets('the overflow\'s Recenter view fits content placed away from the '
+  testWidgets('the zoom chip\'s fit fits content placed away from the '
       'origin into view, not the world origin', (tester) async {
     final fixture = CanvasPaneFixture()
       ..objects = [canvasNoteJson('note', x: 5000)];
@@ -66,9 +61,7 @@ void main() {
       tester,
     ).setCamera(const Camera(x: -9000, y: -9000, zoom: 3.2));
 
-    await tester.tap(find.bySemanticsLabel('More canvas actions'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Recenter view'));
+    await tester.tap(find.byTooltip('Fit view'));
     await tester.pumpAndSettle();
 
     final view = surfaceDocument(tester).worldView;

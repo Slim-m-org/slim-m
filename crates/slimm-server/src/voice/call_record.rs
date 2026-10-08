@@ -70,5 +70,6 @@ pub(crate) async fn record_finished_call(
         embeds: Arc::new(Vec::new()),
         call: Some(Arc::new(record)),
         components: Arc::new(Vec::new()),
+        lookups: Default::default(),
     });
 }

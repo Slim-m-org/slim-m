@@ -51,10 +51,11 @@ class CanvasToolsRow extends StatefulWidget {
     required this.canDraw,
     required this.canUndo,
     required this.onUndo,
+    required this.canRedo,
+    required this.onRedo,
     required this.canManage,
     required this.onClear,
     required this.onPasteImage,
-    required this.onRecenter,
     required this.selection,
     required this.onBringToFront,
     required this.onSendToBack,
@@ -110,13 +111,14 @@ class CanvasToolsRow extends StatefulWidget {
 
   final bool canUndo;
   final VoidCallback onUndo;
+  final bool canRedo;
+  final VoidCallback onRedo;
 
   /// Whether the signed-in member holds MANAGE_CANVAS, deployment-wide.
   final bool canManage;
 
   final Future<void> Function() onClear;
   final VoidCallback onPasteImage;
-  final VoidCallback onRecenter;
 
   /// The one object currently selected for a resize or reorder, or null.
   final ValueListenable<String?> selection;
@@ -222,10 +224,16 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           onPressed: widget.canUndo ? widget.onUndo : null,
         ),
         const SizedBox(width: AppSpacing.s4),
+        AppIconButton(
+          icon: AppIcons.redo,
+          semanticLabel: 'Redo',
+          tooltip: widget.canRedo ? 'Redo' : 'Nothing to redo yet',
+          onPressed: widget.canRedo ? widget.onRedo : null,
+        ),
+        const SizedBox(width: AppSpacing.s4),
         CanvasOverflowMenu(
           onPasteImage: widget.onPasteImage,
           canDraw: widget.canDraw,
-          onRecenter: widget.onRecenter,
           canManage: widget.canManage,
           onClear: widget.onClear,
           selection: widget.selection,

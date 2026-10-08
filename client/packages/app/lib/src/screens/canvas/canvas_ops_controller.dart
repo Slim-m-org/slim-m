@@ -51,9 +51,29 @@ class _DrawEntry extends _UndoEntry {
 }
 
 class _EraseEntry extends _UndoEntry {
-  _EraseEntry(this.opId);
+  _EraseEntry(this.opId, [this.objectIds = const <String>[]]);
 
   final String opId;
+
+  /// Empty for a clear, whose reach is a seq fence, so it cannot be redone.
+  final List<String> objectIds;
+}
+
+sealed class _RedoEntry {}
+
+/// Re-applies an undone draw by restoring the remove op that undid it.
+class _RedoRestore extends _RedoEntry {
+  _RedoRestore(this.opId, this.objectIds);
+
+  final String opId;
+  final List<String> objectIds;
+}
+
+/// Re-applies an undone erase by removing the same objects again.
+class _RedoRemove extends _RedoEntry {
+  _RedoRemove(this.objectIds);
+
+  final List<String> objectIds;
 }
 
 /// Reconciles the undo stack, the erase tool, and the clear control against
@@ -81,11 +101,16 @@ class CanvasOpsController {
   final Future<void> Function()? onRemoveFailed;
 
   final Queue<_UndoEntry> _undoStack = Queue<_UndoEntry>();
+  final Queue<_RedoEntry> _redoStack = Queue<_RedoEntry>();
+
+  // Bumped by every fresh edit so an undo still in flight cannot refill a redo stack the edit just cleared.
+  int _editEpoch = 0;
   final Set<String> _dragBatch = <String>{};
   _DragState? _drag;
   _ResizeState? _resize;
 
   bool get canUndo => _undoStack.isNotEmpty;
+  bool get canRedo => _redoStack.isNotEmpty;
 
   /// Records a just-drawn gesture's object ids so [undo] can reverse it as
   /// one unit, matching what one continuous stroke split into.
@@ -121,36 +146,92 @@ class CanvasOpsController {
     document.refresh();
     const message = 'That could not be deleted.';
     final opId = await _submitRemove([objectId], errorMessage: message);
-    if (opId != null) _pushUndo(_EraseEntry(opId));
+    if (opId != null) _pushUndo(_EraseEntry(opId, [objectId]));
   }
 
   /// Reverses the most recent drawn or erased gesture, or does nothing if
-  /// there is none.
+  /// there is none. What it reversed becomes available to [redo].
   Future<void> undo() async {
     if (_undoStack.isEmpty) return;
+    final epoch = _editEpoch;
     final entry = _undoStack.removeLast();
-    switch (entry) {
-      case _DrawEntry(:final objectIds):
-        await _undoDraw(objectIds);
-      case _EraseEntry(:final opId):
-        await _restore(opId);
-      case _MoveEntry(
+    final redo = switch (entry) {
+      _DrawEntry(:final objectIds) => await _undoDraw(objectIds),
+      _EraseEntry(:final opId, :final objectIds) => await _restore(
+        opId,
+        objectIds,
+      ),
+      _MoveEntry(
         :final objectId,
         :final fromX,
         :final fromY,
         :final fromW,
         :final fromH,
-      ):
-        await _undoMove(objectId, fromX, fromY, fromW, fromH);
-      case _ReorderEntry(:final objectId, :final fromZIndex):
-        await _undoReorder(objectId, fromZIndex);
+      ) =>
+        await _undoMove(objectId, fromX, fromY, fromW, fromH),
+      _ReorderEntry(:final objectId, :final fromZIndex) => await _undoReorder(
+        objectId,
+        fromZIndex,
+      ),
+    };
+    if (redo == null || epoch != _editEpoch) return;
+    _redoStack.addLast(redo);
+    while (_redoStack.length > undoStackDepth) {
+      _redoStack.removeFirst();
     }
+  }
+
+  /// Re-applies the most recently undone gesture, or does nothing if there
+  /// is none. Any fresh edit since the undo has already dropped it.
+  Future<void> redo() async {
+    if (_redoStack.isEmpty) return;
+    final entry = _redoStack.removeLast();
+    final undoEntry = switch (entry) {
+      _RedoRestore(:final opId, :final objectIds) => await _redoRestore(
+        opId,
+        objectIds,
+      ),
+      _RedoRemove(:final objectIds) => await _redoRemove(objectIds),
+      final _RedoMove move => await _redoMove(move),
+      _RedoReorder(:final objectId, :final toZIndex) => await _redoReorder(
+        objectId,
+        toZIndex,
+      ),
+    };
+    if (undoEntry != null) _pushUndo(undoEntry, keepRedo: true);
+  }
+
+  Future<_UndoEntry?> _redoRestore(String opId, List<String> ids) async {
+    try {
+      await client.submitCanvasOp(
+        channelId,
+        id: newCanvasOpId(),
+        kind: 'restore',
+        targetOp: opId,
+      );
+      return _DrawEntry(ids);
+    } on api.ApiException {
+      onError('That could not be redone.');
+      return null;
+    }
+  }
+
+  Future<_UndoEntry?> _redoRemove(List<String> ids) async {
+    for (final id in ids) {
+      if (document.isAlive(id)) document.removeObject(id);
+    }
+    document.refresh();
+    final opId = await _submitRemove(
+      ids,
+      errorMessage: 'That could not be redone.',
+    );
+    return opId == null ? null : _EraseEntry(opId, ids);
   }
 
   /// Cancels or arms anything of [objectIds] still in the placement queue,
   /// and removes the rest - already committed, since a killed (never-landed)
   /// id needs nothing further - with one ordinary op.
-  Future<void> _undoDraw(List<String> objectIds) async {
+  Future<_RedoEntry?> _undoDraw(List<String> objectIds) async {
     final immediate = <String>[];
     for (final id in objectIds) {
       switch (commits.undoPlacement(id)) {
@@ -166,11 +247,12 @@ class CanvasOpsController {
       }
     }
     document.refresh();
-    if (immediate.isEmpty) return;
+    if (immediate.isEmpty) return null;
+    final opId = await _submitRemove(immediate);
+    if (opId != null) return _RedoRestore(opId, immediate);
     // A refused remove leaves the draw standing, so its undo entry goes back.
-    if (await _submitRemove(immediate) == null) {
-      _pushUndo(_DrawEntry(immediate));
-    }
+    _pushUndo(_DrawEntry(immediate), keepRedo: true);
+    return null;
   }
 
   /// Erases the topmost stroke under [world] the caller is allowed to
@@ -212,7 +294,7 @@ class CanvasOpsController {
     ];
     if (immediate.isEmpty) return;
     final opId = await _submitRemove(immediate);
-    if (opId != null) _pushUndo(_EraseEntry(opId));
+    if (opId != null) _pushUndo(_EraseEntry(opId, immediate));
   }
 
   /// Clears every object placed at or before [beforeSeq] - see
@@ -265,7 +347,7 @@ class CanvasOpsController {
   /// removed stroke's payload was freed on removal - so a live
   /// `CanvasObjectsRestored` frame or the next catch-up is what brings the
   /// object back.
-  Future<void> _restore(String opId) async {
+  Future<_RedoEntry?> _restore(String opId, List<String> ids) async {
     try {
       await client.submitCanvasOp(
         channelId,
@@ -273,12 +355,18 @@ class CanvasOpsController {
         kind: 'restore',
         targetOp: opId,
       );
+      return ids.isEmpty ? null : _RedoRemove(ids);
     } on api.ApiException {
       onError('That could not be undone.');
+      return null;
     }
   }
 
-  void _pushUndo(_UndoEntry entry) {
+  void _pushUndo(_UndoEntry entry, {bool keepRedo = false}) {
+    if (!keepRedo) {
+      _editEpoch++;
+      _redoStack.clear();
+    }
     _undoStack.addLast(entry);
     while (_undoStack.length > undoStackDepth) {
       _undoStack.removeFirst();

@@ -189,6 +189,20 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             unawaited(_onUndo()),
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
             unawaited(_onUndo()),
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): () =>
+            unawaited(_onRedo()),
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          meta: true,
+          shift: true,
+        ): () =>
+            unawaited(_onRedo()),
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
+            unawaited(_onRedo()),
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
             unawaited(_imagePaste.pasteFromKeystroke()),
         const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
@@ -212,6 +226,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
           onToolChanged: _onToolChanged,
           canUndo: _ops.canUndo,
           onUndo: () => unawaited(_onUndo()),
+          canRedo: _ops.canRedo,
+          onRedo: () => unawaited(_onRedo()),
           canManage: manageCanvas,
           document: _document,
           onClear: _onClear,

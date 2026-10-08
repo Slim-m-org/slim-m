@@ -57,10 +57,12 @@ pub(super) async fn created_from_event(
         embeds,
         call,
         components,
+        lookups,
     } = event
     else {
         return Err(());
     };
+    let facts = lookups.get(store, message.id).await.map_err(|_| ())?;
     let extras = MessageExtras {
         attachments: (*attachments).clone(),
         forwarded: forwarded.map(|f| (*f).clone()),
@@ -71,23 +73,27 @@ pub(super) async fn created_from_event(
         call: call.map(|c| (*c).clone()),
         components: (*components).clone(),
     };
-    created(store, link_previews, viewer, (*message).clone(), extras).await
+    Ok(created(
+        link_previews,
+        (*message).clone(),
+        extras,
+        facts.mentioned.contains(&viewer),
+        facts.webhook_username.clone(),
+    ))
 }
 
-/// The frame for a freshly sent message, with `mentions_me` resolved by one
-/// point lookup against `message_id` for `viewer` - see
-/// [`crate::store::Store::is_mentioned`] for why the live path cannot
-/// instead read this off the broadcast event.
-pub(super) async fn created(
-    store: &Store,
+/// The frame for a freshly sent message. `mentions_me` and the webhook label
+/// come from the event's shared [`crate::hub::CreatedLookups`], so a hundred
+/// connections cost two store reads instead of two hundred.
+fn created(
     link_previews: &LinkPreviews,
-    viewer: UserId,
     message: Message,
     extras: MessageExtras,
-) -> Result<ServerFrame, ()> {
+    mentions_me: bool,
+    webhook_username: Option<String>,
+) -> ServerFrame {
     let channel_id = message.channel_id.to_string();
     let seq = message.seq.0;
-    let message_id = message.id;
     let mut dto = MessageDto::from(message);
     dto.attachments = extras
         .attachments
@@ -111,21 +117,15 @@ pub(super) async fn created(
             ran_at: run.ran_at,
         }];
     }
-    dto.mentions_me = store
-        .is_mentioned(message_id, viewer)
-        .await
-        .map_err(|_| ())?;
-    dto.webhook_username = store
-        .webhook_message_username(message_id)
-        .await
-        .map_err(|_| ())?;
+    dto.mentions_me = mentions_me;
+    dto.webhook_username = webhook_username;
     // Without this a call arrives blank until the next cold read.
     dto.call = extras.call.map(CallDto::from);
-    Ok(ServerFrame::MessageCreated {
+    ServerFrame::MessageCreated {
         channel_id,
         seq,
         message: dto,
-    })
+    }
 }
 
 /// [`created`]'s own sibling for an edit, which carries the message-op

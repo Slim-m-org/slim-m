@@ -212,6 +212,7 @@ async fn create(
             embeds: Arc::new(Vec::new()),
             call: None,
             components: std::sync::Arc::new(Vec::new()),
+            lookups: Default::default(),
         });
         state.push.notify_message(
             state.store.clone(),

@@ -75,6 +75,21 @@ impl Store {
             .collect()
     }
 
+    /// Everyone `message_id` mentions, for the live path to resolve once per
+    /// message rather than once per connection (see `hub::CreatedLookups`).
+    pub async fn mentioned_user_ids(
+        &self,
+        message_id: MessageId,
+    ) -> anyhow::Result<std::collections::HashSet<UserId>> {
+        let ids = sqlx::query_scalar!(
+            r#"SELECT user_id AS "user_id: UserId" FROM message_mentions WHERE message_id = ?"#,
+            message_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(ids.into_iter().collect())
+    }
+
     /// Whether `message_id` mentions `user_id` - the live path's own point
     /// lookup, run once per connection a `message.created`/`message.edited`
     /// frame reaches, since the hub broadcast carries no per-viewer field for

@@ -132,6 +132,8 @@ void main() {
                   onToolChanged: (_) {},
                   canUndo: false,
                   onUndo: () {},
+                  canRedo: false,
+                  onRedo: () {},
                   canManage: false,
                   document: document,
                   onClear: () async {},

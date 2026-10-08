@@ -15,6 +15,17 @@ class _MoveEntry extends _UndoEntry {
   final double fromH;
 }
 
+/// The box an undone move left, which a redo moves the object back to.
+class _RedoMove extends _RedoEntry {
+  _RedoMove(this.objectId, this.toX, this.toY, this.toW, this.toH);
+
+  final String objectId;
+  final double toX;
+  final double toY;
+  final double toW;
+  final double toH;
+}
+
 /// One select-drag in progress: the object picked up, its bounds when the
 /// drag began (for [CanvasOpsController.undo] to restore), and the bounds it
 /// currently occupies (updated on every [CanvasOpsController.dragSelect]).
@@ -253,17 +264,42 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     }
   }
 
-  /// Reverses a move by submitting the inverse one - there is no dedicated
-  /// undo-a-move op, since a move already carries its own destination and
-  /// undoing it is just another move, back. Applied locally first, the same
-  /// immediate feedback [undo] already gives a reversed draw or erase, with
-  /// the object's pre-undo bounds kept so a failure can put it back.
-  Future<void> _undoMove(
+  Future<_RedoEntry?> _undoMove(
     String objectId,
     double x,
     double y,
     double w,
     double h,
+  ) async {
+    final before = await _moveTo(objectId, x, y, w, h, 'undone');
+    if (before == null) return null;
+    return _RedoMove(objectId, before.x, before.y, before.w, before.h);
+  }
+
+  Future<_UndoEntry?> _redoMove(_RedoMove move) async {
+    final before = await _moveTo(
+      move.objectId,
+      move.toX,
+      move.toY,
+      move.toW,
+      move.toH,
+      'redone',
+    );
+    if (before == null) return null;
+    return _MoveEntry(move.objectId, before.x, before.y, before.w, before.h);
+  }
+
+  /// Moves an object to a box a history step names, locally first for the
+  /// same immediate feedback a drag gives, and returns the box it left so
+  /// the opposite history step can put it back. Null when the request failed
+  /// or the object is gone from this client.
+  Future<({double x, double y, double w, double h})?> _moveTo(
+    String objectId,
+    double x,
+    double y,
+    double w,
+    double h,
+    String verb,
   ) async {
     final before = document.objectBounds(objectId);
     document.moveObject(objectId, x, y, w, h);
@@ -279,12 +315,14 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         w: w,
         h: h,
       );
+      return before;
     } on api.ApiException {
       if (before != null) {
         document.moveObject(objectId, before.x, before.y, before.w, before.h);
         document.refresh();
       }
-      onError('That could not be undone.');
+      onError('That could not be $verb.');
+      return null;
     }
   }
 }

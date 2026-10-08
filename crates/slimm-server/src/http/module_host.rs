@@ -233,6 +233,7 @@ impl ChannelPoster {
             embeds: Arc::new(embeds),
             call: None,
             components: Arc::new(Vec::new()),
+            lookups: Default::default(),
         });
         state.push.notify_message(
             state.store.clone(),

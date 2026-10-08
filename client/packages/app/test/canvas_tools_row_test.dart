@@ -170,20 +170,53 @@ void main() {
     },
   );
 
-  testWidgets('tapping recenter view in the overflow calls onRecenter', (
-    tester,
-  ) async {
-    var recentered = 0;
-    await tester.pumpWidget(
-      wrapCanvasToolsRow(buildCanvasToolsRow(onRecenter: () => recentered++)),
-    );
+  testWidgets('the overflow no longer carries Recenter view', (tester) async {
+    await tester.pumpWidget(wrapCanvasToolsRow(buildCanvasToolsRow()));
 
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Recenter view'));
+
+    expect(find.text('Recenter view'), findsNothing);
+    expect(find.text('Paste image'), findsOneWidget);
+  });
+
+  testWidgets('redo sits right after undo and is dimmed with nothing to redo', (
+    tester,
+  ) async {
+    var redone = 0;
+    await tester.pumpWidget(
+      wrapCanvasToolsRow(
+        buildCanvasToolsRow(canUndo: true, onRedo: () => redone++),
+      ),
+    );
+
+    final undo = tester.getRect(find.bySemanticsLabel('Undo'));
+    final redo = tester.getRect(find.bySemanticsLabel('Redo'));
+    expect(redo.left, greaterThan(undo.right - 1));
+    expect(redo.left - undo.right, lessThan(12));
+    final button = tester.widget<AppIconButton>(
+      find.ancestor(
+        of: find.bySemanticsLabel('Redo'),
+        matching: find.byType(AppIconButton),
+      ),
+    );
+    expect(button.onPressed, isNull);
+    expect(button.tooltip, 'Nothing to redo yet');
+    expect(redone, 0);
+  });
+
+  testWidgets('redo fires onRedo when canRedo is true', (tester) async {
+    var redone = 0;
+    await tester.pumpWidget(
+      wrapCanvasToolsRow(
+        buildCanvasToolsRow(canRedo: true, onRedo: () => redone++),
+      ),
+    );
+
+    await tester.tap(find.bySemanticsLabel('Redo'));
     await tester.pump();
 
-    expect(recentered, 1);
+    expect(redone, 1);
   });
 
   testWidgets('undo is disabled when canUndo is false', (tester) async {

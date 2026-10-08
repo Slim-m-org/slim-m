@@ -94,6 +94,8 @@ Widget _pane(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
               onToolChanged: (_) {},
               canUndo: false,
               onUndo: () {},
+              canRedo: false,
+              onRedo: () {},
               canManage: false,
               document: document,
               onClear: () async {},
