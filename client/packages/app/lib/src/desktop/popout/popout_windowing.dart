@@ -12,8 +12,12 @@ library;
 import 'package:flutter/foundation.dart' show VoidCallback, kIsWeb;
 import 'package:flutter/src/foundation/_features.dart' show isWindowingEnabled;
 import 'package:flutter/src/widgets/_window.dart';
+import 'package:flutter/src/widgets/_window_linux.dart';
 import 'package:flutter/widgets.dart';
 import 'package:slimm_platform/platform.dart' show isLinuxHost;
+
+import '../desktop_window_port.dart' show ResizeEdge;
+import 'popout_gtk_drag.dart';
 
 /// A native window whose content is built in the main engine's widget tree.
 abstract interface class PopOutWindowHandle {
@@ -21,12 +25,19 @@ abstract interface class PopOutWindowHandle {
   Widget host(Widget child);
 
   void destroy();
+
+  /// Hands the pointer to the window manager to move the window; only an
+  /// undecorated window needs it, since a decorated one has its own title bar.
+  void beginMove();
+
+  void beginResize(ResizeEdge edge);
 }
 
 typedef PopOutWindowFactory =
     PopOutWindowHandle Function({
       required String title,
       required Size size,
+      required bool decorated,
       required VoidCallback onCloseRequested,
     });
 
@@ -45,10 +56,14 @@ class _NativePopOutWindow
   _NativePopOutWindow({
     required String title,
     required Size size,
+    required bool decorated,
     required this.onCloseRequested,
   }) {
-    _controller = RegularWindowController(
+    // The public factory has no decorated option; the Linux controller does.
+    _controller = RegularWindowControllerLinux(
+      owner: WidgetsBinding.instance.windowingOwner as WindowingOwnerLinux,
       size: size,
+      decorated: decorated,
       constraints: BoxConstraints(
         minWidth: _minSize.width,
         minHeight: _minSize.height,
@@ -59,7 +74,8 @@ class _NativePopOutWindow
   }
 
   final VoidCallback onCloseRequested;
-  late final RegularWindowController _controller;
+  late final RegularWindowControllerLinux _controller;
+  late final _drag = GtkWindowDrag(_controller.windowHandle);
 
   @override
   void onWindowCloseRequested(RegularWindowController controller) =>
@@ -71,4 +87,10 @@ class _NativePopOutWindow
 
   @override
   void destroy() => _controller.destroy();
+
+  @override
+  void beginMove() => _drag.move();
+
+  @override
+  void beginResize(ResizeEdge edge) => _drag.resize(edge);
 }

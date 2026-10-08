@@ -98,6 +98,19 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
     // A maximized or full-screen window has no edge left for a band to grab.
     if (_maximized || _fullScreen) return const SizedBox.shrink();
 
+    return ResizeHandles(onStart: widget.port.startResizing);
+  }
+}
+
+/// The eight hit regions on their own, so a window without a
+/// [DesktopWindowPort] (the pop-out) mounts the same border.
+class ResizeHandles extends StatelessWidget {
+  const ResizeHandles({super.key, required this.onStart});
+
+  final void Function(ResizeEdge edge) onStart;
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       children: [
         for (final spec in _handleSpecs)
@@ -110,7 +123,7 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
             height: spec.height,
             child: _ResizeHandle(
               key: ValueKey(spec.edge),
-              port: widget.port,
+              onStart: onStart,
               edge: spec.edge,
               cursor: spec.cursor,
             ),
@@ -219,12 +232,12 @@ final List<_HandleSpec> _handleSpecs = [
 class _ResizeHandle extends StatelessWidget {
   const _ResizeHandle({
     super.key,
-    required this.port,
+    required this.onStart,
     required this.edge,
     required this.cursor,
   });
 
-  final DesktopWindowPort port;
+  final void Function(ResizeEdge edge) onStart;
   final ResizeEdge edge;
   final MouseCursor cursor;
 
@@ -233,7 +246,7 @@ class _ResizeHandle extends StatelessWidget {
     cursor: cursor,
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onPanStart: (_) => port.startResizing(edge),
+      onPanStart: (_) => onStart(edge),
       child: const SizedBox.expand(),
     ),
   );
