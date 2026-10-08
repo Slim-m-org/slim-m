@@ -2,7 +2,7 @@
 /// canvas.md: at the previous `width: 200`, this menu's own longest labels
 /// truncated - "Paste image" (with its Ctrl+V hint) to "Paste i…", "Hide my
 /// camera bubble" to "Hide my camera bu…" - narrower than every sibling
-/// item in the same menu ("Recenter view" fit fine), which read as broken
+/// item in the same menu ("Enter fullscreen" fit fine), which read as broken
 /// rather than intentionally abbreviated.
 library;
 
@@ -53,7 +53,6 @@ void main() {
             body: CanvasOverflowMenu(
               onPasteImage: () {},
               canDraw: true,
-              onRecenter: () {},
               onToggleFullscreen: () {},
               canManage: false,
               onClear: () async {},
@@ -81,7 +80,7 @@ void main() {
       final menu = tester.widget<AppMenu>(find.byType(AppMenu));
       final budget = _labelBudget(menu.width);
 
-      for (final label in const ['Hide my camera bubble', 'Recenter view']) {
+      for (final label in const ['Hide my camera bubble', 'Enter fullscreen']) {
         expect(
           _fitsOneLine(label, budget),
           isTrue,

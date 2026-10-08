@@ -161,6 +161,8 @@ Future<void> renderCanvasAssembledPane(
               onToolChanged: (_) {},
               canUndo: false,
               onUndo: () {},
+              canRedo: false,
+              onRedo: () {},
               canManage: canManage,
               document: document,
               onClear: () async {},

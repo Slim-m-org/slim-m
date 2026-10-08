@@ -39,7 +39,6 @@ class CanvasOverflowMenu extends StatefulWidget {
     super.key,
     required this.onPasteImage,
     required this.canDraw,
-    required this.onRecenter,
     required this.canManage,
     required this.onClear,
     required this.selection,
@@ -71,10 +70,6 @@ class CanvasOverflowMenu extends StatefulWidget {
   /// image".
   final bool canDraw;
 
-  /// Jumps the camera back to the world origin - always available, gated on
-  /// nothing, since it changes only where this viewer is looking rather than
-  /// anything shared. See `worldLimit`'s own doc for the gap this closes.
-  final VoidCallback onRecenter;
   final bool canManage;
   final Future<void> Function() onClear;
 
@@ -133,11 +128,6 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   void _paste() {
     _controller.hide();
     widget.onPasteImage();
-  }
-
-  void _recenter() {
-    _controller.hide();
-    widget.onRecenter();
   }
 
   void _toggleActivityLog() {
@@ -276,11 +266,6 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
                         ? null
                         : _shortcutHint(context),
                     onTap: widget.canDraw ? _paste : null,
-                  ),
-                  AppMenuItem(
-                    label: 'Recenter view',
-                    leading: AppIcons.recenter,
-                    onTap: _recenter,
                   ),
                   // The way in only: the way out is the dock's own button, since this menu is part of the tool strip fullscreen folds away.
                   AppMenuItem(

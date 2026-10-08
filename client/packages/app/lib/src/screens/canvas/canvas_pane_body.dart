@@ -5,10 +5,9 @@
 /// the surface.
 ///
 /// Split out of `canvas_pane.dart`, which was already past the review
-/// budget before this slice added the eraser, undo and clear controls to
-/// it. `_CanvasPaneState` owns every callback and every piece of state that
-/// has to survive the pane's own lifetime; whether the activity panel is
-/// open right now is pure presentation, so it is this widget's own local
+/// budget. `_CanvasPaneState` owns every callback and every piece of state
+/// that has to survive the pane's own lifetime; whether the activity panel
+/// is open right now is pure presentation, so it is this widget's own local
 /// state instead of one more field threaded through an already-large parent.
 library;
 
@@ -46,6 +45,8 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onToolChanged,
     required this.canUndo,
     required this.onUndo,
+    required this.canRedo,
+    required this.onRedo,
     required this.canManage,
     required this.document,
     required this.onClear,
@@ -100,6 +101,8 @@ class CanvasPaneBody extends StatefulWidget {
   final ValueChanged<CanvasTool> onToolChanged;
   final bool canUndo;
   final VoidCallback onUndo;
+  final bool canRedo;
+  final VoidCallback onRedo;
   final bool canManage;
   final CanvasDocument document;
   final Future<void> Function() onClear;
@@ -115,8 +118,7 @@ class CanvasPaneBody extends StatefulWidget {
   /// menu exists now.
   final ValueChanged<Offset> onPasteImageAt;
 
-  /// The toolbar's "Recenter view" action, always available - see
-  /// `CanvasOverflowMenu`'s own doc for the gap this closes.
+  /// Fits the view to the drawn content: the zoom chip's tap and a menu item.
   final VoidCallback onRecenter;
   final String? error;
   final VoidCallback onDismissError;
@@ -333,10 +335,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     canDraw: !canvasErrorBlocksDrawing(widget.error),
     canUndo: widget.canUndo,
     onUndo: widget.onUndo,
+    canRedo: widget.canRedo,
+    onRedo: widget.onRedo,
     canManage: widget.canManage,
     onClear: widget.onClear,
     onPasteImage: widget.onPasteImage,
-    onRecenter: widget.onRecenter,
     selection: widget.document.selectedObjectId,
     onBringToFront: widget.onBringToFront,
     onSendToBack: widget.onSendToBack,
@@ -486,7 +489,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           tileOverrides: widget.tileOverrides,
           tokens: tokens,
         ),
-        CanvasZoomIndicator(document: widget.document, tokens: tokens),
+        CanvasZoomIndicator(
+          document: widget.document,
+          tokens: tokens,
+          onFit: widget.onRecenter,
+        ),
       ],
     ),
   );

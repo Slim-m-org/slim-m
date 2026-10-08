@@ -148,6 +148,11 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
+  Future<void> _onRedo() async {
+    await _ops.redo();
+    _refresh();
+  }
+
   Future<void> _onClear() async {
     await _ops.clear(_sync.asOfSeq ?? 0);
     _refresh();

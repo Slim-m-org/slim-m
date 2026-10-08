@@ -32,6 +32,8 @@ Widget _pane(CanvasDocument document, {required String? error}) =>
               onToolChanged: (_) {},
               canUndo: false,
               onUndo: () {},
+              canRedo: false,
+              onRedo: () {},
               canManage: false,
               document: document,
               onClear: () async {},
