@@ -16,6 +16,7 @@ import '../diagnostics/debug_log.dart';
 import 'app_lock_preference.dart';
 import 'attachment_preview_quality.dart';
 import 'desktop_splash_preference.dart';
+import 'display_density.dart';
 import 'display_preferences.dart';
 import 'image_cache_preference.dart';
 import 'media_preferences.dart';
@@ -61,6 +62,9 @@ restorablePreferences = {
   'gif autoplay': (c) => c.read(gifAutoplayControllerProvider.notifier),
   'message page size': (c) =>
       c.read(messagePageSizeControllerProvider.notifier),
+  'message density': (c) => c.read(messageDensityControllerProvider.notifier),
+  'group spacing': (c) => c.read(groupSpacingControllerProvider.notifier),
+  'ui scale': (c) => c.read(uiScaleControllerProvider.notifier),
   'app lock': (c) => c.read(appLockPreferenceProvider.notifier),
 };
 

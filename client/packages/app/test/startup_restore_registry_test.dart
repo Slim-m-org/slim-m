@@ -23,7 +23,7 @@ String _withoutComments(String source) => source
 Set<String> _restoringControllers() {
   final found = <String>{};
   final restores = RegExp(
-    r'Future<void> restore\(\)|extends (Enum|Bool)PreferenceController',
+    r'Future<void> restore\(\)|extends (Enum|Bool|Int)PreferenceController',
   );
   for (final file in Directory('lib/src/providers').listSync()) {
     if (file is! File || !file.path.endsWith('.dart')) continue;
