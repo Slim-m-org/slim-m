@@ -43,6 +43,8 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
     super.dispose();
   }
 
+  void _close() => ref.read(popOutFeedProvider.notifier).state = null;
+
   void _sync(MiniPlayerFeed? next) {
     if (next == null) {
       ref.read(popOutFeedProvider.notifier).state = null;
@@ -60,8 +62,8 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
       final handle = factory(
         title: 'slim-m',
         size: _windowSize,
-        onCloseRequested: () =>
-            ref.read(popOutFeedProvider.notifier).state = null,
+        decorated: false,
+        onCloseRequested: _close,
       );
       setState(() => _handle = handle);
     }
@@ -76,7 +78,16 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
     return ViewAnchor(
       view: handle == null || feed == null
           ? null
-          : handle.host(PopOutWindowView(feed: feed)),
+          : handle.host(
+              PopOutWindowView(
+                feed: feed,
+                frame: PopOutFrame(
+                  onMoveStart: handle.beginMove,
+                  onResizeStart: handle.beginResize,
+                  onClose: _close,
+                ),
+              ),
+            ),
       child: widget.child,
     );
   }
