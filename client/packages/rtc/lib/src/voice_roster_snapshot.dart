@@ -47,6 +47,7 @@ VoiceParticipant _toParticipant(
     isLocal: isLocal,
     isScreenSharing: isSharingScreen(p),
     isCameraOn: hasCameraTrack(p),
+    audioLevel: p.audioLevel,
   );
 }
 

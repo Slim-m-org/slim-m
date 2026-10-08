@@ -20,6 +20,7 @@ class CallDockButton extends StatelessWidget {
     required this.onPressed,
     this.destructive = false,
     this.pending = false,
+    this.level,
   });
 
   final IconData icon;
@@ -34,6 +35,10 @@ class CallDockButton extends StatelessWidget {
   /// a share nobody can see.
   final bool pending;
   final VoidCallback onPressed;
+
+  /// A live input level, 0 to 1, drawn as a 2px bar along the chip's bottom
+  /// edge in the ok colour, so "we can hear you" does not rest on colour.
+  final double? level;
 
   @override
   Widget build(BuildContext context) {
@@ -117,13 +122,41 @@ class CallDockButton extends StatelessWidget {
                             ),
                           ),
                         )
-                      : Icon(icon, size: AppSizes.icon16, color: foreground),
+                      : _withLevel(
+                          Icon(icon, size: AppSizes.icon16, color: foreground),
+                          tokens,
+                        ),
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _withLevel(Widget icon, AppTokens tokens) {
+    final value = level;
+    if (value == null) return icon;
+    return Stack(
+      children: [
+        Center(child: icon),
+        Positioned(
+          left: AppSpacing.s4,
+          right: AppSpacing.s4,
+          bottom: 3,
+          height: 2,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              key: const ValueKey('call-dock-level'),
+              widthFactor: value.clamp(0.0, 1.0),
+              heightFactor: 1,
+              child: ColoredBox(color: tokens.status.online),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -305,9 +305,11 @@ Future<ProviderContainer> pumpControls(
   VoiceFlags voice, {
   InertSession? session,
   int? screenShareMaxHeight = 2160,
+  List<Override> extraOverrides = const [],
 }) async {
   final container = ProviderContainer(
     overrides: [
+      ...extraOverrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session ?? InertSession()),

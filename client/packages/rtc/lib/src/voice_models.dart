@@ -80,6 +80,7 @@ class VoiceParticipant {
     required this.isLocal,
     required this.isScreenSharing,
     this.isCameraOn = false,
+    this.audioLevel = 0,
   });
 
   /// The server's user id. The token's `sub`, so it is trustworthy.
@@ -98,6 +99,10 @@ class VoiceParticipant {
   /// watched through `screenShareViewFor`.
   final bool isCameraOn;
 
+  /// The last level LiveKit reported for this participant's mic, 0 to 1,
+  /// refreshed with its active-speaker updates rather than per audio frame.
+  final double audioLevel;
+
   @override
   bool operator ==(Object other) =>
       other is VoiceParticipant &&
@@ -107,7 +112,8 @@ class VoiceParticipant {
       other.isMuted == isMuted &&
       other.isLocal == isLocal &&
       other.isScreenSharing == isScreenSharing &&
-      other.isCameraOn == isCameraOn;
+      other.isCameraOn == isCameraOn &&
+      other.audioLevel == audioLevel;
 
   @override
   int get hashCode => Object.hash(
@@ -118,6 +124,7 @@ class VoiceParticipant {
         isLocal,
         isScreenSharing,
         isCameraOn,
+        audioLevel,
       );
 }
 
