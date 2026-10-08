@@ -27,6 +27,7 @@ import 'package:slimm_app/src/providers/typing_controller.dart';
 import 'package:slimm_app/src/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/composer_clipboard_image.dart';
 import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
+import 'package:slimm_app/src/widgets/photo_library.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// Stands in for the real controller, which would open a websocket
@@ -295,6 +296,7 @@ Widget composerHarness({
       if (customEmoji != null)
         customEmojiProvider.overrideWith((ref) => customEmoji),
       customEmojiImageProvider.overrideWith((ref, id) => _png),
+      photoLibraryProvider.overrideWithValue(null),
       ...extraOverrides,
     ],
     child: MaterialApp(

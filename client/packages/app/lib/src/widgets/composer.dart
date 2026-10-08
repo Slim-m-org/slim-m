@@ -42,6 +42,7 @@ import 'composer_clipboard_paste.dart';
 import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
 import 'composer_list_keys.dart';
+import 'composer_photo_strip.dart';
 import 'composer_slash.dart';
 import 'emoji_picker.dart';
 import 'gif_picker.dart';
@@ -442,11 +443,8 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _insertCodeFence() => _insert('``', caretOffset: 1);
 
-  /// Touch density only: the Space's own emoji, nothing else. Native ones
-  /// come from the keyboard already under the field, which searches and
-  /// skin-tones better than this could. Desktop width reaches the anchored
-  /// Emoji/GIFs panel `ComposerPickerButton` owns instead, wired to
-  /// [_insertPickedEmoji] directly.
+  /// Touch density only: the Space's own emoji; native ones come from the
+  /// keyboard. Desktop width reaches `ComposerPickerButton`'s panel instead.
   void _pickEmoji() =>
       unawaited(showSpaceEmojiSheet(context, onSelect: _insertPickedEmoji));
 
@@ -458,8 +456,13 @@ class _ComposerState extends ConsumerState<Composer> {
   void _openActions() => unawaited(
     showComposerActionsSheet(
       context,
-      onPhotoLibrary: () =>
-          unawaited(_pickAttachment(AttachmentSource.photoLibrary)),
+      onPhotoLibrary: () => openPhotoStripOr(
+        context,
+        ref,
+        widget.channelId,
+        fallback: () =>
+            unawaited(_pickAttachment(AttachmentSource.photoLibrary)),
+      ),
       onBrowseFiles: () =>
           unawaited(_pickAttachment(AttachmentSource.fileBrowser)),
       canPasteImage: composerClipboardPasteAvailable(),
@@ -482,10 +485,8 @@ class _ComposerState extends ConsumerState<Composer> {
     ),
   );
 
-  /// Touch density only: the whole flow, opening through closing, is
-  /// `gif_picker.dart`'s own `pickGif` - nothing here but the wiring.
-  /// Desktop width reaches [_stageGif] directly through the same anchored
-  /// panel [_pickEmoji]'s doc comment names.
+  /// Touch density only: the flow is `gif_picker.dart`'s `pickGif`; desktop
+  /// reaches [_stageGif] through the same anchored panel as [_pickEmoji].
   void _pickGif() => unawaited(
     pickGif(
       context: context,
@@ -510,14 +511,11 @@ class _ComposerState extends ConsumerState<Composer> {
     unawaited(_send());
   }
 
-  /// Desktop has no photo-versus-files split (see `attachment_picker.dart`),
-  /// so its single tap goes straight to the document picker.
+  /// Desktop has no photo/files split, so one tap opens the document picker.
   void _pickFileFromButton() =>
       unawaited(_pickAttachment(AttachmentSource.fileBrowser));
 
-  /// Cleared up front, the same precedent `pasteClipboardImage`'s own doc
-  /// comment names: a retry that succeeds must not leave a stale failure on
-  /// screen above the attachment it just staged.
+  /// Cleared up front so a successful retry leaves no stale failure on screen.
   Future<void> _pickAttachment(AttachmentSource source) {
     _setAttachmentError(null);
     return runAttachmentPick(
@@ -530,16 +528,12 @@ class _ComposerState extends ConsumerState<Composer> {
     );
   }
 
-  /// Stages bytes from wherever they came from: visible immediately (see
-  /// [AttachmentStagingController.stage]), with the upload itself running in
-  /// the background. Shared by the file picker and a pasted image so
-  /// neither invents its own way onto the send path.
+  /// Stages bytes from any source, visible at once while the upload runs in
+  /// the background; the one way onto the send path.
   Future<void> _stageAttachment(Uint8List bytes, String filename) =>
       _attachments.stage(bytes, filename);
 
-  /// Handed to [Composer.clipboardPasteStart] as the callback a pasted
-  /// image reaches; it goes through the exact same staging path a picked
-  /// file does, never a second attachment mechanism.
+  /// A pasted image takes the same staging path as a picked file.
   void _handlePastedImage(Uint8List bytes, String filename) =>
       unawaited(_stageAttachment(bytes, filename));
 
@@ -673,6 +667,12 @@ class _ComposerState extends ConsumerState<Composer> {
               gifSearchEnabled: _gifSearchEnabled,
               onInsertEmoji: _insertPickedEmoji,
               onStageGif: _stageGif,
+            ),
+            ComposerPhotoStripSlot(
+              channelId: widget.channelId,
+              stage: _stageAttachment,
+              onBrowse: () =>
+                  unawaited(_pickAttachment(AttachmentSource.photoLibrary)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),

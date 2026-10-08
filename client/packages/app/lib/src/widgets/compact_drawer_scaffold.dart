@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 
 import '../providers/channel_by_id_provider.dart';
 import '../providers/member_selection.dart';
@@ -17,7 +18,7 @@ import 'compact_channel_app_bar.dart';
 import 'drawer_edge_drag.dart';
 import 'member_pane.dart';
 
-class CompactDrawerScaffold extends ConsumerWidget {
+class CompactDrawerScaffold extends ConsumerStatefulWidget {
   const CompactDrawerScaffold({
     required this.channelId,
     required this.body,
@@ -37,7 +38,27 @@ class CompactDrawerScaffold extends ConsumerWidget {
   final bool showMembers;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CompactDrawerScaffold> createState() =>
+      _CompactDrawerScaffoldState();
+}
+
+class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
+  bool _railOpen = false;
+
+  /// Flutter reports the 50% crossing mid-drag and then the settle again; only a change of answer is a decision.
+  void _onRailChanged(bool open) {
+    if (open == _railOpen) return;
+    _railOpen = open;
+    AppHaptics.selection();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final channelId = widget.channelId;
+    final body = widget.body;
+    final showAppBar = widget.showAppBar;
+    final showRail = widget.showRail;
+    final showMembers = widget.showMembers;
     final edgeWidth = drawerEdgeDragWidth(context);
     final chatOverCall = voiceChatOverCall(ref, channelId);
     void back() {
@@ -71,6 +92,7 @@ class CompactDrawerScaffold extends ConsumerWidget {
           drawerEdgeDragWidth: edgeWidth,
           // Down, not start (both drawers): the drawer then follows from the first pixel instead of from where the touch slop was crossed.
           drawerDragStartBehavior: DragStartBehavior.down,
+          onDrawerChanged: _onRailChanged,
           onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
           // The roster slides in from the right: the conversation is the only pane at this width.
           endDrawer: showMembers
