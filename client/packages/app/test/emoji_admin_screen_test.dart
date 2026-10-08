@@ -6,7 +6,7 @@
 ///
 /// The picker is the one thing overridden: `file_picker` has no platform
 /// implementation in a widget test, which is what
-/// [emojiImagePickerProvider] exists for.
+/// [emojiFilesPickerProvider] exists for.
 library;
 
 import 'dart:convert';
@@ -20,10 +20,9 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/emoji_screen.dart';
-import 'package:slimm_app/src/screens/admin/emoji_upload_card.dart';
+import 'package:slimm_app/src/screens/admin/emoji_intake.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_app/src/action_labels.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -58,16 +57,9 @@ Map<String, dynamic> _emojiJson(String id, String name) => {
 typedef Seen = ({String method, String path, String? name});
 
 class _Server {
-  _Server({
-    this.emoji = const [],
-    this.uploadStatus = 201,
-    this.uploadBody,
-    this.deleteThrows = false,
-  });
+  _Server({this.emoji = const [], this.deleteThrows = false});
 
   List<Map<String, dynamic>> emoji;
-  int uploadStatus;
-  String? uploadBody;
 
   /// Simulates a dropped connection rather than a server refusal, so the
   /// row's failure exercises the same transport path a real network blip
@@ -95,8 +87,8 @@ class _Server {
     }
     if (path == '/emoji' && request.method == 'POST') {
       return http.Response(
-        uploadBody ?? jsonEncode(_emojiJson('emoji-new', 'party_parrot')),
-        uploadStatus,
+        jsonEncode(_emojiJson('emoji-new', 'party_parrot')),
+        201,
         headers: const {'content-type': 'application/json'},
       );
     }
@@ -121,7 +113,11 @@ Future<ProviderContainer> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      emojiImagePickerProvider.overrideWithValue(() async => picked),
+      emojiFilesPickerProvider.overrideWithValue(
+        () async => [
+          if (picked != null) EmojiPick(fileName: 'img.png', bytes: picked),
+        ],
+      ),
       apiProvider.overrideWith((ref) {
         final api = SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),
@@ -171,54 +167,32 @@ void main() {
     );
   });
 
-  testWidgets('typing a name shows what the server will store, before any '
-      'request is made', (tester) async {
-    final server = _Server();
-    await _pump(tester, server);
-
-    await tester.enterText(find.byType(AppInput).first, 'Party Parrot');
-    await tester.pumpAndSettle();
-
-    expect(find.text(':party_parrot:'), findsOneWidget);
-    expect(
-      server.seen.where((r) => r.method == 'POST'),
-      isEmpty,
-      reason: 'the preview must cost nothing; it is worked out locally',
+  testWidgets('the screen has one add area and a count in the list header', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]),
     );
+
+    expect(find.text('New emoji'), findsOneWidget);
+    expect(find.text('Choose files'), findsOneWidget);
+
+    expect(find.text('Bulk import from a zip'), findsNothing);
+    expect(find.text('Emoji (1)'), findsOneWidget);
   });
 
-  testWidgets('an unusable name explains itself and blocks the upload', (
+  testWidgets('a picked image uploads with its normalised name', (
     tester,
   ) async {
     final server = _Server();
     await _pump(tester, server, picked: _png);
 
-    await tester.enterText(find.byType(AppInput).first, '!!!');
+    await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose image'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('Nothing usable there'),
-      findsOneWidget,
-      reason: 'the field normalises to nothing, so the button cannot work',
-    );
-    await tester.tap(find.text(ActionLabels.createEmoji));
-    await tester.pumpAndSettle();
-    expect(server.seen.where((r) => r.method == 'POST'), isEmpty);
-  });
-
-  testWidgets('the upload sends the normalised name, not what was typed', (
-    tester,
-  ) async {
-    final server = _Server();
-    await _pump(tester, server, picked: _png);
-
     await tester.enterText(find.byType(AppInput).first, 'Party Parrot');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose image'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(ActionLabels.createEmoji));
+    await tester.tap(find.text('Add 1 emoji'));
     await tester.pumpAndSettle();
 
     final posts = server.seen.where((r) => r.method == 'POST').toList();
@@ -227,51 +201,21 @@ void main() {
     expect(posts.single.name, 'party_parrot');
   });
 
-  /// The one refusal that is normal rather than exceptional, and the reason
-  /// this screen does not settle for "request failed": the uploader has to
-  /// learn the name is taken, not merely that something went wrong.
-  testWidgets('a 409 is surfaced with the reason the server gave', (
-    tester,
-  ) async {
-    final server = _Server(
-      uploadStatus: 409,
-      uploadBody: jsonEncode({
-        'error': 'an emoji with that name already exists',
-      }),
-    );
-    await _pump(tester, server, picked: _png);
-
-    await tester.enterText(find.byType(AppInput).first, 'party_parrot');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose image'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(ActionLabels.createEmoji));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('an emoji with that name already exists'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('request failed'), findsNothing);
-  });
-
-  /// A name already in the loaded list can only ever answer 409, so it is
-  /// refused before the round trip rather than after it.
   testWidgets('a name the list already holds is refused without a request', (
     tester,
   ) async {
     final server = _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]);
     await _pump(tester, server, picked: _png);
 
+    await tester.tap(find.text('Choose files'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(AppInput).first, 'Party Parrot');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose image'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(ActionLabels.createEmoji));
-    await tester.pumpAndSettle();
 
-    expect(server.seen.where((r) => r.method == 'POST'), isEmpty);
     expect(find.text('Already taken.'), findsOneWidget);
+    await tester.tap(find.text('Add 1 emoji'));
+    await tester.pumpAndSettle();
+    expect(server.seen.where((r) => r.method == 'POST'), isEmpty);
   });
 
   testWidgets('removing one asks first, and only then deletes', (tester) async {
