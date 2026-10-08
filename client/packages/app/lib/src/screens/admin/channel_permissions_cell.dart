@@ -29,6 +29,7 @@ class CellChip extends StatelessWidget {
     this.disabled = false,
     this.pressed = false,
     this.hovered = false,
+    this.changed = false,
     this.width = 36,
     this.height = 30,
   });
@@ -37,6 +38,9 @@ class CellChip extends StatelessWidget {
   final bool disabled;
   final bool pressed;
   final bool hovered;
+
+  /// Differs from what is saved: marked with a dot so edits read at a glance.
+  final bool changed;
   final double width;
   final double height;
 
@@ -80,20 +84,52 @@ class CellChip extends StatelessWidget {
       child: SizedBox(
         width: width,
         height: height,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: fill,
-            border: Border.all(color: border, width: 1.5),
-            borderRadius: BorderRadius.circular(AppRadii.card),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: lift,
-              borderRadius: BorderRadius.circular(AppRadii.card),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: _body(tokens, fill, border, lift, icon, glyph),
             ),
-            child: Icon(icon, size: 16, color: glyph),
-          ),
+            if (changed)
+              Positioned(
+                top: -3,
+                right: -3,
+                child: DecoratedBox(
+                  key: const ValueKey('cell-changed-dot'),
+                  decoration: BoxDecoration(
+                    color: tokens.textPrimary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: tokens.surfaceBase, width: 1.5),
+                  ),
+                  child: const SizedBox(width: 9, height: 9),
+                ),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _body(
+    AppTokens tokens,
+    Color fill,
+    Color border,
+    Color lift,
+    IconData icon,
+    Color glyph,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: fill,
+        border: Border.all(color: border, width: 1.5),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: lift,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
+        child: Icon(icon, size: 16, color: glyph),
       ),
     );
   }
@@ -110,8 +146,10 @@ class Cell extends StatefulWidget {
     required this.disabled,
     required this.label,
     required this.onTap,
+    this.changed = false,
   });
 
+  final bool changed;
   final CellState state;
   final bool disabled;
   final String label;
@@ -128,7 +166,9 @@ class _CellState extends State<Cell> {
     if (_pressed != value) setState(() => _pressed = value);
   }
 
-  String get _stateLabel => switch (widget.state) {
+  String get _stateLabel => '$_baseLabel${widget.changed ? ', changed' : ''}';
+
+  String get _baseLabel => switch (widget.state) {
     CellState.allow => 'Allow',
     CellState.deny => 'Deny',
     CellState.inherit =>
@@ -149,6 +189,7 @@ class _CellState extends State<Cell> {
           disabled: widget.disabled,
           pressed: _pressed,
           hovered: hovered,
+          changed: widget.changed,
         ),
       ),
     ),
