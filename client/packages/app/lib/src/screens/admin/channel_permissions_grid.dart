@@ -28,7 +28,9 @@ import '../../widgets/run_guarded.dart';
 import 'channel_permissions_body.dart';
 import 'channel_permissions_escalation.dart';
 import 'channel_permissions_grid_rows.dart';
-import 'overwrite_target_picker_sheets.dart';
+import 'channel_permissions_savebar.dart';
+import 'channel_permissions_toolbar.dart';
+import 'channel_permissions_picker.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
   const ChannelPermissionsGrid({super.key, required this.channel});
@@ -54,6 +56,13 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   bool _saving = false;
   bool _loaded = false;
+  final _filter = TextEditingController();
+
+  @override
+  void dispose() {
+    _filter.dispose();
+    super.dispose();
+  }
 
   void _seedFrom(List<api.ChannelOverwrite> overwrites) {
     if (_loaded) return;
@@ -157,42 +166,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   Future<void> _pickTarget() async {
     if (_saving) return;
-    final kind = await showAppSheet<api.OverwriteTarget>(
-      context,
-      builder: (context) => const AddColumnKindSheet(),
-    );
-    if (kind == null || !mounted) return;
-    if (kind == api.OverwriteTarget.role) {
-      final role = await showAppSheet<api.Role>(
-        context,
-        builder: (context) => const RolePickerSheet(),
-      );
-      if (role != null && mounted) {
-        _addColumn(
-          GridColumn(
-            kind: api.OverwriteTarget.role,
-            id: role.id,
-            label: role.name,
-            isBot: false,
-          ),
-        );
-      }
-    } else {
-      final member = await showAppSheet<api.UserProfile>(
-        context,
-        builder: (context) => const MemberPickerSheet(),
-      );
-      if (member != null && mounted) {
-        _addColumn(
-          GridColumn(
-            kind: api.OverwriteTarget.member,
-            id: member.id,
-            label: member.displayName,
-            isBot: member.isBot,
-          ),
-        );
-      }
-    }
+    final column = await pickGridColumn(context);
+    if (column != null && mounted) _addColumn(column);
   }
 
   int _escalation(int myPermissions) {
@@ -300,7 +275,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     ref.listen(channelOverwritesProvider(widget.channel.id), (previous, next) {
       if (!_loaded || !next.hasValue || next.isLoading) return;
       if (identical(previous?.value, next.value)) return;
@@ -356,7 +330,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       for (final key in _pending.keys)
         if (everyone == null || key != 'role:${everyone.id}')
           if (_resolve(key, roles, members) case final column?) column,
-    ];
+    ].map(_withCounts).toList();
 
     // Embedded inline (unbounded height) or given the whole body (bounded); Expanded below needs a ceiling either way.
     return LayoutBuilder(
@@ -366,29 +340,29 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             : MediaQuery.sizeOf(context).height * 0.6;
         return ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxHeight),
-          child: _buildGrid(context, tokens, columns, myPermissions),
+          child: _buildGrid(columns, myPermissions),
         );
       },
     );
   }
 
-  Widget _buildGrid(
-    BuildContext context,
-    AppTokens tokens,
-    List<GridColumn> columns,
-    int myPermissions,
-  ) {
+  Widget _buildGrid(List<GridColumn> columns, int myPermissions) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
+        PermissionsToolbar(
+          filter: _filter,
+          onFilterChanged: () => setState(() {}),
+          onAdd: _pickTarget,
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
             AppSpacing.s16,
-            AppSpacing.s12,
+            0,
             AppSpacing.s16,
             AppSpacing.s8,
           ),
-          child: const Legend(),
+          child: Legend(),
         ),
         if (actionError case final error?)
           Padding(
@@ -398,6 +372,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         Expanded(
           child: PermissionGridView(
             columns: columns,
+            filter: _filter.text,
             onAdd: _pickTarget,
             onRemove: _removeColumn,
             cellBuilder: (column, spec) {
@@ -406,6 +381,13 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
               return Cell(
                 key: ValueKey('cell:${column.key}:${spec.bit}'),
                 state: CellState.resolve(allow, deny, spec.bit),
+                changed:
+                    CellState.resolve(allow, deny, spec.bit) !=
+                    CellState.resolve(
+                      _original[column.key]?.$1 ?? 0,
+                      _original[column.key]?.$2 ?? 0,
+                      spec.bit,
+                    ),
                 disabled: !grantable || _saving,
                 label: '${spec.label}, ${column.label}',
                 onTap: () => _cycle(column, spec.bit, grantable),
@@ -414,58 +396,32 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
           ),
         ),
         if (_isDirty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s16,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: tokens.surfaceBase,
-                border: Border.all(color: tokens.borderSubtle),
-                borderRadius: BorderRadius.circular(AppRadii.card),
-                boxShadow: AppShadows.float,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s16,
-                  AppSpacing.s8,
-                  AppSpacing.s8,
-                  AppSpacing.s8,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '$_changeCount unsaved ${_changeCount == 1 ? 'change' : 'changes'}',
-                        style: AppText.ui.copyWith(color: tokens.textPrimary),
-                      ),
-                    ),
-                    AppButton(
-                      label: 'Discard',
-                      variant: AppButtonVariant.ghost,
-                      size: AppButtonSize.sm,
-                      disabled: _saving,
-                      onPressed: _discard,
-                    ),
-                    const SizedBox(width: AppSpacing.s8),
-                    AppButton(
-                      label: _saving ? 'Saving...' : 'Save changes',
-                      variant: AppButtonVariant.primary,
-                      size: AppButtonSize.sm,
-                      disabled: _saving,
-                      onPressed: _save,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          UnsavedChangesBar(
+            changeCount: _changeCount,
+            saving: _saving,
+            onDiscard: _discard,
+            onSave: _save,
           ),
       ],
     );
   }
+
+  GridColumn _withCounts(GridColumn column) {
+    final (allow, deny) = _pending[column.key] ?? (0, 0);
+    return GridColumn(
+      kind: column.kind,
+      id: column.id,
+      label: column.label,
+      isBot: column.isBot,
+      allowCount: _countKnown(allow),
+      denyCount: _countKnown(deny),
+    );
+  }
+
+  static int _countKnown(int mask) => Perm.groups
+      .expand((g) => g.permissions)
+      .where((spec) => mask & spec.bit != 0)
+      .length;
 
   GridColumn? _resolve(
     String key,
