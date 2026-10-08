@@ -23,13 +23,14 @@ class DisplaySettingsSection extends ConsumerWidget {
     final density = ref.watch(messageDensityControllerProvider);
     final spacing = ref.watch(groupSpacingControllerProvider);
     final scale = ref.watch(uiScaleControllerProvider);
+    final tokens = Theme.of(context).extension<AppTokens>()!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionCard(
           title: 'Messages',
-          description: 'Tighter or looser message lists.',
+          description: 'How tight messages sit, and how far apart groups are.',
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SettingsSelectRow<AppDensity>(
@@ -45,14 +46,15 @@ class DisplaySettingsSection extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s8),
             DisplayDensityPreview(density: density, groupSpacing: spacing),
+            const SizedBox(height: AppSpacing.s16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+              child: Text(
+                'Group spacing',
+                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              ),
+            ),
             const SizedBox(height: AppSpacing.s8),
-          ],
-        ),
-        SettingsSectionCard(
-          title: 'Group spacing',
-          description: 'Space between groups of messages.',
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
             AppSlider(
               key: spacingSliderKey,
               value: spacing.toDouble(),

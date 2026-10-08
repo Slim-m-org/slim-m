@@ -257,4 +257,18 @@ void main() {
     expect(posted, isEmpty);
     expect(find.text('Revoke helper?'), findsNothing);
   });
+
+  testWidgets('the create form folds its permissions until asked', (
+    tester,
+  ) async {
+    await _pump(tester, (request) => http.Response('[]', 200));
+
+    expect(find.byType(AppToggle), findsNothing);
+    expect(find.text('None granted'), findsOneWidget);
+
+    await tester.tap(find.text('Permissions'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppToggle), findsWidgets);
+  });
 }

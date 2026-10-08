@@ -35,11 +35,7 @@ class VoiceSettingsBody extends StatelessWidget {
   Widget build(BuildContext context) => const Column(
     children: [
       _MicrophoneSection(),
-      _SensitivitySection(),
-      _PushToTalkSection(),
-      CameraOnJoinSection(),
-      MediaCapabilitySection(),
-      AudioDeviceSection(),
+      _DevicesSection(),
       _ScreenShareSection(),
       _SoundsSection(),
     ],
@@ -59,11 +55,18 @@ class _SensitivitySection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(voiceSettingsControllerProvider);
 
-    return SettingsSectionCard(
-      title: 'Voice activity sensitivity',
-      description: 'Lower needs a louder voice to light the speaking ring.',
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+          child: Text(
+            'Voice activity sensitivity',
+            style: AppText.ui.copyWith(color: tokens.textPrimary),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s8),
         AppSlider(
           value: settings.voiceActivitySensitivity,
           ticks: const ['Strict', 'Moderate', 'Loose'],
@@ -89,13 +92,12 @@ class _PushToTalkSection extends ConsumerWidget {
     final settings = ref.watch(voiceSettingsControllerProvider);
     final index = pushToTalkKeyOptions.indexOf(settings.pushToTalkKey);
 
-    return SettingsSectionCard(
-      title: 'Push-to-talk',
-      description: 'Hold the key to unmute, release to mute.',
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsToggleRow(
           label: 'Hold a key to talk',
+          description: 'Hold the key to unmute.',
           value: settings.pushToTalkEnabled,
           semanticLabel: 'Push-to-talk',
           onChanged: (value) => ref
@@ -177,6 +179,32 @@ class _MicrophoneSection extends ConsumerWidget {
             child: Text('Join a voice call to see your live input level here.'),
           ),
         ],
+        const SizedBox(height: AppSpacing.s16),
+        const _SensitivitySection(),
+        if (isDesktopHost) ...[
+          const SizedBox(height: AppSpacing.s16),
+          const _PushToTalkSection(),
+        ],
+      ],
+    );
+  }
+}
+
+class _DevicesSection extends StatelessWidget {
+  const _DevicesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SettingsSectionCard(
+      title: 'Devices',
+      description: 'What a call uses to hear, speak and show you.',
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AudioDeviceSection(embedded: true),
+        SizedBox(height: AppSpacing.s8),
+        CameraOnJoinSection(embedded: true),
+        SizedBox(height: AppSpacing.s8),
+        MediaCapabilitySection(embedded: true),
       ],
     );
   }

@@ -19,6 +19,7 @@ import '../../widgets/confirm_dialog.dart';
 import '../../widgets/labeled_field.dart';
 import '../../widgets/permission_row.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_disclosure.dart';
 import '../../widgets/settings_entity_row.dart';
 import '../../widgets/settings_notice.dart';
 import '../../widgets/settings_section_header.dart';
@@ -87,11 +88,17 @@ class _BotsPaneState extends ConsumerState<BotsPane>
     if (ok) ref.invalidate(botsProvider);
   }
 
+  String _permissionsSummary() {
+    final count = Perm.editable
+        .where((e) => _permissions.hasPermission(e.$1))
+        .length;
+    return count == 0 ? 'None granted' : '$count granted';
+  }
+
   @override
   Widget build(BuildContext context) {
     final bots = ref.watch(botsProvider);
     final myPermissions = ref.watch(myPermissionsProvider);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,32 +125,28 @@ class _BotsPaneState extends ConsumerState<BotsPane>
               ),
             ),
             const SizedBox(height: AppSpacing.s16),
-            Text(
-              'Permissions',
-              style: AppText.label.copyWith(color: tokens.textSecondary),
+            SettingsDisclosure(
+              title: 'Permissions',
+              summary: _permissionsSummary(),
+              children: [
+                for (final (bit, label) in Perm.editable)
+                  PermissionRow(
+                    label: label,
+                    dimmed: !myPermissions.hasPermission(bit),
+                    control: AppToggle(
+                      value: _permissions.hasPermission(bit),
+                      semanticLabel: label,
+                      onChanged: myPermissions.hasPermission(bit)
+                          ? (v) => setState(() {
+                              _permissions = v
+                                  ? (_permissions | bit)
+                                  : (_permissions & ~bit);
+                            })
+                          : null,
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              'Grant only what the bot needs.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            for (final (bit, label) in Perm.editable)
-              PermissionRow(
-                label: label,
-                dimmed: !myPermissions.hasPermission(bit),
-                control: AppToggle(
-                  value: _permissions.hasPermission(bit),
-                  semanticLabel: label,
-                  onChanged: myPermissions.hasPermission(bit)
-                      ? (v) => setState(() {
-                          _permissions = v
-                              ? (_permissions | bit)
-                              : (_permissions & ~bit);
-                        })
-                      : null,
-                ),
-              ),
             const SizedBox(height: AppSpacing.s12),
             AppButton(
               label: ActionLabels.createBot,
