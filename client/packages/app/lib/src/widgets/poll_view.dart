@@ -35,27 +35,24 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/emoji_catalog_provider.dart';
-import 'message_text.dart';
+import 'poll_text.dart';
 
 /// Wide enough for a leading option's icon plus "100%" at [AppText.caption],
 /// so every option's trailing column lines up regardless of digit count or
 /// whether that particular row carries the leading glyph.
 const double _percentColumnWidth = 72;
 
-class PollView extends ConsumerWidget {
+class PollView extends StatelessWidget {
   const PollView({super.key, required this.poll, required this.onVote});
 
   final api.Poll poll;
   final ValueChanged<int> onVote;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final customEmoji = ref.watch(customEmojiIndexProvider);
+  Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final canVote = !poll.closed;
     final leadingPosition = _leadingPosition(poll);
@@ -77,11 +74,9 @@ class PollView extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: MessageBody(
-                  content: poll.question,
-                  knownUsernames: const {},
-                  customEmoji: customEmoji,
-                  baseStyle: AppText.body.copyWith(fontWeight: AppWeights.semi),
+                child: PollText(
+                  poll.question,
+                  style: AppText.body.copyWith(fontWeight: AppWeights.semi),
                 ),
               ),
               // A closed poll used to say so only in the fine print below the options; this is the glance-able version.
@@ -177,7 +172,7 @@ Color _fillColor(AppTokens tokens) => tokens.borderStrong;
 /// `Positioned.fill` instead looks more explicit and is wrong: it takes that
 /// child out of what the stack measures itself against, and the percentage
 /// column then overflows.
-class _PollOptionRow extends ConsumerStatefulWidget {
+class _PollOptionRow extends StatefulWidget {
   const _PollOptionRow({
     required this.option,
     required this.totalVotes,
@@ -196,10 +191,10 @@ class _PollOptionRow extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  ConsumerState<_PollOptionRow> createState() => _PollOptionRowState();
+  State<_PollOptionRow> createState() => _PollOptionRowState();
 }
 
-class _PollOptionRowState extends ConsumerState<_PollOptionRow> {
+class _PollOptionRowState extends State<_PollOptionRow> {
   bool _focused = false;
 
   void _activate() {
@@ -290,11 +285,10 @@ class _PollOptionRowState extends ConsumerState<_PollOptionRow> {
                           const SizedBox(width: AppSpacing.s4),
                         ],
                         Expanded(
-                          child: MessageBody(
-                            content: option.label,
-                            knownUsernames: const {},
-                            customEmoji: ref.watch(customEmojiIndexProvider),
-                            baseStyle: AppText.ui.copyWith(
+                          child: PollText(
+                            option.label,
+                            maxLines: 1,
+                            style: AppText.ui.copyWith(
                               fontWeight: emphasised
                                   ? AppWeights.semi
                                   : AppWeights.regular,

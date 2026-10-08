@@ -82,6 +82,30 @@ void main() {
     expect(find.textContaining(':tada:'), findsNothing);
   });
 
+  testWidgets('block markdown in poll text stays literal on one line', (
+    tester,
+  ) async {
+    final poll = api.Poll(
+      question: '# 1',
+      options: [
+        api.PollOption(position: 0, label: '- yes', votes: 0),
+        api.PollOption(position: 1, label: 'long ' * 40, votes: 0),
+      ],
+      totalVotes: 0,
+      votedOption: null,
+      closeAt: null,
+      closed: false,
+    );
+    await tester.pumpWidget(_app(PollView(poll: poll, onVote: (_) {})));
+    await tester.pumpAndSettle();
+
+    expect(find.text('# 1'), findsOneWidget);
+    expect(find.text('- yes'), findsOneWidget);
+    final long = tester.widget<Text>(find.textContaining('long long'));
+    expect(long.maxLines, 1);
+    expect(long.overflow, TextOverflow.ellipsis);
+  });
+
   group('the composer sheet', () {
     setUp(() => SharedPreferences.setMockInitialValues({}));
 

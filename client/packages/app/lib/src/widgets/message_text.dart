@@ -64,7 +64,6 @@ class MessageBody extends StatelessWidget {
     this.knownRoleNames = const {},
     this.customEmoji = const {},
     this.dim = false,
-    this.baseStyle = AppText.body,
     this.announceSending = false,
     this.trailing,
   });
@@ -99,9 +98,6 @@ class MessageBody extends StatelessWidget {
   /// True for a pending or failed send, which reads as provisional rather
   /// than delivered.
   final bool dim;
-
-  /// Size and weight of plain paragraphs; a poll's question is semibold.
-  final TextStyle baseStyle;
 
   /// True only while still sending: dims the same way [dim] does, and also
   /// gives the body a "Sending" semantics label, since [dim] on its own is a
@@ -148,7 +144,6 @@ class MessageBody extends StatelessWidget {
                     knownRoleNames: knownRoleNames,
                     customEmoji: customEmoji,
                     color: baseColor,
-                    baseStyle: baseStyle,
                     trailing: last ? trailing : null,
                   ),
                 );
@@ -170,7 +165,6 @@ class MessageBody extends StatelessWidget {
         }
 
         return Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (var i = 0; i < widgets.length; i++) ...[
@@ -202,7 +196,6 @@ Widget _buildMarkdownBlock(
   required Set<String> knownRoleNames,
   required Map<String, String> customEmoji,
   required Color color,
-  TextStyle baseStyle = AppText.body,
   Widget? trailing,
 }) {
   switch (block) {
@@ -213,7 +206,6 @@ Widget _buildMarkdownBlock(
         knownRoleNames: knownRoleNames,
         customEmoji: customEmoji,
         color: color,
-        baseStyle: baseStyle,
         trailing: trailing,
       );
     case HeadingBlock(:final level, :final text):
