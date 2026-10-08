@@ -74,4 +74,46 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.98.0',
+    headline: 'Calmer settings, a canvas you can lock, and smoother video',
+    points: [
+      WhatsNewPoint(
+        'Mark a channel or a whole space as read from its menu, and click a '
+        "name under a voice channel to see that person's profile without "
+        'joining the call.',
+      ),
+      WhatsNewPoint(
+        'On the canvas, redo sits next to undo (Ctrl+Shift+Z or Ctrl+Y), '
+        'tapping the zoom number fits the view, and Lock in place on an '
+        "object's menu keeps it still so you can draw on top of it.",
+      ),
+      WhatsNewPoint(
+        'Appearance has a compact message density, group spacing and an '
+        'interface scale. The Voice, Appearance and Bots pages are calmer, '
+        'Space settings get a wider window, and channel permissions have a '
+        'filter and groups you can fold.',
+      ),
+      WhatsNewPoint(
+        'Emoji settings take any mix of images and zips in one place, and '
+        'polls take any emoji, custom ones too, with an emoji button.',
+      ),
+      WhatsNewPoint(
+        'Small video tiles and the mini player use far less work on the '
+        'desktop app, a screen share that restarts shows again instead of '
+        'going black, and live video on the web no longer has loading dots '
+        'over it.',
+      ),
+      WhatsNewPoint(
+        'On a phone, recent photos show right in the composer, the channel '
+        'drawer gives a small tick as it opens or closes, and a long press '
+        'on empty space in the channel list creates a channel or category.',
+      ),
+      WhatsNewPoint(
+        'The desktop app can start when you log in, bots can offer call '
+        'controls with options, and the Linux pop-out window opens without '
+        'the system title bar.',
+      ),
+    ],
+  ),
 ];
