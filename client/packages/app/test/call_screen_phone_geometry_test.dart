@@ -56,12 +56,24 @@ void main() {
         final s = await pumpCallScreen(tester, entry.value, canvas: canvas);
 
         // A call tile on the canvas is content the person moves, not a control.
+        final found = tappables(tester);
+        bool onCanvas(Tappable t) => t.label.contains("on this call's canvas");
         final all = [
-          for (final t in tappables(tester))
-            if (!t.label.contains("on this call's canvas")) t,
+          for (final t in found)
+            if (!onCanvas(t)) t,
         ];
         expect(partialOverlaps(all), isEmpty);
-        expect(textUnderTappables(tester, all), isEmpty);
+        expect(
+          textUnderTappables(
+            tester,
+            all,
+            content: [
+              for (final t in found)
+                if (onCanvas(t)) t.rect,
+            ],
+          ),
+          isEmpty,
+        );
 
         semantics.dispose();
         await teardown(tester, s.container, s.db);
