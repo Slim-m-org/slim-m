@@ -154,6 +154,12 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         sqlx::query!(
+            "UPDATE canvas_object_locks SET locked_by = NULL WHERE locked_by = ?",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
             "UPDATE canvas_audit_log SET actor_id = NULL WHERE actor_id = ?",
             user_id
         )

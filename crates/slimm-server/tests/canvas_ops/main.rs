@@ -12,6 +12,7 @@ mod feed_budget;
 mod fixtures;
 mod http_gate;
 mod index_plan;
+mod lock;
 mod r#move;
 mod reorder;
 mod reorder_bounds;

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT author_id AS \"author_id: UserId\", deleted_at AS \"deleted_at: i64\"\n               FROM canvas_objects WHERE id = ? AND channel_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "author_id: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "628dcfba1b52ca2e4cb2b46b518cdf0da2ae7553dac976633e8175efa22c7b5c"
+}

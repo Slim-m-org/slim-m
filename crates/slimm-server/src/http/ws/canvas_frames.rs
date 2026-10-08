@@ -27,6 +27,7 @@ pub(super) fn channel_id(event: &Event) -> Option<ChannelId> {
         Event::CanvasObjectMoved { channel_id, .. } => *channel_id,
         Event::CanvasObjectReordered { channel_id, .. } => *channel_id,
         Event::CanvasMediaSlotChanged { channel_id, .. } => *channel_id,
+        Event::CanvasObjectLockChanged { channel_id, .. } => *channel_id,
         _ => return None,
     })
 }
@@ -153,6 +154,15 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             locked,
             sent_to_back,
+        },
+        Event::CanvasObjectLockChanged {
+            channel_id,
+            object_id,
+            locked,
+        } => ServerFrame::CanvasObjectLockChanged {
+            channel_id: channel_id.to_string(),
+            object_id: object_id.to_string(),
+            locked,
         },
         other => return Err(Box::new(other)),
     })

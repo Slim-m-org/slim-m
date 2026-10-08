@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/screens/canvas/canvas_activity_log.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_live_event_dispatch.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_media_slot_sync.dart';
+import 'package:slimm_app/src/screens/canvas/canvas_object_locks.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -97,6 +98,7 @@ void main() {
     forgetFetchedRegion: () {},
     activityLog: log,
     mediaSlotSync: mediaSlotSync(),
+    objectLocks: CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
   );
 
   test('a live placement records with its own actor', () {
@@ -173,6 +175,7 @@ void main() {
       forgetFetchedRegion: () {},
       activityLog: log,
       mediaSlotSync: mediaSlotSync(),
+      objectLocks: CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
     );
 
     expect(
@@ -286,6 +289,7 @@ void main() {
       forgetFetchedRegion: () {},
       activityLog: log,
       mediaSlotSync: slotSync,
+      objectLocks: CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
     );
 
     final state = overrides.stateFor('camera:alice');
@@ -327,6 +331,7 @@ void main() {
       forgetFetchedRegion: () {},
       activityLog: log,
       mediaSlotSync: slotSync,
+      objectLocks: CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
     );
 
     expect(overrides.stateFor('camera:alice').rect, isNull);

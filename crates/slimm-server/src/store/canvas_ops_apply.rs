@@ -10,6 +10,7 @@
 use sqlx::QueryBuilder;
 
 use super::canvas_move::move_canvas_object_query;
+use super::canvas_object_locks::locked_among;
 use super::canvas_ops_write::SubmitOpError;
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 
@@ -66,6 +67,9 @@ pub(super) async fn apply_remove(
         }
     }
 
+    // A locked object survives an erase that sweeps over it; the rest of the batch still goes.
+    let locked = locked_among(tx, &to_remove).await?;
+    to_remove.retain(|id| !locked.contains(id));
     let flipped = delete_batch(tx, channel_id, &to_remove, now).await?;
     // Request order, not RETURNING order: the audit trail reads as written.
     let touched: Vec<CanvasObjectId> = to_remove
@@ -114,6 +118,9 @@ pub(super) async fn apply_move(
     if !may_moderate && found.author_id != Some(actor_id) {
         return Err(SubmitOpError::NotAuthorized);
     }
+    if !locked_among(tx, &[object_id]).await?.is_empty() {
+        return Err(SubmitOpError::Locked);
+    }
     if found.is_dead {
         return Ok(("move", 0, Vec::new(), None));
     }
@@ -147,6 +154,9 @@ pub(super) async fn apply_reorder(
     };
     if !may_moderate && found.author_id != Some(actor_id) {
         return Err(SubmitOpError::NotAuthorized);
+    }
+    if !locked_among(tx, &[object_id]).await?.is_empty() {
+        return Err(SubmitOpError::Locked);
     }
     if found.is_dead {
         return Ok(("reorder", 0, Vec::new(), None));

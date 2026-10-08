@@ -64,7 +64,8 @@ fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
-        | Event::CanvasMediaSlotChanged { .. } => Some(Permissions::USE_CANVAS),
+        | Event::CanvasMediaSlotChanged { .. }
+        | Event::CanvasObjectLockChanged { .. } => Some(Permissions::USE_CANVAS),
         Event::MessageCreated { .. }
         | Event::MessageEdited { .. }
         | Event::MessageDeleted { .. }
@@ -315,7 +316,8 @@ pub(super) async fn authorize_unstamped(
             | Event::CanvasStrokePreview { .. }
             | Event::CanvasObjectMoved { .. }
             | Event::CanvasObjectReordered { .. }
-            | Event::CanvasMediaSlotChanged { .. } => unreachable!("canvas_frames::channel_id"),
+            | Event::CanvasMediaSlotChanged { .. }
+            | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::channel_id"),
             // Control events are handled in the loop; the rest already returned above.
             Event::SessionRevoked(_)
             | Event::PresenceChanged(_)
@@ -668,7 +670,8 @@ pub(super) async fn authorize_unstamped(
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
-        | Event::CanvasMediaSlotChanged { .. } => unreachable!("canvas_frames::to_frame"),
+        | Event::CanvasMediaSlotChanged { .. }
+        | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::to_frame"),
         // The deployment-wide and channel-deletion cases already returned above.
         Event::SessionRevoked(_)
         | Event::PresenceChanged(_)

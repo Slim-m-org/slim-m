@@ -162,6 +162,8 @@ pub enum SubmitOpError {
     /// `MAX_OBJECT_EXTENT`, or fall outside the bounded world - the same
     /// check a placement itself makes.
     OutOfBounds,
+    /// A `move` or `reorder` naming an object locked in place.
+    Locked,
     Internal(anyhow::Error),
 }
 

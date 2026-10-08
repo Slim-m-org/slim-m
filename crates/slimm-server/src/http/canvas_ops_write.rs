@@ -122,6 +122,9 @@ pub(super) async fn submit_op(
                 "the object is outside the world or too large",
             ));
         }
+        Err(SubmitOpError::Locked) => {
+            return Err(ApiError::Conflict("that object is locked in place"));
+        }
         Err(SubmitOpError::Internal(err)) => return Err(err.into()),
     };
 

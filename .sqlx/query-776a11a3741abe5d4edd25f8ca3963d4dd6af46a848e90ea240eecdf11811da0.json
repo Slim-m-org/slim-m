@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO canvas_object_locks (object_id, channel_id, locked_by, locked_at)\n                 VALUES (?, ?, ?, ?) ON CONFLICT (object_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "776a11a3741abe5d4edd25f8ca3963d4dd6af46a848e90ea240eecdf11811da0"
+}

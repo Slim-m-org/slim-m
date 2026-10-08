@@ -299,6 +299,13 @@ pub(super) enum ServerFrame {
         locked: bool,
         sent_to_back: bool,
     },
+    /// A canvas object was locked in place or unlocked.
+    #[serde(rename = "canvas.object.lock_changed")]
+    CanvasObjectLockChanged {
+        channel_id: String,
+        object_id: String,
+        locked: bool,
+    },
     /// The moderation queue changed: a report was filed or resolved. Carries
     /// nothing beyond the type tag; see [`crate::hub::Event::ReportsChanged`]
     /// for why. Delivered only to a connection whose user holds
