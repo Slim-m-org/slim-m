@@ -19,6 +19,7 @@
 /// the widget's own renderer field is private.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
@@ -34,8 +35,21 @@ class FirstFrameTracker extends ChangeNotifier {
 
   /// Wires this tracker to the platform's own first-frame signal. Called
   /// once, on a freshly created [renderer] - see [OwnedVideoRenderer].
-  void attach(rtc.RTCVideoRenderer renderer) {
+  void attach(rtc.RTCVideoRenderer renderer, {bool web = kIsWeb}) {
     renderer.onFirstFrameRendered = markFirstFrame;
+    if (web) watchVideoSize(renderer);
+  }
+
+  /// The web renderer declares `onFirstFrameRendered` but never calls it, so
+  /// the gate never opened there; its value takes the video's size once the
+  /// element has a frame to play, which is the same moment.
+  void watchVideoSize(ValueListenable<rtc.RTCVideoValue> value) {
+    void check() {
+      if (value.value.width > 0 && value.value.height > 0) markFirstFrame();
+    }
+
+    value.addListener(check);
+    check();
   }
 
   /// The single entry point [attach] wires up; also callable directly by

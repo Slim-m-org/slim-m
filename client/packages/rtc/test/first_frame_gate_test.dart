@@ -21,6 +21,21 @@ import 'package:slimm_rtc/src/first_frame_gate.dart';
 
 void main() {
   group('FirstFrameTracker', () {
+    test('a video size on the web renderer opens the gate', () {
+      final tracker = FirstFrameTracker();
+      final value = ValueNotifier(rtc.RTCVideoValue.empty);
+      tracker.watchVideoSize(value);
+      expect(tracker.hasFrame, isFalse);
+      value.value = const rtc.RTCVideoValue(renderVideo: true);
+      expect(tracker.hasFrame, isFalse);
+      value.value = const rtc.RTCVideoValue(
+        width: 1280,
+        height: 720,
+        renderVideo: true,
+      );
+      expect(tracker.hasFrame, isTrue);
+    });
+
     test('has no frame until told otherwise', () {
       expect(FirstFrameTracker().hasFrame, isFalse);
     });
