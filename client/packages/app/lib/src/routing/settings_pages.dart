@@ -35,4 +35,6 @@ Page<void> spaceSettingsPage(BuildContext context, GoRouterState state) =>
           id == null ? Routes.spaceSettings : Routes.spaceSettingsPane(id),
         ),
       ),
+      maxWidth: kSpaceSettingsModalMaxWidth,
+      maxHeight: kSpaceSettingsModalMaxHeight,
     );

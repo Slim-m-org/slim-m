@@ -101,6 +101,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
         if (canBan)
           SettingsPane(
             id: 'removed-members',
+            wide: true,
             label: 'Removed members',
             icon: AppIcons.signOut,
             compactRoute: Routes.adminRemovedMembers,
@@ -115,6 +116,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
         if (canInvite || canManageServer)
           SettingsPane(
             id: 'invites',
+            wide: true,
             label: 'Invites',
             icon: AppIcons.invite,
             compactRoute: Routes.adminInvites,
@@ -140,7 +142,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
             label: 'Roles',
             icon: AppIcons.shield,
             compactRoute: Routes.adminRoles,
-            actions: [rolesPaneCreateAction(context)],
+            wide: true,
             // RolesPane lays out its own two panes, which a ListView cannot bound.
             scrollable: false,
             builder: (_) => const RolesPane(),
@@ -148,6 +150,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
         if (canManageRolesAnywhere)
           SettingsPane(
             id: 'channel-permissions',
+            wide: true,
             label: 'Channel permissions',
             icon: AppIcons.permissions,
             compactRoute: Routes.adminOverwrites,
@@ -157,6 +160,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
         if (canManageServer)
           SettingsPane(
             id: 'emoji',
+            wide: true,
             label: 'Emoji',
             icon: AppIcons.smile,
             compactRoute: Routes.adminEmoji,

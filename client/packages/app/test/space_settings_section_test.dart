@@ -174,8 +174,8 @@ void main() {
     },
   );
 
-  testWidgets('wide: choosing another pane swaps it in place, with the New '
-      'role action surfacing in the app bar', (tester) async {
+  testWidgets('wide: choosing another pane swaps it in place, with the create '
+      'role entry in the roles list', (tester) async {
     await _pump(tester, permissions: -1);
 
     await tester.tap(find.text('Roles'));

@@ -332,13 +332,11 @@ void main() {
   testWidgets('the roles list is inset even when it is empty', (tester) async {
     await _pump(tester, const RolesScreen());
 
-    // The pane is `scrollable: false` and its empty state is not centred
-    // (`center: false`), so the bottom-most content is the empty message
-    // itself, not an outer ListView or Center.
+    // An empty list still renders the roles column, so its ListView fills the body.
     _expectClearOfIndicator(
       tester,
-      find.text('No roles yet. Create one with the + above.'),
-      'the roles empty state',
+      find.byType(ListView),
+      'the empty roles list',
     );
   });
 
