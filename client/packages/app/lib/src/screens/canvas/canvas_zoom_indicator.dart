@@ -63,7 +63,9 @@ class CanvasZoomIndicator extends ConsumerWidget {
       listenable: document,
       builder: (context, _) {
         final percent = (document.camera.zoom * 100).round();
+        // Its own node: merged into the surface's, it made the whole canvas a button that swallowed every drag on web.
         return Semantics(
+          container: true,
           button: true,
           label: 'Fit view, zoom $percent percent',
           excludeSemantics: true,
