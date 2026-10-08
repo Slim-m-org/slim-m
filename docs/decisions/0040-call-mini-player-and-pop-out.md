@@ -97,6 +97,7 @@ There is no second subscription, no second decode and no server token route, whi
 - Windows and macOS builds do not carry the flag yet, so `popOutSupportedProvider` is false there and no button shows.
 - Web never offers it.
 - Always-on-top is not requested: the controller exposes no such call, and on KDE the user can set "keep above" from the window menu.
+- Since 2026-10-08 the window opens undecorated (`RegularWindowControllerLinux(decorated: false)`): the app draws its own drag area, resize edges and close button, and moving or resizing goes to GTK over FFI (`popout_gtk_drag.dart`). With no OS title bar, "keep above" is no longer one click away on KDE; it is still in the window's Alt+F3 menu.
 - Checked on the owner's KDE Wayland box with a release build, a real LiveKit SFU and a remote camera: the window renders live video and keeps updating while the main window is minimised.
 
 **Sharing the LiveKit track (the second-engine option, not taken).**
