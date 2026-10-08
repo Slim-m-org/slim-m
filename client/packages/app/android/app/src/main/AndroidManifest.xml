@@ -22,6 +22,9 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- gal writes to shared storage directly only before Android 10; later versions need no permission. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+    <!-- The composer photo strip: READ_MEDIA_IMAGES on API 33+, and the user-selected grant that backs limited access on API 34+; photo_manager supplies the pre-33 permission. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
     <application
         android:label="slim-m"
         android:name="${applicationName}"
