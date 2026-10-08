@@ -70,3 +70,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0058](0058-phone-landscape-for-full-screen-call-video.md) | A phone may rotate only while a call's video is full screen | accepted |
 | [0059](0059-request-panics-answer-500.md) | A panic in a request handler answers 500; any other panic still ends the process | accepted |
 | [0060](0060-bigger-avatars.md) | Avatars one step bigger in messages, members and DMs | accepted |
+| [0062](0062-display-density.md) | Message density, group spacing and interface scale in Appearance | accepted |

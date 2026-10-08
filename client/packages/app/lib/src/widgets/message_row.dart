@@ -23,9 +23,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/display_density.dart';
 import '../providers/message_extras.dart' show MessageExtras;
 import '../routing/breakpoints.dart';
 
@@ -45,7 +47,7 @@ import 'message_text.dart';
 /// Grouping (dropping the avatar and header for a continuation) is decided by
 /// the caller, which is what lets [ChannelScreen]'s tests exercise the rule
 /// without needing a whole scrollable list.
-class MessageRow extends StatelessWidget {
+class MessageRow extends ConsumerWidget {
   const MessageRow({
     super.key,
     required this.message,
@@ -129,7 +131,9 @@ class MessageRow extends StatelessWidget {
   static const Key hoverFillKey = Key('message_row_hover_fill');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final density = ref.watch(messageDensityControllerProvider);
+    final groupSpacing = ref.watch(groupSpacingControllerProvider);
     final compact = LayoutClass.of(context) == LayoutClass.compact;
     final gutter = paneGutterOf(context);
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -190,8 +194,8 @@ class MessageRow extends StatelessWidget {
                       padding: EdgeInsets.fromLTRB(
                         gutter,
                         grouped
-                            ? AppDensity.normal.groupedRowGap
-                            : AppDensity.normal.rowGap,
+                            ? density.groupedRowGap
+                            : density.rowGap + groupSpacing,
                         gutter,
                         0,
                       ),

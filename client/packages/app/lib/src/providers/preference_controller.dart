@@ -77,3 +77,36 @@ abstract class BoolPreferenceController extends StateNotifier<bool>
     await prefs.setBool(storageKey, enabled);
   }
 }
+
+/// An integer preference passed through [normalise] and stored as an int.
+abstract class IntPreferenceController extends StateNotifier<int>
+    implements RestorablePreference {
+  IntPreferenceController(
+    this.ref, {
+    required this.storageKey,
+    required this.fallback,
+    required this.normalise,
+  }) : super(fallback);
+
+  final Ref ref;
+  final String storageKey;
+  final int fallback;
+  final int Function(int) normalise;
+
+  @override
+  Future<void> restore() async {
+    try {
+      final prefs = await ref.read(preferencesProvider.future);
+      final stored = prefs.getInt(storageKey);
+      if (stored != null) state = normalise(stored);
+    } catch (_) {
+      // The fallback is always a usable answer.
+    }
+  }
+
+  Future<void> select(int value) async {
+    state = normalise(value);
+    final prefs = await ref.read(preferencesProvider.future);
+    await prefs.setInt(storageKey, state);
+  }
+}
