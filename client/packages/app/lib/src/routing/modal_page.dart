@@ -23,6 +23,11 @@ import '../providers/voice_controller.dart';
 const double kModalMaxWidth = 860;
 const double kModalMaxHeight = 720;
 
+/// Space settings' own panel, bigger than the shared one: its panes are the
+/// busiest in the app (roles, permissions, emoji), see decision 0061.
+const double kSpaceSettingsModalMaxWidth = 1100;
+const double kSpaceSettingsModalMaxHeight = 800;
+
 /// The dim behind anything modal. One value, so a palette and a settings
 /// panel do not darken the app by different amounts.
 const Color kScrimColor = Color(0x99000000);
@@ -38,7 +43,12 @@ const Color kScrimColor = Color(0x99000000);
 /// threw away whatever the screen and any sheet over it were holding.
 /// [_ModalSurface] re-lays the same [child] out instead, and the transition
 /// follows the width the same way.
-Page<void> modalPage(BuildContext context, Widget child) {
+Page<void> modalPage(
+  BuildContext context,
+  Widget child, {
+  double maxWidth = kModalMaxWidth,
+  double maxHeight = kModalMaxHeight,
+}) {
   // The motion spec's one 280ms moment: scrim and panel enter together, the
   // panel rising 16px; the exit runs faster (180ms, ease-in) because leaving
   // should always feel quicker than arriving.
@@ -76,16 +86,26 @@ Page<void> modalPage(BuildContext context, Widget child) {
         ),
       );
     },
-    child: _ModalSurface(child: child),
+    child: _ModalSurface(
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      child: child,
+    ),
   );
 }
 
 /// The whole window on a phone, the floating panel on a desktop, around one
 /// [child] whose state moves with it when the window crosses the width.
 class _ModalSurface extends StatefulWidget {
-  const _ModalSurface({required this.child});
+  const _ModalSurface({
+    required this.child,
+    required this.maxWidth,
+    required this.maxHeight,
+  });
 
   final Widget child;
+  final double maxWidth;
+  final double maxHeight;
 
   @override
   State<_ModalSurface> createState() => _ModalSurfaceState();
@@ -98,7 +118,11 @@ class _ModalSurfaceState extends State<_ModalSurface> {
   Widget build(BuildContext context) {
     final content = KeyedSubtree(key: _contentKey, child: widget.child);
     if (MediaQuery.sizeOf(context).width >= kCompactWidth) {
-      return _ModalPanel(child: content);
+      return _ModalPanel(
+        maxWidth: widget.maxWidth,
+        maxHeight: widget.maxHeight,
+        child: content,
+      );
     }
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return ColoredBox(
@@ -168,9 +192,15 @@ class _ActiveCallReminder extends ConsumerWidget {
 }
 
 class _ModalPanel extends StatelessWidget {
-  const _ModalPanel({required this.child});
+  const _ModalPanel({
+    required this.child,
+    required this.maxWidth,
+    required this.maxHeight,
+  });
 
   final Widget child;
+  final double maxWidth;
+  final double maxHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -190,10 +220,10 @@ class _ModalPanel extends StatelessWidget {
     final panel = Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: kModalMaxWidth,
-          maxHeight: size.height * 0.86 < kModalMaxHeight
+          maxWidth: maxWidth,
+          maxHeight: size.height * 0.86 < maxHeight
               ? size.height * 0.86
-              : kModalMaxHeight,
+              : maxHeight,
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(

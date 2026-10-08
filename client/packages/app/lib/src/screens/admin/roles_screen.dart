@@ -40,18 +40,9 @@ class RolesScreen extends StatelessWidget {
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     scrollable: false,
-    actions: [rolesPaneCreateAction(context)],
     child: const RolesPane(),
   );
 }
-
-/// The "New role" affordance, shared with the Space settings pane's own app
-/// bar so both mountings of [RolesPane] keep creation reachable.
-Widget rolesPaneCreateAction(BuildContext context) => IconButton(
-  icon: const Icon(AppIcons.add),
-  tooltip: ActionLabels.createRole,
-  onPressed: () => showCreateRoleSheet(context),
-);
 
 /// The role list and detail, embeddable as a Space settings pane as well as
 /// routed. Owns which role is selected; wide layouts show both panes at
@@ -76,8 +67,6 @@ class _RolesPaneState extends ConsumerState<RolesPane> {
       center: false,
       errorMessage: 'Could not load roles.',
       onRetry: () => ref.invalidate(rolesProvider),
-      isEmpty: (list) => list.isEmpty,
-      emptyMessage: 'No roles yet. Create one with the + above.',
       data: (context, list) => LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= kRolesPaneTwoPaneWidth;
@@ -200,7 +189,12 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(10, AppSpacing.s12, 10, 6),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s12,
+            AppSpacing.s8,
+            AppSpacing.s8,
+            AppSpacing.s4,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -208,6 +202,12 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                   'ROLES',
                   style: AppText.label.copyWith(color: tokens.textSecondary),
                 ),
+              ),
+              AppIconButton(
+                icon: AppIcons.add,
+                semanticLabel: ActionLabels.createRole,
+                tooltip: ActionLabels.createRole,
+                onPressed: () => showCreateRoleSheet(context),
               ),
             ],
           ),
@@ -244,9 +244,9 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                         if (role.isEveryone) _roleRow(role, null),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
-                          8,
                           AppSpacing.s8,
-                          8,
+                          AppSpacing.s8,
+                          AppSpacing.s8,
                           0,
                         ),
                         child: Text(

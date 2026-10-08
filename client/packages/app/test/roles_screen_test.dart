@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/member_presence.dart';
@@ -193,5 +194,46 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('create role is one plus at the end of the ROLES label row, '
+      'inside the list column and on the 8px rhythm', (tester) async {
+    await _pump(tester, [
+      _role('role-everyone', 'everyone', everyone: true),
+      _role('role-mod', 'mod'),
+      _role('role-admin', 'admin'),
+    ]);
+
+    final plus = find.byTooltip(ActionLabels.createRole);
+    expect(plus, findsOneWidget);
+
+    final button = tester.getRect(plus);
+    final label = tester.getRect(find.text('ROLES'));
+    final firstRow = tester.getRect(find.byType(AppListRow).first);
+    final column = tester.getRect(find.byType(ReorderableListView));
+    expect(button.width, greaterThanOrEqualTo(AppSizes.rowPointer));
+    expect(button.center.dy, closeTo(label.center.dy, 1));
+    expect(button.left, greaterThanOrEqualTo(label.right));
+    expect(button.right, closeTo(column.right - AppSpacing.s8, 1));
+    expect(label.left - column.left, AppSpacing.s12);
+    expect(firstRow.top - button.bottom, AppSpacing.s4);
+
+    await tester.tap(plus);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Set its permissions, members and display afterward.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('narrow: the list is the whole screen and still has exactly '
+      'one create entry', (tester) async {
+    await _pump(tester, [
+      _role('role-everyone', 'everyone', everyone: true),
+    ], size: const Size(400, 800));
+
+    expect(find.byTooltip(ActionLabels.createRole), findsOneWidget);
+    final button = tester.getRect(find.byTooltip(ActionLabels.createRole));
+    expect(button.right, closeTo(400 - AppSpacing.s16 - AppSpacing.s8, 1));
   });
 }

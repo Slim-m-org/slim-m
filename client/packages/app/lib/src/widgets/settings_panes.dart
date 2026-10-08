@@ -24,6 +24,10 @@ import 'package:slimm_design_system/design_system.dart';
 import '../routing/breakpoints.dart';
 import '../routing/close_screen.dart';
 
+/// How wide a [SettingsPane.wide] pane may get, matching the room a Space
+/// settings panel leaves beside the nav (decision 0061).
+const double kSettingsWideContentMax = 880;
+
 /// One entry in the nav, and the pane it opens.
 class SettingsPane {
   const SettingsPane({
@@ -36,6 +40,7 @@ class SettingsPane {
     this.padding = const EdgeInsets.all(AppSpacing.s16),
     this.compactRoute,
     this.actions,
+    this.wide = false,
   });
 
   /// Stable across rebuilds, so the selection survives a pane's own setState.
@@ -70,6 +75,10 @@ class SettingsPane {
   /// App-bar actions shown while this pane is the one on screen, standing in
   /// for the standalone screen's own (roles' "New role", say).
   final List<Widget>? actions;
+
+  /// A grid or list that wants the wider cap; forms and prose keep the
+  /// narrower [kContentColumnMax] so their lines stay readable.
+  final bool wide;
 }
 
 /// A run of panes, usually under a heading: `You`, `Safety`.
@@ -283,6 +292,7 @@ class _PaneBody extends StatelessWidget {
     duration: AppMotion.fast,
     offset: 0,
     child: AppContentColumn(
+      maxWidth: pane.wide ? kSettingsWideContentMax : kContentColumnMax,
       child: pane.scrollable
           ? ListView(
               padding: pane.padding,
