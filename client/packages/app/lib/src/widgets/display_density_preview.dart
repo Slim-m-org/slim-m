@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'user_avatar.dart';
+
 import '../providers/display_density.dart';
 
 class DisplayDensityPreview extends StatelessWidget {
@@ -71,7 +73,13 @@ class _Sample extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppAvatar(name: name, size: avatar),
+          // Sample people with no picture, so the known form skips a profile lookup for an id that does not exist.
+          UserAvatar.known(
+            name: name,
+            userId: 'density-preview-$name',
+            avatarUpdatedAt: null,
+            size: avatar,
+          ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
             child: Column(
