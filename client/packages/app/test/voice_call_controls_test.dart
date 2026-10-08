@@ -65,7 +65,9 @@ void main() {
     expect(find.byIcon(AppIcons.screenShare), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(
-      find.bySemanticsLabel('Stop sharing${_hint(AppAction.toggleShareCall)}'),
+      find.bySemanticsLabel(
+        'You are sharing your screen. Stop sharing${_hint(AppAction.toggleShareCall)}',
+      ),
       findsOneWidget,
     );
   });

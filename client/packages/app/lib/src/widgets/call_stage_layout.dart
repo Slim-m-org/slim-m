@@ -122,13 +122,8 @@ class CallStageLayout extends StatelessWidget {
               channelId: voice.channelId!,
               participantIds: [for (final p in voice.participants) p.identity],
             ),
-          // Withheld once the mirrored stage tile already says the same thing via its own caption.
-          if (voice.screenSharing && sharer?.isLocal != true)
-            const Padding(
-              padding: EdgeInsets.only(top: AppSpacing.s12),
-              child: LocalScreenShareBanner(),
-            )
-          else if (voice.awaitingBroadcast)
+          // A live share has no banner: the share control and the stage caption say it (decision 0047, point 8).
+          if (voice.awaitingBroadcast)
             const Padding(
               padding: EdgeInsets.only(top: AppSpacing.s12),
               child: LocalScreenSharePendingBanner(),

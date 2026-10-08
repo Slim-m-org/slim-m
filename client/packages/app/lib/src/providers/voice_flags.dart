@@ -150,3 +150,13 @@ final voiceFlagsProvider = Provider<VoiceFlags>(
 final voiceParticipantsProvider = Provider<List<VoiceParticipant>>(
   (ref) => ref.watch(voiceControllerProvider.select((s) => s.participants)),
 );
+
+/// Your own mic's last reported level, 0 to 1, for the dock's level bar; its
+/// own slice so only that bar rebuilds when the level moves.
+final localMicLevelProvider = Provider<double>(
+  (ref) => ref.watch(
+    voiceParticipantsProvider.select(
+      (all) => all.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0,
+    ),
+  ),
+);

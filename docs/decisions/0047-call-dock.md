@@ -84,6 +84,8 @@ Why: two controls for one thing, in different places depending on state, is what
 
 ### 3. Accent means one thing
 
+Implemented 2026-10-08, together with point 8.
+
 Today: mic on, camera on and sharing all get the accent tint, and so does the selected pen, so "switched on" and "selected tool" look the same.
 `CallDockButton` takes `active` and `destructive`, and the mic is lit while it is unmuted.
 
@@ -126,6 +128,8 @@ The overflow menu keeps paste image, activity log, hidden tiles, fullscreen and 
 Why: recenter is what you need most on a bounded but very large canvas, and it is currently two taps deep.
 
 ### 8. The sharing banner goes
+
+Implemented 2026-10-08, after the owner settled question 2 below.
 
 Today: while sharing, `LocalScreenShareBanner` ("You are sharing your screen.", drawn by `call_stage_layout.dart`) sits above a share control, with a "Your screen" caption elsewhere and the camera tile stranded beneath.
 Change: the share control itself carries the state (see the controls-with-options rule), and the tile's own label says "Your screen", inside the tile at the bottom left.
@@ -171,7 +175,8 @@ These are recorded, not decided.
    The options are pan by default everywhere, pan by default on touch only, or remember the last tool.
 2. Dropping the sharing banner lowers a privacy-relevant signal.
    The tile label and the share control carry the state, but the banner is the one cue that is hard to miss, and it is there so nobody shares by accident without noticing.
-   Point 8 should not ship until the owner settles whether an accent-outlined share control and a tile label are enough.
+   Settled by the owner on 2026-10-07, who picked the card to drop it: the accent share control, whose tooltip and label read "You are sharing your screen. Stop sharing", and the stage caption are enough.
+   The pending banner stays, since a share the system picker has not started yet must never read as live.
 
 ## Consequences
 

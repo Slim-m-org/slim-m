@@ -156,14 +156,21 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CallDockButton(
-          icon: voice.microphoneEnabled ? AppIcons.mic : AppIcons.micOff,
-          tooltip: labelWithShortcut(
-            voice.microphoneEnabled ? 'Mute' : 'Unmute',
-            AppAction.toggleMuteCall,
+        Consumer(
+          builder: (context, ref, _) => CallDockButton(
+            icon: voice.microphoneEnabled ? AppIcons.mic : AppIcons.micOff,
+            tooltip: labelWithShortcut(
+              voice.microphoneEnabled ? 'Mute' : 'Unmute',
+              AppAction.toggleMuteCall,
+            ),
+            // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
+            active: false,
+            destructive: !voice.microphoneEnabled,
+            level: voice.microphoneEnabled
+                ? ref.watch(localMicLevelProvider)
+                : null,
+            onPressed: widget.controller.toggleMicrophone,
           ),
-          active: voice.microphoneEnabled,
-          onPressed: widget.controller.toggleMicrophone,
         ),
         if (widget.controller.supportsAudioOutputSelection) ...[
           const SizedBox(width: AppSpacing.s8),
@@ -185,7 +192,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             voice.cameraEnabled ? 'Turn off camera' : 'Turn on camera',
             AppAction.toggleCameraCall,
           ),
-          active: voice.cameraEnabled,
+          active: false,
           pending: voice.cameraPending,
           onPressed: () => unawaited(widget.controller.toggleCamera()),
         ),
@@ -233,7 +240,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   static String _shareTooltip(VoiceFlags voice) {
     final shortcut = shortcutSuffix(AppAction.toggleShareCall);
     if (voice.screenSharing) {
-      return 'Stop sharing$shortcut';
+      return 'You are sharing your screen. Stop sharing$shortcut';
     }
     if (voice.awaitingBroadcast) {
       return 'Waiting for you to start the broadcast. Tap to cancel.';

@@ -28,7 +28,10 @@ void main() {
   tearDown(harness.dispose);
 
   group('the in-call banner', () {
-    testWidgets('shows for a live share', (tester) async {
+    // Decision 0047, point 8: no banner for a live share; the share control says it instead.
+    testWidgets('a live share has no banner, and the share control says so', (
+      tester,
+    ) async {
       final session = FakeSession();
       final controller = harness.controllerWith(session, voiceApi());
       await controller.join('channel-1');
@@ -41,7 +44,11 @@ void main() {
       await controller.setScreenShare(true);
       await tester.pump();
 
-      expect(find.text('You are sharing your screen.'), findsOneWidget);
+      expect(find.byType(AppCallout), findsNothing);
+      expect(
+        find.byTooltip(RegExp(r'^You are sharing your screen\. Stop sharing')),
+        findsOneWidget,
+      );
       // Clears the heartbeat timer a connected call now keeps running.
       await controller.leave();
     });
@@ -173,7 +180,8 @@ void main() {
     );
 
     testWidgets(
-      'the banner still covers the beat before the roster has anyone to '
+      'before the roster has anyone to put on stage, the share control '
+      'says you are sharing, with no banner '
       'put on stage',
       (tester) async {
         final session = FakeSession();
@@ -191,14 +199,21 @@ void main() {
         await controller.setScreenShare(true);
         await tester.pump();
 
-        expect(find.text('You are sharing your screen.'), findsOneWidget);
+        expect(find.text('You are sharing your screen.'), findsNothing);
+        expect(
+          find.byTooltip(
+            RegExp(r'^You are sharing your screen\. Stop sharing'),
+          ),
+          findsOneWidget,
+        );
         expect(find.byKey(const Key('fake-share-view-me')), findsNothing);
         await controller.leave();
       },
     );
 
     testWidgets(
-      'a remote sharer taking the stage over you keeps the banner, since '
+      'a remote sharer taking the stage over you leaves no banner, and the '
+      'share control still says you are sharing; '
       "the stage's caption is naming someone else",
       (tester) async {
         final session = FakeSession();
@@ -234,7 +249,13 @@ void main() {
         await tester.pump();
 
         expect(find.text("Ada's screen"), findsOneWidget);
-        expect(find.text('You are sharing your screen.'), findsOneWidget);
+        expect(find.text('You are sharing your screen.'), findsNothing);
+        expect(
+          find.byTooltip(
+            RegExp(r'^You are sharing your screen\. Stop sharing'),
+          ),
+          findsOneWidget,
+        );
         await controller.leave();
       },
     );
