@@ -50,6 +50,7 @@ JOBS=(
   "member-roster|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_member_roster_test.dart"
   "message-row|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_row_test.dart"
   "message-toolbar|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_toolbar_test.dart"
+  "density|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_density_test.dart"
   "permissions-grid|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_permissions_grid_test.dart"
   "personal-panes|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_personal_panes_test.dart"
   "rail-avatars|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_avatars_test.dart"

@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/channel_permissions_grid.dart';
 import 'package:slimm_app/src/screens/admin/channel_permissions_grid_rows.dart';
+import 'package:slimm_app/src/screens/admin/channel_permissions_header.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -166,7 +167,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       _node(tester, _everyoneSend).label,
-      'Send messages, everyone: Allow',
+      'Send messages, everyone: Allow, changed',
     );
     handle.dispose();
   });

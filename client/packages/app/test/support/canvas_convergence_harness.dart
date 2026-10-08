@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/screens/canvas/canvas_live_event_dispatch.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_media_slot_sync.dart';
+import 'package:slimm_app/src/screens/canvas/canvas_object_locks.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -76,6 +77,11 @@ class CanvasReceiver {
     overrides: CanvasPresenceTileOverrides(),
   );
 
+  late final CanvasObjectLocks _objectLocks = CanvasObjectLocks(
+    channelId: _channelId,
+    client: fakeClientFor(const []),
+  );
+
   void deliver(CanonOp op) {
     dispatchCanvasLiveEvent(
       eventFor(op, _channelId),
@@ -93,6 +99,7 @@ class CanvasReceiver {
       },
       forgetFetchedRegion: () {},
       mediaSlotSync: _mediaSlotSync,
+      objectLocks: _objectLocks,
     );
   }
 }

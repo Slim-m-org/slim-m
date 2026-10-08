@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE canvas_object_locks SET locked_by = NULL WHERE locked_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "fe28fdef7016651cb6ba4679d701f99aac73a3c217f32106dd51b33ea8f9bb11"
+}

@@ -98,7 +98,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final selected = document.selectedObjectId.value;
     if (selected != null &&
         document.kindOf(selected) != CanvasObjectKind.stroke) {
-      final owns = manageCanvas || document.authorIdOf(selected) == selfId;
+      final owns =
+          !isLocked(selected) &&
+          (manageCanvas || document.authorIdOf(selected) == selfId);
       final bounds = document.objectBounds(selected);
       if (owns && bounds != null && !_isDeepInterior(bounds, world)) {
         final corner = hitTestResizeHandle(
@@ -115,7 +117,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       }
     }
     bool allowed(CanvasStroke stroke) =>
-        manageCanvas || (stroke.authorId != null && stroke.authorId == selfId);
+        !isLocked(stroke.id) &&
+        (manageCanvas ||
+            (stroke.authorId != null && stroke.authorId == selfId));
     final id =
         hitTestBoxAt(document, world, allowed: allowed) ??
         _hitTestSelectableStroke(world, allowed);

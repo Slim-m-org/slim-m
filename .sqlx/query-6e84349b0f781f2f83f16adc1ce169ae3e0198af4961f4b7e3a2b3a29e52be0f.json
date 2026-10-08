@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM canvas_object_locks WHERE object_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "6e84349b0f781f2f83f16adc1ce169ae3e0198af4961f4b7e3a2b3a29e52be0f"
+}

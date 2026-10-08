@@ -115,11 +115,14 @@
 /// own.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../widgets/context_menu_focus.dart';
+import 'canvas_object_locks.dart';
 import '../../widgets/message_context_menu_layout.dart';
 
 /// A request to open [CanvasObjectContextMenu] for a specific object with no
@@ -403,30 +406,56 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
         onLongPressStart: _onLongPressStart,
         // Load-bearing, not tidiness - see this file's own library doc.
         excludeFromSemantics: true,
-        child: const SizedBox.expand(),
+        child: SizedBox.expand(
+          // The badges ride on this full-surface layer; they take no pointer, so the hit catcher above is unchanged.
+          child: switch (CanvasObjectLocksScope.maybeOf(context)) {
+            final locks? => CanvasObjectLockBadges(
+              document: widget.document,
+              locks: locks,
+            ),
+            null => null,
+          },
+        ),
       ),
     );
   }
 
   Widget _objectMenu() {
+    final locks = CanvasObjectLocksScope.maybeOf(context);
+    final id = _target;
+    final locked = id != null && (locks?.isLocked(id) ?? false);
+    final mayLock =
+        locks != null &&
+        id != null &&
+        (widget.canManage || widget.document.authorIdOf(id) == widget.selfId);
     return AppMenu(
       width: 200,
       children: [
+        // A locked object refuses a restack or an erase, so those wait for Unlock.
         AppMenuItem(
           label: 'Bring to front',
           leading: AppIcons.bringToFront,
-          onTap: _bringToFront,
+          onTap: locked ? null : _bringToFront,
         ),
         AppMenuItem(
           label: 'Send to back',
           leading: AppIcons.sendToBack,
-          onTap: _sendToBack,
+          onTap: locked ? null : _sendToBack,
         ),
+        if (mayLock)
+          AppMenuItem(
+            label: locked ? 'Unlock' : 'Lock in place',
+            leading: locked ? AppIcons.tileUnlocked : AppIcons.tileLocked,
+            onTap: () {
+              _close();
+              unawaited(locks.setLocked(id, !locked));
+            },
+          ),
         AppMenuItem(
           label: 'Delete',
           leading: AppIcons.delete,
           tone: AppMenuItemTone.danger,
-          onTap: _delete,
+          onTap: locked ? null : _delete,
         ),
       ],
     );

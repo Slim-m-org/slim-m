@@ -36,6 +36,7 @@ import 'canvas_forbidden_message.dart';
 import 'canvas_image_hydrator.dart';
 import 'canvas_live_event_dispatch.dart';
 import 'canvas_media_slot_sync.dart';
+import 'canvas_object_locks.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_sync.dart';
@@ -99,11 +100,13 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       if (next == SyncStatus.live) {
         unawaited(sync.catchUp());
         unawaited(slotSync.fetch());
+        unawaited(objectLocks.fetch());
       }
     });
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
     document.addListener(_onCameraMoved);
     unawaited(slotSync.fetch());
+    unawaited(objectLocks.fetch());
   }
 
   final Ref _ref;
@@ -135,6 +138,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     channelId: channelId,
     client: _client,
     overrides: tileOverrides,
+  );
+
+  /// Which objects are locked in place; see `CanvasObjectLocks`.
+  late final CanvasObjectLocks objectLocks = CanvasObjectLocks(
+    channelId: channelId,
+    client: _client,
   );
 
   late final CanvasImageHydrator hydrator = CanvasImageHydrator(
@@ -186,6 +195,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       _fetched = null;
       return fetch(keepError: true);
     },
+    isLocked: objectLocks.isLocked,
   );
 
   CanvasCursorRelay? _cursorRelay;
@@ -242,6 +252,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     forgetFetchedRegion: () => _fetched = null,
     activityLog: activityLog,
     mediaSlotSync: slotSync,
+    objectLocks: objectLocks,
   );
 
   void _apply(api.CanvasObject object) {
@@ -391,6 +402,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     remoteDrafts.dispose();
     activityLog.dispose();
     tileOverrides.dispose();
+    objectLocks.dispose();
     super.dispose();
   }
 }

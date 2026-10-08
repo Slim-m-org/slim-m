@@ -12,15 +12,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/display_density.dart';
 import '../providers/display_preferences.dart';
 import '../providers/user_profiles.dart';
 import 'author_label.dart';
 import 'author_profile_tap_target.dart';
 import 'user_avatar.dart';
-
-/// The avatar column's width, and therefore also the continuation gutter's:
-/// the design's 40px message-row avatar, named once so both agree.
-const double _avatarSize = AppAvatarSize.s40;
 
 /// `HH:mm` or a 12-hour equivalent, following [use24Hour]. Fixed width
 /// matters here: a grouped message puts its time in the avatar-wide gutter, and a
@@ -206,12 +203,14 @@ class MessageRowLeading extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    // The column's width, which the continuation gutter shares with the avatar.
+    final avatarSize = ref.watch(messageDensityControllerProvider).avatarSize;
 
     if (grouped) {
       // The continuation gutter: no avatar; a delivery mark always shows, a plain sent time only on hover (see [hovered]).
       final showMark = message.pending || message.failed || hovered;
       return SizedBox(
-        width: _avatarSize,
+        width: avatarSize,
         child: _ContinuationGutterMark(message: message, show: showMark),
       );
     }
@@ -224,8 +223,8 @@ class MessageRowLeading extends ConsumerWidget {
 
     if (resolution.profile?.isWebhook ?? false) {
       return Container(
-        width: _avatarSize,
-        height: _avatarSize,
+        width: avatarSize,
+        height: avatarSize,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: tokens.surfaceRaised,
@@ -255,7 +254,7 @@ class MessageRowLeading extends ConsumerWidget {
           cachedDisplayName: message.authorDisplayName,
           resolution: resolution,
         ),
-        size: _avatarSize,
+        size: avatarSize,
       ),
     );
   }

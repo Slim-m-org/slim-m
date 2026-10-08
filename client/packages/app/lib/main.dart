@@ -33,6 +33,7 @@ import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
+import 'src/providers/display_density.dart';
 import 'src/providers/display_preferences.dart';
 import 'src/providers/notification_tap_router.dart';
 import 'src/providers/phone_landscape.dart';
@@ -44,6 +45,7 @@ import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
 import 'src/web_update/web_update_pill.dart';
 import 'src/widgets/app_lock_gate.dart';
+import 'src/widgets/ui_scale_frame.dart';
 import 'src/widgets/client_too_old_gate.dart';
 import 'src/widgets/server_identity_change_gate.dart';
 import 'src/widgets/incoming_call_overlay.dart';
@@ -317,29 +319,36 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     );
     final motionChoice = ref.watch(motionPreferenceControllerProvider);
     final lockedPhone = ref.watch(portraitLockedPhoneProvider);
+    final scale = uiScaleFactor(ref.watch(uiScaleControllerProvider));
     return PopOutHost(
       child: DesktopChrome(
         child: MediaQuery(
-          data: keepPortraitShell(
-            overrideMotion(MediaQuery.of(context), motionChoice),
-            lockedPhone: lockedPhone,
+          data: scaleMediaQuery(
+            keepPortraitShell(
+              overrideMotion(MediaQuery.of(context), motionChoice),
+              lockedPhone: lockedPhone,
+            ),
+            scale,
           ),
           // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
-          child: AppLockGate(
-            child: Stack(
-              children: [
-                // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
-                ModerationErrorHost(
-                  child: ClientTooOldGate(
-                    child: ServerIdentityChangeGate(
-                      child: PictureInPictureGate(child: densityWrapped),
+          child: UiScaleFrame(
+            scale: scale,
+            child: AppLockGate(
+              child: Stack(
+                children: [
+                  // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
+                  ModerationErrorHost(
+                    child: ClientTooOldGate(
+                      child: ServerIdentityChangeGate(
+                        child: PictureInPictureGate(child: densityWrapped),
+                      ),
                     ),
                   ),
-                ),
-                const Positioned.fill(child: ToastOverlay()),
-                const Positioned.fill(child: WebUpdatePill()),
-                const Positioned.fill(child: IncomingCallOverlay()),
-              ],
+                  const Positioned.fill(child: ToastOverlay()),
+                  const Positioned.fill(child: WebUpdatePill()),
+                  const Positioned.fill(child: IncomingCallOverlay()),
+                ],
+              ),
             ),
           ),
         ),

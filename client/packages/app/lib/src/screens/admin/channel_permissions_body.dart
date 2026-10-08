@@ -13,17 +13,23 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../permissions.dart';
 import 'channel_permissions_grid_rows.dart';
+import 'channel_permissions_header.dart';
 
 class PermissionGridView extends StatefulWidget {
   const PermissionGridView({
     super.key,
     required this.columns,
+    required this.filter,
     required this.cellBuilder,
     required this.onAdd,
     required this.onRemove,
   });
 
   final List<GridColumn> columns;
+
+  /// Case-insensitive text a permission's name or description must contain;
+  /// groups with no match drop out and a filter opens every group it hits.
+  final String filter;
   final Widget Function(GridColumn column, PermSpec spec) cellBuilder;
   final VoidCallback onAdd;
   final ValueChanged<GridColumn> onRemove;
@@ -35,6 +41,31 @@ class PermissionGridView extends StatefulWidget {
 class _PermissionGridViewState extends State<PermissionGridView> {
   final _body = ScrollController();
   final _header = ScrollController();
+  final Set<String> _collapsed = {};
+
+  /// Groups still worth showing for the current filter, each with the
+  /// permissions that matched.
+  List<PermGroup> _visibleGroups() {
+    final needle = widget.filter.trim().toLowerCase();
+    if (needle.isEmpty) return Perm.groups;
+    return [
+      for (final group in Perm.groups)
+        if (group.permissions.where(
+              (spec) =>
+                  spec.label.toLowerCase().contains(needle) ||
+                  spec.description.toLowerCase().contains(needle),
+            )
+            case final hits when hits.isNotEmpty)
+          PermGroup(group.title, hits.toList()),
+    ];
+  }
+
+  bool _isOpen(PermGroup group) =>
+      widget.filter.trim().isNotEmpty || !_collapsed.contains(group.title);
+
+  void _toggle(PermGroup group) => setState(() {
+    if (!_collapsed.remove(group.title)) _collapsed.add(group.title);
+  });
 
   @override
   void initState() {
@@ -94,49 +125,66 @@ class _PermissionGridViewState extends State<PermissionGridView> {
     },
   );
 
-  Widget _rows(GridMetrics metrics) => SingleChildScrollView(
-    padding: const EdgeInsets.only(bottom: AppSpacing.s16),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: metrics.labelWidth,
-          child: Column(
-            children: [
-              for (final group in Perm.groups) ...[
-                GroupHeaderRow(title: group.title),
-                for (final spec in group.permissions)
-                  GridLabelRow(label: spec.label, height: metrics.rowHeight),
-              ],
-            ],
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _body,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: metrics.contentWidth,
+  Widget _rows(GridMetrics metrics) {
+    final groups = _visibleGroups();
+    if (groups.isEmpty) return const _NoMatches();
+    return _rowsFor(metrics, groups);
+  }
+
+  Widget _rowsFor(GridMetrics metrics, List<PermGroup> groups) =>
+      SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.s16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: metrics.labelWidth,
               child: Column(
                 children: [
-                  for (final group in Perm.groups) ...[
-                    const SizedBox(height: GridMetrics.groupHeaderHeight),
-                    for (final spec in group.permissions)
-                      GridRow(
-                        columns: widget.columns,
-                        metrics: metrics,
-                        cellBuilder: (column) =>
-                            widget.cellBuilder(column, spec),
-                      ),
+                  for (final group in groups) ...[
+                    GroupHeaderRow(
+                      title: group.title,
+                      count: group.permissions.length,
+                      expanded: _isOpen(group),
+                      onToggle: () => _toggle(group),
+                    ),
+                    if (_isOpen(group))
+                      for (final spec in group.permissions)
+                        GridLabelRow(
+                          label: spec.label,
+                          height: metrics.rowHeight,
+                        ),
                   ],
                 ],
               ),
             ),
-          ),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _body,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: metrics.contentWidth,
+                  child: Column(
+                    children: [
+                      for (final group in groups) ...[
+                        const SizedBox(height: GridMetrics.groupHeaderHeight),
+                        if (_isOpen(group))
+                          for (final spec in group.permissions)
+                            GridRow(
+                              columns: widget.columns,
+                              metrics: metrics,
+                              cellBuilder: (column) =>
+                                  widget.cellBuilder(column, spec),
+                            ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 /// Fades and a chevron on whichever side still has columns hidden.
@@ -201,6 +249,25 @@ class _Edge extends StatelessWidget {
               color: tokens.textSecondary,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoMatches extends StatelessWidget {
+  const _NoMatches();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s24),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Text(
+          'No permissions match that filter.',
+          style: AppText.ui.copyWith(color: tokens.textSecondary),
         ),
       ),
     );

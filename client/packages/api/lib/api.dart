@@ -71,6 +71,7 @@ export 'src/events.dart'
         CanvasCleared,
         CanvasCursorMoved,
         CanvasMediaSlotChanged,
+        CanvasObjectLockChanged,
         CanvasObjectMoved,
         CanvasObjectReordered,
         CanvasObjectPlaced,

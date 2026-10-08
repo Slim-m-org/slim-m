@@ -85,6 +85,9 @@ void main() {
                 slotGets++;
                 return _json({'slots': <Object>[]});
               }
+              if (request.url.path.endsWith('/canvas/object-locks')) {
+                return _json({'object_ids': <Object>[]});
+              }
               if (!request.url.path.endsWith('/canvas/objects')) {
                 return _json(<Object>[]);
               }

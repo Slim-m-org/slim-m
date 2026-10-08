@@ -5454,6 +5454,11 @@ paths:
         its ceiling is a 409, refused inside the same transaction that counts.
 
 
+        An object locked in place (`lockCanvasObject`) refuses `move` and
+        `reorder` with 409; a `remove` naming it leaves it in place and
+        removes the rest of the batch.
+
+
         `move` repositions a single live object to `x`, `y`, `w`, `h`,
         touching nothing else about it - not its `z_index`, not its `props`.
         A resize is the same request with different `w`/`h`: the server has
@@ -5515,6 +5520,87 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/canvas/object-locks:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: listCanvasObjectLocks
+      tags: [canvas]
+      summary: Read which canvas objects in a channel are locked in place.
+      description: >
+        Requires `VIEW_CHANNEL` and `USE_CANVAS`, the same gate as the
+        viewport read. Lists live objects only. A locked object refuses a
+        `move` or `reorder` op with 409, and an erase that names it leaves
+        it in place while removing the rest. No pagination: a channel holds
+        few locks.
+      responses:
+        "200":
+          description: The ids of every live locked object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasObjectLockList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/canvas/objects/{objectId}/lock:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: objectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: lockCanvasObject
+      tags: [canvas]
+      summary: Lock a canvas object in place.
+      description: >
+        Requires `VIEW_CHANNEL` and `USE_CANVAS`, no active timeout, and
+        either being the object's author or holding `MANAGE_CANVAS`, the
+        same rule a move uses. Idempotent: locking a locked object changes
+        nothing and publishes nothing. Publishes `canvas.object.lock_changed`.
+      responses:
+        "204":
+          description: The object is locked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: unlockCanvasObject
+      tags: [canvas]
+      summary: Unlock a canvas object.
+      description: >
+        The same gate as `lockCanvasObject`. Idempotent. Publishes
+        `canvas.object.lock_changed`.
+      responses:
+        "204":
+          description: The object is unlocked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -13071,6 +13157,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectMoved"
         - $ref: "#/components/schemas/CanvasObjectReordered"
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
+        - $ref: "#/components/schemas/CanvasObjectLockChanged"
         - $ref: "#/components/schemas/ReportsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
@@ -13311,6 +13398,35 @@ components:
           type: integer
           format: int64
 
+    CanvasObjectLockList:
+      type: object
+      required: [object_ids]
+      properties:
+        object_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CanvasObjectLockChanged:
+      type: object
+      required: [type, channel_id, object_id, locked]
+      description: >-
+        A canvas object was locked in place or unlocked, gated the same way
+        `canvas.object.placed` is. Carries no `seq`: a lock is current state
+        beside the op stream, so a reconnecting client rereads
+        `listCanvasObjectLocks`.
+      properties:
+        type:
+          type: string
+          enum: [canvas.object.lock_changed]
+        channel_id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+        locked:
+          type: boolean
     CanvasMediaSlotChanged:
       type: object
       required: [type, channel_id, kind, user_id, x, y, w, h, locked, sent_to_back]

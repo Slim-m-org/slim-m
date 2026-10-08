@@ -29,7 +29,10 @@ import 'settings_select_row.dart';
 const _systemDefaultId = '';
 
 class AudioDeviceSection extends ConsumerStatefulWidget {
-  const AudioDeviceSection({super.key});
+  const AudioDeviceSection({super.key, this.embedded = false});
+
+  /// Rows only, for a card another section already owns.
+  final bool embedded;
 
   @override
   ConsumerState<AudioDeviceSection> createState() => _AudioDeviceSectionState();
@@ -73,32 +76,34 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     final notifier = ref.read(voiceControllerProvider.notifier);
     final settingsNotifier = ref.read(voiceSettingsControllerProvider.notifier);
 
+    final rows = [
+      _DevicePickerRow(
+        label: 'Microphone',
+        icon: AppIcons.mic,
+        supported: notifier.supportsAudioInputSelection,
+        unsupportedCaption: 'This platform routes microphones automatically.',
+        devices: _inputs,
+        selectedId: settings.audioInputDeviceId,
+        onChanged: settingsNotifier.setAudioInputDevice,
+      ),
+      const SizedBox(height: AppSpacing.s8),
+      _DevicePickerRow(
+        label: 'Speaker',
+        icon: AppIcons.speaker,
+        supported: notifier.supportsAudioOutputSelection,
+        unsupportedCaption:
+            'This platform always plays a call through its default output.',
+        devices: _outputs,
+        selectedId: settings.audioOutputDeviceId,
+        onChanged: settingsNotifier.setAudioOutputDevice,
+      ),
+    ];
+    if (widget.embedded) return Column(children: rows);
     return SettingsSectionCard(
       title: 'Input and output devices',
       description: 'Which microphone and speaker a call uses.',
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _DevicePickerRow(
-          label: 'Microphone',
-          icon: AppIcons.mic,
-          supported: notifier.supportsAudioInputSelection,
-          unsupportedCaption: 'This platform routes microphones automatically.',
-          devices: _inputs,
-          selectedId: settings.audioInputDeviceId,
-          onChanged: settingsNotifier.setAudioInputDevice,
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        _DevicePickerRow(
-          label: 'Speaker',
-          icon: AppIcons.speaker,
-          supported: notifier.supportsAudioOutputSelection,
-          unsupportedCaption:
-              'This platform always plays a call through its default output.',
-          devices: _outputs,
-          selectedId: settings.audioOutputDeviceId,
-          onChanged: settingsNotifier.setAudioOutputDevice,
-        ),
-      ],
+      children: rows,
     );
   }
 }

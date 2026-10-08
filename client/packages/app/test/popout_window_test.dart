@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/desktop/popout/popout_windowing.dart';
+import 'package:slimm_app/src/desktop/desktop_window_port.dart' show ResizeEdge;
 import 'package:slimm_app/src/providers/call_mini_player.dart';
 import 'package:slimm_app/src/providers/popout_window.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
@@ -30,10 +31,19 @@ class _Controller extends VoiceController {
 }
 
 class _FakeWindow implements PopOutWindowHandle {
-  _FakeWindow(this.onCloseRequested);
+  _FakeWindow(this.onCloseRequested, {required this.decorated});
 
   final VoidCallback onCloseRequested;
+  final bool decorated;
   bool destroyed = false;
+  int moves = 0;
+  final resizes = <ResizeEdge>[];
+
+  @override
+  void beginMove() => moves++;
+
+  @override
+  void beginResize(ResizeEdge edge) => resizes.add(edge);
 
   @override
   Widget host(Widget child) => const ViewCollection(views: []);
@@ -83,8 +93,13 @@ Future<_Rig> _pump(WidgetTester tester, {required bool supported}) async {
       ),
       popOutWindowFactoryProvider.overrideWithValue(
         supported
-            ? ({required title, required size, required onCloseRequested}) {
-                final w = _FakeWindow(onCloseRequested);
+            ? ({
+                required title,
+                required size,
+                required decorated,
+                required onCloseRequested,
+              }) {
+                final w = _FakeWindow(onCloseRequested, decorated: decorated);
                 rig.windows.add(w);
                 return w;
               }
@@ -146,6 +161,14 @@ void main() {
     await teardownFixture(tester, rig.container, rig.db);
   });
 
+  testWidgets('the window is requested without OS decorations', (tester) async {
+    final rig = await _pump(tester, supported: true);
+    await tester.tap(_popOutButton);
+    await tester.pump();
+    expect(rig.windows.single.decorated, isFalse);
+    await teardownFixture(tester, rig.container, rig.db);
+  });
+
   testWidgets('the window closes when the share stops', (tester) async {
     final rig = await _pump(tester, supported: true);
     await tester.tap(_popOutButton);
@@ -168,7 +191,20 @@ void main() {
   });
 
   group('window content', () {
-    Future<_Rig> content(WidgetTester tester, double width) async {
+    var moves = 0;
+    var closes = 0;
+    final resizes = <ResizeEdge>[];
+    final frame = PopOutFrame(
+      onMoveStart: () => moves++,
+      onResizeStart: resizes.add,
+      onClose: () => closes++,
+    );
+
+    Future<_Rig> content(
+      WidgetTester tester,
+      double width, {
+      PopOutFrame? frame,
+    }) async {
       final rig = _Rig();
       final fixture = await fixtureContainer(
         extraOverrides: [
@@ -187,12 +223,13 @@ void main() {
           container: fixture.container,
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AppTokens.dark),
-            home: const PopOutWindowView(
+            home: PopOutWindowView(
               feed: (
                 identity: 'u-ada',
                 name: 'Ada',
                 kind: FeedKind.screenShare,
               ),
+              frame: frame,
             ),
           ),
         ),
@@ -200,6 +237,34 @@ void main() {
       await tester.pump();
       return rig;
     }
+
+    testWidgets('borderless frame: drag, resize edges and close', (
+      tester,
+    ) async {
+      final rig = await content(tester, 640, frame: frame);
+      await tester.startGesture(
+        tester.getCenter(find.byKey(popOutDragRegionKey)),
+      );
+      expect(moves, 1);
+      expect(find.byTooltip('Close pop-out'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close pop-out'));
+      expect(closes, 1);
+      final corner = tester.getBottomRight(find.byKey(popOutWindowKey));
+      await tester.dragFrom(
+        corner - const Offset(2, 2),
+        const Offset(-20, -20),
+      );
+      expect(resizes, [ResizeEdge.bottomRight]);
+      expect(rig.session.leaveCalls, 0);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('a decorated window draws no frame of its own', (tester) async {
+      final rig = await content(tester, 640);
+      expect(find.byKey(popOutDragRegionKey), findsNothing);
+      expect(find.byTooltip('Close pop-out'), findsNothing);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
 
     testWidgets('mute and leave act on the shared call', (tester) async {
       final rig = await content(tester, 640);

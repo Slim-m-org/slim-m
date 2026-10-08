@@ -37,6 +37,7 @@ mod bots;
 pub mod build_id;
 mod canvas;
 mod canvas_media_slots;
+mod canvas_object_locks;
 mod canvas_ops;
 mod canvas_ops_write;
 mod canvas_write;
@@ -224,6 +225,7 @@ pub fn router(state: AppState) -> Router {
         .merge(auth::routes())
         .merge(canvas::routes())
         .merge(canvas_media_slots::routes())
+        .merge(canvas_object_locks::routes())
         .merge(categories::routes())
         .merge(channel_notification_prefs::routes())
         .merge(channels::routes())

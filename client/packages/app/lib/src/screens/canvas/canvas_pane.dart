@@ -47,6 +47,7 @@ import 'canvas_call_dock.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_engine.dart';
+import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_fullscreen.dart';
 import 'canvas_image_paste.dart';
@@ -180,114 +181,118 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     // The one ref.watch keeping canvasEngineProvider alive; see its own doc.
     final engineState = ref.watch(canvasEngineProvider(widget.channelId));
     ref.listen(voiceFlagsProvider, _closeWhenCallEnds);
-    return CallbackShortcuts(
-      bindings: {
-        // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
-        if (fullscreen)
-          const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen,
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
-            unawaited(_onUndo()),
-        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
-            unawaited(_onUndo()),
-        const SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          control: true,
-          shift: true,
-        ): () =>
-            unawaited(_onRedo()),
-        const SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          meta: true,
-          shift: true,
-        ): () =>
-            unawaited(_onRedo()),
-        const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
-            unawaited(_onRedo()),
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
-            unawaited(_imagePaste.pasteFromKeystroke()),
-        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
-            unawaited(_imagePaste.pasteFromKeystroke()),
-        const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
-        const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
-      },
-      child: Focus(
-        autofocus: true,
-        onKeyEvent: (_, event) => _onToolKey(
-          event,
-          canDraw: !canvasErrorBlocksDrawing(engineState.error),
-          fullscreen: fullscreen,
-        ),
-        child: CanvasPaneBody(
-          channelId: widget.channelId,
-          onClose: _closeCanvas,
-          fullscreen: fullscreen,
-          onToggleFullscreen: _toggleFullscreen,
-          tool: _tool,
-          onToolChanged: _onToolChanged,
-          canUndo: _ops.canUndo,
-          onUndo: () => unawaited(_onUndo()),
-          canRedo: _ops.canRedo,
-          onRedo: () => unawaited(_onRedo()),
-          canManage: manageCanvas,
-          document: _document,
-          onClear: _onClear,
-          onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
-          onPasteImageAt: (world) => unawaited(_imagePaste.pasteAt(world)),
-          onRecenter: _onRecenter,
-          error: engineState.error,
-          onDismissError: () => _engine.reportError(null),
-          onRetryError: engineState.error == CanvasEngine.genericLoadError
-              ? () => unawaited(_engine.fetch())
-              : null,
-          truncated: engineState.truncated,
-          loading: engineState.loading,
-          onStroke: _onStroke,
-          onErase: _onErase,
-          onEraseEnd: () => unawaited(_onEraseEnd()),
-          onSelectStart: _onSelectStart,
-          onSelectDrag: _onSelectDrag,
-          onSelectEnd: () => unawaited(_onSelectEnd()),
-          onNotePlace: (world) => unawaited(_onNotePlace(world)),
-          onShapePlace: (world, size) => unawaited(_onShapePlace(world, size)),
-          shapeKind: _shapeKind,
-          onShapeKindChanged: (kind) => setState(() => _shapeKind = kind),
-          pen: _pen,
-          onPenChanged: (pen) => setState(() => _pen = pen),
-          onBringToFront: (id) => unawaited(_onBringToFront(id)),
-          onSendToBack: (id) => unawaited(_onSendToBack(id)),
-          onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
-          selfId: me?.id,
-          cursors: _cursors,
-          cursorColors: AppCanvasColors.cursors,
-          onPointerMoved: _onPointerMoved,
-          remoteDrafts: _remoteDrafts,
-          onDraftPoint: _strokePreview.reportLocalDraftPoint,
-          onDraftEnded: _strokePreview.endLocalDraft,
-          callParticipants: _callParticipants(),
-          cameraViewFor: ref
-              .read(voiceControllerProvider.notifier)
-              .cameraViewFor,
-          screenShareViewFor: ref
-              .read(voiceControllerProvider.notifier)
-              .screenShareViewFor,
-          tileOverrides: _tileOverrides,
-          onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
-          onVideoInterest: ref.read(videoInterestRelayProvider).declare,
-          activityLog: _activityLog,
-          selfBubbleHidden: selfPresence.hidden,
-          onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
-          callDock: callDockDataFor(
-            ref.watch(voiceFlagsProvider),
-            ref.read(voiceControllerProvider.notifier),
-            widget.channelId,
+    return CanvasObjectLocksScope(
+      locks: _engine.objectLocks,
+      child: CallbackShortcuts(
+        bindings: {
+          // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
+          if (fullscreen)
+            const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen,
+          const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
+              unawaited(_onUndo()),
+          const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
+              unawaited(_onUndo()),
+          const SingleActivator(
+            LogicalKeyboardKey.keyZ,
+            control: true,
+            shift: true,
+          ): () =>
+              unawaited(_onRedo()),
+          const SingleActivator(
+            LogicalKeyboardKey.keyZ,
+            meta: true,
+            shift: true,
+          ): () =>
+              unawaited(_onRedo()),
+          const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
+              unawaited(_onRedo()),
+          const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
+              unawaited(_imagePaste.pasteFromKeystroke()),
+          const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
+              unawaited(_imagePaste.pasteFromKeystroke()),
+          const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
+          const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
+        },
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: (_, event) => _onToolKey(
+            event,
+            canDraw: !canvasErrorBlocksDrawing(engineState.error),
+            fullscreen: fullscreen,
           ),
-          participantMenuItemsBuilder: (context, participant, close) =>
-              participantCallMenuItems(
-                context,
-                ref,
-                participant: participant,
-                close: close,
-              ),
+          child: CanvasPaneBody(
+            channelId: widget.channelId,
+            onClose: _closeCanvas,
+            fullscreen: fullscreen,
+            onToggleFullscreen: _toggleFullscreen,
+            tool: _tool,
+            onToolChanged: _onToolChanged,
+            canUndo: _ops.canUndo,
+            onUndo: () => unawaited(_onUndo()),
+            canRedo: _ops.canRedo,
+            onRedo: () => unawaited(_onRedo()),
+            canManage: manageCanvas,
+            document: _document,
+            onClear: _onClear,
+            onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
+            onPasteImageAt: (world) => unawaited(_imagePaste.pasteAt(world)),
+            onRecenter: _onRecenter,
+            error: engineState.error,
+            onDismissError: () => _engine.reportError(null),
+            onRetryError: engineState.error == CanvasEngine.genericLoadError
+                ? () => unawaited(_engine.fetch())
+                : null,
+            truncated: engineState.truncated,
+            loading: engineState.loading,
+            onStroke: _onStroke,
+            onErase: _onErase,
+            onEraseEnd: () => unawaited(_onEraseEnd()),
+            onSelectStart: _onSelectStart,
+            onSelectDrag: _onSelectDrag,
+            onSelectEnd: () => unawaited(_onSelectEnd()),
+            onNotePlace: (world) => unawaited(_onNotePlace(world)),
+            onShapePlace: (world, size) =>
+                unawaited(_onShapePlace(world, size)),
+            shapeKind: _shapeKind,
+            onShapeKindChanged: (kind) => setState(() => _shapeKind = kind),
+            pen: _pen,
+            onPenChanged: (pen) => setState(() => _pen = pen),
+            onBringToFront: (id) => unawaited(_onBringToFront(id)),
+            onSendToBack: (id) => unawaited(_onSendToBack(id)),
+            onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
+            selfId: me?.id,
+            cursors: _cursors,
+            cursorColors: AppCanvasColors.cursors,
+            onPointerMoved: _onPointerMoved,
+            remoteDrafts: _remoteDrafts,
+            onDraftPoint: _strokePreview.reportLocalDraftPoint,
+            onDraftEnded: _strokePreview.endLocalDraft,
+            callParticipants: _callParticipants(),
+            cameraViewFor: ref
+                .read(voiceControllerProvider.notifier)
+                .cameraViewFor,
+            screenShareViewFor: ref
+                .read(voiceControllerProvider.notifier)
+                .screenShareViewFor,
+            tileOverrides: _tileOverrides,
+            onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
+            onVideoInterest: ref.read(videoInterestRelayProvider).declare,
+            activityLog: _activityLog,
+            selfBubbleHidden: selfPresence.hidden,
+            onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
+            callDock: callDockDataFor(
+              ref.watch(voiceFlagsProvider),
+              ref.read(voiceControllerProvider.notifier),
+              widget.channelId,
+            ),
+            participantMenuItemsBuilder: (context, participant, close) =>
+                participantCallMenuItems(
+                  context,
+                  ref,
+                  participant: participant,
+                  close: close,
+                ),
+          ),
         ),
       ),
     );

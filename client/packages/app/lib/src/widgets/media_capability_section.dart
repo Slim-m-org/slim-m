@@ -23,7 +23,10 @@ import 'settings_section_header.dart';
 enum _CheckStatus { idle, running, done, unknown }
 
 class MediaCapabilitySection extends ConsumerStatefulWidget {
-  const MediaCapabilitySection({super.key});
+  const MediaCapabilitySection({super.key, this.embedded = false});
+
+  /// Rows only, for a card another section already owns.
+  final bool embedded;
 
   @override
   ConsumerState<MediaCapabilitySection> createState() =>
@@ -75,40 +78,47 @@ class _MediaCapabilitySectionState
 
   @override
   Widget build(BuildContext context) {
+    final rows = [
+      AppButton(
+        label: _buttonLabel(),
+        onPressed: _status == _CheckStatus.running ? null : _run,
+      ),
+      if (_status == _CheckStatus.unknown) ...[
+        const SizedBox(height: AppSpacing.s12),
+        AppErrorState(
+          message: 'Could not tell what this device supports.',
+          detail: '$_failure',
+        ),
+      ],
+      if (_status == _CheckStatus.done) ...[
+        const SizedBox(height: AppSpacing.s12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: AppSpacing.s12,
+          children: [
+            _CapabilityRow(
+              label: 'Microphone',
+              result: _results['microphone']!,
+            ),
+            _CapabilityRow(label: 'Camera', result: _results['camera']!),
+            _CapabilityRow(
+              label: 'Screen capture',
+              result: _results['screen_capture']!,
+            ),
+          ],
+        ),
+      ],
+    ];
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: rows,
+      );
+    }
     return SettingsSectionCard(
       title: 'Device capabilities',
       description: 'Tests the microphone, camera and screen capture.',
-      children: [
-        AppButton(
-          label: _buttonLabel(),
-          onPressed: _status == _CheckStatus.running ? null : _run,
-        ),
-        if (_status == _CheckStatus.unknown) ...[
-          const SizedBox(height: AppSpacing.s12),
-          AppErrorState(
-            message: 'Could not tell what this device supports.',
-            detail: '$_failure',
-          ),
-        ],
-        if (_status == _CheckStatus.done) ...[
-          const SizedBox(height: AppSpacing.s12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: AppSpacing.s12,
-            children: [
-              _CapabilityRow(
-                label: 'Microphone',
-                result: _results['microphone']!,
-              ),
-              _CapabilityRow(label: 'Camera', result: _results['camera']!),
-              _CapabilityRow(
-                label: 'Screen capture',
-                result: _results['screen_capture']!,
-              ),
-            ],
-          ),
-        ],
-      ],
+      children: rows,
     );
   }
 }

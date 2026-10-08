@@ -257,6 +257,9 @@ class CanvasPaneFixture {
             if (request.url.path.endsWith('/canvas/media-slots')) {
               return jsonResponse({'slots': <Object>[]});
             }
+            if (request.url.path.endsWith('/canvas/object-locks')) {
+              return jsonResponse({'object_ids': <Object>[]});
+            }
             if (request.url.path.contains('/canvas/media-slots/')) {
               final segments = request.url.pathSegments;
               return jsonResponse({

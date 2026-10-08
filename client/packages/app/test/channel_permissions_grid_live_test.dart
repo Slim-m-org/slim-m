@@ -7,7 +7,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -21,6 +20,7 @@ import 'package:slimm_app/src/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/channel_permissions_grid.dart';
 import 'package:slimm_app/src/screens/admin/channel_permissions_grid_rows.dart';
+import 'package:slimm_app/src/screens/admin/channel_permissions_header.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -218,9 +218,8 @@ void main() {
   });
 
   group('header names', () {
-    testWidgets('never paint truncated at 360 wide, and stay reachable', (
-      tester,
-    ) async {
+    testWidgets('always show, stay inside their cell at 360 wide, and the '
+        'tooltip carries the full name', (tester) async {
       await _open(
         tester,
         {
@@ -236,32 +235,20 @@ void main() {
         ],
       );
 
-      for (final label in const [
-        '@everyone',
-        'Ada Lovelace',
-        'Christopher Longname',
-        'Bo',
-      ]) {
-        final identity = find.byTooltip(label);
-        expect(identity, findsOneWidget, reason: '$label has no tooltip');
-        final text = find.descendant(
-          of: find.ancestor(of: identity, matching: find.byType(HeaderCell)),
-          matching: find.text(label),
+      for (final label in const ['@everyone', 'Ada Lovelace', 'Bo']) {
+        final cell = find.ancestor(
+          of: find.byTooltip(label),
+          matching: find.byType(HeaderCell),
         );
-        if (text.evaluate().isEmpty) continue;
-        final paragraph = tester.renderObject<RenderParagraph>(text);
-        expect(paragraph.didExceedMaxLines, isFalse, reason: label);
-        final cell = tester.getRect(
-          find.ancestor(of: text, matching: find.byType(HeaderCell)).first,
-        );
-        expect(tester.getRect(text).width, lessThanOrEqualTo(cell.width));
+        expect(cell, findsOneWidget, reason: '$label has no header cell');
+        final text = find.descendant(of: cell, matching: find.text(label));
+        expect(text, findsOneWidget, reason: '$label name is not painted');
+        final rect = tester.getRect(text);
+        final bounds = tester.getRect(cell);
+        expect(rect.left, greaterThanOrEqualTo(bounds.left), reason: label);
+        expect(rect.right, lessThanOrEqualTo(bounds.right), reason: label);
       }
-      expect(find.text('Bo'), findsOneWidget);
-      expect(find.text('Christopher Longname'), findsNothing);
-
-      await tester.tap(find.byTooltip('Christopher Longname'));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Christopher Longname'), findsOneWidget);
+      expect(find.byTooltip('Christopher Longname'), findsOneWidget);
     });
   });
 }

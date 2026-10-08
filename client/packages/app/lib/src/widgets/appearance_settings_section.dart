@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/display_preferences.dart';
 import '../providers/providers.dart';
+import 'display_settings_section.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
@@ -27,6 +28,13 @@ class AppearanceSettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [_appearanceCard(ref), const DisplaySettingsSection()],
+    );
+  }
+
+  Widget _appearanceCard(WidgetRef ref) {
     final choice = ref.watch(themeControllerProvider);
     final timeFormat = ref.watch(timeFormatControllerProvider);
     final motion = ref.watch(motionPreferenceControllerProvider);
