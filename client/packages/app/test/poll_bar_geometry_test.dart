@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/widgets/poll_view.dart';
@@ -37,6 +38,7 @@ Future<void> _pump(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
+      builder: (_, child) => ProviderScope(child: child!),
       theme: buildTheme(
         b,
         b == Brightness.dark ? AppTokens.dark : AppTokens.light,

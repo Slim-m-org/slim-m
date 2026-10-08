@@ -38,6 +38,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import 'poll_text.dart';
+
 /// Wide enough for a leading option's icon plus "100%" at [AppText.caption],
 /// so every option's trailing column lines up regardless of digit count or
 /// whether that particular row carries the leading glyph.
@@ -72,12 +74,9 @@ class PollView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
+                child: PollText(
                   poll.question,
-                  style: AppText.body.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
+                  style: AppText.body.copyWith(fontWeight: AppWeights.semi),
                 ),
               ),
               // A closed poll used to say so only in the fine print below the options; this is the glance-able version.
@@ -286,11 +285,10 @@ class _PollOptionRowState extends State<_PollOptionRow> {
                           const SizedBox(width: AppSpacing.s4),
                         ],
                         Expanded(
-                          child: Text(
+                          child: PollText(
                             option.label,
-                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                             style: AppText.ui.copyWith(
-                              color: tokens.textPrimary,
                               fontWeight: emphasised
                                   ? AppWeights.semi
                                   : AppWeights.regular,
