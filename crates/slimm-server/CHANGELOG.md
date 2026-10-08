@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.84.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.83.0...server-v0.84.0) (2026-10-08)
+
+
+### Features
+
+* call dock accent rule, canvas redo, settings room, phone photo strip, and fewer fan-out queries ([#2142](https://github.com/Slim-m-org/slim-m/issues/2142)) ([41e86eb](https://github.com/Slim-m-org/slim-m/commit/41e86eb080fe289e3de62cf6938ce902641d54ab))
+* lock canvas objects, compact display, frameless pop-out, permissions grid, settings declutter, and a video renderer fix ([#2143](https://github.com/Slim-m-org/slim-m/issues/2143)) ([f909f5c](https://github.com/Slim-m-org/slim-m/commit/f909f5ccca396ff1ae074ad60a1af5e499585fb0))
+* mark as read from menus, gif preload, live bot controls, bigger avatars and more ([#2139](https://github.com/Slim-m-org/slim-m/issues/2139)) ([ec4a49d](https://github.com/Slim-m-org/slim-m/commit/ec4a49d0bbc682105a6a6279de7fdf86c441e01b))
+* smoother small video tiles, republished shares render, emoji in polls, one emoji drop area, and rail long press ([#2144](https://github.com/Slim-m-org/slim-m/issues/2144)) ([26bccf8](https://github.com/Slim-m-org/slim-m/commit/26bccf8753024a100d59ca8e1768aa6b9bf01c4a))
+* start on login, clickable voice participants, bot call control options, jemalloc and more ([#2140](https://github.com/Slim-m-org/slim-m/issues/2140)) ([2f4800a](https://github.com/Slim-m-org/slim-m/commit/2f4800a15c69a7e5b14dee1d9588062bedd06400))
+
+
+### Bug Fixes
+
+* request panics answer 500, and fixes for the voice rail menu, phone voice chat back and thread links ([#2133](https://github.com/Slim-m-org/slim-m/issues/2133)) ([554aecd](https://github.com/Slim-m-org/slim-m/commit/554aecdce64a463c33b28ec6c68085b8a2fe8759))
+
 ## [0.83.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.82.0...server-v0.83.0) (2026-10-07)
 
 
