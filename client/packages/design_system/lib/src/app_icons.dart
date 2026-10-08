@@ -204,6 +204,7 @@ abstract final class AppIcons {
   static const IconData pen = LucideIcons.pencil300;
   static const IconData eraser = LucideIcons.eraser300;
   static const IconData undo = LucideIcons.undo2300;
+  static const IconData redo = LucideIcons.redo2300;
 
   /// The canvas's two other tool-dock tools (decision 0004): a note holds
   /// typed text, and the shape tool's primitives are picked from the overflow

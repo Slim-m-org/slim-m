@@ -28,6 +28,8 @@ Widget _pane(CanvasDocument document, {required bool loading}) => ProviderScope(
           onToolChanged: (_) {},
           canUndo: false,
           onUndo: () {},
+          canRedo: false,
+          onRedo: () {},
           canManage: false,
           document: document,
           onClear: () async {},
