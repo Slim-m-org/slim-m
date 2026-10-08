@@ -28,27 +28,32 @@ import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';
 
 class CameraOnJoinSection extends ConsumerWidget {
-  const CameraOnJoinSection({super.key});
+  const CameraOnJoinSection({super.key, this.embedded = false});
+
+  /// Rows only, for a card another section already owns.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(voiceSettingsControllerProvider);
 
+    final rows = [
+      SettingsToggleRow(
+        label: 'Join with camera on',
+        description: 'Calls still connect without a camera.',
+        value: settings.cameraOnJoin,
+        // Fixed, not state-conditional; see the library doc above for why.
+        semanticLabel: 'Join calls with your camera on',
+        onChanged: (value) => ref
+            .read(voiceSettingsControllerProvider.notifier)
+            .setCameraOnJoin(value),
+      ),
+    ];
+    if (embedded) return Column(children: rows);
     return SettingsSectionCard(
       title: 'Camera',
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsToggleRow(
-          label: 'Join with camera on',
-          description: 'Calls still connect without a camera.',
-          value: settings.cameraOnJoin,
-          // Fixed, not state-conditional; see the library doc above for why.
-          semanticLabel: 'Join calls with your camera on',
-          onChanged: (value) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setCameraOnJoin(value),
-        ),
-      ],
+      children: rows,
     );
   }
 }
