@@ -123,11 +123,14 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
     return FirstFrameReveal(
       tracker: owned.tracker,
       placeholder: _placeholder,
-      child: lk.VideoTrackRenderer(
-        track,
-        fit: lk.VideoViewFit.contain,
-        cachedRenderer: owned.renderer,
-        autoDisposeRenderer: false,
+      child: OwnedRendererView(
+        owned: owned,
+        builder: (renderer) => lk.VideoTrackRenderer(
+          track,
+          fit: lk.VideoViewFit.contain,
+          cachedRenderer: renderer,
+          autoDisposeRenderer: false,
+        ),
       ),
     );
   }

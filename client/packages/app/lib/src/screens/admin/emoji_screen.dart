@@ -26,8 +26,7 @@ import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_entity_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/sheet_item_list.dart';
-import 'emoji_bulk_upload_card.dart';
-import 'emoji_upload_card.dart';
+import 'emoji_add_card.dart';
 
 /// Marks the sizing box around the emoji list, so a test can measure it
 /// directly rather than inferring the fix from a screenshot - the same
@@ -79,10 +78,7 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const EmojiUploadCard(),
-        const SizedBox(height: AppSpacing.s16),
-        const EmojiBulkUploadCard(),
-        const SizedBox(height: AppSpacing.s16),
+        const EmojiAddCard(),
         AppAsyncView<List<api.CustomEmoji>>(
           value: AppAsyncState(data: emoji.valueOrNull, error: emoji.error),
           center: false,
@@ -96,7 +92,9 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
                 if (emojiNameMatches(e.name, _search.text)) e,
             ];
             return SettingsSectionCard(
-              title: 'Emoji',
+              title: shown.length == list.length
+                  ? 'Emoji (${list.length})'
+                  : 'Emoji (${shown.length} of ${list.length})',
               children: [
                 AppInput(
                   controller: _search,
@@ -185,8 +183,9 @@ class _EmojiRowState extends ConsumerState<_EmojiRow>
     final emoji = widget.emoji;
 
     return SettingsEntityRow(
+      dense: true,
       // The same widget and the same cache a message row draws it through, so this list shows what a member will actually see.
-      leading: CustomEmojiImage(emojiId: emoji.id, size: 32),
+      leading: CustomEmojiImage(emojiId: emoji.id, size: AppSizes.icon24),
       headline: emoji.shortcode,
       headlineStyle: AppText.code,
       details: [

@@ -170,3 +170,33 @@ class _MentionChip extends StatelessWidget {
     );
   }
 }
+
+/// Inline-only spans for a single line of text that is not a message body
+/// (a poll's question or option): no block markdown, links stay inert.
+/// [recognizers] collects what was created so the caller can dispose it.
+List<InlineSpan> inlineTextSpans(
+  String text, {
+  required Map<String, String> customEmoji,
+  required TextStyle ambientStyle,
+  required Color linkColor,
+  required List<TapGestureRecognizer> recognizers,
+}) {
+  TapGestureRecognizer inert(String _) {
+    final recognizer = TapGestureRecognizer();
+    recognizers.add(recognizer);
+    return recognizer;
+  }
+
+  return _buildSpans(
+    parseInline(text),
+    _InlineContext(
+      knownUsernames: const {},
+      knownRoleNames: const {},
+      customEmoji: customEmoji,
+      ambientStyle: ambientStyle,
+      linkColor: linkColor,
+      makeLinkRecognizer: inert,
+      makeMessageLinkRecognizer: inert,
+    ),
+  );
+}

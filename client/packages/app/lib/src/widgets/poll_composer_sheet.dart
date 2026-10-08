@@ -21,7 +21,9 @@ import '../api_failure.dart';
 import '../ids.dart';
 import '../providers/message_extras.dart';
 import '../providers/providers.dart';
+import 'emoji_picker.dart';
 import 'poll_view.dart';
+import 'text_insert.dart';
 
 /// Mirrors `store::polls::MIN_OPTIONS`: below this a poll is not a choice.
 const _minOptions = 2;
@@ -89,6 +91,21 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     if (_question.text.trim().isEmpty) return 'Add a question';
     if (_filledOptions.length < _minOptions) return 'Add at least 2 options';
     return 'Send poll';
+  }
+
+  Widget _emojiButton(TextEditingController controller, String field) {
+    return AppIconButton(
+      icon: AppIcons.smile,
+      semanticLabel: 'Insert emoji in $field',
+      tooltip: 'Insert emoji',
+      onPressed: () => showEmojiPickerSheet(
+        context,
+        onSelect: (emoji) {
+          insertAtSelection(controller, emoji);
+          setState(() {});
+        },
+      ),
+    );
   }
 
   void _addOption() {
@@ -188,6 +205,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
               placeholder: 'Ask a question',
               autofocus: true,
               inputFormatters: _questionFormatters,
+              trailing: _emojiButton(_question, 'the question'),
               onChanged: (_) => setState(() {}),
               semanticLabel: 'Poll question',
             ),
@@ -208,6 +226,10 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
                               controller: _options[i],
                               placeholder: 'Option ${i + 1}',
                               inputFormatters: _optionFormatters,
+                              trailing: _emojiButton(
+                                _options[i],
+                                'option ${i + 1}',
+                              ),
                               onChanged: (_) => setState(() {}),
                               semanticLabel: 'Option ${i + 1}',
                             ),

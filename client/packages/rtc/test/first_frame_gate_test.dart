@@ -21,6 +21,21 @@ import 'package:slimm_rtc/src/first_frame_gate.dart';
 
 void main() {
   group('FirstFrameTracker', () {
+    test('a video size on the web renderer opens the gate', () {
+      final tracker = FirstFrameTracker();
+      final value = ValueNotifier(rtc.RTCVideoValue.empty);
+      tracker.watchVideoSize(value);
+      expect(tracker.hasFrame, isFalse);
+      value.value = const rtc.RTCVideoValue(renderVideo: true);
+      expect(tracker.hasFrame, isFalse);
+      value.value = const rtc.RTCVideoValue(
+        width: 1280,
+        height: 720,
+        renderVideo: true,
+      );
+      expect(tracker.hasFrame, isTrue);
+    });
+
     test('has no frame until told otherwise', () {
       expect(FirstFrameTracker().hasFrame, isFalse);
     });
@@ -108,4 +123,44 @@ void main() {
       expect(find.text('TEXTURE'), findsOneWidget);
     });
   });
+  group('OwnedRendererView', () {
+    testWidgets('a new renderer gets a fresh state, not the old one reused',
+        (tester) async {
+      final created = <rtc.RTCVideoRenderer?>[];
+      Widget view(OwnedVideoRenderer owned) => OwnedRendererView(
+            owned: owned,
+            builder: (renderer) => _Probe(renderer, created),
+          );
+      final first = OwnedVideoRenderer();
+      final second = OwnedVideoRenderer();
+
+      await tester.pumpWidget(view(first));
+      await tester.pumpWidget(view(second));
+
+      expect(created.length, 2, reason: 'the second track reused the state');
+    });
+  });
+}
+
+/// Records every state it is mounted as, like `VideoTrackRenderer` reading its
+/// cached renderer once in `initState`.
+class _Probe extends StatefulWidget {
+  const _Probe(this.renderer, this.created);
+
+  final rtc.RTCVideoRenderer? renderer;
+  final List<rtc.RTCVideoRenderer?> created;
+
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.created.add(widget.renderer);
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

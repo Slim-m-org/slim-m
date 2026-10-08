@@ -133,7 +133,7 @@ abstract final class AppIcons {
   /// `composer_clipboard_paste.dart`.
   static const IconData clipboardPaste = LucideIcons.clipboardPaste300;
 
-  /// Picking a `.zip` for bulk emoji import; see `emoji_bulk_upload_card.dart`.
+  /// Picking a `.zip` for bulk emoji import; see `emoji_add_card.dart`.
   static const IconData fileArchive = LucideIcons.fileArchive300;
 
   /// The GIF picker; see `gif_picker.dart`. Distinct from [image], which

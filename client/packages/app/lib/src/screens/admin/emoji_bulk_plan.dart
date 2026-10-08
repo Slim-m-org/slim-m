@@ -13,7 +13,22 @@ library;
 import 'package:archive/archive.dart';
 
 import 'emoji_name.dart';
-import 'emoji_upload_card.dart' show acceptedEmojiExtensions;
+
+/// The extensions the server actually stores an emoji as: the inline subset
+/// of `media::ALLOWED_TYPES` in `crates/slimm-server/src/media.rs`.
+const acceptedEmojiExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+/// Most entries one zip may hold before it is refused unread, so a zip bomb
+/// of a million empty names costs a header count rather than a decode.
+const int maxZipEntries = 2000;
+
+/// Most uncompressed bytes of images one zip may declare before any is inflated.
+const int maxZipUncompressedBytes = 64 * 1024 * 1024;
+
+/// A zip refused unread for being over [maxZipEntries] or [maxZipUncompressedBytes].
+class ZipTooLargeException implements Exception {
+  const ZipTooLargeException();
+}
 
 /// One entry decoded from a zip, narrowed from `archive`'s own `ArchiveFile`
 /// to the three fields [planEmojiZip] needs, so a test can hand it a
@@ -54,15 +69,22 @@ class ZipEntryData {
 /// a [FormatException]); callers catch those the same way.
 List<ZipEntryData> decodeEmojiZipEntries(List<int> zipBytes) {
   final archive = ZipDecoder().decodeBytes(zipBytes);
+  if (archive.length > maxZipEntries) throw const ZipTooLargeException();
+  var declared = 0;
+  for (final file in archive) {
+    if (_wanted(file)) declared += file.size;
+  }
+  if (declared > maxZipUncompressedBytes) throw const ZipTooLargeException();
   return [for (final file in archive) _entryFor(file)];
 }
 
+bool _wanted(ArchiveFile file) =>
+    file.isFile &&
+    acceptedEmojiExtensions.contains(_extension(_baseName(file.name))) &&
+    file.size <= maxPlannedEmojiBytes;
+
 ZipEntryData _entryFor(ArchiveFile file) {
-  final wanted =
-      file.isFile &&
-      acceptedEmojiExtensions.contains(_extension(_baseName(file.name))) &&
-      file.size <= maxPlannedEmojiBytes;
-  if (!wanted) {
+  if (!_wanted(file)) {
     return ZipEntryData(
       path: file.name,
       bytes: const [],
@@ -180,13 +202,21 @@ EmojiZipPlan planEmojiZip(
     if (fileName.isEmpty || fileName.startsWith('.')) continue;
 
     final ext = _extension(fileName);
-    if (!acceptedEmojiExtensions.contains(ext)) continue;
+    if (!acceptedEmojiExtensions.contains(ext)) {
+      skipped.add(
+        SkippedZipEntry(
+          fileName: fileName,
+          reason: 'not a PNG, JPEG, GIF or WEBP image',
+        ),
+      );
+      continue;
+    }
 
     if (uploads.length >= maxPlannedEmojiCount) {
       skipped.add(
         SkippedZipEntry(
           fileName: fileName,
-          reason: 'more than $maxPlannedEmojiCount images in one zip',
+          reason: 'more than $maxPlannedEmojiCount images at once',
         ),
       );
       continue;

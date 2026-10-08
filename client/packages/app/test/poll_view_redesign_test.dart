@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/widgets/poll_view.dart';
@@ -24,6 +25,7 @@ api.Poll _poll({bool closed = false, List<int> votes = const [1, 3]}) =>
     );
 
 Widget _app(api.Poll poll) => MaterialApp(
+  builder: (_, child) => ProviderScope(child: child!),
   theme: buildTheme(Brightness.light, AppTokens.light),
   home: Scaffold(
     body: PollView(poll: poll, onVote: (_) {}),
@@ -57,7 +59,7 @@ void main() {
 
       expect(find.byIcon(AppIcons.pollLeading), findsOneWidget);
       final label = tester.widget<Text>(find.text('Option 1'));
-      expect(label.style!.fontWeight, AppWeights.semi);
+      expect((label.textSpan! as TextSpan).style!.fontWeight, AppWeights.semi);
     });
 
     /// The leading option used to take `textSecondary` as its fill so it
@@ -140,6 +142,7 @@ void main() {
         // Align's own bounded height is what a scrollable list's unbounded one had hidden.
         await tester.pumpWidget(
           MaterialApp(
+            builder: (_, child) => ProviderScope(child: child!),
             theme: buildTheme(Brightness.light, AppTokens.light),
             home: Scaffold(
               body: SizedBox(

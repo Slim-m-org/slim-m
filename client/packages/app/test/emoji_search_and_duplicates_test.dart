@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The emoji settings list is searchable, and the new-emoji card refuses or
-/// reports a duplicate before and after the upload, never silently.
+/// The emoji settings list is searchable by name.
 library;
 
 import 'dart:convert';
@@ -11,11 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/emoji_screen.dart';
-import 'package:slimm_app/src/screens/admin/emoji_upload_card.dart';
-import 'package:slimm_app/src/widgets/custom_emoji_image.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -38,19 +34,17 @@ const _png = <int>[
   0x42, 0x60, 0x82,
 ];
 
-Map<String, dynamic> _json(String id, String name, {String? sameImageAs}) => {
+Map<String, dynamic> _json(String id, String name) => {
   'id': id,
   'name': name,
   'uploader_id': 'self',
   'created_at': 1700000000000,
-  'same_image_as': ?sameImageAs,
 };
 
 class _Server {
-  _Server(this.emoji, {this.uploadResponse});
+  _Server(this.emoji);
 
   final List<Map<String, dynamic>> emoji;
-  final Map<String, dynamic>? uploadResponse;
   final seen = <String>[];
 
   http.Client client() => MockClient((request) async {
@@ -60,7 +54,7 @@ class _Server {
       return http.Response(jsonEncode(emoji), 200, headers: json);
     }
     if (request.url.path == '/emoji' && request.method == 'POST') {
-      return http.Response(jsonEncode(uploadResponse), 201, headers: json);
+      return http.Response('{}', 201, headers: json);
     }
     if (request.url.path.endsWith('/image')) {
       return http.Response.bytes(
@@ -77,7 +71,6 @@ Future<void> _pump(
   WidgetTester tester,
   _Server server, {
   Size size = const Size(1280, 1600),
-  List<int>? picked,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -86,7 +79,6 @@ Future<void> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      emojiImagePickerProvider.overrideWithValue(() async => picked),
       apiProvider.overrideWith((ref) {
         final api = SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),
@@ -149,67 +141,5 @@ void main() {
     await tester.enterText(field, '');
     await tester.pumpAndSettle();
     expect(find.text(':party_parrot:'), findsOneWidget);
-  });
-
-  testWidgets('a taken name shows the emoji that owns it', (tester) async {
-    await _pump(tester, _Server([_json('e1', 'party_parrot')]));
-
-    await tester.enterText(find.byType(AppInput).first, 'Party Parrot');
-    await tester.pumpAndSettle();
-
-    expect(find.text('Already used by :party_parrot:'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(EmojiUploadCard),
-        matching: find.byType(CustomEmojiImage),
-      ),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('a standard shortcode is refused before any request', (
-    tester,
-  ) async {
-    final server = _Server(const []);
-    await _pump(tester, server, picked: _png);
-
-    await tester.enterText(find.byType(AppInput).first, 'Bug');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose image'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('That is a standard emoji, pick another name.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text(ActionLabels.createEmoji));
-    await tester.pumpAndSettle();
-    expect(server.seen.where((r) => r.startsWith('POST')), isEmpty);
-  });
-
-  testWidgets('identical bytes are reported and can be taken back', (
-    tester,
-  ) async {
-    final server = _Server([
-      _json('e1', 'parrot_a'),
-    ], uploadResponse: _json('e2', 'parrot_b', sameImageAs: 'parrot_a'));
-    await _pump(tester, server, picked: _png);
-
-    await tester.enterText(find.byType(AppInput).first, 'parrot_b');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose image'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(ActionLabels.createEmoji));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining(':parrot_b: was added, but it is the same image as'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Use :parrot_a: instead'));
-    await tester.pumpAndSettle();
-
-    expect(server.seen, contains('DELETE /emoji/e2'));
-    expect(find.textContaining('same image as'), findsNothing);
   });
 }

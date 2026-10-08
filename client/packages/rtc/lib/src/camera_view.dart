@@ -146,13 +146,16 @@ class _CameraViewState extends State<CameraView> with TrackTileState {
       tracker: owned.tracker,
       // No placeholder graphic for a camera either, same as the branch above.
       placeholder: const SizedBox.expand(),
-      child: lk.VideoTrackRenderer(
-        track,
-        fit: lk.VideoViewFit.cover,
-        mirrorMode:
-            mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
-        cachedRenderer: owned.renderer,
-        autoDisposeRenderer: false,
+      child: OwnedRendererView(
+        owned: owned,
+        builder: (renderer) => lk.VideoTrackRenderer(
+          track,
+          fit: lk.VideoViewFit.cover,
+          mirrorMode:
+              mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
+          cachedRenderer: renderer,
+          autoDisposeRenderer: false,
+        ),
       ),
     );
   }

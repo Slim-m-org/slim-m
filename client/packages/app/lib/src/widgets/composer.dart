@@ -47,6 +47,7 @@ import 'composer_slash.dart';
 import 'emoji_picker.dart';
 import 'gif_picker.dart';
 import 'poll_composer_sheet.dart';
+import 'text_insert.dart';
 import 'typing_indicator.dart';
 
 class Composer extends ConsumerStatefulWidget {
@@ -427,19 +428,8 @@ class _ComposerState extends ConsumerState<Composer> {
 
   /// Replaces the current selection (or inserts at the caret) and leaves the
   /// caret [caretOffset] characters after the start of what was inserted.
-  void _insert(String text, {int? caretOffset}) {
-    final controller = widget.controller;
-    final selection = controller.selection;
-    final value = controller.text;
-    final start = selection.start < 0 ? value.length : selection.start;
-    final end = selection.end < 0 ? value.length : selection.end;
-    controller.value = TextEditingValue(
-      text: value.replaceRange(start, end, text),
-      selection: TextSelection.collapsed(
-        offset: start + (caretOffset ?? text.length),
-      ),
-    );
-  }
+  void _insert(String text, {int? caretOffset}) =>
+      insertAtSelection(widget.controller, text, caretOffset: caretOffset);
 
   void _insertCodeFence() => _insert('``', caretOffset: 1);
 
