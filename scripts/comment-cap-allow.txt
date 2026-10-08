@@ -99,7 +99,7 @@ client/packages/app/test/modal_page_test.dart 2
 client/packages/app/test/onboarding_screen_test.dart 1
 client/packages/app/test/push_controller_test.dart 6
 client/packages/app/test/router_recovery_test.dart 1
-client/packages/app/test/screen_safe_area_test.dart 5
+client/packages/app/test/screen_safe_area_test.dart 4
 client/packages/app/test/server_fingerprint_test.dart 1
 client/packages/app/test/session_persistence_test.dart 7
 client/packages/app/test/settings_entry_points_test.dart 1
