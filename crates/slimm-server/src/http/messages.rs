@@ -259,6 +259,7 @@ async fn send(
             embeds: Arc::new(stored_embeds.clone()),
             call: None,
             components: Arc::new(stored_components.clone()),
+            lookups: Default::default(),
         });
 
         // Cheap in-memory decision only, real work detached; see this function's note.

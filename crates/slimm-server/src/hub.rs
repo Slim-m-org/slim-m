@@ -41,9 +41,11 @@ use crate::ephemeral::EphemeralBudget;
 use crate::presence::PresenceTracker;
 use crate::typing::TypingTracker;
 
+mod created_lookups;
 mod event;
 mod memory_guard;
 mod moderation_seq;
+pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::Event;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading};

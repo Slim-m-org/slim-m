@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! A call message's `message.created` frame carries the call record the
-//! publisher already had, so fan-out to many subscribers does not read
-//! `call_records` once per subscriber.
+//! A `message.created` frame's mentions and webhook label are read once per
+//! message, not once per subscriber, and each subscriber still gets its own
+//! `mentions_me`.
 //!
 //! Counts statements through a global tracing subscriber, one test per binary,
 //! because sqlx emits its events on the connection's worker thread.
@@ -15,7 +15,7 @@ use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use slimm_server::push::PushSender;
 use slimm_server::ratelimit::RateLimiter;
@@ -37,7 +37,9 @@ type Client =
 
 #[derive(Default)]
 struct Counts {
-    call_records: AtomicUsize,
+    any: AtomicUsize,
+    mention_reads: AtomicUsize,
+    webhook_label_reads: AtomicUsize,
 }
 
 struct Statement(String);
@@ -57,8 +59,13 @@ impl<S: Subscriber> Layer<S> for CountQueries {
         }
         let mut statement = Statement(String::new());
         event.record(&mut statement);
-        if statement.0.contains("call_records") {
-            self.0.call_records.fetch_add(1, Ordering::Relaxed);
+        self.0.any.fetch_add(1, Ordering::Relaxed);
+        let reads = statement.0.contains("SELECT");
+        if reads && statement.0.contains("FROM message_mentions") {
+            self.0.mention_reads.fetch_add(1, Ordering::Relaxed);
+        }
+        if reads && statement.0.contains("FROM webhook_message_usernames") {
+            self.0.webhook_label_reads.fetch_add(1, Ordering::Relaxed);
         }
     }
 }
@@ -91,14 +98,14 @@ async fn read_frame(ws: &mut Client) -> Value {
 }
 
 #[tokio::test]
-async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
+async fn mentions_and_the_webhook_label_are_read_once_for_every_subscriber() {
     let counts = Arc::new(Counts::default());
     tracing::subscriber::set_global_default(
         Registry::default().with(CountQueries(Arc::clone(&counts))),
     )
     .expect("no other subscriber in this binary");
 
-    let (path, _guard) = support::TestDbGuard::new("slimm-ws-call-lookups");
+    let (path, _guard) = support::TestDbGuard::new("slimm-ws-created-lookups");
     let config = Config {
         port: 0,
         database_path: path,
@@ -115,7 +122,12 @@ async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let caller = store.create_user("caller", "Caller").await.unwrap();
+    let author = store.create_user("author", "Author").await.unwrap();
+    let author_token = store
+        .open_session(author.id, "device")
+        .await
+        .unwrap()
+        .access_token;
 
     let state = AppState {
         store: store.clone(),
@@ -151,35 +163,42 @@ async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
         watchers.push(connect(addr, &ticket).await);
     }
 
-    let (sent, record) = store
-        .record_call(channel.id, caller.id, "timed_out", None)
+    let mentions_before = counts.mention_reads.load(Ordering::Relaxed);
+    let labels_before = counts.webhook_label_reads.load(Ordering::Relaxed);
+    let response = reqwest::Client::new()
+        .post(format!("http://{addr}/channels/{}/messages", channel.id))
+        .bearer_auth(&author_token)
+        .json(&json!({ "id": uuid::Uuid::now_v7().to_string(), "content": "hey @w0 and @w1" }))
+        .send()
         .await
         .unwrap();
-    let before = counts.call_records.load(Ordering::Relaxed);
     assert!(
-        before > 0,
-        "the counter saw no call_records statement even for the insert, so a zero below proves nothing"
+        response.status().is_success(),
+        "send failed: {}",
+        response.status()
     );
-    state.hub.publish(Event::MessageCreated {
-        message: Arc::new(sent.message),
-        attachments: Arc::new(Vec::new()),
-        forwarded: None,
-        app_surface: None,
-        code_run: None,
-        poll: None,
-        embeds: Arc::new(Vec::new()),
-        call: Some(Arc::new(record)),
-        components: Arc::new(Vec::new()),
-        lookups: Default::default(),
-    });
-    for ws in &mut watchers {
+
+    for (n, ws) in watchers.iter_mut().enumerate() {
         let frame = read_frame(ws).await;
         assert_eq!(frame["type"], "message.created");
-        assert_eq!(frame["message"]["call"]["outcome"], "timed_out");
+        assert_eq!(
+            frame["message"]["mentions_me"],
+            n < 2,
+            "w{n} got the wrong mentions_me"
+        );
     }
-    assert_eq!(
-        counts.call_records.load(Ordering::Relaxed) - before,
-        0,
-        "fan-out to {SUBSCRIBERS} subscribers read call_records; it used to read it once each"
+    assert!(
+        counts.any.load(Ordering::Relaxed) > 0,
+        "the counter saw no statement at all, so the bounds below prove nothing"
+    );
+    let mention_reads = counts.mention_reads.load(Ordering::Relaxed) - mentions_before;
+    let label_reads = counts.webhook_label_reads.load(Ordering::Relaxed) - labels_before;
+    assert!(
+        mention_reads <= 1,
+        "{SUBSCRIBERS} subscribers read message_mentions {mention_reads} times; once per message is the bound"
+    );
+    assert!(
+        label_reads <= 1,
+        "{SUBSCRIBERS} subscribers read webhook_message_usernames {label_reads} times; once per message is the bound"
     );
 }
