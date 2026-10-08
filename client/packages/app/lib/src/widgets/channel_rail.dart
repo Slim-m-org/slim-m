@@ -256,64 +256,59 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                   );
                 }
               }
-              // A scroll view over one column, not a ListView: the selection marker layer has to span both sections to slide between them.
-              final list = SingleChildScrollView(
+              // Slivers, not one column: the filler sliver gives touch a long-press target under the last row, however short the list is.
+              final list = CustomScrollView(
                 controller: widget.scrollController,
-                // The right inset is load-bearing beyond its own look: RailDragHandle's reach cap assumes a row's own edge sits exactly here.
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s8,
-                  AppRhythm.headingBottom,
-                  AppSpacing.s8,
-                  0,
-                ),
-                child: SelectionMarkerLayer(
-                  key: widget.markerLayerKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      DirectMessagesSection(
-                        channels: channels
-                            .where((c) => c.kind == dmChannelKind)
-                            .toList(),
-                        selectedId: selected,
+                slivers: [
+                  SliverPadding(
+                    // The right inset is load-bearing beyond its own look: RailDragHandle's reach cap assumes a row's own edge sits exactly here.
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s8,
+                      AppRhythm.headingBottom,
+                      AppSpacing.s8,
+                      0,
+                    ),
+                    // One box over both sections: the selection marker layer has to span them to slide between them.
+                    sliver: SliverToBoxAdapter(
+                      child: SelectionMarkerLayer(
+                        key: widget.markerLayerKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            DirectMessagesSection(
+                              channels: channels
+                                  .where((c) => c.kind == dmChannelKind)
+                                  .toList(),
+                              selectedId: selected,
+                            ),
+                            ChannelCategorySections(
+                              channels: nonDm,
+                              categories: categories,
+                              selectedId: selected,
+                              canManage: canManageChannels,
+                              onReorder: (groups) =>
+                                  unawaited(orderController.reorder(groups)),
+                            ),
+                          ],
+                        ),
                       ),
-                      ChannelCategorySections(
-                        channels: nonDm,
-                        categories: categories,
-                        selectedId: selected,
-                        canManage: canManageChannels,
-                        onReorder: (groups) =>
-                            unawaited(orderController.reorder(groups)),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  if (canManageChannels)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _RailEmptySpace(),
+                    ),
+                ],
               );
               if (!canManageChannels) return list;
               // Wraps the whole viewport so the space under the last row is a target too; a row's own menu sits deeper and wins the arena.
               return ContextMenuRegion(
                 // False: child is the whole scrollable list, not one row - each row already owns a tab stop, and a second one here rang the whole rail.
                 ownsFocusNode: false,
-                // Pointer-only on purpose: a long press here would fight the scroll, and touch has the section headers' own + instead.
+                // Right-click only: a held press here would race the rows; the band under the last row owns the touch long press.
                 enableLongPress: false,
-                itemsBuilder: (context, close) => [
-                  AppMenuItem(
-                    label: 'Create channel...',
-                    leading: AppIcons.add,
-                    onTap: () {
-                      close();
-                      showCreateChannelSheet(context, initialKind: 'text');
-                    },
-                  ),
-                  AppMenuItem(
-                    label: 'Create category...',
-                    leading: AppIcons.addCategory,
-                    onTap: () {
-                      close();
-                      showCreateCategorySheet(context);
-                    },
-                  ),
-                ],
+                itemsBuilder: railBackgroundMenuItems,
                 child: list,
               );
             },
@@ -352,4 +347,44 @@ List<Channel> _withPendingOrder(
     for (final channel in channels)
       if (!named.contains(channel.id)) channel,
   ];
+}
+
+/// The "Create channel... / Create category..." menu of the rail's blank space.
+List<Widget> railBackgroundMenuItems(
+  BuildContext context,
+  VoidCallback close,
+) => [
+  AppMenuItem(
+    label: 'Create channel...',
+    leading: AppIcons.add,
+    onTap: () {
+      close();
+      showCreateChannelSheet(context, initialKind: 'text');
+    },
+  ),
+  AppMenuItem(
+    label: 'Create category...',
+    leading: AppIcons.addCategory,
+    onTap: () {
+      close();
+      showCreateCategorySheet(context);
+    },
+  ),
+];
+
+/// The band under the last row. Its own region, so a held press here opens the
+/// menu without any row's hold-then-move drag in the arena.
+class _RailEmptySpace extends StatelessWidget {
+  const _RailEmptySpace();
+
+  @override
+  Widget build(BuildContext context) => const ContextMenuRegion(
+    ownsFocusNode: false,
+    itemsBuilder: railBackgroundMenuItems,
+    // Opaque: an empty box takes no hit, so the press would fall through to the scroll view.
+    child: ColoredBox(
+      color: Colors.transparent,
+      child: SizedBox(height: AppSpacing.s64, width: double.infinity),
+    ),
+  );
 }
