@@ -39,7 +39,6 @@ client/packages/app/lib/src/providers/recent_emoji.dart 1
 client/packages/app/lib/src/providers/voice_controller.dart 4
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
-client/packages/app/lib/src/screens/admin/emoji_upload_card.dart 2
 client/packages/app/lib/src/screens/admin/invite_role_grant_picker.dart 1
 client/packages/app/lib/src/screens/channel_screen.dart 4
 client/packages/app/lib/src/screens/home_shell.dart 5

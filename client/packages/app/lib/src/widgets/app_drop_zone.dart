@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A generic OS-file drop target: a visible overlay while a drag is over it,
 /// and one callback with whatever landed. `composer_attachment_drop.dart`
-/// and `emoji_bulk_upload_card.dart` are its two callers; neither invents
+/// and `emoji_add_card.dart` are its two callers; neither invents
 /// its own drag handling, both just decide what a drop means for them.
 ///
 /// See `docs/dependencies.md` for why `desktop_drop` over

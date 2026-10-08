@@ -52,7 +52,12 @@ class SettingsEntityRow extends StatefulWidget {
     this.error,
     this.onErrorRetry,
     this.onErrorDismiss,
+    this.dense = false,
   });
+
+  /// Halves the vertical padding, for a list long enough that row height is
+  /// what makes it a scroll.
+  final bool dense;
 
   /// Opens whatever the row is about, from anywhere on the row rather than
   /// from one small control at its right edge. A row whose only way in was a
@@ -113,9 +118,9 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
     final body = Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.s8,
-        vertical: AppSpacing.s8,
+        vertical: widget.dense ? AppSpacing.s4 : AppSpacing.s8,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

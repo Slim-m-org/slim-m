@@ -10,6 +10,8 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/screens/admin/emoji_bulk_plan.dart';
 
+import 'emoji_add_harness.dart' show buildEmojiZip;
+
 ZipEntryData _file(String path, {List<int>? bytes}) =>
     ZipEntryData(path: path, bytes: bytes ?? [1, 2, 3]);
 
@@ -17,8 +19,7 @@ ZipEntryData _dir(String path) =>
     ZipEntryData(path: path, bytes: const [], isFile: false);
 
 void main() {
-  test('directories and non-image entries are skipped without being '
-      'reported as a failure', () {
+  test('directories are skipped silently and a non-image is named', () {
     final plan = planEmojiZip([
       _dir('icons/'),
       _file('readme.txt'),
@@ -27,7 +28,9 @@ void main() {
 
     expect(plan.uploads, hasLength(1));
     expect(plan.uploads.single.name, 'party_blob');
-    expect(plan.skipped, isEmpty);
+    expect(plan.skipped, hasLength(1));
+    expect(plan.skipped.single.fileName, 'readme.txt');
+    expect(plan.skipped.single.reason, contains('not a PNG'));
   });
 
   test('the emoji name is the file stem, sanitized the same way typing one '
@@ -138,7 +141,7 @@ void main() {
     expect(plan.uploads, hasLength(1));
     expect(plan.uploads.single.name, 'party_blob');
     expect(plan.uploads.single.bytes, [1, 2, 3]);
-    expect(plan.skipped, isEmpty);
+    expect(plan.skipped.single.fileName, 'readme.txt');
   });
 
   test('bytes that are not a zip at all decode to no entries, which plans '
@@ -175,5 +178,27 @@ void main() {
     expect(entries.single.bytes, isEmpty);
     expect(plan.uploads, isEmpty);
     expect(plan.skipped.single.reason, 'larger than 1 MB');
+  });
+
+  test('a zip with more entries than the cap is refused unread', () {
+    final zip = buildEmojiZip({
+      for (var i = 0; i <= maxZipEntries; i++) 'f$i.txt': [1],
+    });
+    expect(
+      () => decodeEmojiZipEntries(zip),
+      throwsA(isA<ZipTooLargeException>()),
+    );
+  });
+
+  test('a real small zip decodes to its images only', () {
+    final entries = decodeEmojiZipEntries(
+      buildEmojiZip({
+        'a.png': [1, 2],
+        'notes.txt': [3],
+      }),
+    );
+    final plan = planEmojiZip(entries);
+    expect(plan.uploads.single.name, 'a');
+    expect(plan.skipped.single.fileName, 'notes.txt');
   });
 }
