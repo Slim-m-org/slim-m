@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/widgets/poll_view.dart';
@@ -29,6 +30,7 @@ api.Poll _poll({
 );
 
 Widget _app(api.Poll poll) => MaterialApp(
+  builder: (_, child) => ProviderScope(child: child!),
   theme: buildTheme(Brightness.light, AppTokens.light),
   home: Scaffold(
     body: PollView(poll: poll, onVote: (_) {}),
@@ -296,6 +298,7 @@ Future<int?> _tabAndPress(
   int? voted;
   await tester.pumpWidget(
     MaterialApp(
+      builder: (_, child) => ProviderScope(child: child!),
       theme: buildTheme(Brightness.light, AppTokens.light),
       home: Scaffold(
         body: PollView(poll: poll, onVote: (i) => voted = i),

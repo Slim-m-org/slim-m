@@ -122,13 +122,13 @@ pub(crate) async fn attach_polls(
 }
 
 fn refuse_hidden_poll_text(question: &str, options: &[String]) -> Result<(), ApiError> {
-    use super::hidden_chars::is_hidden_char;
-    if question.chars().any(is_hidden_char) {
+    use super::hidden_chars::hides_text_outside_emoji;
+    if hides_text_outside_emoji(question) {
         return Err(ApiError::BadRequest(
             "poll question must not contain control or invisible characters",
         ));
     }
-    if options.iter().any(|o| o.chars().any(is_hidden_char)) {
+    if options.iter().any(|o| hides_text_outside_emoji(o)) {
         return Err(ApiError::BadRequest(
             "poll option must not contain control or invisible characters",
         ));

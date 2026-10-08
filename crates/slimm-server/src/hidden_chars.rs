@@ -32,9 +32,64 @@ pub(crate) fn is_hidden_char(c: char) -> bool {
         )
 }
 
+const ZWJ: char = '\u{200D}';
+const TAG_FLAG_BASE: char = '\u{1F3F4}';
+const TAG_END: char = '\u{E007F}';
+
+fn is_tag_letter(c: char) -> bool {
+    matches!(c, '\u{E0020}'..='\u{E007E}')
+}
+
+fn is_pictographic(c: char) -> bool {
+    matches!(c,
+        '\u{00A9}' | '\u{00AE}' | '\u{203C}' | '\u{2049}' | '\u{2122}' | '\u{2139}'
+        | '\u{2190}'..='\u{21FF}'
+        | '\u{2300}'..='\u{23FF}'
+        | '\u{24C2}'
+        | '\u{25A0}'..='\u{27BF}'
+        | '\u{2900}'..='\u{297F}'
+        | '\u{2B00}'..='\u{2BFF}'
+        | '\u{3030}' | '\u{303D}' | '\u{3297}' | '\u{3299}'
+        | '\u{1F000}'..='\u{1FAFF}')
+}
+
+/// True when `text` holds a hidden character that is not part of an emoji
+/// sequence. A zero width joiner is allowed only between two emoji, and tag
+/// characters only as the subdivision flag `U+1F3F4 tags... U+E007F`, so a
+/// poll can carry a family or a Scottish flag while a bare joiner still fails.
+pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == ZWJ {
+            let after_emoji =
+                i > 0 && (is_pictographic(chars[i - 1]) || chars[i - 1] == '\u{FE0F}');
+            let before_emoji = chars.get(i + 1).is_some_and(|n| is_pictographic(*n));
+            if !(after_emoji && before_emoji) {
+                return true;
+            }
+        } else if c == TAG_FLAG_BASE {
+            let tags = chars[i + 1..]
+                .iter()
+                .take_while(|t| is_tag_letter(**t))
+                .count();
+            let closed = chars.get(i + 1 + tags) == Some(&TAG_END);
+            if tags > 0 && closed {
+                i += tags + 2;
+                continue;
+            }
+        } else if is_hidden_char(c) {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_hidden_char;
+    use super::{hides_text_outside_emoji, is_hidden_char};
 
     #[test]
     fn hidden_characters_are_told_apart_from_ordinary_text() {
@@ -72,6 +127,29 @@ mod tests {
             '\u{1F600}',
         ] {
             assert!(!is_hidden_char(plain), "{plain:?}");
+        }
+    }
+
+    #[test]
+    fn joiners_and_tags_pass_only_inside_emoji_sequences() {
+        for ok in [
+            "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}",
+            "\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}",
+            "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E007F} flag",
+            "plain text",
+        ] {
+            assert!(!hides_text_outside_emoji(ok), "{ok:?}");
+        }
+        for bad in [
+            "a\u{200D}b",
+            "\u{200D}",
+            "\u{1F468}\u{200D}",
+            "\u{1F3F4}\u{E0067}",
+            "\u{E0067}\u{E007F}",
+            "\u{1F468}\u{200B}",
+            "\u{202E}",
+        ] {
+            assert!(hides_text_outside_emoji(bad), "{bad:?}");
         }
     }
 
