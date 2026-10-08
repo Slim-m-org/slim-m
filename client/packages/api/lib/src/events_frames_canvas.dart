@@ -182,6 +182,20 @@ class CanvasMediaSlotChanged extends ServerEvent {
   final bool sentToBack;
 }
 
+/// A canvas object was locked in place or unlocked. Carries no seq: a lock is
+/// current state beside the op stream.
+class CanvasObjectLockChanged extends ServerEvent {
+  const CanvasObjectLockChanged({
+    required this.channelId,
+    required this.objectId,
+    required this.locked,
+  });
+
+  final String channelId;
+  final String objectId;
+  final bool locked;
+}
+
 /// A placed object's paint order changed.
 ///
 /// Carries the new [zIndex] outright, so a receiver needs no refetch to

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT l.object_id AS \"object_id: CanvasObjectId\"\n               FROM canvas_object_locks l\n               JOIN canvas_objects o ON o.id = l.object_id\n               WHERE l.channel_id = ? AND o.deleted_at IS NULL\n               ORDER BY l.locked_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "object_id: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fe74736ce22891dc367c892713f1116ae43284e6f617e2742c0202d210541b24"
+}

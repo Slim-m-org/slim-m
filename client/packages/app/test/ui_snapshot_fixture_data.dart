@@ -279,6 +279,7 @@ Future<http.Response> fixtureResponse(http.Request request) async {
       'reset': false,
     },
     _ when path.endsWith('/canvas/media-slots') => const {'slots': <Object>[]},
+    _ when path.endsWith('/object-locks') => const {'object_ids': <String>[]},
     _ when path.contains('/canvas/media-slots/') => const {
       'kind': 'camera',
       'user_id': 'user-nick',

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM canvas_object_locks WHERE object_id = ?) AS \"hit!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "hit!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bd2f0d2ed3a31a7d5a9a449dc43e86883320028a5a84a779b8e4f760fafab938"
+}

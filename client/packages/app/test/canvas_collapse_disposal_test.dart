@@ -73,6 +73,9 @@ MockClient _imageCanvasClient() => MockClient((request) async {
   if (path.endsWith('/canvas/media-slots')) {
     return _jsonResponse({'slots': <Object>[]});
   }
+  if (path.endsWith('/canvas/object-locks')) {
+    return _jsonResponse({'object_ids': <Object>[]});
+  }
   return _jsonResponse(<Object>[]);
 });
 

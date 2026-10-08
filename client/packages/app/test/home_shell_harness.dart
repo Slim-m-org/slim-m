@@ -85,6 +85,9 @@ MockClient quietClient() => MockClient((request) async {
       'reset': false,
     },
     _ when path.endsWith('/canvas/media-slots') => const {'slots': <Object>[]},
+    _ when path.endsWith('/canvas/object-locks') => const {
+      'object_ids': <Object>[],
+    },
     _ when path.endsWith('/voice/roster') => const {'participants': <Object>[]},
     // An id that is not a thread the caller can see answers all-null, the server's masked shape.
     _ when path.endsWith('/thread-parent') => const <String, Object>{

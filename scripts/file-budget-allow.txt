@@ -20,6 +20,6 @@ crates/slimm-server/tests/dms.rs 594 # pair membership, the deliberately skipped
 client/packages/app/test/session_persistence_test.dart 588 # restore, refresh and revocation paths
 crates/slimm-server/tests/message_endpoints.rs 537 # send, list, edit and delete with their permission cases
 client/packages/app/lib/src/widgets/composer.dart 689 # composer wiring, autocomplete and focus in one widget; new behaviour goes in a sibling file
-crates/slimm-server/src/hub/event.rs 700 # one exhaustive Event enum; each new broadcast adds a variant and cannot be split out. Ceiling moves in steps of 50
+crates/slimm-server/src/hub/event.rs 750 # one exhaustive Event enum; each new broadcast adds a variant and cannot be split out. Ceiling moves in steps of 50
 crates/slimm-server/src/http/ws/authorization.rs 700 # exhaustive per-connection frame authorization match; each new event adds an arm. Ceiling moves in steps of 50
 crates/slimm-server/src/hub.rs 550 # two exhaustive event classifiers gating the durable/ephemeral split; each new event adds an arm. Ceiling moves in steps of 50

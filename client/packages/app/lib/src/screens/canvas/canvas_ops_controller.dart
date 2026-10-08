@@ -66,7 +66,13 @@ class CanvasOpsController {
     required this.commits,
     required this.onError,
     this.onRemoveFailed,
+    this.isLocked = _nothingLocked,
   });
+
+  static bool _nothingLocked(String objectId) => false;
+
+  /// Whether an object is locked in place; a drag, a resize and an erase all pass through one.
+  final bool Function(String objectId) isLocked;
 
   final String channelId;
   final api.SlimmApi client;
@@ -189,8 +195,9 @@ class CanvasOpsController {
       document,
       world,
       allowed: (stroke) =>
-          manageCanvas ||
-          (stroke.authorId != null && stroke.authorId == selfId),
+          !isLocked(stroke.id) &&
+          (manageCanvas ||
+              (stroke.authorId != null && stroke.authorId == selfId)),
     );
     if (id == null || !_dragBatch.add(id)) return;
     document.removeObject(id);

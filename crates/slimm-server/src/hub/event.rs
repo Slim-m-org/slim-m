@@ -614,6 +614,12 @@ pub enum Event {
         locked: bool,
         sent_to_back: bool,
     },
+    /// A canvas object was locked in place or unlocked; current state, not op history.
+    CanvasObjectLockChanged {
+        channel_id: ChannelId,
+        object_id: CanvasObjectId,
+        locked: bool,
+    },
     /// A report was filed or resolved: the moderation queue changed and a
     /// moderator watching it should refetch.
     ///

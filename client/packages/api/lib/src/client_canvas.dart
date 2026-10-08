@@ -166,4 +166,21 @@ extension SlimmApiCanvas on SlimmApi {
     );
     return CanvasMediaSlot.fromJson(json as Map<String, dynamic>);
   }
+
+  /// The ids of this channel's live objects locked in place.
+  Future<Set<String>> canvasObjectLocks(String channelId) async {
+    final json = await _send('GET', '/channels/$channelId/canvas/object-locks');
+    return ((json as Map<String, dynamic>)['object_ids'] as List<dynamic>)
+        .cast<String>()
+        .toSet();
+  }
+
+  /// Locks [objectId] in place: nobody moves, restacks or erases it until it
+  /// is unlocked. Its author or a canvas moderator may.
+  Future<void> lockCanvasObject(String channelId, String objectId) =>
+      _send('PUT', '/channels/$channelId/canvas/objects/$objectId/lock');
+
+  /// Unlocks [objectId]; the same rule as [lockCanvasObject].
+  Future<void> unlockCanvasObject(String channelId, String objectId) =>
+      _send('DELETE', '/channels/$channelId/canvas/objects/$objectId/lock');
 }

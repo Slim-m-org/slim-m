@@ -426,6 +426,15 @@ sealed class ServerEvent {
           locked: decoded['locked'] as bool,
           sentToBack: decoded['sent_to_back'] as bool,
         ),
+      'canvas.object.lock_changed'
+          when decoded['channel_id'] is String &&
+              decoded['object_id'] is String &&
+              decoded['locked'] is bool =>
+        CanvasObjectLockChanged(
+          channelId: decoded['channel_id'] as String,
+          objectId: decoded['object_id'] as String,
+          locked: decoded['locked'] as bool,
+        ),
       'pong' => const PongEvent(),
       'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
       _ => null,

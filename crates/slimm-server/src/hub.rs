@@ -143,6 +143,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasMediaSlotChanged { .. }
+        | Event::CanvasObjectLockChanged { .. }
         | Event::SessionRevoked(_)
         // A join changes nobody's existing cached answer; see the variant's own doc.
         | Event::MemberJoined(_)
@@ -236,6 +237,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasMediaSlotChanged { .. }
+        | Event::CanvasObjectLockChanged { .. }
         | Event::SessionRevoked(_)
         | Event::VoiceActivityChanged { .. }
         | Event::VoiceParticipantJoined { .. }

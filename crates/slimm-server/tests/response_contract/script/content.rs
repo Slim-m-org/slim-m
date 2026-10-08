@@ -8,7 +8,9 @@ use serde_json::json;
 use uuid::Uuid;
 
 use super::read_state::read_state;
-use super::{PNG, THUMBS_UP, media_slot_calls, overwrite_calls, role_calls, text};
+use super::{
+    PNG, THUMBS_UP, media_slot_calls, object_lock_calls, overwrite_calls, role_calls, text,
+};
 use crate::world::{Contract, Payload};
 
 /// Builds the channel the message calls run in, plus the role, overwrite and
@@ -253,6 +255,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     )
     .await;
     media_slot_calls(c, root, &channel, bob_id).await;
+    object_lock_calls(c, root, &channel).await;
 
     overwrite_calls(c, root, bob_id, &channel).await;
 
