@@ -71,7 +71,13 @@ List<String> partialOverlaps(List<Tappable> all) {
 }
 
 /// Visible text that a tappable partly covers: a control printed over a label.
-List<String> textUnderTappables(WidgetTester tester, List<Tappable> all) {
+/// Text inside a [content] rect is skipped: canvas content can be panned under
+/// any fixed control, so where it sits is not a layout the screen chose.
+List<String> textUnderTappables(
+  WidgetTester tester,
+  List<Tappable> all, {
+  List<Rect> content = const [],
+}) {
   final out = <String>[];
   for (final element in find.byType(Text).evaluate()) {
     final text = (element.widget as Text).data;
@@ -79,6 +85,7 @@ List<String> textUnderTappables(WidgetTester tester, List<Tappable> all) {
     final box = element.renderObject;
     if (box is! RenderBox || !box.attached || !box.hasSize) continue;
     final rect = box.localToGlobal(Offset.zero) & box.size;
+    if (content.any((c) => c.inflate(1).contains(rect.center))) continue;
     for (final t in all) {
       final inter = rect.intersect(t.rect);
       if (inter.width <= 1 || inter.height <= 1) continue;
