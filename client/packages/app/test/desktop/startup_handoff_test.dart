@@ -27,6 +27,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
+import 'package:slimm_app/src/desktop/splash_mapped_wait.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
 import 'package:slimm_app/src/desktop/window_geometry_store.dart';
 
@@ -39,7 +40,10 @@ ProviderContainer _container() {
 }
 
 void main() {
-  setUp(() => DesktopWindowShell.debugReset());
+  setUp(() {
+    DesktopWindowShell.debugReset();
+    debugSplashMappedProbe = () async => true;
+  });
   tearDown(DesktopWindowShell.debugReset);
 
   testWidgets('applyInitialGeometry sizes and centers the window at the '
@@ -84,6 +88,33 @@ void main() {
     expect(port.lastSize, WindowGeometry.fallback.windowedSize);
     expect(port.centerCalls, 1);
     expect(port.maximizeCalls, 0);
+  });
+
+  testWidgets('prepareHandoff leaves the window alone until the splash is '
+      'mapped - regression test for a loaded host where bootstrap beat the '
+      'first frame and X created the window at the real size, never showing '
+      'the splash', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    var mapped = false;
+    debugSplashMappedProbe = () async => mapped;
+    final container = _container();
+
+    final handoff = DesktopWindowShell.prepareHandoff(container);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(port.hideCalls, 0);
+    expect(port.lastSize, isNull);
+
+    mapped = true;
+    await tester.pump(const Duration(milliseconds: 100));
+    await handoff;
+
+    expect(port.hideCalls, 1);
+    expect(port.lastSize, WindowGeometry.fallback.windowedSize);
   });
 
   testWidgets('prepareHandoff restores a saved maximized run state', (

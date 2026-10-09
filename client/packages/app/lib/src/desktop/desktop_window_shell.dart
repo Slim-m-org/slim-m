@@ -27,6 +27,7 @@ import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
 import 'first_run_tray_notice.dart';
+import 'splash_mapped_wait.dart';
 import 'tray/desktop_tray_controller.dart';
 import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
@@ -100,8 +101,7 @@ class DesktopWindowShell {
   static set debugPort(DesktopWindowPort port) => _port = port;
 
   /// Restores every static field to its never-started state, for a test
-  /// that wants a clean slate rather than whatever an earlier test in the
-  /// same file left behind.
+  /// that wants a clean slate.
   @visibleForTesting
   static void debugReset() {
     _port = WindowManagerDesktopWindowPort();
@@ -241,6 +241,7 @@ class DesktopWindowShell {
   /// applies to its own failures.
   static Future<void> prepareHandoff(ProviderContainer container) async {
     if (currentDesktopPlatform() == null) return;
+    await awaitSplashMapped();
     try {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {

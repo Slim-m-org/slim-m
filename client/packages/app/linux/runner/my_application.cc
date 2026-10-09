@@ -9,6 +9,7 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "linux_second_instance_channel.h"
 #include "linux_tray_probe_channel.h"
+#include "linux_window_mapped_channel.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -102,6 +103,9 @@ static void my_application_activate(GApplication* application) {
 
   // DesktopWindowShell's channel; see linux_second_instance_channel.h.
   linux_second_instance_channel_register(self->messenger);
+
+  // Lets the splash-to-real-window handoff wait for the splash to be mapped; see linux_window_mapped_channel.h.
+  linux_window_mapped_channel_register(self->messenger, window);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

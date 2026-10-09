@@ -251,3 +251,11 @@ The rail header now renders on every platform and carries the Space's identity a
 The title bar keeps the Space name and the build version as the window's own title and drops the dot and the menu.
 The name appears twice on purpose: once as a window title, once as the Space header, doing different jobs.
 
+
+## Addendum, 2026-10-08: the handoff waits for the splash to be mapped
+
+The desktop shell smoke job failed once with "no window of the splash size 380x460 appeared in the X event log" while GTK logged "Timed out waiting for OpenGL frame of size 1280x720 (have 380x460)".
+The runner shows the window from Flutter's first-frame signal, but the splash floor starts counting at bootstrap, so on a loaded host `prepareHandoff` could hide and resize the window before it was ever mapped.
+X then first showed it at the real size, and the splash never reached the screen.
+A runner delaying that show by 2.5s or more reproduces the failure every time.
+`prepareHandoff` now waits, bounded at 15s, for the runner to report the window mapped (`linux_window_mapped_channel.cc`: the window manager's map-event on X11, the map signal elsewhere) before it hides anything.
