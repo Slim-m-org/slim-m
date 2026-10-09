@@ -5,7 +5,7 @@
 #include <flutter_linux/flutter_linux.h>
 #include <gtk/gtk.h>
 
-// Lets Dart ask whether the window has actually been mapped yet; the Dart
+// Lets Dart ask how many ms the window has been mapped for (-1 if not yet); the Dart
 // side is DesktopWindowShell.prepareHandoff (desktop_window_shell.dart).
 void linux_window_mapped_channel_register(FlBinaryMessenger* messenger,
                                           GtkWindow* window);

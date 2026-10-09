@@ -259,3 +259,5 @@ The runner shows the window from Flutter's first-frame signal, but the splash fl
 X then first showed it at the real size, and the splash never reached the screen.
 A runner delaying that show by 2.5s or more reproduces the failure every time.
 `prepareHandoff` now waits, bounded at 15s, for the runner to report the window mapped (`linux_window_mapped_channel.cc`: the window manager's map-event on X11, the map signal elsewhere) before it hides anything.
+The splash floor is measured from that map, not from bootstrap: once the runner reports the window mapped, `prepareHandoff` waits out whatever is left of the floor (the runner reports how long the window has been mapped) before it hides anything.
+A splash that mapped early loses nothing, and one that mapped late still gets its full dwell on screen.

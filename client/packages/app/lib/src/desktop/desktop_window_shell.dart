@@ -233,15 +233,15 @@ class DesktopWindowShell {
   /// Bounded and swallowed the same way [applyInitialGeometry] is: a hang or
   /// throw here must not strand the app hidden with nothing to reveal it.
   /// [DesktopWindowController.enableGeometryPersistence] is flipped
-  /// unconditionally afterwards, success or failure: whatever this method
-  /// could do to reach the real geometry has already happened by then, and
-  /// leaving persistence disabled forever on a failure would silently
-  /// disable geometry persistence for the rest of the run - the same
-  /// "must not strand the app" reasoning [applyInitialGeometry] already
-  /// applies to its own failures.
-  static Future<void> prepareHandoff(ProviderContainer container) async {
+  /// unconditionally afterwards, success or failure, so a failure here never
+  /// leaves persistence disabled for the rest of the run. [splashFloor] is
+  /// how long the splash must have been on screen once mapped.
+  static Future<void> prepareHandoff(
+    ProviderContainer container, {
+    Duration splashFloor = Duration.zero,
+  }) async {
     if (currentDesktopPlatform() == null) return;
-    await awaitSplashMapped();
+    await awaitSplashMapped(floor: splashFloor);
     try {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {

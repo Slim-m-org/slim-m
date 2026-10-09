@@ -42,7 +42,7 @@ ProviderContainer _container() {
 void main() {
   setUp(() {
     DesktopWindowShell.debugReset();
-    debugSplashMappedProbe = () async => true;
+    debugSplashMappedProbe = () async => const Duration(days: 1);
   });
   tearDown(DesktopWindowShell.debugReset);
 
@@ -98,7 +98,7 @@ void main() {
     final port = FakeDesktopWindowPort();
     DesktopWindowShell.debugPort = port;
     var mapped = false;
-    debugSplashMappedProbe = () async => mapped;
+    debugSplashMappedProbe = () async => mapped ? Duration.zero : null;
     final container = _container();
 
     final handoff = DesktopWindowShell.prepareHandoff(container);
@@ -115,6 +115,32 @@ void main() {
 
     expect(port.hideCalls, 1);
     expect(port.lastSize, WindowGeometry.fallback.windowedSize);
+  });
+
+  testWidgets('prepareHandoff keeps a late-mapped splash up for the full '
+      'floor, measured from the map and not from bootstrap', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    var mapped = false;
+    debugSplashMappedProbe = () async => mapped ? Duration.zero : null;
+    final container = _container();
+
+    final handoff = DesktopWindowShell.prepareHandoff(
+      container,
+      splashFloor: const Duration(milliseconds: 900),
+    );
+    await tester.pump(const Duration(seconds: 3));
+    mapped = true;
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(port.hideCalls, 0);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    await handoff;
+
+    expect(port.hideCalls, 1);
   });
 
   testWidgets('prepareHandoff restores a saved maximized run state', (

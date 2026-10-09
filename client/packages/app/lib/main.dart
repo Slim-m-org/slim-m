@@ -151,9 +151,10 @@ Future<void> _bootstrapApp(
   ProviderContainer container, {
   required bool launchedAtLogin,
 }) async {
+  var floor = Duration.zero;
   // Guarded: a step that throws must not leave the splash up for good, the handoff below always runs.
   await runStartupStep(container, 'startup', () async {
-    final floor = await _resolveSplashFloor(container);
+    floor = await _resolveSplashFloor(container);
     await awaitBootstrapWithSplashFloor(
       () => _runBootstrapSequence(container),
       floor: floor,
@@ -161,7 +162,7 @@ Future<void> _bootstrapApp(
     // After the session restore: having an account decides whether the splash asks about updates at all.
     await runStartupUpdates(container);
   });
-  await DesktopWindowShell.prepareHandoff(container);
+  await DesktopWindowShell.prepareHandoff(container, splashFloor: floor);
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
   await DesktopWindowShell.revealAfterHandoff();
   container.read(appReadyProvider.notifier).state = true;

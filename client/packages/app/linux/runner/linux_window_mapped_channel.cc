@@ -10,9 +10,12 @@ namespace {
 const char* kChannelName = "top.npcserver.slimm/linux_window_mapped";
 // Never released: the channel and flag live as long as the one window.
 FlMethodChannel* g_channel = nullptr;
-gboolean g_mapped = FALSE;
+// Monotonic microseconds of the first map, or -1 while unmapped.
+gint64 g_mapped_at = -1;
 
-void mark_mapped() { g_mapped = TRUE; }
+void mark_mapped() {
+  if (g_mapped_at < 0) g_mapped_at = g_get_monotonic_time();
+}
 
 gboolean on_map_event(GtkWidget*, GdkEvent*, gpointer) {
   mark_mapped();
@@ -30,8 +33,10 @@ void on_map(GtkWidget*, gpointer) {
 void on_method_call(FlMethodChannel* channel, FlMethodCall* call, gpointer) {
   g_autoptr(FlMethodResponse) response = nullptr;
   if (g_strcmp0(fl_method_call_get_name(call), "isMapped") == 0) {
-    response = FL_METHOD_RESPONSE(fl_method_success_response_new(
-        fl_value_new_bool(g_mapped)));
+    gint64 on_screen_ms =
+        g_mapped_at < 0 ? -1 : (g_get_monotonic_time() - g_mapped_at) / 1000;
+    response = FL_METHOD_RESPONSE(
+        fl_method_success_response_new(fl_value_new_int(on_screen_ms)));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
