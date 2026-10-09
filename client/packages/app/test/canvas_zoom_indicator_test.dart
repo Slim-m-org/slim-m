@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/providers/dock_reservation.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_zoom_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -103,4 +104,45 @@ void main() {
     await tester.tapAt(const Offset(700, 300));
     expect(fitted, 0);
   });
+
+  for (final (pane, above) in [(795.0, true), (1000.0, false)]) {
+    testWidgets('in a $pane wide pane it rides above the dock: $above', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final document = CanvasDocument();
+      addTearDown(document.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [bottomDockReservationProvider.overrideWith((ref) => 52)],
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: pane,
+                  height: 600,
+                  child: Stack(
+                    children: [
+                      CanvasZoomIndicator(
+                        document: document,
+                        tokens: AppTokens.dark,
+                        onFit: () {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final chip = tester.getRect(find.byType(InkWell));
+      expect(chip.bottom, above ? lessThan(600 - 52) : greaterThan(570));
+    });
+  }
 }
