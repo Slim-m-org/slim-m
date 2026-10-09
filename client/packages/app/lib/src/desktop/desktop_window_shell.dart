@@ -27,6 +27,7 @@ import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
 import 'first_run_tray_notice.dart';
+import 'splash_mapped_wait.dart';
 import 'tray/desktop_tray_controller.dart';
 import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
@@ -100,8 +101,7 @@ class DesktopWindowShell {
   static set debugPort(DesktopWindowPort port) => _port = port;
 
   /// Restores every static field to its never-started state, for a test
-  /// that wants a clean slate rather than whatever an earlier test in the
-  /// same file left behind.
+  /// that wants a clean slate.
   @visibleForTesting
   static void debugReset() {
     _port = WindowManagerDesktopWindowPort();
@@ -233,14 +233,15 @@ class DesktopWindowShell {
   /// Bounded and swallowed the same way [applyInitialGeometry] is: a hang or
   /// throw here must not strand the app hidden with nothing to reveal it.
   /// [DesktopWindowController.enableGeometryPersistence] is flipped
-  /// unconditionally afterwards, success or failure: whatever this method
-  /// could do to reach the real geometry has already happened by then, and
-  /// leaving persistence disabled forever on a failure would silently
-  /// disable geometry persistence for the rest of the run - the same
-  /// "must not strand the app" reasoning [applyInitialGeometry] already
-  /// applies to its own failures.
-  static Future<void> prepareHandoff(ProviderContainer container) async {
+  /// unconditionally afterwards, success or failure, so a failure here never
+  /// leaves persistence disabled for the rest of the run. [splashFloor] is
+  /// how long the splash must have been on screen once mapped.
+  static Future<void> prepareHandoff(
+    ProviderContainer container, {
+    Duration splashFloor = Duration.zero,
+  }) async {
     if (currentDesktopPlatform() == null) return;
+    await awaitSplashMapped(floor: splashFloor);
     try {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {

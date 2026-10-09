@@ -12,6 +12,7 @@ add_executable(${BINARY_NAME}
   "clipboard_image_channel.cc"
   "linux_tray_probe_channel.cc"
   "linux_second_instance_channel.cc"
+  "linux_window_mapped_channel.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 
