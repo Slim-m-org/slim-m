@@ -35,6 +35,7 @@ class VoiceFlags {
     this.screenSharing = false,
     this.awaitingBroadcast = false,
     this.canPublish = true,
+    this.joinedMuted = false,
     this.deafened = false,
     this.error,
     this.retryable = true,
@@ -55,6 +56,7 @@ class VoiceFlags {
     screenSharing: state.screenSharing,
     awaitingBroadcast: state.awaitingBroadcast,
     canPublish: state.canPublish,
+    joinedMuted: state.joinedMuted,
     deafened: state.deafened,
     error: state.error,
     retryable: state.retryable,
@@ -86,6 +88,9 @@ class VoiceFlags {
   final bool screenSharing;
   final bool awaitingBroadcast;
   final bool canPublish;
+
+  /// See [VoiceState.joinedMuted].
+  final bool joinedMuted;
   final bool deafened;
   final String? error;
   final bool retryable;
@@ -107,6 +112,7 @@ class VoiceFlags {
       other.screenSharing == screenSharing &&
       other.awaitingBroadcast == awaitingBroadcast &&
       other.canPublish == canPublish &&
+      other.joinedMuted == joinedMuted &&
       other.deafened == deafened &&
       other.error == error &&
       other.retryable == retryable &&
@@ -127,6 +133,7 @@ class VoiceFlags {
     screenSharing,
     awaitingBroadcast,
     canPublish,
+    joinedMuted,
     deafened,
     error,
     retryable,

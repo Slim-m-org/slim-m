@@ -352,9 +352,11 @@ Future<ProviderContainer> pumpVoiceCallDock(
   double width = 800,
   bool touch = false,
   InertSession? session,
+  List<Override> extraOverrides = const [],
 }) async {
   final container = ProviderContainer(
     overrides: [
+      ...extraOverrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session ?? InertSession()),

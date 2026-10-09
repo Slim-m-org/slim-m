@@ -56,6 +56,11 @@ void main() {
 
     expect(session.askedForMicrophoneOnJoin, isFalse);
     expect(controller.state.microphoneEnabled, isFalse);
+    expect(controller.state.joinedMuted, isTrue);
+
+    await controller.toggleMicrophone();
+    expect(controller.state.joinedMuted, isFalse);
+    await controller.toggleMicrophone();
 
     await controller.leave();
     expect(
@@ -77,6 +82,7 @@ void main() {
 
     expect(session.askedForMicrophoneOnJoin, isTrue);
     expect(controller.state.microphoneEnabled, isTrue);
+    expect(controller.state.joinedMuted, isFalse);
   });
 
   test('a member who was already muted stays muted everywhere', () async {

@@ -56,6 +56,7 @@ import '../widgets/audio_output_sheet.dart';
 import '../widgets/camera_source_sheet.dart';
 import '../widgets/control_options_menu.dart';
 import '../widgets/screen_source_sheet.dart';
+import 'call_availability.dart';
 import 'call_dock_button.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
@@ -148,6 +149,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   Widget build(BuildContext context) {
     final voice = widget.voice;
     final shareOptions = _shareOptions(context);
+    final listenOnly = listenOnlyReason(ref, voice);
     final pairedAtTouch =
         shareOptions.isNotEmpty && AppTouchTargets.of(context);
     // mainAxisSize.min: this row sizes to its own content now that it has no
@@ -158,14 +160,23 @@ class _CallControlsState extends ConsumerState<CallControls> {
       children: [
         Consumer(
           builder: (context, ref, _) => CallDockButton(
-            icon: voice.microphoneEnabled ? AppIcons.mic : AppIcons.micOff,
-            tooltip: labelWithShortcut(
-              voice.microphoneEnabled ? 'Mute' : 'Unmute',
-              AppAction.toggleMuteCall,
-            ),
+            icon: voice.microphoneEnabled && listenOnly == null
+                ? AppIcons.mic
+                : AppIcons.micOff,
+            tooltip:
+                listenOnly ??
+                labelWithShortcut(
+                  voice.microphoneEnabled
+                      ? 'Mute'
+                      : voice.joinedMuted
+                      ? joinedMutedHint
+                      : 'Unmute',
+                  AppAction.toggleMuteCall,
+                ),
             // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
             active: false,
-            destructive: !voice.microphoneEnabled,
+            unavailable: listenOnly != null,
+            destructive: !voice.microphoneEnabled && listenOnly == null,
             level: voice.microphoneEnabled
                 ? ref.watch(localMicLevelProvider)
                 : null,
@@ -187,12 +198,17 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ],
         const SizedBox(width: AppSpacing.s8),
         CallDockButton(
-          icon: voice.cameraEnabled ? AppIcons.camera : AppIcons.cameraOff,
-          tooltip: labelWithShortcut(
-            voice.cameraEnabled ? 'Turn off camera' : 'Turn on camera',
-            AppAction.toggleCameraCall,
-          ),
+          icon: voice.cameraEnabled && listenOnly == null
+              ? AppIcons.camera
+              : AppIcons.cameraOff,
+          tooltip:
+              listenOnly ??
+              labelWithShortcut(
+                voice.cameraEnabled ? 'Turn off camera' : 'Turn on camera',
+                AppAction.toggleCameraCall,
+              ),
           active: false,
+          unavailable: listenOnly != null,
           pending: voice.cameraPending,
           onPressed: () => unawaited(widget.controller.toggleCamera()),
         ),
