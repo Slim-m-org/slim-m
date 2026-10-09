@@ -28,8 +28,12 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../providers/dock_reservation.dart';
 
+/// The widest pane where the centred dock can still reach this corner.
+const _beside = 900.0;
+
 /// At phone width the dock's cards reach into this corner, so the readout
 /// rides above them by the dock's measured height instead of sitting under it.
+/// So does a pane too narrow for the one-row dock to leave room beside it.
 class CanvasZoomIndicator extends ConsumerWidget {
   const CanvasZoomIndicator({
     super.key,
@@ -45,15 +49,19 @@ class CanvasZoomIndicator extends ConsumerWidget {
   final AppTokens tokens;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Align(
-    alignment: Alignment.bottomLeft,
-    child: Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.sizeOf(context).width < kCompactWidth
-            ? ref.watch(bottomDockReservationProvider) + AppSpacing.s12
-            : 0,
+  Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
+    builder: (context, constraints) => Align(
+      alignment: Alignment.bottomLeft,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom:
+              MediaQuery.sizeOf(context).width < kCompactWidth ||
+                  constraints.maxWidth < _beside
+              ? ref.watch(bottomDockReservationProvider) + AppSpacing.s12
+              : 0,
+        ),
+        child: _readout(),
       ),
-      child: _readout(),
     ),
   );
 

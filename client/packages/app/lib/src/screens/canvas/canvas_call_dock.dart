@@ -25,11 +25,12 @@
 /// keep their own scroll-and-fade strip (decision 0004), which only scrolls
 /// when even the hugged width does not fit.
 ///
-/// **A narrow pane stacks rows in one card; a wide one draws one.** The five
-/// tools get a row of their own so the eraser is on screen at 360, 390 and
-/// 430; undo, the overflow and the canvas toggle share the next row, and the
-/// call controls the last. One row needs [_oneRowMinWidth], measured, not
-/// [kCompactWidth]: between the two the combined row overflows and scrolls.
+/// **A narrow pane stacks rows in one card; a wide one draws one.** One row
+/// needs [_oneRowMinWidth]; from [_twoRowMinWidth] the canvas (tools, undo,
+/// redo, more) takes one row and the call group the other; only below that do
+/// the five tools get a row of their own, so the eraser never scrolls out of
+/// reach. The thresholds are measured, not [kCompactWidth]: between them the
+/// combined row would overflow and scroll.
 ///
 /// **The gaps either side of the divider shrank from [AppSpacing.s12] to
 /// [AppSpacing.s8], the same compaction pass as `FloatingDockCard`'s own
@@ -160,9 +161,16 @@ CallDockData? callDockDataFor(
   return CallDockData(voice: voice, controller: controller);
 }
 
-/// Measured: the one-row dock with the pen caret out is 776dp wide at touch
-/// density, so narrower panes stack instead of scrolling a tool off the edge.
-const _oneRowMinWidth = 800.0;
+/// Measured at desktop density (every pane the non-compact dock draws is in a
+/// window of at least [kCompactWidth], so never touch density): the one-row
+/// card is 638dp with the pen or shape caret out, 714dp with the speaker and
+/// camera-switch buttons too. Anything narrower takes two rows.
+const _oneRowMinWidth = 720.0;
+
+/// Measured the same way: tools and undo, redo and more on one row, the call
+/// group (with the canvas toggle and leave) on the other, 381dp at the worst.
+/// Anything narrower gives the five tools a row of their own.
+const _twoRowMinWidth = 390.0;
 
 class CanvasCallDock extends StatelessWidget {
   const CanvasCallDock({
@@ -204,10 +212,10 @@ class CanvasCallDock extends StatelessWidget {
     }
     return LayoutBuilder(
       builder: (context, constraints) {
-        final oneRow = constraints.maxWidth >= _oneRowMinWidth;
+        final width = constraints.maxWidth;
         return FloatingDockCard(
           trailing: leave,
-          rows: oneRow
+          rows: width >= _oneRowMinWidth
               ? [
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -219,6 +227,11 @@ class CanvasCallDock extends StatelessWidget {
                       _callRow(call, toggle: _toggle(canvas)),
                     ],
                   ),
+                ]
+              : width >= _twoRowMinWidth
+              ? [
+                  CanvasDockToolsRow(canvas: canvas),
+                  _callRow(call, toggle: _toggle(canvas)),
                 ]
               : [..._stackedCanvasRows(canvas), _callRow(call)],
         );

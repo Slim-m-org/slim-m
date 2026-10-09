@@ -278,6 +278,8 @@ const _canvasSurfaces =
           ...compactBracket,
           'expanded-999',
           'expanded-1000',
+          'laptop-1280',
+          'full-hd',
         ],
         withVoice: true,
       ),

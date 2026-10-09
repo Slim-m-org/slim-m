@@ -100,6 +100,9 @@ const viewports = <String, Size>{
   // settings_panes's two-pane floor (800).
   'settings-799': Size(799, 844),
   'settings-800': Size(800, 844),
+  // The laptop and full-hd windows the canvas dock's row count is judged at.
+  'laptop-1280': Size(1280, 900),
+  'full-hd': Size(1920, 1080),
 };
 
 /// A phone and a desktop render: the pair every standalone screen samples by
