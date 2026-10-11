@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/threads.dart';
 import '../routing/breakpoints.dart';
+import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import '../routing/routes.dart';
 import 'author_label.dart';
@@ -146,6 +147,7 @@ class ThreadRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final density = ref.watch(messageDensityControllerProvider);
     final resolution = ref.watch(
       batchProfilesControllerProvider.select(
         (m) => authorResolution(m, thread.parentAuthorId ?? ''),
@@ -157,6 +159,8 @@ class ThreadRow extends ConsumerWidget {
       resolution: resolution,
     );
     return ListTile(
+      dense: density == AppDensity.compact,
+      visualDensity: density.tileVisualDensity,
       onTap: () {
         // Captured before the pop disposes this sheet's ref: the app container and router outlive it, so the thread can dock (expanded) or push its modal route (compact) after.
         final container = ProviderScope.containerOf(context, listen: false);
@@ -171,7 +175,7 @@ class ThreadRow extends ConsumerWidget {
       leading: UserAvatar(
         userId: thread.parentAuthorId,
         name: name,
-        size: AppAvatarSize.s28,
+        size: density.listAvatarSize,
       ),
       title: AuthorNameLine(
         name: name,
