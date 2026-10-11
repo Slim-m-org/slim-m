@@ -74,12 +74,23 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
       case AvatarPhotoAction.remove:
         await _remove();
       case AvatarPhotoAction.take:
-        await _crop(await ref.read(avatarCameraCaptureProvider)!());
+        await _take();
       case AvatarPhotoAction.choose:
         await _pickFile(AttachmentSource.photoLibrary);
       case AvatarPhotoAction.browse:
         await _pickFile(AttachmentSource.fileBrowser);
     }
+  }
+
+  Future<void> _take() async {
+    final Uint8List? shot;
+    try {
+      shot = await ref.read(avatarCameraCaptureProvider)!();
+    } catch (e) {
+      setActionError('Could not open the camera.');
+      return;
+    }
+    await _crop(shot);
   }
 
   Future<void> _pickFile(AttachmentSource source) async {
