@@ -127,11 +127,12 @@ pub(crate) async fn totp_calls(c: &mut Contract, root: &str, invite: &str) {
         json!({ "code": code(&text(&again, "secret"), -STEP_MS), "password": super::PASSWORD }),
     )
     .await;
-    c.bare(
+    c.json(
         "clearTotpFactor",
         "DELETE",
         &format!("/admin/users/{user_id}/totp"),
         root,
+        json!({ "password": super::PASSWORD }),
     )
     .await;
 }

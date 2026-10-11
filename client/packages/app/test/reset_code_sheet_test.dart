@@ -4,8 +4,8 @@
 /// `POST /admin/users/{userId}/reset-code`.
 ///
 /// The load-bearing behaviour is that opening the sheet does not issue
-/// anything. A code is one-time and unreadable afterwards, so a sheet that
-/// fetched on open would burn one every time a menu was opened by accident.
+/// anything, and that issuing takes the administrator's own password. A code
+/// is one-time and unreadable afterwards, and a way into any account.
 library;
 
 import 'dart:convert';
@@ -37,9 +37,10 @@ http.Client _issuing({int status = 200}) {
   return MockClient((request) async {
     if (request.url.path.endsWith('/reset-code')) {
       _issued.add(request.url.path);
+      _bodies.add(request.body);
       if (status != 200) {
         return http.Response(
-          jsonEncode({'error': 'forbidden'}),
+          jsonEncode({'error': 'that password is not correct'}),
           status,
           headers: const {'content-type': 'application/json'},
         );
@@ -58,9 +59,11 @@ http.Client _issuing({int status = 200}) {
 }
 
 late List<String> _issued;
+late List<String> _bodies;
 
 Future<void> _open(WidgetTester tester, {int status = 200}) async {
   _issued = <String>[];
+  _bodies = <String>[];
   final client = _issuing(status: status);
   final container = ProviderContainer(
     overrides: [
@@ -120,6 +123,7 @@ void main() {
           'burn one',
     );
     expect(find.text('Generate code'), findsOneWidget);
+    expect(find.byType(EditableText), findsOneWidget, reason: 'the password');
     expect(find.text(_code), findsNothing);
   });
 
@@ -137,16 +141,17 @@ void main() {
     expect(title.top - card.top, title.left - card.left);
   });
 
-  testWidgets('generating shows the code and names who it is for', (
-    tester,
-  ) async {
+  testWidgets('generating with the password shows the code', (tester) async {
     await _open(tester);
 
+    await tester.enterText(find.byType(EditableText), 'my-password');
+    await tester.pump();
     await tester.tap(find.text('Generate code'));
     await tester.pumpAndSettle();
 
     expect(_issued, hasLength(1));
     expect(_issued.single, contains('user-9'));
+    expect(jsonDecode(_bodies.single), {'password': 'my-password'});
     expect(find.text(_code), findsOneWidget);
     expect(find.textContaining('Ada'), findsWidgets);
     expect(
@@ -156,27 +161,20 @@ void main() {
           'spending a code revokes every session; an admin handing one over '
           'should know that before they do',
     );
-    expect(
-      find.text('Generate code'),
-      findsNothing,
-      reason: 'a second press would silently invalidate the code just shown',
-    );
+    expect(find.text('Generate code'), findsNothing);
   });
 
-  testWidgets('a refused issue reports inline and leaves the sheet usable', (
+  testWidgets('a wrong password reports inline and shows no code', (
     tester,
   ) async {
     await _open(tester, status: 403);
 
+    await tester.enterText(find.byType(EditableText), 'wrong');
+    await tester.pump();
     await tester.tap(find.text('Generate code'));
     await tester.pumpAndSettle();
 
     expect(find.text(_code), findsNothing);
-    expect(find.textContaining('issue a reset code'), findsOneWidget);
-    expect(
-      find.text('Generate code'),
-      findsOneWidget,
-      reason: 'nothing was issued, so the action stays available to retry',
-    );
+    expect(find.text('Generate code'), findsOneWidget);
   });
 }

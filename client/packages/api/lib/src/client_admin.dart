@@ -8,9 +8,17 @@ part of 'client.dart';
 extension SlimmApiAdmin on SlimmApi {
   /// Issues a one-time password reset code for [userId]. Requires
   /// ADMINISTRATOR. The plaintext code is returned only this once; the
-  /// server stores only its hash.
-  Future<ResetCodeIssued> issueResetCode(String userId) async {
-    final json = await _send('POST', '/admin/users/$userId/reset-code');
+  /// server stores only its hash. [password] is the caller's own, so a stolen
+  /// session cannot mint a way into somebody else's account.
+  Future<ResetCodeIssued> issueResetCode(
+    String userId, {
+    required String password,
+  }) async {
+    final json = await _send(
+      'POST',
+      '/admin/users/$userId/reset-code',
+      body: {'password': password},
+    );
     return ResetCodeIssued.fromJson(json as Map<String, dynamic>);
   }
 
@@ -21,10 +29,12 @@ extension SlimmApiAdmin on SlimmApi {
   /// does on the way past: one answers "I forgot my password" and this answers
   /// "I lost my authenticator". It revokes every live session on the account and
   /// is written to the moderation audit log, so it cannot be done quietly. See
-  /// docs/decisions/0048-totp-two-factor.md.
-  Future<void> clearMemberTotp(String userId) => _send(
+  /// docs/decisions/0048-totp-two-factor.md. [password] is the caller's own.
+  Future<void> clearMemberTotp(String userId, {required String password}) =>
+      _send(
         'DELETE',
         '/admin/users/$userId/totp',
+        body: {'password': password},
         expectNoContent: true,
       );
 

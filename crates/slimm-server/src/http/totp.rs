@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AuthedLimited, Json, PASSWORD, RateLimited, TOTP, WRITE};
+use super::extract::{AuthedLimited, Bytes, Json, PASSWORD, RateLimited, TOTP, WRITE};
 use super::messages::parse_uuid;
 use super::reauth::require_password;
 use crate::hub::Event;
@@ -255,12 +255,14 @@ async fn verify(
 /// one administrator's say-so. It revokes every session and writes a
 /// `totp_cleared` audit entry, so the act leaves a trace that outlives it.
 async fn admin_clear(
-    AuthedLimited(ctx): AuthedLimited<WRITE>,
+    AuthedLimited(ctx): AuthedLimited<PASSWORD>,
     Path(user_id): Path<String>,
     State(state): State<AppState>,
+    Bytes(body): Bytes,
 ) -> Result<StatusCode, ApiError> {
     super::extract::require_base_permission(&state, ctx.user_id, Permissions::ADMINISTRATOR)
         .await?;
+    super::reauth::require_admin_password(&state, ctx.user_id, &body).await?;
     let user_id = UserId(parse_uuid(&user_id)?);
     let revoked = state
         .store

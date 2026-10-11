@@ -190,3 +190,88 @@ async fn a_well_formed_request_without_a_password_is_a_400() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{method} {uri}");
     }
 }
+
+#[tokio::test]
+async fn an_administrator_issuing_a_reset_code_needs_their_own_password() {
+    let (store, auth, _guard) = new_store("slimm-reauth-admin-reset").await;
+    let app = app(store.clone(), auth.clone());
+    let (admin, _) = member(&store, &auth, "root").await;
+    let hash = auth.hash_password(PASSWORD.to_owned()).await.unwrap();
+    let bob = store.create_account("bob", "bob", &hash).await.unwrap();
+    let uri = format!("/admin/users/{}/reset-code", bob.id);
+
+    let bare = status_of(&app, "POST", &uri, &admin, None).await;
+    assert_eq!(bare, StatusCode::BAD_REQUEST, "a bare token issued a code");
+    let wrong = status_of(
+        &app,
+        "POST",
+        &uri,
+        &admin,
+        Some(json!({ "password": "nope-nope" })),
+    )
+    .await;
+    assert_eq!(wrong, StatusCode::FORBIDDEN);
+    let ok = status_of(
+        &app,
+        "POST",
+        &uri,
+        &admin,
+        Some(json!({ "password": PASSWORD })),
+    )
+    .await;
+    assert_eq!(ok, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn an_administrator_clearing_two_factor_needs_their_own_password() {
+    let (store, auth, _guard) = new_store("slimm-reauth-admin-clear").await;
+    let app = app(store.clone(), auth.clone());
+    let (admin, _) = member(&store, &auth, "root").await;
+    let hash = auth.hash_password(PASSWORD.to_owned()).await.unwrap();
+    let bob = store.create_account("bob", "bob", &hash).await.unwrap();
+    let bob_token = store
+        .open_session(bob.id, "cli")
+        .await
+        .unwrap()
+        .access_token;
+    enrol_and_confirm(&app, &bob_token).await;
+    let uri = format!("/admin/users/{}/totp", bob.id);
+
+    let bare = status_of(&app, "DELETE", &uri, &admin, None).await;
+    assert_eq!(
+        bare,
+        StatusCode::BAD_REQUEST,
+        "a bare token cleared a factor"
+    );
+    let wrong = status_of(
+        &app,
+        "DELETE",
+        &uri,
+        &admin,
+        Some(json!({ "password": "nope-nope" })),
+    )
+    .await;
+    assert_eq!(wrong, StatusCode::FORBIDDEN);
+    let still_on = json_body(
+        app.clone()
+            .oneshot(request("GET", "/auth/totp", Some(&bob_token), None))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(
+        still_on["enabled"],
+        json!(true),
+        "a refused clear removed the factor"
+    );
+
+    let ok = status_of(
+        &app,
+        "DELETE",
+        &uri,
+        &admin,
+        Some(json!({ "password": PASSWORD })),
+    )
+    .await;
+    assert_eq!(ok, StatusCode::NO_CONTENT);
+}
