@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.99.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.98.0...client-v0.99.0) (2026-10-11)
+
+
+### Features
+
+* confirmations that fit permanent actions, admin password for reset codes and two-factor, and density in search and threads ([#2151](https://github.com/Slim-m-org/slim-m/issues/2151)) ([b9c4455](https://github.com/Slim-m-org/slim-m/commit/b9c44559fd2c08de545ffd568c6b8f88c769c4a9))
+* show join-muted and listen-only in calls, a one-row canvas dock at 1280, and take a profile photo ([#2150](https://github.com/Slim-m-org/slim-m/issues/2150)) ([24428b2](https://github.com/Slim-m-org/slim-m/commit/24428b2127a5aa2072829921981b31c002b913fc))
+
 ## [0.98.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.97.1...client-v0.98.0) (2026-10-09)
 
 
