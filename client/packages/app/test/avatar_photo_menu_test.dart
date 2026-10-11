@@ -5,6 +5,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,7 +29,7 @@ const _avatarLabel = 'Change profile picture';
 const _json = {'content-type': 'application/json'};
 
 class _Rig {
-  _Rig({required bool hasPhoto, required bool camera})
+  _Rig({required bool hasPhoto, required bool camera, bool cameraFails = false})
     : requests = [],
       pickedSources = [],
       captures = [] {
@@ -42,11 +43,15 @@ class _Rig {
             return null;
           },
         ),
-        if (camera)
-          avatarCameraCaptureProvider.overrideWithValue(() async {
-            captures.add('capture');
-            return null;
-          }),
+        avatarCameraCaptureProvider.overrideWithValue(
+          camera
+              ? () async {
+                  captures.add('capture');
+                  if (cameraFails) throw StateError('camera_access_denied');
+                  return null;
+                }
+              : null,
+        ),
         apiProvider.overrideWith((ref) {
           final api = SlimmApi(
             baseUrl: Uri.parse('http://localhost:8080'),
@@ -96,11 +101,16 @@ Future<_Rig> _pump(
   required double width,
   bool hasPhoto = true,
   bool camera = false,
+  bool cameraFails = false,
 }) async {
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final rig = _Rig(hasPhoto: hasPhoto, camera: camera);
+  final rig = _Rig(
+    hasPhoto: hasPhoto,
+    camera: camera,
+    cameraFails: cameraFails,
+  );
   addTearDown(rig.container.dispose);
   await tester.pumpWidget(rig.app);
   await tester.pumpAndSettle();
@@ -153,6 +163,38 @@ void main() {
     await t.pumpAndSettle();
     expect(rig.captures, ['capture']);
     expect(rig.requests, isNot(contains('POST /me/avatar')));
+  });
+
+  testWidgets('a denied camera shows the persistent error, no snackbar', (
+    t,
+  ) async {
+    await _pump(t, width: 390, camera: true, cameraFails: true);
+    await _openMenu(t);
+    await t.tap(find.text('Take photo'));
+    await t.pumpAndSettle();
+    expect(find.byType(AppErrorState), findsOneWidget);
+    expect(find.text('Could not open the camera.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  test('the default capture exists on phones and not on desktop', () {
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    for (final (platform, reachable) in [
+      (TargetPlatform.android, true),
+      (TargetPlatform.iOS, true),
+      (TargetPlatform.linux, false),
+      (TargetPlatform.windows, false),
+      (TargetPlatform.macOS, false),
+    ]) {
+      debugDefaultTargetPlatformOverride = platform;
+      final container = ProviderContainer();
+      expect(
+        container.read(avatarCameraCaptureProvider) != null,
+        reachable,
+        reason: '$platform',
+      );
+      container.dispose();
+    }
   });
 
   testWidgets('Choose and Browse run their own picker source', (t) async {
