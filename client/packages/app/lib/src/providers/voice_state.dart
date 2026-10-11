@@ -23,6 +23,7 @@ class VoiceState {
     this.screenSharing = false,
     this.awaitingBroadcast = false,
     this.canPublish = true,
+    this.joinedMuted = false,
     this.deafened = false,
     this.error,
     this.retryable = true,
@@ -91,6 +92,11 @@ class VoiceState {
   /// Whether the token allows publishing at all, mirroring the SPEAK grant.
   final bool canPublish;
 
+  /// The channel opened this call with the mic off and nobody has touched it since.
+  ///
+  /// Any change to [microphoneEnabled] through [copyWith] clears it, so a mic the member set themselves never reads as the channel's doing.
+  final bool joinedMuted;
+
   /// Whether every other participant's audio is locally silenced. Purely
   /// local: it never touches this session's own microphone, so it carries
   /// no [canPublish]-style server permission to check.
@@ -138,6 +144,7 @@ class VoiceState {
     bool? screenSharing,
     bool? awaitingBroadcast,
     bool? canPublish,
+    bool? joinedMuted,
     bool? deafened,
     String? error,
     bool clearError = false,
@@ -161,6 +168,7 @@ class VoiceState {
     screenSharing: screenSharing ?? this.screenSharing,
     awaitingBroadcast: awaitingBroadcast ?? this.awaitingBroadcast,
     canPublish: canPublish ?? this.canPublish,
+    joinedMuted: joinedMuted ?? (microphoneEnabled == null && this.joinedMuted),
     deafened: deafened ?? this.deafened,
     error: clearError ? null : (error ?? this.error),
     retryable: clearError ? true : (retryable ?? this.retryable),

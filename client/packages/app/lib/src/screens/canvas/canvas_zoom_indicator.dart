@@ -28,8 +28,12 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../providers/dock_reservation.dart';
 
+/// The widest pane where the centred dock can still reach this corner.
+const _beside = 900.0;
+
 /// At phone width the dock's cards reach into this corner, so the readout
 /// rides above them by the dock's measured height instead of sitting under it.
+/// So does a pane too narrow for the one-row dock to leave room beside it.
 class CanvasZoomIndicator extends ConsumerWidget {
   const CanvasZoomIndicator({
     super.key,
@@ -45,17 +49,16 @@ class CanvasZoomIndicator extends ConsumerWidget {
   final AppTokens tokens;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Align(
-    alignment: Alignment.bottomLeft,
-    child: Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.sizeOf(context).width < kCompactWidth
-            ? ref.watch(bottomDockReservationProvider) + AppSpacing.s12
-            : 0,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phone = MediaQuery.sizeOf(context).width < kCompactWidth;
+    return CustomSingleChildLayout(
+      delegate: _CornerDelegate(
+        lift: ref.watch(bottomDockReservationProvider) + AppSpacing.s12,
+        alwaysLifted: phone,
       ),
       child: _readout(),
-    ),
-  );
+    );
+  }
 
   Widget _readout() => SafeArea(
     minimum: const EdgeInsets.all(AppSpacing.s12),
@@ -113,4 +116,26 @@ class CanvasZoomIndicator extends ConsumerWidget {
       },
     ),
   );
+}
+
+/// Pins the readout bottom-left, lifted over the dock when it could reach the corner.
+///
+/// A layout delegate rather than a LayoutBuilder: the readout listens to the
+/// document, and mounting it during layout kept a frame callback alive under
+/// reduce motion.
+class _CornerDelegate extends SingleChildLayoutDelegate {
+  const _CornerDelegate({required this.lift, required this.alwaysLifted});
+
+  final double lift;
+  final bool alwaysLifted;
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final lifted = alwaysLifted || size.width < _beside;
+    return Offset(0, size.height - childSize.height - (lifted ? lift : 0));
+  }
+
+  @override
+  bool shouldRelayout(_CornerDelegate old) =>
+      old.lift != lift || old.alwaysLifted != alwaysLifted;
 }

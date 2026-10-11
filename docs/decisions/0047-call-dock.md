@@ -99,6 +99,13 @@ So "we can hear you" does not depend on colour, and it is visible with a colour-
 Why: one colour with two meanings trains people to ignore it.
 Reserving it for "this is the thing you are using" makes it worth looking at.
 
+Amended 2026-10-09, from the owner's "no ui that shows which [voice channels join muted] so people understand why they can't talk".
+A member whose token cannot publish (no SPEAK, or timed out) sees the mic and camera chips unavailable: the muted-icon in `textDisabled` with a neutral border, never the danger outline, since nothing about it is theirs to fix.
+The tooltip and semantics label carry the reason ("You can't speak in this channel", "You are timed out"), and a tap opens that tooltip instead of doing nothing.
+A mic that the channel opened muted reads "Unmute to talk. This channel joins muted." until the member touches it, as a tooltip only and not a banner.
+The rail marks a join-muted voice channel with a mic-off glyph and a "Joins muted" tooltip.
+Layout follows width (desktop-vs-mobile.md, law 1), so the same chips and glyph serve 1280 and 390.
+
 ### 5. Pan uses a hand glyph and comes first
 
 Today: the fifth tool is `CanvasTool.select`, drawn with the four-way-arrows glyph (`AppIcons.select`, Lucide move), which reads as "move this object".

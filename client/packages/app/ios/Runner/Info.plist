@@ -75,7 +75,7 @@
 	     rejects a binary whose linked SDKs reference these APIs without a
 	     purpose string, and livekit_client and file_picker both do. -->
 	<key>NSCameraUsageDescription</key>
-	<string>slim-m uses the camera when you turn on video in a call.</string>
+	<string>slim-m uses the camera when you turn on video in a call or take a profile photo.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>slim-m uses the microphone when you join a voice call.</string>
 	<key>NSLocalNetworkUsageDescription</key>

@@ -72,6 +72,8 @@ dependencies:
   gal: ^2.3.3
   # Recent photos for the phone composer's inline strip; see docs/dependencies.md.
   photo_manager: ^3.12.0
+  # Camera capture for the profile photo menu; see docs/dependencies.md.
+  image_picker: ^1.1.2
 dev_dependencies:
   # Only imported from test/, for the XFile a fake PlatformFile must declare.
   cross_file: ^0.3.5

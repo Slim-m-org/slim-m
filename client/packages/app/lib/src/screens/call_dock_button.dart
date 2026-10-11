@@ -20,6 +20,7 @@ class CallDockButton extends StatelessWidget {
     required this.onPressed,
     this.destructive = false,
     this.pending = false,
+    this.unavailable = false,
     this.level,
   });
 
@@ -36,12 +37,24 @@ class CallDockButton extends StatelessWidget {
   final bool pending;
   final VoidCallback onPressed;
 
+  /// The member cannot use this control here; a tap shows [tooltip] instead of calling [onPressed].
+  final bool unavailable;
+
   /// A live input level, 0 to 1, drawn as a 2px bar along the chip's bottom
   /// edge in the ok colour, so "we can hear you" does not rest on colour.
   final double? level;
 
   @override
   Widget build(BuildContext context) {
+    if (!unavailable) return _chip(context, null, onPressed);
+    return _ExplainOnTap(builder: _chip);
+  }
+
+  Widget _chip(
+    BuildContext context,
+    GlobalKey<TooltipState>? tooltipKey,
+    VoidCallback onTap,
+  ) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final joined = AppControlWithOptions.joinedOf(context);
     // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
@@ -50,7 +63,9 @@ class CallDockButton extends StatelessWidget {
         : active
         ? tokens.accentSoft
         : tokens.surfaceRaised;
-    final foreground = destructive
+    final foreground = unavailable
+        ? tokens.textDisabled
+        : destructive
         ? tokens.dangerText
         : active
         ? tokens.accent
@@ -68,6 +83,7 @@ class CallDockButton extends StatelessWidget {
         : BorderRadius.circular(AppRadii.control);
 
     return Tooltip(
+      key: tooltipKey,
       message: tooltip,
       // A held press belongs to the options; hover still shows the tooltip.
       triggerMode: joined
@@ -75,11 +91,12 @@ class CallDockButton extends StatelessWidget {
           : TooltipTriggerMode.longPress,
       child: Semantics(
         button: true,
+        enabled: !unavailable,
         label: tooltip,
         child: _chipFocus(
           joined: joined,
           builder: (context, onFocusChange, focused) => InkWell(
-            onTap: onPressed,
+            onTap: onTap,
             // The ring is drawn by the chip itself; see AppInsetFocus and AppFocusRing.
             focusColor: Colors.transparent,
             onFocusChange: onFocusChange,
@@ -173,4 +190,26 @@ class CallDockButton extends StatelessWidget {
           builder(context, onFocusChange, false),
     );
   }
+}
+
+/// Owns the tooltip key so a tap on an unavailable chip can open its reason.
+class _ExplainOnTap extends StatefulWidget {
+  const _ExplainOnTap({required this.builder});
+
+  final Widget Function(BuildContext, GlobalKey<TooltipState>, VoidCallback)
+  builder;
+
+  @override
+  State<_ExplainOnTap> createState() => _ExplainOnTapState();
+}
+
+class _ExplainOnTapState extends State<_ExplainOnTap> {
+  final _key = GlobalKey<TooltipState>();
+
+  @override
+  Widget build(BuildContext context) => widget.builder(
+    context,
+    _key,
+    () => _key.currentState?.ensureTooltipVisible(),
+  );
 }

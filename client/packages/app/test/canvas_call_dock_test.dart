@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The dock's own composition: which sections it draws for which inputs,
-/// and the single-row-versus-stacked switch at the measured one-row width. Real hit
+/// and the one, two or three row switch at the measured widths. Real hit
 /// testing at phone width, with both sections present, is
 /// `canvas_call_dock_touch_reach_test.dart` - this file covers what is
 /// drawn, that file covers what a thumb can actually reach.
@@ -44,36 +44,28 @@ void main() {
     expect(find.byType(FloatingDockCard), findsOneWidget);
   });
 
-  testWidgets(
-    'below the measured one-row width the dock stacks tools, edit and call as three rows',
-    (tester) async {
+  for (final (width, rows) in [
+    (719.0, 2),
+    (720.0, 1),
+    (389.0, 3),
+    (390.0, 2),
+  ]) {
+    testWidgets('a $width wide pane draws the dock as $rows row(s)', (
+      tester,
+    ) async {
       await pumpCanvasCallDock(
         tester,
         withCall: true,
         canvas: buildCanvasDockData(),
-        width: 799,
+        width: width,
       );
 
       final card = tester.widget<FloatingDockCard>(
         find.byType(FloatingDockCard),
       );
-      expect(card.rows, hasLength(3));
-    },
-  );
-
-  testWidgets('at the measured one-row width the two sections share one row', (
-    tester,
-  ) async {
-    await pumpCanvasCallDock(
-      tester,
-      withCall: true,
-      canvas: buildCanvasDockData(),
-      width: 800,
-    );
-
-    final card = tester.widget<FloatingDockCard>(find.byType(FloatingDockCard));
-    expect(card.rows, hasLength(1));
-  });
+      expect(card.rows, hasLength(rows));
+    });
+  }
 
   testWidgets('while the activity panel is open the tool cluster folds '
       'away but undo, the overflow and close stay', (tester) async {

@@ -267,4 +267,11 @@ Everywhere else `photoLibraryProvider` is null and the Photos menu entry opens t
 Permissions: iOS reuses the existing `NSPhotoLibraryUsageDescription` (checked by `hygiene.yml`'s purpose-string step), whose text already says the app opens the photo library to attach an image.
 Android declares `READ_MEDIA_IMAGES` (API 33+) and `READ_MEDIA_VISUAL_USER_SELECTED` (API 34+, the partial grant); the plugin supplies `READ_EXTERNAL_STORAGE` up to API 32.
 A denied grant shows an inline panel with a button into the system picker, and a limited grant shows the allowed photos with an "Allow more" button that reopens the OS selection UI.
-`image_picker` was not considered: it, too, only opens the OS picker.
+
+### `image_picker`, for "Take photo" on the profile picture
+
+`avatar_camera_native.dart` calls `ImagePicker().pickImage(source: ImageSource.camera)` and hands the bytes to the existing crop and upload path.
+It is reached through a `dart.library.io` conditional import and only builds a capture on iOS and Android; everywhere else `avatarCameraCaptureProvider` is null and the menu hides "Take photo".
+It is used for the camera source only, because `photo_manager` above cannot capture.
+Permissions: iOS reuses `NSCameraUsageDescription` (its text now also names profile photos) and Android reuses the `CAMERA` permission already declared for calls, so the two plugins add no new keys.
+Real-camera capture on a phone is untested here and needs a device.
