@@ -55,7 +55,14 @@ async fn an_administrator_without_a_factor_is_refused_under_the_policy() {
     let bob = bob_id(&store, &auth).await;
     let reset = format!("/admin/users/{bob}/reset-code");
 
-    let (open, _) = status_and_error(&router, "POST", &reset, &admin_token, None).await;
+    let (open, _) = status_and_error(
+        &router,
+        "POST",
+        &reset,
+        &admin_token,
+        Some(json!({ "password": PASSWORD })),
+    )
+    .await;
     assert_eq!(open, StatusCode::OK, "optional policy asks nothing");
 
     store
@@ -80,7 +87,14 @@ async fn an_administrator_without_a_factor_is_refused_under_the_policy() {
     }
 
     enrol_and_confirm(&router, &admin_token).await;
-    let (status, _) = status_and_error(&router, "POST", &reset, &admin_token, None).await;
+    let (status, _) = status_and_error(
+        &router,
+        "POST",
+        &reset,
+        &admin_token,
+        Some(json!({ "password": PASSWORD })),
+    )
+    .await;
     assert_eq!(
         status,
         StatusCode::OK,

@@ -47,7 +47,7 @@ async fn issue_reset_code(router: &axum::Router, admin_token: &str, user_id: &st
             "POST",
             &format!("/admin/users/{user_id}/reset-code"),
             Some(admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();
@@ -183,7 +183,7 @@ async fn clearing_a_factor_that_does_not_exist_is_not_found() {
             "DELETE",
             &format!("/admin/users/{bob_id}/totp"),
             Some(&admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();
@@ -196,7 +196,7 @@ async fn clearing_a_factor_that_does_not_exist_is_not_found() {
             "DELETE",
             &format!("/admin/users/{unknown}/totp"),
             Some(&admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();
@@ -224,7 +224,7 @@ async fn clearing_a_factor_revokes_every_session_and_leaves_an_audit_entry() {
             "DELETE",
             &format!("/admin/users/{bob_id}/totp"),
             Some(&admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();
@@ -283,7 +283,7 @@ async fn clearing_a_factor_also_voids_its_recovery_codes() {
             "DELETE",
             &format!("/admin/users/{bob_id}/totp"),
             Some(&admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();

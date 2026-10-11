@@ -78,9 +78,16 @@ async fn json_body(response: axum::response::Response) -> Value {
 /// is an invite-gated policy decision, and it is pinned by its own tests in
 /// `registration_gate.rs`. These tests only need somebody signed in, so going
 /// through the store keeps them independent of that policy.
+const PASSWORD: &str = "correct-horse-battery";
+
 async fn register(store: &Store, username: &str) -> (String, String) {
+    let hash = Auth::new(2)
+        .unwrap()
+        .hash_password(PASSWORD.to_owned())
+        .await
+        .unwrap();
     let account = store
-        .create_account(username, username, "not-a-real-hash")
+        .create_account(username, username, &hash)
         .await
         .unwrap();
     // The first account through here claims the deployment, exactly as the
@@ -97,7 +104,7 @@ async fn issue_code(app: &Router, admin_token: &str, user_id: &str) -> String {
             "POST",
             &format!("/admin/users/{user_id}/reset-code"),
             Some(admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();
@@ -142,7 +149,7 @@ async fn issuing_for_a_nonexistent_user_is_not_found() {
             "POST",
             &format!("/admin/users/{}/reset-code", Uuid::now_v7()),
             Some(&admin_token),
-            None,
+            Some(json!({ "password": PASSWORD })),
         ))
         .await
         .unwrap();

@@ -21,6 +21,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/attachment_format.dart' show formatByteSize;
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
@@ -82,6 +83,15 @@ String _dateOnly(int epochMs) {
   return '$y-$mo-$d';
 }
 
+/// Whether moving the window from [from] to [to] starts pruning, or prunes
+/// further back than before; loosening it deletes nothing.
+bool retentionDeletesHistory({required int from, required int to}) =>
+    to > 0 && (from <= 0 || to < from);
+
+/// The date before which a [days]-day window prunes.
+String retentionCutoff(int days) =>
+    _dateOnly(DateTime.now().millisecondsSinceEpoch - days * _dayMs);
+
 /// What choosing [days] actually does, grounded in `message_retention.rs`'s
 /// own doc: a prune is a soft delete that leaves message text in place (it is
 /// small next to attachment bytes) and only reclaims attachments no longer
@@ -128,12 +138,25 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
     with
         GuardedActionState<_RetentionSection>,
         OptimisticSettingState<_RetentionSection, int> {
-  Future<void> _setDays(int days) => saveOptimistic(
-    days,
-    whatFailed: 'change the message retention window',
-    action: () => ref.read(apiProvider).setSpaceMessageRetentionDays(days),
-    refresh: spaceRetentionProvider,
-  );
+  Future<void> _setDays(int days, {required int current}) async {
+    if (retentionDeletesHistory(from: current, to: days)) {
+      final confirmed = await confirmDangerousAction(
+        context,
+        title: 'Delete messages older than $days days?',
+        message:
+            'Messages and attachments from before ${retentionCutoff(days)} '
+            'are removed for everyone. This cannot be undone.',
+        confirmLabel: 'Delete old messages',
+      );
+      if (!confirmed || !mounted) return;
+    }
+    await saveOptimistic(
+      days,
+      whatFailed: 'change the message retention window',
+      action: () => ref.read(apiProvider).setSpaceMessageRetentionDays(days),
+      refresh: spaceRetentionProvider,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +179,8 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
               AppSegmentedOption(label: option.$1, disabled: saving),
           ],
           selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-          onSegmentSelected: (i) => _setDays(_retentionDayOptions[i].$2),
+          onSegmentSelected: (i) =>
+              _setDays(_retentionDayOptions[i].$2, current: current),
         ),
         const SizedBox(height: AppSpacing.s12),
         AppCallout(

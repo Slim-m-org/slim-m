@@ -108,6 +108,8 @@ void main() {
     await tester.pumpWidget(_app('/space/retention'));
     await tester.pumpAndSettle();
     await _tapOption(tester, '30 days');
+    await tester.tap(find.text('Delete old messages'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Prunes anything older'), findsOneWidget);
   });
 }

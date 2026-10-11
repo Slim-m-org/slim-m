@@ -32,7 +32,7 @@ struct World {
 
 async fn world() -> World {
     let (store, guard) = new_store("slimm-audit-moderation").await;
-    let admin = register(&store, "root").await;
+    let admin = register_with_password(&store, "root").await;
     let member = register(&store, "nia").await;
     let other = register(&store, "omar").await;
     let hub = Hub::new();
@@ -116,7 +116,7 @@ async fn account_deletion_and_reset_codes_are_in_the_audit_log() {
         .admin(
             "POST",
             &format!("/admin/users/{}/reset-code", w.member.1),
-            None,
+            Some(json!({ "password": KNOWN_PASSWORD })),
         )
         .await;
     assert_eq!(status, StatusCode::OK);

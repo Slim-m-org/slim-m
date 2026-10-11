@@ -589,7 +589,14 @@ paths:
         which does not touch the factor: one answers "I forgot my password" and
         this answers "I lost my authenticator". It revokes every live session on
         the account and writes a totp_cleared entry to the moderation audit log,
-        so it cannot be done quietly.
+        so it cannot be done quietly. A person must send their own password in
+        the body; a bot has none and sends no body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
       responses:
         "204":
           description: The factor is cleared and the account's sessions are revoked.
@@ -621,7 +628,14 @@ paths:
         The self-hosted account recovery path chosen in place of email. The
         plaintext code is returned once; only its hash is stored, and it
         expires on its own even if nobody redeems it. Issuing one is written to
-        the moderation audit log as `reset_code_issue`.
+        the moderation audit log as `reset_code_issue`. A person must send their
+        own password in the body; a bot has none and sends no body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
       responses:
         "200":
           description: The issued code and its expiry.
@@ -8854,6 +8868,15 @@ components:
             The account's current password. Optional only so the schema stays
             additive; a well-formed request without it is refused with 400, and the
             server behaviour is the same as if it were required.
+    PasswordProofRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          description: >
+            The calling administrator's own current password. Optional only so
+            the schema stays additive; a well-formed request from a person
+            without it is refused with 400, and a wrong one with 403.
     DeleteAccountRequest:
       type: object
       properties:
