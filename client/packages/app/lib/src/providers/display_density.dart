@@ -6,6 +6,7 @@
 /// frame, persisted on every change.
 library;
 
+import 'package:flutter/material.dart' show VisualDensity;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -28,6 +29,30 @@ extension MessageDensityGeometry on AppDensity {
   /// The author avatar step; the continuation gutter is the same width.
   double get avatarSize =>
       this == AppDensity.compact ? AppAvatarSize.s28 : AppAvatarSize.s40;
+
+  /// The avatar in a sheet or list row (pins, saved, threads); one step down
+  /// from [avatarSize] because it sits in a two-line tile.
+  double get listAvatarSize =>
+      this == AppDensity.compact ? AppAvatarSize.s24 : AppAvatarSize.s28;
+
+  /// The gap between search hits and around the thread parent card.
+  double get listRowGap => switch (this) {
+    AppDensity.compact => AppSpacing.s8,
+    AppDensity.normal => AppSpacing.s12,
+    AppDensity.spacious => AppSpacing.s16,
+  };
+
+  /// Vertical padding inside a search hit.
+  double get hitInset => switch (this) {
+    AppDensity.compact => 0,
+    AppDensity.normal => AppSpacing.s4,
+    AppDensity.spacious => AppSpacing.s8,
+  };
+
+  /// Taller or shorter sheet tiles; Default keeps Material's own height.
+  VisualDensity get tileVisualDensity => this == AppDensity.spacious
+      ? const VisualDensity(vertical: 1)
+      : VisualDensity.standard;
 }
 
 class MessageDensityController extends EnumPreferenceController<AppDensity> {

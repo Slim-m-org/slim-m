@@ -58,6 +58,14 @@ http.Response _json(Map<String, dynamic> body) => http.Response(
 );
 
 void main() {
+  test('only shortening or starting a window deletes history', () {
+    expect(retentionDeletesHistory(from: 0, to: 30), isTrue);
+    expect(retentionDeletesHistory(from: 365, to: 90), isTrue);
+    expect(retentionDeletesHistory(from: 30, to: 90), isFalse);
+    expect(retentionDeletesHistory(from: 30, to: 0), isFalse);
+    expect(retentionDeletesHistory(from: 30, to: 30), isFalse);
+  });
+
   testWidgets('renders all three capacity controls together', (tester) async {
     final client = MockClient((request) async {
       if (request.url.path == '/space/retention') {
@@ -117,6 +125,17 @@ void main() {
       await tester.tap(find.text('30 days'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Delete messages older than 30 days?'), findsOneWidget);
+      expect(patchedRetention, isEmpty, reason: 'nothing before confirming');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(patchedRetention, isEmpty, reason: 'cancel changes nothing');
+
+      await tester.tap(find.text('30 days'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete old messages'));
+      await tester.pumpAndSettle();
+
       expect(patchedRetention, [30]);
     },
   );
@@ -157,6 +176,8 @@ void main() {
       );
 
       await tester.tap(find.text('30 days'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete old messages'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Prunes anything older than'), findsOneWidget);

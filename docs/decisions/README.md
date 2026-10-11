@@ -72,3 +72,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0060](0060-bigger-avatars.md) | Avatars one step bigger in messages, members and DMs | accepted |
 | [0061](0061-space-settings-room.md) | Space settings gets a bigger panel and a wider cap for list panes | accepted |
 | [0062](0062-display-density.md) | Message density, group spacing and interface scale in Appearance | accepted |
+| [0063](0063-confirmation-levels.md) | How strongly each permanent or security action is confirmed | accepted |

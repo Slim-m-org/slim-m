@@ -11,10 +11,9 @@
 ///
 /// The code is shown once and never again. The server keeps only its hash,
 /// so there is nothing to re-read: closing this sheet without copying means
-/// issuing a new one. That is why the code sits behind an explicit
-/// "Generate" press rather than being fetched when the sheet opens - opening
-/// a menu by accident should not burn a code, and an admin who opened this
-/// to read what it does should be able to leave without having issued one.
+/// issuing a new one. That is why the code sits behind the administrator's own
+/// password rather than being fetched when the menu opens - opening a menu by
+/// accident should not burn a code, and a stolen session should not mint one.
 library;
 
 import 'dart:async';
@@ -29,18 +28,39 @@ import '../format.dart';
 import '../providers/display_preferences.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
-import 'run_guarded.dart';
+import 'reauth_sheet.dart';
 
-/// Opens the issuing sheet for [subjectId], named [subjectName] in its title.
+/// Asks for the administrator's password, then shows the issued code for
+/// [subjectId], named [subjectName] in its title.
 Future<void> showResetCodeSheet(
   BuildContext context, {
   required String subjectId,
   required String subjectName,
-}) {
-  return showAppSheet<void>(
+}) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  api.ResetCodeIssued? issued;
+  final proved = await showReauthSheet(
+    context,
+    title: 'Password reset code for $subjectName',
+    description: 'Anyone holding the code can set a new password once.',
+    submitLabel: 'Generate code',
+    onSubmit: (password, _) async {
+      try {
+        issued = await container
+            .read(apiProvider)
+            .issueResetCode(subjectId, password: password);
+        return null;
+      } on api.ApiException catch (e) {
+        return reauthFailure(e);
+      }
+    },
+  );
+  final code = issued;
+  if (proved != true || code == null || !context.mounted) return;
+  await showAppSheet<void>(
     context,
     builder: (context) =>
-        _ResetCodeSheet(subjectId: subjectId, subjectName: subjectName),
+        _ResetCodeSheet(subjectName: subjectName, issued: code),
   );
 }
 
@@ -80,46 +100,22 @@ class ResetCodeMenuItem extends StatelessWidget {
   );
 }
 
-class _ResetCodeSheet extends ConsumerStatefulWidget {
-  const _ResetCodeSheet({required this.subjectId, required this.subjectName});
+class _ResetCodeSheet extends ConsumerWidget {
+  const _ResetCodeSheet({required this.subjectName, required this.issued});
 
-  final String subjectId;
   final String subjectName;
+  final api.ResetCodeIssued issued;
 
-  @override
-  ConsumerState<_ResetCodeSheet> createState() => _ResetCodeSheetState();
-}
-
-class _ResetCodeSheetState extends ConsumerState<_ResetCodeSheet>
-    with GuardedActionState<_ResetCodeSheet> {
-  api.ResetCodeIssued? _issued;
-  bool _busy = false;
-
-  Future<void> _issue() async {
-    setState(() => _busy = true);
-    await guard(
-      whatFailed: 'issue a reset code',
-      action: () async {
-        final issued = await ref
-            .read(apiProvider)
-            .issueResetCode(widget.subjectId);
-        if (mounted) setState(() => _issued = issued);
-      },
-    );
-    if (mounted) setState(() => _busy = false);
-  }
-
-  void _copy(String code) {
-    Clipboard.setData(ClipboardData(text: code));
+  void _copy(WidgetRef ref) {
+    Clipboard.setData(ClipboardData(text: issued.code));
     ref
         .read(toastsProvider.notifier)
         .show('Reset code copied.', severity: AppToastSeverity.success);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final issued = _issued;
 
     return Padding(
       // The sheet supplies the top inset at every width; adding one here doubled it.
@@ -135,7 +131,7 @@ class _ResetCodeSheetState extends ConsumerState<_ResetCodeSheet>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Password reset code for ${widget.subjectName}',
+              'Password reset code for $subjectName',
               style: AppText.body.copyWith(
                 color: tokens.textPrimary,
                 fontWeight: AppWeights.semi,
@@ -143,58 +139,38 @@ class _ResetCodeSheetState extends ConsumerState<_ResetCodeSheet>
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              issued == null
-                  ? 'Hand this code to them yourself, in person or however '
-                        'you already talk. Anyone holding it can set a new '
-                        'password on this account once, so treat it like a '
-                        'password itself.'
-                  : 'Shown once. Copy it now - it cannot be read again, and '
-                        'closing this means issuing a new one.',
+              'Shown once. Copy it now - it cannot be read again, and '
+              'closing this means issuing a new one.',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
             const SizedBox(height: AppSpacing.s12),
-            if (issued != null) ...[
-              _CodeBlock(code: issued.code),
-              const SizedBox(height: AppSpacing.s8),
-              Text(
-                'Usable until ${formatDateTime(issued.expiresAt, use24Hour: watchUse24Hour(ref, context))}. '
-                'Spending it signs them out everywhere.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ],
-            if (actionError != null) ...[
-              const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: actionError!, onDismiss: clearActionError),
-            ],
+            _CodeBlock(code: issued.code),
+            const SizedBox(height: AppSpacing.s8),
+            Text(
+              'Usable until ${formatDateTime(issued.expiresAt, use24Hour: watchUse24Hour(ref, context))}. '
+              'Spending it signs them out everywhere.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
             const SizedBox(height: AppSpacing.s12),
-            if (issued == null)
-              AppButton(
-                label: _busy ? 'Generating...' : 'Generate code',
-                variant: AppButtonVariant.primary,
-                full: true,
-                disabled: _busy,
-                onPressed: _issue,
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      label: 'Done',
-                      variant: AppButtonVariant.ghost,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'Done',
+                    variant: AppButtonVariant.ghost,
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const SizedBox(width: AppSpacing.s8),
-                  Expanded(
-                    child: AppButton(
-                      label: 'Copy code',
-                      variant: AppButtonVariant.primary,
-                      onPressed: () => _copy(issued.code),
-                    ),
+                ),
+                const SizedBox(width: AppSpacing.s8),
+                Expanded(
+                  child: AppButton(
+                    label: 'Copy code',
+                    variant: AppButtonVariant.primary,
+                    onPressed: () => _copy(ref),
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

@@ -36,6 +36,7 @@ class _Server {
   final String totpPolicy;
   final List<String> calls = [];
   final List<Map<String, dynamic>> patches = [];
+  final List<String> clearBodies = [];
 
   MockClient get client => MockClient((request) async {
     final path = request.url.path;
@@ -53,13 +54,23 @@ class _Server {
         headers: json,
       );
     }
+    if (request.method == 'DELETE' && path == '/admin/users/user-9/totp') {
+      clearBodies.add(request.body);
+      final password = (jsonDecode(request.body) as Map)['password'];
+      return password == 'right-pass'
+          ? http.Response('', 204)
+          : http.Response(
+              jsonEncode({'error': 'that password is not correct'}),
+              403,
+              headers: json,
+            );
+    }
     return switch ((request.method, path)) {
       ('GET', '/space/settings') => http.Response(
         jsonEncode({'join_policy': 'invite', 'totp_policy': totpPolicy}),
         200,
         headers: json,
       ),
-      ('DELETE', '/admin/users/user-9/totp') => http.Response('', 204),
       _ => http.Response('{}', 404, headers: json),
     };
   });
@@ -96,10 +107,7 @@ Future<void> _pump(WidgetTester tester, _Server server, Widget body) async {
 }
 
 void main() {
-  testWidgets('the clear sheet says what it costs before it does anything', (
-    tester,
-  ) async {
-    final server = _Server();
+  Future<void> openClear(WidgetTester tester, _Server server) async {
     await _pump(
       tester,
       server,
@@ -116,17 +124,22 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+  }
 
-    expect(find.text('Clear two-factor for Ada'), findsOneWidget);
+  testWidgets('the clear sheet says what it costs and asks for the password', (
+    tester,
+  ) async {
+    final server = _Server();
+    await openClear(tester, server);
+
+    expect(find.text('Clear two-factor for Ada?'), findsOneWidget);
+    expect(find.textContaining('Signs them out everywhere'), findsOneWidget);
     expect(
-      find.textContaining('signs them out on every device'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('recorded in the moderation log'),
+      find.textContaining('is logged'),
       findsOneWidget,
       reason: 'an administrator has to know this is not a quiet act',
     );
+    expect(find.byType(EditableText), findsOneWidget, reason: 'the password');
     expect(
       server.calls.any((c) => c.startsWith('DELETE')),
       isFalse,
@@ -134,31 +147,34 @@ void main() {
     );
   });
 
-  testWidgets('clearing takes a second press and then says it is done', (
+  testWidgets('a wrong password clears nothing and says so inline', (
     tester,
   ) async {
     final server = _Server();
-    await _pump(
-      tester,
-      server,
-      Builder(
-        builder: (context) => AppButton(
-          label: 'open',
-          onPressed: () => showClearTotpSheet(
-            context,
-            subjectId: 'user-9',
-            subjectName: 'Ada',
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('open'));
+    await openClear(tester, server);
+    await tester.enterText(find.byType(EditableText).first, 'wrong');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Clear two-factor'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(AppButton, 'Clear it'));
+
+    expect(find.text('That password is not correct.'), findsOneWidget);
+    expect(find.text('Clear two-factor for Ada?'), findsOneWidget);
+  });
+
+  testWidgets('the right password clears it and sends that password', (
+    tester,
+  ) async {
+    final server = _Server();
+    await openClear(tester, server);
+    await tester.enterText(find.byType(EditableText).first, 'right-pass');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Clear two-factor'));
     await tester.pumpAndSettle();
 
     expect(server.calls, contains('DELETE /admin/users/user-9/totp'));
-    expect(find.textContaining('Their password alone'), findsOneWidget);
+    expect(jsonDecode(server.clearBodies.single), {'password': 'right-pass'});
+    expect(find.text('Clear two-factor for Ada?'), findsNothing);
+    await tester.pump(const Duration(seconds: 10));
   });
 
   testWidgets('the policy row shows the deployment choice', (tester) async {

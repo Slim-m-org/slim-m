@@ -17,11 +17,12 @@ use super::text;
 
 pub(crate) async fn recovery_calls(c: &mut Contract, root: &str, bob_id: &str) {
     let issued = c
-        .bare(
+        .json(
             "issueResetCode",
             "POST",
             &format!("/admin/users/{bob_id}/reset-code"),
             root,
+            json!({ "password": super::PASSWORD }),
         )
         .await;
     c.call(

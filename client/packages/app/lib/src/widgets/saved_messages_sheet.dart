@@ -22,6 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../providers/saved_messages_controller.dart';
+import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import 'author_label.dart';
 import 'channel_label.dart';
@@ -145,6 +146,7 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
   Widget build(BuildContext context) {
     final message = widget.saved.message;
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final density = ref.watch(messageDensityControllerProvider);
     final resolution = ref.watch(
       batchProfilesControllerProvider.select(
         (m) => authorResolution(m, message.authorId ?? ''),
@@ -174,6 +176,8 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
         ListTile(
+          dense: density == AppDensity.compact,
+          visualDensity: density.tileVisualDensity,
           onTap: () {
             final read = ref.read;
             Navigator.of(context).pop();
@@ -188,7 +192,7 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
           leading: UserAvatar(
             userId: message.authorId,
             name: name,
-            size: AppAvatarSize.s28,
+            size: density.listAvatarSize,
           ),
           title: AuthorNameLine(
             name: name,

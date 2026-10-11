@@ -15,19 +15,17 @@
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::post;
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::auth::validate_password;
 use super::error::ApiError;
-use super::extract::{Authed, Json, PASSWORD, RateLimited, enforce};
+use super::extract::{AuthedLimited, Bytes, Json, PASSWORD, RateLimited};
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{ConsumeResetError, IssueResetError};
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -53,15 +51,18 @@ struct ResetRequest {
 }
 
 /// Issues a one-time reset code for another account. Requires ADMINISTRATOR.
+///
+/// A person must also send their own password: a reset code is a way into any
+/// account, so a stolen administrator token alone must not be able to mint one.
 async fn issue(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<PASSWORD>,
     Path(user_id): Path<String>,
     State(state): State<AppState>,
+    Bytes(body): Bytes,
 ) -> Result<Json<ResetCodeIssued>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     super::extract::require_base_permission(&state, ctx.user_id, Permissions::ADMINISTRATOR)
         .await?;
+    super::reauth::require_admin_password(&state, ctx.user_id, &body).await?;
 
     let user_id = UserId(parse_uuid(&user_id)?);
     match state.store.issue_reset_code(ctx.user_id, user_id).await {
