@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import 'author_label.dart';
 import 'message_text.dart';
@@ -169,10 +170,11 @@ class ChannelSearchResults extends ConsumerWidget {
       );
     }
     resolveAuthorProfiles(ref, list.map((m) => m.authorId));
+    final density = ref.watch(messageDensityControllerProvider);
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.s16),
       itemCount: list.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s12),
+      separatorBuilder: (_, __) => SizedBox(height: density.listRowGap),
       itemBuilder: (context, i) => SearchResultRow(
         message: list[i],
         knownUsernames: knownUsernames,
@@ -232,7 +234,10 @@ class SearchResultRow extends ConsumerWidget {
             onFocusChange: onFocusChange,
             borderRadius: BorderRadius.circular(AppRadii.control),
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.s4),
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.s4,
+                vertical: ref.watch(messageDensityControllerProvider).hitInset,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

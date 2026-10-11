@@ -12,6 +12,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/pins_controller.dart';
+import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import 'author_label.dart';
 import 'channel_rail.dart' show selectedChannelId;
@@ -172,6 +173,7 @@ class PinnedMessageRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final density = ref.watch(messageDensityControllerProvider);
     final resolution = ref.watch(
       batchProfilesControllerProvider.select(
         (m) => authorResolution(m, pin.message.authorId ?? ''),
@@ -183,6 +185,8 @@ class PinnedMessageRow extends ConsumerWidget {
       resolution: resolution,
     );
     return ListTile(
+      dense: density == AppDensity.compact,
+      visualDensity: density.tileVisualDensity,
       onTap: () {
         final read = ref.read;
         Navigator.of(context).pop();
@@ -197,7 +201,7 @@ class PinnedMessageRow extends ConsumerWidget {
       leading: UserAvatar(
         userId: pin.message.authorId,
         name: name,
-        size: AppAvatarSize.s28,
+        size: density.listAvatarSize,
       ),
       title: AuthorNameLine(name: name, profile: resolution.profile),
       subtitle: Text(

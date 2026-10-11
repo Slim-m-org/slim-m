@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../message_preview.dart';
 import '../providers/threads.dart';
+import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import '../routing/breakpoints.dart';
 import 'author_label.dart';
@@ -26,9 +27,6 @@ import 'user_avatar.dart';
 
 /// How much of the parent's own text is shown before it is cut off.
 const int _snippetMaxRunes = 600;
-
-/// The parent's author avatar, the size a message row uses.
-const double _avatarSize = AppAvatarSize.s40;
 
 /// Resolves [threadParentProvider] for [channelId] and shows the parent once
 /// it is known; nothing before then or for a channel that is not a thread, so
@@ -65,6 +63,7 @@ class ThreadParentCard extends ConsumerWidget {
     resolveAuthorProfiles(ref, [parent.parentAuthorId]);
 
     final gutter = paneGutterOf(context);
+    final density = ref.watch(messageDensityControllerProvider);
 
     final Widget body;
     final String semanticLabel;
@@ -104,7 +103,7 @@ class ThreadParentCard extends ConsumerWidget {
           UserAvatar(
             name: name,
             userId: parent.parentAuthorId,
-            size: _avatarSize,
+            size: density.avatarSize,
           ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
@@ -154,7 +153,7 @@ class ThreadParentCard extends ConsumerWidget {
     final padded = Padding(
       padding: EdgeInsets.fromLTRB(
         gutter - ringInset,
-        AppSpacing.s12 - ringInset,
+        density.listRowGap - ringInset,
         gutter - ringInset,
         0,
       ),
@@ -169,7 +168,7 @@ class ThreadParentCard extends ConsumerWidget {
               border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
             ),
             child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+              padding: EdgeInsets.only(bottom: density.listRowGap),
               child: body,
             ),
           ),
