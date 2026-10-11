@@ -1,0 +1,41 @@
+{
+  "version": "0.85.0",
+  "environment": "github-actions ubuntu-24.04, 4 cpus",
+  "metrics": [
+    {
+      "name": "hub_publish_fanout_64",
+      "value": 643.36,
+      "unit": "ns"
+    },
+    {
+      "name": "uuid_now_v7",
+      "value": 532.51,
+      "unit": "ns"
+    },
+    {
+      "name": "version_json_serialize",
+      "value": 195.05,
+      "unit": "ns"
+    },
+    {
+      "name": "idle_rss_glibc",
+      "value": 48080,
+      "unit": "kB"
+    },
+    {
+      "name": "peak_rss_glibc",
+      "value": 68628,
+      "unit": "kB"
+    },
+    {
+      "name": "idle_rss_musl",
+      "value": 51792,
+      "unit": "kB"
+    },
+    {
+      "name": "peak_rss_musl",
+      "value": 72524,
+      "unit": "kB"
+    }
+  ]
+}
