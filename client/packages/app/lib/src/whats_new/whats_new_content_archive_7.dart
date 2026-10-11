@@ -116,4 +116,32 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.99.0',
+    headline: 'Why you cannot talk, a slimmer canvas dock, and profile photos',
+    points: [
+      WhatsNewPoint(
+        'Voice channels that start you muted show a small mic-off mark in the '
+        'channel list. If you are not allowed to speak in a call, the mic and '
+        'camera say so instead of quietly doing nothing.',
+      ),
+      WhatsNewPoint(
+        'On a 1280 wide window the canvas dock is one row instead of three, '
+        'so you get more canvas.',
+      ),
+      WhatsNewPoint(
+        'On a phone you can take your profile photo with the camera.',
+      ),
+      WhatsNewPoint(
+        'Shortening message history now asks first and names the date it '
+        'deletes back to. Issuing a reset code or clearing two-factor for '
+        'someone asks for your password.',
+        warn: true,
+      ),
+      WhatsNewPoint(
+        'Compact density now also applies to search results, threads, and '
+        'the pinned and saved lists.',
+      ),
+    ],
+  ),
 ];
