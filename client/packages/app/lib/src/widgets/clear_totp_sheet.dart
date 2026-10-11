@@ -37,10 +37,7 @@ Future<void> showClearTotpSheet(
     context,
     title: 'Clear two-factor for $subjectName?',
     description:
-        'Only for somebody who has lost both their authenticator and their '
-        'recovery codes. After this their password alone gets into the '
-        'account. It signs them out on every device and is recorded in the '
-        'moderation log against your name.',
+        'Signs them out everywhere, is logged, and leaves only their password.',
     submitLabel: 'Clear two-factor',
     dangerous: true,
     onSubmit: (password, _) async {

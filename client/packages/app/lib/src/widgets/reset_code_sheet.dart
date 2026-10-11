@@ -42,9 +42,7 @@ Future<void> showResetCodeSheet(
   final proved = await showReauthSheet(
     context,
     title: 'Password reset code for $subjectName',
-    description:
-        'Hand the code to them yourself, in person or however you already '
-        'talk. Anyone holding it can set a new password on this account once.',
+    description: 'Anyone holding the code can set a new password once.',
     submitLabel: 'Generate code',
     onSubmit: (password, _) async {
       try {

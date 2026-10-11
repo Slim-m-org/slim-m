@@ -133,12 +133,9 @@ void main() {
     await openClear(tester, server);
 
     expect(find.text('Clear two-factor for Ada?'), findsOneWidget);
+    expect(find.textContaining('Signs them out everywhere'), findsOneWidget);
     expect(
-      find.textContaining('signs them out on every device'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('recorded in the moderation log'),
+      find.textContaining('is logged'),
       findsOneWidget,
       reason: 'an administrator has to know this is not a quiet act',
     );
