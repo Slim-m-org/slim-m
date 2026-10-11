@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.85.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.84.0...server-v0.85.0) (2026-10-11)
+
+
+### Features
+
+* confirmations that fit permanent actions, admin password for reset codes and two-factor, and density in search and threads ([#2151](https://github.com/Slim-m-org/slim-m/issues/2151)) ([b9c4455](https://github.com/Slim-m-org/slim-m/commit/b9c44559fd2c08de545ffd568c6b8f88c769c4a9))
+
 ## [0.84.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.83.0...server-v0.84.0) (2026-10-08)
 
 
