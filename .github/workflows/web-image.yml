@@ -18,6 +18,10 @@ on:
         description: "A server version or server-v tag; it becomes the only tag"
         type: string
         default: ""
+      publish:
+        description: "False builds both arch images and pushes, merges and signs nothing (a pull request's check)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -44,6 +48,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
+        if: inputs.publish
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -58,18 +63,20 @@ jobs:
           build-args: |
             SHA=${{ inputs.ref || github.sha }}
             SLIMM_SPOTIFY_CLIENT_ID=${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ inputs.publish }}
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=web-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.arch }}
 
       - name: export digest
+        if: inputs.publish
         run: |
           mkdir -p /tmp/digests
           echo "${{ steps.build.outputs.digest }}" > "/tmp/digests/${{ matrix.arch }}"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: inputs.publish
         with:
           name: web-image-digest-${{ matrix.arch }}
           path: /tmp/digests/${{ matrix.arch }}
@@ -78,7 +85,7 @@ jobs:
   # Both results are required: a failed arch must not ship a single-arch manifest.
   merge:
     needs: [build]
-    if: needs.build.result == 'success'
+    if: inputs.publish && needs.build.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
