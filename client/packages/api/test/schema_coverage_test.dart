@@ -56,6 +56,11 @@ const Map<String, String> _allowlist = {
       'fail on',
   'GET /users/{}/avatar': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
+  'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '
+      'same as GET /attachments/{}',
+  'GET /invites/{}/banner': 'an unauthenticated picture an Image.network '
+      'loads straight from SlimmApi.inviteBannerUri, so no request is made '
+      'through _send',
   'GET /emoji/{}/image': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
   'GET /gifs/preview/{}': 'reads raw bytes through SlimmApi._fetchBytes, the '

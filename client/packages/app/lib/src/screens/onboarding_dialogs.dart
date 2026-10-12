@@ -13,9 +13,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
 import '../invite_link.dart';
+import '../providers/display_preferences.dart';
 import '../providers/providers.dart';
 import '../server_address_reduction.dart';
 import '../server_scheme_policy.dart';
+import '../widgets/invite_landing_card.dart';
 
 /// Redeeming an invite: check the code against the server before asking anyone
 /// to fill in a signup form, and accept the terms at the point of joining.
@@ -38,6 +40,11 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   bool _accepted = false;
   bool _busy = false;
   String? _error;
+
+  /// Set once the code checks out; the sheet then shows the landing card
+  /// instead of the form, and Join hands the verified pair back.
+  ({api.InviteCommunity community, Uri banner, Uri server, String code})?
+  _landing;
 
   /// True once a link has named the server, so the address is not asked for
   /// again; "Use a different server" brings the field back.
@@ -116,8 +123,16 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
         );
         return;
       }
-      if (mounted) {
-        Navigator.of(context).pop((reduced, _code.text.trim()));
+      if (check is api.InviteUsable && mounted) {
+        final code = _code.text.trim();
+        setState(
+          () => _landing = (
+            community: check.community,
+            banner: client.inviteBannerUri(code),
+            server: reduced,
+            code: code,
+          ),
+        );
       }
     } on api.ApiException catch (e) {
       if (!mounted) return;
@@ -132,8 +147,68 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     }
   }
 
+  Widget _buildLanding(
+    ({api.InviteCommunity community, Uri banner, Uri server, String code})
+    landing,
+  ) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final community = landing.community;
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Flexible(
+            child: SingleChildScrollView(
+              child: InviteLandingCard(
+                name: community.name,
+                memberCount: community.memberCount,
+                description: community.description,
+                invitedBy: community.invitedBy,
+                expiresAt: community.expiresAt,
+                use24Hour: watchUse24Hour(ref, context),
+                banner: community.bannerUpdatedAt == null
+                    ? null
+                    : Image.network(
+                        landing.banner.toString(),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            ColoredBox(color: tokens.surfaceSunken),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s16),
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: 'Back',
+                  variant: AppButtonVariant.ghost,
+                  onPressed: () => setState(() => _landing = null),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s8),
+              Expanded(
+                child: AppButton(
+                  label: 'Join',
+                  variant: AppButtonVariant.primary,
+                  onPressed: () =>
+                      Navigator.of(context).pop((landing.server, landing.code)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final landing = _landing;
+    if (landing != null) return _buildLanding(landing);
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: EdgeInsets.fromLTRB(

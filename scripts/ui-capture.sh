@@ -67,6 +67,7 @@ JOBS=(
   "overlay-menus|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_menus_test.dart"
   "overlay-confirm|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_confirm_test.dart"
   "overlay-onboarding|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_onboarding_test.dart"
+  "overlay-invite-landing|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_invite_landing_test.dart"
   "overlay-signin|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_signin_test.dart"
   "overlay-moderation|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_moderation_test.dart"
   "overlay-blocking|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_blocking_test.dart"

@@ -230,6 +230,8 @@ class InviteCommunity {
     required this.invitedBy,
     required this.usesRemaining,
     required this.expiresAt,
+    this.description = '',
+    this.bannerUpdatedAt,
   });
 
   /// This deployment's display name.
@@ -248,6 +250,13 @@ class InviteCommunity {
   /// Unix milliseconds; null means it never expires.
   final int? expiresAt;
 
+  /// The admin's short blurb; empty when none is set.
+  final String description;
+
+  /// When the banner was set, or null for none. A server that predates the
+  /// landing card sends neither field.
+  final int? bannerUpdatedAt;
+
   factory InviteCommunity.fromJson(Map<String, dynamic> json) =>
       InviteCommunity(
         name: json['name'] as String,
@@ -255,6 +264,8 @@ class InviteCommunity {
         invitedBy: json['invited_by'] as String?,
         usesRemaining: json['uses_remaining'] as int?,
         expiresAt: json['expires_at'] as int?,
+        description: json['description'] as String? ?? '',
+        bannerUpdatedAt: json['banner_updated_at'] as int?,
       );
 }
 
