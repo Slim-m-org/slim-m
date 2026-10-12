@@ -53,4 +53,23 @@ extension SlimmApiAdmin on SlimmApi {
         body: {'code': code, 'new_password': newPassword},
         expectNoContent: true,
       );
+
+  /// Changes the caller's own password. Signs every other device out and keeps
+  /// this session. [code] is a two-factor or recovery code, needed only while
+  /// two-factor is on. A wrong password is a 403, not a sign-out.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    String? code,
+  }) =>
+      _send(
+        'POST',
+        '/auth/password',
+        body: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          if (code != null) 'code': code,
+        },
+        expectNoContent: true,
+      );
 }
