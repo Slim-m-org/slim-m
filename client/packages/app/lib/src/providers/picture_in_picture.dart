@@ -46,7 +46,7 @@ final pictureInPictureFeedProvider = Provider<MiniPlayerFeed?>((ref) {
   return ref.watch(miniPlayerFeedProvider);
 });
 
-/// Forwards declared video interest to the call, unless a hold is in force.
+/// Forwards declared video interest to the call, unless a hold or a pause is in force.
 ///
 /// The canvas declares which tiles are on screen and the rest get
 /// unsubscribed. Floating a call from the canvas would otherwise cull the very
@@ -58,17 +58,28 @@ class VideoInterestRelay {
   final void Function(Set<String>?) _apply;
   Set<String>? _declared;
   bool _held = false;
+  bool _paused = false;
 
   void declare(Set<String>? tileKeys) {
     _declared = tileKeys;
-    if (!_held) _apply(tileKeys);
+    _reconcile();
   }
 
   void hold(bool held) {
     if (_held == held) return;
     _held = held;
-    _apply(held ? null : _declared);
+    _reconcile();
   }
+
+  /// Wants no video at all, which the culler treats as every tile unshown.
+  void pause(bool paused) {
+    if (_paused == paused) return;
+    _paused = paused;
+    _reconcile();
+  }
+
+  void _reconcile() =>
+      _apply(_paused ? const <String>{} : (_held ? null : _declared));
 }
 
 final videoInterestRelayProvider = Provider<VideoInterestRelay>((ref) {

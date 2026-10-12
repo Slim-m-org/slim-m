@@ -19,6 +19,7 @@ import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/media_capability_section.dart';
+import '../widgets/pause_video_section.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/settings_toggle_row.dart';
 
@@ -37,6 +38,7 @@ class VoiceSettingsBody extends StatelessWidget {
       _MicrophoneSection(),
       _DevicesSection(),
       _ScreenShareSection(),
+      PauseVideoSection(),
       _SoundsSection(),
     ],
   );
