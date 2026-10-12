@@ -327,6 +327,10 @@ abstract final class AppIcons {
   /// rather than [restoreAccess]: that one undoes a block, this one hands
   /// somebody a credential.
   static const IconData resetCode = LucideIcons.keyRound300;
+
+  /// Changing your own password. Shares [resetCode]'s key glyph: both are
+  /// about the account's credential, one for oneself and one for another.
+  static const IconData changePassword = LucideIcons.keyRound300;
   static const IconData dismiss = LucideIcons.x300;
   static const IconData permissions = LucideIcons.lock300;
 

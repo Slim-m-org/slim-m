@@ -62,6 +62,7 @@ import '../widgets/report_status_section.dart';
 import '../widgets/settings_panes.dart';
 import '../widgets/settings_profile_preview.dart';
 import '../widgets/totp_section.dart';
+import '../widgets/change_password_section.dart';
 import 'voice_settings_screen.dart';
 import '../action_labels.dart';
 
@@ -113,6 +114,7 @@ class PersonalSettingsScreen extends StatelessWidget {
               builder: (context) => const Column(
                 children: [
                   DevicesSection(),
+                  ChangePasswordSection(),
                   TotpSection(),
                   AppLockSection(),
                   AccountSection(),

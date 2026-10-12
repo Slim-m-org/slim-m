@@ -396,6 +396,34 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /auth/password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change your own password.
+      description: >
+        Needs the current password, and the current two-factor code or an
+        unused recovery code while two-factor is on. Signs every other device
+        out and keeps the calling session. A wrong password or code is
+        refused and nothing changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: The password was changed and the other sessions revoked.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /auth/totp:
     get:
       operationId: getTotpStatus
@@ -8453,6 +8481,22 @@ components:
           type: string
           minLength: 8
           maxLength: 1024
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 1024
+        code:
+          type: string
+          description: >
+            A current two-factor code or an unused recovery code. Required
+            only while two-factor is on.
 
     RegisterRequest:
       type: object
