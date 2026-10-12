@@ -21,6 +21,7 @@ const _cameraOnJoinKey = 'slimm.voice.camera_on_join';
 const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
+const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
 const _audioInputDeviceIdKey = 'slimm.voice.audio_input_device_id';
 const _audioOutputDeviceIdKey = 'slimm.voice.audio_output_device_id';
@@ -90,6 +91,7 @@ class VoiceSettingsState {
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
     this.voiceActivitySensitivity = 100.0,
     this.screenShareIncludeAudio = false,
+    this.pauseVideoWhenUnfocused = true,
     this.audioInputDeviceId,
     this.audioOutputDeviceId,
   });
@@ -136,6 +138,9 @@ class VoiceSettingsState {
   /// honouring this value.
   final bool screenShareIncludeAudio;
 
+  /// Whether incoming video stops while the desktop window is visible but not focused.
+  final bool pauseVideoWhenUnfocused;
+
   /// The persisted microphone choice; null is the system default. Applied
   /// live through `VoiceControllerAudioDevicesMixin.selectAudioInputDevice`
   /// and, for a future join, through [VoiceSession]'s own room options.
@@ -154,6 +159,7 @@ class VoiceSettingsState {
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
     bool? screenShareIncludeAudio,
+    bool? pauseVideoWhenUnfocused,
     String? audioInputDeviceId,
     bool clearAudioInputDeviceId = false,
     String? audioOutputDeviceId,
@@ -171,6 +177,8 @@ class VoiceSettingsState {
         voiceActivitySensitivity ?? this.voiceActivitySensitivity,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
+    pauseVideoWhenUnfocused:
+        pauseVideoWhenUnfocused ?? this.pauseVideoWhenUnfocused,
     audioInputDeviceId: clearAudioInputDeviceId
         ? null
         : (audioInputDeviceId ?? this.audioInputDeviceId),
@@ -205,6 +213,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
           .firstOrDefault(LogicalKeyboardKey.keyV),
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
+      pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
       audioInputDeviceId: prefs.getString(_audioInputDeviceIdKey),
       audioOutputDeviceId: prefs.getString(_audioOutputDeviceIdKey),
     );
@@ -238,6 +247,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(screenShareIncludeAudio: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_shareAudioKey, enabled);
+  }
+
+  Future<void> setPauseVideoWhenUnfocused(bool enabled) async {
+    state = state.copyWith(pauseVideoWhenUnfocused: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_pauseVideoUnfocusedKey, enabled);
   }
 
   /// Persists the microphone choice and applies it live, [setCameraOnJoin]'s
