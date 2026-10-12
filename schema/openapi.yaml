@@ -1596,6 +1596,129 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /space/banner:
+    get:
+      operationId: getSpaceBanner
+      tags: [space]
+      summary: Fetch the space banner bytes.
+      description: >
+        Any signed-in caller may read it; it is shown to anyone holding a
+        usable invite anyway. 404 when none is set.
+      responses:
+        "200":
+          description: The banner image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: uploadSpaceBanner
+      tags: [space]
+      summary: Upload (or replace) the space banner.
+      description: >
+        Gated on MANAGE_SERVER. The body is the image, at most 4 MiB, sniffed
+        against the same image allowlist as an avatar.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: When the banner was stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [banner_updated_at]
+                properties:
+                  banner_updated_at:
+                    type: integer
+                    format: int64
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteSpaceBanner
+      tags: [space]
+      summary: Remove the space banner.
+      description: Gated on MANAGE_SERVER.
+      responses:
+        "204":
+          description: The banner was removed (or there was none).
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /invites/{code}/banner:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        description: The invite code.
+        schema:
+          type: string
+    get:
+      operationId: getInviteBanner
+      tags: [invites]
+      summary: Fetch the space banner for a usable invite, before signing up.
+      description: >
+        Unauthenticated and rate limited like the check. An unusable code and
+        a space with no banner both answer 404.
+      security: []
+      responses:
+        "200":
+          description: The banner image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /invites/{code}/redeem:
     parameters:
       - name: code
@@ -8999,6 +9122,13 @@ components:
       type: object
       required: [join_policy]
       properties:
+        description:
+          type: string
+          description: Shown on the invite landing card; empty when none.
+        banner_updated_at:
+          type: [integer, "null"]
+          format: int64
+          description: When the banner was set, or null for none.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -9024,6 +9154,9 @@ components:
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
+        description:
+          type: string
+          description: At most 280 characters, no control or invisible characters.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.
@@ -10069,6 +10202,15 @@ components:
               type: [integer, "null"]
               format: int64
               description: Unix milliseconds; null means it never expires.
+            description:
+              type: string
+              description: The admin's short blurb for the landing card; empty when none.
+            banner_updated_at:
+              type: [integer, "null"]
+              format: int64
+              description: >-
+                When the banner was set, or null for none. Fetch it from
+                `/invites/{code}/banner`.
 
     Bot:
       type: object

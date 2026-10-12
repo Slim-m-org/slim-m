@@ -120,6 +120,8 @@ Future<void> _acceptAndContinue(WidgetTester tester) async {
   await tester.pump();
   await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
+  await tester.tap(find.text('Join'));
+  await tester.pumpAndSettle();
 }
 
 void main() {

@@ -136,6 +136,8 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Join'));
+      await tester.pumpAndSettle();
 
       expect(probedWith, Uri.parse(reduced));
       expect(chosen, Uri.parse(reduced));

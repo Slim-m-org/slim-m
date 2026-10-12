@@ -666,6 +666,8 @@ mod role_grant {
         assert_eq!(
             community_keys,
             [
+                "banner_updated_at",
+                "description",
                 "expires_at",
                 "invited_by",
                 "member_count",
