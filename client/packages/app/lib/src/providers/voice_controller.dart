@@ -25,6 +25,7 @@ import 'voice_call_lifecycle_report.dart';
 import 'voice_camera_failure.dart';
 import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
+import 'video_pause.dart' show gateLocalPreview;
 import 'voice_participant_volume_store.dart';
 import 'voice_settings_controller.dart';
 import 'voice_sfu_security.dart';
@@ -386,9 +387,7 @@ class VoiceController extends StateNotifier<VoiceState>
   @override
   bool get supportsScreenShareAudio => _session.supportsScreenShareAudio;
 
-  /// Toggles local playback of everyone else's audio. Never touches this
-  /// session's own microphone: deafening and muting are independent, exactly
-  /// as they are for every other voice product this design is drawn from.
+  /// Toggles local playback of everyone else's audio; independent of muting.
   Future<void> toggleDeafen() async {
     final generation = _callGeneration;
     final want = !state.deafened;
@@ -406,22 +405,26 @@ class VoiceController extends StateNotifier<VoiceState>
   /// follows able to find anything, so it happens even for a single screen.
   bool get screenShareNeedsSource => _session.screenShareNeedsSource;
 
-  /// Whether more than one enumerated source is worth its own picker; see
-  /// [VoiceSession.screenShareSourcePickerUseful].
+  /// See [VoiceSession.screenShareSourcePickerUseful].
   bool get screenShareSourcePickerUseful =>
       _session.screenShareSourcePickerUseful;
 
   Future<List<ScreenShareSource>> screenShareSources() =>
       _session.screenShareSources();
 
-  /// The live view of [identity]'s shared screen; see
-  /// [VoiceSession.screenShareViewFor].
-  Widget screenShareViewFor(String identity) =>
-      _session.screenShareViewFor(identity);
+  /// [identity]'s shared screen; see [VoiceSession.screenShareViewFor].
+  Widget screenShareViewFor(String identity) => gateLocalPreview(
+    state.participants,
+    identity,
+    _session.screenShareViewFor(identity),
+  );
 
-  /// The live view of [identity]'s camera feed; see
-  /// [VoiceSession.cameraViewFor].
-  Widget cameraViewFor(String identity) => _session.cameraViewFor(identity);
+  /// [identity]'s camera feed; see [VoiceSession.cameraViewFor].
+  Widget cameraViewFor(String identity) => gateLocalPreview(
+    state.participants,
+    identity,
+    _session.cameraViewFor(identity),
+  );
 
   /// Declares which presence tiles a surface currently wants video for, so
   /// the rest can be unsubscribed; see [VoiceSession.setVideoInterest].

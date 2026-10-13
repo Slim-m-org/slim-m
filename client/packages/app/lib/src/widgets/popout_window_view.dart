@@ -57,7 +57,9 @@ class PopOutWindowView extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   view,
-                  if (frame != null) _TopBar(label: label, frame: frame!),
+                  if (frame != null) _DragSurface(frame: frame!),
+                  if (frame != null)
+                    _TopBar(label: label, frame: frame!, shown: shown),
                   _Controls(
                     shown: shown,
                     micOn: micOn,
@@ -120,11 +122,34 @@ class _HoverRevealState extends State<_HoverReveal> {
 
 const _revealDuration = Duration(milliseconds: 150);
 
+/// The whole video is the drag handle, since the window has no title bar.
+class _DragSurface extends StatelessWidget {
+  const _DragSurface({required this.frame});
+
+  final PopOutFrame frame;
+
+  @override
+  Widget build(BuildContext context) => Positioned.fill(
+    child: Listener(
+      key: popOutDragRegionKey,
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => frame.onMoveStart(),
+      child: const MouseRegion(cursor: SystemMouseCursors.move),
+    ),
+  );
+}
+
+/// Name and close, shown only while the pointer is over the window.
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.label, required this.frame});
+  const _TopBar({
+    required this.label,
+    required this.frame,
+    required this.shown,
+  });
 
   final String label;
   final PopOutFrame frame;
+  final bool shown;
 
   @override
   Widget build(BuildContext context) {
@@ -132,34 +157,35 @@ class _TopBar extends StatelessWidget {
       top: kWindowResizeHandleThickness,
       left: kWindowResizeHandleThickness,
       right: kWindowResizeHandleThickness,
-      child: Row(
-        children: [
-          Expanded(
-            child: Listener(
-              key: popOutDragRegionKey,
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (_) => frame.onMoveStart(),
-              child: MouseRegion(
-                cursor: SystemMouseCursors.move,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s8),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.micro.copyWith(color: Colors.white),
+      child: IgnorePointer(
+        ignoring: !shown,
+        child: AnimatedOpacity(
+          opacity: shown ? 1 : 0,
+          duration: _revealDuration,
+          child: Row(
+            children: [
+              Expanded(
+                child: IgnorePointer(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.s8),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.micro.copyWith(color: Colors.white),
+                    ),
                   ),
                 ),
               ),
-            ),
+              AppIconButton(
+                icon: AppIcons.dismiss,
+                semanticLabel: 'Close pop-out',
+                tooltip: 'Close pop-out',
+                onPressed: frame.onClose,
+              ),
+            ],
           ),
-          AppIconButton(
-            icon: AppIcons.dismiss,
-            semanticLabel: 'Close pop-out',
-            tooltip: 'Close pop-out',
-            onPressed: frame.onClose,
-          ),
-        ],
+        ),
       ),
     );
   }

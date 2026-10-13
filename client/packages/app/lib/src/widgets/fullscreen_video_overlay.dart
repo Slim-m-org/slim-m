@@ -22,6 +22,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../desktop/desktop_window_shell.dart';
+import '../providers/fullscreen_video.dart';
 import '../providers/phone_landscape.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
@@ -83,9 +85,14 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   /// camera flag flipping in the same frame cannot schedule the pop twice.
   bool _exiting = false;
 
-  /// Whether the name line and close control show over a landscape video; a
-  /// tap on the video toggles them so nothing covers the picture.
-  bool _controlsShown = true;
+  /// Touch toggles the name line and close control with a tap on the video.
+  bool _tapShown = true;
+
+  /// A pointer over the video reveals them, and leaving hides them again.
+  bool _hovered = false;
+
+  late final StateController<bool> _chromeHidden;
+  bool _windowFullscreen = false;
 
   late final OrientationChannel _orientation;
 
@@ -93,8 +100,36 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   void initState() {
     super.initState();
     _orientation = ref.read(orientationChannelProvider);
+    _chromeHidden = ref.read(fullscreenVideoActiveProvider.notifier);
     WidgetsBinding.instance.addObserver(this);
     unawaited(_allowLandscape());
+    scheduleMicrotask(_enterWindowFullscreen);
+  }
+
+  /// Covers the display on desktop: the OS window goes fullscreen and the
+  /// title bar steps aside. A no-op where there is no desktop shell.
+  Future<void> _enterWindowFullscreen() async {
+    if (!mounted || !DesktopWindowShell.active) return;
+    _chromeHidden.state = true;
+    _windowFullscreen = true;
+    try {
+      await DesktopWindowShell.port.setFullScreen(true);
+    } catch (_) {
+      // Best-effort: an odd compositor must not stop the video showing.
+    }
+  }
+
+  void _leaveWindowFullscreen() {
+    if (!_windowFullscreen) return;
+    final port = DesktopWindowShell.port;
+    scheduleMicrotask(() {
+      try {
+        _chromeHidden.state = false;
+      } on StateError {
+        // The whole app is going down with this route; nothing to restore.
+      }
+      unawaited(port.setFullScreen(false).catchError((_) {}));
+    });
   }
 
   /// The ambient size is kept portrait for the routed app, so it never changes
@@ -115,6 +150,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _leaveWindowFullscreen();
     unawaited(_orientation.allowLandscape(false));
     super.dispose();
   }
@@ -153,38 +189,39 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     final lockedPhone = ref.watch(portraitLockedPhoneProvider);
     // The routed app sees a locked phone's window kept portrait; this route alone reads the real one.
     final real = MediaQueryData.fromView(View.of(context));
-    final landscape = lockedPhone && real.size.width > real.size.height;
     final video = live
         ? (widget.kind == FullscreenVideoKind.camera
               ? controller.cameraViewFor(widget.identity)
               : controller.screenShareViewFor(widget.identity))
         : const SizedBox.shrink();
-    final header = _VideoHeader(label: widget.label, onClose: _exit);
-    final Widget stage = landscape
-        ? GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _controlsShown = !_controlsShown),
-            child: Stack(
-              children: [
-                Positioned.fill(child: video),
-                if (_controlsShown)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SafeArea(bottom: false, child: header),
-                  ),
-              ],
+    final shown = _hovered || _tapShown;
+    final Widget stage = MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _tapShown = false;
+      }),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _tapShown = !_tapShown),
+        child: Stack(
+          children: [
+            Positioned.fill(child: video),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: shown
+                    ? _VideoHeader(label: widget.label, onClose: _exit)
+                    : const SizedBox.shrink(),
+              ),
             ),
-          )
-        : SafeArea(
-            child: Column(
-              children: [
-                header,
-                Expanded(child: video),
-              ],
-            ),
-          );
+          ],
+        ),
+      ),
+    );
 
     final Widget page = CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _exit},
@@ -219,29 +256,38 @@ class _VideoHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s8,
-        vertical: AppSpacing.s4,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xB3000000), Color(0x00000000)],
+        ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.ui.copyWith(color: tokens.textSecondary),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s8,
+          vertical: AppSpacing.s4,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.ui.copyWith(color: tokens.textSecondary),
+              ),
             ),
-          ),
-          AppIconButton(
-            icon: AppIcons.dismiss,
-            semanticLabel: 'Exit full screen',
-            size: AppIconButtonSize.touch,
-            touch: true,
-            onPressed: onClose,
-          ),
-        ],
+            AppIconButton(
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Exit full screen',
+              size: AppIconButtonSize.touch,
+              touch: true,
+              onPressed: onClose,
+            ),
+          ],
+        ),
       ),
     );
   }

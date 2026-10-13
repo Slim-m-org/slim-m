@@ -58,7 +58,6 @@ class VideoInterestRelay {
   final void Function(Set<String>?) _apply;
   Set<String>? _declared;
   bool _held = false;
-  bool _paused = false;
 
   void declare(Set<String>? tileKeys) {
     _declared = tileKeys;
@@ -71,15 +70,7 @@ class VideoInterestRelay {
     _reconcile();
   }
 
-  /// Wants no video at all, which the culler treats as every tile unshown.
-  void pause(bool paused) {
-    if (_paused == paused) return;
-    _paused = paused;
-    _reconcile();
-  }
-
-  void _reconcile() =>
-      _apply(_paused ? const <String>{} : (_held ? null : _declared));
+  void _reconcile() => _apply(_held ? null : _declared);
 }
 
 final videoInterestRelayProvider = Provider<VideoInterestRelay>((ref) {

@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_settings_screen_harness.dart';
 
-const _label = 'Pause video when slim-m is not focused';
+const _label = 'Pause my preview when slim-m is not focused';
 const _key = 'slimm.voice.pause_video_when_unfocused';
 
 Finder get _toggle =>
@@ -57,7 +57,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester, desktop: false);
-    expect(find.text('Pause video when unfocused'), findsNothing);
+    expect(find.text('Pause my preview when unfocused'), findsNothing);
     expect(_toggle, findsNothing);
   });
 }
