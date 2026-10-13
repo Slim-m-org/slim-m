@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/call_mini_player.dart';
+import 'double_click_detector.dart';
 import 'fullscreen_video_overlay.dart';
 import 'media_label.dart';
 import 'popout_video_button.dart';
@@ -63,62 +64,65 @@ class ScreenShareStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return PointerRevealed(
-      builder: (context, revealed) => ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF000000),
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                ),
-                child: child,
-              ),
-            ),
-            if (onExpand != null)
-              Positioned(
-                left: 4,
-                top: 4,
-                child: ExpandVideoButton(
-                  label: isLocal
-                      ? 'View your screen full screen'
-                      : "View $sharerName's screen full screen",
-                  onTap: onExpand!,
-                ),
-              ),
-            if (popOutIdentity != null && !isLocal)
-              Positioned(
-                left: 36,
-                top: 4,
-                child: PopOutVideoButton(
-                  feed: (
-                    identity: popOutIdentity!,
-                    name: sharerName,
-                    kind: FeedKind.screenShare,
+      builder: (context, revealed) => DoubleClickDetector(
+        onDoubleClick: onExpand,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF000000),
+                    border: Border.all(color: tokens.borderSubtle),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                   ),
+                  child: child,
                 ),
               ),
-            Positioned(
-              left: 6,
-              bottom: 6,
-              right: 6,
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: RevealFade(
-                  revealed: revealed,
-                  child: MediaLabelChip(
-                    icon: AppIcons.screenShare,
+              if (onExpand != null)
+                Positioned(
+                  left: 4,
+                  top: 4,
+                  child: ExpandVideoButton(
                     label: isLocal
-                        ? 'You are sharing your screen'
-                        : "$sharerName's screen",
+                        ? 'View your screen full screen'
+                        : "View $sharerName's screen full screen",
+                    onTap: onExpand!,
+                  ),
+                ),
+              if (popOutIdentity != null && !isLocal)
+                Positioned(
+                  left: 36,
+                  top: 4,
+                  child: PopOutVideoButton(
+                    feed: (
+                      identity: popOutIdentity!,
+                      name: sharerName,
+                      kind: FeedKind.screenShare,
+                    ),
+                  ),
+                ),
+              Positioned(
+                left: 6,
+                bottom: 6,
+                right: 6,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: RevealFade(
+                    revealed: revealed,
+                    child: MediaLabelChip(
+                      icon: AppIcons.screenShare,
+                      label: isLocal
+                          ? 'You are sharing your screen'
+                          : "$sharerName's screen",
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
