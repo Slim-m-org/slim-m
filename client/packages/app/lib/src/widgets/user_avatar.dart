@@ -83,8 +83,8 @@ class UserAvatar extends ConsumerWidget {
           .watch(avatarBytesProvider((userId: id, updatedAt: version)))
           .valueOrNull;
       if (bytes != null) {
-        // Floored at 3x, not the paint ratio, so a desktop scaled past 2x while under-reporting its ratio still lands a crisp avatar; the 512px source affords it. See decodeEdge.
-        final edge = decodeEdge(context, size, minRatio: 3);
+        // 3x the painted pixels, floored at a 2x ratio for a compositor that scales without telling Flutter; the 512px source affords it. See decodeEdge.
+        final edge = decodeEdge(context, size, minRatio: 2, oversample: 3);
         image = ResizeImage(
           MemoryImage(bytes),
           width: edge,
