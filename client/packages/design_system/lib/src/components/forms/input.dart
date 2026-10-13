@@ -43,6 +43,8 @@ class AppInput extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.semanticLabel,
+    this.minLines,
+    this.maxLines,
   });
 
   final TextEditingController? controller;
@@ -86,6 +88,11 @@ class AppInput extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final String? semanticLabel;
 
+  /// Setting either makes the field grow with its text between these bounds
+  /// instead of holding one fixed-height line.
+  final int? minLines;
+  final int? maxLines;
+
   @override
   State<AppInput> createState() => _AppInputState();
 }
@@ -123,6 +130,8 @@ class _AppInputState extends State<AppInput> {
         AppInputSize.lg => 44,
       };
 
+  bool get _multiline => widget.minLines != null || widget.maxLines != null;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -144,8 +153,11 @@ class _AppInputState extends State<AppInput> {
                 : tokens.borderStrong;
 
     final field = Container(
-      height: _height,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+      height: _multiline ? null : _height,
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.s12,
+        vertical: _multiline ? AppSpacing.s8 : 0,
+      ),
       decoration: BoxDecoration(
         color: widget.enabled ? tokens.surfaceRaised : tokens.surfaceSunken,
         borderRadius: BorderRadius.circular(AppRadii.control),
@@ -165,6 +177,8 @@ class _AppInputState extends State<AppInput> {
               contextMenuBuilder: textContextMenuWithoutScanText,
               enabled: widget.enabled,
               obscureText: widget.obscureText,
+              minLines: widget.minLines,
+              maxLines: _multiline ? widget.maxLines : 1,
               autofocus: widget.autofocus,
               keyboardType: widget.keyboardType,
               textInputAction: widget.textInputAction,

@@ -143,6 +143,10 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
   await tester.pumpAndSettle();
 }
 
+Finder _button(String semanticLabel) => find.byWidgetPredicate(
+  (w) => w is AppButton && w.semanticLabel == semanticLabel,
+);
+
 /// Image decoding finishes on the real clock, so alternate real waiting with
 /// pumps until the awaited call has gone out.
 Future<void> _untilCalled(
@@ -193,16 +197,16 @@ void main() {
   ) async {
     final server = _Server();
     await _pump(tester, server, 390);
-    expect(find.text('Remove banner'), findsNothing);
-    await tester.tap(find.text('Choose banner'));
+    expect(_button('Remove banner'), findsNothing);
+    await tester.tap(_button('Choose banner'));
     await _untilCalled(tester, server, 'POST /space/banner');
     expect(server.calls, contains('POST /space/banner'));
-    expect(find.text('Replace banner'), findsOneWidget);
+    expect(_button('Replace banner'), findsOneWidget);
 
-    await tester.tap(find.text('Remove banner'));
+    await tester.tap(_button('Remove banner'));
     await tester.pumpAndSettle();
     expect(server.calls, contains('DELETE /space/banner'));
-    expect(find.text('Choose banner'), findsOneWidget);
+    expect(_button('Choose banner'), findsOneWidget);
     expect(find.byType(AspectRatio), findsNothing);
   });
 
@@ -211,22 +215,22 @@ void main() {
   ) async {
     final server = _Server()..uploadStatus = 400;
     await _pump(tester, server, 390);
-    await tester.tap(find.text('Choose banner'));
+    await tester.tap(_button('Choose banner'));
     await _untilCalled(tester, server, 'POST /space/banner');
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.text('Choose banner'), findsOneWidget);
+    expect(_button('Choose banner'), findsOneWidget);
   });
 
   testWidgets('cancelling the icon crop uploads nothing', (tester) async {
     final server = _Server();
     await _pump(tester, server, 390);
-    await tester.tap(find.text('Choose icon'));
+    await tester.tap(_button('Choose icon'));
     await tester.pumpAndSettle();
     expect(find.text('Crop your picture'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(server.calls, isNot(contains('POST /space/icon')));
-    expect(find.text('Choose icon'), findsOneWidget);
+    expect(_button('Choose icon'), findsOneWidget);
   });
 
   testWidgets('a cropped icon uploads, previews and can be removed', (
@@ -234,18 +238,58 @@ void main() {
   ) async {
     final server = _Server();
     await _pump(tester, server, 1280);
-    await tester.tap(find.text('Choose icon'));
+    await tester.tap(_button('Choose icon'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Use picture'));
     await _untilCalled(tester, server, 'POST /space/icon');
     expect(server.calls, contains('POST /space/icon'));
-    expect(find.text('Replace icon'), findsOneWidget);
+    expect(_button('Replace icon'), findsOneWidget);
     expect(find.byType(SpaceIcon), findsOneWidget);
 
-    await tester.tap(find.text('Remove icon'));
+    await tester.tap(_button('Remove icon'));
     await tester.pumpAndSettle();
     expect(server.calls, contains('DELETE /space/icon'));
-    expect(find.text('Choose icon'), findsOneWidget);
+    expect(_button('Choose icon'), findsOneWidget);
     expect(find.byType(SpaceIcon), findsNothing);
+  });
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets(
+      'controls share one left edge and rows stay on a line at $width',
+      (tester) async {
+        final server = _Server()
+          ..banner = 7
+          ..icon = 9;
+        await _pump(tester, server, width);
+        final field = tester.getRect(find.byType(AppInput));
+        final inset = field.left + 4;
+        final banner = tester.getRect(find.text('Banner'));
+        final icon = tester.getRect(find.text('Icon'));
+        expect(banner.left, inset);
+        expect(icon.left, inset);
+        for (final name in ['banner', 'icon']) {
+          final choose = tester.getRect(_button('Replace $name'));
+          final remove = tester.getRect(_button('Remove $name'));
+          expect(remove.top, choose.top);
+          expect(remove.right, lessThanOrEqualTo(field.right));
+        }
+        final save = tester.getRect(
+          find.widgetWithText(AppButton, 'Save description'),
+        );
+        expect(save.right, field.right - 4);
+        expect(save.top, greaterThan(field.bottom));
+        expect(
+          tester.getRect(_button('Replace banner')).left,
+          tester.getRect(_button('Replace icon')).left,
+        );
+      },
+    );
+  }
+
+  testWidgets('the description field is multi-line', (tester) async {
+    await _pump(tester, _Server(), 390);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.minLines, 2);
+    expect(field.maxLines, 4);
   });
 }

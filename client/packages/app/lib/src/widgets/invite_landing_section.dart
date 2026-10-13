@@ -34,6 +34,13 @@ const int _bannerMaxEdge = 1280;
 /// The edge a cropped icon is reduced to; it is never drawn above 40 points.
 const int _iconEdge = 192;
 
+/// An input draws a 2px focus ring around its 2px border, so the controls
+/// below line up with its visible edge by sharing this inset.
+const double _fieldInset = 4;
+
+/// Wide enough for either row label so both rows' buttons share one left edge.
+const double _pictureLabelWidth = 56;
+
 /// Matches the server's cap on a description.
 const int kInviteDescriptionMaxChars = 280;
 
@@ -174,6 +181,49 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
   }
 
+  Widget _pictureRow({
+    required String label,
+    required bool isSet,
+    required VoidCallback onChoose,
+    required VoidCallback onRemove,
+  }) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _pictureLabelWidth,
+            child: Text(
+              label,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+          AppButton(
+            label: isSet ? 'Replace' : 'Choose',
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
+            disabled: _busy,
+            semanticLabel:
+                '${isSet ? 'Replace' : 'Choose'} ${label.toLowerCase()}',
+            onPressed: onChoose,
+          ),
+          if (isSet) ...[
+            const SizedBox(width: AppSpacing.s8),
+            AppButton(
+              label: 'Remove',
+              variant: AppButtonVariant.ghost,
+              size: AppButtonSize.sm,
+              disabled: _busy,
+              semanticLabel: 'Remove ${label.toLowerCase()}',
+              onPressed: onRemove,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _body(api.SpaceSettings loaded) {
     final changed = _description.text.trim() != _saved;
     final bannerSet = loaded.bannerUpdatedAt != null;
@@ -188,53 +238,44 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
             placeholder: 'Short description',
             semanticLabel: 'Description',
             enabled: !_busy,
+            minLines: 2,
+            maxLines: 4,
+            keyboardType: TextInputType.multiline,
             inputFormatters: [
               LengthLimitingTextInputFormatter(kInviteDescriptionMaxChars),
             ],
             onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => unawaited(_saveDescription()),
           ),
-          const SizedBox(height: AppSpacing.s12),
-          Wrap(
-            spacing: AppSpacing.s8,
-            runSpacing: AppSpacing.s8,
-            children: [
-              AppButton(
+          const SizedBox(height: AppSpacing.s8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: AppButton(
                 label: 'Save description',
                 variant: AppButtonVariant.primary,
+                size: AppButtonSize.sm,
                 disabled: _busy || !changed,
                 onPressed: _saveDescription,
               ),
-              AppButton(
-                label: bannerSet ? 'Replace banner' : 'Choose banner',
-                variant: AppButtonVariant.secondary,
-                disabled: _busy,
-                onPressed: _chooseBanner,
-              ),
-              if (bannerSet)
-                AppButton(
-                  label: 'Remove banner',
-                  variant: AppButtonVariant.ghost,
-                  disabled: _busy,
-                  onPressed: () => _run(
-                    'remove the banner',
-                    () => ref.read(apiProvider).deleteSpaceBanner(),
-                  ),
-                ),
-              AppButton(
-                label: iconSet ? 'Replace icon' : 'Choose icon',
-                variant: AppButtonVariant.secondary,
-                disabled: _busy,
-                onPressed: _chooseIcon,
-              ),
-              if (iconSet)
-                AppButton(
-                  label: 'Remove icon',
-                  variant: AppButtonVariant.ghost,
-                  disabled: _busy,
-                  onPressed: _removeIcon,
-                ),
-            ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s16),
+          _pictureRow(
+            label: 'Banner',
+            isSet: bannerSet,
+            onChoose: _chooseBanner,
+            onRemove: () => _run(
+              'remove the banner',
+              () => ref.read(apiProvider).deleteSpaceBanner(),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          _pictureRow(
+            label: 'Icon',
+            isSet: iconSet,
+            onChoose: _chooseIcon,
+            onRemove: _removeIcon,
           ),
           if (actionError != null) ...[
             const SizedBox(height: AppSpacing.s12),
@@ -242,23 +283,27 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           ],
           const SizedBox(height: AppSpacing.s16),
           // The width the join sheet gives it, so the preview is not larger than the real thing.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: InviteLandingCard(
-                name: ref.watch(_spaceNameProvider).valueOrNull ?? 'Your Space',
-                memberCount:
-                    ref.watch(membersProvider).valueOrNull?.length ?? 0,
-                description: _description.text.trim(),
-                banner: _banner(loaded.bannerUpdatedAt),
-                icon: loaded.iconUpdatedAt == null
-                    ? null
-                    : SpaceIcon(
-                        updatedAt: loaded.iconUpdatedAt,
-                        size: kInviteIconSize,
-                      ),
-                use24Hour: watchUse24Hour(ref, context),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: InviteLandingCard(
+                  name:
+                      ref.watch(_spaceNameProvider).valueOrNull ?? 'Your Space',
+                  memberCount:
+                      ref.watch(membersProvider).valueOrNull?.length ?? 0,
+                  description: _description.text.trim(),
+                  banner: _banner(loaded.bannerUpdatedAt),
+                  icon: loaded.iconUpdatedAt == null
+                      ? null
+                      : SpaceIcon(
+                          updatedAt: loaded.iconUpdatedAt,
+                          size: kInviteIconSize,
+                        ),
+                  use24Hour: watchUse24Hour(ref, context),
+                ),
               ),
             ),
           ),
