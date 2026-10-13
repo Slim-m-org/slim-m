@@ -13,7 +13,7 @@
 .github/workflows/release.yml 818 # ten publish jobs sharing release-please outputs, plus two verify jobs wiring every publish path to one commit-status gate; rationale in docs/ci.md
 crates/slimm-server/src/store/sessions.rs 632 # sign-in, sign-out, ws tickets and the token sweep; refresh rotation lives in store/refresh_rotation.rs
 client/packages/app/test/push_controller_test.dart 928 # one suite over registration, lifecycle reporting and revocation; new push coverage goes in a sibling file rather than growing this one
-crates/slimm-server/tests/invites.rs 678 # issue, check, redeem and revoke, plus the four-answers-are-identical assertions
+crates/slimm-server/tests/invites.rs 666 # issue, check, redeem and revoke, plus the four-answers-are-identical assertions
 client/packages/api/test/new_routes_test.dart 596 # the REST routes of PR #36 in one file; the WebSocket frames split to new_routes_ws_frames_test.dart
 crates/slimm-server/tests/polls.rs 605 # create, vote, close and the permission matrix
 crates/slimm-server/tests/dms.rs 594 # pair membership, the deliberately skipped ADMINISTRATOR bypass, and fan-out
