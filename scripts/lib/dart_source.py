@@ -25,36 +25,45 @@ def strip_block_comments(text: str) -> str:
     """
     out: list[str] = []
     i, n = 0, len(text)
-    quote: str | None = None
+    while i < n:
+        if text[i] in "'\"":
+            i = _copy_string(text, i, out)
+        elif text.startswith("//", i):
+            i = _blank_line_comment(text, i, out)
+        elif text.startswith("/*", i):
+            i = _blank_block_comment(text, i, out)
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
+def _copy_string(text: str, start: int, out: list[str]) -> int:
+    """Copies the literal opening at [start] through its closing quote, escapes included."""
+    quote, i, n = text[start], start + 1, len(text)
+    out.append(quote)
     while i < n:
         c = text[i]
-        if quote:
-            out.append(c)
-            if c == "\\" and i + 1 < n:
-                out.append(text[i + 1])
-                i += 2
-                continue
-            if c == quote:
-                quote = None
-            i += 1
-            continue
-        if c in "'\"":
-            quote = c
-            out.append(c)
-            i += 1
-            continue
-        if text[i : i + 2] == "//":
-            end = text.find("\n", i)
-            end = n if end == -1 else end
-            out.append(" " * (end - i))
-            i = end
-            continue
-        if text[i : i + 2] == "/*":
-            end = text.find("*/", i + 2)
-            end = n if end == -1 else end + 2
-            out.append("".join("\n" if ch == "\n" else " " for ch in text[i:end]))
-            i = end
+        if c == "\\" and i + 1 < n:
+            out.append(text[i : i + 2])
+            i += 2
             continue
         out.append(c)
         i += 1
-    return "".join(out)
+        if c == quote:
+            break
+    return i
+
+
+def _blank_line_comment(text: str, start: int, out: list[str]) -> int:
+    end = text.find("\n", start)
+    end = len(text) if end == -1 else end
+    out.append(" " * (end - start))
+    return end
+
+
+def _blank_block_comment(text: str, start: int, out: list[str]) -> int:
+    end = text.find("*/", start + 2)
+    end = len(text) if end == -1 else end + 2
+    out.append("".join("\n" if ch == "\n" else " " for ch in text[start:end]))
+    return end

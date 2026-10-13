@@ -122,19 +122,23 @@ def parse_lock(path: Path) -> list[Locked]:
                 packages.append(_finish(current, path))
             current = {"key": line[:-1].strip('"')}
             continue
-        if not current:
-            continue
-        key, _, value = line.partition(":")
-        value = value.strip().strip('"')
-        if key == "url" and value.endswith(".git"):
-            current["repo"] = value.rsplit("/", 1)[-1][: -len(".git")]
-        if key == "resolved-ref" and value:
-            current["ref"] = value
-        if key in ("version", "source", "name") and value:
-            current.setdefault(key, value)
+        if current:
+            _absorb(current, line)
     if current:
         packages.append(_finish(current, path))
     return packages
+
+
+def _absorb(current: dict[str, str], line: str) -> None:
+    """Folds one `key: value` line of a package entry into [current]."""
+    key, _, value = line.partition(":")
+    value = value.strip().strip('"')
+    if key == "url" and value.endswith(".git"):
+        current["repo"] = value.rsplit("/", 1)[-1][: -len(".git")]
+    if key == "resolved-ref" and value:
+        current["ref"] = value
+    if key in ("version", "source", "name") and value:
+        current.setdefault(key, value)
 
 
 def _finish(entry: dict[str, str], path: Path) -> Locked:

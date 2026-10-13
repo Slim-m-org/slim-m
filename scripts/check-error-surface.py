@@ -312,25 +312,37 @@ def main() -> int:
     checked = 0
     offenders: list[str] = []
     for rel in files:
-        source = strip_block_comments((root / rel).read_text())
-        lines = source.splitlines()
-        checked += len(GUARDED_BINDING.findall(source))
-        checked += len(GUARDED_THEN.findall(source))
-        for lineno, function in guarded_snackbars(source):
-            if (rel, function) not in GUARDED_EXCEPTIONS:
-                offenders.append(f"{rel}:{lineno}:{function}")
-        for lineno, body in catch_blocks(lines, catch_header):
-            checked += 1
-            if not any(SHOWS_SNACKBAR.search(candidate) for candidate in body):
-                continue
-            if (rel, lineno) in EXCEPTIONS:
-                continue
-            offenders.append(f"{rel}:{lineno}:")
+        file_checked, file_offenders = scan_file(rel, (root / rel).read_text(), catch_header)
+        checked += file_checked
+        offenders += file_offenders
 
     if checked == 0:
         print("::error::no caught-exception blocks found anywhere; the gate is not reading anything")
         return 1
 
+    report(offenders)
+    print(f"error surface: {checked} catch block(s) checked in {len(files)} files, {len(offenders)} offender(s)")
+    return 1 if offenders else 0
+
+
+def scan_file(rel: str, text: str, catch_header) -> tuple[int, list[str]]:
+    """How many guarded calls and catch blocks [rel] has, and which show a SnackBar."""
+    source = strip_block_comments(text)
+    checked = len(GUARDED_BINDING.findall(source)) + len(GUARDED_THEN.findall(source))
+    offenders = [
+        f"{rel}:{lineno}:{function}"
+        for lineno, function in guarded_snackbars(source)
+        if (rel, function) not in GUARDED_EXCEPTIONS
+    ]
+    for lineno, body in catch_blocks(source.splitlines(), catch_header):
+        checked += 1
+        shows = any(SHOWS_SNACKBAR.search(candidate) for candidate in body)
+        if shows and (rel, lineno) not in EXCEPTIONS:
+            offenders.append(f"{rel}:{lineno}:")
+    return checked, offenders
+
+
+def report(offenders: list[str]) -> None:
     for offender in offenders:
         path, lineno, function = offender.split(":")
         if function:
@@ -348,9 +360,6 @@ def main() -> int:
             f"by the time the request answers, add '{entry}' to {where} in "
             "scripts/check-error-surface.py"
         )
-
-    print(f"error surface: {checked} catch block(s) checked in {len(files)} files, {len(offenders)} offender(s)")
-    return 1 if offenders else 0
 
 
 if __name__ == "__main__":

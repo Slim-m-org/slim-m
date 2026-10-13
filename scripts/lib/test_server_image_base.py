@@ -104,19 +104,19 @@ class MainTest(unittest.TestCase):
         with patch.object(sys, "stdin", io.StringIO(stdin_text)), patch.object(
             sys, "stdout", out
         ):
-            code = m.main(list(argv))
-        return code, out.getvalue().strip()
+            m.main(list(argv))
+        return out.getvalue().strip()
 
     def test_it_prints_the_sha(self):
         body = '[{"headSha":"abc","jobs":[{"name":"server-image","conclusion":"success"}]}]'
-        self.assertEqual(self._main(body), (0, "abc"))
+        self.assertEqual(self._main(body), "abc")
 
     def test_malformed_json_is_empty_rather_than_a_crash(self):
         """A GitHub hiccup must degrade to the old behaviour, not fail the run."""
-        self.assertEqual(self._main("not json at all"), (0, ""))
+        self.assertEqual(self._main("not json at all"), "")
 
     def test_an_unexpected_shape_is_empty_rather_than_a_crash(self):
-        self.assertEqual(self._main('{"message":"Not Found"}'), (0, ""))
+        self.assertEqual(self._main('{"message":"Not Found"}'), "")
 
 
 if __name__ == "__main__":

@@ -116,13 +116,26 @@ class Client:
         return r.get("result", {}).get("result", {}).get("value")
 
     def enable_semantics(self):
+        """Turns on the accessibility tree once the app has booted; booting gets its
+        own budget so a slow runner's first load cannot spend this one."""
+        self._wait_for_boot()
         for _ in range(20):
             if (self.ev("document.querySelectorAll('flt-semantics').length") or 0) > 0:
                 return
             self.ev("(function(){var p=document.querySelector("
                     "'flt-semantics-placeholder');if(p){p.click();}})()")
             time.sleep(2)
+        self.shot("no-accessibility-tree")
         raise AssertionError(f"{self.name}: accessibility tree never came up")
+
+    def _wait_for_boot(self, timeout=90):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.ev("document.querySelector('flutter-view, flt-glass-pane') !== null"):
+                return
+            time.sleep(1)
+        self.shot("app-never-booted")
+        raise AssertionError(f"{self.name}: the app never booted within {timeout}s")
 
     def go_away(self):
         """Navigates to a blank page, which closes the app's socket.
