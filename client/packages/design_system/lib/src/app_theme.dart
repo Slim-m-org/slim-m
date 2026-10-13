@@ -239,19 +239,16 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
       helperStyle: AppText.caption.copyWith(color: tokens.textSecondary),
     ),
     scrollbarTheme: ScrollbarThemeData(
-      // Idle is a hairline with no track; hover or a drag widens and brightens it.
-      thickness: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.dragged)
-            ? AppSpacing.s8
-            : AppSpacing.s4,
-      ),
-      thumbColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.dragged)
-            ? tokens.textSecondary.withValues(alpha: 0.6)
-            : tokens.textSecondary.withValues(alpha: 0.28),
-      ),
+      // fromMap, not resolveWith: a closure never compares equal, so every rebuild would restart AnimatedTheme.
+      thickness: WidgetStateProperty<double?>.fromMap({
+        WidgetState.hovered | WidgetState.dragged: AppSpacing.s8,
+        WidgetState.any: AppSpacing.s4,
+      }),
+      thumbColor: WidgetStateProperty<Color?>.fromMap({
+        WidgetState.hovered | WidgetState.dragged:
+            tokens.textSecondary.withValues(alpha: 0.6),
+        WidgetState.any: tokens.textSecondary.withValues(alpha: 0.28),
+      }),
       trackVisibility: const WidgetStatePropertyAll(false),
       radius: const Radius.circular(AppSpacing.s4),
       crossAxisMargin: 2,
