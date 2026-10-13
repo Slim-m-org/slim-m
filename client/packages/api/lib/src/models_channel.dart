@@ -2,6 +2,8 @@
 /// The `Channel` wire model, split out of `models.dart` for the line budget.
 library;
 
+import 'models_attachments.dart';
+
 /// A text or voice channel.
 class Channel {
   const Channel({
@@ -153,6 +155,7 @@ class ThreadParent {
     this.parentDeleted = false,
     this.parentAuthorId,
     this.parentAuthorDisplayName,
+    this.parentAttachments = const [],
   });
 
   final String? parentChannelId;
@@ -172,6 +175,9 @@ class ThreadParent {
   final String? parentAuthorId;
   final String? parentAuthorDisplayName;
 
+  /// The parent message's attachments; empty for a deleted parent.
+  final List<Attachment> parentAttachments;
+
   bool get isThread => parentChannelId != null;
 
   factory ThreadParent.fromJson(Map<String, dynamic> json) => ThreadParent(
@@ -182,6 +188,10 @@ class ThreadParent {
         parentDeleted: json['parent_deleted'] as bool? ?? false,
         parentAuthorId: json['parent_author_id'] as String?,
         parentAuthorDisplayName: json['parent_author_display_name'] as String?,
+        parentAttachments: [
+          for (final raw in json['parent_attachments'] as List<dynamic>? ?? [])
+            Attachment.fromJson(raw as Map<String, dynamic>),
+        ],
       );
 }
 

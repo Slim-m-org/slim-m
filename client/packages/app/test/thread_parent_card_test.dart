@@ -93,8 +93,10 @@ http.Response _threadParentJson({
   bool parentDeleted = false,
   String? parentAuthorId,
   String? parentAuthorDisplayName,
+  List<Map<String, Object>> parentAttachments = const [],
 }) => http.Response(
   jsonEncode({
+    'parent_attachments': parentAttachments,
     'parent_channel_id': parentChannelId,
     'parent_channel_name': parentChannelName,
     'parent_message_id': parentMessageId,
@@ -285,4 +287,37 @@ void main() {
       await _settle(tester);
     },
   );
+
+  testWidgets("the parent's attachments show in the parent block", (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpThread(
+      tester,
+      const Size(1400, 900),
+      threadParentResponse: _threadParentJson(
+        parentChannelId: 'parent-channel',
+        parentChannelName: 'general',
+        parentMessageId: 'parent-1',
+        parentContent: 'see the attached steps',
+        parentAuthorId: 'alice',
+        parentAuthorDisplayName: 'Alice',
+        parentAttachments: const [
+          {
+            'id': 'att-1',
+            'filename': 'repro-steps.pdf',
+            'content_type': 'application/pdf',
+            'size': 48213,
+          },
+        ],
+      ),
+    );
+    expect(find.text('repro-steps.pdf'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp(r'with an attachment')),
+      findsOneWidget,
+    );
+    semantics.dispose();
+    await _settle(tester);
+  });
 }

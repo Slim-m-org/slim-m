@@ -16,6 +16,7 @@ use super::AppState;
 use super::channels::ChannelDto;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::message_dto::AttachmentDto;
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId};
@@ -107,6 +108,9 @@ struct ThreadParentDto {
     /// `Message::author_id` goes null.
     parent_author_id: Option<String>,
     parent_author_display_name: Option<String>,
+    /// The parent message's attachments, so the thread panel shows what the
+    /// thread is about; empty for a deleted parent.
+    parent_attachments: Vec<AttachmentDto>,
 }
 
 impl ThreadParentDto {
@@ -118,6 +122,7 @@ impl ThreadParentDto {
         parent_deleted: false,
         parent_author_id: None,
         parent_author_display_name: None,
+        parent_attachments: Vec::new(),
     };
 }
 
@@ -169,6 +174,18 @@ async fn thread_parent(
             // A channel's parent_message_id always names a real row, so a miss here means it was soft-deleted.
             None => (None, true, None, None),
         };
+    let parent_attachments = if parent_deleted {
+        Vec::new()
+    } else {
+        state
+            .store
+            .attachments_for_messages(&[parent.parent_message_id])
+            .await?
+            .into_iter()
+            .flat_map(|(_, summaries)| summaries)
+            .map(AttachmentDto::from)
+            .collect()
+    };
     Ok(Json(ThreadParentDto {
         parent_channel_id: Some(parent.parent_channel_id.to_string()),
         parent_channel_name: name,
@@ -177,6 +194,7 @@ async fn thread_parent(
         parent_deleted,
         parent_author_id,
         parent_author_display_name,
+        parent_attachments,
     }))
 }
 

@@ -262,10 +262,23 @@ Future<http.Response> fixtureResponse(http.Request request) async {
     // A list is the right empty answer for most reads; the read marker decodes a shape.
     _ when path.endsWith('/read') => const {'last_read_seq': 3, 'unread': 0},
     _ when path.endsWith('/voice/roster') => const {'participants': <Object>[]},
+    // A real parent with an attachment, so the thread panel's parent block renders.
     _ when path.endsWith('/thread-parent') => const {
-      'parent_channel_id': null,
-      'parent_channel_name': null,
-      'parent_message_id': null,
+      'parent_channel_id': 'c-general',
+      'parent_channel_name': 'general',
+      'parent_message_id': 'msg-thread-parent',
+      'parent_content': 'The canvas undo drops the last stroke after a reconnect.',
+      'parent_deleted': false,
+      'parent_author_id': 'user-nick',
+      'parent_author_display_name': 'Nick',
+      'parent_attachments': [
+        {
+          'id': 'att-repro',
+          'filename': 'repro-steps.pdf',
+          'content_type': 'application/pdf',
+          'size': 48213,
+        },
+      ],
     },
     _ when path.endsWith('/canvas/objects') => const {
       'objects': <Object>[],
