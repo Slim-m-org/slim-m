@@ -19,8 +19,10 @@ import e2e_admin
 import e2e_canvas
 import e2e_canvas_shapes
 import e2e_labels as L
+import e2e_invite_landing
 import e2e_media_slots
 import e2e_messaging
+import e2e_password
 import e2e_markdown
 import e2e_composer
 import e2e_dm_call
@@ -34,6 +36,7 @@ import e2e_sweep
 import e2e_threads
 import e2e_voice
 import e2e_voice_network
+import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_api
 from e2e_api import Api
@@ -151,10 +154,19 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_settings.space_settings_reachable(a)),
         ("settings: who can join", lambda: e2e_settings.change_join_policy(
             a, admin)),
+        ("settings: an invite landing page reaches a signed-out browser",
+         lambda: e2e_invite_landing.signed_out_sees_the_card(
+             b, sign_in, server, secret, a, admin, picture())),
         ("admin: creating a role", lambda: e2e_admin.create_role(a, admin)),
         ("admin: renaming a member shows the nickname everywhere",
          lambda: e2e_members.admin_renames_a_member(
              a, L.TEXT_CHANNEL, admin, member)),
+        ("admin: a reset code asks for the admin's password",
+         lambda: e2e_password.reset_code_asks_for_the_admins_password(
+             a, server, secret, admin)),
+        ("account: changing your password signs out your other devices",
+         lambda: e2e_password.change_own_password(
+             b, sign_in, server, secret, admin)),
         ("account: the push preview is one choice across devices",
          lambda: e2e_accounts.push_preview_is_account_wide(server, secret)),
         ("api: the routes the UI scenarios do not reach",
@@ -199,6 +211,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas.concurrent_edits_converge(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: closing it", lambda: e2e_canvas.close_on_both(a, b)),
+        ("voice: watching quality changes from the share menu and persists",
+         lambda: e2e_video_quality.watching_quality_from_the_share_menu(
+             a, room_id)),
         ("voice: two clients in one call", lambda: e2e_voice.join_call(
             a, b, room_id)),
         ("voice: audio actually arrives",
