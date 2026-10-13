@@ -91,6 +91,7 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
   List<api.SlashCommand> slashCommands = const [],
   List<api.App> apps = const [],
   List<api.ChannelBotCommand> botCommands = const [],
+  bool gifSearch = false,
 }) => switch (query.kind) {
   AutocompleteKind.emoji => _emoji(query.term, custom),
   AutocompleteKind.mention => _mentions(
@@ -104,6 +105,7 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
     slashCommands,
     apps,
     botCommands,
+    gifSearch: gifSearch,
   ),
 };
 
@@ -237,8 +239,15 @@ List<AutocompleteSuggestion> _commandRows(
   String term,
   List<api.SlashCommand> slashCommands,
   List<api.App> apps,
-  List<api.ChannelBotCommand> botCommands,
-) => [
+  List<api.ChannelBotCommand> botCommands, {
+  bool gifSearch = false,
+}) => [
+  if (gifSearch && (term.isEmpty || 'gif'.startsWith(term)))
+    const AutocompleteSuggestion(
+      insert: '/gif ',
+      label: '/gif',
+      detail: 'search for a GIF',
+    ),
   for (final (name, text, detail) in _commands)
     if (term.isEmpty || name.startsWith(term))
       AutocompleteSuggestion(insert: '$text ', label: '/$name', detail: detail),

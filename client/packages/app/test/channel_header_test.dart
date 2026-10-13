@@ -284,7 +284,7 @@ void main() {
   /// The lock replaces the hash exactly when `restricted` is true; a false
   /// or, per the next case, an entirely absent value must render exactly as
   /// an ordinary channel always has.
-  testWidgets('a restricted channel shows the lock instead of the hash', (
+  testWidgets('a restricted channel shows the hash with a lock badge', (
     tester,
   ) async {
     final container = _containerWithPins([]);
@@ -311,7 +311,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(AppIcons.restrictedChannel), findsOneWidget);
-    expect(find.byIcon(AppIcons.hash), findsNothing);
+    expect(find.byIcon(AppIcons.hash), findsOneWidget);
   });
 
   testWidgets(

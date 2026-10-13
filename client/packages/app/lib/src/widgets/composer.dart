@@ -45,6 +45,9 @@ import 'composer_list_keys.dart';
 import 'composer_photo_strip.dart';
 import 'composer_slash.dart';
 import 'emoji_picker.dart';
+import 'composer_gif_command.dart';
+import 'composer_picker_panel.dart'
+    show ComposerPickerTab, showComposerPickerSheet;
 import 'gif_picker.dart';
 import 'poll_composer_sheet.dart';
 import 'text_insert.dart';
@@ -103,6 +106,7 @@ class _ComposerState extends ConsumerState<Composer> {
   /// attachment", the one band `ComposerBanners` reserves for it.
   String? _attachmentError;
   late final FocusNode _focus = FocusNode(onKeyEvent: _onKey);
+  final _pickerController = ComposerPickerController();
   final ComposerListKeys _listKeys = ComposerListKeys();
 
   /// The composed text's own length and how far over [kMessageMaxChars] it
@@ -233,6 +237,7 @@ class _ComposerState extends ConsumerState<Composer> {
     _focus.removeListener(_handleFocusChange);
     widget.clipboardPasteStop(_handlePastedImage);
     _focus.dispose();
+    _pickerController.dispose();
     _attachments.removeListener(_handleAttachmentsChange);
     super.dispose();
   }
@@ -314,6 +319,7 @@ class _ComposerState extends ConsumerState<Composer> {
       slashCommands: _slashCommands,
       apps: _apps,
       botCommands: _botCommands,
+      gifSearch: _gifSearchEnabled,
     );
   }
 
@@ -329,6 +335,12 @@ class _ComposerState extends ConsumerState<Composer> {
   void _accept(AutocompleteSuggestion suggestion) {
     final query = _query;
     if (query == null) return;
+    if (suggestion.label == '/gif') {
+      _dismissAutocomplete();
+      widget.controller.clear();
+      _openGifSearch('');
+      return;
+    }
     final text = widget.controller.text;
     widget.controller.value = TextEditingValue(
       text: text.replaceRange(query.start, query.end, suggestion.insert),
@@ -487,13 +499,18 @@ class _ComposerState extends ConsumerState<Composer> {
     ),
   );
 
-  Future<void> _stageGif(Attachment attachment) => stageGif(
-    context: context,
-    ref: ref,
-    attachments: _attachments,
-    onError: _setAttachmentError,
-    attachment: attachment,
-  );
+  /// Focus comes back to the field, so Enter sends the GIF without the mouse.
+  Future<void> _stageGif(Attachment attachment) async {
+    _focus.requestFocus();
+    await stageGif(
+      context: context,
+      ref: ref,
+      attachments: _attachments,
+      onError: _setAttachmentError,
+      attachment: attachment,
+    );
+    if (mounted) _focus.requestFocus();
+  }
 
   /// Re-focuses first so a soft keyboard stays up across the send, matching
   /// what the field's own submit action does.
@@ -552,8 +569,33 @@ class _ComposerState extends ConsumerState<Composer> {
 
   /// A `/command` for a module runs it and posts its output; anything else is
   /// an ordinary send. See `composer_slash.dart` for the run itself.
+  /// `/gif`: the picker's GIF tab, searching for [query], with its field focused.
+  void _openGifSearch(String query) {
+    if (MediaQuery.sizeOf(context).width < kCompactWidth) {
+      unawaited(
+        showComposerPickerSheet(
+          context,
+          onSelectEmoji: _insertPickedEmoji,
+          onPickedGif: _stageGif,
+          initialTab: ComposerPickerTab.gif,
+          gifQuery: query,
+        ),
+      );
+    } else {
+      _pickerController.openGif(query);
+    }
+  }
+
   Future<void> _send() async {
     if (!_canSend) return;
+    final gifQuery = _gifSearchEnabled && _attachments.isEmpty
+        ? gifCommandQuery(widget.controller.text)
+        : null;
+    if (gifQuery != null) {
+      widget.controller.clear();
+      _openGifSearch(gifQuery);
+      return;
+    }
     final staging = _attachments;
     final bool handled;
     _commandRunning = true;
@@ -664,6 +706,7 @@ class _ComposerState extends ConsumerState<Composer> {
               gifSearchEnabled: _gifSearchEnabled,
               onInsertEmoji: _insertPickedEmoji,
               onStageGif: _stageGif,
+              pickerController: _pickerController,
             ),
             ComposerPhotoStripSlot(
               channelId: widget.channelId,
