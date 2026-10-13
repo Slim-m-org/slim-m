@@ -51,6 +51,30 @@ void main() {
     expect(find.textContaining('reporter-1'), findsNothing);
   });
 
+  testWidgets('the footer date sits flush with the card content edge', (
+    tester,
+  ) async {
+    await pumpReports(
+      tester,
+      reports: [
+        reportJson(
+          id: 'report-1',
+          subjectKind: 'message',
+          subjectId: 'message-1',
+          reporterId: 'reporter-1',
+          channelId: 'channel-1',
+          snapshot: 'go away',
+        ),
+      ],
+      profiles: {'reporter-1': 'Alice'},
+    );
+
+    final card = tester.getRect(find.byType(AppCard).first);
+    final date = tester.getRect(find.textContaining(RegExp(r'\d{4}')).first);
+    expect(date.right, greaterThan(card.right - AppSpacing.s16 - 2));
+    expect(date.right, lessThanOrEqualTo(card.right - AppSpacing.s8 + 1));
+  });
+
   testWidgets('a user report names its subject, not the raw id', (
     tester,
   ) async {

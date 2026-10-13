@@ -115,6 +115,20 @@ void main() {
     expect(find.text('3'), findsOneWidget);
   });
 
+  testWidgets('member counts line up whether or not a row has a drag handle', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _role('role-everyone', 'everyone', everyone: true, memberCount: 7),
+      _role('role-mod', 'mod', memberCount: 3),
+    ]);
+
+    expect(
+      tester.getTopRight(find.text('7')).dx,
+      closeTo(tester.getTopRight(find.text('3')).dx, 0.5),
+    );
+  });
+
   testWidgets('a wide window shows the role list beside the selected detail', (
     tester,
   ) async {

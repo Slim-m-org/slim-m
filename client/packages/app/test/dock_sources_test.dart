@@ -175,6 +175,25 @@ void main() {
     },
   );
 
+  testWidgets('modules in one source card are told apart by a divider', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final first = tester.getRect(find.text('Module extra'));
+    final second = tester.getRect(find.text('Module taken'));
+    final between = find
+        .byWidgetPredicate((w) => w is Divider)
+        .evaluate()
+        .where((e) {
+          final y = tester
+              .getRect(find.byElementPredicate((x) => x == e))
+              .center
+              .dy;
+          return y > first.bottom && y < second.top;
+        });
+    expect(between, isNotEmpty);
+  });
+
   testWidgets('a broken source reports itself and leaves the others listed', (
     tester,
   ) async {
