@@ -2193,11 +2193,12 @@ paths:
     get:
       operationId: listCategories
       tags: [channels]
-      summary: List every live channel category.
+      summary: List the channel categories the caller can see.
       description: >
-        Unfiltered by any permission: a category carries none of its own
-        (see docs/IMPLIED-GAPS.md), so its name and position are not
-        privileged for any authenticated caller. Split out of
+        Every category for a caller with MANAGE_CHANNELS, empty ones included;
+        for anyone else only the categories holding a channel they can view,
+        so a private category's name does not reach members kept out of all
+        of it. Split out of
         `listChannels`'s own response, which used to embed this list until
         that reshaped an existing response the wire's additive-only rule
         does not allow; a new route is additive.
