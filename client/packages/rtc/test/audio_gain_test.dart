@@ -1,17 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Per-participant volume is offered only where the underlying call actually
-/// does something, and that guard is the whole feature on the platforms that
-/// cannot do it.
-///
-/// `Helper.setVolume` works on Android, iOS and macOS. On Linux and Windows
-/// it throws an uncaught `PlatformException`: their shared C++ track lookup
-/// scans a map that only the Plan B `OnAddStream` callback fills, and LiveKit
-/// uses Unified Plan, so it is always empty. On web it resolves having
-/// silently discarded a constraint no browser honours.
-///
-/// Hardcoding the guard true would look perfectly fine on a phone. Fedora is
-/// this project's day-to-day target and is one of the two that break, so this
-/// pins the guard to the platform rather than to a constant.
+/// does something: every native platform, measured on Linux against a real
+/// LiveKit room, and not the web, where it resolves having silently discarded
+/// a constraint no browser honours. Pinned to the platform, not a constant.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -33,12 +24,10 @@ class _EmptyRoom extends lk.Room {
 
 void main() {
   test('support is derived from the platform, never hardcoded', () {
-    const works = {
-      lk.PlatformType.android,
-      lk.PlatformType.iOS,
-      lk.PlatformType.macOS,
-    };
-    expect(supportsParticipantVolume, works.contains(lk.lkPlatform()));
+    expect(
+      supportsParticipantVolume,
+      lk.lkPlatform() != lk.PlatformType.web,
+    );
   });
 
   test('clamps into the range the design offers', () {
@@ -89,8 +78,8 @@ void main() {
   });
 }
 
-/// A track object that is not backed by anything, standing in for the native
-/// lookups that fail to find a remote track on Linux and Windows.
+/// A track object that is not backed by anything, standing in for a native
+/// lookup that cannot find the track.
 class _UnusableTrack implements lk.Track {
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
