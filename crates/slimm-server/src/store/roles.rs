@@ -45,7 +45,13 @@ pub struct Role {
     pub position: i64,
     /// Whether the member pane gives this role's members their own section.
     pub hoist: bool,
+    /// An index into the client's role palette, below [`ROLE_COLOR_COUNT`];
+    /// `None` leaves the colour the client derives from the id.
+    pub color: Option<i64>,
 }
+
+/// How many colours the role palette holds; the client's palette is the same length.
+pub const ROLE_COLOR_COUNT: usize = 10;
 
 /// Why a role mutation was refused.
 #[derive(Debug)]
@@ -221,7 +227,7 @@ impl Store {
                       is_everyone AS "is_everyone!: bool",
                       mentionable AS "mentionable!: bool", created_at AS "created_at!",
                       managed_bot_id AS "managed_bot_id: UserId",
-                      position AS "position!: i64", hoist AS "hoist!: bool"
+                      position AS "position!: i64", hoist AS "hoist!: bool", color
                FROM roles ORDER BY position DESC, created_at"#
         )
         .fetch_all(&self.pool)
@@ -238,7 +244,7 @@ impl Store {
                       is_everyone AS "is_everyone!: bool",
                       mentionable AS "mentionable!: bool", created_at AS "created_at!",
                       managed_bot_id AS "managed_bot_id: UserId",
-                      position AS "position!: i64", hoist AS "hoist!: bool"
+                      position AS "position!: i64", hoist AS "hoist!: bool", color
                FROM roles WHERE id = ?"#,
             role_id
         )

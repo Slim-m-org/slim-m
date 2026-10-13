@@ -47,6 +47,7 @@ extension SlimmApiRoles on SlimmApi {
     int? permissions,
     bool? mentionable,
     bool? hoist,
+    int? color,
   }) async {
     final json = await _send(
       'PATCH',
@@ -56,6 +57,7 @@ extension SlimmApiRoles on SlimmApi {
         if (permissions != null) 'permissions': permissions,
         if (mentionable != null) 'mentionable': mentionable,
         if (hoist != null) 'hoist': hoist,
+        if (color != null) 'color': color,
       },
     );
     return Role.fromJson(json as Map<String, dynamic>);

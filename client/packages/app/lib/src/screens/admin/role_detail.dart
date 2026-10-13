@@ -60,7 +60,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             children: [
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: roleColor(role.id),
+                  color: roleColor(role.id, color: role.color),
                   shape: BoxShape.circle,
                 ),
                 child: const SizedBox(width: 14, height: 14),

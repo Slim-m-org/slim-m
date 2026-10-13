@@ -11327,6 +11327,10 @@ components:
         hoist:
           type: boolean
           description: Whether the member pane lists this role's members under their own heading. Defaults false.
+        color:
+          type: [integer, "null"]
+          format: int64
+          description: An index into the client's ten-colour role palette, or null for the colour the client derives from the role id.
         created_at:
           type: integer
           format: int64
@@ -11418,6 +11422,10 @@ components:
           type: boolean
         hoist:
           type: boolean
+        color:
+          type: integer
+          format: int64
+          description: A role palette index from 0 to 9.
 
     ReorderRolesRequest:
       type: object

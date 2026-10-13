@@ -190,7 +190,8 @@ pub use reports::{
 };
 pub use role_hierarchy::RoleWithCount;
 pub use role_reorder::{ReorderRolesError, RoleReorderOutcome};
-pub use roles::{CreateRoleError, CreatedRole, Role, RoleGuardError};
+pub use role_update::RoleChanges;
+pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardError};
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};

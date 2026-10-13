@@ -28,6 +28,7 @@ use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
 use slimm_server::push::PushSender;
 use slimm_server::ratelimit::RateLimiter;
+use slimm_server::store::RoleChanges;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
@@ -353,10 +354,10 @@ async fn without_attach_files_the_route_is_forbidden_even_with_a_provider_config
     store
         .update_role(
             everyone_role.id,
-            None,
-            Some(Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES)),
-            None,
-            None,
+            RoleChanges {
+                permissions: Some(Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES)),
+                ..RoleChanges::default()
+            },
         )
         .await
         .unwrap();
