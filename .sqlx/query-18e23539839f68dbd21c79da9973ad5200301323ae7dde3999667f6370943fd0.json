@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)\n         SELECT ?, target_type, target_id, allow, deny\n         FROM category_overwrites WHERE category_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "18e23539839f68dbd21c79da9973ad5200301323ae7dde3999667f6370943fd0"
+}

@@ -22,9 +22,11 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/channel_permissions.dart';
-import '../../providers/member_presence.dart' show membersProvider;
+import '../../providers/member_presence.dart'
+    show channelMembersProvider, membersProvider;
 import '../../providers/providers.dart';
 import '../../widgets/run_guarded.dart';
+import 'category_sync_banner.dart';
 import 'channel_permissions_body.dart';
 import 'channel_permissions_escalation.dart';
 import 'channel_permissions_grid_rows.dart';
@@ -33,9 +35,17 @@ import 'channel_permissions_toolbar.dart';
 import 'channel_permissions_picker.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
-  const ChannelPermissionsGrid({super.key, required this.channel});
+  const ChannelPermissionsGrid({super.key, required Channel this.channel})
+    : categoryId = null;
 
-  final Channel channel;
+  /// A category's own overwrites, which its synced channels copy (decision 0064).
+  const ChannelPermissionsGrid.forCategory({
+    super.key,
+    required String this.categoryId,
+  }) : channel = null;
+
+  final Channel? channel;
+  final String? categoryId;
 
   @override
   ConsumerState<ChannelPermissionsGrid> createState() =>
@@ -57,6 +67,19 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   bool _saving = false;
   bool _loaded = false;
   final _filter = TextEditingController();
+
+  String? get _categoryId => widget.categoryId;
+
+  AutoDisposeFutureProvider<List<api.ChannelOverwrite>> get _overwrites =>
+      switch (_categoryId) {
+        final id? => categoryOverwritesProvider(id),
+        null => channelOverwritesProvider(widget.channel!.id),
+      };
+
+  /// The ceiling on what may be granted: in this channel, or Space-wide.
+  int _ceiling(WidgetRef ref) => _categoryId == null
+      ? ref.watch(myChannelPermissionsProvider(widget.channel!.id))
+      : ref.watch(myPermissionsProvider);
 
   @override
   void dispose() {
@@ -192,13 +215,15 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   /// Clears removals one at a time and forgets each once done, so a later
   /// refusal of the batch cannot make a retry delete the same column twice.
   Future<void> _applyRemovals() async {
+    // A category's batch removes a target given an all-zero pair, so removals ride along in _save.
+    if (_categoryId != null) return;
     for (final key in _removed.toList()) {
       final (kind, id) = _parseKey(key);
       try {
         await ref
             .read(apiProvider)
             .deleteChannelOverwrite(
-              channelId: widget.channel.id,
+              channelId: widget.channel!.id,
               kind: kind,
               id: id,
             );
@@ -212,7 +237,9 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   Future<void> _save() async {
     final blocked = _escalation(
-      ref.read(myChannelPermissionsProvider(widget.channel.id)),
+      _categoryId == null
+          ? ref.read(myChannelPermissionsProvider(widget.channel!.id))
+          : ref.read(myPermissionsProvider),
     );
     if (blocked != 0) {
       setActionError(escalationMessage(blocked));
@@ -233,11 +260,26 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
                 deny: entry.value.$2,
               ),
         ];
-        if (edits.isNotEmpty) {
+        final categoryId = _categoryId;
+        if (categoryId != null) {
+          await ref
+              .read(apiProvider)
+              .batchSetCategoryOverwrites(
+                categoryId: categoryId,
+                overwrites: [
+                  ...edits,
+                  for (final key in _removed)
+                    api.ChannelOverwriteEdit(
+                      kind: _parseKey(key).$1,
+                      id: _parseKey(key).$2,
+                    ),
+                ],
+              );
+        } else if (edits.isNotEmpty) {
           await ref
               .read(apiProvider)
               .batchSetChannelOverwrites(
-                channelId: widget.channel.id,
+                channelId: widget.channel!.id,
                 overwrites: edits,
               );
         }
@@ -251,7 +293,12 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   /// Reseeds from the server's answer rather than the provider's previous
   /// value, which an invalidate would hand straight back and pin as saved.
   Future<void> _reloadSaved() async {
-    final provider = channelOverwritesProvider(widget.channel.id);
+    final provider = _overwrites;
+    // A saved overwrite can grant or revoke view, which changes who the channel's member list holds.
+    if (widget.channel case final channel?) {
+      ref.invalidate(channelMembersProvider(channel.id));
+      ref.invalidate(channelOverwritesSyncedProvider(channel.id));
+    }
     try {
       final fresh = await ref.refresh(provider.future);
       if (!mounted) return;
@@ -275,28 +322,25 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(channelOverwritesProvider(widget.channel.id), (previous, next) {
+    ref.listen(_overwrites, (previous, next) {
       if (!_loaded || !next.hasValue || next.isLoading) return;
       if (identical(previous?.value, next.value)) return;
       _mergeRemote(next.requireValue);
     });
-    final overwritesAsync = ref.watch(
-      channelOverwritesProvider(widget.channel.id),
-    );
+    final overwritesAsync = ref.watch(_overwrites);
     final rolesAsync = ref.watch(rolesProvider);
     final membersAsync = ref.watch(membersProvider);
-    final myPermissions = ref.watch(
-      myChannelPermissionsProvider(widget.channel.id),
-    );
+    final myPermissions = _ceiling(ref);
 
     if (!overwritesAsync.hasValue ||
         !rolesAsync.hasValue ||
         !membersAsync.hasValue) {
       if (overwritesAsync.hasError) {
         return AppErrorState(
-          message: "Could not load this channel's overwrites.",
-          onRetry: () =>
-              ref.invalidate(channelOverwritesProvider(widget.channel.id)),
+          message: _categoryId == null
+              ? "Could not load this channel's overwrites."
+              : "Could not load this category's overwrites.",
+          onRetry: () => ref.invalidate(_overwrites),
         );
       }
       if (rolesAsync.hasError) {
@@ -332,24 +376,35 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
           if (_resolve(key, roles, members) case final column?) column,
     ].map(_withCounts).toList();
 
-    // Embedded inline (unbounded height) or given the whole body (bounded); Expanded below needs a ceiling either way.
+    // Unbounded height means a scrolling pane hosts us: lay out at full height so that pane is the only vertical scroller.
     return LayoutBuilder(
-      builder: (context, outer) {
-        final maxHeight = outer.hasBoundedHeight
-            ? outer.maxHeight
-            : MediaQuery.sizeOf(context).height * 0.6;
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: _buildGrid(columns, myPermissions),
-        );
-      },
+      builder: (context, outer) => _buildGrid(
+        columns,
+        myPermissions,
+        shrinkWrap: !outer.hasBoundedHeight,
+      ),
     );
   }
 
-  Widget _buildGrid(List<GridColumn> columns, int myPermissions) {
+  Widget _buildGrid(
+    List<GridColumn> columns,
+    int myPermissions, {
+    required bool shrinkWrap,
+  }) {
+    final view = PermissionGridView(
+      shrinkWrap: shrinkWrap,
+      columns: columns,
+      filter: _filter.text,
+      onAdd: _pickTarget,
+      onRemove: _removeColumn,
+      cellBuilder: (column, spec) => _cell(column, spec, myPermissions),
+    );
     return Column(
+      mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.channel case final channel? when channel.categoryId != null)
+          CategorySyncBanner(channelId: channel.id),
         PermissionsToolbar(
           filter: _filter,
           onFilterChanged: () => setState(() {}),
@@ -369,32 +424,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
-        Expanded(
-          child: PermissionGridView(
-            columns: columns,
-            filter: _filter.text,
-            onAdd: _pickTarget,
-            onRemove: _removeColumn,
-            cellBuilder: (column, spec) {
-              final grantable = myPermissions.hasPermission(spec.bit);
-              final (allow, deny) = _pending[column.key] ?? (0, 0);
-              return Cell(
-                key: ValueKey('cell:${column.key}:${spec.bit}'),
-                state: CellState.resolve(allow, deny, spec.bit),
-                changed:
-                    CellState.resolve(allow, deny, spec.bit) !=
-                    CellState.resolve(
-                      _original[column.key]?.$1 ?? 0,
-                      _original[column.key]?.$2 ?? 0,
-                      spec.bit,
-                    ),
-                disabled: !grantable || _saving,
-                label: '${spec.label}, ${column.label}',
-                onTap: () => _cycle(column, spec.bit, grantable),
-              );
-            },
-          ),
-        ),
+        if (shrinkWrap) view else Expanded(child: view),
         if (_isDirty)
           UnsavedChangesBar(
             changeCount: _changeCount,
@@ -403,6 +433,21 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             onSave: _save,
           ),
       ],
+    );
+  }
+
+  Widget _cell(GridColumn column, PermSpec spec, int myPermissions) {
+    final grantable = myPermissions.hasPermission(spec.bit);
+    final (allow, deny) = _pending[column.key] ?? (0, 0);
+    final (origAllow, origDeny) = _original[column.key] ?? (0, 0);
+    final state = CellState.resolve(allow, deny, spec.bit);
+    return Cell(
+      key: ValueKey('cell:${column.key}:${spec.bit}'),
+      state: state,
+      changed: state != CellState.resolve(origAllow, origDeny, spec.bit),
+      disabled: !grantable || _saving,
+      label: '${spec.label}, ${column.label}',
+      onTap: () => _cycle(column, spec.bit, grantable),
     );
   }
 

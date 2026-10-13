@@ -36,6 +36,7 @@ mod canvas_ops_apply;
 mod canvas_ops_sweep;
 mod canvas_ops_write;
 mod categories;
+mod category_overwrites;
 mod channel_create;
 mod channel_notification_prefs;
 mod channel_order;

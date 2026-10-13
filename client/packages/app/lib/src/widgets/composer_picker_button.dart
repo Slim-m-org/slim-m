@@ -18,6 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'animated_menu_portal.dart';
+import 'composer_gif_command.dart';
 import 'composer_picker_layout.dart';
 import 'composer_picker_panel.dart';
 import 'message_context_menu_layout.dart' show menuScreenMargin;
@@ -28,7 +29,11 @@ class ComposerPickerButton extends StatefulWidget {
     required this.gifSearchEnabled,
     required this.onSelectEmoji,
     required this.onPickedGif,
+    this.controller,
   });
+
+  /// Opens this panel on its GIF tab, for `/gif`.
+  final ComposerPickerController? controller;
 
   final bool gifSearchEnabled;
   final ValueChanged<String> onSelectEmoji;
@@ -41,6 +46,41 @@ class ComposerPickerButton extends StatefulWidget {
 class _ComposerPickerButtonState extends State<ComposerPickerButton> {
   final _controller = AnimatedMenuController();
   Offset _anchor = Offset.zero;
+  ComposerPickerTab _tab = ComposerPickerTab.emoji;
+  String _gifQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_openGif);
+  }
+
+  @override
+  void didUpdateWidget(ComposerPickerButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_openGif);
+      widget.controller?.addListener(_openGif);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_openGif);
+    super.dispose();
+  }
+
+  void _openGif() {
+    final query = widget.controller?.takeGifQuery();
+    if (query == null || !widget.gifSearchEnabled) return;
+    if (_controller.isShowing) _controller.hide();
+    setState(() {
+      _anchor = _anchorOffset();
+      _tab = ComposerPickerTab.gif;
+      _gifQuery = query;
+    });
+    _controller.show();
+  }
 
   /// Closes the panel if it is open, otherwise opens it above this button.
   void _toggle() {
@@ -48,7 +88,11 @@ class _ComposerPickerButtonState extends State<ComposerPickerButton> {
       _controller.hide();
       return;
     }
-    setState(() => _anchor = _anchorOffset());
+    setState(() {
+      _anchor = _anchorOffset();
+      _tab = ComposerPickerTab.emoji;
+      _gifQuery = '';
+    });
     _controller.show();
   }
 
@@ -93,7 +137,9 @@ class _ComposerPickerButtonState extends State<ComposerPickerButton> {
             child: TapRegion(
               onTapOutside: (_) => _close(),
               child: ComposerPickerPanel(
-                initialTab: ComposerPickerTab.emoji,
+                key: ValueKey((_tab, _gifQuery)),
+                initialTab: _tab,
+                gifQuery: _gifQuery,
                 showGifTab: widget.gifSearchEnabled,
                 onSelectEmoji: _selectEmoji,
                 onPickedGif: _pickedGif,

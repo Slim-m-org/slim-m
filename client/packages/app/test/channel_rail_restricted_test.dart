@@ -76,25 +76,29 @@ Future<void> _pumpSections(WidgetTester tester, Channel channel) async {
 }
 
 void main() {
-  testWidgets('a restricted text channel shows the lock instead of the hash', (
+  testWidgets('a restricted text channel shows the hash with a lock badge', (
     tester,
   ) async {
     await _pumpSections(tester, _channel('c1', 'staff', restricted: true));
 
     expect(find.byIcon(AppIcons.restrictedChannel), findsOneWidget);
-    expect(find.byIcon(AppIcons.hash), findsNothing);
-  });
-
-  testWidgets('a restricted voice channel shows the lock instead of the '
-      'speaker', (tester) async {
-    await _pumpSections(
-      tester,
-      _channel('c1', 'staff-voice', kind: 'voice', restricted: true),
-    );
-
-    expect(find.byIcon(AppIcons.restrictedChannel), findsOneWidget);
+    expect(find.byIcon(AppIcons.hash), findsOneWidget);
     expect(find.byIcon(AppIcons.voice), findsNothing);
   });
+
+  testWidgets(
+    'a restricted voice channel shows the speaker with a lock badge',
+    (tester) async {
+      await _pumpSections(
+        tester,
+        _channel('c1', 'staff-voice', kind: 'voice', restricted: true),
+      );
+
+      expect(find.byIcon(AppIcons.restrictedChannel), findsOneWidget);
+      expect(find.byIcon(AppIcons.voice), findsOneWidget);
+      expect(find.byIcon(AppIcons.hash), findsNothing);
+    },
+  );
 
   testWidgets('an ordinary text channel keeps its hash and carries no lock', (
     tester,

@@ -75,22 +75,38 @@ struct UpdateCategoryRequest {
     position: Option<i64>,
 }
 
-/// Lists every live category. Unfiltered by any permission, the same as the
-/// list this used to ride inside `GET /channels`'s own response: a category
-/// carries no permission of its own (see docs/IMPLIED-GAPS.md), so its name
-/// and position are not privileged for anyone who can already authenticate.
+/// Lists the live categories the caller can see: all of them for someone
+/// who manages channels (an empty one is where they file the next channel),
+/// otherwise only those holding a channel the caller can view, so a private
+/// category's name does not reach members kept out of everything in it.
 async fn list(
-    AuthedLimited(_ctx): AuthedLimited<AUTHED_READ>,
+    AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CategoryDto>>, ApiError> {
-    let categories = state
+    let categories = state.store.list_categories().await?;
+    let manages = state
         .store
-        .list_categories()
+        .base_permissions(ctx.user_id)
         .await?
-        .into_iter()
-        .map(CategoryDto::from)
-        .collect();
-    Ok(Json(categories))
+        .contains(Permissions::MANAGE_CHANNELS);
+    let visible: std::collections::HashSet<ChannelCategoryId> = if manages {
+        categories.iter().map(|c| c.id).collect()
+    } else {
+        state
+            .store
+            .visible_channels(ctx.user_id)
+            .await?
+            .into_iter()
+            .filter_map(|channel| channel.category_id)
+            .collect()
+    };
+    Ok(Json(
+        categories
+            .into_iter()
+            .filter(|c| visible.contains(&c.id))
+            .map(CategoryDto::from)
+            .collect(),
+    ))
 }
 
 async fn create(

@@ -206,7 +206,7 @@ impl Store {
         .rows_affected();
         if affected > 0 {
             sqlx::query!(
-                "UPDATE channels SET category_id = NULL WHERE category_id = ?",
+                "UPDATE channels SET category_id = NULL, permissions_synced = 0 WHERE category_id = ?",
                 id
             )
             .execute(&mut *tx)

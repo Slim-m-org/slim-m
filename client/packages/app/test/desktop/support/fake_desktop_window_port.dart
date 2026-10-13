@@ -93,7 +93,7 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   @override
   Future<void> center() async => centerCalls++;
   @override
-  Future<void> setFullScreen(bool value) async {}
+  Future<void> setFullScreen(bool value) async => fullScreen = value;
   @override
   Future<void> show() async => showCalls++;
   @override

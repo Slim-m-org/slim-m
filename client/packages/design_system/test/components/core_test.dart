@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -310,15 +312,31 @@ void main() {
       expect(find.text('MA'), findsOneWidget);
     });
 
+    testWidgets('never clips, so its edge stays anti-aliased under Impeller',
+        (tester) async {
+      await _pump(
+        tester,
+        AppAvatar(
+          name: 'Ada Lovelace',
+          image: MemoryImage(Uint8List(0)),
+          status: AppPresence.online,
+        ),
+      );
+      for (final clip in [ClipRRect, ClipOval, ClipPath, ClipRect]) {
+        expect(
+          find.descendant(
+              of: find.byType(AppAvatar), matching: find.byType(clip)),
+          findsNothing,
+          reason: 'a stencil clip is not anti-aliased on desktop GL',
+        );
+      }
+    });
+
     testWidgets('the tint hash matches the source design exactly',
         (tester) async {
       await _pump(tester, const AppAvatar(name: 'Ada Lovelace'));
-      final coloredBox = tester.widget<ColoredBox>(
-        find.descendant(
-            of: find.byType(AppAvatar), matching: find.byType(ColoredBox)),
-      );
       expect(
-        coloredBox.color,
+        _discOf(tester).color,
         const Color(0xFF5C6E7A),
         reason:
             'the same person must not change colour between screens that both use this hash',
@@ -329,11 +347,7 @@ void main() {
         (tester) async {
       Future<Color> tintOf(AppAvatar avatar) async {
         await _pump(tester, avatar);
-        final coloredBox = tester.widget<ColoredBox>(
-          find.descendant(
-              of: find.byType(AppAvatar), matching: find.byType(ColoredBox)),
-        );
-        return coloredBox.color;
+        return _discOf(tester).color!;
       }
 
       final fullName = await tintOf(
@@ -377,3 +391,15 @@ void main() {
     });
   });
 }
+
+/// The initials disc: a supersampled shape rather than a clipped box, so
+/// its edge is smooth under Impeller (see AppShapedImage).
+({Color? color}) _discOf(WidgetTester tester) => (
+      color: tester
+          .widget<AppShapedDisc>(
+            find.descendant(
+                of: find.byType(AppAvatar),
+                matching: find.byType(AppShapedDisc)),
+          )
+          .color,
+    );

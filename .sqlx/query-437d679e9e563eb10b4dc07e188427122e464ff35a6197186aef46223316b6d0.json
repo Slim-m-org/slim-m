@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT permissions_synced AS \"synced!: bool\" FROM channels WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "synced!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "437d679e9e563eb10b4dc07e188427122e464ff35a6197186aef46223316b6d0"
+}

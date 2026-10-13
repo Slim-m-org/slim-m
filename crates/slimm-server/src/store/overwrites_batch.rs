@@ -45,6 +45,7 @@ impl Store {
             )
             .await?;
         }
+        super::category_overwrites::mark_unsynced(&mut *tx, channel_id).await?;
         tx.commit().await?;
         Ok(())
     }

@@ -3,21 +3,15 @@
 ///
 /// livekit_client 2.10.0 has no per-participant volume API at all - only
 /// whether a track plays. flutter_webrtc, already a direct dependency here,
-/// does: `Helper.setVolume` sets receive-side gain on a track. But it only
-/// reaches the track on three of the six platforms slim-m ships, and the two
-/// failure modes are opposite and both silent from Dart's side, so this file
-/// exists to say which is which rather than to let a caller find out.
+/// does: `Helper.setVolume` sets receive-side gain on a track, on every
+/// platform slim-m ships except the web, which this file exists to say.
 ///
-/// **Android, iOS and macOS work.** Their native track lookups fall back to
-/// scanning the peer connection's transceivers, so a remote track is found
-/// and real playback gain is applied.
-///
-/// **Linux and Windows throw.** They share `common/cpp`, whose track lookup
-/// scans only a `remote_streams_` map populated by the Plan B `OnAddStream`
-/// callback. LiveKit uses Unified Plan, where that callback never fires, so
-/// the map is always empty and the call comes back as a `PlatformException`
-/// reading "Unable to find provided track". flutter_webrtc's own wrapper does
-/// not catch it, unlike every sibling method in that file.
+/// **Android, iOS, macOS, Linux and Windows work.** A remote LiveKit track
+/// arrives with a stream, so the native lookup finds it and real playback gain
+/// is applied. Linux and Windows were once hidden here on the belief that the
+/// shared `common/cpp` lookup could not find a Unified Plan track; measured on
+/// Linux against a real LiveKit room on 2026-10-13, `setVolume` succeeds, and
+/// the fork now also records tracks from `OnTrack` so the lookup cannot miss.
 ///
 /// **Web silently does nothing.** There the call becomes
 /// `applyConstraints({'volume': ...})`, and `volume` is not a constraint any
@@ -30,8 +24,7 @@
 ///
 /// Hence [supportsParticipantVolume]: the UI renders the control only where
 /// it does something, which is the design's own "absent, never disabled"
-/// rule. Do not delete the guard because a slider looks fine locally - on
-/// Fedora, this project's day-to-day target, it is one of the two that break.
+/// rule; today that leaves out only the web.
 library;
 
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
@@ -50,10 +43,7 @@ const double kDefaultParticipantVolume = 1.0;
 /// False does not mean "not implemented here". It means the call would either
 /// throw or quietly do nothing on this host; see the library doc for which,
 /// per platform.
-bool get supportsParticipantVolume =>
-    lk.lkPlatformIs(lk.PlatformType.android) ||
-    lk.lkPlatformIs(lk.PlatformType.iOS) ||
-    lk.lkPlatformIs(lk.PlatformType.macOS);
+bool get supportsParticipantVolume => !lk.lkPlatformIs(lk.PlatformType.web);
 
 /// Clamps a requested volume into the range the UI offers.
 double clampParticipantVolume(double volume) =>

@@ -100,3 +100,34 @@ pub(super) async fn overwrite_calls(c: &mut Contract, root: &str, bob_id: &str, 
     c.bare("deleteChannelOverwrite", "DELETE", &overwrite, root)
         .await;
 }
+
+/// Category permissions (decision 0064): list, an empty batch, then a channel
+/// created into the category and synced back to it.
+pub(super) async fn category_overwrite_calls(c: &mut Contract, root: &str, category_id: &str) {
+    let uri = format!("/categories/{category_id}/overwrites");
+    c.get("getCategoryOverwrites", &uri, root).await;
+    c.json(
+        "batchSetCategoryOverwrites",
+        "PUT",
+        &uri,
+        root,
+        json!({ "overwrites": [] }),
+    )
+    .await;
+    let channel = c
+        .json(
+            "createChannel",
+            "POST",
+            "/channels",
+            root,
+            json!({ "name": "filed", "category_id": category_id }),
+        )
+        .await;
+    c.bare(
+        "syncChannelOverwrites",
+        "POST",
+        &format!("/channels/{}/overwrites/sync", text(&channel, "id")),
+        root,
+    )
+    .await;
+}

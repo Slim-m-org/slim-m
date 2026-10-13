@@ -3,6 +3,7 @@
 /// that the window's controls act on the same call the main window holds.
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,6 +132,22 @@ Finder get _popOutButton => find.descendant(
   matching: find.byTooltip('Pop out'),
 );
 
+double _headerOpacity(WidgetTester tester) => tester
+    .widget<AnimatedOpacity>(
+      find.ancestor(
+        of: find.text("Ada's screen"),
+        matching: find.byType(AnimatedOpacity),
+      ),
+    )
+    .opacity;
+
+Future<void> _hover(WidgetTester tester) async {
+  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await mouse.addPointer(location: Offset.zero);
+  await mouse.moveTo(const Offset(300, 200));
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
 void main() {
   setUpAll(loadRealFonts);
 
@@ -246,6 +263,7 @@ void main() {
         tester.getCenter(find.byKey(popOutDragRegionKey)),
       );
       expect(moves, 1);
+      await _hover(tester);
       expect(find.byTooltip('Close pop-out'), findsOneWidget);
       await tester.tap(find.byTooltip('Close pop-out'));
       expect(closes, 1);
@@ -256,6 +274,17 @@ void main() {
       );
       expect(resizes, [ResizeEdge.bottomRight]);
       expect(rig.session.leaveCalls, 0);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('the borderless window has no permanent header', (
+      tester,
+    ) async {
+      final rig = await content(tester, 640, frame: frame);
+      expect(_headerOpacity(tester), 0);
+      expect(find.text("Ada's screen"), findsOneWidget);
+      await _hover(tester);
+      expect(_headerOpacity(tester), 1);
       await teardownFixture(tester, rig.container, rig.db);
     });
 

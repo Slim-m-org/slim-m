@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO category_overwrites (category_id, target_type, target_id, allow, deny)\n                 VALUES (?, ?, ?, ?, ?)\n                 ON CONFLICT(category_id, target_type, target_id)\n                 DO UPDATE SET allow = excluded.allow, deny = excluded.deny",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "f549d4accba17027472e96e30645dff3e39f78e3e9e6ad53064dec144383893b"
+}

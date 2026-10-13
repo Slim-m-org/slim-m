@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: ChannelId\" FROM channels\n               WHERE category_id = ? AND permissions_synced = 1 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8b8171b177d27c690ecb8e2e191e2a6fce7769d4ee7464f98f66b20b0bbe70d7"
+}

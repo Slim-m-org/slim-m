@@ -60,6 +60,8 @@ export 'src/client.dart'
         SlimmApiPresence,
         SlimmApiPush,
         SlimmApiRoles,
+        SlimmApiCategoryPermissions,
+        ChannelOverwriteSet,
         SlimmApiSpace,
         SlimmApiJoinGate,
         SlimmApiThreads,

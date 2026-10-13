@@ -129,9 +129,16 @@ Future<void> pickGif({
 /// sheet built by [showGifPickerSheet] pops itself before calling it, and
 /// the anchored panel closes its own overlay the same way.
 class GifPickerBody extends ConsumerStatefulWidget {
-  const GifPickerBody({super.key, required this.onPicked});
+  const GifPickerBody({
+    super.key,
+    required this.onPicked,
+    this.initialQuery = '',
+  });
 
   final ValueChanged<api.Attachment> onPicked;
+
+  /// Searched for straight away, as `/gif cats` asks.
+  final String initialQuery;
 
   @override
   ConsumerState<GifPickerBody> createState() => _GifPickerBodyState();
@@ -139,6 +146,7 @@ class GifPickerBody extends ConsumerStatefulWidget {
 
 class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   final _queryController = TextEditingController();
+  final _queryFocus = FocusNode();
   Timer? _debounce;
 
   bool _loading = false;
@@ -150,9 +158,23 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   String? _selectingId;
 
   @override
+  void initState() {
+    super.initState();
+    final query = widget.initialQuery.trim();
+    _queryController.text = query;
+    // Asked for, not autofocus alone: autofocus yields to the composer when it already holds focus, as it does for /gif.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _queryFocus.requestFocus();
+      if (query.isNotEmpty) unawaited(_search(query));
+    });
+  }
+
+  @override
   void dispose() {
     _debounce?.cancel();
     _queryController.dispose();
+    _queryFocus.dispose();
     super.dispose();
   }
 
@@ -248,6 +270,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
           AppInput(
             maxLength: api.InputLimits.searchQuery,
             controller: _queryController,
+            focusNode: _queryFocus,
             autofocus: true,
             placeholder: 'Search GIFs',
             icon: Icon(

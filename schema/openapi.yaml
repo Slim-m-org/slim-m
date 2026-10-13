@@ -2199,11 +2199,12 @@ paths:
     get:
       operationId: listCategories
       tags: [channels]
-      summary: List every live channel category.
+      summary: List the channel categories the caller can see.
       description: >
-        Unfiltered by any permission: a category carries none of its own
-        (see docs/IMPLIED-GAPS.md), so its name and position are not
-        privileged for any authenticated caller. Split out of
+        Every category for a caller with MANAGE_CHANNELS, empty ones included;
+        for anyone else only the categories holding a channel they can view,
+        so a private category's name does not reach members kept out of all
+        of it. Split out of
         `listChannels`'s own response, which used to embed this list until
         that reshaped an existing response the wire's additive-only rule
         does not allow; a new route is additive.
@@ -2249,6 +2250,71 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /categories/{categoryId}/overwrites:
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getCategoryOverwrites
+      tags: [roles]
+      summary: List a category's permission overwrites.
+      description: >
+        Decision 0064. Requires MANAGE_ROLES deployment-wide. A channel synced
+        to the category carries an exact copy of these.
+      responses:
+        "200":
+          description: The category's overwrites.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: batchSetCategoryOverwrites
+      tags: [roles]
+      summary: Apply several category permission overwrites, and copy them into its synced channels.
+      description: >
+        The same checks as batchSetChannelOverwrites, with the caller's
+        deployment-wide permissions as the ceiling. An entry whose allow and
+        deny are both zero removes that target. Every synced channel in the
+        category gets a copy of the result in the same transaction, and an
+        overwrite.changed frame each.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchSetOverwritesRequest"
+      responses:
+        "200":
+          description: The category's overwrites after the batch applied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /categories/{categoryId}:
     parameters:
       - name: categoryId
@@ -3188,6 +3254,36 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/overwrites/sync:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: syncChannelOverwrites
+      tags: [roles]
+      summary: Make a channel follow its category's permissions again.
+      description: >
+        Replaces the channel's overwrites with a copy of its category's and
+        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel
+        and every bit the category allows. 409 when the channel is not in a
+        category.
+      responses:
+        "200":
+          description: The channel's overwrites after the sync.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -13174,6 +13270,11 @@ components:
       type: object
       required: [overwrites]
       properties:
+        synced:
+          type: boolean
+          description: >
+            A channel's: whether its overwrites follow its category (decision
+            0064). Absent for a category's own list.
         overwrites:
           type: array
           description: Every overwrite set on the channel, role and member alike.

@@ -17,6 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/threads.dart';
 import 'composer_extras.dart';
 import 'composer_picker_button.dart';
+import 'composer_gif_command.dart';
 import 'composer_picker_panel.dart' show showComposerPickerSheet;
 import 'composer_scrollbar.dart';
 import 'composer_shortcodes.dart';
@@ -42,6 +43,7 @@ class ComposerActionBar extends ConsumerWidget {
     required this.gifSearchEnabled,
     required this.onInsertEmoji,
     required this.onStageGif,
+    this.pickerController,
   });
 
   final bool touch;
@@ -61,6 +63,9 @@ class ComposerActionBar extends ConsumerWidget {
   /// attachment. Touch density never reaches these - see [onPickEmoji].
   final ValueChanged<String> onInsertEmoji;
   final ValueChanged<Attachment> onStageGif;
+
+  /// Lets `/gif` open the anchored picker on its GIF tab.
+  final ComposerPickerController? pickerController;
 
   /// Whether [onSendPressed] is offered at all right now; see
   /// `composer.dart`'s own `_canSend` for everything that feeds it.
@@ -138,6 +143,7 @@ class ComposerActionBar extends ConsumerWidget {
                       onPressed: onInsertCode,
                     ),
                     ComposerPickerButton(
+                      controller: pickerController,
                       gifSearchEnabled: gifSearchEnabled,
                       onSelectEmoji: onInsertEmoji,
                       onPickedGif: onStageGif,

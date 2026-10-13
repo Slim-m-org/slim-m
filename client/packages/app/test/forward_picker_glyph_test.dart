@@ -34,14 +34,17 @@ const _source = data.Message(
   failed: false,
 );
 
-IconData _glyphOf(WidgetTester tester, String label) {
+List<IconData> _glyphsOf(WidgetTester tester, String label) {
   final row = find.ancestor(
     of: find.text(label),
     matching: find.byType(AppListRow),
   );
-  return tester
-      .widget<Icon>(find.descendant(of: row, matching: find.byType(Icon)))
-      .icon!;
+  return [
+    for (final icon in tester.widgetList<Icon>(
+      find.descendant(of: row, matching: find.byType(Icon)),
+    ))
+      icon.icon!,
+  ];
 }
 
 void main() {
@@ -97,8 +100,11 @@ void main() {
     await tester.tap(find.text('Forward'));
     await tester.pumpAndSettle();
 
-    expect(_glyphOf(tester, 'general'), AppIcons.hash);
-    expect(_glyphOf(tester, 'secret'), AppIcons.restrictedChannel);
-    expect(_glyphOf(tester, 'vc'), AppIcons.voice);
+    expect(_glyphsOf(tester, 'general'), [AppIcons.hash]);
+    expect(_glyphsOf(tester, 'secret'), [
+      AppIcons.hash,
+      AppIcons.restrictedChannel,
+    ]);
+    expect(_glyphsOf(tester, 'vc'), [AppIcons.voice]);
   });
 }

@@ -9,6 +9,8 @@
 /// whole rather than leaving a stub behind.
 library;
 
+import 'dart:async';
+
 import 'package:slimm_rtc/rtc.dart';
 
 /// [wantOn] is only ever asking "tried to turn on": a camera failing to turn
@@ -27,4 +29,32 @@ String cameraFailureMessage(bool wantOn, Object? cause) {
       'Could not turn the camera ${wantOn ? 'on' : 'off'}. ${cause ?? ''}'
           .trim(),
   };
+}
+
+/// How long a camera toggle may stay pending before it is reported as failed.
+const cameraToggleTimeout = Duration(seconds: 20);
+
+/// The cause reported when the platform never answered a camera toggle.
+class CameraToggleTimedOut implements Exception {
+  const CameraToggleTimedOut();
+
+  @override
+  String toString() => 'The camera did not respond in time.';
+}
+
+/// Asks [session] for the camera, giving up after [timeout] so a camera that
+/// never opens (a stalled driver, an unanswered permission prompt) cannot
+/// leave the toggle pending forever. Returns whether it worked and, if not,
+/// why.
+Future<(bool, Object?)> setCameraWithin(
+  VoiceSession session,
+  bool want, {
+  Duration timeout = cameraToggleTimeout,
+}) async {
+  try {
+    final got = await session.setCameraEnabled(want).timeout(timeout);
+    return (got, got ? null : session.lastError);
+  } on TimeoutException {
+    return (false, const CameraToggleTimedOut());
+  }
 }

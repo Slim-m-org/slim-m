@@ -16,6 +16,8 @@
 /// [memberModerationGates] the full card itself uses.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -23,8 +25,10 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/voice_controller.dart';
+import 'member_actions.dart' show messageMember;
 import 'member_moderation_gates.dart';
 import 'member_profile.dart';
+import 'participant_actions.dart';
 import 'participant_audio_controls.dart' show ParticipantMuteForMeMenuItem;
 import 'participant_volume_popover.dart';
 
@@ -47,61 +51,71 @@ List<Widget> participantCallMenuItems(
       ?.where((m) => m.id == participant.identity)
       .firstOrNull;
 
-  final items = <Widget>[
-    ParticipantMuteForMeMenuItem(
-      identity: participant.identity,
-      controller: controller,
-      onDone: close,
-    ),
-    if (controller.supportsParticipantVolume)
-      AppMenuItem(
-        label: 'Volume...',
-        leading: AppIcons.speaker,
-        submenu: true,
-        onTap: () {
-          close();
-          showParticipantVolumePopover(
-            context,
-            identity: participant.identity,
-            name: participant.name,
-            controller: controller,
-          );
-        },
-      ),
-  ];
-
-  if (profile == null) return items;
-
-  items.add(
-    AppMenuItem(
-      label: 'View profile',
-      leading: AppIcons.account,
-      onTap: () {
-        close();
-        showMemberProfile(context, profile: profile);
-      },
-    ),
+  // watch: false - see memberModerationGates's own doc for why.
+  final gates = profile == null
+      ? null
+      : memberModerationGates(ref, profile: profile, watch: false);
+  final actions = participantActions(
+    surface: ParticipantSurface.menu,
+    isSelf: false,
+    inCallTogether: true,
+    supportsVolume: controller.supportsParticipantVolume,
+    hasProfile: profile != null,
+    showModeration: gates?.showModeration ?? false,
   );
 
-  // watch: false - see memberModerationGates's own doc for why.
-  final gates = memberModerationGates(ref, profile: profile, watch: false);
-  if (gates.showModeration) {
-    items.add(
-      AppMenuItem(
-        label: 'Moderate...',
-        leading: AppIcons.shield,
-        submenu: true,
-        onTap: () {
-          close();
-          showMemberProfile(
-            context,
-            profile: profile,
-            initiallyModerating: true,
-          );
-        },
-      ),
-    );
-  }
-
-  return items;
+  return [
+    for (final action in actions)
+      switch (action) {
+        ParticipantAction.volume => AppMenuItem(
+          label: 'Volume...',
+          leading: AppIcons.speaker,
+          submenu: true,
+          onTap: () {
+            close();
+            showParticipantVolumePopover(
+              context,
+              identity: participant.identity,
+              name: participant.name,
+              controller: controller,
+            );
+          },
+        ),
+        ParticipantAction.muteForMe => ParticipantMuteForMeMenuItem(
+          identity: participant.identity,
+          controller: controller,
+          onDone: close,
+        ),
+        ParticipantAction.message => AppMenuItem(
+          label: 'Message',
+          leading: AppIcons.send,
+          onTap: () {
+            final container = ProviderScope.containerOf(context, listen: false);
+            close();
+            unawaited(messageMember(context, container, profile!));
+          },
+        ),
+        ParticipantAction.viewProfile => AppMenuItem(
+          label: 'View profile',
+          leading: AppIcons.account,
+          onTap: () {
+            close();
+            showMemberProfile(context, profile: profile!);
+          },
+        ),
+        ParticipantAction.moderate => AppMenuItem(
+          label: 'Moderate...',
+          leading: AppIcons.shield,
+          submenu: true,
+          onTap: () {
+            close();
+            showMemberProfile(
+              context,
+              profile: profile!,
+              initiallyModerating: true,
+            );
+          },
+        ),
+      },
+  ];
 }

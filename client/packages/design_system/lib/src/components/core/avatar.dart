@@ -15,6 +15,7 @@ import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../stable_index.dart';
 import 'avatar_geometry.dart';
+import 'avatar_shaped_image.dart';
 import 'presence_phone_mark.dart';
 import 'speaking_ring.dart';
 import 'status_dot.dart';
@@ -150,13 +151,11 @@ class AppAvatar extends StatelessWidget {
             withDot: dot,
             tintSource: tintKey ?? name,
             placeholder: placeholder)
-        : Image(
+        : AppShapedImage(
             image: image!,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            filterQuality: FilterQuality.medium,
-            errorBuilder: (context, error, stack) => _Face(
+            size: size,
+            radius: radius,
+            errorBuilder: (context) => _Face(
               round: round,
               initials: initials,
               tokens: tokens,
@@ -167,12 +166,8 @@ class AppAvatar extends StatelessWidget {
             ),
           );
 
-    content = SizedBox(
-      width: size,
-      height: size,
-      child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius), child: content),
-    );
+    // Shaped by its own fill, not a clip: see AppShapedImage for why.
+    content = SizedBox(width: size, height: size, child: content);
 
     // A foreground overlay, not a bordered wrapper, so layout size never moves.
     if (speaking) {
@@ -274,14 +269,17 @@ class _Face extends StatelessWidget {
       return DecoratedBox(
         decoration: BoxDecoration(
             color: tokens.surfaceRaised,
+            borderRadius: BorderRadius.circular(AppRadii.control),
             border: Border.all(color: tokens.borderSubtle)),
         child: Center(child: placeholder),
       );
     }
 
     final box = geometry.initialsBox(withDot: withDot);
-    return ColoredBox(
+    return AppShapedDisc(
       color: _tintFor(tintSource),
+      size: geometry.size,
+      radius: geometry.size / 2,
       child: Center(
         child: initials.isEmpty
             ? null

@@ -23,6 +23,10 @@ class GtkWindowDrag {
     _beginMove(_window, 1, at.x, at.y, at.time);
   }
 
+  /// Asks GTK again for no decorations once the window is mapped, for
+  /// compositors that kept a server-side title bar from the first request.
+  void undecorate() => _setDecorated(_window, 0);
+
   void resize(ResizeEdge edge) {
     final at = _PointerState.read();
     _beginResize(_window, gdkWindowEdge(edge), 1, at.x, at.y, at.time);
@@ -81,6 +85,11 @@ final _beginResize = _gtk
       ),
       void Function(_Ptr, int, int, int, int, int)
     >('gtk_window_begin_resize_drag');
+final _setDecorated = _gtk
+    .lookupFunction<
+      ffi.Void Function(_Ptr, ffi.Int32),
+      void Function(_Ptr, int)
+    >('gtk_window_set_decorated');
 final _defaultDisplay = _gdk.lookupFunction<_Ptr Function(), _Ptr Function()>(
   'gdk_display_get_default',
 );

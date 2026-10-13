@@ -8,7 +8,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/picture_in_picture.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/video_pause.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -18,12 +18,26 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
 
+FakeSession? _lastSession;
+
+class _Call extends VoiceController {
+  _Call(super.ref, List<VoiceParticipant> who, FakeSession session)
+    : super(session: session) {
+    state = VoiceState(
+      channelId: 'c-main',
+      state: VoiceSessionState.connected,
+      participants: who,
+    );
+  }
+}
+
 Future<({ProviderContainer container, FakeSession session})> _rig({
-  bool pauseSetting = true,
+  bool? pauseSetting = true,
   bool desktop = true,
+  List<VoiceParticipant> who = const [],
 }) async {
   SharedPreferences.setMockInitialValues({
-    'slimm.voice.pause_video_when_unfocused': pauseSetting,
+    'slimm.voice.pause_video_when_unfocused': ?pauseSetting,
   });
   final session = FakeSession();
   final container = ProviderContainer(
@@ -31,9 +45,7 @@ Future<({ProviderContainer container, FakeSession session})> _rig({
       preferencesProvider.overrideWith(
         (ref) => SharedPreferences.getInstance(),
       ),
-      voiceControllerProvider.overrideWith(
-        (ref) => VoiceController(ref, session: session),
-      ),
+      voiceControllerProvider.overrideWith((ref) => _Call(ref, who, session)),
       pauseOnUnfocusedAppliesProvider.overrideWithValue(desktop),
     ],
   );
@@ -41,7 +53,7 @@ Future<({ProviderContainer container, FakeSession session})> _rig({
   container.read(voiceSettingsControllerProvider);
   await container.read(preferencesProvider.future);
   await Future<void>.delayed(Duration.zero);
-  container.read(videoPauseHostProvider);
+  _lastSession = session;
   return (container: container, session: session);
 }
 
@@ -51,9 +63,9 @@ Future<void> _go(AppLifecycleState state) async {
 }
 
 void main() {
-  group('shouldPauseVideo', () {
+  group('shouldPauseLocalPreview', () {
     bool pauses(AppLifecycleState s, {bool setting = true, bool pip = false}) =>
-        shouldPauseVideo(
+        shouldPauseLocalPreview(
           lifecycle: s,
           pauseWhenUnfocused: setting,
           pictureInPicture: pip,
@@ -88,65 +100,112 @@ void main() {
     });
   });
 
-  group('the pause reaches the call', () {
+  group('only the local preview pauses', () {
     setUp(TestWidgetsFlutterBinding.ensureInitialized);
     tearDown(() => _go(AppLifecycleState.resumed));
 
-    test(
-      'minimising declares no video and restoring re-declares the canvas',
-      () async {
-        final r = await _rig();
-        r.container.read(videoInterestRelayProvider).declare({'camera:u-ada'});
-        r.session.videoInterests.clear();
+    const remote = VoiceParticipant(
+      identity: 'u-ada',
+      name: 'Ada',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: false,
+      isScreenSharing: true,
+    );
+    const local = VoiceParticipant(
+      identity: 'u-me',
+      name: 'Me',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: true,
+      isScreenSharing: false,
+      isCameraOn: true,
+    );
 
-        await _go(AppLifecycleState.hidden);
-        expect(r.session.videoInterests, [<String>{}]);
+    Future<ProviderContainer> pump(
+      WidgetTester tester, {
+      bool? setting = true,
+    }) async {
+      final r = (await tester.runAsync(
+        () => _rig(pauseSetting: setting, who: [remote, local]),
+      ))!;
+      final controller = r.container.read(voiceControllerProvider.notifier);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: r.container,
+          child: Column(
+            children: [
+              controller.screenShareViewFor('u-ada'),
+              controller.cameraViewFor('u-ada'),
+              controller.cameraViewFor('u-me'),
+            ],
+          ),
+        ),
+      );
+      return r.container;
+    }
 
-        await _go(AppLifecycleState.resumed);
-        expect(r.session.videoInterests.last, {'camera:u-ada'});
+    final remoteShare = find.byKey(const Key('fake-share-view-u-ada'));
+    final remoteCamera = find.byKey(const Key('fake-camera-view-u-ada'));
+    final localCamera = find.byKey(const Key('fake-camera-view-u-me'));
+
+    testWidgets(
+      'an unfocused window keeps remote video and pauses the preview',
+      (tester) async {
+        final c = await pump(tester);
+        expect(localCamera, findsOneWidget);
+        c
+            .read(appLifecycleProvider.notifier)
+            .didChangeAppLifecycleState(AppLifecycleState.inactive);
+        await tester.pump();
+        expect(remoteShare, findsOneWidget);
+        expect(remoteCamera, findsOneWidget);
+        expect(localCamera, findsNothing);
       },
     );
 
-    test('an unfocused desktop window pauses and focus lifts it', () async {
-      final r = await _rig();
-      r.session.videoInterests.clear();
-      await _go(AppLifecycleState.inactive);
-      expect(r.session.videoInterests.last, <String>{});
-      await _go(AppLifecycleState.resumed);
-      expect(r.session.videoInterests.last, isNull);
+    testWidgets('a minimised window still keeps remote video', (tester) async {
+      final c = await pump(tester);
+      c
+          .read(appLifecycleProvider.notifier)
+          .didChangeAppLifecycleState(AppLifecycleState.hidden);
+      await tester.pump();
+      expect(remoteShare, findsOneWidget);
+      expect(localCamera, findsNothing);
     });
 
-    test('the setting off keeps an unfocused window playing', () async {
-      final r = await _rig(pauseSetting: false);
-      r.session.videoInterests.clear();
-      await _go(AppLifecycleState.inactive);
-      expect(r.session.videoInterests, isEmpty);
-      await _go(AppLifecycleState.hidden);
-      expect(r.session.videoInterests.last, <String>{});
+    testWidgets('the preview comes back with focus', (tester) async {
+      final c = await pump(tester);
+      final life = c.read(appLifecycleProvider.notifier);
+      life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+      await tester.pump();
+      life.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(localCamera, findsOneWidget);
     });
 
-    test(
-      'a phone ignores a mere loss of focus but pauses when backgrounded',
-      () async {
-        final r = await _rig(desktop: false);
-        r.session.videoInterests.clear();
-        await _go(AppLifecycleState.inactive);
-        expect(r.session.videoInterests, isEmpty);
-        await _go(AppLifecycleState.paused);
-        expect(r.session.videoInterests.last, <String>{});
-      },
-    );
+    testWidgets('the setting off keeps the preview while unfocused', (
+      tester,
+    ) async {
+      final c = await pump(tester, setting: false);
+      c
+          .read(appLifecycleProvider.notifier)
+          .didChangeAppLifecycleState(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(localCamera, findsOneWidget);
+      expect(remoteShare, findsOneWidget);
+    });
 
-    test(
-      'picture-in-picture keeps the video while the app is backgrounded',
-      () async {
-        final r = await _rig();
-        r.container.read(inPictureInPictureProvider.notifier).state = true;
-        r.session.videoInterests.clear();
-        await _go(AppLifecycleState.paused);
-        expect(r.session.videoInterests, isEmpty);
-      },
-    );
+    testWidgets('no lifecycle state sends an empty video interest', (
+      tester,
+    ) async {
+      final c = await pump(tester);
+      for (final s in AppLifecycleState.values) {
+        c.read(appLifecycleProvider.notifier).didChangeAppLifecycleState(s);
+        await tester.pump();
+      }
+      expect(_lastSession!.videoInterests, isEmpty);
+    });
   });
 
   group('the cull path', () {

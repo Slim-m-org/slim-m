@@ -22,6 +22,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'channel_permissions.dart';
 import 'join_gate_providers.dart';
 import 'live_events.dart';
+import 'member_presence.dart' show channelMembersProvider;
 import 'providers.dart';
 
 /// The caller's own base (deployment-level) permission bitmask, or 0 while
@@ -66,6 +67,21 @@ final channelOverwritesProvider = FutureProvider.autoDispose
     .family<List<api.ChannelOverwrite>, String>(
       (ref, channelId) =>
           ref.watch(apiProvider).getChannelOverwrites(channelId),
+    );
+
+/// A category's own overwrites (decision 0064); requires MANAGE_ROLES.
+final categoryOverwritesProvider = FutureProvider.autoDispose
+    .family<List<api.ChannelOverwrite>, String>(
+      (ref, categoryId) =>
+          ref.watch(apiProvider).getCategoryOverwrites(categoryId),
+    );
+
+/// Whether a channel's overwrites follow its category.
+final channelOverwritesSyncedProvider = FutureProvider.autoDispose
+    .family<bool, String>(
+      (ref, channelId) async =>
+          (await ref.watch(apiProvider).getChannelOverwriteSet(channelId))
+              .synced,
     );
 
 /// Refetches [rolesProvider] and [meProvider] when a role's own definition
@@ -125,6 +141,13 @@ final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
       ref.invalidate(channelPermissionsProvider(event.channelId));
       if (ref.exists(channelOverwritesProvider(event.channelId))) {
         ref.invalidate(channelOverwritesProvider(event.channelId));
+      }
+      if (ref.exists(channelOverwritesSyncedProvider(event.channelId))) {
+        ref.invalidate(channelOverwritesSyncedProvider(event.channelId));
+      }
+      // An overwrite can grant or revoke view, so who the channel lists is now wrong.
+      if (ref.exists(channelMembersProvider(event.channelId))) {
+        ref.invalidate(channelMembersProvider(event.channelId));
       }
       refreshVisibleChannels();
     }

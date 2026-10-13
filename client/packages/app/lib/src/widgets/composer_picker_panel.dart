@@ -41,9 +41,13 @@ class ComposerPickerPanel extends StatefulWidget {
     required this.onClose,
     this.showGifTab = true,
     this.width = pickerWidth,
+    this.gifQuery = '',
   });
 
   final ComposerPickerTab initialTab;
+
+  /// What the GIF tab searches for when it opens.
+  final String gifQuery;
   final ValueChanged<String> onSelectEmoji;
   final ValueChanged<api.Attachment> onPickedGif;
   final VoidCallback onClose;
@@ -83,6 +87,7 @@ class _ComposerPickerPanelState extends State<ComposerPickerPanel> {
             onClose: widget.onClose,
           ),
           onPickedGif: widget.onPickedGif,
+          gifQuery: widget.gifQuery,
         ),
       ),
     );
@@ -101,6 +106,7 @@ List<Widget> _pickerBody({
   required bool showGifTab,
   required Widget emojiBody,
   required ValueChanged<api.Attachment> onPickedGif,
+  String gifQuery = '',
 }) => [
   if (showGifTab) const _WarmTrendingGifs(),
   if (showGifTab)
@@ -123,7 +129,10 @@ List<Widget> _pickerBody({
     ),
   switch (tab) {
     ComposerPickerTab.emoji => emojiBody,
-    ComposerPickerTab.gif => GifPickerBody(onPicked: onPickedGif),
+    ComposerPickerTab.gif => GifPickerBody(
+      onPicked: onPickedGif,
+      initialQuery: gifQuery,
+    ),
   },
 ];
 
@@ -139,11 +148,15 @@ Future<void> showComposerPickerSheet(
   required ValueChanged<String> onSelectEmoji,
   required ValueChanged<api.Attachment> onPickedGif,
   bool showGifTab = true,
+  ComposerPickerTab initialTab = ComposerPickerTab.emoji,
+  String gifQuery = '',
 }) {
   return showAppSheet<void>(
     context,
     builder: (context) => _ComposerPickerSheet(
       showGifTab: showGifTab,
+      initialTab: initialTab,
+      gifQuery: gifQuery,
       onSelectEmoji: onSelectEmoji,
       onPickedGif: onPickedGif,
     ),
@@ -153,11 +166,15 @@ Future<void> showComposerPickerSheet(
 class _ComposerPickerSheet extends StatefulWidget {
   const _ComposerPickerSheet({
     required this.showGifTab,
+    required this.initialTab,
+    required this.gifQuery,
     required this.onSelectEmoji,
     required this.onPickedGif,
   });
 
   final bool showGifTab;
+  final ComposerPickerTab initialTab;
+  final String gifQuery;
   final ValueChanged<String> onSelectEmoji;
   final ValueChanged<api.Attachment> onPickedGif;
 
@@ -166,7 +183,7 @@ class _ComposerPickerSheet extends StatefulWidget {
 }
 
 class _ComposerPickerSheetState extends State<_ComposerPickerSheet> {
-  ComposerPickerTab _tab = ComposerPickerTab.emoji;
+  late ComposerPickerTab _tab = widget.initialTab;
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +209,7 @@ class _ComposerPickerSheetState extends State<_ComposerPickerSheet> {
               Navigator.of(context).pop();
               widget.onPickedGif(attachment);
             },
+            gifQuery: widget.gifQuery,
           ),
         ),
       ),
