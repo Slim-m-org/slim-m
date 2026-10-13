@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The rail header's chevron: Space settings, plus channel creation
-/// (backlog item 55 - creation moved here from a header "+" that had no
-/// label explaining what it was for).
+/// The rail header's chevron menu: read-state, saved messages and Space settings.
+/// Channel creation lives in the rail's blank-space menu and category headers.
 ///
 /// Its own file so `channel_rail_frame.dart` carries the rail's fixed bars
 /// rather than also carrying an overlay menu's wiring.
@@ -12,26 +11,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../permissions.dart';
 import '../providers/admin_providers.dart';
 import '../routing/routes.dart';
 import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
-import 'create_category_sheet.dart';
-import 'create_channel_sheet.dart';
 import 'row_menu_notifications.dart';
 import 'saved_messages_sheet.dart';
 import 'space_settings_section.dart';
-import '../action_labels.dart';
 
-/// Every member gets it: "Saved messages" and "Mark all as read" are theirs
-/// regardless of role. "Space settings" is offered only to a caller holding
-/// one of [spaceSettingsReachable]'s gating bits, so no member is sent to that
-/// screen empty. "Add channel" and "Add category" are gated separately, on
-/// [Perm.manageChannels] specifically - the same bit the rail's own channel
-/// rows already require to be dragged and reordered - so a moderator who can
-/// see reports but not manage channels sees the menu without those two items
-/// rather than either item 403ing.
+/// Every member gets it; "Space settings" only with a bit in [spaceSettingsReachable].
 class SpaceMenuButton extends ConsumerStatefulWidget {
   const SpaceMenuButton({super.key});
 
@@ -45,31 +33,12 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
   @override
   Widget build(BuildContext context) {
     final permissions = ref.watch(myPermissionsProvider);
-    final canManageChannels = permissions.hasPermission(Perm.manageChannels);
 
     return AnchoredMenu(
       controller: _controller,
       menu: AppMenu(
         width: 200,
         children: [
-          if (canManageChannels) ...[
-            AppMenuItem(
-              label: ActionLabels.createChannel,
-              leading: AppIcons.add,
-              onTap: () {
-                _controller.hide();
-                showCreateChannelSheet(context, initialKind: 'text');
-              },
-            ),
-            AppMenuItem(
-              label: ActionLabels.createCategory,
-              leading: AppIcons.add,
-              onTap: () {
-                _controller.hide();
-                showCreateCategorySheet(context);
-              },
-            ),
-          ],
           markSpaceReadMenuItem(
             context,
             ProviderScope.containerOf(context, listen: false),

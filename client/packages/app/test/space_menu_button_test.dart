@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Tests for the Space menu's channel-creation items (backlog item 55): the
-/// rail used to float a bare "+" over the uncategorised section with no
-/// header explaining it, and creation moved here instead, gated on
-/// `MANAGE_CHANNELS` specifically rather than the broader set of bits that
-/// merely make the menu itself reachable.
+/// The Space menu no longer carries channel creation; the rail's blank-space
+/// menu and category headers own it.
 library;
 
 import 'dart:convert';
@@ -116,125 +113,19 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
-  testWidgets(
-    'a caller with MANAGE_CHANNELS sees Create channel and Create category, '
-    'alongside Space settings',
-    (tester) async {
-      final container = _setup(Perm.manageChannels);
-      addTearDown(container.dispose);
-      await _pump(tester, container);
-
-      await tester.tap(find.bySemanticsLabel('Space menu'));
-      await tester.pumpAndSettle();
-
-      expect(find.text(ActionLabels.createChannel), findsOneWidget);
-      expect(find.text(ActionLabels.createCategory), findsOneWidget);
-      expect(find.text('Space settings'), findsOneWidget);
-    },
-  );
-
-  testWidgets('a caller who can reach the menu on a different bit, without '
-      'MANAGE_CHANNELS, sees Space settings but neither create item - '
-      'offering one would just 403', (tester) async {
-    final container = _setup(Perm.manageMessages);
+  testWidgets('the menu offers read-state, saved messages and settings, and no '
+      'creation items even with MANAGE_CHANNELS', (tester) async {
+    final container = _setup(Perm.manageChannels | Perm.manageMessages);
     addTearDown(container.dispose);
     await _pump(tester, container);
 
     await tester.tap(find.bySemanticsLabel('Space menu'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Mark all as read'), findsOneWidget);
+    expect(find.text('Saved messages'), findsOneWidget);
     expect(find.text('Space settings'), findsOneWidget);
     expect(find.text(ActionLabels.createChannel), findsNothing);
     expect(find.text(ActionLabels.createCategory), findsNothing);
   });
-
-  testWidgets('Create channel opens the create sheet, which posts the name and '
-      'kind and lands on the new channel', (tester) async {
-    final requests = <http.Request>[];
-    final container = _setup(
-      Perm.manageChannels,
-      handler: (request) {
-        requests.add(request);
-        return http.Response(
-          jsonEncode({
-            'id': 'new-1',
-            'name': 'roadmap',
-            'kind': 'text',
-            'topic': null,
-            'created_at': 1,
-          }),
-          200,
-        );
-      },
-    );
-    addTearDown(container.dispose);
-    await _pump(tester, container);
-
-    await tester.tap(find.bySemanticsLabel('Space menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(ActionLabels.createChannel));
-    await tester.pumpAndSettle();
-    expect(find.text('Create a channel'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, 'roadmap');
-    await tester.pump();
-    await tester.tap(find.widgetWithText(AppButton, 'Create channel'));
-    await tester.pumpAndSettle();
-
-    expect(requests, hasLength(1));
-    expect(requests.single.method, 'POST');
-    expect(requests.single.url.path, '/channels');
-    expect(
-      jsonDecode(requests.single.body),
-      allOf(
-        containsPair('name', 'roadmap'),
-        containsPair('kind', 'text'),
-        containsPair('id', isA<String>()),
-      ),
-    );
-    expect(find.text('channel:new-1'), findsOneWidget);
-  });
-
-  testWidgets(
-    'Create category opens the create sheet directly, which posts the name',
-    (tester) async {
-      final requests = <http.Request>[];
-      final container = _setup(
-        Perm.manageChannels,
-        handler: (request) {
-          requests.add(request);
-          return http.Response(
-            jsonEncode({
-              'id': 'cat-1',
-              'name': 'dev',
-              'position': 0,
-              'created_at': 1,
-            }),
-            200,
-          );
-        },
-      );
-      addTearDown(container.dispose);
-      await _pump(tester, container);
-
-      await tester.tap(find.bySemanticsLabel('Space menu'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(ActionLabels.createCategory));
-      await tester.pumpAndSettle();
-      expect(find.text('Create a category'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField).first, 'dev');
-      await tester.pump();
-      await tester.tap(find.widgetWithText(AppButton, 'Create category'));
-      await tester.pumpAndSettle();
-
-      expect(requests, hasLength(1));
-      expect(requests.single.method, 'POST');
-      expect(requests.single.url.path, '/categories');
-      expect(
-        jsonDecode(requests.single.body),
-        allOf(containsPair('name', 'dev'), containsPair('id', isA<String>())),
-      );
-    },
-  );
 }

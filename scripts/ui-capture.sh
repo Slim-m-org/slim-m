@@ -58,6 +58,7 @@ JOBS=(
   "rail-avatars|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_avatars_test.dart"
   "rail-declutter|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_declutter_test.dart"
   "rail-status|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_status_test.dart"
+  "rail-header|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_header_test.dart"
   "sign-in-matrix|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_sign_in_matrix_test.dart"
   "space-panes|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_space_panes_test.dart"
   "text-scale|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_text_scale_test.dart"
