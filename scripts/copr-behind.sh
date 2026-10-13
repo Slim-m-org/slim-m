@@ -20,7 +20,7 @@ set -euo pipefail
 : "${PUBSPEC_VERSION:?}"
 api="https://copr.fedorainfracloud.org/api_3/build/list/?ownername=nc1107&projectname=slim-m&packagename=slim-m-client&limit=50&order=id&order_type=DESC"
 
-if [ -n "${COPR_BUILDS_JSON:-}" ]; then
+if [[ -n "${COPR_BUILDS_JSON:-}" ]]; then
   builds="$(cat "$COPR_BUILDS_JSON")"
 else
   builds="$(curl -fsS --retry 3 --retry-delay 5 "$api")"
@@ -34,9 +34,9 @@ newest="$(jq -r '
   | .[]' <<<"$builds" | sort -V | tail -n1)"
 
 behind=true
-if [ -n "$newest" ]; then
+if [[ -n "$newest" ]]; then
   top="$(printf '%s\n%s\n' "$newest" "$PUBSPEC_VERSION" | sort -V | tail -n1)"
-  [ "$top" = "$newest" ] && behind=false
+  [[ "$top" == "$newest" ]] && behind=false
 fi
 
 echo "pubspec ${PUBSPEC_VERSION}, newest live COPR build ${newest:-none}, behind=${behind}" >&2

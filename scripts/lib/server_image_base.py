@@ -42,21 +42,17 @@ def base_sha(runs, skip_sha=None, job="server-image"):
     return None
 
 
-def main(argv):
+def main(argv) -> None:
+    """Prints the base sha, or an empty line when it cannot tell; it never fails the run."""
     skip = argv[1] if len(argv) > 1 and argv[1] else None
     job = argv[2] if len(argv) > 2 and argv[2] else "server-image"
     try:
         runs = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        # An unreadable answer is "cannot tell", and the caller falls back.
-        print("")
-        return 0
-    if not isinstance(runs, list):
-        print("")
-        return 0
-    print(base_sha(runs, skip, job) or "")
-    return 0
+        runs = None
+    # An unreadable or unexpected answer is "cannot tell", and the caller falls back.
+    print(base_sha(runs, skip, job) or "" if isinstance(runs, list) else "")
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    main(sys.argv)
