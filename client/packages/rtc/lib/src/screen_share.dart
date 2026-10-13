@@ -6,33 +6,91 @@
 /// on LiveKit, and both are read by the UI far from any call.
 library;
 
-/// How a screen share is published.
+/// The capture resolution of a screen share.
+enum ScreenShareResolution {
+  p720(width: 1280, height: 720),
+  p1080(width: 1920, height: 1080),
+  p1440(width: 2560, height: 1440);
+
+  const ScreenShareResolution({required this.width, required this.height});
+
+  final int width;
+  final int height;
+
+  String get label => '${height}p';
+}
+
+/// The capture frame rate of a screen share.
+enum ScreenShareFps {
+  fps15(15, '15 fps'),
+  fps30(30, '30 fps'),
+  fps60(60, '60 fps');
+
+  const ScreenShareFps(this.value, this.label);
+
+  final int value;
+  final String label;
+}
+
+/// How a screen share is published: a resolution and a frame rate, with the
+/// bitrate ceiling derived from the pair (see docs/video-quality.md).
 ///
 /// Ceilings rather than preferences: an unbounded share on a 4K monitor will
 /// happily saturate a home upload and starve the audio it is supposed to
 /// accompany, and audio degrading is far more noticeable than a slightly softer
 /// screen.
-enum ScreenShareQuality {
-  /// Anything moving. Lower resolution, higher frame rate.
-  smooth(width: 1280, height: 720, fps: 60, maxBitrate: 2500000),
+class ScreenShareQuality {
+  const ScreenShareQuality(this.resolution, this.frameRate);
 
-  /// The default. Balanced for a desktop with some motion.
-  balanced(width: 1920, height: 1080, fps: 30, maxBitrate: 2400000),
+  /// What a share published before the two choices were separate.
+  static const standard = ScreenShareQuality(
+    ScreenShareResolution.p1080,
+    ScreenShareFps.fps30,
+  );
 
-  /// Reading code. Higher resolution, lower frame rate.
-  crisp(width: 2560, height: 1440, fps: 15, maxBitrate: 3000000);
+  /// Every pair, resolution-major.
+  static final all = [
+    for (final r in ScreenShareResolution.values)
+      for (final f in ScreenShareFps.values) ScreenShareQuality(r, f),
+  ];
 
-  const ScreenShareQuality({
-    required this.width,
-    required this.height,
-    required this.fps,
-    required this.maxBitrate,
-  });
+  // Bits per second by [resolution.index][frameRate.index].
+  static const _maxBitrates = [
+    [1000000, 1500000, 2500000],
+    [1600000, 2400000, 4000000],
+    [3000000, 3600000, 5000000],
+  ];
 
-  final int width;
-  final int height;
-  final int fps;
-  final int maxBitrate;
+  final ScreenShareResolution resolution;
+  final ScreenShareFps frameRate;
+
+  int get width => resolution.width;
+  int get height => resolution.height;
+  int get fps => frameRate.value;
+  int get maxBitrate => _maxBitrates[resolution.index][frameRate.index];
+
+  /// The stored form, such as `1080p30`.
+  String get id => '${resolution.height}p${frameRate.value}';
+
+  /// The pair [id] names, or null when it names none.
+  static ScreenShareQuality? fromId(String? id) {
+    for (final q in all) {
+      if (q.id == id) return q;
+    }
+    return null;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ScreenShareQuality &&
+      other.resolution == resolution &&
+      other.frameRate == frameRate;
+
+  @override
+  int get hashCode => Object.hash(resolution, frameRate);
+
+  @override
+  String toString() => 'ScreenShareQuality($id)';
 }
 
 /// A screen the OS will let this app capture.

@@ -152,25 +152,27 @@ void main() {
     expect(prefs.getDouble('slimm.voice.activity_sensitivity'), 30.0);
   });
 
-  testWidgets('picking a screen share quality persists it', (tester) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'picking a screen share resolution and frame rate persists them',
+    (tester) async {
+      await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+      await tester.pumpAndSettle();
 
-    // The capability check section pushes this below the initial viewport.
-    await tester.scrollUntilVisible(
-      find.text('Crisp'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    // Watching, camera and screen share each have their own Balanced.
-    expect(find.text('Balanced'), findsNWidgets(3));
-    await tester.tap(find.text('Crisp'));
-    await tester.pumpAndSettle();
+      // The capability check section pushes this below the initial viewport.
+      await tester.scrollUntilVisible(
+        find.text('1440p'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1440p'));
+      await tester.tap(find.text('60 fps'));
+      await tester.pumpAndSettle();
 
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('slimm.voice.screen_share_quality'), 'crisp');
-  });
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('slimm.voice.screen_share_quality'), '1440p60');
+    },
+  );
 
   testWidgets('picking watching and camera quality persists both', (
     tester,
@@ -178,15 +180,15 @@ void main() {
     await tester.pumpWidget(wrap(const VoiceSettingsBody()));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Crisp'),
+      find.text('1440p'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    // Data saver is the first segment of watching quality, High the last of camera.
+    // Data saver is the last segment of watching quality, 1080p the last of camera.
     await tester.tap(find.text('Data saver').first);
-    await tester.tap(find.text('High'));
+    await tester.tap(find.text('1080p').first);
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();

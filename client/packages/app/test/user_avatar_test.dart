@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/widgets/ui_scale_frame.dart';
 import 'package:slimm_app/src/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -99,10 +100,10 @@ void main() {
     final image = tester.widget<Image>(find.byType(Image));
     final resized = image.image as ResizeImage;
     expect((resized.imageProvider as MemoryImage).bytes, bytes);
-    // A 40dp avatar decodes at 3x even on a 1x display: the minRatio floor for a window-scaled desktop that under-reports its ratio.
-    expect(resized.width, 120);
-    expect(resized.height, 120);
-    // low, not medium: the decode floor means this shrinks the source, where medium's mipmap would blur it.
+    // 1x display: floored at a 2x ratio for a window-scaled desktop that under-reports it, then 3x headroom for the GPU to minify from.
+    expect(resized.width, 240);
+    expect(resized.height, 240);
+    // medium, not high: measured on Skia, high aliased the minified photo worse, and Impeller GLES draws both the same.
     expect(image.filterQuality, FilterQuality.medium);
   });
 
@@ -133,9 +134,43 @@ void main() {
 
     final resized =
         tester.widget<Image>(find.byType(Image)).image as ResizeImage;
-    // A 3x screen must decode at 3x the logical size, or it looks soft there.
-    expect(resized.width, 120);
-    expect(resized.height, 120);
+    // A 3x screen decodes at 3x the painted pixels, because the engine's own downscale aliases when it lands on the painted size.
+    expect(resized.width, 360);
+    expect(resized.height, 360);
+  });
+
+  testWidgets('a scaled UI decodes past the pixels it paints', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final bytes = Uint8List.fromList(const [1, 2, 3, 4]);
+    await tester.pumpWidget(
+      _harness(
+        Builder(
+          builder: (context) => MediaQuery(
+            data: scaleMediaQuery(MediaQueryData.fromView(tester.view), 2.5),
+            child: const UserAvatar.known(
+              name: 'Priya Shah',
+              userId: 'u1',
+              avatarUpdatedAt: 42,
+              size: 40,
+            ),
+          ),
+        ),
+        overrides: _apiOverrides(
+          (request) async => http.Response.bytes(
+            bytes,
+            200,
+            headers: {'content-type': 'image/png'},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final resized =
+        tester.widget<Image>(find.byType(Image)).image as ResizeImage;
+    // 40 logical at 2.5x paints 100px; 3x of that, past the 2x floor.
+    expect(resized.width, 300);
   });
 
   testWidgets('a 404 (no avatar on the server) still falls back to initials', (

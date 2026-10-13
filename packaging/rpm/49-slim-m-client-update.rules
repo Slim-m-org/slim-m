@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+// Lets the desktop client's self-update run without a password prompt.
+// Must match rpmUpgradeCommand in rpm_updater.dart; a test compares them.
+polkit.addRule(function (action, subject) {
+  if (
+    action.id == "org.freedesktop.policykit.exec" &&
+    action.lookup("program") == "/usr/bin/dnf" &&
+    action.lookup("command_line") ==
+      "/usr/bin/dnf upgrade --refresh -y slim-m-client" &&
+    subject.local &&
+    subject.active &&
+    subject.isInGroup("wheel")
+  ) {
+    return polkit.Result.YES;
+  }
+});

@@ -163,6 +163,8 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// so the anchor is only taken on the first of the two: recomputing it on
   /// the second call, which carries no position, would throw the real one away.
   void _setOpen(bool open, {bool pinRow = true, Offset? pointerGlobal}) {
+    // An empty menu would draw as a blank pill, so there is nothing to open.
+    if (open && widget.itemsBuilder(context, () {}).isEmpty) return;
     // A close follows whichever surface is open, not the layout it has now.
     final sheet = open
         ? LayoutClass.of(context) == LayoutClass.compact

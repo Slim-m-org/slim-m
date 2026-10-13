@@ -17,7 +17,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
 
   Future<void> setScreenShare(
     bool enabled, {
-    ScreenShareQuality quality = ScreenShareQuality.balanced,
+    ScreenShareQuality quality = ScreenShareQuality.standard,
     String? sourceId,
     bool includeAudio = false,
     int? maxHeight,

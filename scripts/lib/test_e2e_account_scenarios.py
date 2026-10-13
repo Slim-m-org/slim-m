@@ -87,7 +87,7 @@ class _QualityClient:
         return self.stored
 
 
-class WatchingQualityTest(unittest.TestCase):
+class ShareQualityTest(unittest.TestCase):
     def setUp(self):
         self._tap = e2e_video_quality._tap_label
         e2e_video_quality._tap_label = lambda *a, **k: None
@@ -98,9 +98,9 @@ class WatchingQualityTest(unittest.TestCase):
     def test_fails_when_nothing_durable_recorded_the_choice(self):
         client = _QualityClient(stored=None)
         with self.assertRaises(AssertionError):
-            e2e_video_quality.watching_quality_from_the_share_menu(
+            e2e_video_quality.share_quality_from_the_share_menu(
                 client, "room")
-        self.assertIn(L.DATA_SAVER, client.clicked)
+        self.assertIn(L.RES_1440P, client.clicked)
 
 
 if __name__ == "__main__":
