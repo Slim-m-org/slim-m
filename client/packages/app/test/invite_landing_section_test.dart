@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/attachment_picker.dart';
+import 'package:slimm_app/src/widgets/image_drop_zone.dart';
 import 'package:slimm_app/src/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/widgets/invite_landing_section.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';
@@ -295,5 +296,33 @@ void main() {
     final field = tester.widget<TextField>(_descriptionField);
     expect(field.minLines, 2);
     expect(field.maxLines, 4);
+  });
+
+  testWidgets('a picture dropped on the banner row uploads like a picked one', (
+    tester,
+  ) async {
+    final server = _Server();
+    await _pump(tester, server, 1280);
+    final zone = tester.widget<ImageDropZone>(
+      find.byWidgetPredicate(
+        (w) => w is ImageDropZone && w.label == 'Drop to set the banner',
+      ),
+    );
+    zone.onImage(Uint8List.fromList(_png), 'banner.png');
+    await _untilCalled(tester, server, 'POST /space/banner');
+    expect(server.calls, contains('POST /space/banner'));
+  });
+
+  testWidgets('a refused drop says why in the section', (tester) async {
+    await _pump(tester, _Server(), 1280);
+    final zone = tester.widget<ImageDropZone>(
+      find.byWidgetPredicate(
+        (w) => w is ImageDropZone && w.label == 'Drop to set the icon',
+      ),
+    );
+    zone.onRejected('Drop one PNG, JPEG or WebP picture.');
+    await tester.pumpAndSettle();
+    expect(find.text('Drop one PNG, JPEG or WebP picture.'), findsOneWidget);
+    expect(find.byType(AppErrorState), findsOneWidget);
   });
 }

@@ -19,6 +19,7 @@ import 'channel_rail_frame.dart' show serverInfoProvider;
 import 'attachment_picker.dart';
 import 'avatar_crop_sheet.dart';
 import 'image_downscale.dart';
+import 'image_drop_zone.dart';
 import 'invite_landing_card.dart';
 import 'join_policy_row.dart';
 import 'run_guarded.dart';
@@ -104,8 +105,13 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       attachmentPickerProvider(AttachmentSource.photoLibrary),
     )();
     if (file == null || !mounted) return;
+    await _setBanner(await file.readAsBytes());
+  }
+
+  /// A picked or dropped banner, shrunk to fit the server's cap.
+  Future<void> _setBanner(Uint8List picked) async {
     final bytes = await downscaledToFit(
-      await file.readAsBytes(),
+      picked,
       maxEdge: _bannerMaxEdge,
       maxBytes: _bannerMaxBytes,
     );
@@ -120,7 +126,11 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       attachmentPickerProvider(AttachmentSource.photoLibrary),
     )();
     if (file == null || !mounted) return;
-    final picked = await file.readAsBytes();
+    await _setIcon(await file.readAsBytes());
+  }
+
+  /// A picked or dropped icon: cropped square, then minified to fit.
+  Future<void> _setIcon(Uint8List picked) async {
     if (!mounted) return;
     final cropped = await showAvatarCropSheet(context, picked, circular: false);
     if (cropped == null || !mounted) return;
@@ -178,6 +188,18 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       ],
     );
   }
+
+  Widget _droppable({
+    required String label,
+    required Future<void> Function(Uint8List bytes) onImage,
+    required Widget child,
+  }) => ImageDropZone(
+    enabled: !_busy,
+    label: label,
+    onImage: (bytes, _) => unawaited(onImage(bytes)),
+    onRejected: setActionError,
+    child: child,
+  );
 
   Widget _pictureRow({
     required String label,
@@ -261,21 +283,29 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
             ),
           ),
           const SizedBox(height: AppSpacing.s16),
-          _pictureRow(
-            label: 'Banner',
-            isSet: bannerSet,
-            onChoose: _chooseBanner,
-            onRemove: () => _run(
-              'remove the banner',
-              () => ref.read(apiProvider).deleteSpaceBanner(),
+          _droppable(
+            label: 'Drop to set the banner',
+            onImage: _setBanner,
+            child: _pictureRow(
+              label: 'Banner',
+              isSet: bannerSet,
+              onChoose: _chooseBanner,
+              onRemove: () => _run(
+                'remove the banner',
+                () => ref.read(apiProvider).deleteSpaceBanner(),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
-          _pictureRow(
-            label: 'Icon',
-            isSet: iconSet,
-            onChoose: _chooseIcon,
-            onRemove: _removeIcon,
+          _droppable(
+            label: 'Drop to set the icon',
+            onImage: _setIcon,
+            child: _pictureRow(
+              label: 'Icon',
+              isSet: iconSet,
+              onChoose: _chooseIcon,
+              onRemove: _removeIcon,
+            ),
           ),
           if (actionError != null) ...[
             const SizedBox(height: AppSpacing.s12),
