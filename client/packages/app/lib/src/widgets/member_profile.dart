@@ -50,6 +50,7 @@ import 'member_profile_popover.dart';
 import 'member_profile_push_transition.dart';
 import 'member_profile_sections.dart';
 import 'member_remove_from_channel.dart';
+import 'participant_actions.dart';
 import 'participant_audio_controls.dart' show MemberLocalAudioSection;
 import 'run_guarded.dart';
 
@@ -305,8 +306,14 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     final canManageRoles = gates.canManageRoles;
     final canIssueReset = gates.canIssueReset;
     final canEject = gates.canEject;
-    final canOfferTimeoutChips = gates.canOfferTimeoutChips;
-    final showModeration = gates.showModeration;
+    final actions = participantActions(
+      surface: ParticipantSurface.card,
+      isSelf: isSelf,
+      inCallTogether: inCallTogether,
+      supportsVolume: controller.supportsParticipantVolume,
+      hasProfile: true,
+      showModeration: gates.showModeration,
+    );
 
     // Captured before onDone, whose Navigator.pop disposes this element.
     void run(Future<void> Function(ProviderContainer container) action) {
@@ -340,8 +347,12 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
 
       const AppMenuDivider(),
 
-      if (inCallTogether) ...[
-        MemberLocalAudioSection(identity: profile.id, controller: controller),
+      if (actions.contains(ParticipantAction.muteForMe)) ...[
+        MemberLocalAudioSection(
+          identity: profile.id,
+          controller: controller,
+          showVolume: actions.contains(ParticipantAction.volume),
+        ),
         const AppMenuDivider(),
       ],
 
@@ -356,14 +367,15 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
           },
         ),
       ] else ...[
-        AppMenuItem(
-          label: 'Message',
-          leading: AppIcons.send,
-          onTap: () {
-            widget.memberPaneScaffold?.closeEndDrawer();
-            run((container) => messageMember(host, container, profile));
-          },
-        ),
+        if (actions.contains(ParticipantAction.message))
+          AppMenuItem(
+            label: 'Message',
+            leading: AppIcons.send,
+            onTap: () {
+              widget.memberPaneScaffold?.closeEndDrawer();
+              run((container) => messageMember(host, container, profile));
+            },
+          ),
         MemberProfileNoteField(subjectId: profile.id),
         MemberNotifyOffHoursItem(host: host, profile: profile, run: run),
         if (widget.channelId case final channelId?)
@@ -374,7 +386,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
             guard: guard,
             onDone: widget.onDone,
           ),
-        if (showModeration) ...[
+        if (actions.contains(ParticipantAction.moderate)) ...[
           const AppMenuDivider(),
           AppMenuItem(
             label: 'Moderate...',
@@ -415,7 +427,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
             host: host,
             canManageRoles: canManageRoles,
             outranked: gates.outranked,
-            canOfferTimeoutChips: canOfferTimeoutChips,
+            canOfferTimeoutChips: gates.canOfferTimeoutChips,
             canRename: gates.canRename,
             canIssueReset: canIssueReset,
             canRemove: canRemove,

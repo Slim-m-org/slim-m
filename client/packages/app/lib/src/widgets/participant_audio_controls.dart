@@ -40,17 +40,21 @@ class MemberLocalAudioSection extends StatelessWidget {
     super.key,
     required this.identity,
     required this.controller,
+    required this.showVolume,
   });
 
   final String identity;
   final VoiceController controller;
+
+  /// From the shared action list, never re-derived here.
+  final bool showVolume;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (controller.supportsParticipantVolume)
+        if (showVolume)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s12,
