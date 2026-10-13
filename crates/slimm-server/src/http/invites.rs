@@ -103,6 +103,11 @@ struct InviteCommunity {
     uses_remaining: Option<i64>,
     /// Unix milliseconds; null means it never expires.
     expires_at: Option<i64>,
+    /// The admin's short blurb; empty when none is set.
+    description: String,
+    /// When the banner was set, or null for none; fetch it from
+    /// `/invites/{code}/banner`.
+    banner_updated_at: Option<i64>,
 }
 
 /// Resolves a requested role grant, refusing every way it could be an
@@ -232,6 +237,7 @@ async fn check(
         InviteCheck::Usable(meta) => {
             let name = state.store.deployment_name().await?;
             let member_count = state.store.member_count().await?;
+            let landing = state.store.space_landing().await?;
             Ok(Json(CheckResponse {
                 usable: true,
                 community: Some(InviteCommunity {
@@ -240,6 +246,8 @@ async fn check(
                     invited_by: meta.invited_by,
                     uses_remaining: meta.uses_remaining,
                     expires_at: meta.expires_at,
+                    description: landing.description,
+                    banner_updated_at: landing.banner_updated_at,
                 }),
             }))
         }

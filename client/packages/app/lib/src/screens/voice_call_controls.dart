@@ -55,9 +55,11 @@ import '../providers/voice_settings_controller.dart'
 import '../widgets/audio_output_sheet.dart';
 import '../widgets/camera_source_sheet.dart';
 import '../widgets/control_options_menu.dart';
+import '../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../widgets/screen_source_sheet.dart';
 import 'call_availability.dart';
 import 'call_dock_button.dart';
+import 'call_quality_options.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
 export 'call_dock_button.dart';
@@ -148,10 +150,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
   @override
   Widget build(BuildContext context) {
     final voice = widget.voice;
+    final touch = AppTouchTargets.of(context);
     final shareOptions = _shareOptions(context);
     final listenOnly = listenOnlyReason(ref, voice);
-    final pairedAtTouch =
-        shareOptions.isNotEmpty && AppTouchTargets.of(context);
+    // Touch density is the width-derived compact test; that row has no room for a caret only quality asked for.
+    final showCaret = !touch || (voice.screenSharing && _canSwitchSource);
+    final pairedAtTouch = showCaret && touch;
     // mainAxisSize.min: this row sizes to its own content now that it has no
     // full-width bar to fill, so whatever floating card embeds it - alone or
     // beside a canvas's own controls - can size itself to match.
@@ -231,10 +235,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
           active: voice.screenSharing,
           optionsLabel: 'Screen share options',
           options: shareOptions,
+          showCaret: showCaret,
           child: CallDockButton(
             icon: AppIcons.screenShare,
             tooltip: _shareTooltip(voice),
             active: voice.screenSharing,
+            holdOpensOptions: !showCaret,
             // Pending is its own look, never the active one: the lit
             // button over a share nobody could see was the whole bug.
             pending: voice.awaitingBroadcast,
@@ -264,31 +270,35 @@ class _CallControlsState extends ConsumerState<CallControls> {
     return 'Share a screen$shortcut';
   }
 
-  /// Only while sharing on a platform with a source to switch between; every
-  /// entry mirrors something a press or a shortcut could already do.
-  List<ControlOption> _shareOptions(BuildContext context) {
-    if (!widget.voice.screenSharing ||
-        !widget.controller.screenShareNeedsSource) {
-      return const [];
-    }
+  bool get _canSwitchSource => widget.controller.screenShareNeedsSource;
+
+  /// Switching and stopping only while sharing on a platform with a source to
+  /// switch between; the quality groups are always there, since they set the
+  /// next share, camera start and what you watch. One menu carries all three
+  /// so a phone's dock keeps a single caret, or none: a compact window opens
+  /// them by long press, since its row has no width to spare.
+  List<ControlOptionEntry> _shareOptions(BuildContext context) {
     return [
-      ControlOption(
-        label: 'Switch screen...',
-        icon: AppIcons.screenShareSwitch,
-        onSelected: () {
-          if (_shareRequestInFlight) return;
-          unawaited(_changeSource(context));
-        },
-      ),
-      ControlOption(
-        label: 'Stop sharing',
-        icon: AppIcons.screenShareStop,
-        tone: AppMenuItemTone.danger,
-        onSelected: () {
-          if (_shareRequestInFlight) return;
-          unawaited(_share(context));
-        },
-      ),
+      if (widget.voice.screenSharing && _canSwitchSource) ...[
+        ControlOption(
+          label: 'Switch screen...',
+          icon: AppIcons.screenShareSwitch,
+          onSelected: () {
+            if (_shareRequestInFlight) return;
+            unawaited(_changeSource(context));
+          },
+        ),
+        ControlOption(
+          label: 'Stop sharing',
+          icon: AppIcons.screenShareStop,
+          tone: AppMenuItemTone.danger,
+          onSelected: () {
+            if (_shareRequestInFlight) return;
+            unawaited(_share(context));
+          },
+        ),
+      ],
+      ...videoQualityOptions(ref),
     ];
   }
 

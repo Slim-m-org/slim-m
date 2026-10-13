@@ -97,6 +97,8 @@ Future<void> _startInvite(
   await tester.pump();
   await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
+  await tester.tap(find.text('Join'));
+  await tester.pumpAndSettle();
 }
 
 void main() {

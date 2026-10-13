@@ -140,6 +140,8 @@ void main() {
     // Deletion sits with the account it deletes, not under "About slim-m".
     await tester.tap(find.text('Account & devices'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Delete account...'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Delete account...'));
     await tester.pumpAndSettle();
 

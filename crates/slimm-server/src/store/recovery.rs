@@ -203,4 +203,41 @@ impl Store {
         tx.commit().await?;
         Ok(live_sessions)
     }
+
+    /// Sets a new password hash and revokes every live session except
+    /// `keep`, the one that made the change, in one transaction.
+    ///
+    /// Returns the revoked sessions so the caller can close their sockets.
+    pub async fn change_password(
+        &self,
+        user_id: UserId,
+        keep: SessionId,
+        new_password_hash: &str,
+    ) -> anyhow::Result<Vec<SessionId>> {
+        let now = now_ms();
+        let mut tx = self.begin_write().await?;
+        sqlx::query!(
+            "UPDATE users SET password_hash = ? WHERE id = ? AND deleted_at IS NULL",
+            new_password_hash,
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        let others: Vec<SessionId> = sqlx::query!(
+            r#"SELECT id AS "id!: SessionId" FROM sessions
+               WHERE user_id = ? AND revoked_at IS NULL AND id != ?"#,
+            user_id,
+            keep
+        )
+        .fetch_all(&mut *tx)
+        .await?
+        .into_iter()
+        .map(|r| r.id)
+        .collect();
+        for session_id in &others {
+            revoke_session_rows(&mut tx, *session_id, now).await?;
+        }
+        tx.commit().await?;
+        Ok(others)
+    }
 }

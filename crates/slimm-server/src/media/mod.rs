@@ -104,6 +104,8 @@ pub fn from_hex(s: &str) -> Option<Vec<u8>> {
 
 // --- Filesystem storage ---
 
+const SPACE_BANNER_KEY: &str = "space-banner";
+
 /// A cloneable handle to the on-disk blob store. Cheap to clone (two
 /// `PathBuf`s and a `u64`).
 #[derive(Debug, Clone)]
@@ -279,6 +281,20 @@ impl Media {
 
     pub async fn delete_avatar(&self, user_id: &str) -> io::Result<()> {
         remove(self.avatar_path(user_id)).await
+    }
+
+    /// The space banner shares the avatar directory; its key is not a UUID,
+    /// so it can never collide with a user's file.
+    pub async fn write_space_banner(&self, bytes: Vec<u8>) -> io::Result<()> {
+        write_atomic(self.avatar_path(SPACE_BANNER_KEY), bytes).await
+    }
+
+    pub async fn read_space_banner(&self) -> io::Result<Vec<u8>> {
+        read(self.avatar_path(SPACE_BANNER_KEY)).await
+    }
+
+    pub async fn delete_space_banner(&self) -> io::Result<()> {
+        remove(self.avatar_path(SPACE_BANNER_KEY)).await
     }
 }
 

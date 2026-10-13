@@ -22,6 +22,17 @@ pub(super) async fn member_account_calls(c: &mut Contract, root: &str, code: &st
         )
         .await;
     let frank_id = text(&frank, "user_id");
+    c.json(
+        "changePassword",
+        "POST",
+        "/auth/password",
+        &text(&frank, "access_token"),
+        serde_json::json!({
+            "current_password": super::super::script::PASSWORD,
+            "new_password": "a-brand-new-passphrase",
+        }),
+    )
+    .await;
     c.bare(
         "deleteMemberAccount",
         "DELETE",

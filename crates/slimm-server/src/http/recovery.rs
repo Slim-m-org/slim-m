@@ -35,6 +35,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/users/{user_id}/reset-code", post(issue))
         .route("/auth/reset", post(reset))
+        .route("/auth/password", post(change_password))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
@@ -42,6 +43,16 @@ pub fn routes() -> Router<AppState> {
 struct ResetCodeIssued {
     code: String,
     expires_at: i64,
+}
+
+#[derive(Deserialize)]
+struct ChangePasswordRequest {
+    #[serde(default)]
+    current_password: Option<String>,
+    new_password: String,
+    /// Required only while two-factor is on.
+    #[serde(default)]
+    code: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -118,4 +129,30 @@ async fn reset(
         }
         Err(ConsumeResetError::Internal(e)) => Err(e.into()),
     }
+}
+
+/// Changes the caller's own password against the current one, and the current
+/// two-factor code while that is on.
+///
+/// Every other session is revoked and this one kept: whoever holds a stolen
+/// token loses it, and the member who just proved themselves is not signed out
+/// of the device they are typing on.
+async fn change_password(
+    AuthedLimited(ctx): AuthedLimited<PASSWORD>,
+    State(state): State<AppState>,
+    Json(req): Json<ChangePasswordRequest>,
+) -> Result<StatusCode, ApiError> {
+    validate_password(&req.new_password)?;
+    super::reauth::require_password(&state, ctx.user_id, req.current_password.as_deref()).await?;
+    super::reauth::require_current_code(&state, ctx.user_id, req.code.as_deref()).await?;
+
+    let hash = state.auth.hash_password(req.new_password).await?;
+    let revoked = state
+        .store
+        .change_password(ctx.user_id, ctx.session_id, &hash)
+        .await?;
+    for session_id in revoked {
+        state.hub.publish(Event::SessionRevoked(session_id));
+    }
+    Ok(StatusCode::NO_CONTENT)
 }

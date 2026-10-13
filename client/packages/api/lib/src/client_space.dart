@@ -24,10 +24,21 @@ enum JoinPolicy {
 /// Declared here rather than in `models_totp.dart` because [JoinPolicy] is
 /// declared here, and that file is a separate library which cannot see it.
 class SpaceSettings {
-  const SpaceSettings({required this.joinPolicy, required this.totpPolicy});
+  const SpaceSettings({
+    required this.joinPolicy,
+    required this.totpPolicy,
+    this.description = '',
+    this.bannerUpdatedAt,
+  });
 
   final JoinPolicy joinPolicy;
   final TotpPolicy totpPolicy;
+
+  /// Shown on the invite landing card; empty when none is set.
+  final String description;
+
+  /// When the banner was set, or null for none.
+  final int? bannerUpdatedAt;
 
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
@@ -37,10 +48,12 @@ class SpaceSettings {
         totpPolicy: TotpPolicy.parse(
           json['totp_policy'] as String? ?? TotpPolicy.optional.wire,
         ),
+        description: json['description'] as String? ?? '',
+        bannerUpdatedAt: json['banner_updated_at'] as int?,
       );
 }
 
-/// Deployment-wide settings. Both calls require MANAGE_SERVER.
+/// Deployment-wide settings. The writes require MANAGE_SERVER.
 extension SlimmApiSpace on SlimmApi {
   Future<SpaceSettings> spaceSettings() async {
     final json = await _send('GET', '/space/settings');
@@ -57,9 +70,10 @@ extension SlimmApiSpace on SlimmApi {
   Future<SpaceSettings> setSpaceSettings({
     JoinPolicy? joinPolicy,
     TotpPolicy? totpPolicy,
+    String? description,
   }) async {
     assert(
-      joinPolicy != null || totpPolicy != null,
+      joinPolicy != null || totpPolicy != null || description != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await _send(
@@ -68,10 +82,22 @@ extension SlimmApiSpace on SlimmApi {
       body: {
         if (joinPolicy != null) 'join_policy': joinPolicy.wire,
         if (totpPolicy != null) 'totp_policy': totpPolicy.wire,
+        if (description != null) 'description': description,
       },
     );
     return SpaceSettings.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Sets the invite landing card's banner and returns when it was stored.
+  Future<int> uploadSpaceBanner(List<int> bytes) async {
+    final json = await _send('POST', '/space/banner', bytes: bytes);
+    return (json as Map<String, dynamic>)['banner_updated_at'] as int;
+  }
+
+  Future<void> deleteSpaceBanner() =>
+      _send('DELETE', '/space/banner', expectNoContent: true);
+
+  Future<FetchedBytes> fetchSpaceBanner() => _fetchBytes('/space/banner');
 
   Future<SpaceAnalytics> spaceAnalytics() async {
     final json = await _send('GET', '/space/analytics');

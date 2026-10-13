@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings SET banner_updated_at = ?, updated_at = ? WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f7b3e3cc545f0f665cb731077d8b501f69be87aa0bddbb579ca1f0d825f69848"
+}

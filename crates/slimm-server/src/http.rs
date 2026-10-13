@@ -117,6 +117,7 @@ mod scene_limits;
 mod search;
 mod sign_in_alert;
 mod space;
+mod space_banner;
 mod storage;
 mod sync;
 mod sync_ops;
@@ -260,6 +261,7 @@ pub fn router(state: AppState) -> Router {
         .merge(dms::routes())
         .merge(search::routes())
         .merge(space::routes())
+        .merge(space_banner::routes())
         .merge(totp::routes())
         .merge(storage::routes())
         .merge(sync::routes())

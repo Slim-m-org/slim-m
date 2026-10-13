@@ -377,6 +377,10 @@ class SlimmApi {
     return InviteCheck.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Where the landing card's banner for [code] is served, without a session.
+  Uri inviteBannerUri(String code) =>
+      _requestUri('/invites/$code/banner', null);
+
   /// Spends an invite for the signed-in account.
   Future<void> redeemInvite(String code) =>
       _send('POST', '/invites/$code/redeem', expectNoContent: true);

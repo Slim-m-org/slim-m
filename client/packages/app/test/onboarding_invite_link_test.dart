@@ -89,6 +89,10 @@ Future<({Uri? chosen, Uri? probed, String? invite})> _pasteIntoDialog(
   await tester.pump();
   await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
+  if (find.text('Join').evaluate().isNotEmpty) {
+    await tester.tap(find.text('Join'));
+    await tester.pumpAndSettle();
+  }
 
   return (chosen: chosen, probed: probed, invite: invite);
 }

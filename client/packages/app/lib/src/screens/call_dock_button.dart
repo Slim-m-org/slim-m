@@ -19,6 +19,7 @@ class CallDockButton extends StatelessWidget {
     required this.active,
     required this.onPressed,
     this.destructive = false,
+    this.holdOpensOptions = false,
     this.pending = false,
     this.unavailable = false,
     this.level,
@@ -28,6 +29,9 @@ class CallDockButton extends StatelessWidget {
   final String tooltip;
   final bool active;
   final bool destructive;
+
+  /// A held press opens options here, so it must not also show the tooltip.
+  final bool holdOpensOptions;
 
   /// Asked for, not in effect yet. Reads as busy rather than on.
   ///
@@ -86,7 +90,7 @@ class CallDockButton extends StatelessWidget {
       key: tooltipKey,
       message: tooltip,
       // A held press belongs to the options; hover still shows the tooltip.
-      triggerMode: joined
+      triggerMode: joined || holdOpensOptions
           ? TooltipTriggerMode.manual
           : TooltipTriggerMode.longPress,
       child: Semantics(

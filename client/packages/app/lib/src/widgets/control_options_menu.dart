@@ -29,6 +29,14 @@ class ControlOption extends ControlOptionEntry {
   final bool selected;
 }
 
+/// A heading over the rows that follow it, to tell several pick-one groups
+/// in one menu apart.
+class ControlOptionHeading extends ControlOptionEntry {
+  const ControlOptionHeading(this.text);
+
+  final String text;
+}
+
 /// [child] with a caret and long-press that open [options].
 ///
 /// An empty [options] draws [child] alone, so a caller can pass whatever is
@@ -42,7 +50,12 @@ class ControlOptionsMenu extends StatefulWidget {
     this.active = false,
     this.caretHeight = AppSizes.controlMd,
     this.opensAbove = false,
+    this.showCaret = true,
   });
+
+  /// False opens the options by long press or right-click alone, for a row
+  /// with no width to spare for a caret.
+  final bool showCaret;
 
   final Widget child;
   final List<ControlOptionEntry> options;
@@ -74,18 +87,20 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       key: _region,
       // The wrapped control is already a tab stop, and owns the long-press.
       ownsFocusNode: false,
-      enableLongPress: false,
+      enableLongPress: !widget.showCaret,
       opensAbove: widget.opensAbove,
       itemsBuilder: (context, close) => [
         for (final entry in widget.options) ..._rows(context, entry, close),
       ],
-      child: AppControlWithOptions(
-        active: widget.active,
-        visualHeight: widget.caretHeight,
-        optionsLabel: widget.optionsLabel,
-        onOpenOptions: () => _region.currentState?.open(),
-        child: child,
-      ),
+      child: widget.showCaret
+          ? AppControlWithOptions(
+              active: widget.active,
+              visualHeight: widget.caretHeight,
+              optionsLabel: widget.optionsLabel,
+              onOpenOptions: () => _region.currentState?.open(),
+              child: child,
+            )
+          : child,
     );
   }
 
@@ -100,6 +115,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
         ControlSwatchRow(swatches: entry.swatches, close: close),
       ];
     }
+    if (entry is ControlOptionHeading) return [AppMenuLabel(entry.text)];
     return _itemRows(context, entry as ControlOption, close);
   }
 

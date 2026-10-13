@@ -33,6 +33,7 @@ mod notification_schedule_calls;
 mod people;
 mod read_state;
 mod refusals;
+mod space_banner;
 mod threads;
 mod totp_calls;
 mod webhooks;
@@ -48,6 +49,7 @@ use farewell::farewell_calls;
 use gifs::gif_calls;
 use link_preview::link_preview_calls;
 use people::{moderation_calls, profile_calls, safety_calls};
+use space_banner::banner_calls;
 use threads::thread_calls;
 
 const PASSWORD: &str = "a-long-enough-password";
@@ -148,6 +150,7 @@ pub async fn run(c: &mut Contract) {
     c.bare("createWsTicket", "POST", "/auth/ws-ticket", root)
         .await;
 
+    banner_calls(c, root, &code).await;
     c.bare("getSpaceSettings", "GET", "/space/settings", root)
         .await;
     // Set back to what it already is, so the rest of the pass still runs

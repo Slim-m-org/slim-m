@@ -15,12 +15,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_platform/platform.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/activity_sharing_settings.dart';
 import '../providers/providers.dart';
 import 'spotify_client.dart';
 import 'spotify_config.dart';
+import 'spotify_launch.dart';
 import 'spotify_link_status.dart';
 import 'spotify_pkce.dart';
 import 'spotify_source.dart';
@@ -50,10 +50,10 @@ final spotifySourceProvider = Provider<NowPlayingSource>(
   ),
 );
 
-/// Opens Spotify's consent page in the browser. Overridden in tests.
+/// Opens Spotify's consent page, in the Spotify app when it claims the link.
+/// Overridden in tests.
 final spotifyLauncherProvider = Provider<Future<bool> Function(Uri)>(
-  (ref) =>
-      (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
+  (ref) => openSpotifyAuthorize,
 );
 
 /// How long a started link stays valid, for the in-app wait and for a
