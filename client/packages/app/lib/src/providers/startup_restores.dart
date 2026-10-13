@@ -23,6 +23,7 @@ import 'media_preferences.dart';
 import 'message_page_size.dart';
 import 'preference_controller.dart';
 import 'providers.dart';
+import 'rail_width_preference.dart';
 import 'voice_controller.dart';
 
 /// Runs [restore], and on any failure records it and carries on: [name]'s
@@ -66,6 +67,7 @@ restorablePreferences = {
   'group spacing': (c) => c.read(groupSpacingControllerProvider.notifier),
   'ui scale': (c) => c.read(uiScaleControllerProvider.notifier),
   'app lock': (c) => c.read(appLockPreferenceProvider.notifier),
+  'rail width': (c) => c.read(railWidthControllerProvider.notifier),
 };
 
 /// Restores every preference bootstrap needs, concurrently off the one cached

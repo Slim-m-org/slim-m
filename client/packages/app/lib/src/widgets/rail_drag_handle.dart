@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The channel rail's own edge: click it to collapse or restore the rail.
+/// The channel rail's own edge: click it to narrow or widen the rail, or drag
+/// it to any width between `railMinWidth` and `railMaxWidth`, the way Discord's
+/// sidebar slides (backlog item 229). The hairline and its narrow reach stay.
 ///
 /// Replaced the header's dedicated toggle button once (#256), then replaced
 /// drag-to-resize with a plain click (backlog item 54): the owner found the
@@ -18,16 +20,23 @@
 /// background is a different token from the rest of the rail).
 library;
 
+import 'dart:async';
+
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/rail_width_preference.dart';
 import 'channel_rail.dart';
 
 /// How far the hit area reaches back into the rail's blank edge: the cap
 /// backlog items 54 and 58 settled on, the same at every input density.
 const double _railReach = AppSpacing.s8;
+
+/// How far one screen-reader increase or decrease moves the rail's edge.
+const double _nudgeStep = 20;
 
 /// Sits where the rail meets the conversation, at every width that docks the
 /// rail beside it (medium and expanded; the compact drawer from #301 is a
@@ -61,7 +70,10 @@ const double _railReach = AppSpacing.s8;
 /// action bled this control's label onto an unrelated ancestor's - found by
 /// dumping the real semantics tree, not by reading the widget.
 class RailDragHandle extends ConsumerStatefulWidget {
-  const RailDragHandle({super.key});
+  const RailDragHandle({super.key, required this.railWidth});
+
+  /// The rail's width as drawn now, where a drag starts from.
+  final double railWidth;
 
   @override
   ConsumerState<RailDragHandle> createState() => _RailDragHandleState();
@@ -71,8 +83,39 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
   bool _hovered = false;
   bool _focused = false;
 
+  double _dragOrigin = 0;
+  double _dragDelta = 0;
+
   void _toggle() =>
       ref.read(channelRailExpandedProvider.notifier).update((value) => !value);
+
+  void _dragStart(DragStartDetails _) {
+    _dragOrigin = widget.railWidth;
+    _dragDelta = 0;
+    ref.read(railDraggingProvider.notifier).state = true;
+    // Expanded first and at the width it is drawn at, so grabbing a narrowed rail never jumps.
+    ref.read(railWidthControllerProvider.notifier).preview(_dragOrigin);
+    ref.read(channelRailExpandedProvider.notifier).state = true;
+  }
+
+  void _dragUpdate(DragUpdateDetails details) {
+    _dragDelta += details.delta.dx;
+    ref
+        .read(railWidthControllerProvider.notifier)
+        .preview(_dragOrigin + _dragDelta);
+  }
+
+  void _dragEnd([Object? _]) {
+    ref.read(railDraggingProvider.notifier).state = false;
+    unawaited(ref.read(railWidthControllerProvider.notifier).commit());
+  }
+
+  void _nudge(double by) {
+    final rail = ref.read(railWidthControllerProvider.notifier);
+    ref.read(channelRailExpandedProvider.notifier).state = true;
+    rail.preview(widget.railWidth + by);
+    unawaited(rail.commit());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +127,15 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
       button: true,
       label: expanded ? 'Narrow channel list' : 'Widen channel list',
       onTap: _toggle,
+      value: '${widget.railWidth.round()} pixels wide',
+      increasedValue:
+          '${clampRailWidth(widget.railWidth + _nudgeStep).round()} pixels wide',
+      decreasedValue:
+          '${clampRailWidth(widget.railWidth - _nudgeStep).round()} pixels wide',
+      onIncrease: () => _nudge(_nudgeStep),
+      onDecrease: () => _nudge(-_nudgeStep),
       child: FocusableActionDetector(
-        mouseCursor: SystemMouseCursors.click,
+        mouseCursor: SystemMouseCursors.resizeColumn,
         onShowHoverHighlight: (v) => setState(() => _hovered = v),
         onShowFocusHighlight: (v) => setState(() => _focused = v),
         actions: <Type, Action<Intent>>{
@@ -98,6 +148,12 @@ class _RailDragHandleState extends ConsumerState<RailDragHandle> {
           // The real pointer tap; the outer Semantics covers accessibility, see its own doc.
           excludeFromSemantics: true,
           onTap: _toggle,
+          // From where the pointer went down, so the edge tracks it exactly rather than trailing by the drag slop.
+          dragStartBehavior: DragStartBehavior.down,
+          onHorizontalDragStart: _dragStart,
+          onHorizontalDragUpdate: _dragUpdate,
+          onHorizontalDragEnd: _dragEnd,
+          onHorizontalDragCancel: _dragEnd,
           // One hover clock; begin==end at mount, so nothing plays.
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: _hovered ? 1.0 : 0.0),

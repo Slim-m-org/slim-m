@@ -9,6 +9,8 @@ export 'home_shell_empty_state.dart' show NoChannelSelected;
 
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
@@ -32,6 +34,7 @@ import '../providers/module_sound_settings.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../providers/notification_sound_controller.dart';
 import '../providers/providers.dart';
+import '../providers/rail_width_preference.dart';
 import '../providers/retention_sweep.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
 import '../providers/threads.dart';
@@ -134,9 +137,21 @@ class HomeShell extends ConsumerWidget {
         ref.watch(memberPaneVisibleProvider);
     final railExpanded = ref.watch(channelRailExpandedProvider);
 
-    final railWidth = layout == LayoutClass.expanded
+    final defaultRailWidth = layout == LayoutClass.expanded
         ? ChannelRail.expandedWidth
         : ChannelRail.mediumWidth;
+    // A dragged width wins, but never squeezes the conversation below its floor beside a docked pane.
+    final dockedPane = showThread && threadFits
+        ? kThreadPaneWidth
+        : showMembers
+        ? AppMemberPane.width
+        : 0.0;
+    final railRoom =
+        width - AppSizes.rowPointer - dockedPane - kMinTranscriptWidth;
+    final railWidth = math.min(
+      ref.watch(railWidthControllerProvider) ?? defaultRailWidth,
+      math.max(defaultRailWidth, railRoom),
+    );
 
     final Widget scaffold;
     if (layout.showsBothPanes) {
@@ -157,6 +172,7 @@ class HomeShell extends ConsumerWidget {
               expanded: railExpanded,
               canvasFullscreen: canvasFullscreen,
               railWidth: railWidth,
+              dragging: ref.watch(railDraggingProvider),
             ),
             // Its own semantics node, or the modal barrier inside this pane's
             // navigator blocks everything painted before it, which is the
