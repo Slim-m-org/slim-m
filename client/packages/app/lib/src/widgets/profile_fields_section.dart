@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
+import 'color_swatch_row.dart';
 import 'settings_section_header.dart';
 
 /// Spoken names for [AppCanvasColors.cursors], in the same order.
@@ -141,78 +142,17 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
               SizedBox(height: touch ? 0 : AppSpacing.s8),
-              Row(
-                children: [
-                  for (var i = 0; i < AppCanvasColors.cursors.length; i++)
-                    Padding(
-                      padding: EdgeInsets.only(
-                        right: touch ? 0 : AppSpacing.s8,
-                      ),
-                      child: _ColorSwatch(
-                        color: AppCanvasColors.cursors[i],
-                        name: _colourNames[i],
-                        selected: me?.profileColor == i,
-                        onTap: me == null ? null : () => _setColor(i),
-                      ),
-                    ),
-                ],
+              ColorSwatchRow(
+                label: 'Profile colour',
+                colors: AppCanvasColors.cursors,
+                names: _colourNames,
+                selected: me?.profileColor,
+                onSelect: me == null ? null : _setColor,
               ),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({
-    required this.color,
-    required this.name,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final String name;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final side = AppTouchTargets.of(context) ? AppSizes.rowTouch : 28.0;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: 'Profile colour: $name',
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: side,
-          height: side,
-          alignment: Alignment.center,
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: selected
-                  ? Border.all(color: tokens.textPrimary, width: 2)
-                  : null,
-            ),
-            child: selected
-                ? Icon(
-                    AppIcons.check,
-                    size: AppSizes.icon16,
-                    color: tokens.accentOn,
-                  )
-                : null,
-          ),
-        ),
-      ),
     );
   }
 }

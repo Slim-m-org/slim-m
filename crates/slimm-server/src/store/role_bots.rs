@@ -19,7 +19,7 @@ impl Store {
                       is_everyone AS "is_everyone!: bool",
                       mentionable AS "mentionable!: bool", created_at AS "created_at!",
                       managed_bot_id AS "managed_bot_id: UserId",
-                      position AS "position!: i64", hoist AS "hoist!: bool"
+                      position AS "position!: i64", hoist AS "hoist!: bool", color
                FROM roles WHERE managed_bot_id = ?"#,
             bot_user_id
         )

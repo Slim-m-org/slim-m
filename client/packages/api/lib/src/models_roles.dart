@@ -15,6 +15,7 @@ class Role {
     required this.isEveryone,
     this.mentionable = false,
     this.hoist = false,
+    this.color,
     required this.createdAt,
     this.managedBotId,
     this.position = 0,
@@ -41,6 +42,9 @@ class Role {
   /// heading. Defaults false, also on a server older than the field.
   final bool hoist;
 
+  /// An index into the role palette, or null for the colour derived from the id.
+  final int? color;
+
   /// Unix milliseconds.
   final int createdAt;
 
@@ -66,6 +70,7 @@ class Role {
         isEveryone: json['is_everyone'] as bool,
         mentionable: json['mentionable'] as bool? ?? false,
         hoist: json['hoist'] as bool? ?? false,
+        color: json['color'] as int?,
         createdAt: json['created_at'] as int,
         managedBotId: json['managed_bot_id'] as String?,
         position: json['position'] as int? ?? 0,

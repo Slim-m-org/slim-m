@@ -14,6 +14,7 @@ use slimm_server::ids::{DeviceId, RoleId, UserId};
 use slimm_server::notifications::NotificationPreference;
 use slimm_server::permissions::Permissions;
 use slimm_server::presence::PresenceTracker;
+use slimm_server::store::RoleChanges;
 use slimm_server::store::{PushRegistration, Store};
 
 mod support;
@@ -88,7 +89,13 @@ async fn role(store: &Store, name: &str, mentionable: bool) -> RoleId {
         .unwrap();
     if mentionable {
         store
-            .update_role(id, None, None, Some(true), None)
+            .update_role(
+                id,
+                RoleChanges {
+                    mentionable: Some(true),
+                    ..RoleChanges::default()
+                },
+            )
             .await
             .unwrap();
     }

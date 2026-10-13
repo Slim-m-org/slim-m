@@ -43,7 +43,7 @@ use crate::hub::Event;
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Role, RoleGuardError, RoleWithCount};
+use crate::store::{ROLE_COLOR_COUNT, Role, RoleChanges, RoleGuardError, RoleWithCount};
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -76,6 +76,8 @@ pub(super) struct RoleDto {
     mentionable: bool,
     /// Whether the member pane lists this role's members under their own heading.
     hoist: bool,
+    /// An index into the client's role palette, or null for the colour derived from the id.
+    color: Option<i64>,
     created_at: i64,
     /// See [`Role::managed_bot_id`].
     managed_bot_id: Option<String>,
@@ -98,6 +100,7 @@ impl RoleDto {
             is_everyone: role.is_everyone,
             mentionable: role.mentionable,
             hoist: role.hoist,
+            color: role.color,
             created_at: role.created_at,
             managed_bot_id: role.managed_bot_id.map(|id| id.to_string()),
             position: role.position,
@@ -130,6 +133,7 @@ struct UpdateRoleRequest {
     permissions: Option<i64>,
     mentionable: Option<bool>,
     hoist: Option<bool>,
+    color: Option<i64>,
 }
 
 // --- Handlers: role CRUD ---
@@ -175,7 +179,13 @@ async fn create(
     if created.fresh && req.mentionable.unwrap_or(false) {
         state
             .store
-            .update_role(created.id, None, None, Some(true), None)
+            .update_role(
+                created.id,
+                RoleChanges {
+                    mentionable: Some(true),
+                    ..RoleChanges::default()
+                },
+            )
             .await
             .map_err(role_guard_error)?;
     }
@@ -210,7 +220,15 @@ async fn update(
         .permissions
         .map(|bits| grantable(caller_permissions, bits))
         .transpose()?;
-    if name.is_none() && permissions.is_none() && req.mentionable.is_none() && req.hoist.is_none() {
+    let color = req.color.map(validate_role_color).transpose()?;
+    let changes = RoleChanges {
+        name,
+        permissions,
+        mentionable: req.mentionable,
+        hoist: req.hoist,
+        color,
+    };
+    if changes.is_empty() {
         return Err(ApiError::BadRequest("nothing to update"));
     }
 
@@ -222,11 +240,8 @@ async fn update(
         )?;
     }
 
-    // Hoist cannot remove an administrator, so it needs no guard of its own.
-    let updated = state
-        .store
-        .update_role(role_id, name, permissions, req.mentionable, req.hoist)
-        .await;
+    // Hoist and colour cannot remove an administrator, so they need no guard of their own.
+    let updated = state.store.update_role(role_id, changes).await;
     match updated {
         Ok(Some(role)) => {
             let role = state.store.role(role.id).await?.ok_or(ApiError::Internal)?;
@@ -406,6 +421,16 @@ fn validate_role_name(name: &str) -> Result<&str, ApiError> {
         ));
     }
     Ok(trimmed)
+}
+
+fn validate_role_color(color: i64) -> Result<i64, ApiError> {
+    if usize::try_from(color).is_ok_and(|index| index < ROLE_COLOR_COUNT) {
+        Ok(color)
+    } else {
+        Err(ApiError::BadRequest(
+            "color must be a palette index from 0 to 9",
+        ))
+    }
 }
 
 #[cfg(test)]

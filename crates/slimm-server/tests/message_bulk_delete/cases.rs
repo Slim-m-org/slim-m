@@ -4,6 +4,7 @@
 
 use axum::http::StatusCode;
 use slimm_server::permissions::Permissions;
+use slimm_server::store::RoleChanges;
 use uuid::Uuid;
 
 use crate::harness::{
@@ -365,7 +366,13 @@ async fn a_caller_who_cannot_see_the_channel_learns_nothing_from_the_answer() {
         .find(|r| r.is_everyone)
         .unwrap();
     store
-        .update_role(everyone.id, None, Some(Permissions::NONE), None, None)
+        .update_role(
+            everyone.id,
+            RoleChanges {
+                permissions: Some(Permissions::NONE),
+                ..RoleChanges::default()
+            },
+        )
         .await
         .unwrap();
 
