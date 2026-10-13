@@ -8598,6 +8598,14 @@ components:
             client caps its own capture parameters before starting a share,
             not only one with MANAGE_SERVER. Absent on servers older than
             this field, which a client must treat as no ceiling.
+        max_attachment_bytes:
+          type: integer
+          format: int64
+          description: >
+            The largest single attachment upload the server accepts, in
+            bytes. A client checks it before sending so an oversize file is
+            refused up front. Absent on servers older than this field, which
+            a client must treat as no known limit.
         min_client_version:
           type: string
           description: >
