@@ -314,10 +314,14 @@ class Client:
             raise AssertionError(f"{self.name}: {ok}")
         time.sleep(3)
 
-    def attach_file(self, open_label, path, mime=_DEFAULT_MIME):
-        """Open a picker and answer it, in the order those have to happen."""
+    def attach_file(self, open_label, path, mime=_DEFAULT_MIME, settle=2):
+        """Open a picker and answer it, in the order those have to happen.
+
+        A picker that sees the window refocus before a file arrives treats it
+        as a cancel, so one opened after typing needs a short [settle].
+        """
         self.watch_for_file_input()
-        self.click(open_label, settle=2)
+        self.click(open_label, settle=settle)
         self.give_file(path, mime)
 
     def drag(self, points, hold=0.05):

@@ -48,6 +48,40 @@ NEW_ROLE = "Create role"
 ROLE_NAME = "Role name"
 CREATE_ROLE = "Create role"
 
+# Account & devices > Password (change_password_section.dart, change_password_sheet.dart)
+ACCOUNT_PANE = "Account & devices"
+CHANGE_PASSWORD = "Change password"
+CURRENT_PASSWORD = "Current password"
+NEW_PASSWORD = "New password"
+REPEAT_PASSWORD = "Repeat new password"
+PASSWORD_CHANGED = "Password changed."
+WRONG_PASSWORD = "That password is not correct."
+
+# The admin's reset code (reset_code_sheet.dart, reauth_sheet.dart)
+RESET_CODE_ROW = "Password reset code..."
+YOUR_PASSWORD = "Your password"
+GENERATE_CODE = "Generate code"
+RESET_CODE_SHOWN = "Shown once"
+COPY_CODE = "Copy code"
+
+# Space settings > Invites > Landing page (invite_landing_section.dart)
+DESCRIPTION_FIELD = "Description"
+SAVE_DESCRIPTION = "Save description"
+
+# The signed-out invite flow (onboarding_screen.dart, onboarding_dialogs.dart)
+I_HAVE_AN_INVITE = "I have an invite"
+INVITE_SERVER = "Server"
+INVITE_CODE = "Invite code"
+ACCEPT_TERMS = "I accept the terms of use for this Space."
+INVITE_CONTINUE = "Continue"
+
+# Video quality (call_quality_options.dart, video_quality_sections.dart)
+SHARE_OPTIONS = "Screen share options"
+WATCHING_QUALITY = "Watching quality"
+DATA_SAVER = "Data saver"
+AUTO_QUALITY = "Auto"
+VOICE_PANE = "Voice & screen share"
+
 # Voice
 IN_CALL = "in call"
 SHARE_SCREEN = "Share a screen"
