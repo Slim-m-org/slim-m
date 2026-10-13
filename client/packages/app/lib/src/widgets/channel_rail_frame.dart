@@ -22,6 +22,7 @@ import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import 'presence_menu.dart';
 import 'rail_call_summary.dart';
+import 'space_icon.dart';
 import 'space_menu_button.dart';
 
 /// Whether this rail has content beside it, so its own right edge is never
@@ -94,6 +95,12 @@ class RailHeader extends ConsumerWidget {
                         failure: ref.watch(syncFailureProvider),
                       ),
                       const SizedBox(width: 6),
+                      SpaceIcon(
+                        updatedAt: server.valueOrNull?.iconUpdatedAt,
+                        size: AppSizes.icon20,
+                      ),
+                      if (server.valueOrNull?.iconUpdatedAt != null)
+                        const SizedBox(width: AppSpacing.s8),
                       Flexible(
                         child: Text(
                           server.valueOrNull?.name ?? 'slim-m',

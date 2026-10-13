@@ -105,6 +105,7 @@ pub fn from_hex(s: &str) -> Option<Vec<u8>> {
 // --- Filesystem storage ---
 
 const SPACE_BANNER_KEY: &str = "space-banner";
+const SPACE_ICON_KEY: &str = "space-icon";
 
 /// A cloneable handle to the on-disk blob store. Cheap to clone (two
 /// `PathBuf`s and a `u64`).
@@ -295,6 +296,18 @@ impl Media {
 
     pub async fn delete_space_banner(&self) -> io::Result<()> {
         remove(self.avatar_path(SPACE_BANNER_KEY)).await
+    }
+
+    pub async fn write_space_icon(&self, bytes: Vec<u8>) -> io::Result<()> {
+        write_atomic(self.avatar_path(SPACE_ICON_KEY), bytes).await
+    }
+
+    pub async fn read_space_icon(&self) -> io::Result<Vec<u8>> {
+        read(self.avatar_path(SPACE_ICON_KEY)).await
+    }
+
+    pub async fn delete_space_icon(&self) -> io::Result<()> {
+        remove(self.avatar_path(SPACE_ICON_KEY)).await
     }
 }
 

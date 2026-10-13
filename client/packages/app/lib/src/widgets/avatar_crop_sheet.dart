@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'image_downscale.dart';
+
 /// The edge of the encoded result, in pixels.
 ///
 /// A phone photo is routinely 3 to 5 MB and the server caps an avatar at 2 MB,
@@ -79,18 +81,25 @@ Future<int?> decodedSourceEdge(Uint8List bytes) async {
 
 /// Shows [bytes] in a square viewport the user can pan and zoom, and returns
 /// the cropped PNG, or null if they backed out.
-Future<Uint8List?> showAvatarCropSheet(BuildContext context, Uint8List bytes) {
+Future<Uint8List?> showAvatarCropSheet(
+  BuildContext context,
+  Uint8List bytes, {
+  bool circular = true,
+}) {
   return showAppSheet<Uint8List>(
     context,
     maxWidth: 520,
-    builder: (_) => _AvatarCropSheet(bytes: bytes),
+    builder: (_) => _AvatarCropSheet(bytes: bytes, circular: circular),
   );
 }
 
 class _AvatarCropSheet extends StatefulWidget {
-  const _AvatarCropSheet({required this.bytes});
+  const _AvatarCropSheet({required this.bytes, required this.circular});
 
   final Uint8List bytes;
+
+  /// An avatar is drawn round; a space icon is a rounded square.
+  final bool circular;
 
   @override
   State<_AvatarCropSheet> createState() => _AvatarCropSheetState();
@@ -159,7 +168,8 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     final bytes = captured?.buffer.asUint8List();
     if (bytes == null || captureEdge == _outputEdge) return bytes;
     // A failed reduction still has a correct, merely softer picture in hand.
-    return await _minified(bytes) ?? bytes;
+    return await minifiedPng(bytes, width: _outputEdge, height: _outputEdge) ??
+        bytes;
   }
 
   /// The edge to raster the viewport at: the source's own shorter side, which
@@ -178,27 +188,6 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     return shorter.clamp(_outputEdge, _maxCaptureEdge);
   }
 
-  /// [png] resampled down to [_outputEdge] square by the image decoder, whose
-  /// own downscale is area-averaging rather than the bilinear tap a canvas
-  /// minification gets.
-  static Future<Uint8List?> _minified(Uint8List png) async {
-    try {
-      final codec = await ui.instantiateImageCodec(
-        png,
-        targetWidth: _outputEdge,
-        targetHeight: _outputEdge,
-      );
-      final frame = await codec.getNextFrame();
-      final data = await frame.image.toByteData(format: ui.ImageByteFormat.png);
-      frame.image.dispose();
-      codec.dispose();
-      return data?.buffer.asUint8List();
-    } catch (_) {
-      // Null is the documented fallback; a throw must not become a cancel.
-      return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -207,6 +196,31 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     // Cancel and Use picture off the bottom of the screen on every desktop.
     final size = MediaQuery.sizeOf(context);
     final edge = math.min(size.width - AppSpacing.s32, size.height * 0.5);
+    final framed = RepaintBoundary(
+      key: _boundary,
+      child: SizedBox(
+        width: edge,
+        height: edge,
+        child: InteractiveViewer(
+          transformationController: _controller,
+          minScale: 1,
+          maxScale: 5,
+          clipBehavior: Clip.hardEdge,
+          child: Image.memory(
+            widget.bytes,
+            fit: BoxFit.cover,
+            width: edge,
+            height: edge,
+          ),
+        ),
+      ),
+    );
+    final picture = widget.circular
+        ? ClipOval(child: framed)
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            child: framed,
+          );
 
     return SafeArea(
       top: false,
@@ -227,27 +241,7 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
             const SizedBox(height: AppSpacing.s16),
-            ClipOval(
-              child: RepaintBoundary(
-                key: _boundary,
-                child: SizedBox(
-                  width: edge,
-                  height: edge,
-                  child: InteractiveViewer(
-                    transformationController: _controller,
-                    minScale: 1,
-                    maxScale: 5,
-                    clipBehavior: Clip.hardEdge,
-                    child: Image.memory(
-                      widget.bytes,
-                      fit: BoxFit.cover,
-                      width: edge,
-                      height: edge,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            picture,
             const SizedBox(height: AppSpacing.s16),
             Row(
               children: [

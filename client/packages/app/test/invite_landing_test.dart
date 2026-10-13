@@ -21,6 +21,7 @@ Future<void> _pumpCard(
   WidgetTester tester,
   double width, {
   bool withBanner = true,
+  bool withIcon = false,
   String description = 'A small home server.',
   int members = 12,
 }) async {
@@ -39,6 +40,9 @@ Future<void> _pumpCard(
               memberCount: members,
               description: description,
               invitedBy: 'Nia',
+              icon: withIcon
+                  ? const ColoredBox(color: Colors.deepOrange)
+                  : null,
               banner: withBanner
                   ? const ColoredBox(color: Colors.blueGrey)
                   : null,
@@ -67,6 +71,26 @@ void main() {
       expect(find.text('12 members'), findsOneWidget);
     });
   }
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('the icon sits left of the name at its fixed size at $width', (
+      tester,
+    ) async {
+      await _pumpCard(tester, width, withIcon: true);
+      final icon = tester.getRect(find.byType(ColoredBox).last);
+      final name = tester.getRect(find.text('Home'));
+      expect(icon.size, const Size.square(kInviteIconSize));
+      expect(name.left, icon.right + AppSpacing.s12);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('with no icon the name keeps the card gutter', (tester) async {
+    await _pumpCard(tester, 390);
+    final card = tester.getRect(find.byType(InviteLandingCard));
+    final name = tester.getRect(find.text('Home'));
+    expect(name.left - card.left, AppSpacing.s16);
+  });
 
   testWidgets('with no banner the text starts at the top of the card', (
     tester,

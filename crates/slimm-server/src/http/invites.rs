@@ -108,6 +108,9 @@ struct InviteCommunity {
     /// When the banner was set, or null for none; fetch it from
     /// `/invites/{code}/banner`.
     banner_updated_at: Option<i64>,
+    /// When the icon was set, or null for none; fetch it from
+    /// `/invites/{code}/icon`.
+    icon_updated_at: Option<i64>,
 }
 
 /// Resolves a requested role grant, refusing every way it could be an
@@ -248,6 +251,7 @@ async fn check(
                     expires_at: meta.expires_at,
                     description: landing.description,
                     banner_updated_at: landing.banner_updated_at,
+                    icon_updated_at: landing.icon_updated_at,
                 }),
             }))
         }

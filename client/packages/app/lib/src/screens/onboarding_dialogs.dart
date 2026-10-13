@@ -18,6 +18,7 @@ import '../providers/providers.dart';
 import '../server_address_reduction.dart';
 import '../server_scheme_policy.dart';
 import '../widgets/invite_landing_card.dart';
+import '../widgets/space_icon.dart';
 
 /// Redeeming an invite: check the code against the server before asking anyone
 /// to fill in a signup form, and accept the terms at the point of joining.
@@ -43,7 +44,13 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
 
   /// Set once the code checks out; the sheet then shows the landing card
   /// instead of the form, and Join hands the verified pair back.
-  ({api.InviteCommunity community, Uri banner, Uri server, String code})?
+  ({
+    api.InviteCommunity community,
+    Uri banner,
+    Uri icon,
+    Uri server,
+    String code,
+  })?
   _landing;
 
   /// True once a link has named the server, so the address is not asked for
@@ -129,6 +136,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           () => _landing = (
             community: check.community,
             banner: client.inviteBannerUri(code),
+            icon: client.inviteIconUri(code),
             server: reduced,
             code: code,
           ),
@@ -148,7 +156,13 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   }
 
   Widget _buildLanding(
-    ({api.InviteCommunity community, Uri banner, Uri server, String code})
+    ({
+      api.InviteCommunity community,
+      Uri banner,
+      Uri icon,
+      Uri server,
+      String code,
+    })
     landing,
   ) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -168,6 +182,17 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
                 invitedBy: community.invitedBy,
                 expiresAt: community.expiresAt,
                 use24Hour: watchUse24Hour(ref, context),
+                icon: community.iconUpdatedAt == null
+                    ? null
+                    : SpaceIconFrame(
+                        size: kInviteIconSize,
+                        child: Image.network(
+                          landing.icon.toString(),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              ColoredBox(color: tokens.surfaceSunken),
+                        ),
+                      ),
                 banner: community.bannerUpdatedAt == null
                     ? null
                     : Image.network(

@@ -1719,6 +1719,129 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /space/icon:
+    get:
+      operationId: getSpaceIcon
+      tags: [space]
+      summary: Fetch the space icon bytes.
+      description: >
+        Any signed-in caller may read it; it is shown to anyone holding a
+        usable invite anyway. 404 when none is set.
+      responses:
+        "200":
+          description: The icon image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: uploadSpaceIcon
+      tags: [space]
+      summary: Upload (or replace) the space icon.
+      description: >
+        Gated on MANAGE_SERVER. The body is the image, at most 512 KiB, sniffed
+        against the same image allowlist as an avatar.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: When the icon was stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [icon_updated_at]
+                properties:
+                  icon_updated_at:
+                    type: integer
+                    format: int64
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteSpaceIcon
+      tags: [space]
+      summary: Remove the space icon.
+      description: Gated on MANAGE_SERVER.
+      responses:
+        "204":
+          description: The icon was removed (or there was none).
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /invites/{code}/icon:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        description: The invite code.
+        schema:
+          type: string
+    get:
+      operationId: getInviteIcon
+      tags: [invites]
+      summary: Fetch the space icon for a usable invite, before signing up.
+      description: >
+        Unauthenticated and rate limited like the check. An unusable code and
+        a space with no icon both answer 404.
+      security: []
+      responses:
+        "200":
+          description: The icon image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /invites/{code}/redeem:
     parameters:
       - name: code
@@ -8445,6 +8568,12 @@ components:
             this field, which a client must treat as unknown rather than
             false. Unauthenticated like `invite_required`: it reveals only
             what an attempted registration already shows.
+        icon_updated_at:
+          type: integer
+          format: int64
+          description: >
+            When the space icon was set; absent when there is none. Fetch it
+            from `/space/icon` once signed in.
         gif_search_enabled:
           type: boolean
           description: >
@@ -9129,6 +9258,10 @@ components:
           type: [integer, "null"]
           format: int64
           description: When the banner was set, or null for none.
+        icon_updated_at:
+          type: [integer, "null"]
+          format: int64
+          description: When the icon was set, or null for none.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -10211,6 +10344,12 @@ components:
               description: >-
                 When the banner was set, or null for none. Fetch it from
                 `/invites/{code}/banner`.
+            icon_updated_at:
+              type: [integer, "null"]
+              format: int64
+              description: >-
+                When the icon was set, or null for none. Fetch it from
+                `/invites/{code}/icon`.
 
     Bot:
       type: object

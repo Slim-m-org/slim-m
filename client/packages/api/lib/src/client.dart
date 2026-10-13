@@ -381,6 +381,9 @@ class SlimmApi {
   Uri inviteBannerUri(String code) =>
       _requestUri('/invites/$code/banner', null);
 
+  /// Where the landing card's icon for [code] is served, without a session.
+  Uri inviteIconUri(String code) => _requestUri('/invites/$code/icon', null);
+
   /// Spends an invite for the signed-in account.
   Future<void> redeemInvite(String code) =>
       _send('POST', '/invites/$code/redeem', expectNoContent: true);

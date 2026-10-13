@@ -74,9 +74,13 @@ impl World {
     }
 
     async fn upload(&self, token: &str, bytes: Vec<u8>) -> StatusCode {
+        self.upload_to("/space/banner", token, bytes).await
+    }
+
+    async fn upload_to(&self, uri: &str, token: &str, bytes: Vec<u8>) -> StatusCode {
         let request = axum::http::Request::builder()
             .method("POST")
-            .uri("/space/banner")
+            .uri(uri)
             .header("authorization", format!("Bearer {token}"))
             .header("content-type", "application/octet-stream")
             .body(axum::body::Body::from(bytes))
@@ -114,6 +118,8 @@ async fn unauthenticated_check_carries_only_the_public_fields() {
     )
     .await;
     assert_eq!(w.upload(&w.admin, PNG.to_vec()).await, StatusCode::OK);
+    let icon = w.upload_to("/space/icon", &w.admin, PNG.to_vec()).await;
+    assert_eq!(icon, StatusCode::OK);
     let code = w.invite().await;
 
     let (status, body) = w
@@ -133,6 +139,7 @@ async fn unauthenticated_check_carries_only_the_public_fields() {
             "banner_updated_at",
             "description",
             "expires_at",
+            "icon_updated_at",
             "invited_by",
             "member_count",
             "name",
@@ -141,6 +148,7 @@ async fn unauthenticated_check_carries_only_the_public_fields() {
     );
     assert_eq!(body["community"]["description"], "A small home server.");
     assert!(body["community"]["banner_updated_at"].is_i64());
+    assert!(body["community"]["icon_updated_at"].is_i64());
     assert_eq!(body["community"]["member_count"], 2);
     let text = body.to_string();
     assert!(!text.contains("secret-plans"), "a channel name leaked");
@@ -250,4 +258,72 @@ async fn description_is_trimmed_bounded_and_manager_only() {
     let (t, b) = patch(&w.admin, "").await;
     let (_, body) = w.call("PATCH", "/space/settings", Some(&t), Some(b)).await;
     assert_eq!(body["description"], "");
+}
+
+#[tokio::test]
+async fn icon_is_served_only_for_a_usable_code_and_to_members() {
+    let w = world().await;
+    let code = w.invite().await;
+    let uri = format!("/invites/{code}/icon");
+    assert_eq!(
+        w.raw("GET", &uri, None, None).await.status(),
+        StatusCode::NOT_FOUND
+    );
+
+    let up = w.upload_to("/space/icon", &w.admin, PNG.to_vec()).await;
+    assert_eq!(up, StatusCode::OK);
+    let response = w.raw("GET", &uri, None, None).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(bytes.as_ref(), PNG);
+
+    let bogus = w.raw("GET", "/invites/nope/icon", None, None).await;
+    assert_eq!(bogus.status(), StatusCode::NOT_FOUND);
+    let unauth = w.raw("GET", "/space/icon", None, None).await;
+    assert_eq!(unauth.status(), StatusCode::UNAUTHORIZED);
+    let member = w.raw("GET", "/space/icon", Some(&w.member), None).await;
+    assert_eq!(member.status(), StatusCode::OK);
+    let (_, settings) = w.call("GET", "/space/settings", Some(&w.admin), None).await;
+    assert!(settings["icon_updated_at"].is_i64());
+    assert!(settings["banner_updated_at"].is_null());
+}
+
+#[tokio::test]
+async fn only_a_server_manager_changes_the_icon_and_it_must_be_a_small_image() {
+    let w = world().await;
+    let up = |t: String, b: Vec<u8>| {
+        let w = &w;
+        async move { w.upload_to("/space/icon", &t, b).await }
+    };
+    assert_eq!(
+        up(w.member.clone(), PNG.to_vec()).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        up(w.admin.clone(), b"not an image".to_vec()).await,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        up(w.admin.clone(), Vec::new()).await,
+        StatusCode::BAD_REQUEST
+    );
+    let mut huge = PNG.to_vec();
+    huge.resize(512 * 1024 + 1, 0);
+    assert_eq!(
+        up(w.admin.clone(), huge).await,
+        StatusCode::PAYLOAD_TOO_LARGE
+    );
+
+    let member_delete = w.raw("DELETE", "/space/icon", Some(&w.member), None).await;
+    assert_eq!(member_delete.status(), StatusCode::FORBIDDEN);
+
+    assert_eq!(up(w.admin.clone(), PNG.to_vec()).await, StatusCode::OK);
+    let gone = w.raw("DELETE", "/space/icon", Some(&w.admin), None).await;
+    assert_eq!(gone.status(), StatusCode::NO_CONTENT);
+    let (_, settings) = w.call("GET", "/space/settings", Some(&w.admin), None).await;
+    assert!(settings["icon_updated_at"].is_null());
+    let after = w.raw("GET", "/space/icon", Some(&w.admin), None).await;
+    assert_eq!(after.status(), StatusCode::NOT_FOUND);
 }

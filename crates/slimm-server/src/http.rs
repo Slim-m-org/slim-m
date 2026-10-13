@@ -118,6 +118,7 @@ mod search;
 mod sign_in_alert;
 mod space;
 mod space_banner;
+mod space_icon;
 mod storage;
 mod sync;
 mod sync_ops;
@@ -262,6 +263,7 @@ pub fn router(state: AppState) -> Router {
         .merge(search::routes())
         .merge(space::routes())
         .merge(space_banner::routes())
+        .merge(space_icon::routes())
         .merge(totp::routes())
         .merge(storage::routes())
         .merge(sync::routes())
@@ -350,6 +352,9 @@ struct Version {
     /// this field always exists, so a client reads `false` as "no GIF picker
     /// on this deployment" rather than needing a third "unknown" state.
     gif_search_enabled: bool,
+    /// When the space icon was set; here because `/space/settings` is admin-only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon_updated_at: Option<i64>,
     /// Whether this deployment unfurls pasted links into preview cards
     /// (`SLIMM_LINK_PREVIEWS` is set). Same two-state shape as
     /// `gif_search_enabled`: a client reads `false` as "do not ask this
@@ -456,6 +461,7 @@ async fn version(
         invite_required: state.store.join_policy().await? == JoinPolicy::Invite,
         claimed: state.store.is_bootstrapped().await?,
         gif_search_enabled: state.gifs.is_enabled(),
+        icon_updated_at: state.store.space_landing().await?.icon_updated_at,
         link_previews_enabled: state.link_previews.is_enabled(),
         screen_share_max_height: state.store.screen_share_max_height().await?,
         min_client_version: min_client_version(),

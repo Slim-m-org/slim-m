@@ -27,6 +27,7 @@ class Version {
     this.inviteRequired,
     this.claimed,
     this.gifSearchEnabled,
+    this.iconUpdatedAt,
     this.linkPreviewsEnabled,
     this.screenShareMaxHeight,
     this.capabilities,
@@ -61,6 +62,9 @@ class Version {
   /// `false`: unlike push or invites there is nothing to warn anyone about
   /// either way, so the picker is simply absent - no button, no request.
   final bool? gifSearchEnabled;
+
+  /// When the space icon was set, or null for none.
+  final int? iconUpdatedAt;
 
   /// Whether this deployment unfurls pasted links into preview cards. Null on
   /// a server too old to report it, and a client treats that the same as
@@ -120,6 +124,7 @@ class Version {
         inviteRequired: json['invite_required'] as bool?,
         claimed: json['claimed'] as bool?,
         gifSearchEnabled: json['gif_search_enabled'] as bool?,
+        iconUpdatedAt: json['icon_updated_at'] as int?,
         linkPreviewsEnabled: json['link_previews_enabled'] as bool?,
         screenShareMaxHeight: json['screen_share_max_height'] as int?,
         // A non-list here is a foreign or broken server, which is unknown
