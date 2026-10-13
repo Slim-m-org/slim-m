@@ -87,6 +87,32 @@ Checked on Fedora 44 rather than assumed: dnf5 tolerates the duplicate and silen
 `client/packages/app/lib/src/desktop/rpm_updater.dart` accepts either id, so the enable path stays the fallback for an rpm from an older release that predates this file.
 `%check` asserts the `[slim-m]` section header is present, because the updater matches on the id and a renamed section would silently put the polkit prompt back.
 
+## The polkit rule
+
+`49-slim-m-client-update.rules` is `Source13`, installed to `/usr/share/polkit-1/rules.d/49-slim-m-client-update.rules`.
+Without it the client's self-update shows a polkit dialog on every run, because `pkexec` asks for `org.freedesktop.policykit.exec`, which defaults to `auth_admin`.
+
+The rule answers `YES` only when all of these hold:
+
+- the action is `org.freedesktop.policykit.exec`
+- `program` is `/usr/bin/dnf`
+- `command_line` is exactly `/usr/bin/dnf upgrade --refresh -y slim-m-client`, the string pkexec builds from the resolved program path and its arguments (the same string the old dialog quoted)
+- the subject is a local, active session and a member of `wheel`
+
+Anything else returns nothing, so polkit falls through to its normal prompt.
+The `dnf copr enable` step is not covered; the packaged repo file makes it a rare fallback.
+
+Why this is acceptable: it lets an admin who is sitting at the machine upgrade one named package from repositories root has already configured, with gpgcheck on, which is what Discover and PackageKit already allow for signed packages.
+It grants no arbitrary dnf arguments and no other program.
+The one caveat is that `command_line` is a space-joined string, so an argv of `upgrade`, `--refresh -y slim-m-client` would match too; dnf rejects that as an unknown option, so it gains nothing.
+
+PackageKit (`pkcon`) was considered and not chosen.
+It would avoid the rule, but the client would then depend on the PackageKit daemon being present and on its own policy, and would drive a different code path than the dnf it already inspects (repolist, rpm -q). One dnf command with a narrow rule is the simpler thing to keep correct.
+
+The match is kept in one place by `rpmUpgradeCommand` in `rpm_updater.dart`, and `client/packages/app/test/desktop/rpm_polkit_rule_test.dart` fails if the rule and the constant disagree.
+The first update that installs this rule still prompts once, since the rule is not on disk until that upgrade finishes.
+Not verified against a real polkit daemon on an installed rpm; only the rule syntax and the match string were checked here.
+
 ## rpmlint findings left in place
 
 `rpmlint` is not clean, and what remains is upstream payload or a check that does not fit this shape.
