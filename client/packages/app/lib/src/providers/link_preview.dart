@@ -19,8 +19,8 @@ import 'providers.dart';
 
 /// Held past the last watcher, sized past a transcript pane's worth of
 /// linked messages, so an ordinary scroll does not refetch every card.
-final _recentPreviews = KeepAliveCache(64);
-final _recentImages = KeepAliveCache(32);
+final _recentPreviews = KeepAliveCache(256);
+final _recentImages = KeepAliveCache(128);
 
 /// Null both when the deployment has not enabled link previews and when the
 /// URL yielded no usable preview - a caller cannot tell those apart from

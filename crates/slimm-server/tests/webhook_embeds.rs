@@ -142,10 +142,13 @@ async fn a_webhooks_embed_image_pointed_at_a_blocked_address_is_dropped() {
         .create_webhook(channel_id, "alerts", admin_id)
         .await
         .unwrap();
-    let enabled_with_guard = LinkPreviews::new(&Config {
-        link_previews: true,
-        ..Config::default()
-    });
+    let enabled_with_guard = LinkPreviews::new(
+        &Config {
+            link_previews: true,
+            ..Config::default()
+        },
+        [7; 32],
+    );
     let app = app(store, enabled_with_guard);
 
     let path = format!("/webhooks/{}/{}", minted.webhook.id, minted.token);

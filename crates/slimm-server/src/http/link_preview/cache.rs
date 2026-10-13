@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The in-process preview cache: one bounded, TTL'd map from a normalized URL
-//! to its extracted preview, and a second from an opaque image token to the
-//! upstream image URL it stands in for (and, once fetched, its bytes).
+//! to its extracted preview, and a second from an image token to the image's
+//! fetched bytes.
 //!
-//! The image token matters for more than caching: the image endpoint takes a
-//! token, never a raw URL, so a client can only ever have the server proxy an
-//! image that a real preview already surfaced - it is not an open image proxy.
+//! The image token is signed and carries its own URL (see `image_token`), so
+//! the endpoint takes a token, never a raw URL, and can only proxy an image a
+//! real preview surfaced, and a token still works after a restart.
 //! Same shape and eviction as `gifs::cache`.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
-use uuid::Uuid;
-
 use crate::store::now_ms;
 
 use super::extract::Preview;
+use super::image_token;
 use super::video::VideoInfo;
 
 const CACHE_TTL_MS: i64 = 30 * 60 * 1000;
@@ -37,56 +36,28 @@ pub(super) struct CachedPreview {
 }
 
 struct CachedImage {
-    url: String,
-    bytes: Option<Vec<u8>>,
+    bytes: Vec<u8>,
     inserted_at: i64,
 }
 
 pub(super) struct Cache {
+    key: [u8; 32],
     previews: Mutex<HashMap<String, CachedPreview>>,
     images: Mutex<HashMap<String, CachedImage>>,
-    /// Reverse of `images`, so re-enriching the same embed reuses one token.
-    image_tokens_by_url: Mutex<HashMap<String, (String, i64)>>,
 }
 
 impl Cache {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(key: [u8; 32]) -> Self {
         Self {
+            key,
             previews: Mutex::new(HashMap::new()),
             images: Mutex::new(HashMap::new()),
-            image_tokens_by_url: Mutex::new(HashMap::new()),
         }
     }
 
-    /// The redeemable image token for [url], reusing a fresh one if minted.
+    /// The redeemable image token for [url]; the same for the same URL.
     pub(super) fn image_token_for(&self, url: &str) -> String {
-        let now = now_ms();
-        {
-            let by_url = lock(&self.image_tokens_by_url);
-            if let Some((token, inserted_at)) = by_url.get(url)
-                && now - inserted_at < CACHE_TTL_MS
-                && lock(&self.images).contains_key(token)
-            {
-                return token.clone();
-            }
-        }
-        let token = Uuid::now_v7().to_string();
-        {
-            let mut images = lock(&self.images);
-            sweep(&mut images, |c| c.inserted_at, now);
-            images.insert(
-                token.clone(),
-                CachedImage {
-                    url: url.to_owned(),
-                    bytes: None,
-                    inserted_at: now,
-                },
-            );
-        }
-        let mut by_url = lock(&self.image_tokens_by_url);
-        sweep(&mut by_url, |(_, at)| *at, now);
-        by_url.insert(url.to_owned(), (token.clone(), now));
-        token
+        image_token::sign(&self.key, url)
     }
 
     /// The cached preview for [url], if still fresh.
@@ -102,20 +73,10 @@ impl Cache {
     /// any) and returning the cached shape the handler serves.
     pub(super) fn insert(&self, url: &str, preview: Preview) -> CachedPreview {
         let now = now_ms();
-        let image_token = preview.image.as_ref().map(|image_url| {
-            let token = Uuid::now_v7().to_string();
-            let mut images = lock(&self.images);
-            sweep(&mut images, |c| c.inserted_at, now);
-            images.insert(
-                token.clone(),
-                CachedImage {
-                    url: image_url.clone(),
-                    bytes: None,
-                    inserted_at: now,
-                },
-            );
-            token
-        });
+        let image_token = preview
+            .image
+            .as_ref()
+            .map(|image_url| self.image_token_for(image_url));
         let cached = CachedPreview {
             title: preview.title,
             description: preview.description,
@@ -132,22 +93,32 @@ impl Cache {
         cached
     }
 
-    /// The upstream image URL an image token stands for, if still held.
+    /// The upstream image URL an image token stands for, if this server signed it.
     pub(super) fn image_url(&self, token: &str) -> Option<String> {
-        lock(&self.images).get(token).map(|c| c.url.clone())
+        image_token::verify(&self.key, token)
     }
 
-    /// The already-fetched bytes for an image token, if any.
+    /// The already-fetched bytes for an image token, if still fresh.
     pub(super) fn image_bytes(&self, token: &str) -> Option<Vec<u8>> {
-        lock(&self.images).get(token).and_then(|c| c.bytes.clone())
+        lock(&self.images)
+            .get(token)
+            .filter(|c| now_ms() - c.inserted_at < CACHE_TTL_MS)
+            .map(|c| c.bytes.clone())
     }
 
     /// Records the fetched bytes for an image token, so the next viewer of
     /// the same card is served from memory rather than a fresh outbound fetch.
     pub(super) fn store_image_bytes(&self, token: &str, bytes: Vec<u8>) {
-        if let Some(entry) = lock(&self.images).get_mut(token) {
-            entry.bytes = Some(bytes);
-        }
+        let now = now_ms();
+        let mut images = lock(&self.images);
+        sweep(&mut images, |c| c.inserted_at, now);
+        images.insert(
+            token.to_owned(),
+            CachedImage {
+                bytes,
+                inserted_at: now,
+            },
+        );
     }
 }
 
@@ -188,7 +159,7 @@ mod tests {
 
     #[test]
     fn round_trips_a_preview_and_mints_an_image_token() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let cached = cache.insert("https://example.com", preview_with_image());
         let token = cached.image_token.clone().expect("an image mints a token");
         assert_eq!(
@@ -207,7 +178,7 @@ mod tests {
 
     #[test]
     fn an_imageless_preview_has_no_token() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let cached = cache.insert(
             "https://example.com",
             Preview {
@@ -220,7 +191,7 @@ mod tests {
 
     #[test]
     fn stores_and_serves_image_bytes() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let cached = cache.insert("https://example.com", preview_with_image());
         let token = cached.image_token.unwrap();
         assert!(cache.image_bytes(&token).is_none());
@@ -230,7 +201,7 @@ mod tests {
 
     #[test]
     fn image_token_for_mints_a_redeemable_token() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let token = cache.image_token_for("https://cdn.example.com/embed.png");
         assert_eq!(
             cache.image_url(&token).as_deref(),
@@ -240,7 +211,7 @@ mod tests {
 
     #[test]
     fn image_token_for_reuses_the_same_token_for_the_same_url() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let first = cache.image_token_for("https://cdn.example.com/embed.png");
         let second = cache.image_token_for("https://cdn.example.com/embed.png");
         assert_eq!(
@@ -251,7 +222,7 @@ mod tests {
 
     #[test]
     fn image_token_for_mints_distinct_tokens_for_distinct_urls() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let a = cache.image_token_for("https://cdn.example.com/a.png");
         let b = cache.image_token_for("https://cdn.example.com/b.png");
         assert_ne!(a, b);
@@ -259,7 +230,7 @@ mod tests {
 
     #[test]
     fn an_author_survives_the_round_trip() {
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let cached = cache.insert(
             "https://example.com",
             Preview {
@@ -280,7 +251,7 @@ mod tests {
     fn a_detected_video_survives_the_round_trip() {
         use super::super::video::{VideoInfo, VideoProvider};
 
-        let cache = Cache::new();
+        let cache = Cache::new([7; 32]);
         let cached = cache.insert(
             "https://example.com",
             Preview {
@@ -295,5 +266,16 @@ mod tests {
         let video = cached.video.expect("a video was set");
         assert_eq!(video.provider, VideoProvider::Youtube);
         assert_eq!(video.id, "dQw4w9WgXcQ");
+    }
+
+    #[test]
+    fn an_image_token_still_redeems_after_a_restart() {
+        let before = Cache::new([7; 32]);
+        let token = before.image_token_for("https://cdn.example.com/a.png");
+        let after = Cache::new([7; 32]);
+        assert_eq!(
+            after.image_url(&token).as_deref(),
+            Some("https://cdn.example.com/a.png")
+        );
     }
 }
