@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.86.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.85.0...server-v0.86.0) (2026-10-13)
+
+
+### Features
+
+* a space icon on the invite landing card and channel list, and big banners shrink instead of failing ([#2159](https://github.com/Slim-m-org/slim-m/issues/2159)) ([fc5c8d9](https://github.com/Slim-m-org/slim-m/commit/fc5c8d9a84dee774e957111a99ad6f2037275fbd))
+* change your own password, invite landing page, video quality, pause video in the background, and publish-path builds on PRs ([#2155](https://github.com/Slim-m-org/slim-m/issues/2155)) ([6e0a59c](https://github.com/Slim-m-org/slim-m/commit/6e0a59cd2f8fc027cbbda804d14d3e94bb73545e))
+
 ## [0.85.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.84.0...server-v0.85.0) (2026-10-11)
 
 
