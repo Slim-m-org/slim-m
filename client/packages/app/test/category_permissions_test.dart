@@ -66,7 +66,7 @@ class _Server {
     if (key == 'POST /channels/c-plans/overwrites/sync') synced = true;
     return http.Response(
       jsonEncode({
-        'overwrites': const [],
+        'overwrites': const <Object>[],
         if (request.url.path.startsWith('/channels/')) 'synced': synced,
       }),
       200,
