@@ -21,7 +21,9 @@ import 'avatar_crop_sheet.dart';
 import 'image_downscale.dart';
 import 'image_drop_zone.dart';
 import 'invite_landing_card.dart';
+import 'invite_landing_view.dart';
 import 'join_policy_row.dart';
+import 'labeled_field.dart';
 import 'run_guarded.dart';
 import 'settings_section_header.dart';
 import 'space_icon.dart';
@@ -216,7 +218,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
             width: _pictureLabelWidth,
             child: Text(
               label,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
+              style: AppText.label.copyWith(color: tokens.textSecondary),
             ),
           ),
           AppButton(
@@ -244,6 +246,32 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
   }
 
+  /// The landing card as the settings show it now, unsaved description included.
+  InviteLandingCard _card(api.SpaceSettings loaded, {String? invitedBy}) =>
+      InviteLandingCard(
+        name: loaded.name,
+        memberCount: ref.watch(membersProvider).valueOrNull?.length ?? 0,
+        description: _description.text.trim(),
+        banner: _banner(loaded.bannerUpdatedAt),
+        icon: loaded.iconUpdatedAt == null
+            ? null
+            : SpaceIcon(updatedAt: loaded.iconUpdatedAt, size: kInviteIconSize),
+        invitedBy: invitedBy,
+        use24Hour: watchUse24Hour(ref, context),
+      );
+
+  Future<void> _previewAsVisitor(api.SpaceSettings loaded) {
+    final me = ref.read(meProvider).valueOrNull?.displayName;
+    return showAppSheet<void>(
+      context,
+      builder: (sheetContext) => InviteLandingView(
+        card: _card(loaded, invitedBy: me),
+        onBack: () => Navigator.of(sheetContext).pop(),
+        note: 'This is what someone opening one of your invites sees.',
+      ),
+    );
+  }
+
   Widget _body(api.SpaceSettings loaded) {
     final changed = _description.text.trim() != _saved;
     final bannerSet = loaded.bannerUpdatedAt != null;
@@ -253,20 +281,26 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SpaceNameField(saved: loaded.name),
+          LabeledField(
+            label: 'Name',
+            child: SpaceNameField(saved: loaded.name),
+          ),
           const SizedBox(height: AppSpacing.s16),
-          AppInput(
-            controller: _description,
-            placeholder: 'Short description',
-            semanticLabel: 'Description',
-            enabled: !_busy,
-            minLines: 2,
-            maxLines: 4,
-            keyboardType: TextInputType.multiline,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(kInviteDescriptionMaxChars),
-            ],
-            onChanged: (_) => setState(() {}),
+          LabeledField(
+            label: 'Description',
+            child: AppInput(
+              controller: _description,
+              placeholder: 'Short description',
+              semanticLabel: 'Description',
+              enabled: !_busy,
+              minLines: 2,
+              maxLines: 4,
+              keyboardType: TextInputType.multiline,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(kInviteDescriptionMaxChars),
+              ],
+              onChanged: (_) => setState(() {}),
+            ),
           ),
           const SizedBox(height: AppSpacing.s8),
           Padding(
@@ -312,6 +346,31 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
             AppErrorState(message: actionError!, onDismiss: clearActionError),
           ],
           const SizedBox(height: AppSpacing.s16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Preview',
+                    style: AppText.label.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).extension<AppTokens>()!.textSecondary,
+                    ),
+                  ),
+                ),
+                AppButton(
+                  label: 'Preview as a visitor',
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  icon: AppIcons.preview,
+                  onPressed: () => unawaited(_previewAsVisitor(loaded)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s8),
           // The width the join sheet gives it, so the preview is not larger than the real thing.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
@@ -319,20 +378,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
               alignment: Alignment.centerLeft,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
-                child: InviteLandingCard(
-                  name: loaded.name,
-                  memberCount:
-                      ref.watch(membersProvider).valueOrNull?.length ?? 0,
-                  description: _description.text.trim(),
-                  banner: _banner(loaded.bannerUpdatedAt),
-                  icon: loaded.iconUpdatedAt == null
-                      ? null
-                      : SpaceIcon(
-                          updatedAt: loaded.iconUpdatedAt,
-                          size: kInviteIconSize,
-                        ),
-                  use24Hour: watchUse24Hour(ref, context),
-                ),
+                child: _card(loaded),
               ),
             ),
           ),

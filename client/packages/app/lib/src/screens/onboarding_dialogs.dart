@@ -18,6 +18,7 @@ import '../providers/providers.dart';
 import '../server_address_reduction.dart';
 import '../server_scheme_policy.dart';
 import '../widgets/invite_landing_card.dart';
+import '../widgets/invite_landing_view.dart';
 import '../widgets/space_icon.dart';
 
 /// Redeeming an invite: check the code against the server before asking anyone
@@ -167,65 +168,35 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
   ) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final community = landing.community;
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.s16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Flexible(
-            child: SingleChildScrollView(
-              child: InviteLandingCard(
-                name: community.name,
-                memberCount: community.memberCount,
-                description: community.description,
-                invitedBy: community.invitedBy,
-                expiresAt: community.expiresAt,
-                use24Hour: watchUse24Hour(ref, context),
-                icon: community.iconUpdatedAt == null
-                    ? null
-                    : SpaceIconFrame(
-                        size: kInviteIconSize,
-                        child: Image.network(
-                          landing.icon.toString(),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              ColoredBox(color: tokens.surfaceSunken),
-                        ),
-                      ),
-                banner: community.bannerUpdatedAt == null
-                    ? null
-                    : Image.network(
-                        landing.banner.toString(),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            ColoredBox(color: tokens.surfaceSunken),
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s16),
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  label: 'Back',
-                  variant: AppButtonVariant.ghost,
-                  onPressed: () => setState(() => _landing = null),
+    return InviteLandingView(
+      onBack: () => setState(() => _landing = null),
+      onJoin: () => Navigator.of(context).pop((landing.server, landing.code)),
+      card: InviteLandingCard(
+        name: community.name,
+        memberCount: community.memberCount,
+        description: community.description,
+        invitedBy: community.invitedBy,
+        expiresAt: community.expiresAt,
+        use24Hour: watchUse24Hour(ref, context),
+        icon: community.iconUpdatedAt == null
+            ? null
+            : SpaceIconFrame(
+                size: kInviteIconSize,
+                child: Image.network(
+                  landing.icon.toString(),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      ColoredBox(color: tokens.surfaceSunken),
                 ),
               ),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: AppButton(
-                  label: 'Join',
-                  variant: AppButtonVariant.primary,
-                  onPressed: () =>
-                      Navigator.of(context).pop((landing.server, landing.code)),
-                ),
+        banner: community.bannerUpdatedAt == null
+            ? null
+            : Image.network(
+                landing.banner.toString(),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) =>
+                    ColoredBox(color: tokens.surfaceSunken),
               ),
-            ],
-          ),
-        ],
       ),
     );
   }
