@@ -127,6 +127,13 @@ async fn version_reports_the_screen_share_ceiling_with_no_auth_required() {
     assert_eq!(body["screen_share_max_height"], MAX_SCREEN_SHARE_MAX_HEIGHT);
 }
 
+#[tokio::test]
+async fn version_reports_the_attachment_ceiling() {
+    let (store, _guard) = new_store().await;
+    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+    assert!(body["max_attachment_bytes"].as_u64().unwrap() > 0);
+}
+
 /// No floor is the ordinary case, and it has to be absent rather than null
 /// or empty: a client reads "no field" as "this server does not gate on my
 /// version", and an empty string would parse as a version nothing satisfies.

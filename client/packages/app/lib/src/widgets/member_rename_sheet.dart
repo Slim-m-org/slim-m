@@ -23,8 +23,6 @@ import '../providers/member_presence.dart' show membersProvider;
 import '../providers/providers.dart';
 import 'run_guarded.dart';
 
-const int _nicknameMaxChars = 64;
-
 Future<void> showRenameMemberSheet(
   BuildContext context, {
   required api.UserProfile profile,
@@ -86,7 +84,7 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
     final trimmed = _name.text.trim();
     return !_busy &&
         trimmed.isNotEmpty &&
-        trimmed.runes.length <= _nicknameMaxChars &&
+        inputCharCount(trimmed) <= api.InputLimits.name &&
         trimmed != widget.profile.nickname;
   }
 
@@ -118,7 +116,6 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _name.text.trim().runes.length;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -146,6 +143,7 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
             ),
             const SizedBox(height: AppSpacing.s12),
             AppInput(
+              counterMax: api.InputLimits.name,
               controller: _name,
               placeholder: _accountName,
               autofocus: true,
@@ -154,18 +152,6 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
                 if (_canSave) unawaited(_save());
               },
               semanticLabel: 'Nickname',
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$length/$_nicknameMaxChars',
-                style: AppText.micro.copyWith(
-                  color: length > _nicknameMaxChars
-                      ? tokens.dangerText
-                      : tokens.textSecondary,
-                ),
-              ),
             ),
             if (actionError != null) ...[
               const SizedBox(height: AppSpacing.s8),

@@ -20,7 +20,7 @@ Future<void> _pump(WidgetTester tester, {bool reduceMotion = false}) async {
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: MediaQuery(
           data: MediaQueryData(disableAnimations: reduceMotion),
-          child: const Scaffold(body: RailDragHandle()),
+          child: const Scaffold(body: RailDragHandle(railWidth: 248)),
         ),
       ),
     ),

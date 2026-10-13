@@ -7,6 +7,7 @@
 //! bitmask because nothing until now let them ask the right one.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::routing::get;
 use serde::Serialize;
@@ -18,9 +19,14 @@ use super::messages::parse_uuid;
 use crate::ids::ChannelId;
 use crate::permissions::mask_unless_viewable;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The channel-permission route, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/channels/{channel_id}/permissions", get(get_permissions))
+    Router::new()
+        .route("/channels/{channel_id}/permissions", get(get_permissions))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Serialize)]

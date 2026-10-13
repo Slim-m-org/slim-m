@@ -18,6 +18,7 @@ import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../text_context_menu.dart';
+import 'code_point_limit.dart';
 
 enum AppInputSize { sm, md, lg }
 
@@ -38,6 +39,8 @@ class AppInput extends StatefulWidget {
     this.keyboardType,
     this.textInputAction,
     this.inputFormatters,
+    this.maxLength,
+    this.counterMax,
     this.autofillHints,
     this.autocorrect = true,
     this.onChanged,
@@ -79,6 +82,14 @@ class AppInput extends StatefulWidget {
   /// which is the only place a caller can refuse "not a digit" outright
   /// rather than accepting it and parsing the mistake out later.
   final List<TextInputFormatter>? inputFormatters;
+
+  /// The most characters the field takes, matching the server's cap for it, so
+  /// a value the server would refuse cannot be typed or pasted in.
+  final int? maxLength;
+
+  /// A soft limit: typing may run past it, and a counter under the field turns
+  /// red when it does so the caller's save check can refuse with a reason.
+  final int? counterMax;
 
   /// Passed straight through to the platform's autofill, so a password
   /// manager can recognise a credential field drawn in this chrome.
@@ -129,6 +140,39 @@ class _AppInputState extends State<AppInput> {
         AppInputSize.md => 38,
         AppInputSize.lg => 44,
       };
+
+  // Only read when there is no controller to listen to instead.
+  String _uncontrolledText = '';
+
+  void _onChanged(String value) {
+    if (widget.counterMax != null && widget.controller == null) {
+      setState(() => _uncontrolledText = value);
+    }
+    widget.onChanged?.call(value);
+  }
+
+  Widget _counter(AppTokens tokens, int max) {
+    Widget count(String text) {
+      final length = inputCharCount(text);
+      return Text(
+        '$length/$max',
+        style: AppText.micro.copyWith(
+          color: length > max ? tokens.dangerText : tokens.textSecondary,
+        ),
+      );
+    }
+
+    final controller = widget.controller;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: controller == null
+          ? count(_uncontrolledText)
+          : ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) => count(controller.text),
+            ),
+    );
+  }
 
   bool get _multiline => widget.minLines != null || widget.maxLines != null;
 
@@ -183,10 +227,13 @@ class _AppInputState extends State<AppInput> {
               autofocus: widget.autofocus,
               keyboardType: widget.keyboardType,
               textInputAction: widget.textInputAction,
-              inputFormatters: widget.inputFormatters,
+              inputFormatters: [
+                ...?widget.inputFormatters,
+                if (widget.maxLength case final max?) CodePointLengthLimit(max),
+              ],
               autofillHints: widget.autofillHints,
               autocorrect: widget.autocorrect,
-              onChanged: widget.onChanged,
+              onChanged: _onChanged,
               onSubmitted: widget.onSubmitted,
               style: textStyle,
               cursorColor: tokens.accentFill,
@@ -235,6 +282,11 @@ class _AppInputState extends State<AppInput> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ring,
+          if (widget.counterMax case final max?) ...[
+            const SizedBox(height: AppSpacing.s4),
+            // Its own node, so the count never merges into the field's label.
+            Semantics(container: true, child: _counter(tokens, max)),
+          ],
           if (hasError) ...[
             const SizedBox(height: AppSpacing.s4),
             Text(

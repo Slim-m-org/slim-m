@@ -20,7 +20,7 @@ use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use crate::ratelimit::Class;
-use crate::store::{JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, TotpPolicy};
+use crate::store::{JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS, TotpPolicy};
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -33,6 +33,8 @@ pub fn routes() -> Router<AppState> {
 
 #[derive(Serialize)]
 struct SpaceSettingsDto {
+    /// The Space's name, shown in the channel list header and on invites.
+    name: String,
     join_policy: String,
     /// `off`, `optional` or `required_for_elevated`; see
     /// [`crate::store::TotpPolicy`].
@@ -49,6 +51,7 @@ struct SpaceSettingsDto {
 /// The PATCH body: only the fields present are written.
 #[derive(Deserialize)]
 struct UpdateSpaceSettingsDto {
+    name: Option<String>,
     join_policy: Option<String>,
     totp_policy: Option<String>,
     description: Option<String>,
@@ -57,6 +60,7 @@ struct UpdateSpaceSettingsDto {
 async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
     let landing = state.store.space_landing().await?;
     Ok(SpaceSettingsDto {
+        name: state.store.deployment_name().await?,
         join_policy: state.store.join_policy().await?.as_str().to_owned(),
         totp_policy: Some(state.store.totp_policy().await?.as_str().to_owned()),
         description: landing.description,
@@ -75,6 +79,22 @@ fn validate_description(raw: &str) -> Result<&str, ApiError> {
     if trimmed.chars().any(is_hidden_char) {
         return Err(ApiError::BadRequest(
             "description must not contain control or invisible characters",
+        ));
+    }
+    Ok(trimmed)
+}
+
+fn validate_name(raw: &str) -> Result<&str, ApiError> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(ApiError::BadRequest("name must not be empty"));
+    }
+    if trimmed.chars().count() > MAX_SPACE_NAME_CHARS {
+        return Err(ApiError::BadRequest("name must be 64 characters or fewer"));
+    }
+    if trimmed.chars().any(is_hidden_char) {
+        return Err(ApiError::BadRequest(
+            "name must not contain control or invisible characters",
         ));
     }
     Ok(trimmed)
@@ -102,11 +122,16 @@ async fn update(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
 
-    if body.join_policy.is_none() && body.totp_policy.is_none() && body.description.is_none() {
+    if body.name.is_none()
+        && body.join_policy.is_none()
+        && body.totp_policy.is_none()
+        && body.description.is_none()
+    {
         return Err(ApiError::BadRequest(
-            "send join_policy, totp_policy or description",
+            "send name, join_policy, totp_policy or description",
         ));
     }
+    let name = body.name.as_deref().map(validate_name).transpose()?;
     let description = body
         .description
         .as_deref()
@@ -125,6 +150,9 @@ async fn update(
         ))?),
         None => None,
     };
+    if let Some(name) = name {
+        state.store.set_deployment_name(name).await?;
+    }
     if let Some(join) = join {
         state.store.set_join_policy(join).await?;
     }

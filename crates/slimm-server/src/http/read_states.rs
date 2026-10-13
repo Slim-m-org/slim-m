@@ -4,6 +4,7 @@
 //! `POST /read-states/read`, which reads a whole category or space in one go.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::State;
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
@@ -16,10 +17,14 @@ use super::sync::{ReadStateDto, read_state_for};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/read-states", get(list_read_states))
         .route("/read-states/read", post(mark_channels_read))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 /// Past this a client is marking more than any space lists, so it is a bug.

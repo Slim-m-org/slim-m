@@ -88,7 +88,10 @@ void main() {
         _rowWith(threadReplyCount: 3, threadLastReplyAt: lastReplyAt),
       );
       expect(find.text('3 replies'), findsOneWidget);
-      expect(find.text(formatMessageDay(lastReplyAt)), findsOneWidget);
+      expect(
+        find.text('Last reply ${formatMessageDay(lastReplyAt)}'),
+        findsOneWidget,
+      );
     },
   );
 
@@ -183,4 +186,13 @@ void main() {
       handle.dispose();
     },
   );
+
+  testWidgets("the chip's visible edge lines up with the message text", (
+    tester,
+  ) async {
+    await tester.pumpWidget(_rowWith(threadReplyCount: 2));
+    final chip = tester.getRect(find.byKey(ThreadReplySummary.chipKey));
+    final text = tester.getRect(find.text(message().content));
+    expect(chip.left, moreOrLessEquals(text.left, epsilon: 0.5));
+  });
 }

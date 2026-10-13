@@ -187,6 +187,11 @@ pub(super) async fn place(
                 "attachment not found; upload it first",
             ));
         }
+        Err(PlaceError::NotAPicture) => {
+            return Err(ApiError::BadRequest(
+                "an image object must name a picture attachment",
+            ));
+        }
         Err(PlaceError::Internal(err)) => return Err(err.into()),
     };
 

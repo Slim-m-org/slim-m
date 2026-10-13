@@ -98,4 +98,17 @@ void main() {
       expect(_version({}).linkPreviewsEnabled, isNull);
     });
   });
+
+  group('space name', () {
+    test('the admin-chosen name is what a member sees', () {
+      final version = _version({'space_name': "Nick's place"});
+      expect(version.displayName, "Nick's place");
+      expect(version.name, 'slim-m');
+    });
+
+    test('a server too old to send one falls back to its name', () {
+      expect(_version({}).spaceName, isNull);
+      expect(_version({}).displayName, 'slim-m');
+    });
+  });
 }

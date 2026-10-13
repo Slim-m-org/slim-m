@@ -19,7 +19,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../providers/providers.dart';
 import 'run_guarded.dart';
-import 'status_text_row.dart' show statusTextLength, statusTextMaxChars;
 
 /// Seeded once from [current] at construction - the caller hands a fresh
 /// instance per menu presentation (the same instance-per-open contract
@@ -77,7 +76,7 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
 
   Future<void> _submit() {
     final text = _controller.text.trim();
-    if (statusTextLength(text) > statusTextMaxChars) return Future.value();
+    if (inputCharCount(text) > InputLimits.statusText) return Future.value();
     return _apply(text);
   }
 
@@ -92,22 +91,20 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = statusTextLength(_controller.text);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppInput(
+            counterMax: InputLimits.statusText,
             controller: _controller,
             placeholder: 'What are you up to?',
             // Never widget.onDone here: a keystroke must not close the menu on someone still typing.
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => unawaited(_submit()),
             semanticLabel: 'Status text',
-            trailing: length == 0
+            trailing: inputCharCount(_controller.text) == 0
                 ? null
                 : AppIconButton(
                     icon: AppIcons.dismiss,
@@ -115,18 +112,6 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
                     size: AppIconButtonSize.sm,
                     onPressed: () => unawaited(_clear()),
                   ),
-          ),
-          const SizedBox(height: AppSpacing.s4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '$length/$statusTextMaxChars',
-              style: AppText.micro.copyWith(
-                color: length > statusTextMaxChars
-                    ? tokens.dangerText
-                    : tokens.textSecondary,
-              ),
-            ),
           ),
           if (actionError != null) ...[
             const SizedBox(height: AppSpacing.s4),

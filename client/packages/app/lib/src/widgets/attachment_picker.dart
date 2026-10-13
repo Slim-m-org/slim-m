@@ -16,11 +16,11 @@
 /// choice with only one real answer.
 library;
 
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'composer_attachments.dart';
 
 /// Which native picker a request should open.
 enum AttachmentSource {
@@ -31,6 +31,10 @@ enum AttachmentSource {
   /// The general document browser: `UIDocumentPickerViewController` on iOS,
   /// the SAF browser on Android, the one dialog every desktop platform has.
   fileBrowser,
+
+  /// The same browser limited to still pictures, for a profile picture or
+  /// another surface that only takes one.
+  stillImageFiles,
 }
 
 /// Runs one pick and answers what was chosen, or null if nothing was.
@@ -41,6 +45,14 @@ Future<PlatformFile?> _pickPhotoLibrary() =>
 
 Future<PlatformFile?> _pickFileBrowser() => FilePicker.pickFile();
 
+/// The picture types every surface accepts as a still image.
+const stillImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+
+Future<PlatformFile?> _pickStillImageFile() => FilePicker.pickFile(
+  type: FileType.custom,
+  allowedExtensions: stillImageExtensions,
+);
+
 /// The picker each [AttachmentSource] runs, injectable because `file_picker`
 /// has no platform implementation under test: without this seam a widget
 /// test can tap a picker action and never get past it, the same gap
@@ -50,6 +62,7 @@ final attachmentPickerProvider =
       (ref, source) => switch (source) {
         AttachmentSource.photoLibrary => _pickPhotoLibrary,
         AttachmentSource.fileBrowser => _pickFileBrowser,
+        AttachmentSource.stillImageFiles => _pickStillImageFile,
       },
     );
 
@@ -66,7 +79,7 @@ Future<void> runAttachmentPick({
   required FocusNode focus,
   required bool Function() isMounted,
   required VoidCallback onPickerFailed,
-  required Future<void> Function(Uint8List bytes, String filename) stage,
+  required Future<void> Function(FileSource file) stage,
 }) async {
   final PlatformFile? file;
   try {
@@ -79,7 +92,14 @@ Future<void> runAttachmentPick({
   }
   if (!isMounted()) return;
   focus.requestFocus();
-  if (file == null) return;
-  // readAsBytes streams from disk; eager PlatformFile.bytes OOMs on a large pick.
-  await stage(await file.readAsBytes(), file.name);
+  final picked = file;
+  if (picked == null) return;
+  await stage(
+    FileSource(
+      name: picked.name,
+      length: () async => await picked.length() ?? 0,
+      readAll: picked.readAsBytes,
+      openRead: picked.readAsByteStream,
+    ),
+  );
 }

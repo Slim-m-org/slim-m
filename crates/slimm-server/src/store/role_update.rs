@@ -8,9 +8,29 @@ use super::roles::{Role, RoleGuardError, administrator_count};
 use crate::ids::RoleId;
 use crate::permissions::Permissions;
 
+/// What a `PATCH /roles/{id}` changes; a `None` field is left as it is.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RoleChanges<'a> {
+    pub name: Option<&'a str>,
+    pub permissions: Option<Permissions>,
+    pub mentionable: Option<bool>,
+    pub hoist: Option<bool>,
+    /// A palette index already checked against `ROLE_COLOR_COUNT`.
+    pub color: Option<i64>,
+}
+
+impl RoleChanges<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none()
+            && self.permissions.is_none()
+            && self.mentionable.is_none()
+            && self.hoist.is_none()
+            && self.color.is_none()
+    }
+}
+
 impl Store {
-    /// Updates a role's name, permissions and/or `mentionable` flag; `None`
-    /// for a field leaves it unchanged. `Ok(None)` if the role does not
+    /// Updates whichever of a role's fields [`RoleChanges`] names. `Ok(None)` if the role does not
     /// exist, and a no-op call (every field `None`) is still an existence
     /// check rather than an error.
     ///
@@ -27,23 +47,23 @@ impl Store {
     /// larger change.
     ///
     /// Built with [`QueryBuilder`] rather than one `match` arm per field
-    /// combination: three optional fields would be eight arms, and a fourth
+    /// combination: five optional fields would be thirty-two arms, and a sixth
     /// field would double that again.
     pub async fn update_role(
         &self,
         role_id: RoleId,
-        name: Option<&str>,
-        permissions: Option<Permissions>,
-        mentionable: Option<bool>,
-        hoist: Option<bool>,
+        changes: RoleChanges<'_>,
     ) -> Result<Option<Role>, RoleGuardError> {
+        let RoleChanges {
+            name,
+            permissions,
+            mentionable,
+            hoist,
+            color,
+        } = changes;
         let mut tx = self.begin_write().await?;
 
-        let affected: u64 = if name.is_none()
-            && permissions.is_none()
-            && mentionable.is_none()
-            && hoist.is_none()
-        {
+        let affected: u64 = if changes.is_empty() {
             let exists = sqlx::query_scalar!(
                 r#"SELECT 1 AS "one!: i64" FROM roles WHERE id = ?"#,
                 role_id
@@ -79,6 +99,13 @@ impl Store {
                     builder.push(", ");
                 }
                 builder.push("hoist = ").push_bind(i64::from(hoist));
+                first = false;
+            }
+            if let Some(color) = color {
+                if !first {
+                    builder.push(", ");
+                }
+                builder.push("color = ").push_bind(color);
             }
             builder.push(" WHERE id = ").push_bind(role_id);
             builder.build().execute(&mut *tx).await?.rows_affected()

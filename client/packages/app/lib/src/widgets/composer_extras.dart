@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'composer_attachments.dart';
 import 'composer_context_menu.dart';
 import 'composer_markdown_shortcuts.dart';
+import 'composer_scrollbar.dart';
 import 'staged_attachment_tile.dart';
 
 /// How many characters past [kMessageMaxChars] the given [length] sits, or
@@ -87,6 +88,7 @@ class ComposerField extends StatefulWidget {
     required this.hasText,
     required this.onSend,
     required this.onTyping,
+    this.scrollController,
     this.isThread = false,
   });
 
@@ -106,6 +108,10 @@ class ComposerField extends StatefulWidget {
   /// instead of the two reading identically to a screen reader or to
   /// anything else that finds a control by name rather than by position.
   final bool isThread;
+
+  /// Driven by an outer scrollbar that owns the thumb; null leaves the
+  /// field's own scrolling and thumb untouched.
+  final ScrollController? scrollController;
 
   @override
   State<ComposerField> createState() => _ComposerFieldState();
@@ -220,33 +226,37 @@ class _ComposerFieldState extends State<ComposerField> {
             // A stable name, unlike the hint above: it survives typing, and only isThread (not channelName) ever changes it - see the field's own doc comment.
             Semantics(
               label: widget.isThread ? 'Thread composer' : 'Message composer',
-              child: TextField(
-                controller: widget.controller,
-                focusNode: widget.focusNode,
-                onChanged: widget.onTyping,
-                minLines: 1,
-                maxLines: 6,
-                keyboardType: TextInputType.multiline,
-                textInputAction: soft ? TextInputAction.send : null,
-                onSubmitted: soft ? (_) => _submit() : null,
-                style: AppText.body.copyWith(color: tokens.textPrimary),
-                cursorColor: tokens.accent,
-                contextMenuBuilder: (context, state) =>
-                    composerContextMenuBuilder(
-                      context,
-                      state,
-                      clipboardHasImage: _clipboardImageStatus.value,
-                      offerFormatting: AppTouchTargets.of(context),
-                    ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  // Opts out of the global boxed-input theme; the surrounding
-                  // widget draws its own chrome.
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                  contentPadding: EdgeInsets.zero,
+              child: ScrollbarFreeScope(
+                active: widget.scrollController != null,
+                child: TextField(
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  onChanged: widget.onTyping,
+                  minLines: 1,
+                  maxLines: 6,
+                  scrollController: widget.scrollController,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: soft ? TextInputAction.send : null,
+                  onSubmitted: soft ? (_) => _submit() : null,
+                  style: AppText.body.copyWith(color: tokens.textPrimary),
+                  cursorColor: tokens.accent,
+                  contextMenuBuilder: (context, state) =>
+                      composerContextMenuBuilder(
+                        context,
+                        state,
+                        clipboardHasImage: _clipboardImageStatus.value,
+                        offerFormatting: AppTouchTargets.of(context),
+                      ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    // Opts out of the global boxed-input theme; the surrounding
+                    // widget draws its own chrome.
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ),

@@ -23,6 +23,7 @@ class Version {
     required this.name,
     required this.version,
     required this.protocol,
+    this.spaceName,
     this.pushEnabled,
     this.inviteRequired,
     this.claimed,
@@ -30,15 +31,23 @@ class Version {
     this.iconUpdatedAt,
     this.linkPreviewsEnabled,
     this.screenShareMaxHeight,
+    this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
     this.minClientVersion,
     this.buildId,
   });
 
+  /// The product, always "slim-m"; [displayName] is what a member sees.
   final String name;
   final String version;
   final int protocol;
+
+  /// The name an admin gave this Space; null from a server too old to have one.
+  final String? spaceName;
+
+  /// The Space's name, falling back to the product on an older server.
+  String get displayName => spaceName ?? name;
 
   /// Whether the server can deliver push notifications at all. Null on
   /// servers too old to report it, which is "unknown", not "no": warning
@@ -79,6 +88,11 @@ class Version {
   /// reach the MANAGE_SERVER-gated `GET /space/screen-share`.
   final int? screenShareMaxHeight;
 
+  /// The largest single attachment the server accepts, in bytes. Null on a
+  /// server older than this field, which a client treats as no known limit
+  /// and lets the server refuse.
+  final int? maxAttachmentBytes;
+
   /// The optional features the server serves, by name. Null on servers older
   /// than 0.17.0, which is "unknown", not "none".
   final List<String>? capabilities;
@@ -118,6 +132,7 @@ class Version {
 
   factory Version.fromJson(Map<String, dynamic> json) => Version(
         name: json['name'] as String,
+        spaceName: json['space_name'] as String?,
         version: json['version'] as String,
         protocol: json['protocol'] as int,
         pushEnabled: json['push_enabled'] as bool?,
@@ -129,6 +144,7 @@ class Version {
         screenShareMaxHeight: json['screen_share_max_height'] as int?,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
+        maxAttachmentBytes: json['max_attachment_bytes'] as int?,
         capabilities: switch (json['capabilities']) {
           final List<dynamic> names => names.whereType<String>().toList(
                 growable: false,

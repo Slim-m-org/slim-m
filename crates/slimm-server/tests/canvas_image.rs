@@ -100,14 +100,18 @@ async fn post_json(app: &Router, uri: &str, token: &str, body: Value) -> (Status
 }
 
 async fn upload(app: &Router, token: &str) -> String {
+    upload_named(app, token, "pasted.png", PNG.to_vec()).await
+}
+
+async fn upload_named(app: &Router, token: &str, filename: &str, bytes: Vec<u8>) -> String {
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/attachments?filename=pasted.png")
+                .uri(format!("/attachments?filename={filename}"))
                 .header("authorization", format!("Bearer {token}"))
-                .body(Body::from(PNG.to_vec()))
+                .body(Body::from(bytes))
                 .unwrap(),
         )
         .await
@@ -307,5 +311,27 @@ async fn placing_an_image_makes_it_fetchable_by_another_viewer() {
         response.status(),
         StatusCode::OK,
         "bob can view the channel, so he can fetch the pasted image's bytes"
+    );
+}
+
+#[tokio::test]
+async fn an_attachment_that_is_not_a_picture_cannot_be_placed_as_an_image() {
+    let (store, _pool, _guard) = new_store_and_pool().await;
+    let (token, _) = register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store);
+
+    let pdf = upload_named(&app, &token, "notes.pdf", b"%PDF-1.7\n%%EOF\n".to_vec()).await;
+    let (status, body) = post_json(
+        &app,
+        &format!("/channels/{channel}/canvas/objects"),
+        &token,
+        image(&pdf),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(
+        body["error"],
+        "an image object must name a picture attachment"
     );
 }

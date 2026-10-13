@@ -16,6 +16,7 @@
 use std::collections::HashMap;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::State;
 use axum::http::request::Parts;
 use axum::routing::patch;
@@ -32,9 +33,14 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::ReorderRolesError;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The role-ordering route, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/roles/reorder", patch(reorder))
+    Router::new()
+        .route("/roles/reorder", patch(reorder))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Deserialize)]

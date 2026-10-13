@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/attachment_picker.dart';
+import 'package:slimm_app/src/widgets/image_drop_zone.dart';
 import 'package:slimm_app/src/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/widgets/invite_landing_section.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';
@@ -143,6 +144,13 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
   await tester.pumpAndSettle();
 }
 
+Finder get _descriptionInput => find.byWidgetPredicate(
+  (w) => w is AppInput && w.semanticLabel == 'Description',
+);
+
+Finder get _descriptionField =>
+    find.descendant(of: _descriptionInput, matching: find.byType(TextField));
+
 Finder _button(String semanticLabel) => find.byWidgetPredicate(
   (w) => w is AppButton && w.semanticLabel == semanticLabel,
 );
@@ -174,10 +182,7 @@ void main() {
         final save = find.widgetWithText(AppButton, 'Save description');
         expect(tester.widget<AppButton>(save).disabled, isTrue);
 
-        await tester.enterText(
-          find.byType(TextField),
-          '  A small home server. ',
-        );
+        await tester.enterText(_descriptionField, '  A small home server. ');
         await tester.pump();
         expect(find.text('A small home server.'), findsWidgets);
         await tester.tap(save);
@@ -261,7 +266,7 @@ void main() {
           ..banner = 7
           ..icon = 9;
         await _pump(tester, server, width);
-        final field = tester.getRect(find.byType(AppInput));
+        final field = tester.getRect(_descriptionInput);
         final inset = field.left + 4;
         final banner = tester.getRect(find.text('Banner'));
         final icon = tester.getRect(find.text('Icon'));
@@ -288,8 +293,36 @@ void main() {
 
   testWidgets('the description field is multi-line', (tester) async {
     await _pump(tester, _Server(), 390);
-    final field = tester.widget<TextField>(find.byType(TextField));
+    final field = tester.widget<TextField>(_descriptionField);
     expect(field.minLines, 2);
     expect(field.maxLines, 4);
+  });
+
+  testWidgets('a picture dropped on the banner row uploads like a picked one', (
+    tester,
+  ) async {
+    final server = _Server();
+    await _pump(tester, server, 1280);
+    final zone = tester.widget<ImageDropZone>(
+      find.byWidgetPredicate(
+        (w) => w is ImageDropZone && w.label == 'Drop to set the banner',
+      ),
+    );
+    zone.onImage(Uint8List.fromList(_png), 'banner.png');
+    await _untilCalled(tester, server, 'POST /space/banner');
+    expect(server.calls, contains('POST /space/banner'));
+  });
+
+  testWidgets('a refused drop says why in the section', (tester) async {
+    await _pump(tester, _Server(), 1280);
+    final zone = tester.widget<ImageDropZone>(
+      find.byWidgetPredicate(
+        (w) => w is ImageDropZone && w.label == 'Drop to set the icon',
+      ),
+    );
+    zone.onRejected('Drop one PNG, JPEG or WebP picture.');
+    await tester.pumpAndSettle();
+    expect(find.text('Drop one PNG, JPEG or WebP picture.'), findsOneWidget);
+    expect(find.byType(AppErrorState), findsOneWidget);
   });
 }

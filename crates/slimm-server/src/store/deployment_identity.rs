@@ -2,6 +2,10 @@
 //! Who this deployment is: its identity keypair, the key a module caller id is
 //! derived with, and its display name.
 
+/// Longest Space name, in characters. Enforced in Rust so it can move without
+/// a migration.
+pub const MAX_SPACE_NAME_CHARS: usize = crate::limits::MAX_NAME_CHARS;
+
 use super::Store;
 
 impl Store {
@@ -33,5 +37,17 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         Ok(value.unwrap_or_else(|| "slim-m".to_owned()))
+    }
+
+    /// Renames the deployment; the caller has already trimmed and bounded it.
+    pub async fn set_deployment_name(&self, name: &str) -> anyhow::Result<()> {
+        sqlx::query!(
+            "INSERT INTO server_meta (key, value) VALUES ('deployment_name', ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            name
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 }

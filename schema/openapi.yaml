@@ -8527,6 +8527,10 @@ components:
       properties:
         name:
           type: string
+          description: The product, always `slim-m`.
+        space_name:
+          type: string
+          description: This deployment's own name, which an admin can change. Absent on older servers.
         version:
           type: string
           description: The server's release version.
@@ -8598,6 +8602,14 @@ components:
             client caps its own capture parameters before starting a share,
             not only one with MANAGE_SERVER. Absent on servers older than
             this field, which a client must treat as no ceiling.
+        max_attachment_bytes:
+          type: integer
+          format: int64
+          description: >
+            The largest single attachment upload the server accepts, in
+            bytes. A client checks it before sending so an oversize file is
+            refused up front. Absent on servers older than this field, which
+            a client must treat as no known limit.
         min_client_version:
           type: string
           description: >
@@ -9251,6 +9263,9 @@ components:
       type: object
       required: [join_policy]
       properties:
+        name:
+          type: string
+          description: The Space's name, shown in the channel list header and on invites.
         description:
           type: string
           description: Shown on the invite landing card; empty when none.
@@ -9281,6 +9296,9 @@ components:
       type: object
       minProperties: 1
       properties:
+        name:
+          type: string
+          description: Trimmed; 1 to 64 characters, no control or invisible characters.
         join_policy:
           type: string
           enum: [invite, open]
@@ -11327,6 +11345,10 @@ components:
         hoist:
           type: boolean
           description: Whether the member pane lists this role's members under their own heading. Defaults false.
+        color:
+          type: [integer, "null"]
+          format: int64
+          description: An index into the client's ten-colour role palette, or null for the colour the client derives from the role id.
         created_at:
           type: integer
           format: int64
@@ -11418,6 +11440,10 @@ components:
           type: boolean
         hoist:
           type: boolean
+        color:
+          type: integer
+          format: int64
+          description: A role palette index from 0 to 9.
 
     ReorderRolesRequest:
       type: object
@@ -13094,6 +13120,11 @@ components:
           description: Null once the parent's author account is anonymized.
         parent_author_display_name:
           type: [string, "null"]
+        parent_attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+          description: The parent message's attachments; empty for a deleted parent or no parent.
 
     ThreadListItem:
       description: >-

@@ -11,6 +11,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'ui_snapshot_fixture_thread_parent.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import 'ui_snapshot_dock.dart' show dockFixtureBody;
@@ -262,11 +263,8 @@ Future<http.Response> fixtureResponse(http.Request request) async {
     // A list is the right empty answer for most reads; the read marker decodes a shape.
     _ when path.endsWith('/read') => const {'last_read_seq': 3, 'unread': 0},
     _ when path.endsWith('/voice/roster') => const {'participants': <Object>[]},
-    _ when path.endsWith('/thread-parent') => const {
-      'parent_channel_id': null,
-      'parent_channel_name': null,
-      'parent_message_id': null,
-    },
+    // A real parent with an attachment, so the thread panel's parent block renders.
+    _ when path.endsWith('/thread-parent') => fixtureThreadParent,
     _ when path.endsWith('/canvas/objects') => const {
       'objects': <Object>[],
       'has_more': false,

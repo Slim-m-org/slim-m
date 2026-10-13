@@ -18,6 +18,7 @@
 //! Tearing down an unanswered ring's own caller lives in `lib.rs`, next to
 //! `sweep_stale_voice_calls`, on the same short-interval sweep shape.
 
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -35,11 +36,15 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, VoiceError};
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/{channel_id}/voice/ring", post(ring))
         .route("/channels/{channel_id}/voice/ring/decline", post(decline))
         .route("/voice/rings/incoming", get(incoming))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Serialize)]

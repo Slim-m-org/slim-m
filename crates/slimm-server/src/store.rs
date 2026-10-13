@@ -146,6 +146,7 @@ pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome}
 pub use channel_settings::ChannelPatch;
 pub use channels::DeleteChannelError;
 pub use code_runs::{CodeRunSummary, MAX_SHARED_OUTPUT_BYTES, clamp_output};
+pub use deployment_identity::MAX_SPACE_NAME_CHARS;
 pub(crate) use dms::DM_CHANNEL_KIND;
 pub use dms::{DmConversation, OpenDmError};
 pub use dock_sources::DockSource;
@@ -190,7 +191,8 @@ pub use reports::{
 };
 pub use role_hierarchy::RoleWithCount;
 pub use role_reorder::{ReorderRolesError, RoleReorderOutcome};
-pub use roles::{CreateRoleError, CreatedRole, Role, RoleGuardError};
+pub use role_update::RoleChanges;
+pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardError};
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};

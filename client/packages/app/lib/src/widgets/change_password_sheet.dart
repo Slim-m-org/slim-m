@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:slimm_api/api.dart' show InputLimits;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../screens/sign_in_credential_fields.dart' show passwordRule;
@@ -206,6 +207,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     helper: helper,
     child: AppInput(
       controller: controller,
+      maxLength: InputLimits.password,
       obscureText: true,
       autofocus: autofocus,
       enabled: !_busy,

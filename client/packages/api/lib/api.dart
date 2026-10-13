@@ -129,5 +129,10 @@ export 'src/events.dart'
         protocolVersion;
 export 'src/exceptions.dart';
 export 'src/limits.dart'
-    show kMessageMaxChars, kPasswordMinChars, kUserNoteMaxChars;
+    show
+        InputLimits,
+        kMessageMaxChars,
+        kPasswordMinChars,
+        kUserNoteMaxChars,
+        usernameCharacters;
 export 'src/models.dart';

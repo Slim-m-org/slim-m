@@ -104,10 +104,9 @@ async fn register(store: &Store, username: &str) -> String {
         .access_token
 }
 
-/// The 12-byte file the media allowlist sniffs as a PNG, the same fixture the
-/// response contract uses for emoji.
+/// A small PNG, the same shape the response contract uses for emoji.
 fn png() -> Vec<u8> {
-    vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4]
+    support::images::small_png()
 }
 
 async fn upload(app: &Router, token: &str, name: &str, body: Vec<u8>) -> axum::response::Response {

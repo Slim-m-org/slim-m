@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/member_presence.dart';
 import '../../providers/providers.dart';
+import '../../widgets/color_swatch_row.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/role_color.dart';
 import '../../widgets/run_guarded.dart';
@@ -69,6 +70,18 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
     if (ok && mounted) ref.invalidate(rolesProvider);
   }
 
+  Future<void> _setColor(int index) async {
+    final ok = await guard(
+      whatFailed: 'change the colour',
+      action: () => ref
+          .read(apiProvider)
+          .updateRole(roleId: widget.role.id, color: index),
+    );
+    if (!ok || !mounted) return;
+    ref.invalidate(rolesProvider);
+    ref.invalidate(membersProvider);
+  }
+
   Future<void> _setHoist(bool value) async {
     final ok = await guard(
       whatFailed: 'update the member list',
@@ -118,7 +131,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
               children: [
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: roleColor(role.id),
+                    color: roleColor(role.id, color: role.color),
                     shape: BoxShape.circle,
                   ),
                   child: const SizedBox(width: 16, height: 16),
@@ -131,6 +144,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
                           style: AppText.ui.copyWith(color: tokens.textPrimary),
                         )
                       : AppInput(
+                          maxLength: api.InputLimits.name,
                           controller: _name,
                           placeholder: 'Role name',
                           semanticLabel: 'Role name',
@@ -151,6 +165,20 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
                 onPressed: _renameIfChanged,
               ),
             ],
+          ],
+        ),
+        const SizedBox(height: AppSpacing.s12),
+        SettingsSectionCard(
+          title: 'Colour',
+          description: 'Marks this role in the roles list.',
+          children: [
+            ColorSwatchRow(
+              label: 'Role colour',
+              colors: [for (final entry in rolePalette) entry.color],
+              names: [for (final entry in rolePalette) entry.name],
+              selected: rolePaletteIndex(role.id, role.color),
+              onSelect: _setColor,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.s12),

@@ -56,4 +56,15 @@ void main() {
       );
     },
   );
+
+  test('the still image route filters the browser to still pictures', () async {
+    final picker = usePicker(null);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await container.read(
+      attachmentPickerProvider(AttachmentSource.stillImageFiles),
+    )();
+    expect(picker.lastType, FileType.custom);
+    expect(picker.lastAllowedExtensions, ['png', 'jpg', 'jpeg', 'webp']);
+  });
 }

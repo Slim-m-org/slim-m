@@ -92,6 +92,7 @@ class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
           ),
           const SizedBox(height: AppSpacing.s16),
           AppInput(
+            maxLength: api.InputLimits.name,
             controller: _name,
             placeholder: 'Role name',
             autofocus: true,

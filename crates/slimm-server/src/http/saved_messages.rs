@@ -16,6 +16,7 @@
 use std::collections::HashSet;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -33,11 +34,15 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::SaveError;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The saved-message routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/messages/{message_id}/save", put(save).delete(unsave))
         .route("/saved", get(list))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 /// A saved message: the full message, flattened, plus when it was kept.

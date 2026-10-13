@@ -408,7 +408,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           // Where this is about to connect, on both branches; see the class doc.
           if (_probed case final version?)
             ServerIdentityChip(
-              spaceName: version.name,
+              spaceName: version.displayName,
               host: _host(),
               status: _identityStatus ?? ServerIdentityStatus.unknown,
             )

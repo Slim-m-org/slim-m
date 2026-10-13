@@ -124,6 +124,16 @@ fn optional_text(
     Ok((Some(trimmed.to_owned()), len))
 }
 
+/// A clickable link, held to the same rules as a link button's.
+fn link(raw: &str, label: &str) -> Result<String, ApiError> {
+    crate::components::checked_link(raw, super::super::hidden_chars::is_hidden_char).map_err(|_| {
+        ApiError::BadRequestDetail(format!(
+            "{label} must be an http or https link with a host, at most {} characters",
+            crate::components::MAX_URL_CHARS
+        ))
+    })
+}
+
 /// [`optional_text`] for a single-line field.
 fn optional_heading(
     value: Option<String>,
@@ -163,7 +173,11 @@ pub(crate) fn build_embeds(
                 let (name, len) =
                     optional_heading(Some(author.name), AUTHOR_NAME_MAX, "an embed author name")?;
                 total += len;
-                (name, author.url)
+                let url = author
+                    .url
+                    .map(|raw| link(&raw, "an embed author url"))
+                    .transpose()?;
+                (name, url)
             }
             None => (None, None),
         };
@@ -225,7 +239,10 @@ pub(crate) fn build_embeds(
         built.push(NewEmbed {
             title,
             description,
-            url: embed.url,
+            url: embed
+                .url
+                .map(|raw| link(&raw, "an embed url"))
+                .transpose()?,
             color,
             author_name,
             author_url,

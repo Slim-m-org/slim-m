@@ -78,7 +78,7 @@ async fn register(store: &Store, username: &str) -> String {
 /// A PNG the sniffer accepts, varied by `filler` so two images with
 /// different names never collide on content.
 fn png(filler: &[u8]) -> Vec<u8> {
-    let mut bytes = vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    let mut bytes = support::images::small_png();
     bytes.extend_from_slice(filler);
     bytes
 }

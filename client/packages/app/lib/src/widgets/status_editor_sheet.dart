@@ -17,7 +17,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../providers/providers.dart';
 import 'run_guarded.dart';
-import 'status_text_row.dart' show statusTextLength, statusTextMaxChars;
 
 /// Opens the sheet seeded with [current] (the caller's status as of the tap
 /// that opened it); `showAppSheet` decides bottom sheet versus dialog.
@@ -54,7 +53,7 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
   }
 
   bool get _dirty => _controller.text.trim() != widget.current;
-  bool get _valid => statusTextLength(_controller.text) <= statusTextMaxChars;
+  bool get _valid => inputCharCount(_controller.text) <= InputLimits.statusText;
   bool get _canSave => !_saving && _dirty && _valid;
   bool get _canClear =>
       !_saving &&
@@ -88,7 +87,6 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = statusTextLength(_controller.text);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -111,6 +109,7 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
             ),
             const SizedBox(height: AppSpacing.s12),
             AppInput(
+              counterMax: InputLimits.statusText,
               controller: _controller,
               placeholder: 'What are you up to?',
               autofocus: true,
@@ -119,18 +118,6 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
                 if (_canSave) unawaited(_save());
               },
               semanticLabel: 'Status text',
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$length/$statusTextMaxChars',
-                style: AppText.micro.copyWith(
-                  color: length > statusTextMaxChars
-                      ? tokens.dangerText
-                      : tokens.textSecondary,
-                ),
-              ),
             ),
             if (actionError != null) ...[
               const SizedBox(height: AppSpacing.s8),

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: RoleId\", name AS \"name!\",\n                      permissions AS \"permissions!: Permissions\",\n                      is_everyone AS \"is_everyone!: bool\",\n                      mentionable AS \"mentionable!: bool\", created_at AS \"created_at!\",\n                      managed_bot_id AS \"managed_bot_id: UserId\",\n                      position AS \"position!: i64\", hoist AS \"hoist!: bool\"\n               FROM roles WHERE id = ?",
+  "query": "SELECT id AS \"id!: RoleId\", name AS \"name!\",\n                      permissions AS \"permissions!: Permissions\",\n                      is_everyone AS \"is_everyone!: bool\",\n                      mentionable AS \"mentionable!: bool\", created_at AS \"created_at!\",\n                      managed_bot_id AS \"managed_bot_id: UserId\",\n                      position AS \"position!: i64\", hoist AS \"hoist!: bool\", color\n               FROM roles WHERE id = ?",
   "describe": {
     "columns": [
       {
@@ -47,6 +47,11 @@
         "name": "hoist!: bool",
         "ordinal": 8,
         "type_info": "Integer"
+      },
+      {
+        "name": "color",
+        "ordinal": 9,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -61,8 +66,9 @@
       false,
       true,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "dfd9f7df14402d0a1abe84324cd00f61f07717fd53dedf7ce8548282ec6cff2c"
+  "hash": "72dff024cb128ad647e30d24ef6890a84f9c04817d82f6c5a9a802797f697404"
 }

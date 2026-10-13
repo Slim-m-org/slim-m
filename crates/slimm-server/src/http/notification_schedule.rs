@@ -12,6 +12,7 @@
 //! nobody's push changed on upgrade.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -33,6 +34,9 @@ use crate::store::{DaySetting, NotificationScheduleDetail};
 /// off forever by mistake with no UI left to undo it from.
 const MAX_SNOOZE_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The notification-schedule routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -52,6 +56,7 @@ pub fn routes() -> Router<AppState> {
             "/notifications/schedule/snooze",
             put(set_snooze).delete(clear_snooze),
         )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 // --- Wire types ---

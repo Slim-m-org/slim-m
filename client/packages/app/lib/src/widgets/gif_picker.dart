@@ -246,6 +246,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppInput(
+            maxLength: api.InputLimits.searchQuery,
             controller: _queryController,
             autofocus: true,
             placeholder: 'Search GIFs',

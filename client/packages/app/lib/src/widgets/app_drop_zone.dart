@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A generic OS-file drop target: a visible overlay while a drag is over it,
-/// and one callback with whatever landed. `composer_attachment_drop.dart`
-/// and `emoji_add_card.dart` are its two callers; neither invents
-/// its own drag handling, both just decide what a drop means for them.
+/// and one callback with whatever landed. Callers (the channel view, the
+/// emoji card, `ImageDropZone`) never invent their own drag handling; they
+/// only decide what a drop means for them.
 ///
 /// See `docs/dependencies.md` for why `desktop_drop` over
 /// `super_drag_and_drop`, and why this needs no `dart.library.*` conditional
@@ -85,17 +85,26 @@ class _AppDropZoneState extends State<AppDropZone> {
       child: Stack(
         children: [
           widget.child,
-          if (_dragging) Positioned.fill(child: _DropOverlay(widget)),
+          if (_dragging)
+            Positioned.fill(
+              child: AppDropOverlay(label: widget.label, icon: widget.icon),
+            ),
         ],
       ),
     );
   }
 }
 
-class _DropOverlay extends StatelessWidget {
-  const _DropOverlay(this.zone);
+/// The least height the icon-above-label overlay fits in, with room to breathe.
+const double _stackedHeight = 72;
 
-  final AppDropZone zone;
+/// What a drop target shows while a drag is over it: the zone's [label] and
+/// [icon] on a raised, accent-bordered fill.
+class AppDropOverlay extends StatelessWidget {
+  const AppDropOverlay({super.key, required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -110,18 +119,41 @@ class _DropOverlay extends StatelessWidget {
             border: Border.all(color: tokens.accent, width: 2),
             borderRadius: BorderRadius.circular(AppRadii.card),
           ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(zone.icon, size: AppSizes.icon24, color: tokens.accent),
-                const SizedBox(height: AppSpacing.s8),
-                Text(
-                  zone.label,
-                  style: AppText.ui.copyWith(color: tokens.textPrimary),
-                ),
-              ],
-            ),
+          // A short target, such as one settings row, puts the icon beside the label instead of above it.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final short = constraints.maxHeight < _stackedHeight;
+              final glyph = Icon(
+                icon,
+                size: short ? AppSizes.icon16 : AppSizes.icon24,
+                color: tokens.accent,
+              );
+              final text = Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              );
+              return Center(
+                child: short
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          glyph,
+                          const SizedBox(width: AppSpacing.s8),
+                          Flexible(child: text),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          glyph,
+                          const SizedBox(height: AppSpacing.s8),
+                          text,
+                        ],
+                      ),
+              );
+            },
           ),
         ),
       ),

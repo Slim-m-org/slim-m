@@ -220,6 +220,7 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
             ),
             const SizedBox(height: AppSpacing.s12),
             AppInput(
+              counterMax: entityNameMaxChars,
               controller: _name,
               placeholder: 'Category name',
               onChanged: (_) => setState(() {}),

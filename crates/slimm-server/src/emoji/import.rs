@@ -75,6 +75,8 @@ pub enum Refusal {
     /// The bytes are not an image this server stores. Sniffed from the
     /// content, so an extension that lies is caught here.
     NotAnImage,
+    /// Wider or taller than an emoji may be.
+    TooManyPixels,
     /// The name is a standard unicode emoji's shortcode.
     BuiltinName,
 }
@@ -178,6 +180,9 @@ impl fmt::Display for Refusal {
             }
             Refusal::NotAnImage => {
                 write!(f, "not a supported image, whatever the extension claims")
+            }
+            Refusal::TooManyPixels => {
+                write!(f, "over {} pixels on a side", crate::media::MAX_EMOJI_SIDE)
             }
         }
     }
@@ -283,6 +288,7 @@ async fn import_one(store: &Store, media: &Media, path: &Path) -> anyhow::Result
             bytes: metadata.len(),
         })),
         Err(AddError::UnsupportedType) => Ok(refused(Refusal::NotAnImage)),
+        Err(AddError::TooManyPixels) => Ok(refused(Refusal::TooManyPixels)),
         Err(AddError::Storage(err)) => Err(err.context(format!("importing {}", path.display()))),
     }
 }

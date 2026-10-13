@@ -171,6 +171,7 @@ void main() {
           case '/space/settings':
             return http.Response(
               jsonEncode(const {
+                'name': 'Home',
                 'join_policy': 'invite',
                 'totp_policy': 'optional',
                 'description': 'A small home server for friends and family.',

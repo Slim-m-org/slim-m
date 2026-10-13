@@ -154,6 +154,7 @@ class _ReauthSheetState extends State<_ReauthSheet> {
             ),
             const SizedBox(height: AppSpacing.s12),
             AppInput(
+              maxLength: api.InputLimits.password,
               controller: _password,
               placeholder: 'Your password',
               obscureText: true,

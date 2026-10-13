@@ -4,7 +4,7 @@
 /// Originally written for the create-channel affordance: it was rendered,
 /// permitted and functional at 30x30 on a phone, which is under the 44pt
 /// platform minimum, and the owner could not find it. That affordance moved
-/// into `SpaceMenuButton`'s "Create channel"/"Create category" (backlog item 55),
+/// into the rail menus (backlog item 55),
 /// which are full-width `AppMenuItem` rows rather than a bare icon button, so
 /// their sizing is the design system's own `AppMenuItem` concern and is
 /// covered generically in `design_system/test/touch_targets_test.dart`

@@ -104,6 +104,8 @@ pub enum PlaceError {
     /// one answer for all three, the same collapse `SendError::AttachmentNotFound`
     /// already makes for a message attachment.
     AttachmentNotFound,
+    /// An `image` object named an attachment that is not a picture, such as a PDF or a video.
+    NotAPicture,
     Internal(anyhow::Error),
 }
 
@@ -166,10 +168,18 @@ impl Store {
         if !valid_bounds(x, y, w, h) {
             return Err(PlaceError::OutOfBounds);
         }
-        if let Some(sha256) = attachment
-            && !super::attachments::may_link(self, author_id, sha256).await?
-        {
-            return Err(PlaceError::AttachmentNotFound);
+        if let Some(sha256) = attachment {
+            if !super::attachments::may_link(self, author_id, sha256).await? {
+                return Err(PlaceError::AttachmentNotFound);
+            }
+            let summary = self
+                .attachment_summary(sha256)
+                .await
+                .map_err(PlaceError::Internal)?
+                .ok_or(PlaceError::AttachmentNotFound)?;
+            if !crate::media::is_inline(&summary.content_type) {
+                return Err(PlaceError::NotAPicture);
+            }
         }
 
         // Reads the id before deciding to write, so the write lock is taken up

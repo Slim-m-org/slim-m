@@ -206,6 +206,7 @@ class _CommandPaletteContentState
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
 
     final searchField = AppInput(
+      maxLength: api.InputLimits.searchQuery,
       key: const Key('command-palette-input'),
       controller: _controller,
       focusNode: _focusNode,

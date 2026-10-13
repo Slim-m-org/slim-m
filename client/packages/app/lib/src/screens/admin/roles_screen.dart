@@ -24,6 +24,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/breakpoints.dart';
 import '../../routing/routes.dart';
+import '../../widgets/hover_reveal.dart';
 import '../../widgets/role_color.dart';
 import '../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
@@ -262,7 +263,13 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                     for (var i = 0; i < reorderable.length; i++)
                       KeyedSubtree(
                         key: ValueKey(reorderable[i].id),
-                        child: _roleRow(reorderable[i], i),
+                        child: HoverReveal(
+                          builder: (context, hovered, _, focused) => _roleRow(
+                            reorderable[i],
+                            i,
+                            showHandle: hovered || focused,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -271,11 +278,15 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     );
   }
 
-  Widget _roleRow(api.Role role, int? dragIndex) => AppListRow(
+  Widget _roleRow(
+    api.Role role,
+    int? dragIndex, {
+    bool showHandle = false,
+  }) => AppListRow(
     key: dragIndex == null ? ValueKey(role.id) : null,
     leading: DecoratedBox(
       decoration: BoxDecoration(
-        color: roleColor(role.id),
+        color: roleColor(role.id, color: role.color),
         shape: BoxShape.circle,
       ),
       child: const SizedBox(width: 10, height: 10),
@@ -293,10 +304,15 @@ class _RoleNavState extends ConsumerState<_RoleNav>
         ? const SizedBox(width: AppSizes.icon16)
         : ReorderableDragStartListener(
             index: dragIndex,
-            child: Icon(
-              AppIcons.dragHandle,
-              size: AppSizes.icon16,
-              color: Theme.of(context).extension<AppTokens>()!.textSecondary,
+            // Faded in place rather than swapped in, so hovering never changes the row's shape.
+            child: AnimatedOpacity(
+              opacity: showHandle || AppTouchTargets.of(context) ? 1 : 0,
+              duration: AppMotion.reduced(context, AppMotion.fast),
+              child: Icon(
+                AppIcons.dragHandle,
+                size: AppSizes.icon16,
+                color: Theme.of(context).extension<AppTokens>()!.textSecondary,
+              ),
             ),
           ),
     onTap: () => widget.onSelect(role.id),

@@ -31,8 +31,13 @@ use futures_util::Stream;
 use uuid::Uuid;
 
 mod content_type;
+mod image_header;
 mod stream;
 pub use content_type::{is_inline, sniff_content_type};
+pub use image_header::{
+    ImageHeader, ImageProblem, MAX_EMOJI_SIDE, MAX_IMAGE_PIXELS, MAX_PROFILE_IMAGE_SIDE, Motion,
+    check_image,
+};
 pub use stream::{PendingAttachment, StreamError};
 
 /// Largest attachment a single upload may store, for [`Media::for_tests`],

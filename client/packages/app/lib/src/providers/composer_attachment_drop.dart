@@ -13,16 +13,20 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../widgets/composer_attachments.dart';
+
 /// The staging entry points a drop needs from the composer that owns a
 /// channel: the same `stage`/`setError` its own picker and clipboard paste
 /// already call, so a drop never invents a second attachment path.
 class ComposerAttachmentDropTarget {
   const ComposerAttachmentDropTarget({
     required this.stage,
+    required this.stageFile,
     required this.setError,
   });
 
   final Future<void> Function(Uint8List bytes, String filename) stage;
+  final Future<void> Function(FileSource file) stageFile;
   final void Function(String? message) setError;
 }
 

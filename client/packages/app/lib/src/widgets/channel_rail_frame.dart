@@ -22,7 +22,7 @@ import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import 'presence_menu.dart';
 import 'rail_call_summary.dart';
-import 'space_icon.dart';
+import 'space_icon_badge.dart';
 import 'space_menu_button.dart';
 
 /// Whether this rail has content beside it, so its own right edge is never
@@ -90,20 +90,14 @@ class RailHeader extends ConsumerWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      SpaceConnectionDot(
+                      SpaceIdentityMark(
+                        iconUpdatedAt: server.valueOrNull?.iconUpdatedAt,
                         status: syncStatus,
                         failure: ref.watch(syncFailureProvider),
                       ),
-                      const SizedBox(width: 6),
-                      SpaceIcon(
-                        updatedAt: server.valueOrNull?.iconUpdatedAt,
-                        size: AppSizes.icon20,
-                      ),
-                      if (server.valueOrNull?.iconUpdatedAt != null)
-                        const SizedBox(width: AppSpacing.s8),
                       Flexible(
                         child: Text(
-                          server.valueOrNull?.name ?? 'slim-m',
+                          server.valueOrNull?.displayName ?? 'slim-m',
                           overflow: TextOverflow.ellipsis,
                           style: AppText.body.copyWith(
                             color: tokens.textPrimary,
@@ -139,13 +133,21 @@ class RailHeader extends ConsumerWidget {
 /// is the one state that has actually stopped, so it alone carries the warn
 /// tone, while connecting is transient and stays neutral.
 class SpaceConnectionDot extends StatelessWidget {
-  const SpaceConnectionDot({super.key, required this.status, this.failure});
+  const SpaceConnectionDot({
+    super.key,
+    required this.status,
+    this.failure,
+    this.haloed = false,
+  });
 
   final SyncStatus status;
 
   /// Why sync is down, when something knows: a refused session and an
   /// unreachable server look identical here and recover differently.
   final SyncFailure? failure;
+
+  /// Ring cut-out in the rail colour, for a dot drawn over a Space icon.
+  final bool haloed;
 
   static const Map<SyncStatus, AppStatusShape> _shapeOf = {
     SyncStatus.live: AppStatusShape.filledDisc,
@@ -154,6 +156,9 @@ class SpaceConnectionDot extends StatelessWidget {
   };
 
   static const double _size = 8;
+
+  /// Outer diameter including the halo, so a caller can centre the badge.
+  static const double haloedSize = _size + 2 * AppAvatarGeometry.dotHalo;
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +169,7 @@ class SpaceConnectionDot extends StatelessWidget {
       SyncStatus.offline => tokens.warnText,
     };
     final label = connectionLabel(status, failure);
-    return Tooltip(
+    final dot = Tooltip(
       message: label,
       child: Semantics(
         label: label,
@@ -183,6 +188,23 @@ class SpaceConnectionDot extends StatelessWidget {
           ),
         ),
       ),
+    );
+    if (!haloed) return dot;
+    // A triangle fills its square and its weight sits low, so inside a round halo it shrinks and rises to its centroid.
+    final inset = status == SyncStatus.connecting ? 1.0 : 0.0;
+    const halo = AppAvatarGeometry.dotHalo;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        halo + inset,
+        halo,
+        halo + inset,
+        halo + 2 * inset,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.surfaceSunken,
+        shape: BoxShape.circle,
+      ),
+      child: SizedBox.square(dimension: _size - 2 * inset, child: dot),
     );
   }
 }

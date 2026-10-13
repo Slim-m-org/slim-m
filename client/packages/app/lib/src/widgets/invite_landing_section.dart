@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The admin's controls for the invite landing card: a short description, a
-/// banner, an icon, and a live preview of the card a visitor will see.
+/// The admin's controls for the invite landing card: the Space's name, a short
+/// description, a banner, an icon, and a live preview of the card a visitor
+/// will see.
 library;
 
 import 'dart:async';
@@ -18,11 +19,13 @@ import 'channel_rail_frame.dart' show serverInfoProvider;
 import 'attachment_picker.dart';
 import 'avatar_crop_sheet.dart';
 import 'image_downscale.dart';
+import 'image_drop_zone.dart';
 import 'invite_landing_card.dart';
 import 'join_policy_row.dart';
 import 'run_guarded.dart';
 import 'settings_section_header.dart';
 import 'space_icon.dart';
+import 'space_name_field.dart';
 
 // The server's caps on the two pictures; a pick past either is shrunk first.
 const int _bannerMaxBytes = 4 * 1024 * 1024;
@@ -42,11 +45,7 @@ const double _fieldInset = 4;
 const double _pictureLabelWidth = 56;
 
 /// Matches the server's cap on a description.
-const int kInviteDescriptionMaxChars = 280;
-
-final _spaceNameProvider = FutureProvider.autoDispose<String>(
-  (ref) async => (await ref.watch(apiProvider).version()).name,
-);
+const int kInviteDescriptionMaxChars = api.InputLimits.spaceDescription;
 
 final _bannerBytesProvider = FutureProvider.autoDispose.family<Uint8List, int>(
   (ref, updatedAt) async =>
@@ -106,8 +105,13 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       attachmentPickerProvider(AttachmentSource.photoLibrary),
     )();
     if (file == null || !mounted) return;
+    await _setBanner(await file.readAsBytes());
+  }
+
+  /// A picked or dropped banner, shrunk to fit the server's cap.
+  Future<void> _setBanner(Uint8List picked) async {
     final bytes = await downscaledToFit(
-      await file.readAsBytes(),
+      picked,
       maxEdge: _bannerMaxEdge,
       maxBytes: _bannerMaxBytes,
     );
@@ -122,7 +126,11 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       attachmentPickerProvider(AttachmentSource.photoLibrary),
     )();
     if (file == null || !mounted) return;
-    final picked = await file.readAsBytes();
+    await _setIcon(await file.readAsBytes());
+  }
+
+  /// A picked or dropped icon: cropped square, then minified to fit.
+  Future<void> _setIcon(Uint8List picked) async {
     if (!mounted) return;
     final cropped = await showAvatarCropSheet(context, picked, circular: false);
     if (cropped == null || !mounted) return;
@@ -181,6 +189,18 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
   }
 
+  Widget _droppable({
+    required String label,
+    required Future<void> Function(Uint8List bytes) onImage,
+    required Widget child,
+  }) => ImageDropZone(
+    enabled: !_busy,
+    label: label,
+    onImage: (bytes, _) => unawaited(onImage(bytes)),
+    onRejected: setActionError,
+    child: child,
+  );
+
   Widget _pictureRow({
     required String label,
     required bool isSet,
@@ -233,6 +253,8 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SpaceNameField(saved: loaded.name),
+          const SizedBox(height: AppSpacing.s16),
           AppInput(
             controller: _description,
             placeholder: 'Short description',
@@ -261,21 +283,29 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
             ),
           ),
           const SizedBox(height: AppSpacing.s16),
-          _pictureRow(
-            label: 'Banner',
-            isSet: bannerSet,
-            onChoose: _chooseBanner,
-            onRemove: () => _run(
-              'remove the banner',
-              () => ref.read(apiProvider).deleteSpaceBanner(),
+          _droppable(
+            label: 'Drop to set the banner',
+            onImage: _setBanner,
+            child: _pictureRow(
+              label: 'Banner',
+              isSet: bannerSet,
+              onChoose: _chooseBanner,
+              onRemove: () => _run(
+                'remove the banner',
+                () => ref.read(apiProvider).deleteSpaceBanner(),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
-          _pictureRow(
-            label: 'Icon',
-            isSet: iconSet,
-            onChoose: _chooseIcon,
-            onRemove: _removeIcon,
+          _droppable(
+            label: 'Drop to set the icon',
+            onImage: _setIcon,
+            child: _pictureRow(
+              label: 'Icon',
+              isSet: iconSet,
+              onChoose: _chooseIcon,
+              onRemove: _removeIcon,
+            ),
           ),
           if (actionError != null) ...[
             const SizedBox(height: AppSpacing.s12),
@@ -290,8 +320,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: InviteLandingCard(
-                  name:
-                      ref.watch(_spaceNameProvider).valueOrNull ?? 'Your Space',
+                  name: loaded.name,
                   memberCount:
                       ref.watch(membersProvider).valueOrNull?.length ?? 0,
                   description: _description.text.trim(),

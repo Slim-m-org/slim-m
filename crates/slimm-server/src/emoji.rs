@@ -62,6 +62,8 @@ pub enum AddError {
     TooLarge,
     /// The bytes are not an image this server stores and serves inline.
     UnsupportedType,
+    /// Wider or taller than [`media::MAX_EMOJI_SIDE`], or over the pixel cap.
+    TooManyPixels,
     /// Another emoji already answers to this name.
     NameTaken,
     /// The name is a standard unicode emoji's shortcode, which a custom emoji
@@ -132,11 +134,19 @@ pub fn validate_image(raw_name: &str, bytes: Vec<u8>) -> Result<ValidatedImage, 
     if bytes.len() as u64 > MAX_IMAGE_BYTES {
         return Err(AddError::TooLarge);
     }
-    // The inline (image) subset of the allowlist only, since an emoji is
-    // drawn rather than downloaded.
-    let content_type = media::sniff_content_type(&bytes)
-        .filter(|ct| media::is_inline(ct))
-        .ok_or(AddError::UnsupportedType)?;
+    // Inline pictures only, since an emoji is drawn rather than downloaded; it may animate.
+    let content_type = media::check_image(
+        &bytes,
+        media::Motion::AnimatedAllowed,
+        media::MAX_EMOJI_SIDE,
+    )
+    .map_err(|problem| match problem {
+        media::ImageProblem::TooLarge => AddError::TooManyPixels,
+        media::ImageProblem::Unsupported | media::ImageProblem::Animated => {
+            AddError::UnsupportedType
+        }
+    })?
+    .content_type;
     let sha256 = Sha256::digest(&bytes).to_vec();
     Ok(ValidatedImage {
         name,
