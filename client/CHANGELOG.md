@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.100.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.99.0...client-v0.100.0) (2026-10-13)
+
+
+### Features
+
+* change your own password, invite landing page, video quality, pause video in the background, and publish-path builds on PRs ([#2155](https://github.com/Slim-m-org/slim-m/issues/2155)) ([6e0a59c](https://github.com/Slim-m-org/slim-m/commit/6e0a59cd2f8fc027cbbda804d14d3e94bb73545e))
+
 ## [0.99.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.98.0...client-v0.99.0) (2026-10-11)
 
 
