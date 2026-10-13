@@ -30,6 +30,7 @@ class Version {
     this.iconUpdatedAt,
     this.linkPreviewsEnabled,
     this.screenShareMaxHeight,
+    this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
     this.minClientVersion,
@@ -78,6 +79,11 @@ class Version {
   /// screen-share capture before starting a share, not only one that could
   /// reach the MANAGE_SERVER-gated `GET /space/screen-share`.
   final int? screenShareMaxHeight;
+
+  /// The largest single attachment the server accepts, in bytes. Null on a
+  /// server older than this field, which a client treats as no known limit
+  /// and lets the server refuse.
+  final int? maxAttachmentBytes;
 
   /// The optional features the server serves, by name. Null on servers older
   /// than 0.17.0, which is "unknown", not "none".
@@ -129,6 +135,7 @@ class Version {
         screenShareMaxHeight: json['screen_share_max_height'] as int?,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
+        maxAttachmentBytes: json['max_attachment_bytes'] as int?,
         capabilities: switch (json['capabilities']) {
           final List<dynamic> names => names.whereType<String>().toList(
                 growable: false,
