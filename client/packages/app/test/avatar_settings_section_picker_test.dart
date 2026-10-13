@@ -19,6 +19,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/avatar_settings_section.dart';
+import 'package:slimm_app/src/widgets/image_drop_zone.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -147,4 +148,57 @@ void main() {
       },
     );
   }
+
+  testWidgets('a dropped picture opens the same crop sheet a picked one does', (
+    tester,
+  ) async {
+    final requests = <String>[];
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+        apiProvider.overrideWith((ref) {
+          final api = SlimmApi(
+            baseUrl: Uri.parse('http://localhost:8080'),
+            session: ref.watch(sessionProvider),
+            httpClient: MockClient((request) async {
+              requests.add('${request.method} ${request.url.path}');
+              if (request.url.path == '/me') {
+                return http.Response(
+                  jsonEncode(_meJson(null)),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              return http.Response('', 404);
+            }),
+          );
+          ref.onDispose(api.close);
+          return api;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(_harness(container));
+    await tester.pumpAndSettle();
+
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    );
+    tester
+        .widget<ImageDropZone>(find.byType(ImageDropZone))
+        .onImage(png, 'me.png');
+    for (
+      var i = 0;
+      i < 20 && find.text('Use picture').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    expect(find.text('Use picture'), findsOneWidget);
+    expect(requests, isNot(contains('POST /me/avatar')));
+  });
 }
