@@ -155,6 +155,7 @@ void main() {
         final scrollbar = tester.state(bar) as RawScrollbarState;
         final canvas = _ThumbCanvas();
         final box = tester.renderObject<RenderBox>(bar);
+        // ignore: invalid_use_of_protected_member
         scrollbar.scrollbarPainter.paint(canvas, box.size);
         final thumb = canvas.thumb;
         expect(thumb, isNotNull, reason: 'a long field draws a thumb');
