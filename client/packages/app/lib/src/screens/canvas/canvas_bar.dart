@@ -52,9 +52,16 @@ class CanvasBar extends StatelessWidget {
       ),
     );
     return Container(
-      height: trailing == null ? 36 : AppSizes.rowTouch + AppSpacing.s8,
+      height: trailing == null
+          ? AppSizes.headerBar
+          : AppSizes.rowTouch + AppSpacing.s8,
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.paneGutter),
       alignment: Alignment.centerLeft,
+      // Raised off the drawing surface so the strip reads as a pane header, not canvas.
+      decoration: BoxDecoration(
+        color: tokens.surfaceRaised,
+        border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
+      ),
       child: trailing == null
           ? line
           : Row(

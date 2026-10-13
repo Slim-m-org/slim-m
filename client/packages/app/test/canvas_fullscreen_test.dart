@@ -19,13 +19,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_bar.dart';
 import 'package:slimm_app/src/screens/canvas/canvas_fullscreen.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
 import 'support/geometry.dart';
 
 /// The identity strip's own fixed height, the space fullscreen hands back.
-const _barHeight = 36.0;
+const _barHeight = AppSizes.headerBar;
 
 Future<void> _enterFullscreen(WidgetTester tester) async {
   await tester.tap(find.byTooltip('More canvas actions'));
