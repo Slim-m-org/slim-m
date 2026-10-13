@@ -23,6 +23,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../format.dart';
 import '../providers/call_mini_player.dart';
 import 'context_menu_region.dart';
+import 'double_click_detector.dart';
 import 'fullscreen_video_overlay.dart';
 import 'popout_video_button.dart';
 import 'user_avatar.dart';
@@ -262,6 +263,9 @@ class CallParticipantTile extends StatelessWidget {
           ),
       ],
     );
+    if (_showsCamera && onExpand != null) {
+      tile = DoubleClickDetector(onDoubleClick: onExpand, child: tile);
+    }
     if (contextMenuItemsBuilder case final itemsBuilder?) {
       tile = ContextMenuRegion(itemsBuilder: itemsBuilder, child: tile);
     }
