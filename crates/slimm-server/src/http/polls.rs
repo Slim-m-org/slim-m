@@ -121,6 +121,19 @@ pub(crate) async fn attach_polls(
     Ok(())
 }
 
+/// Longest a poll may stay open, so a typo cannot pin one open for years.
+const MAX_POLL_OPEN_MS: i64 = 31 * 24 * 60 * 60 * 1000;
+
+fn validate_close_at(close_at: Option<i64>, now: i64) -> Result<(), ApiError> {
+    match close_at {
+        Some(at) if at <= now => Err(ApiError::BadRequest("close_at must be in the future")),
+        Some(at) if at - now > MAX_POLL_OPEN_MS => Err(ApiError::BadRequest(
+            "a poll can stay open for at most 31 days",
+        )),
+        _ => Ok(()),
+    }
+}
+
 fn refuse_hidden_poll_text(question: &str, options: &[String]) -> Result<(), ApiError> {
     use super::hidden_chars::hides_text_outside_emoji;
     if hides_text_outside_emoji(question) {
@@ -182,6 +195,7 @@ async fn create(
 
     let content = validate_content(&req.content, true)?;
     refuse_hidden_poll_text(&req.question, &req.options)?;
+    validate_close_at(req.close_at, now_ms())?;
     let id = MessageId(parse_uuid(&req.id)?);
     let sent = match state
         .store
