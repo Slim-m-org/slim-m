@@ -18,33 +18,85 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../api_failure.dart';
+import '../diagnostics/debug_log.dart';
 import '../providers/providers.dart';
+import 'attachment_format.dart';
 
-/// One attachment as the composer sees it, from the moment its bytes are
-/// picked. [bytes] and [filename] never change once staged; a retry restages
-/// the same bytes rather than asking wherever they came from for a fresh
-/// read, since a picker or a clipboard cannot be replayed on demand.
+/// What an upload reads from: held bytes for a small pick, or a re-openable
+/// stream for a file too big to hold, so a 5 GB pick never lands in memory.
+///
+/// [open] is a factory because a retry, or the refresh after a 401, reads the
+/// body again from the start.
+class AttachmentBody {
+  AttachmentBody.memory(Uint8List this.bytes)
+    : length = bytes.length,
+      open = (() => Stream.value(bytes));
+
+  const AttachmentBody.stream({required this.length, required this.open})
+    : bytes = null;
+
+  final int length;
+
+  /// Null for a streamed body, which has no preview to draw.
+  final Uint8List? bytes;
+  final Stream<List<int>> Function() open;
+}
+
+/// A picked or dropped file, read only when it is staged: its size is known
+/// up front, and its content is read whole or streamed depending on that size.
+class FileSource {
+  const FileSource({
+    required this.name,
+    required this.length,
+    required this.readAll,
+    required this.openRead,
+  });
+
+  final String name;
+  final Future<int> Function() length;
+  final Future<Uint8List> Function() readAll;
+  final Stream<List<int>> Function() openRead;
+}
+
+/// Files up to this size are read whole, which also gives them a preview;
+/// anything larger is streamed from disk so it never sits in memory.
+const kInMemoryAttachmentBytes = 8 * 1024 * 1024;
+
+/// One attachment as the composer sees it, from the moment it is picked.
+/// [body] and [filename] never change once staged; a retry restages the same
+/// body rather than asking wherever it came from for a fresh read, since a
+/// picker or a clipboard cannot be replayed on demand.
 sealed class StagedAttachment {
   const StagedAttachment({
     required this.localId,
     required this.filename,
-    required this.bytes,
+    required this.body,
   });
 
   /// A client-only id: nothing here is uploaded yet when one is minted, so
   /// it cannot be the server's own content hash.
   final String localId;
   final String filename;
-  final Uint8List bytes;
+  final AttachmentBody body;
+
+  Uint8List? get bytes => body.bytes;
 }
 
-/// Picked, and the upload has not yet resolved either way.
+/// Picked, and the upload has not yet resolved either way. [sent] is how many
+/// of the body's bytes have been handed to the network so far.
 class UploadingAttachment extends StagedAttachment {
   const UploadingAttachment({
     required super.localId,
     required super.filename,
-    required super.bytes,
+    required super.body,
+    this.sent = 0,
   });
+
+  final int sent;
+
+  /// 0 to 1, for a progress bar.
+  double get fraction =>
+      body.length == 0 ? 0 : (sent / body.length).clamp(0.0, 1.0);
 }
 
 /// Uploaded: [attachment] is what a send may reference.
@@ -52,7 +104,7 @@ class UploadedAttachment extends StagedAttachment {
   const UploadedAttachment({
     required super.localId,
     required super.filename,
-    required super.bytes,
+    required super.body,
     required this.attachment,
   });
 
@@ -65,7 +117,7 @@ class FailedAttachment extends StagedAttachment {
   const FailedAttachment({
     required super.localId,
     required super.filename,
-    required super.bytes,
+    required super.body,
     required this.message,
   });
 
@@ -95,13 +147,27 @@ bool looksLikeImage(String filename) {
 /// and never rides into another one. A [ChangeNotifier] like the composer's
 /// own `TextEditingController`, since the composer is its only reader.
 class AttachmentStagingController extends ChangeNotifier {
-  AttachmentStagingController({required this.upload});
+  AttachmentStagingController({
+    required this.upload,
+    this.onFailure,
+    this.maxBytes,
+  });
 
-  /// Uploads bytes and answers the stored attachment, or throws
-  /// [api.ApiException] on failure, the same contract
-  /// `SlimmApiAttachments.uploadAttachment` already has.
-  final Future<api.Attachment> Function(Uint8List bytes, String filename)
+  /// The server's per-attachment limit, or null when it is unknown, in which
+  /// case the server is left to refuse an oversize upload itself.
+  final Future<int?> Function()? maxBytes;
+
+  /// Uploads [body], reporting bytes sent through the callback, and answers
+  /// the stored attachment, or throws [api.ApiException] on failure.
+  final Future<api.Attachment> Function(
+    AttachmentBody body,
+    String filename,
+    void Function(int sent) onProgress,
+  )
   upload;
+
+  /// Told of every failed upload with the raw error, for the debug log.
+  final void Function(String filename, Object error)? onFailure;
 
   final List<StagedAttachment> _items = [];
   List<StagedAttachment> get items => List.unmodifiable(_items);
@@ -133,7 +199,7 @@ class AttachmentStagingController extends ChangeNotifier {
       UploadedAttachment(
         localId: localId,
         filename: attachment.filename,
-        bytes: bytes,
+        body: AttachmentBody.memory(bytes),
         attachment: attachment,
       ),
     );
@@ -143,13 +209,42 @@ class AttachmentStagingController extends ChangeNotifier {
   /// Stages [bytes] and returns once it is in [items], before the upload
   /// this starts has any chance to resolve - a caller awaiting this sees the
   /// pending entry, never a gap where nothing is staged at all.
-  Future<void> stage(Uint8List bytes, String filename) async {
+  Future<void> stage(Uint8List bytes, String filename) =>
+      stageBody(AttachmentBody.memory(bytes), filename);
+
+  /// Stages [file], first refusing it when it is over the server's limit.
+  ///
+  /// The tile is shown before the content is read, so a large pick appears at
+  /// once. Answers the refusal sentence, or null when it was staged.
+  Future<String?> stageFile(FileSource file) async {
+    final length = await file.length();
+    final limit = await maxBytes?.call();
+    if (limit != null && length > limit) {
+      final message =
+          '${file.name} is ${formatByteSize(length)}, over this server\'s '
+          'limit of ${formatByteSize(limit)} per file.';
+      onFailure?.call(file.name, message);
+      return message;
+    }
+    if (length <= kInMemoryAttachmentBytes) {
+      await stage(await file.readAll(), file.name);
+    } else {
+      await stageBody(
+        AttachmentBody.stream(length: length, open: file.openRead),
+        file.name,
+      );
+    }
+    return null;
+  }
+
+  /// [stage] for any [AttachmentBody], including a streamed one.
+  Future<void> stageBody(AttachmentBody body, String filename) async {
     final localId = 'staged-${_nextLocalId++}';
     _items.add(
-      UploadingAttachment(localId: localId, filename: filename, bytes: bytes),
+      UploadingAttachment(localId: localId, filename: filename, body: body),
     );
     notifyListeners();
-    unawaited(_runUpload(localId, bytes, filename));
+    unawaited(_runUpload(localId, body, filename));
   }
 
   /// Restages a failed upload's own bytes, rather than asking the caller
@@ -162,10 +257,10 @@ class AttachmentStagingController extends ChangeNotifier {
     _items[index] = UploadingAttachment(
       localId: localId,
       filename: current.filename,
-      bytes: current.bytes,
+      body: current.body,
     );
     notifyListeners();
-    unawaited(_runUpload(localId, current.bytes, current.filename));
+    unawaited(_runUpload(localId, current.body, current.filename));
   }
 
   /// Hands the uploaded ids to [send], taking them out of the staging in the
@@ -198,38 +293,59 @@ class AttachmentStagingController extends ChangeNotifier {
 
   Future<void> _runUpload(
     String localId,
-    Uint8List bytes,
+    AttachmentBody body,
     String filename,
   ) async {
     try {
-      final attachment = await upload(bytes, filename);
+      final attachment = await upload(
+        body,
+        filename,
+        (sent) => _replace(
+          localId,
+          UploadingAttachment(
+            localId: localId,
+            filename: filename,
+            body: body,
+            sent: sent,
+          ),
+          onlyWhileUploading: true,
+        ),
+      );
       _replace(
         localId,
         UploadedAttachment(
           localId: localId,
           // The server's own name: content addressing can answer with a different one.
           filename: attachment.filename,
-          bytes: bytes,
+          body: body,
           attachment: attachment,
         ),
       );
-    } on api.ApiException catch (e) {
+    } on Object catch (e) {
+      onFailure?.call(filename, e);
       _replace(
         localId,
         FailedAttachment(
           localId: localId,
           filename: filename,
-          bytes: bytes,
-          message: describeApiFailure('attach the file', e),
+          body: body,
+          message: e is api.ApiException
+              ? describeApiFailure('attach the file', e)
+              : 'Could not attach the file.',
         ),
       );
     }
   }
 
   /// A no-op if [localId] was removed while its upload was still in flight.
-  void _replace(String localId, StagedAttachment next) {
+  void _replace(
+    String localId,
+    StagedAttachment next, {
+    bool onlyWhileUploading = false,
+  }) {
     final index = _items.indexWhere((a) => a.localId == localId);
     if (index == -1) return;
+    if (onlyWhileUploading && _items[index] is! UploadingAttachment) return;
     _items[index] = next;
     notifyListeners();
   }
@@ -245,8 +361,18 @@ class AttachmentStagingController extends ChangeNotifier {
 final attachmentStagingProvider =
     Provider.family<AttachmentStagingController, String>((ref, channelId) {
       final controller = AttachmentStagingController(
-        upload: (bytes, filename) =>
-            ref.read(apiProvider).uploadAttachment(bytes, filename: filename),
+        upload: (body, filename, onProgress) => ref
+            .read(apiProvider)
+            .uploadAttachmentStream(
+              body.open,
+              length: body.length,
+              filename: filename,
+              onProgress: onProgress,
+            ),
+        maxBytes: () => _attachmentLimit(ref),
+        onFailure: (filename, error) => ref
+            .read(debugLogProvider.notifier)
+            .record('attachment', 'Upload of $filename failed', detail: error),
       );
       final session = ref.read(sessionProvider);
       final account = session.tokens?.userId;
@@ -259,3 +385,17 @@ final attachmentStagingProvider =
       });
       return controller;
     });
+
+/// The server's per-file ceiling from `/version`, or null when it cannot be
+/// learned quickly, so a flaky link never holds a pick up.
+Future<int?> _attachmentLimit(Ref ref) async {
+  try {
+    final version = await ref
+        .read(apiProvider)
+        .version()
+        .timeout(const Duration(seconds: 3));
+    return version.maxAttachmentBytes;
+  } on Object {
+    return null;
+  }
+}

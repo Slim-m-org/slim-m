@@ -72,7 +72,7 @@ void main() {
             'a pick must appear before its upload has any chance to '
             'answer, or it reads as never having been attached at all',
       );
-      expect(find.text('Uploading...'), findsOneWidget);
+      expect(find.textContaining('% of 4 B'), findsOneWidget);
       expect(
         tester.widget<AppIconButton>(sendButton).onPressed,
         isNull,
@@ -84,7 +84,7 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
 
-      expect(find.text('Uploading...'), findsNothing);
+      expect(find.textContaining('% of 4 B'), findsNothing);
       expect(tester.widget<AppIconButton>(sendButton).onPressed, isNotNull);
     },
   );

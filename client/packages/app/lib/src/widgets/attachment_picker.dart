@@ -16,11 +16,11 @@
 /// choice with only one real answer.
 library;
 
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'composer_attachments.dart';
 
 /// Which native picker a request should open.
 enum AttachmentSource {
@@ -66,7 +66,7 @@ Future<void> runAttachmentPick({
   required FocusNode focus,
   required bool Function() isMounted,
   required VoidCallback onPickerFailed,
-  required Future<void> Function(Uint8List bytes, String filename) stage,
+  required Future<void> Function(FileSource file) stage,
 }) async {
   final PlatformFile? file;
   try {
@@ -79,7 +79,14 @@ Future<void> runAttachmentPick({
   }
   if (!isMounted()) return;
   focus.requestFocus();
-  if (file == null) return;
-  // readAsBytes streams from disk; eager PlatformFile.bytes OOMs on a large pick.
-  await stage(await file.readAsBytes(), file.name);
+  final picked = file;
+  if (picked == null) return;
+  await stage(
+    FileSource(
+      name: picked.name,
+      length: () async => await picked.length() ?? 0,
+      readAll: picked.readAsBytes,
+      openRead: picked.readAsByteStream,
+    ),
+  );
 }

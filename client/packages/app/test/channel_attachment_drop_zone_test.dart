@@ -24,6 +24,7 @@ class _FakeTarget {
 
   ComposerAttachmentDropTarget get value => ComposerAttachmentDropTarget(
     stage: (bytes, filename) async => staged.add(filename),
+    stageFile: (file) async => staged.add(file.name),
     setError: (message) => lastError = message,
   );
 }

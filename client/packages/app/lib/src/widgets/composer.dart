@@ -212,6 +212,7 @@ class _ComposerState extends ConsumerState<Composer> {
     channelId: widget.channelId,
     target: () => ComposerAttachmentDropTarget(
       stage: _stageAttachment,
+      stageFile: _stageFile,
       setError: _setAttachmentError,
     ),
     isMounted: () => mounted,
@@ -514,7 +515,7 @@ class _ComposerState extends ConsumerState<Composer> {
       isMounted: () => mounted,
       onPickerFailed: () =>
           _setAttachmentError('Could not open the file picker.'),
-      stage: _stageAttachment,
+      stage: _stageFile,
     );
   }
 
@@ -522,6 +523,12 @@ class _ComposerState extends ConsumerState<Composer> {
   /// the background; the one way onto the send path.
   Future<void> _stageAttachment(Uint8List bytes, String filename) =>
       _attachments.stage(bytes, filename);
+
+  /// A file from a picker or a drop; refused up front when over the limit.
+  Future<void> _stageFile(FileSource file) async {
+    final refusal = await _attachments.stageFile(file);
+    if (refusal != null) _setAttachmentError(refusal);
+  }
 
   /// A pasted image takes the same staging path as a picked file.
   void _handlePastedImage(Uint8List bytes, String filename) =>

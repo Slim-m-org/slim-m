@@ -148,7 +148,7 @@ void main() {
   });
 
   testWidgets(
-    'touch layout: no hardware-only hint, and the row does not overflow',
+    'touch layout: no shortcut hints, and the row does not overflow',
     (tester) async {
       tester.view.physicalSize = _phoneSize;
       tester.view.devicePixelRatio = 1;
@@ -177,8 +177,8 @@ void main() {
         ),
       );
 
-      // The keycaps naming the shortcuts are desktop-only chrome; still there.
-      expect(find.byType(AppKbd), findsNWidgets(4));
+      expect(find.byType(AppKbd), findsNothing);
+      expect(find.textContaining('Shift'), findsNothing);
 
       await tester.enterText(find.byType(TextField), 'edited on desktop');
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);

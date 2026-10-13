@@ -140,7 +140,7 @@ void main() {
     'a send refused before it is queued gives the staged file back',
     () async {
       final staging = AttachmentStagingController(
-        upload: (_, _) => throw StateError('unused'),
+        upload: (_, _, _) => throw StateError('unused'),
       )..addResolved(_attachment, Uint8List(0));
       await expectLater(
         staging.sendReady((_) => throw StateError('store unavailable')),
@@ -154,7 +154,7 @@ void main() {
     'a second send while the first is in flight finds nothing staged',
     () async {
       final staging = AttachmentStagingController(
-        upload: (_, _) => throw StateError('unused'),
+        upload: (_, _, _) => throw StateError('unused'),
       )..addResolved(_attachment, Uint8List(0));
       final gate = Completer<void>();
       final seen = <List<String>>[];
