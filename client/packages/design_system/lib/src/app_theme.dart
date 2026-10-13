@@ -238,6 +238,21 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
       hintStyle: AppText.body.copyWith(color: tokens.textSecondary),
       helperStyle: AppText.caption.copyWith(color: tokens.textSecondary),
     ),
+    scrollbarTheme: ScrollbarThemeData(
+      // fromMap, not resolveWith: a closure never compares equal, so every rebuild would restart AnimatedTheme.
+      thickness: WidgetStateProperty<double?>.fromMap({
+        WidgetState.hovered | WidgetState.dragged: AppSpacing.s8,
+        WidgetState.any: AppSpacing.s4,
+      }),
+      thumbColor: WidgetStateProperty<Color?>.fromMap({
+        WidgetState.hovered | WidgetState.dragged:
+            tokens.textSecondary.withValues(alpha: 0.6),
+        WidgetState.any: tokens.textSecondary.withValues(alpha: 0.28),
+      }),
+      trackVisibility: const WidgetStatePropertyAll(false),
+      radius: const Radius.circular(AppSpacing.s4),
+      crossAxisMargin: 2,
+    ),
     // Raw ListTiles took M3's onSurface, putting two blacks in one panel.
     listTileTheme: ListTileThemeData(
       textColor: tokens.textPrimary,

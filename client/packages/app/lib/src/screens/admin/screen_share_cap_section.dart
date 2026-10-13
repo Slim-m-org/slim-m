@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart' show ScreenShareQuality;
+import 'package:slimm_rtc/rtc.dart' show ScreenShareResolution;
 
 import '../../preset_options.dart';
 import '../../providers/admin_providers.dart';
@@ -29,26 +29,18 @@ const _screenShareCapOptions = <(String, int)>[
   ('Source', 2160),
 ];
 
-/// What choosing [maxHeight] actually bounds, grounded in
-/// [ScreenShareQuality] (the real per-tier bitrate ceilings a sharer's own
-/// quality choice already carries) and `screen_share_control.dart`'s own
-/// doc: this setting scales the captured dimensions down, but leaves a
-/// tier's bitrate ceiling alone - only the pixels that ceiling has to cover
-/// change.
+/// What choosing [maxHeight] actually bounds: this setting scales the
+/// captured dimensions down, but leaves the bitrate ceiling alone.
 String screenShareCapConsequence(int maxHeight) {
-  final tier = ScreenShareQuality.values.cast<ScreenShareQuality?>().firstWhere(
-    (q) => q!.height == maxHeight,
-    orElse: () => null,
-  );
+  final tier = ScreenShareResolution.values
+      .cast<ScreenShareResolution?>()
+      .firstWhere((r) => r!.height == maxHeight, orElse: () => null);
   if (tier != null) {
-    final mbps = (tier.maxBitrate / 1000000).toStringAsFixed(1);
-    return 'Shares are capped at ${tier.width}x${tier.height}, up to $mbps Mbps.';
+    return 'Shares are capped at ${tier.width}x${tier.height}.';
   }
-  final maxTierHeight = ScreenShareQuality.values
-      .map((q) => q.height)
-      .reduce((a, b) => a > b ? a : b);
+  final maxTierHeight = ScreenShareResolution.values.last.height;
   if (maxHeight < maxTierHeight) return 'Shares are capped at ${maxHeight}p.';
-  return 'No cap: every quality tier already tops out at ${maxTierHeight}p.';
+  return 'No cap: every resolution already tops out at ${maxTierHeight}p.';
 }
 
 /// The screen-share resolution ceiling: client-advertised, so this is the

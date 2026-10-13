@@ -304,26 +304,42 @@ void main() {
     test('every quality is bounded on all four axes', () {
       // The point of the enum is that no path publishes an unbounded share: 4K
       // at 60fps saturates a home upload and starves the audio it accompanies.
-      for (final q in ScreenShareQuality.values) {
+      for (final q in ScreenShareQuality.all) {
         expect(q.width, greaterThan(0));
         expect(q.height, greaterThan(0));
         expect(q.fps, inInclusiveRange(1, 60));
         expect(q.maxBitrate, inInclusiveRange(1, 5000000),
-            reason: '${q.name} must stay inside a home upload');
+            reason: '${q.id} must stay inside a home upload');
       }
     });
 
-    test('quality trades resolution against frame rate, not just size', () {
-      // Smooth is for motion, crisp is for reading code. If crisp were also
-      // the highest frame rate it would just be "more", and mean nothing.
-      expect(ScreenShareQuality.crisp.width,
-          greaterThan(ScreenShareQuality.smooth.width));
-      expect(ScreenShareQuality.crisp.fps,
-          lessThan(ScreenShareQuality.smooth.fps));
-      expect(
-          ScreenShareQuality.balanced.fps,
-          inInclusiveRange(
-              ScreenShareQuality.crisp.fps, ScreenShareQuality.smooth.fps));
+    test('the bitrate ceiling never falls as resolution or frame rate rise',
+        () {
+      for (final r in ScreenShareResolution.values) {
+        for (final f in ScreenShareFps.values) {
+          final q = ScreenShareQuality(r, f);
+          for (final r2 in ScreenShareResolution.values) {
+            for (final f2 in ScreenShareFps.values) {
+              if (r2.index >= r.index && f2.index >= f.index) {
+                expect(ScreenShareQuality(r2, f2).maxBitrate,
+                    greaterThanOrEqualTo(q.maxBitrate));
+              }
+            }
+          }
+        }
+      }
+    });
+
+    test('the default stays 1080p30 at 2.4 Mbps', () {
+      expect(ScreenShareQuality.standard.id, '1080p30');
+      expect(ScreenShareQuality.standard.maxBitrate, 2400000);
+    });
+
+    test('an id round-trips and an unknown one is null', () {
+      for (final q in ScreenShareQuality.all) {
+        expect(ScreenShareQuality.fromId(q.id), q);
+      }
+      expect(ScreenShareQuality.fromId('crisp'), isNull);
     });
   });
 

@@ -26,37 +26,35 @@ Future<void> _openMenu(WidgetTester tester) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('the in-call menu sets watching quality on the session', (
+  testWidgets('the share menu sets resolution and frame rate, not camera', (
     tester,
   ) async {
-    final session = InertSession();
-    final container = await pumpControls(tester, _connected, session: session);
+    final container = await pumpControls(tester, _connected);
     await _openMenu(tester);
 
-    await tester.tap(find.text('Data saver').first);
+    expect(find.text('CAMERA QUALITY'), findsNothing);
+    await tester.tap(find.text('1440p'));
+    await tester.pumpAndSettle();
+    await _openMenu(tester);
+    await tester.tap(find.text('60 fps'));
     await tester.pumpAndSettle();
 
-    expect(session.lastReceiveVideoQuality, ReceiveVideoQuality.dataSaver);
     expect(
-      container.read(voiceSettingsControllerProvider).receiveVideoQuality,
-      ReceiveVideoQuality.dataSaver,
+      container.read(voiceSettingsControllerProvider).screenShareQuality.id,
+      '1440p60',
     );
   });
 
-  testWidgets('the in-call menu sets camera quality on the session', (
-    tester,
-  ) async {
-    final session = InertSession();
-    await pumpControls(tester, _connected, session: session);
-    await _openMenu(tester);
-
-    await tester.tap(find.text('High'));
-    await tester.pumpAndSettle();
-
-    expect(session.lastCameraQuality, CameraQuality.high);
+  test('stored pre-split tier names migrate to the pair they meant', () {
+    expect(screenShareQualityFromStored('smooth').id, '720p60');
+    expect(screenShareQualityFromStored('balanced').id, '1080p30');
+    expect(screenShareQualityFromStored('crisp').id, '1440p15');
+    expect(screenShareQualityFromStored('1080p60').id, '1080p60');
+    expect(screenShareQualityFromStored(null).id, '1080p30');
+    expect(screenShareQualityFromStored('junk').id, '1080p30');
   });
 
-  testWidgets('on a phone width the menu is a sheet with every group', (
+  testWidgets('on a phone width the menu is a sheet with both groups', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 900);
@@ -68,17 +66,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BottomSheet), findsOneWidget);
-    for (final heading in ['Watching quality', 'Camera quality']) {
+    for (final heading in ['Resolution', 'Frame rate']) {
       final box = tester.getRect(find.text(heading.toUpperCase()));
       expect(box.left, greaterThanOrEqualTo(0), reason: heading);
       expect(box.right, lessThanOrEqualTo(390), reason: heading);
     }
   });
 
-  testWidgets('the menu marks the saved choice in each group', (tester) async {
+  testWidgets('the menu marks the saved resolution and frame rate', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
-      'slimm.voice.receive_video_quality': 'balanced',
-      'slimm.voice.camera_quality': 'high',
       'slimm.voice.screen_share_quality': 'crisp',
     });
     final container = await pumpControls(tester, _connected);
@@ -88,12 +86,13 @@ void main() {
     await _openMenu(tester);
 
     final state = container.read(voiceSettingsControllerProvider);
-    expect(state.receiveVideoQuality, ReceiveVideoQuality.balanced);
-    expect(state.cameraQuality, CameraQuality.high);
-    expect(state.screenShareQuality, ScreenShareQuality.crisp);
+    expect(
+      state.screenShareQuality,
+      ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+    );
     // One check per group, on the saved row.
-    expect(find.byIcon(AppIcons.check), findsNWidgets(3));
-    for (final label in ['Balanced', 'High', 'Crisp']) {
+    expect(find.byIcon(AppIcons.check), findsNWidgets(2));
+    for (final label in ['1440p', '15 fps']) {
       final row = find.ancestor(
         of: find.text(label).first,
         matching: find.byType(AppMenuItem),

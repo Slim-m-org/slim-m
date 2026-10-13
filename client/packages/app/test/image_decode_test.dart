@@ -12,6 +12,7 @@ Future<int> edgeAt(
   double dpr,
   double size, {
   double minRatio = 1,
+  double oversample = 1,
 }) async {
   late int result;
   await tester.pumpWidget(
@@ -19,7 +20,12 @@ Future<int> edgeAt(
       data: MediaQueryData(devicePixelRatio: dpr),
       child: Builder(
         builder: (context) {
-          result = decodeEdge(context, size, minRatio: minRatio);
+          result = decodeEdge(
+            context,
+            size,
+            minRatio: minRatio,
+            oversample: oversample,
+          );
           return const SizedBox();
         },
       ),
@@ -57,5 +63,11 @@ void main() {
   testWidgets('a ratio already above the floor is left alone', (tester) async {
     // 3.0 reported beats a floor of 2, so the floor must not pull it down.
     expect(await edgeAt(tester, 3, 26, minRatio: 2), 78);
+  });
+
+  testWidgets('oversample multiplies the painted pixels', (tester) async {
+    // A 40px avatar at a UI scale of 1.3 paints 52px; 4x headroom decodes 208.
+    expect(await edgeAt(tester, 1.3, 40, oversample: 4), 208);
+    expect(await edgeAt(tester, 1, 26, minRatio: 2, oversample: 4), 208);
   });
 }

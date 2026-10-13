@@ -4,7 +4,9 @@
 /// Decision 0020 fixed the rule: an rpm is root-owned, so the app never
 /// replaces its own files; it asks the package manager to. `pkexec` puts
 /// the system's own polkit prompt in front of that, which is the consent
-/// step - the app never escalates silently. The package comes from the COPR
+/// step - the app never escalates silently, though an active local admin
+/// gets that step pre-approved for the upgrade command alone by the polkit
+/// rule the rpm ships. The package comes from the COPR
 /// repo `release.yml` publishes on every client release, so the first thing
 /// checked is that the repo is enabled at all; without it dnf would report
 /// "nothing to do" against a release page it cannot see.
@@ -36,6 +38,18 @@ const coprRepoId = 'copr:copr.fedorainfracloud.org:nc1107:slim-m';
 const packagedRepoId = 'slim-m';
 
 const rpmPackage = 'slim-m-client';
+
+/// The exact argv `apply` hands to pkexec for the upgrade.
+///
+/// `packaging/rpm/49-slim-m-client-update.rules` authorizes this command line
+/// without a prompt, so changing it here means changing the rule too.
+const rpmUpgradeCommand = <String>[
+  'dnf',
+  'upgrade',
+  '--refresh',
+  '-y',
+  rpmPackage,
+];
 
 /// One dnf step's outcome, kept as the last lines dnf printed so a failure
 /// can be shown in the splash verbatim rather than as "update failed".
@@ -140,13 +154,7 @@ class RpmUpdater {
     }
 
     final before = await installedVersion();
-    final upgraded = await _privileged([
-      'dnf',
-      'upgrade',
-      '--refresh',
-      '-y',
-      rpmPackage,
-    ]);
+    final upgraded = await _privileged(rpmUpgradeCommand);
     if (!upgraded.ok) return upgraded;
 
     final after = await installedVersion();

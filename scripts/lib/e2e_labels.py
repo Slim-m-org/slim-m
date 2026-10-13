@@ -77,9 +77,12 @@ INVITE_CONTINUE = "Continue"
 
 # Video quality (call_quality_options.dart, video_quality_sections.dart)
 SHARE_OPTIONS = "Screen share options"
-WATCHING_QUALITY = "Watching quality"
-DATA_SAVER = "Data saver"
-AUTO_QUALITY = "Auto"
+SHARE_RESOLUTION_HEADING = "Resolution"
+SHARE_RESOLUTION_ROW = "Screen share resolution"
+RES_1080P = "1080p"
+RES_1440P = "1440p"
+FPS_30 = "30 fps"
+FPS_60 = "60 fps"
 VOICE_PANE = "Voice & screen share"
 
 # Voice
