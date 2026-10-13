@@ -15,7 +15,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/ephemeral_messages.dart';
-import 'attachment_view.dart';
+import 'attachment_gallery.dart';
 import 'embed_card.dart';
 import 'ephemeral_report.dart';
 
@@ -171,14 +171,8 @@ class EphemeralMessageCard extends StatelessWidget {
                             ),
                           ),
                         EmbedList(embeds: message.embeds),
-                        for (final attachment in message.attachments)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.s4),
-                            child: AttachmentView(
-                              attachment: attachment,
-                              siblings: openableImages(message.attachments),
-                            ),
-                          ),
+                        if (message.attachments.isNotEmpty)
+                          MessageAttachments(attachments: message.attachments),
                       ],
                     ),
                   ),

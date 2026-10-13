@@ -83,6 +83,8 @@ class AttachmentView extends ConsumerStatefulWidget {
     super.key,
     required this.attachment,
     this.siblings = const [],
+    this.tileEdge,
+    this.moreCount = 0,
   });
 
   final api.Attachment attachment;
@@ -91,6 +93,13 @@ class AttachmentView extends ConsumerStatefulWidget {
   /// so opening one fullscreen can page to the rest. Empty for a caller with
   /// nothing to page to, which opens [attachment] alone.
   final List<api.Attachment> siblings;
+
+  /// Set by [AttachmentGallery]: an image drawn as a square tile of this edge,
+  /// cropped to fill and uncaptioned, instead of at its own aspect.
+  final double? tileEdge;
+
+  /// How many more images a gallery holds past this, its last visible tile.
+  final int moreCount;
 
   @override
   ConsumerState<AttachmentView> createState() => _AttachmentViewState();
@@ -131,6 +140,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       return AttachmentChip(attachment: attachment);
     }
 
+    final tile = widget.tileEdge;
     final autoDownload = ref.watch(mediaAutoDownloadControllerProvider);
     final gifAutoplay = ref.watch(gifAutoplayControllerProvider);
     final downloadGated =
@@ -156,7 +166,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         icon: AppIcons.image,
         line: 'Tap to load',
         caption: caption,
-        maxEdge: kInlineImageMax,
+        maxEdge: tile ?? kInlineImageMax,
         onReveal: () => setState(() => _revealed = true),
       );
     }
@@ -166,7 +176,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         .decodeScale;
     final decodeWidth = decodeEdge(
       context,
-      kInlineImageMax,
+      tile ?? kInlineImageMax,
       scale: previewScale,
     );
     final bytesAsync = ref.watch(attachmentBytesProvider(attachment.id));
@@ -188,7 +198,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
           return hoverToPlay(
             AttachmentRevealTile(
               caption: caption,
-              maxEdge: kInlineImageMax,
+              maxEdge: tile ?? kInlineImageMax,
               onReveal: () => setState(() => _revealed = true),
               // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
               showBadge: !_hovered,
@@ -242,10 +252,13 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadii.control),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: kInlineImageMax,
-                        maxHeight: kInlineImageMax,
-                      ),
+                      constraints: tile == null
+                          ? const BoxConstraints(
+                              maxWidth: kInlineImageMax,
+                              maxHeight: kInlineImageMax,
+                            )
+                          // The tile's 1px border sits outside the image, so the image gives it back.
+                          : BoxConstraints.tight(Size.square(tile - 2)),
                       // Never decodes wider than the transcript can draw it.
                       child: still
                           ? AttachmentFirstFrame(
@@ -254,7 +267,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                             )
                           : Image.memory(
                               bytes,
-                              fit: BoxFit.contain,
+                              fit: tile == null ? BoxFit.contain : BoxFit.cover,
                               semanticLabel: attachment.filename,
                               cacheWidth: decodeWidth,
                               // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
@@ -271,12 +284,14 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.s4),
-              Text(
-                caption,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
+              if (tile == null) ...[
+                const SizedBox(height: AppSpacing.s4),
+                Text(
+                  caption,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+              ],
             ],
           ),
         );
@@ -289,7 +304,16 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
               loadBytes: () =>
                   ref.read(attachmentBytesProvider(attachment.id).future),
               onFailure: setActionError,
-              child: image,
+              child: widget.moreCount > 0
+                  ? Stack(
+                      children: [
+                        image,
+                        Positioned.fill(
+                          child: _MoreOverlay(count: widget.moreCount),
+                        ),
+                      ],
+                    )
+                  : image,
             ),
             if (actionError != null) ...[
               const SizedBox(height: AppSpacing.s4),
@@ -347,6 +371,33 @@ class _FailureBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Text(message, style: TextStyle(color: tokens.textSecondary)),
+    );
+  }
+}
+
+/// "+3" over a gallery's last tile, for the images it has no room to show;
+/// the tap still opens the viewer, which pages through all of them.
+class _MoreOverlay extends StatelessWidget {
+  const _MoreOverlay({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return IgnorePointer(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: ColoredBox(
+          color: tokens.surfaceBase.withValues(alpha: 0.7),
+          child: Center(
+            child: Text(
+              '+$count',
+              style: AppText.title.copyWith(color: tokens.textPrimary),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
