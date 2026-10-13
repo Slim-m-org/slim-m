@@ -171,6 +171,14 @@ pub async fn run(c: &mut Contract) {
         json!({"join_policy": "invite"}),
     )
     .await;
+    c.bare("getJoinGate", "GET", "/space/join-gate", root).await;
+    // Left off, so nobody the rest of the pass registers waits behind it.
+    let gate = json!({"enabled": false, "rules": "be kind", "rules_channel_id": null, "joins_paused": false});
+    c.json("putJoinGate", "PUT", "/space/join-gate", root, gate)
+        .await;
+    c.bare("getSpaceRules", "GET", "/space/rules", root).await;
+    c.bare("acceptSpaceRules", "POST", "/space/rules/accept", root)
+        .await;
 
     // Off by default, exercising the `stats: null` branch before it is on.
     c.bare("getSpaceAnalytics", "GET", "/space/analytics", root)

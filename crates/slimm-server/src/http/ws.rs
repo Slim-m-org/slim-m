@@ -41,6 +41,7 @@ use permission_cache::PermissionCache;
 
 mod account_frames;
 mod authorization;
+mod authorization_bits;
 mod canvas_frames;
 mod ephemeral_frames;
 mod frames;

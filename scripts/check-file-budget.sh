@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
 # The file-size budget from CLAUDE.md: 300 lines soft, 500 lines hard.
-# Warns at 300 and fails at 500, over hand-authored source only. Files already
-# past 500 are in scripts/file-budget-allow.txt at the count they were listed
-# at, which this treats as their own ceiling.
+# Warns at 300; past 500 (or an allowlisted ceiling) it warns within $slack lines
+# and fails beyond, so a file a few lines over gets a split card, not a split mid-feature.
+# Files already past 500 are in scripts/file-budget-allow.txt at their own ceiling.
 # What is excluded and why, and why 300 does not fail, is in docs/ci.md.
 # schema/openapi.yaml is exempt outright: it is the wire contract, guarded by the
 # router contract test and the additive-only oasdiff gate, and no split helps it.
@@ -13,6 +13,7 @@ set -euo pipefail
 
 soft=300
 hard=500
+slack=60
 
 cd "$(git rev-parse --show-toplevel)"
 allowfile=scripts/file-budget-allow.txt
@@ -50,16 +51,21 @@ for f in "${files[@]}"; do
   limit=${ceiling[$f]:-}
   if [[ -n $limit ]]; then
     hit["$f"]=$n
-    if [[ $n -gt $limit ]]; then
-      echo "::error file=$f::$n lines, past the $limit it was allowlisted at; split it rather than raising the entry" >&2
+    if [[ $n -gt $((limit + slack)) ]]; then
+      echo "::error file=$f::$n lines, more than $slack past the $limit it was allowlisted at; split it" >&2
       fail=1
+    elif [[ $n -gt $limit ]]; then
+      echo "::warning file=$f::$n lines, past the $limit it was allowlisted at; file a Planka card to split it"
     fi
     continue
   fi
-  if [[ $n -gt $hard ]]; then
-    echo "::error file=$f::$n lines, over the ${hard}-line hard limit; split it in this change" >&2
+  if [[ $n -gt $((hard + slack)) ]]; then
+    echo "::error file=$f::$n lines, more than $slack over the ${hard}-line limit; split it in this change" >&2
     hard_count=$((hard_count + 1))
     fail=1
+  elif [[ $n -gt $hard ]]; then
+    echo "::warning file=$f::$n lines, over the ${hard}-line limit; file a Planka card to split it"
+    hard_count=$((hard_count + 1))
   elif [[ $n -gt $soft ]]; then
     echo "::warning file=$f::$n lines, over the ${soft}-line review budget; split it before it grows again"
     soft_count=$((soft_count + 1))

@@ -296,7 +296,7 @@ the pre-trim CLAUDE.md's own contribution rule says "a CI gate checks the Rust o
 ### The file-size budget
 
 `scripts/check-file-budget.sh` enforces the rule in `CLAUDE.md`: 300 lines soft, 500 lines hard.
-It warns at 300 and fails at 500, because 300 is the review budget rather than a limit and failing on it would fail the repository as it stands.
+It warns at 300 and past 500, and fails only more than 60 lines past 500 (or past an allowlisted file's own ceiling), because 300 is the review budget rather than a limit and a file a few lines over 500 wants a split card, not a split in the middle of a feature (owner, 2026-10-13).
 When this was written 64 files were over 300 and 14 were over 500.
 
 The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.h`, `.gradle`.

@@ -358,7 +358,7 @@ jobs:
           echo "spdx: $checked Rust files checked"
           exit $missing
 
-      # Warns at 300 and fails at 500; the reasoning is in the script header.
+      # Warns at 300 and past 500, fails only well past it; see the script header.
       - name: file size budget
         run: bash scripts/check-file-budget.sh
 

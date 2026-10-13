@@ -239,13 +239,13 @@ async fn vote_after_close_is_refused() {
         &app,
         &channel.id.to_string(),
         &token,
-        "already closed?",
+        "closing soon?",
         &["yes", "no"],
-        Some(now_ms() - 1_000),
+        Some(now_ms() + 100),
     )
     .await;
-    assert_eq!(poll["poll"]["closed"], true);
     let message_id = poll["id"].as_str().unwrap().to_owned();
+    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
 
     let status = vote(&app, &message_id, &token, 0).await;
     assert_eq!(

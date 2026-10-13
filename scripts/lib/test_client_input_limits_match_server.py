@@ -28,6 +28,7 @@ MIRRORS = {
     "searchQuery": ("limits.rs", "MAX_QUERY_CHARS"),
     "channelTopic": ("http/channel_validation.rs", "CHANNEL_TOPIC_MAX_CHARS"),
     "spaceDescription": ("store/space_landing.rs", "MAX_SPACE_DESCRIPTION_CHARS"),
+    "spaceRules": ("store/member_gate.rs", "MAX_RULES_CHARS"),
     "statusText": ("http/user_status.rs", "STATUS_TEXT_MAX_CHARS"),
     "pronouns": ("http/user_status.rs", "PRONOUNS_MAX_CHARS"),
     "about": ("http/user_status.rs", "ABOUT_MAX_CHARS"),

@@ -138,6 +138,9 @@ sealed class ServerEvent {
           // Absent and null both mean "no timeout", which is what a lift sends.
           until: decoded['until'] as int?,
         ),
+      'join_gate.changed'
+          when decoded['user_id'] == null || decoded['user_id'] is String =>
+        JoinGateChanged(userId: decoded['user_id'] as String?),
       'member.removed' when decoded['user_id'] is String => MemberRemoved(
           userId: decoded['user_id'] as String,
         ),
