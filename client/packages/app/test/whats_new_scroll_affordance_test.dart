@@ -55,7 +55,13 @@ void main() {
   });
 
   testWidgets('notes that fit show no rule', (tester) async {
-    await _open(tester, const Size(1600, 1400), 1.0, [whatsNewEntries.last]);
+    // Its own one-line entry: the newest real one grows release by release.
+    const short = WhatsNewEntry(
+      version: '0.0.1',
+      headline: 'One change',
+      points: [WhatsNewPoint('A single short line.')],
+    );
+    await _open(tester, const Size(1600, 1400), 1.0, [short]);
     expect(find.byKey(whatsNewScrollRuleKey), findsNothing);
   });
 }
