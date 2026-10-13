@@ -182,4 +182,29 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.101.1',
+    headline: 'Real numbers for video quality, and quieter Linux updates',
+    points: [
+      WhatsNewPoint(
+        'Screen share quality is a resolution and a frame rate, like 1080p at '
+        '30 fps, and camera quality is 360p, 720p or 1080p. Your old choice '
+        'carries over.',
+      ),
+      WhatsNewPoint(
+        'The share button only has screen share options now. Camera and '
+        'watching quality are in Voice settings.',
+      ),
+      WhatsNewPoint('Double-click a camera or screen share to go fullscreen.'),
+      WhatsNewPoint(
+        'On Fedora, updating slim-m stops asking for your password after this '
+        'update.',
+      ),
+      WhatsNewPoint('Avatars and icons stay sharp when the app is scaled up.'),
+      WhatsNewPoint(
+        'The channel list has a slimmer scrollbar, and people in a voice '
+        'channel line up with the channel names.',
+      ),
+    ],
+  ),
 ];

@@ -111,7 +111,7 @@ void main() {
 
     test('has every entry from all seven archives plus the live file', () {
       // Bump alongside every new entry; a move across the archive split must never change this on its own.
-      expect(whatsNewEntries.length, 75);
+      expect(whatsNewEntries.length, 76);
     });
   });
 }
