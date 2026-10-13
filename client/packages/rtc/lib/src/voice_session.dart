@@ -349,7 +349,7 @@ class VoiceSession with VoiceSessionAudioDevices {
   /// [ScreenShareControl]; this method only supplies it a room to act on.
   Future<ScreenShareOutcome> setScreenShareEnabled(
     bool enabled, {
-    ScreenShareQuality quality = ScreenShareQuality.balanced,
+    ScreenShareQuality quality = ScreenShareQuality.standard,
     String? sourceId,
     bool includeAudio = false,
     int? maxHeight,

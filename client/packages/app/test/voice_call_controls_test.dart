@@ -75,9 +75,7 @@ void main() {
   testWidgets(
     'sharing applies the quality already saved in Voice settings, asking nothing',
     (tester) async {
-      SharedPreferences.setMockInitialValues({
-        qualityKey: ScreenShareQuality.crisp.name,
-      });
+      SharedPreferences.setMockInitialValues({qualityKey: '1440p15'});
       final session = InertSession();
       final container = await pumpControls(
         tester,
@@ -91,7 +89,7 @@ void main() {
       await tester.pump();
       expect(
         container.read(voiceSettingsControllerProvider).screenShareQuality,
-        ScreenShareQuality.crisp,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
       );
 
       await tester.tap(
@@ -103,7 +101,10 @@ void main() {
       expect(find.byType(Dialog), findsNothing);
       expect(find.byType(AlertDialog), findsNothing);
       expect(session.screenShareCalls, hasLength(1));
-      expect(session.screenShareCalls.single.quality, ScreenShareQuality.crisp);
+      expect(
+        session.screenShareCalls.single.quality,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+      );
     },
   );
 

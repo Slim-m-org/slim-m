@@ -211,8 +211,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas.concurrent_edits_converge(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: closing it", lambda: e2e_canvas.close_on_both(a, b)),
-        ("voice: watching quality changes from the share menu and persists",
-         lambda: e2e_video_quality.watching_quality_from_the_share_menu(
+        ("voice: share resolution and frame rate change from the share menu and persist",
+         lambda: e2e_video_quality.share_quality_from_the_share_menu(
              a, room_id)),
         ("voice: two clients in one call", lambda: e2e_voice.join_call(
             a, b, room_id)),

@@ -12,7 +12,7 @@ void main() {
   group('the space-wide screen-share ceiling', () {
     test('leaves a tier already inside it untouched', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.smooth,
+        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60),
         null,
         isIOS: false,
         maxHeight: 2160,
@@ -20,18 +20,20 @@ void main() {
 
       expect(
         options.params.dimensions.height,
-        ScreenShareQuality.smooth.height,
+        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60)
+            .height,
       );
       expect(
         options.params.dimensions.width,
-        ScreenShareQuality.smooth.width,
+        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60)
+            .width,
       );
     });
 
     test('clamps a taller tier down to it, scaling width to match', () {
       // crisp is 2560x1440; a 720 ceiling must halve both, not just height.
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.crisp,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
         null,
         isIOS: false,
         maxHeight: 720,
@@ -43,7 +45,7 @@ void main() {
 
     test('leaves frame rate and bitrate alone: it bounds size only', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.crisp,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
         null,
         isIOS: false,
         maxHeight: 720,
@@ -51,18 +53,20 @@ void main() {
 
       expect(
         options.params.encoding!.maxFramerate,
-        ScreenShareQuality.crisp.fps,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+            .fps,
       );
       expect(
         options.params.encoding!.maxBitrate,
-        ScreenShareQuality.crisp.maxBitrate,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+            .maxBitrate,
       );
     });
 
     test('also bounds an iOS capture, not only a desktop one', () {
       // The fixed 720x1280 phone capture must itself respect a lower ceiling.
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.balanced,
+        ScreenShareQuality.standard,
         null,
         isIOS: true,
         maxHeight: 640,
@@ -73,7 +77,7 @@ void main() {
     });
 
     test('null leaves every tier exactly as it always published', () {
-      for (final quality in ScreenShareQuality.values) {
+      for (final quality in ScreenShareQuality.all) {
         final capped = ScreenShareControl.captureOptionsFor(
           quality,
           null,

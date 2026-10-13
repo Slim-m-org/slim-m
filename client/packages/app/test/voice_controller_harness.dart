@@ -331,7 +331,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<ScreenShareOutcome> setScreenShareEnabled(
     bool enabled, {
-    ScreenShareQuality quality = ScreenShareQuality.balanced,
+    ScreenShareQuality quality = ScreenShareQuality.standard,
     String? sourceId,
     bool includeAudio = false,
     int? maxHeight,

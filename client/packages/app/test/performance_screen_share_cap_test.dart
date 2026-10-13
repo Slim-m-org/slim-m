@@ -124,7 +124,7 @@ void main() {
       await tester.pumpWidget(_app(container));
       await tester.pumpAndSettle();
 
-      // 2160 ("Source") matches no tier's own height, so the copy says so rather than inventing a bitrate.
+      // 2160 ("Source") matches no resolution's own height, so the copy says so.
       expect(find.textContaining('already tops out at 1440p'), findsOneWidget);
 
       await tester.ensureVisible(find.text('720p'));
@@ -132,8 +132,6 @@ void main() {
       await tester.tap(find.text('720p'));
       await tester.pumpAndSettle();
 
-      // 720p matches ScreenShareQuality.smooth's real 2.5 Mbps ceiling.
-      expect(find.textContaining('2.5 Mbps'), findsOneWidget);
       expect(find.textContaining('1280x720'), findsOneWidget);
     },
   );

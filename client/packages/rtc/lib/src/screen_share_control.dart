@@ -319,7 +319,7 @@ class ScreenShareControl {
   /// [height] clamped to [maxHeight], scaling [width] to hold the same
   /// aspect ratio. Returns the pair unchanged whenever there is no ceiling or
   /// [height] is already inside it, so a deployment that never lowers the
-  /// ceiling below [ScreenShareQuality.crisp]'s own height publishes exactly
+  /// ceiling below [ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)]'s own height publishes exactly
   /// what it always has.
   static lk.VideoDimensions _boundedDimensions(
     int width,
