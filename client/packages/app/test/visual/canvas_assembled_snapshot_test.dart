@@ -19,6 +19,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../ui_snapshot_support.dart' show loadRealFonts;
@@ -28,6 +29,8 @@ import 'canvas_assembled_snapshot_support.dart';
 
 void main() {
   setUpAll(loadRealFonts);
+  // The canvas toolbar reads SharedPreferences, a platform channel with no host here.
+  setUp(() => SharedPreferences.setMockInitialValues(const {}));
 
   // States the scenes below never reach: registered from canvas_assembled_gap_scenarios.dart.
   registerCanvasErrorBanners();
