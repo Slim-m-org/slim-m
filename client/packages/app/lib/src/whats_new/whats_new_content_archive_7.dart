@@ -144,4 +144,29 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.100.0',
+    headline:
+        'Change your password, a landing page for invites, and video quality',
+    points: [
+      WhatsNewPoint(
+        'You can change your own password in Account & devices. It signs '
+        'out your other devices.',
+      ),
+      WhatsNewPoint(
+        'Space admins can add a banner and a short description, and people '
+        'checking an invite see them before they join.',
+      ),
+      WhatsNewPoint(
+        'Video quality lives in one place: what you watch, your camera, and '
+        'your screen share. The share button in a call has the same choices.',
+      ),
+      WhatsNewPoint(
+        'Video pauses while slim-m is minimised or in the background, and on '
+        'the desktop app while another window is in front. Turn that last '
+        'part off in Voice settings.',
+      ),
+      WhatsNewPoint('Linking Spotify on a phone tries the Spotify app first.'),
+    ],
+  ),
 ];
