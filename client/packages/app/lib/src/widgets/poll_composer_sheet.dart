@@ -32,10 +32,10 @@ const _minOptions = 2;
 const _maxOptions = 4;
 
 /// Mirrors `store::polls::MAX_QUESTION_CHARS`.
-const _maxQuestionChars = 300;
+const _maxQuestionChars = api.InputLimits.pollQuestion;
 
 /// Mirrors `store::polls::MAX_OPTION_CHARS`.
-const _maxOptionChars = 100;
+const _maxOptionChars = api.InputLimits.pollOption;
 
 /// Not `const`: [LengthLimitingTextInputFormatter] has no const constructor.
 final _questionFormatters = [

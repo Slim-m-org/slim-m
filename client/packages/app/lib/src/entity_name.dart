@@ -3,14 +3,13 @@
 /// `validate_channel_name` and `validate_category_name`.
 library;
 
-/// The server's ceiling, refused here rather than round-tripping first.
-const int entityNameMaxChars = 64;
+import 'package:slimm_api/api.dart' show InputLimits;
+import 'package:slimm_design_system/design_system.dart' show inputCharCount;
 
-/// Unicode scalar values, as the server counts them; UTF-16 units would
-/// double-count every emoji and refuse names the server accepts.
-int entityNameLength(String raw) => raw.trim().runes.length;
+/// The server's ceiling, refused here rather than round-tripping first.
+const int entityNameMaxChars = InputLimits.name;
 
 bool entityNameValid(String raw) {
-  final length = entityNameLength(raw);
+  final length = inputCharCount(raw);
   return length > 0 && length <= entityNameMaxChars;
 }

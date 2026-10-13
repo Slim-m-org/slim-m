@@ -408,7 +408,7 @@ const RESERVED_USERNAMES: [&str; 2] = ["everyone", "here"];
 /// mention or a character class a person's username could never hold.
 pub(crate) fn validate_username(username: &str) -> Result<(), ApiError> {
     let len = username.chars().count();
-    if !(1..=32).contains(&len) {
+    if !(1..=crate::limits::MAX_USERNAME_CHARS).contains(&len) {
         return Err(ApiError::BadRequest("username must be 1 to 32 characters"));
     }
     let allowed = username
@@ -437,7 +437,7 @@ const PASSWORD_LENGTH_MESSAGE: &str = "password must be 8 to 1024 characters";
 /// used to set a weaker password than registration would ever allow.
 pub(crate) fn validate_password(password: &str) -> Result<(), ApiError> {
     let len = password.chars().count();
-    if !(8..=1024).contains(&len) {
+    if !(crate::limits::MIN_PASSWORD_CHARS..=crate::limits::MAX_PASSWORD_CHARS).contains(&len) {
         return Err(ApiError::BadRequest(PASSWORD_LENGTH_MESSAGE));
     }
     Ok(())

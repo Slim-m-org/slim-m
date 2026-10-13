@@ -200,6 +200,7 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
             child: AppInput(
+              maxLength: InputLimits.message,
               controller: _noteController,
               placeholder: 'Say something about it (optional)',
               semanticLabel: 'A message to send with this forward',

@@ -97,7 +97,7 @@ void main() {
   /// Mirrors `attachment_picker_test.dart`'s own proof.
   for (final (label, expectedType) in [
     ('Choose photo', FileType.image),
-    ('Browse files', FileType.any),
+    ('Browse files', FileType.custom),
   ]) {
     testWidgets(
       'choosing $label routes to the plugin request that source names',

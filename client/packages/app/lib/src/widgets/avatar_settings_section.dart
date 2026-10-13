@@ -78,7 +78,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
       case AvatarPhotoAction.choose:
         await _pickFile(AttachmentSource.photoLibrary);
       case AvatarPhotoAction.browse:
-        await _pickFile(AttachmentSource.fileBrowser);
+        await _pickFile(AttachmentSource.stillImageFiles);
     }
   }
 

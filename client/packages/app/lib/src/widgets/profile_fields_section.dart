@@ -16,9 +16,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/providers.dart';
 import 'settings_section_header.dart';
 
-const int _pronounsMaxChars = 40;
-const int _aboutMaxChars = 190;
-
 /// Spoken names for [AppCanvasColors.cursors], in the same order.
 const _colourNames = ['Pink', 'Purple', 'Blue', 'Orange', 'Green', 'Magenta'];
 
@@ -113,6 +110,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
               ),
               const SizedBox(height: AppSpacing.s4),
               AppInput(
+                counterMax: api.InputLimits.pronouns,
                 controller: _pronouns,
                 focusNode: _pronounsFocus,
                 enabled: _seeded,
@@ -121,7 +119,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _pronounsFocus.unfocus(),
               ),
-              _counter(tokens, _pronouns.text.trim().length, _pronounsMaxChars),
               const SizedBox(height: AppSpacing.s12),
               Text(
                 'About',
@@ -129,6 +126,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
               ),
               const SizedBox(height: AppSpacing.s4),
               AppInput(
+                counterMax: api.InputLimits.about,
                 controller: _about,
                 focusNode: _aboutFocus,
                 enabled: _seeded,
@@ -137,7 +135,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _aboutFocus.unfocus(),
               ),
-              _counter(tokens, _about.text.trim().length, _aboutMaxChars),
               const SizedBox(height: AppSpacing.s12),
               Text(
                 'Profile colour',
@@ -166,16 +163,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       ],
     );
   }
-
-  Widget _counter(AppTokens tokens, int length, int max) => Align(
-    alignment: Alignment.centerRight,
-    child: Text(
-      '$length/$max',
-      style: AppText.micro.copyWith(
-        color: length > max ? tokens.dangerText : tokens.textSecondary,
-      ),
-    ),
-  );
 }
 
 class _ColorSwatch extends StatelessWidget {

@@ -131,6 +131,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
                           style: AppText.ui.copyWith(color: tokens.textPrimary),
                         )
                       : AppInput(
+                          maxLength: api.InputLimits.name,
                           controller: _name,
                           placeholder: 'Role name',
                           semanticLabel: 'Role name',

@@ -173,6 +173,7 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
               label: 'New password',
               helper: 'At least ${api.kPasswordMinChars} characters.',
               child: AppInput(
+                maxLength: api.InputLimits.password,
                 controller: _password,
                 obscureText: true,
                 autofillHints: const [AutofillHints.newPassword],
