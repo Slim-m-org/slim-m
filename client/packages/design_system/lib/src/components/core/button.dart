@@ -190,7 +190,9 @@ class _AppButtonState extends State<AppButton> {
             overflow:
                 widget.wrapLabel ? TextOverflow.clip : TextOverflow.ellipsis,
             style: metrics.textStyle.copyWith(
-                color: look.foreground, fontWeight: look.weight, height: 1),
+                color: look.foreground,
+                fontWeight: look.weight,
+                height: widget.wrapLabel ? 1.25 : 1),
           ),
         ),
       ],
@@ -215,7 +217,9 @@ class _AppButtonState extends State<AppButton> {
       height: widget.wrapLabel ? null : height,
       constraints: widget.wrapLabel ? BoxConstraints(minHeight: height) : null,
       width: widget.full ? double.infinity : null,
-      padding: EdgeInsets.symmetric(horizontal: metrics.horizontalPadding),
+      padding: EdgeInsets.symmetric(
+          horizontal: metrics.horizontalPadding,
+          vertical: widget.wrapLabel ? AppSpacing.s4 : 0),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: look.background,
