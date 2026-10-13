@@ -11,6 +11,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'ui_snapshot_fixture_thread_parent.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import 'ui_snapshot_dock.dart' show dockFixtureBody;
@@ -263,23 +264,7 @@ Future<http.Response> fixtureResponse(http.Request request) async {
     _ when path.endsWith('/read') => const {'last_read_seq': 3, 'unread': 0},
     _ when path.endsWith('/voice/roster') => const {'participants': <Object>[]},
     // A real parent with an attachment, so the thread panel's parent block renders.
-    _ when path.endsWith('/thread-parent') => const {
-      'parent_channel_id': 'c-general',
-      'parent_channel_name': 'general',
-      'parent_message_id': 'msg-thread-parent',
-      'parent_content': 'The canvas undo drops the last stroke after a reconnect.',
-      'parent_deleted': false,
-      'parent_author_id': 'user-nick',
-      'parent_author_display_name': 'Nick',
-      'parent_attachments': [
-        {
-          'id': 'att-repro',
-          'filename': 'repro-steps.pdf',
-          'content_type': 'application/pdf',
-          'size': 48213,
-        },
-      ],
-    },
+    _ when path.endsWith('/thread-parent') => fixtureThreadParent,
     _ when path.endsWith('/canvas/objects') => const {
       'objects': <Object>[],
       'has_more': false,
