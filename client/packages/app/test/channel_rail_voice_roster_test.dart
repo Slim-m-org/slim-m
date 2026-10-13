@@ -127,7 +127,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(_trailingCount(tester), '1');
+      expect(_trailingCount(tester), isNull);
       expect(find.byType(UserAvatar), findsOneWidget);
     },
   );
@@ -220,7 +220,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(_trailingCount(tester), '1');
+      expect(_trailingCount(tester), isNull);
       expect(
         rosterCalls,
         isEmpty,

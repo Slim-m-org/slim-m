@@ -40,6 +40,7 @@ JOBS=(
   "bot-ui|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_bot_ui_test.dart"
   "call-dock|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_dock_test.dart"
   "call-header|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_header_test.dart"
+  "voice-rail|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_voice_rail_test.dart"
   "canvas-tool-options|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_canvas_tool_options_test.dart"
   "canvas-tools|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_canvas_tools_test.dart"
   "db-reset-notice|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_db_reset_notice_test.dart"

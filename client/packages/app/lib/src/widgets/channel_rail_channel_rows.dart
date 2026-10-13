@@ -180,10 +180,10 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
 /// text; being in the call already has its own cue, the accented mic icon
 /// below, so it does not need to borrow this one too.
 ///
-/// The mute glyph the text row draws has no slot to take here - the
-/// participant count already holds it - so a muted voice channel reads as
-/// muted from [AppListRow.muted]'s own dimming alone. A channel that joins
-/// muted draws a mic-off glyph before the count, since a member otherwise
+/// The mute glyph the text row draws has no slot to take here, so a muted
+/// voice channel reads as muted from [AppListRow.muted]'s own dimming alone.
+/// The people are listed under the row, so it carries no participant count;
+/// a channel that joins muted draws a mic-off glyph, since a member otherwise
 /// meets that default only after joining.
 class VoiceChannelRow extends ConsumerWidget {
   const VoiceChannelRow({
@@ -201,28 +201,7 @@ class VoiceChannelRow extends ConsumerWidget {
   /// own press/hover highlight rather than beside it.
   final Widget? trailingExtra;
 
-  Widget? _trailing(AppTokens tokens, int count) {
-    final countText = count == 0
-        ? null
-        : Text(
-            '$count',
-            style: AppText.micro.copyWith(
-              color: tokens.textSecondary,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          );
-    if (!channel.joinMuted) return countText;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const RailJoinMutedGlyph(),
-        if (countText != null) ...[
-          const SizedBox(width: AppSpacing.s4),
-          countText,
-        ],
-      ],
-    );
-  }
+  Widget? _trailing() => channel.joinMuted ? const RailJoinMutedGlyph() : null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -274,7 +253,7 @@ class VoiceChannelRow extends ConsumerWidget {
             restricted: channel.restricted ?? false,
             color: iconColor,
           ),
-          trailing: _trailing(tokens, participants.length),
+          trailing: _trailing(),
           trailingExtra: trailingExtra,
           onTap: () => openVoiceChannel(
             context,
