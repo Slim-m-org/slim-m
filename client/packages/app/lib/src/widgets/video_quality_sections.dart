@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The video quality card of Voice settings: what you watch, what your camera
-/// sends, and what a screen share sends.
+/// sends, and the resolution and frame rate of a screen share.
 library;
 
 import 'package:flutter/material.dart';
@@ -48,12 +48,20 @@ class VideoQualitySection extends ConsumerWidget {
           onSelected: notifier.setCameraQuality,
         ),
         const SizedBox(height: AppSpacing.s12),
-        _QualityRow<ScreenShareQuality>(
-          label: 'Screen share',
-          values: ScreenShareQuality.values,
-          selected: settings.screenShareQuality,
-          nameOf: screenShareQualityLabel,
-          onSelected: notifier.setScreenShareQuality,
+        _QualityRow<ScreenShareResolution>(
+          label: 'Screen share resolution',
+          values: ScreenShareResolution.values,
+          selected: settings.screenShareQuality.resolution,
+          nameOf: (r) => r.label,
+          onSelected: notifier.setScreenShareResolution,
+        ),
+        const SizedBox(height: AppSpacing.s12),
+        _QualityRow<ScreenShareFps>(
+          label: 'Screen share frame rate',
+          values: ScreenShareFps.values,
+          selected: settings.screenShareQuality.frameRate,
+          nameOf: (f) => f.label,
+          onSelected: notifier.setScreenShareFps,
         ),
         // Absent, never disabled, where this platform cannot publish it; see supportsScreenShareAudio.
         if (supportsAudio) ...[

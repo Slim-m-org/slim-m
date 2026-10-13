@@ -159,7 +159,7 @@ client/packages/rtc/lib/src/media_capabilities.dart 1
 client/packages/rtc/lib/src/voice_session.dart 3
 client/packages/rtc/test/broadcast_bridge_test.dart 2
 client/packages/rtc/test/media_capabilities_test.dart 2
-client/packages/rtc/test/voice_session_test.dart 10
+client/packages/rtc/test/voice_session_test.dart 9
 client/packages/voice_canvas/benchmark/spatial_grid_benchmark.dart 1
 crates/slimm-server/src/cors.rs 4
 crates/slimm-server/src/emoji.rs 3

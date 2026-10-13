@@ -213,7 +213,7 @@ void main() {
 
     expect(find.text('Switch screen...'), findsNothing);
     expect(find.text('Stop sharing'), findsNothing);
-    expect(find.text('SCREEN SHARE QUALITY'), findsOneWidget);
+    expect(find.text('RESOLUTION'), findsOneWidget);
     expect(session.screenShareCalls, isEmpty);
   });
 
@@ -229,7 +229,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Switch screen...'), findsNothing);
-    expect(find.text('WATCHING QUALITY'), findsOneWidget);
+    expect(find.text('RESOLUTION'), findsOneWidget);
   });
 
   testWidgets('the caret menu offers Stop sharing, which stops and nothing '

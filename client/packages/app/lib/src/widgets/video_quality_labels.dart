@@ -5,12 +5,6 @@ library;
 
 import 'package:slimm_rtc/rtc.dart';
 
-String screenShareQualityLabel(ScreenShareQuality q) => switch (q) {
-  ScreenShareQuality.smooth => 'Smooth',
-  ScreenShareQuality.balanced => 'Balanced',
-  ScreenShareQuality.crisp => 'Crisp',
-};
-
 String receiveVideoQualityLabel(ReceiveVideoQuality q) => switch (q) {
   ReceiveVideoQuality.auto => 'Auto',
   ReceiveVideoQuality.balanced => 'Balanced',
@@ -18,7 +12,7 @@ String receiveVideoQualityLabel(ReceiveVideoQuality q) => switch (q) {
 };
 
 String cameraQualityLabel(CameraQuality q) => switch (q) {
-  CameraQuality.dataSaver => 'Data saver',
-  CameraQuality.balanced => 'Balanced',
-  CameraQuality.high => 'High',
+  CameraQuality.dataSaver => '360p',
+  CameraQuality.balanced => '720p',
+  CameraQuality.high => '1080p',
 };

@@ -84,7 +84,8 @@ void main() {
 
     Future<ScreenShareOutcome> start() => control.setEnabled(
           true,
-          quality: ScreenShareQuality.crisp,
+          quality: ScreenShareQuality(
+              ScreenShareResolution.p1440, ScreenShareFps.fps15),
           publish: publish,
           isSharing: () => sharing,
           onSettled: (e) {
@@ -127,7 +128,9 @@ void main() {
       expect(options!.useiOSBroadcastExtension, isTrue);
       // Frame rate, not size: size is capped on iOS so every tier shares it.
       expect(
-          options.params.encoding!.maxFramerate, ScreenShareQuality.crisp.fps,
+          options.params.encoding!.maxFramerate,
+          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+              .fps,
           reason: 'must be this call\'s quality, not a default');
     });
 
@@ -136,7 +139,8 @@ void main() {
       // Never true on iOS today, but the hand-off's plumbing must not drop it if it were.
       await control.setEnabled(
         true,
-        quality: ScreenShareQuality.crisp,
+        quality: ScreenShareQuality(
+            ScreenShareResolution.p1440, ScreenShareFps.fps15),
         includeAudio: true,
         publish: publish,
         isSharing: () => sharing,
@@ -180,7 +184,7 @@ void main() {
       final failing = ScreenShareControl(bridge);
       final outcome = await failing.setEnabled(
         true,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         publish: (enabled, o, audio) async {
           attempt++;
           if (attempt == 2) throw StateError('capture refused');
@@ -208,7 +212,7 @@ void main() {
       final direct = ScreenShareControl(bridge);
       final outcome = await direct.setEnabled(
         true,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         publish: (enabled, o, audio) async {
           calls.add((enabled, o, audio));
           sharing = true;
@@ -233,7 +237,7 @@ void main() {
 
       final stopped = await control.setEnabled(
         false,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         publish: publish,
         isSharing: () => sharing,
         onSettled: (e) => settled.add(e),
@@ -299,7 +303,7 @@ void main() {
       final control = ScreenShareControl(unsupported);
       final outcome = await control.setEnabled(
         true,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         publish: publish,
         isSharing: () => false,
         onSettled: (e) => settled.add(e),
@@ -319,7 +323,7 @@ void main() {
 
       final outcome = await control.setEnabled(
         true,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         sourceId: 'screen-1',
         publish: (enabled, o, audio) async => calls.add((enabled, o, audio)),
         isSharing: () => true,
@@ -344,7 +348,7 @@ void main() {
 
       await control.setEnabled(
         true,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         includeAudio: true,
         publish: (enabled, o, audio) async => calls.add((enabled, o, audio)),
         isSharing: () => true,
@@ -364,7 +368,7 @@ void main() {
 
       final outcome = await control.setEnabled(
         true,
-        quality: ScreenShareQuality.balanced,
+        quality: ScreenShareQuality.standard,
         publish: (enabled, o, audio) async => throw StateError('refused'),
         isSharing: () => false,
         onSettled: (e) => reported = e,
@@ -379,7 +383,7 @@ void main() {
   group('capture options', () {
     test('the chosen screen reaches LiveKit as its device id', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.balanced,
+        ScreenShareQuality.standard,
         'screen-2',
         isIOS: false,
       );
@@ -390,7 +394,7 @@ void main() {
 
     test('no source named is left unset rather than defaulted', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.balanced,
+        ScreenShareQuality.standard,
         null,
         isIOS: false,
       );
@@ -401,7 +405,7 @@ void main() {
     test('off iOS the flag is false and the real source id survives', () {
       // A desktop share names its own screen; isIOS must never clobber it.
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.balanced,
+        ScreenShareQuality.standard,
         'screen-2',
         isIOS: false,
       );
@@ -413,7 +417,7 @@ void main() {
     test('on iOS the flag is true and the device id is the broadcast hint', () {
       // Without this hint LiveKit's second pass starts its own broadcast, "already broadcasting".
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.balanced,
+        ScreenShareQuality.standard,
         null,
         isIOS: true,
       );
@@ -427,7 +431,7 @@ void main() {
     /// failed start gives. So an over-large capture is not a quality question
     /// on this platform, it is the difference between sharing and not.
     test('every iOS tier is bounded to one phone-sized capture', () {
-      for (final quality in ScreenShareQuality.values) {
+      for (final quality in ScreenShareQuality.all) {
         final options = ScreenShareControl.captureOptionsFor(
           quality,
           null,
@@ -437,7 +441,7 @@ void main() {
         expect(
           options.params.dimensions.width,
           720,
-          reason: '${quality.name} must not widen an iOS capture',
+          reason: '${quality.id} must not widen an iOS capture',
         );
         expect(options.params.dimensions.height, 1280);
       }
@@ -447,19 +451,24 @@ void main() {
     /// a control that cannot change anything, which is worse than no control.
     test('an iOS tier still decides frame rate and bitrate', () {
       final smooth = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.smooth,
+        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60),
         null,
         isIOS: true,
       );
       final crisp = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.crisp,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
         null,
         isIOS: true,
       );
 
       expect(
-          smooth.params.encoding!.maxFramerate, ScreenShareQuality.smooth.fps);
-      expect(crisp.params.encoding!.maxFramerate, ScreenShareQuality.crisp.fps);
+          smooth.params.encoding!.maxFramerate,
+          ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60)
+              .fps);
+      expect(
+          crisp.params.encoding!.maxFramerate,
+          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+              .fps);
       expect(
         smooth.params.encoding!.maxBitrate,
         isNot(crisp.params.encoding!.maxBitrate),
@@ -470,13 +479,19 @@ void main() {
     /// has no extension and no 50 MB budget.
     test('off iOS the chosen tier still sets the capture size', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality.crisp,
+        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
         'screen-1',
         isIOS: false,
       );
 
-      expect(options.params.dimensions.width, ScreenShareQuality.crisp.width);
-      expect(options.params.dimensions.height, ScreenShareQuality.crisp.height);
+      expect(
+          options.params.dimensions.width,
+          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+              .width);
+      expect(
+          options.params.dimensions.height,
+          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+              .height);
     });
   });
 }

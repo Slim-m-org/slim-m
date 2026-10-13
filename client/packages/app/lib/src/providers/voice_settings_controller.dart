@@ -77,6 +77,17 @@ Future<(ReceiveVideoQuality, CameraQuality)> loadVideoQualityPreferences(
   );
 }
 
+/// The pair a stored value names, reading the pre-split tier names too.
+ScreenShareQuality screenShareQualityFromStored(String? stored) {
+  const legacy = {
+    'smooth': '720p60',
+    'balanced': '1080p30',
+    'crisp': '1440p15',
+  };
+  return ScreenShareQuality.fromId(legacy[stored] ?? stored) ??
+      ScreenShareQuality.standard;
+}
+
 T _byName<T extends Enum>(List<T> values, String? name, T fallback) =>
     values.where((v) => v.name == name).firstOrNull ?? fallback;
 
@@ -110,7 +121,7 @@ class VoiceSettingsState {
     this.joinLeaveSoundsEnabled = true,
     this.callRingSoundEnabled = true,
     this.holdMusicEnabled = false,
-    this.screenShareQuality = ScreenShareQuality.balanced,
+    this.screenShareQuality = ScreenShareQuality.standard,
     this.receiveVideoQuality = ReceiveVideoQuality.auto,
     this.cameraQuality = CameraQuality.balanced,
     this.cameraOnJoin = false,
@@ -240,9 +251,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       joinLeaveSoundsEnabled: prefs.getBool(_soundsKey) ?? true,
       callRingSoundEnabled: prefs.getBool(_callRingSoundKey) ?? true,
       holdMusicEnabled: prefs.getBool(_holdMusicKey) ?? false,
-      screenShareQuality: ScreenShareQuality.values
-          .where((q) => q.name == storedQuality)
-          .firstOrDefault(ScreenShareQuality.balanced),
+      screenShareQuality: screenShareQualityFromStored(storedQuality),
       receiveVideoQuality: _byName(
         ReceiveVideoQuality.values,
         prefs.getString(_receiveQualityKey),
@@ -284,10 +293,19 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setBool(_holdMusicKey, enabled);
   }
 
+  Future<void> setScreenShareResolution(ScreenShareResolution r) =>
+      setScreenShareQuality(
+        ScreenShareQuality(r, state.screenShareQuality.frameRate),
+      );
+
+  Future<void> setScreenShareFps(ScreenShareFps f) => setScreenShareQuality(
+    ScreenShareQuality(state.screenShareQuality.resolution, f),
+  );
+
   Future<void> setScreenShareQuality(ScreenShareQuality quality) async {
     state = state.copyWith(screenShareQuality: quality);
     final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(_qualityKey, quality.name);
+    await prefs.setString(_qualityKey, quality.id);
   }
 
   /// Persists and applies live: a call may already be open this session.
