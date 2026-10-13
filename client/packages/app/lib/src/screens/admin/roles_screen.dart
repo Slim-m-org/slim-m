@@ -289,7 +289,8 @@ class _RoleNavState extends ConsumerState<_RoleNav>
         ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot')
         : null,
     trailingExtra: dragIndex == null
-        ? null
+        // @everyone cannot be dragged but keeps the handle's width so the member counts line up.
+        ? const SizedBox(width: AppSizes.icon16)
         : ReorderableDragStartListener(
             index: dragIndex,
             child: Icon(
