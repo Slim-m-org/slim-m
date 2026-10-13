@@ -56,14 +56,17 @@ enum LayoutClass {
 
   bool _fitsThirdPane(double width, double paneWidth) {
     if (this == LayoutClass.compact) return false;
-    const minTranscript =
-        kCompactWidth - ChannelRail.mediumWidth - AppSizes.rowPointer;
+    const minTranscript = kMinTranscriptWidth;
     final railWidth = this == LayoutClass.expanded
         ? ChannelRail.expandedWidth
         : ChannelRail.mediumWidth;
     return width - railWidth - AppSizes.rowPointer - paneWidth >= minTranscript;
   }
 }
+
+/// The narrowest the conversation gets beside a docked rail and third pane.
+const double kMinTranscriptWidth =
+    kCompactWidth - ChannelRail.mediumWidth - AppSizes.rowPointer;
 
 /// The left and right inset of the transcript, composer and everything that
 /// has to line up with the message rows.

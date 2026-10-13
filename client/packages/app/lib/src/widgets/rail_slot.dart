@@ -21,6 +21,7 @@ List<Widget> railSlot({
   required bool expanded,
   required bool canvasFullscreen,
   required double railWidth,
+  bool dragging = false,
 }) {
   final width = canvasFullscreen
       ? 0.0
@@ -30,7 +31,10 @@ List<Widget> railSlot({
   return [
     ClipRect(
       child: AnimatedContainer(
-        duration: AppMotion.reduced(context, AppMotion.base),
+        // A drag moves the edge with the pointer; only a click to narrow or widen animates.
+        duration: dragging
+            ? Duration.zero
+            : AppMotion.reduced(context, AppMotion.base),
         curve: AppMotion.entrance,
         width: width,
         child: canvasFullscreen
@@ -46,6 +50,6 @@ List<Widget> railSlot({
               ),
       ),
     ),
-    if (!canvasFullscreen) const RailDragHandle(),
+    if (!canvasFullscreen) RailDragHandle(railWidth: width),
   ];
 }

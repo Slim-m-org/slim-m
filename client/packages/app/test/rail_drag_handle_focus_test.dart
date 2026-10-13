@@ -28,7 +28,7 @@ void main() {
       ProviderScope(
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(body: RailDragHandle()),
+          home: const Scaffold(body: RailDragHandle(railWidth: 248)),
         ),
       ),
     );
