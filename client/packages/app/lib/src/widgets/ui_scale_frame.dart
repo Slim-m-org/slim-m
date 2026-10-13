@@ -6,12 +6,14 @@ library;
 import 'package:flutter/widgets.dart';
 
 /// [data] as the scaled tree should see it: every length divided by [scale],
-/// so width breakpoints and safe-area insets read the effective size.
+/// so width breakpoints and safe-area insets read the effective size, and
+/// the pixel ratio multiplied, so decode sizes follow the pixels painted.
 MediaQueryData scaleMediaQuery(MediaQueryData data, double scale) {
   if (scale == 1) return data;
   EdgeInsets shrink(EdgeInsets e) => e / scale;
   return data.copyWith(
     size: data.size / scale,
+    devicePixelRatio: data.devicePixelRatio * scale,
     padding: shrink(data.padding),
     viewPadding: shrink(data.viewPadding),
     viewInsets: shrink(data.viewInsets),
