@@ -169,4 +169,17 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       WhatsNewPoint('Linking Spotify on a phone tries the Spotify app first.'),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.101.0',
+    headline: 'A space icon',
+    points: [
+      WhatsNewPoint(
+        'Space admins can set an icon. It shows on the invite landing card '
+        'and at the top of the channel list.',
+      ),
+      WhatsNewPoint(
+        'A large banner image is shrunk to fit instead of being refused.',
+      ),
+    ],
+  ),
 ];
