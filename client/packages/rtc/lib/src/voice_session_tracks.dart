@@ -140,7 +140,11 @@ extension VoiceSessionTracks on VoiceSession {
     // Ahead of the unchanged-roster early return below: a subscription can change with no visible roster change at all.
     _applyVideoInterest();
     unawaited(
-      applyReceiveVideoQuality(remoteVideoQualityRefs(room), _receiveQuality),
+      applyReceiveVideoQuality(
+        remoteVideoQualityRefs(room),
+        _receiveQuality,
+        _loweredVideoSids,
+      ),
     );
 
     final next = snapshotParticipants(

@@ -105,6 +105,7 @@ class VoiceSession with VoiceSessionAudioDevices {
   double _speakingSensitivity = 1.0;
 
   ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
+  final _loweredVideoSids = <String>{};
   CameraQuality _cameraQuality = CameraQuality.balanced;
 
   /// Deafen, per-participant mute and per-participant gain, which are one

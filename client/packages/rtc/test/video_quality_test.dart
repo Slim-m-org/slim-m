@@ -10,8 +10,10 @@ RemoteVideoQualityRef _pub(
   lk.TrackSource source,
   List<lk.VideoQuality> asked, {
   bool subscribed = true,
+  String sid = 'TR_1',
 }) =>
     (
+      sid: sid,
       source: source,
       subscribed: subscribed,
       setQuality: (q) async => asked.add(q),
@@ -22,40 +24,86 @@ void main() {
     test('data saver caps a camera low and a share medium', () async {
       final camera = <lk.VideoQuality>[];
       final share = <lk.VideoQuality>[];
-      await applyReceiveVideoQuality([
-        _pub(lk.TrackSource.camera, camera),
-        _pub(lk.TrackSource.screenShareVideo, share),
-      ], ReceiveVideoQuality.dataSaver);
+      await applyReceiveVideoQuality(
+          [
+            _pub(lk.TrackSource.camera, camera),
+            _pub(lk.TrackSource.screenShareVideo, share, sid: 'TR_2'),
+          ],
+          ReceiveVideoQuality.dataSaver,
+          {});
       expect(camera, [lk.VideoQuality.LOW]);
       expect(share, [lk.VideoQuality.MEDIUM]);
     });
 
-    test('balanced caps a camera medium and leaves a share full', () async {
+    test('balanced caps a camera medium', () async {
       final camera = <lk.VideoQuality>[];
       final share = <lk.VideoQuality>[];
-      await applyReceiveVideoQuality([
-        _pub(lk.TrackSource.camera, camera),
-        _pub(lk.TrackSource.screenShareVideo, share),
-      ], ReceiveVideoQuality.balanced);
+      await applyReceiveVideoQuality(
+          [
+            _pub(lk.TrackSource.camera, camera),
+            _pub(lk.TrackSource.screenShareVideo, share, sid: 'TR_2'),
+          ],
+          ReceiveVideoQuality.balanced,
+          {});
       expect(camera, [lk.VideoQuality.MEDIUM]);
-      expect(share, [lk.VideoQuality.HIGH]);
+      expect(share, isEmpty);
     });
 
-    test('auto lifts any earlier cap back to the top layer', () async {
+    test('auto on a fresh publication makes no call at all', () async {
       final camera = <lk.VideoQuality>[];
-      await applyReceiveVideoQuality([
-        _pub(lk.TrackSource.camera, camera),
-      ], ReceiveVideoQuality.auto);
-      expect(camera, [lk.VideoQuality.HIGH]);
+      final share = <lk.VideoQuality>[];
+      await applyReceiveVideoQuality(
+          [
+            _pub(lk.TrackSource.camera, camera),
+            _pub(lk.TrackSource.screenShareVideo, share, sid: 'TR_2'),
+          ],
+          ReceiveVideoQuality.auto,
+          {});
+      expect(camera, isEmpty);
+      expect(share, isEmpty);
+    });
+
+    test('balanced leaves a fresh share alone, it asks for the top layer',
+        () async {
+      final share = <lk.VideoQuality>[];
+      await applyReceiveVideoQuality(
+          [
+            _pub(lk.TrackSource.screenShareVideo, share),
+          ],
+          ReceiveVideoQuality.balanced,
+          {});
+      expect(share, isEmpty);
+    });
+
+    test('auto restores HIGH once, only where this session lowered', () async {
+      final lowered = <String>{};
+      final lowCam = <lk.VideoQuality>[];
+      final untouched = <lk.VideoQuality>[];
+      final pubs = [
+        _pub(lk.TrackSource.camera, lowCam),
+        _pub(lk.TrackSource.camera, untouched, sid: 'TR_9'),
+      ];
+      await applyReceiveVideoQuality(
+        [pubs.first],
+        ReceiveVideoQuality.dataSaver,
+        lowered,
+      );
+      await applyReceiveVideoQuality(pubs, ReceiveVideoQuality.auto, lowered);
+      await applyReceiveVideoQuality(pubs, ReceiveVideoQuality.auto, lowered);
+      expect(lowCam, [lk.VideoQuality.LOW, lk.VideoQuality.HIGH]);
+      expect(untouched, isEmpty);
     });
 
     test('skips unsubscribed publications and audio sources', () async {
       final asked = <lk.VideoQuality>[];
-      await applyReceiveVideoQuality([
-        _pub(lk.TrackSource.camera, asked, subscribed: false),
-        _pub(lk.TrackSource.microphone, asked),
-        _pub(lk.TrackSource.unknown, asked),
-      ], ReceiveVideoQuality.dataSaver);
+      await applyReceiveVideoQuality(
+          [
+            _pub(lk.TrackSource.camera, asked, subscribed: false),
+            _pub(lk.TrackSource.microphone, asked),
+            _pub(lk.TrackSource.unknown, asked),
+          ],
+          ReceiveVideoQuality.dataSaver,
+          {});
       expect(asked, isEmpty);
     });
   });

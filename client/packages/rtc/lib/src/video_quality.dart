@@ -26,16 +26,15 @@ enum ReceiveVideoQuality {
   /// Shares stay one step sharper than cameras because the lowest layer of a
   /// screen is unreadable text, which defeats watching one at all.
   lk.VideoQuality layerFor({required bool screenShare}) => switch (this) {
-    auto => lk.VideoQuality.HIGH,
-    balanced =>
-      screenShare ? lk.VideoQuality.HIGH : lk.VideoQuality.MEDIUM,
-    dataSaver =>
-      screenShare ? lk.VideoQuality.MEDIUM : lk.VideoQuality.LOW,
-  };
+        auto => lk.VideoQuality.HIGH,
+        balanced => screenShare ? lk.VideoQuality.HIGH : lk.VideoQuality.MEDIUM,
+        dataSaver => screenShare ? lk.VideoQuality.MEDIUM : lk.VideoQuality.LOW,
+      };
 }
 
 /// One remote video publication reduced to what quality selection needs.
 typedef RemoteVideoQualityRef = ({
+  String sid,
   lk.TrackSource source,
   bool subscribed,
   Future<void> Function(lk.VideoQuality quality) setQuality,
@@ -44,12 +43,20 @@ typedef RemoteVideoQualityRef = ({
 /// Applies [quality] to every subscribed camera and screen share in
 /// [publications]; other sources are left to LiveKit.
 ///
+/// A publication is only touched when a layer below the top is wanted, or to
+/// undo one this session lowered ([lowered] holds those sids and is updated).
+/// An explicit quality makes LiveKit bypass its drawn-size adaptive sizing
+/// whenever layer info is missing, so Auto must never set one on a publication
+/// that was left alone; the SDK has no way to clear a preference, hence HIGH
+/// only as a restore.
+///
 /// Unsubscribed publications are skipped because LiveKit ignores a manual
 /// setting on them and logs a warning instead; the session reapplies this on
 /// every room event, so a track picks the choice up when it subscribes.
 Future<void> applyReceiveVideoQuality(
   Iterable<RemoteVideoQualityRef> publications,
   ReceiveVideoQuality quality,
+  Set<String> lowered,
 ) async {
   for (final pub in publications) {
     if (!pub.subscribed) continue;
@@ -59,7 +66,13 @@ Future<void> applyReceiveVideoQuality(
       _ => null,
     };
     if (screenShare == null) continue;
-    await pub.setQuality(quality.layerFor(screenShare: screenShare));
+    final layer = quality.layerFor(screenShare: screenShare);
+    if (layer == lk.VideoQuality.HIGH) {
+      if (!lowered.remove(pub.sid)) continue;
+    } else {
+      lowered.add(pub.sid);
+    }
+    await pub.setQuality(layer);
   }
 }
 
@@ -68,6 +81,7 @@ Iterable<RemoteVideoQualityRef> remoteVideoQualityRefs(lk.Room room) sync* {
   for (final participant in room.remoteParticipants.values) {
     for (final pub in participant.videoTrackPublications) {
       yield (
+        sid: pub.sid,
         source: pub.source,
         subscribed: pub.subscribed,
         setQuality: pub.setVideoQuality,
@@ -98,4 +112,5 @@ enum CameraQuality {
 lk.CameraCaptureOptions cameraCaptureOptionsFor(
   lk.CameraCaptureOptions base,
   CameraQuality quality,
-) => base.copyWith(params: quality.params);
+) =>
+    base.copyWith(params: quality.params);
