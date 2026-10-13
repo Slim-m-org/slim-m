@@ -9,6 +9,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
@@ -97,6 +98,7 @@ ThemeData _theme(bool dark) => dark
 
 void main() {
   setUpAll(loadRealFonts);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   const sizes = {'phone': Size(390, 844), 'desktop': Size(1400, 880)};
   for (final dark in const [true, false]) {

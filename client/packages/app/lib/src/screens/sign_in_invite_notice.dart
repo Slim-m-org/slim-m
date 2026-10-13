@@ -23,18 +23,14 @@ class InviteRequiredNotice extends ConsumerWidget {
 
   final Version version;
 
-  static const _askForCode =
-      'a member for a code, then use "Use a different Space" below to '
-      'redeem it. An admin can open joining to anyone in Settings, under Space.';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (version.claimed == false) {
       return const ServerNotice(
         icon: AppIcons.invite,
         message:
-            'This Space has no members yet. The first account becomes its '
-            'administrator, so create yours now.',
+            'This Space has no members yet, so the first account becomes its '
+            'administrator.',
       );
     }
     if (version.inviteRequired != true ||
@@ -44,10 +40,10 @@ class InviteRequiredNotice extends ConsumerWidget {
     return ServerNotice(
       icon: AppIcons.invite,
       message: version.claimed == true
-          ? 'Joining needs an invite code. Ask $_askForCode'
-          : 'Joining needs an invite code once a Space has members. '
-                'If this one is brand new, the first account you create '
-                'becomes its admin. Otherwise ask $_askForCode',
+          ? 'Joining needs an invite code. Ask a member for one, then enter '
+                'it under Use a different Space.'
+          : 'Joining may need an invite code. On a brand-new Space the first '
+                'account becomes its admin.',
     );
   }
 }

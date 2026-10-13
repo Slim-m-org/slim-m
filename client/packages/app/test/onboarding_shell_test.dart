@@ -84,6 +84,33 @@ void main() {
       }
     });
 
+    testWidgets('a pip grows with the text so its digit is never clipped', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 800),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: const Scaffold(
+              body: OnboardingStepper(current: OnboardingStep.invite),
+            ),
+          ),
+        ),
+      );
+
+      final pip = tester.getRect(
+        find.byKey(const ValueKey('onboarding_pip_1')),
+      );
+      final digit = tester.getRect(find.text('2'));
+      expect(pip.width, pip.height);
+      expect(pip.contains(digit.topLeft), isTrue);
+      expect(pip.contains(digit.bottomRight), isTrue);
+    });
+
     testWidgets('narrow keeps the numbers and drops the words it cannot fit', (
       tester,
     ) async {

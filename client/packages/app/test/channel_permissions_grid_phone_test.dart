@@ -240,6 +240,17 @@ void main() {
     expect(find.byKey(const ValueKey('grid-scroll-more')), findsNothing);
   });
 
+  test('three principals fit the padded phone grid without scrolling', () {
+    final metrics = GridMetrics.forWidth(358, columnCount: 3);
+    expect(metrics.scrolls, isFalse);
+    expect(metrics.cellWidth, greaterThanOrEqualTo(66));
+    expect(metrics.addWidth, AppSizes.rowTouch);
+    expect(
+      metrics.labelWidth + metrics.contentWidth,
+      lessThanOrEqualTo(358 + 0.5),
+    );
+  });
+
   testWidgets('many principals scroll sideways with the labels pinned and an '
       'edge hint showing', (tester) async {
     _phone(tester);
@@ -254,6 +265,12 @@ void main() {
     final labelX = tester.getTopLeft(label).dx;
     expect(find.byKey(const ValueKey('grid-scroll-more')), findsOneWidget);
     expect(find.byKey(const ValueKey('grid-scroll-back')), findsNothing);
+    final chevron = find.descendant(
+      of: find.byKey(const ValueKey('grid-scroll-more')),
+      matching: find.byIcon(AppIcons.chevronRight),
+    );
+    final firstRow = tester.getRect(find.text('Send messages'));
+    expect(tester.getCenter(chevron).dy, closeTo(firstRow.center.dy, 12));
 
     final last = _cell('member:m-sana', Perm.sendMessages);
     expect(tester.getRect(last).right, greaterThan(390));

@@ -86,6 +86,15 @@ void main() {
     expect(find.textContaining('invite only'), findsNothing);
   });
 
+  testWidgets('the notice stays short and never points a joiner at admin '
+      'settings', (tester) async {
+    await _pumpCreateForm(tester);
+
+    final text = tester.widget<Text>(find.textContaining('invite code')).data!;
+    expect(text.split(' ').length, lessThanOrEqualTo(25));
+    expect(text, isNot(contains('Settings')));
+  });
+
   testWidgets('a code redeemed this session silences the notice', (
     tester,
   ) async {

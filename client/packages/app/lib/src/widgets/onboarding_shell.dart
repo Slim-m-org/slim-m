@@ -301,12 +301,14 @@ class _Pip extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final lit = done || active;
+    final diameter = MediaQuery.textScalerOf(context).scale(20);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 20,
-          height: 20,
+          key: ValueKey('onboarding_pip_$index'),
+          width: diameter,
+          height: diameter,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -316,7 +318,11 @@ class _Pip extends StatelessWidget {
             ),
           ),
           child: done
-              ? Icon(AppIcons.check, size: 11, color: tokens.accent)
+              ? Icon(
+                  AppIcons.check,
+                  size: MediaQuery.textScalerOf(context).scale(11),
+                  color: tokens.accent,
+                )
               : Text(
                   '${index + 1}',
                   style: AppText.code.copyWith(

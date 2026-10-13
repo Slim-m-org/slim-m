@@ -45,6 +45,7 @@ class GridMetrics {
   const GridMetrics._({
     required this.labelWidth,
     required this.cellWidth,
+    required this.addWidth,
     required this.rowHeight,
     required this.headerHeight,
     required this.contentWidth,
@@ -56,28 +57,24 @@ class GridMetrics {
     final compact = width < kCompactWidth;
     final labelWidth = compact ? compactLabelWidth : wideLabelWidth;
     final viewport = (width - labelWidth).clamp(0.0, double.infinity);
-    final slots = columnCount + 1;
-    final double cellWidth;
-    if (compact) {
-      final fit = viewport / slots;
-      cellWidth = fit >= minCellWidth
-          ? fit.clamp(minCellWidth, maxCellWidth)
-          : minCellWidth;
-    } else {
-      cellWidth = wideCellWidth;
-    }
+    final addWidth = compact ? AppSizes.rowTouch : wideCellWidth;
+    final fit = (viewport - addWidth) / (columnCount == 0 ? 1 : columnCount);
+    final cellWidth = compact
+        ? fit.clamp(minCellWidth, maxCellWidth)
+        : wideCellWidth;
     return GridMetrics._(
       labelWidth: labelWidth,
       cellWidth: cellWidth,
+      addWidth: addWidth,
       rowHeight: compact ? AppSizes.rowTouch : wideRowHeight,
       headerHeight: compact ? compactHeaderHeight : wideHeaderHeight,
-      contentWidth: cellWidth * slots,
+      contentWidth: cellWidth * columnCount + addWidth,
       viewportWidth: viewport,
       compact: compact,
     );
   }
 
-  static const double compactLabelWidth = 132;
+  static const double compactLabelWidth = 112;
   static const double wideLabelWidth = 200;
   static const double minCellWidth = 60;
   static const double maxCellWidth = 96;
@@ -91,6 +88,9 @@ class GridMetrics {
 
   final double labelWidth;
   final double cellWidth;
+
+  /// The add column only holds a 44dp button, so it never takes a full cell.
+  final double addWidth;
   final double rowHeight;
   final double headerHeight;
 
@@ -100,8 +100,6 @@ class GridMetrics {
   /// Width left for those columns beside the pinned label column.
   final double viewportWidth;
 
-  /// Phone-width layout: header names take one line, since a name wrapped in
-  /// a narrow cell breaks mid-word.
   final bool compact;
 
   bool get scrolls => contentWidth > viewportWidth + 0.5;
@@ -245,7 +243,7 @@ class GridRow extends StatelessWidget {
       children: [
         for (final column in columns)
           SizedBox(width: metrics.cellWidth, child: cellBuilder(column)),
-        SizedBox(width: metrics.cellWidth),
+        SizedBox(width: metrics.addWidth),
       ],
     ),
   );

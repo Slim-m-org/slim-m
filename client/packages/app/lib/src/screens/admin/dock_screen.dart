@@ -236,6 +236,7 @@ class _DockPaneState extends ConsumerState<DockPane>
             else
               SettingsSectionCard(
                 title: catalog.sections.isEmpty ? null : 'Official modules',
+                divided: true,
                 children: [
                   for (final entry in shown)
                     DockModuleRow(

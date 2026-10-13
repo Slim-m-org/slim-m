@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/web_update/web_update_pill.dart';
+import 'package:slimm_app/src/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_app/src/web_update/web_update_watch.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -69,6 +70,19 @@ void main() {
     await h.pump(tester);
     await tester.pump();
     expect(find.text('Reload'), findsNothing);
+    await unmount(tester, h);
+  });
+
+  testWidgets('on a phone it sits below the app bar, not over its actions', (
+    tester,
+  ) async {
+    final h = _Harness()..live = 'bbb';
+    await h.pump(tester, size: const Size(390, 800));
+    await h.tick(tester);
+    expect(
+      tester.getTopLeft(find.text('Reload')).dy,
+      greaterThanOrEqualTo(CompactChannelAppBar.height),
+    );
     await unmount(tester, h);
   });
 

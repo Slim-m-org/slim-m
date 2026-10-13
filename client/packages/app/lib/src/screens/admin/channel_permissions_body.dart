@@ -115,7 +115,12 @@ class _PermissionGridViewState extends State<PermissionGridView> {
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    child: IgnorePointer(child: _EdgeHints(controller: _body)),
+                    child: IgnorePointer(
+                      child: _EdgeHints(
+                        controller: _body,
+                        rowHeight: metrics.rowHeight,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -189,9 +194,10 @@ class _PermissionGridViewState extends State<PermissionGridView> {
 
 /// Fades and a chevron on whichever side still has columns hidden.
 class _EdgeHints extends StatelessWidget {
-  const _EdgeHints({required this.controller});
+  const _EdgeHints({required this.controller, required this.rowHeight});
 
   final ScrollController controller;
+  final double rowHeight;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -203,8 +209,8 @@ class _EdgeHints extends StatelessWidget {
       final max = ready ? controller.position.maxScrollExtent : 1.0;
       return Stack(
         children: [
-          if (offset > 0.5) const _Edge(atStart: true),
-          if (offset < max - 0.5) const _Edge(atStart: false),
+          if (offset > 0.5) _Edge(atStart: true, rowHeight: rowHeight),
+          if (offset < max - 0.5) _Edge(atStart: false, rowHeight: rowHeight),
         ],
       );
     },
@@ -212,9 +218,10 @@ class _EdgeHints extends StatelessWidget {
 }
 
 class _Edge extends StatelessWidget {
-  const _Edge({required this.atStart});
+  const _Edge({required this.atStart, required this.rowHeight});
 
   final bool atStart;
+  final double rowHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -240,13 +247,21 @@ class _Edge extends StatelessWidget {
           ),
         ),
         child: Align(
-          alignment: from,
-          child: Transform.flip(
-            flipX: atStart,
-            child: Icon(
-              AppIcons.chevronRight,
-              size: AppSizes.icon16,
-              color: tokens.textSecondary,
+          alignment: atStart ? Alignment.topLeft : Alignment.topRight,
+          // Level with the first permission row, not the middle of the list.
+          child: Padding(
+            padding: EdgeInsets.only(
+              top:
+                  GridMetrics.groupHeaderHeight +
+                  (rowHeight - AppSizes.icon16) / 2,
+            ),
+            child: Transform.flip(
+              flipX: atStart,
+              child: Icon(
+                AppIcons.chevronRight,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
             ),
           ),
         ),

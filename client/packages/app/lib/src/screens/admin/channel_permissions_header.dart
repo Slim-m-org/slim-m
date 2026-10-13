@@ -57,11 +57,10 @@ class HeaderRow extends StatelessWidget {
                       HeaderCell(
                         column: column,
                         width: metrics.cellWidth,
-                        nameLines: metrics.compact ? 1 : 2,
                         onRemove: () => onRemove(column),
                       ),
                     SizedBox(
-                      width: metrics.cellWidth,
+                      width: metrics.addWidth,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.s8),
                         child: Center(
@@ -106,7 +105,7 @@ class HeaderCell extends StatelessWidget {
     return SizedBox(
       width: width,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
