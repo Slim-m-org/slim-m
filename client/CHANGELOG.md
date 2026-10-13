@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.101.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.100.0...client-v0.101.0) (2026-10-13)
+
+
+### Features
+
+* a space icon on the invite landing card and channel list, and big banners shrink instead of failing ([#2159](https://github.com/Slim-m-org/slim-m/issues/2159)) ([fc5c8d9](https://github.com/Slim-m-org/slim-m/commit/fc5c8d9a84dee774e957111a99ad6f2037275fbd))
+
 ## [0.100.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.99.0...client-v0.100.0) (2026-10-13)
 
 
