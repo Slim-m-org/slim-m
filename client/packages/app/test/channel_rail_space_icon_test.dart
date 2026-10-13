@@ -95,7 +95,7 @@ Future<void> _pumpHeader(
 }
 
 void main() {
-  testWidgets('the icon is drawn between the status dot and the name', (
+  testWidgets('the connection dot is a badge on the icon bottom-right corner', (
     tester,
   ) async {
     final setup = _setup(iconUpdatedAt: 5);
@@ -106,7 +106,10 @@ void main() {
     final dot = tester.getRect(find.byType(SpaceConnectionDot));
     final name = tester.getRect(find.text('Home'));
     expect(icon.size, const Size.square(AppSizes.icon20));
-    expect(icon.left, greaterThanOrEqualTo(dot.right));
+    expect(dot.center.dx, closeTo(icon.right - 1, 2));
+    expect(dot.center.dy, closeTo(icon.bottom - 1, 2));
+    expect(dot.size, const Size.square(SpaceConnectionDot.haloedSize));
+    expect(find.bySemanticsLabel('Connected to the server'), findsOneWidget);
     expect(name.left, icon.right + AppSpacing.s8);
     expect(icon.center.dy, closeTo(name.center.dy, 1));
   });
