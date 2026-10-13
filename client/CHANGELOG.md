@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.101.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.101.0...client-v0.101.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **client:** canvas header, first-run polish, and tidier admin screens ([#2168](https://github.com/Slim-m-org/slim-m/issues/2168)) ([ef0641a](https://github.com/Slim-m-org/slim-m/commit/ef0641a079a9194efd784befb91e9801a2658b5f))
+* quiet linux updates, call tile right-click and double-click, real quality numbers, and a tidier channel sidebar ([#2164](https://github.com/Slim-m-org/slim-m/issues/2164)) ([45fe936](https://github.com/Slim-m-org/slim-m/commit/45fe936f8f17420dfb4e07ccf4ae3680c89bea4a))
+
 ## [0.101.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.100.0...client-v0.101.0) (2026-10-13)
 
 
