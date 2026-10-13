@@ -5,7 +5,9 @@ library;
 
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/providers/voice_camera_failure.dart';
 
 import 'voice_controller_harness.dart';
 
@@ -69,5 +71,23 @@ void main() {
 
     expect(controller.state.cameraPending, isFalse);
     expect(controller.state.cameraEnabled, isFalse);
+  });
+
+  test('a camera that never opens times out and says so', () {
+    fakeAsync((async) {
+      final session = _HeldCameraSession();
+      final controller = harness.controllerWith(session, voiceApi());
+      controller.join('channel-1');
+      async.flushMicrotasks();
+
+      controller.toggleCamera();
+      async.flushMicrotasks();
+      expect(controller.state.cameraPending, isTrue);
+
+      async.elapse(cameraToggleTimeout + const Duration(seconds: 1));
+      expect(controller.state.cameraPending, isFalse);
+      expect(controller.state.cameraEnabled, isFalse);
+      expect(controller.state.error, contains('did not respond in time'));
+    });
   });
 }
