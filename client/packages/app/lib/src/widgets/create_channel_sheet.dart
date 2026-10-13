@@ -28,12 +28,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'package:slimm_api/api.dart' as api;
+
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
 import '../providers/providers.dart';
 import '../routing/routes.dart';
 import '../ids.dart';
 import 'name_entry_sheet.dart';
+import 'private_audience_picker.dart';
 import 'settings_toggle_row.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
@@ -85,6 +88,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   late String _kind = widget.initialKind;
   bool _restricted = false;
   bool _joinMuted = false;
+  final Set<String> _audience = {};
   final _createId = newChannelId();
 
   Future<VoidCallback?> _create(String name) async {
@@ -100,9 +104,35 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         );
     final store = await ref.read(storeProvider.future);
     await store.upsertChannels([created]);
+    if (_restricted) await _grantAudience(created.id);
     if (!mounted) return null;
     final router = GoRouter.of(context);
     return () => router.go(Routes.channel(created.id));
+  }
+
+  /// The channel already exists by now and a retry re-sends the same id, so a failure here leaves it usable and the sheet open to try again.
+  Future<void> _grantAudience(String channelId) async {
+    if (_audience.isEmpty) return;
+    final edits = [
+      for (final key in _audience)
+        api.ChannelOverwriteEdit(
+          kind: key.startsWith('role:')
+              ? api.OverwriteTarget.role
+              : api.OverwriteTarget.member,
+          id: key.substring(key.indexOf(':') + 1),
+          allow: Perm.viewChannel,
+        ),
+    ];
+    try {
+      await ref
+          .read(apiProvider)
+          .batchSetChannelOverwrites(channelId: channelId, overwrites: edits);
+    } on api.ApiException catch (e) {
+      throw NameEntryPartialFailure(
+        'The channel was created, but choosing who can see it failed '
+        '(${e.message}). Try again, or set it in the channel settings.',
+      );
+    }
   }
 
   @override
@@ -143,10 +173,17 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         if (canRestrict)
           SettingsToggleRow(
             label: 'Private',
-            description: 'Only you can see this channel until you add others.',
+            description: 'Only the people you pick can see this channel.',
             value: _restricted,
             onChanged: (v) => setState(() => _restricted = v),
             semanticLabel: 'Make this channel private',
+          ),
+        if (canRestrict && _restricted)
+          PrivateAudiencePicker(
+            selected: _audience,
+            onToggle: (key) => setState(() {
+              if (!_audience.remove(key)) _audience.add(key);
+            }),
           ),
         if (_kind == 'voice')
           SettingsToggleRow(
