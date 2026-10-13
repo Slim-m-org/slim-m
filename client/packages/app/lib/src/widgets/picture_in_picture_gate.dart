@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/call_mini_player.dart';
 import '../providers/picture_in_picture.dart';
-import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 
 /// The feed filling the floating window; exposed for tests.
@@ -26,7 +25,6 @@ class PictureInPictureGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(pictureInPictureHostProvider);
-    ref.watch(videoPauseHostProvider);
     final feed = ref.watch(pictureInPictureFeedProvider);
     return Stack(
       fit: StackFit.expand,

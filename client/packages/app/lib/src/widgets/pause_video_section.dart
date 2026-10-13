@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The desktop-only switch for pausing incoming video when the window loses focus,
+/// The desktop-only switch for pausing your own video preview when the window loses focus,
 /// a row in the Video quality card rather than a card of its own.
 library;
 
@@ -25,10 +25,11 @@ class PauseVideoRow extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s8),
       child: SettingsToggleRow(
-        label: 'Pause video when unfocused',
-        description: 'Stops incoming video while another window is in front.',
+        label: 'Pause my preview when unfocused',
+        description:
+            'Stops your own camera and screen preview behind other windows.',
         value: enabled,
-        semanticLabel: 'Pause video when slim-m is not focused',
+        semanticLabel: 'Pause my preview when slim-m is not focused',
         onChanged: (value) => ref
             .read(voiceSettingsControllerProvider.notifier)
             .setPauseVideoWhenUnfocused(value),

@@ -30,6 +30,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/fullscreen_video.dart';
 import 'close_behavior.dart';
 import 'desktop_window_shell.dart';
 import 'first_run_tray_notice_banner.dart';
@@ -50,6 +51,7 @@ class DesktopChrome extends ConsumerWidget {
 
     // Owned here, not by the banner: a frameless shell mounts no banner, and the title bar chip still needs the periodic check.
     ref.watch(updateWatcherProvider);
+    final videoFullscreen = ref.watch(fullscreenVideoActiveProvider);
 
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
     return Material(
@@ -62,21 +64,23 @@ class DesktopChrome extends ConsumerWidget {
             Column(
               children: [
                 // frameless is only ever set true on the Linux branch below.
-                if (DesktopWindowShell.frameless)
+                if (DesktopWindowShell.frameless && !videoFullscreen)
                   TitleBar(
                     port: DesktopWindowShell.port,
                     platform: DesktopPlatform.linux,
                     onRequestClose: DesktopWindowShell.requestClose,
                   ),
-                const FirstRunTrayNoticeBanner(),
-                // The frameless title bar carries the compact update chip instead.
-                if (!DesktopWindowShell.frameless)
-                  const UpdateAvailableBanner(),
-                const SelfUpdateFailureBanner(),
+                if (!videoFullscreen) ...[
+                  const FirstRunTrayNoticeBanner(),
+                  // The frameless title bar carries the compact update chip instead.
+                  if (!DesktopWindowShell.frameless)
+                    const UpdateAvailableBanner(),
+                  const SelfUpdateFailureBanner(),
+                ],
                 Expanded(child: child),
               ],
             ),
-            if (DesktopWindowShell.frameless)
+            if (DesktopWindowShell.frameless && !videoFullscreen)
               WindowResizeFrame(port: DesktopWindowShell.port),
           ],
         ),
