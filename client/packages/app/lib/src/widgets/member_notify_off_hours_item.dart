@@ -34,8 +34,8 @@ class MemberNotifyOffHoursItem extends ConsumerWidget {
         false;
     return AppMenuItem(
       label: allowedOffHours
-          ? 'Stop notifying me off hours for this person'
-          : 'Notify me about this person off hours',
+          ? 'Stop off-hours notifications'
+          : 'Notify me off hours',
       leading: allowedOffHours
           ? AppIcons.notificationsOff
           : AppIcons.notificationsOn,
