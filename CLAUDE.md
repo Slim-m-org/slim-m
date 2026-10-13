@@ -129,7 +129,7 @@ Never use `:memory:` for tests that depend on the multi-connection SQLite pool.
 
 `hygiene.yml` fails a PR on any of these, and each has a local script so it need not be discovered in CI:
 
-- `scripts/check-file-budget.sh` - warns at 300 lines, fails at 500. `file-budget-allow.txt` holds the exceptions.
+- `scripts/check-file-budget.sh` - warns at 300 lines, warns past 500 (or an allowlisted ceiling) and fails only more than 60 lines past it. `file-budget-allow.txt` holds the exceptions.
 - `scripts/check-comment-cap.sh` - ratchets the one-line plain-comment cap; a file may not gain a new run. `comment-cap-allow.txt` holds the pre-existing ones at their count.
 - `scripts/check-error-surface.py` - no API failure may be caught and surfaced with a SnackBar; use the persistent `AppErrorState`. This regressed back three times.
 - `scripts/check-migration-versions.py` - duplicate or mutated migrations.
@@ -258,7 +258,7 @@ Important conventions:
 - Never add AI attribution or co-author trailers.
 - Never use the em dash character; use `-`.
 - No emoji as UI chrome.
-- Keep human-authored files under 300 lines where practical; 500 is a hard ceiling. Split oversized files rather than growing them.
+- Keep human-authored files under 300 lines where practical, and 500 as the budget. A file a little past it gets a Planka card to split it, not a split mid-feature; split in the change only when it is clearly unreasonable.
 - Plain comments (`//`, `#`) are one line max. Put durable reasoning in doc comments, `docs/`, or decision records.
 - Keep functions at 7 or fewer positional parameters; use a struct/parameter object beyond that. Named Dart widget/data-class parameters are fine.
 - Published material under Nick's name must follow `~/.claude/Voice.md`: plain, hedged, anti-hype, lowercase product names, no emoji/exclamation points.
