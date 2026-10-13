@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../widgets/compact_channel_app_bar.dart';
 import 'web_page.dart';
 import 'web_update_watch.dart';
 
@@ -29,7 +30,7 @@ class WebUpdatePill extends ConsumerWidget {
 
     // Below the app bar on a narrow window, so it never covers the header's actions.
     final clearOfHeader = MediaQuery.sizeOf(context).width < kCompactWidth
-        ? kToolbarHeight
+        ? CompactChannelAppBar.height
         : 0.0;
     return SafeArea(
       child: Align(

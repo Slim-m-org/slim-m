@@ -40,7 +40,8 @@ class InviteRequiredNotice extends ConsumerWidget {
     return ServerNotice(
       icon: AppIcons.invite,
       message: version.claimed == true
-          ? 'Joining needs an invite code. Ask a member for one.'
+          ? 'Joining needs an invite code. Ask a member for one, then enter '
+                'it under Use a different Space.'
           : 'Joining may need an invite code. On a brand-new Space the first '
                 'account becomes its admin.',
     );
