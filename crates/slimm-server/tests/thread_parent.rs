@@ -306,3 +306,68 @@ async fn thread_parent_route_masks_a_thread_the_caller_cannot_view() {
         "a real thread bob cannot view must answer byte-identically to a fabricated id"
     );
 }
+
+/// The thread panel shows what the thread is about, attachments included, so
+/// the parent's attachments ride the same answer as its text.
+#[tokio::test]
+async fn thread_parent_route_carries_the_parents_attachments() {
+    let (store, _guard) = new_store("slimm-threads-parent-attachments").await;
+    let (_admin_id, admin) = register(&store, "admin").await;
+    let app = app(store.clone());
+    let channel = store.list_channels().await.unwrap()[0].id.to_string();
+    let messages = format!("/channels/{channel}/messages");
+
+    let png = b"\x89PNG\r\n\x1a\nparent-picture".to_vec();
+    let uploaded = json_body(
+        app.clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/attachments?filename=shot.png")
+                    .header("authorization", format!("Bearer {admin}"))
+                    .body(Body::from(png))
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+    )
+    .await;
+    let attachment_id = uploaded["id"].as_str().unwrap().to_owned();
+    let parent = json_body(
+        app.clone()
+            .oneshot(request(
+                "POST",
+                &messages,
+                &admin,
+                Some(json!({
+                    "id": Uuid::now_v7().to_string(),
+                    "content": "look at this",
+                    "attachment_ids": [attachment_id.clone()],
+                })),
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let parent_id = parent["id"].as_str().unwrap().to_owned();
+    let thread = open_thread(&app, &messages, &parent_id, &admin).await;
+    let thread_id = thread["id"].as_str().unwrap().to_owned();
+
+    let answer = json_body(
+        app.clone()
+            .oneshot(request(
+                "GET",
+                &format!("/channels/{thread_id}/thread-parent"),
+                &admin,
+                None,
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let attachments = answer["parent_attachments"].as_array().unwrap();
+    assert_eq!(attachments.len(), 1);
+    assert_eq!(attachments[0]["id"], attachment_id);
+    assert_eq!(attachments[0]["filename"], "shot.png");
+    assert_eq!(attachments[0]["content_type"], "image/png");
+}

@@ -13112,6 +13112,11 @@ components:
           description: Null once the parent's author account is anonymized.
         parent_author_display_name:
           type: [string, "null"]
+        parent_attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+          description: The parent message's attachments; empty for a deleted parent or no parent.
 
     ThreadListItem:
       description: >-

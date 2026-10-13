@@ -10,6 +10,8 @@
 /// flight. A hairline under it separates the original from the replies.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +23,7 @@ import '../providers/threads.dart';
 import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import '../routing/breakpoints.dart';
+import 'attachment_view.dart';
 import 'author_label.dart';
 import 'message_jump.dart';
 import 'user_avatar.dart';
@@ -119,18 +122,33 @@ class ThreadParentCard extends ConsumerWidget {
                     fontWeight: AppWeights.semi,
                   ),
                 ),
-                Text(
-                  snippet,
-                  maxLines: 8,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.body.copyWith(color: tokens.textPrimary),
-                ),
+                if (snippet.isNotEmpty)
+                  Text(
+                    snippet,
+                    maxLines: 8,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.body.copyWith(color: tokens.textPrimary),
+                  ),
+                for (final attachment in parent.parentAttachments)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.s4),
+                    child: AttachmentView(
+                      attachment: attachment,
+                      siblings: openableImages(parent.parentAttachments),
+                    ),
+                  ),
               ],
             ),
           ),
         ],
       );
-      semanticLabel = 'Thread on $name: $snippet';
+      final count = parent.parentAttachments.length;
+      final attached = switch (count) {
+        0 => '',
+        1 => ', with an attachment',
+        _ => ', with $count attachments',
+      };
+      semanticLabel = 'Thread on $name: $snippet$attached';
     }
 
     final canJump =
@@ -150,11 +168,13 @@ class ThreadParentCard extends ConsumerWidget {
 
     // The focus ring reserves its own space around a jumpable card; take it out of the padding so the avatar still lines up with the replies' gutter.
     final ringInset = onJump == null ? 0.0 : focusRingGap + focusRingWidth;
+    // The tinted block reaches past the gutter by its own padding, so the avatar inside still lines up with the replies'.
+    final blockPadding = math.min(AppSpacing.s12, gutter - ringInset);
     final padded = Padding(
       padding: EdgeInsets.fromLTRB(
-        gutter - ringInset,
+        gutter - ringInset - blockPadding,
         density.listRowGap - ringInset,
-        gutter - ringInset,
+        gutter - ringInset - blockPadding,
         0,
       ),
       child: Semantics(
@@ -163,14 +183,13 @@ class ThreadParentCard extends ConsumerWidget {
             ? '$semanticLabel, go to the original'
             : semanticLabel,
         child: ExcludeSemantics(
+          // A tinted block rather than a rule under it: the transcript's day separator is the only line between parent and replies.
           child: DecoratedBox(
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
+              color: tokens.surfaceSunken,
+              borderRadius: BorderRadius.circular(AppRadii.card),
             ),
-            child: Padding(
-              padding: EdgeInsets.only(bottom: density.listRowGap),
-              child: body,
-            ),
+            child: Padding(padding: EdgeInsets.all(blockPadding), child: body),
           ),
         ),
       ),

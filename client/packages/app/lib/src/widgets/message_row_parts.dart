@@ -124,71 +124,79 @@ class ThreadReplySummary extends ConsumerWidget {
       button: enabled,
       label: enabled ? '$described. Open thread.' : described,
       child: ExcludeSemantics(
-        child: FocusableTapTarget(
-          enabled: enabled,
-          onTap: onTap,
-          ringRadius: AppRadii.control,
-          builder: (context, focused, hovered) => DecoratedBox(
-            key: chipKey,
-            decoration: BoxDecoration(
-              color: enabled && hovered
-                  ? tokens.surfaceSunken
-                  : Colors.transparent,
-              border: Border.all(color: tokens.borderSubtle),
-              borderRadius: BorderRadius.circular(AppRadii.control),
-            ),
-            child: SizedBox(
-              height: AppSizes.controlSm,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: AppSpacing.s8,
-                  children: [
-                    Icon(AppIcons.thread, size: AppSizes.icon16, color: ink),
-                    Text(
-                      countLabel,
-                      maxLines: 1,
-                      style: AppText.caption.copyWith(
-                        color: ink,
-                        fontWeight: unread
-                            ? AppWeights.semi
-                            : AppWeights.medium,
+        // The focus ring's reserved margin would inset the chip from the message text above it.
+        child: Transform.translate(
+          offset: const Offset(-(focusRingGap + focusRingWidth), 0),
+          child: FocusableTapTarget(
+            enabled: enabled,
+            onTap: onTap,
+            ringRadius: AppRadii.control,
+            builder: (context, focused, hovered) => DecoratedBox(
+              key: chipKey,
+              decoration: BoxDecoration(
+                color: enabled && hovered
+                    ? tokens.surfaceSunken
+                    : Colors.transparent,
+                border: Border.all(color: tokens.borderSubtle),
+                borderRadius: BorderRadius.circular(AppRadii.control),
+              ),
+              child: SizedBox(
+                height: AppSizes.controlSm,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: AppSpacing.s8,
+                    children: [
+                      Icon(AppIcons.thread, size: AppSizes.icon16, color: ink),
+                      Text(
+                        countLabel,
+                        maxLines: 1,
+                        style: AppText.caption.copyWith(
+                          color: ink,
+                          fontWeight: unread
+                              ? AppWeights.semi
+                              : AppWeights.medium,
+                        ),
                       ),
-                    ),
-                    if (time != null)
-                      // Flexible, not a bare Text: an absolute date can overflow a phone-width row otherwise.
-                      Flexible(
-                        child: Text(
-                          time,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
-                            fontFamily: AppFonts.mono,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                      if (time != null)
+                        // Flexible, not a bare Text: an absolute date can overflow a phone-width row otherwise.
+                        Flexible(
+                          child: Text(
+                            'Last reply $time',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: tokens.textSecondary,
+                              fontFamily: AppFonts.mono,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    if (unread)
-                      DecoratedBox(
-                        key: unreadDotKey,
-                        decoration: BoxDecoration(
-                          color: tokens.accent,
-                          shape: BoxShape.circle,
+                      if (unread)
+                        DecoratedBox(
+                          key: unreadDotKey,
+                          decoration: BoxDecoration(
+                            color: tokens.accent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const SizedBox(
+                            width: AppSpacing.s8,
+                            height: AppSpacing.s8,
+                          ),
                         ),
-                        child: const SizedBox(
-                          width: AppSpacing.s8,
-                          height: AppSpacing.s8,
+                      if (enabled)
+                        Icon(
+                          AppIcons.chevronRight,
+                          size: AppSizes.icon16,
+                          color: tokens.textSecondary,
                         ),
-                      ),
-                    if (enabled)
-                      Icon(
-                        AppIcons.chevronRight,
-                        size: AppSizes.icon16,
-                        color: tokens.textSecondary,
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
