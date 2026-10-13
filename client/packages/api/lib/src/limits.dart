@@ -55,6 +55,9 @@ abstract final class InputLimits {
 
   /// `emoji::MAX_NAME_LEN`.
   static const int emojiName = 32;
+
+  /// `roles::ROLE_COLOR_COUNT`: how many colours the role palette holds.
+  static const int roleColors = 10;
 }
 
 /// What a username may hold, the server's own rule.

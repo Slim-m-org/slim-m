@@ -12,12 +12,11 @@ import 'package:slimm_app/src/widgets/app_drop_zone.dart';
 import 'package:slimm_app/src/widgets/image_drop_zone.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-DropItem _file(String name) =>
-    DropItemFile.fromData(
-      Uint8List.fromList([1, 2, 3]),
-      name: name,
-      path: '/tmp/drops/$name',
-    );
+DropItem _file(String name) => DropItemFile.fromData(
+  Uint8List.fromList([1, 2, 3]),
+  name: name,
+  path: '/tmp/drops/$name',
+);
 
 void main() {
   test(

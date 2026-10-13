@@ -4,7 +4,7 @@
 
 /// Longest Space name, in characters. Enforced in Rust so it can move without
 /// a migration.
-pub const MAX_SPACE_NAME_CHARS: usize = 64;
+pub const MAX_SPACE_NAME_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 
 use super::Store;
 

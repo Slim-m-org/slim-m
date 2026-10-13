@@ -4,18 +4,14 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiSpace;
+import 'package:slimm_api/api.dart' show InputLimits, SlimmApiSpace;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
 import 'channel_rail_frame.dart' show serverInfoProvider;
 import 'join_policy_row.dart';
 import 'run_guarded.dart';
-
-/// Matches the server's cap on a Space name.
-const int kSpaceNameMaxChars = 64;
 
 class SpaceNameField extends ConsumerStatefulWidget {
   const SpaceNameField({super.key, required this.saved});
@@ -75,9 +71,7 @@ class _SpaceNameFieldState extends ConsumerState<SpaceNameField>
                 placeholder: 'Space name',
                 semanticLabel: 'Space name',
                 enabled: !_busy,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(kSpaceNameMaxChars),
-                ],
+                maxLength: InputLimits.name,
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => changed ? _save() : null,
               ),

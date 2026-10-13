@@ -37,6 +37,7 @@ MIRRORS = {
     "pollQuestion": ("store/polls.rs", "MAX_QUESTION_CHARS"),
     "pollOption": ("store/polls.rs", "MAX_OPTION_CHARS"),
     "emojiName": ("emoji.rs", "MAX_NAME_LEN"),
+    "roleColors": ("store/roles.rs", "ROLE_COLOR_COUNT"),
 }
 
 DART_LIMIT = re.compile(r"static const int (\w+) = (\d+);")

@@ -114,10 +114,6 @@ void main() {
     expect(roleColor('r1', color: 6), rolePalette[6].color);
     expect(roleColor('r1', color: 42), roleColor('r1'));
     expect(roleColor('r1', color: -1), roleColor('r1'));
-    expect(
-      rolePalette,
-      hasLength(10),
-      reason: "matches the server's ROLE_COLOR_COUNT",
-    );
+    expect(rolePalette, hasLength(api.InputLimits.roleColors));
   });
 }

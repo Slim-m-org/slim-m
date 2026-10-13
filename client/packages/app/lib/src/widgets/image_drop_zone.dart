@@ -12,9 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'app_drop_zone.dart';
-
-/// The picture types every surface accepts as a still image.
-const stillImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+import 'attachment_picker.dart' show stillImageExtensions;
 
 const _refusal = 'Drop one PNG, JPEG or WebP picture.';
 
