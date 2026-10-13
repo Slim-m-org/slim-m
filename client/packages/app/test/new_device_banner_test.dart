@@ -152,7 +152,7 @@ void main() {
     await _emit(tester, harness);
 
     final line = find.textContaining('New sign-in:');
-    final text = tester.widget<Text>(line).data!;
+    final text = tester.widget<Text>(line).textSpan!.toPlainText();
     expect(text, isNot(matches(RegExp(r'\d{4}-\d{2}-\d{2}'))));
     final time = RegExp(r'\d{1,2}:\d{2}\u00A0[AP]M').firstMatch(text)!;
 
@@ -203,5 +203,35 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+  }
+
+  for (final (width, inline) in [(1280.0, true), (390.0, false)]) {
+    testWidgets('at ${width.toInt()} wide the answers sit '
+        '${inline ? 'beside' : 'under'} the message', (tester) async {
+      tester.view.physicalSize = Size(width, 300);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: const Scaffold(
+              body: Align(
+                alignment: Alignment.topCenter,
+                child: NewDeviceSignInBanner(alert: _signIn),
+              ),
+            ),
+          ),
+        ),
+      );
+      final message = tester.getRect(find.textContaining('New sign-in:'));
+      final answer = tester.getRect(find.text("This wasn't me"));
+      if (inline) {
+        expect(answer.left, greaterThan(message.right));
+        expect(answer.top, lessThan(message.bottom));
+      } else {
+        expect(answer.top, greaterThanOrEqualTo(message.bottom));
+      }
+    });
   }
 }

@@ -58,40 +58,71 @@ class NewDeviceSignInBanner extends ConsumerWidget {
       use24Hour: watchUse24Hour(ref, context),
     );
     final controller = ref.read(newDeviceAlertProvider.notifier);
-    return AppCallout(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final message = Text.rich(
+      TextSpan(
         children: [
-          Text(
-            'New sign-in: ${newDeviceLabel(alert)} signed in to your account '
-            '$when.',
+          const TextSpan(
+            text: 'New sign-in: ',
+            style: TextStyle(fontWeight: AppWeights.semi),
           ),
-          Wrap(
-            spacing: AppSpacing.s8,
-            children: [
-              AppButton(
-                label: "This wasn't me",
-                variant: AppButtonVariant.danger,
-                size: AppButtonSize.sm,
-                onPressed: () {
-                  controller.dismiss();
-                  context.push(Routes.personalSettingsPane(accountDevicesPane));
-                },
-              ),
-              AppButton(
-                label: 'This was me',
-                variant: AppButtonVariant.ghost,
-                size: AppButtonSize.sm,
-                onPressed: controller.dismiss,
-              ),
-            ],
+          TextSpan(
+            text: '${newDeviceLabel(alert)} signed in to your account $when.',
+            style: TextStyle(color: tokens.textPrimary),
           ),
         ],
       ),
     );
+    final actions = Wrap(
+      spacing: AppSpacing.s8,
+      runSpacing: AppSpacing.s8,
+      children: [
+        AppButton(
+          label: "This wasn't me",
+          variant: AppButtonVariant.danger,
+          size: AppButtonSize.sm,
+          onPressed: () {
+            controller.dismiss();
+            context.push(Routes.personalSettingsPane(accountDevicesPane));
+          },
+        ),
+        AppButton(
+          label: 'This was me',
+          variant: AppButtonVariant.secondary,
+          size: AppButtonSize.sm,
+          onPressed: controller.dismiss,
+        ),
+      ],
+    );
+    return AppCallout(
+      // One line with the answers beside it when it fits, the update banner's shape; stacked when it does not.
+      child: LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth >= _inlineWidth
+            ? Row(
+                // Top-aligned, so the first line meets the callout's icon, which sits at the top too.
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: message),
+                  const SizedBox(width: AppSpacing.s12),
+                  actions,
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  message,
+                  const SizedBox(height: AppSpacing.s8),
+                  actions,
+                ],
+              ),
+      ),
+    );
   }
 }
+
+/// Below this the message and its two answers stop fitting on one line.
+const double _inlineWidth = 640;
 
 /// "today at 9:25 PM", "yesterday at ...", or "on September 30 at ...": the
 /// day wording the transcript's dividers use, with the user's clock choice.
