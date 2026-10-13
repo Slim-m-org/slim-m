@@ -67,8 +67,7 @@ class ServerSafetyNotice extends StatelessWidget {
       icon: AppIcons.unknown,
       message:
           'This server is too old to say whether it offers reporting and '
-          'blocking. You can still join, but check with whoever runs it '
-          'before you rely on either.',
+          'blocking.',
     ),
     SafetyTools.missing => ServerNotice(
       icon: AppIcons.shieldOff,
@@ -86,6 +85,5 @@ String _missingMessage(List<String> missing) {
     ['block'] => 'block anyone',
     _ => 'use its safety tools',
   };
-  return 'This server offers no way to $lacks. If someone here harasses you, '
-      'the app has nothing to do about it. You can still join.';
+  return 'This server offers no way to $lacks, but you can still join.';
 }

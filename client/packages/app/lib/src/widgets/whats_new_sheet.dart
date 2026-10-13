@@ -18,6 +18,7 @@ import 'release_notes_entry.dart';
 /// directly rather than inferring the fix from a screenshot - the same
 /// technique `pinnedMessagesBodyBoxKey` uses.
 const whatsNewBodyBoxKey = Key('whats_new_body_box');
+const whatsNewScrollRuleKey = Key('whats_new_scroll_rule');
 
 /// The most of the window the body may take, and the most it may take at all.
 ///
@@ -108,15 +109,18 @@ class _NotesSheet extends StatelessWidget {
                   color: tokens.accent,
                 ),
                 const SizedBox(width: AppSpacing.s8),
-                Text(
-                  title,
-                  style: AppText.heading.copyWith(color: tokens.textPrimary),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: AppText.heading.copyWith(color: tokens.textPrimary),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
             Flexible(
-              child: SingleChildScrollView(
+              child: _ScrollWithEdge(
+                borderColor: tokens.borderSubtle,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -133,7 +137,7 @@ class _NotesSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.s16),
+            const SizedBox(height: AppSpacing.s12),
             AppButton(
               label: buttonLabel,
               variant: AppButtonVariant.primary,
@@ -143,6 +147,68 @@ class _NotesSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A scrolling body that shows its scrollbar and a rule above the pinned action while more waits below.
+class _ScrollWithEdge extends StatefulWidget {
+  const _ScrollWithEdge({required this.child, required this.borderColor});
+
+  final Widget child;
+  final Color borderColor;
+
+  @override
+  State<_ScrollWithEdge> createState() => _ScrollWithEdgeState();
+}
+
+class _ScrollWithEdgeState extends State<_ScrollWithEdge> {
+  final _controller = ScrollController();
+  bool _moreBelow = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool _update(ScrollMetrics m) {
+    final more = m.extentAfter > 1;
+    if (more != _moreBelow) setState(() => _moreBelow = more);
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: NotificationListener<ScrollMetricsNotification>(
+            onNotification: (n) => _update(n.metrics),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (n) => _update(n.metrics),
+              child: Scrollbar(
+                controller: _controller,
+                thumbVisibility: _moreBelow,
+                child: SingleChildScrollView(
+                  controller: _controller,
+                  child: widget.child,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_moreBelow) ...[
+          const SizedBox(height: AppSpacing.s8),
+          Divider(
+            key: whatsNewScrollRuleKey,
+            height: 1,
+            thickness: 1,
+            color: widget.borderColor,
+          ),
+        ],
+      ],
     );
   }
 }

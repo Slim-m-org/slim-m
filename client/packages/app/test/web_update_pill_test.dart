@@ -72,6 +72,19 @@ void main() {
     await unmount(tester, h);
   });
 
+  testWidgets('on a phone it sits below the app bar, not over its actions', (
+    tester,
+  ) async {
+    final h = _Harness()..live = 'bbb';
+    await h.pump(tester, size: const Size(390, 800));
+    await h.tick(tester);
+    expect(
+      tester.getTopLeft(find.text('Reload')).dy,
+      greaterThanOrEqualTo(kToolbarHeight),
+    );
+    await unmount(tester, h);
+  });
+
   testWidgets('appears when a poll reports a different build', (tester) async {
     final h = _Harness();
     await h.pump(tester);

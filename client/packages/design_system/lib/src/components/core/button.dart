@@ -112,6 +112,7 @@ class AppButton extends StatefulWidget {
     this.size = AppButtonSize.md,
     this.icon,
     this.full = false,
+    this.wrapLabel = false,
     this.disabled = false,
     this.busy = false,
     this.touch,
@@ -128,6 +129,10 @@ class AppButton extends StatefulWidget {
   /// Fills the width the parent gives it, for a form's or a sheet's one
   /// full-width action.
   final bool full;
+
+  /// Lets a long label take more lines, growing the button, instead of
+  /// ellipsizing; for a text-link action whose words matter at large scale.
+  final bool wrapLabel;
 
   /// Independent of [onPressed], matching the source design: a button keeps
   /// its real handler (a save action a caller re-enables once a form becomes
@@ -180,10 +185,14 @@ class _AppButtonState extends State<AppButton> {
         Flexible(
           child: Text(
             widget.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: widget.wrapLabel ? null : 1,
+            textAlign: TextAlign.center,
+            overflow:
+                widget.wrapLabel ? TextOverflow.clip : TextOverflow.ellipsis,
             style: metrics.textStyle.copyWith(
-                color: look.foreground, fontWeight: look.weight, height: 1),
+                color: look.foreground,
+                fontWeight: look.weight,
+                height: widget.wrapLabel ? 1.25 : 1),
           ),
         ),
       ],
@@ -205,9 +214,12 @@ class _AppButtonState extends State<AppButton> {
     );
 
     final button = Container(
-      height: height,
+      height: widget.wrapLabel ? null : height,
+      constraints: widget.wrapLabel ? BoxConstraints(minHeight: height) : null,
       width: widget.full ? double.infinity : null,
-      padding: EdgeInsets.symmetric(horizontal: metrics.horizontalPadding),
+      padding: EdgeInsets.symmetric(
+          horizontal: metrics.horizontalPadding,
+          vertical: widget.wrapLabel ? AppSpacing.s4 : 0),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: look.background,

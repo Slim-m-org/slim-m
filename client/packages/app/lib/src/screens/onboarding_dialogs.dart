@@ -264,6 +264,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
             AppInput(
               controller: _server,
               placeholder: 'https://chat.example',
+              mono: true,
               keyboardType: TextInputType.url,
               semanticLabel: 'Server',
               onChanged: _absorbPastedLink,
@@ -390,6 +391,7 @@ class ManualServerDialogState extends State<ManualServerDialog> {
           AppInput(
             controller: _server,
             placeholder: 'https://chat.example',
+            mono: true,
             autofocus: true,
             keyboardType: TextInputType.url,
             semanticLabel: 'Server address',

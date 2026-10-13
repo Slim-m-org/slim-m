@@ -2,8 +2,9 @@
 /// The pill that says a newer web build is live (see `web_update_watch.dart`).
 ///
 /// Mounted once by `appChromeBuilder`, outside the routed tree, top-centre at
-/// every width: bottom-left is the account and voice panel in a wide window,
-/// bottom-right is the toasts', and the bottom of a phone is the composer.
+/// every width (below the app bar on a narrow window): bottom-left is the
+/// account and voice panel in a wide window, bottom-right is the toasts', and
+/// the bottom of a phone is the composer.
 /// Reload is the only thing that reloads, and dismissing hides it until a
 /// newer build than the one dismissed appears.
 library;
@@ -26,11 +27,17 @@ class WebUpdatePill extends ConsumerWidget {
     ref.watch(webUpdateWatcherProvider);
     if (!ref.watch(webUpdateAvailableProvider)) return const SizedBox.shrink();
 
+    // Below the app bar on a narrow window, so it never covers the header's actions.
+    final clearOfHeader = MediaQuery.sizeOf(context).width < kCompactWidth
+        ? kToolbarHeight
+        : 0.0;
     return SafeArea(
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s16),
+          padding: EdgeInsets.all(
+            AppSpacing.s16,
+          ).copyWith(top: AppSpacing.s16 + clearOfHeader),
           child: _Pill(
             onReload: onReload,
             onDismiss: () =>

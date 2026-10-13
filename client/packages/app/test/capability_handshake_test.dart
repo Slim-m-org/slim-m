@@ -91,8 +91,8 @@ void main() {
     expect(text, contains('block anyone'));
     expect(
       text,
-      contains('harasses you'),
-      reason: 'a list of missing feature names tells someone nothing',
+      contains('but you can still join'),
+      reason: 'the notice informs; it never blocks',
     );
   });
 

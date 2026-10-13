@@ -43,12 +43,14 @@ class SignInAlternatives extends StatelessWidget {
             ? 'I already have an account'
             : 'Create an account instead',
         variant: AppButtonVariant.ghost,
+        wrapLabel: true,
         disabled: busy,
         onPressed: onToggleCreating,
       ),
       AppButton(
         label: 'Use a different Space',
         variant: AppButtonVariant.ghost,
+        wrapLabel: true,
         disabled: busy,
         onPressed: onUseDifferentSpace,
       ),

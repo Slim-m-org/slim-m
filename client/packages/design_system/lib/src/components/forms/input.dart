@@ -153,7 +153,8 @@ class _AppInputState extends State<AppInput> {
                 : tokens.borderStrong;
 
     final field = Container(
-      height: _multiline ? null : _height,
+      // A floor, not a fixed height: at a large text scale the line outgrows 38.
+      constraints: _multiline ? null : BoxConstraints(minHeight: _height),
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.s12,
         vertical: _multiline ? AppSpacing.s8 : 0,
