@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
+import 'image_decode.dart';
 
 /// Keyed by when the icon was set, so a replacement is fetched afresh.
 final spaceIconBytesProvider = FutureProvider.autoDispose
@@ -31,9 +32,22 @@ class SpaceIcon extends ConsumerWidget {
     final at = updatedAt;
     if (at == null) return const SizedBox.shrink();
     final bytes = ref.watch(spaceIconBytesProvider(at)).valueOrNull;
+    final edge = decodeEdge(context, size, minRatio: 2, oversample: 3);
     return SpaceIconFrame(
       size: size,
-      child: bytes == null ? null : Image.memory(bytes, fit: BoxFit.cover),
+      child: bytes == null
+          ? null
+          : Image(
+              // Decoded near the painted size, as an avatar is; drawn straight from the source it aliased on a scaled desktop.
+              image: ResizeImage(
+                MemoryImage(bytes),
+                width: edge,
+                height: edge,
+                policy: ResizeImagePolicy.fit,
+              ),
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.medium,
+            ),
     );
   }
 }
