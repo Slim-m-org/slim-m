@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/screens/canvas/canvas_dock_tools.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -27,7 +28,12 @@ void main() {
           canvas: buildCanvasDockData(tool: tool),
         );
 
-        await tester.tap(find.byIcon(AppIcons.chevronDown));
+        await tester.tap(
+          find.descendant(
+            of: find.byType(CanvasDockToolsRow),
+            matching: find.byIcon(AppIcons.chevronDown),
+          ),
+        );
         await tester.pumpAndSettle();
 
         final dockTop = tester.getTopLeft(find.byType(FloatingDockCard)).dy;

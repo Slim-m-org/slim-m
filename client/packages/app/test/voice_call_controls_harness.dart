@@ -27,6 +27,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 /// Mirrors `voice_settings_controller.dart`'s own private key: that file's
 /// `VoiceSettingsController` is the real one under test here too, loaded from
 /// `SharedPreferences` exactly as it is in the app, rather than swapped for a
@@ -35,7 +37,7 @@ const qualityKey = 'slimm.voice.screen_share_quality';
 
 /// The controls take their [VoiceState] as a parameter, so the session behind
 /// the controller never has to reach any of these states itself.
-class InertSession implements VoiceSession {
+class InertSession with VideoQualityRecorder implements VoiceSession {
   InertSession({
     bool needsSource = false,
     Future<List<ScreenShareSource>>? sources,

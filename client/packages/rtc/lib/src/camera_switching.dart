@@ -122,11 +122,12 @@ class CameraSwitching {
   /// attempt: it is an extra round trip that only the error message needs.
   Future<CameraToggleResult> setEnabled(
     lk.LocalParticipant? local,
-    bool enabled,
-  ) async {
+    bool enabled, {
+    lk.CameraCaptureOptions? options,
+  }) async {
     if (local == null) return const CameraToggleResult.ok();
     try {
-      await local.setCameraEnabled(enabled);
+      await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
     } catch (e) {
       if (!enabled) return CameraToggleResult.failed(e, null);

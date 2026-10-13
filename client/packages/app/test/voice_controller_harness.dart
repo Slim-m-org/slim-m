@@ -22,6 +22,8 @@ import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 const tokens = TokenPair(
   userId: 'user-1',
   accessToken: 'access',
@@ -33,7 +35,7 @@ const tokens = TokenPair(
 ///
 /// Implemented rather than subclassed so that adding a method to the real
 /// session is a compile error here, not a silently untested path.
-class FakeSession implements VoiceSession {
+class FakeSession with VideoQualityRecorder implements VoiceSession {
   FakeSession({
     this.joinOutcome = VoiceSessionState.connected,
     this.microphoneGranted = true,

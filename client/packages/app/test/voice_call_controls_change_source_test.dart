@@ -199,8 +199,8 @@ void main() {
     },
   );
 
-  testWidgets('with no source to switch between there is no caret and no '
-      'long press', (tester) async {
+  testWidgets('with no source to switch between the menu offers no switch '
+      'or stop, only quality', (tester) async {
     final session = InertSession();
     await pumpControls(
       tester,
@@ -208,15 +208,16 @@ void main() {
       session: session,
     );
 
-    expect(find.byTooltip(_caretLabel), findsNothing);
-    await tester.longPress(find.byTooltip(RegExp(r'Stop sharing')));
+    await tester.tap(find.byTooltip(_caretLabel));
     await tester.pumpAndSettle();
 
     expect(find.text('Switch screen...'), findsNothing);
+    expect(find.text('Stop sharing'), findsNothing);
+    expect(find.text('SCREEN SHARE QUALITY'), findsOneWidget);
     expect(session.screenShareCalls, isEmpty);
   });
 
-  testWidgets('not sharing shows no caret even where sources exist', (
+  testWidgets('not sharing, the caret offers quality and never a switch', (
     tester,
   ) async {
     await pumpControls(
@@ -224,7 +225,11 @@ void main() {
       const VoiceFlags(state: VoiceSessionState.connected),
       session: InertSession(needsSource: true, sources: Future.value(_sources)),
     );
-    expect(find.byTooltip(_caretLabel), findsNothing);
+    await tester.tap(find.byTooltip(_caretLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Switch screen...'), findsNothing);
+    expect(find.text('WATCHING QUALITY'), findsOneWidget);
   });
 
   testWidgets('the caret menu offers Stop sharing, which stops and nothing '

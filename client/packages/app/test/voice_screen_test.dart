@@ -22,6 +22,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 const _tokens = TokenPair(
   userId: 'user-1',
   accessToken: 'access',
@@ -34,7 +36,7 @@ const _tokens = TokenPair(
 /// [connectedParticipants], when given, is what the camera-preview tests use
 /// instead: `join` reports connected with exactly that roster, the same
 /// shape a real SFU handshake would report.
-class _NoopSession implements VoiceSession {
+class _NoopSession with VideoQualityRecorder implements VoiceSession {
   _NoopSession({this.connectedParticipants});
 
   final List<VoiceParticipant>? connectedParticipants;

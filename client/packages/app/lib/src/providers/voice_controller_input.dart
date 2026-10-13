@@ -29,6 +29,22 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     _inputSession.setSpeakingSensitivity(sensitivityPercent / 100);
   }
 
+  /// Seeds the session's video quality choices at launch, for the same
+  /// reason as [restoreVoiceActivitySensitivity].
+  Future<void> restoreVideoQuality() async {
+    final (receive, camera) = await loadVideoQualityPreferences(_inputRef);
+    setReceiveVideoQuality(receive);
+    setCameraQuality(camera);
+  }
+
+  /// Caps how sharp the video you watch is, live in a call.
+  void setReceiveVideoQuality(ReceiveVideoQuality quality) =>
+      _inputSession.setReceiveVideoQuality(quality);
+
+  /// Sets how sharp your camera publishes, from its next start.
+  void setCameraQuality(CameraQuality quality) =>
+      _inputSession.setCameraQuality(quality);
+
   /// Whether push-to-talk is on, kept on the controller so
   /// [VoiceController.join] can start the microphone closed without reaching
   /// into another provider on the hot path. Voice Settings pushes changes

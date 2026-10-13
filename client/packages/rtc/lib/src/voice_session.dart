@@ -34,6 +34,7 @@ import 'screen_share.dart';
 import 'screen_share_control.dart';
 import 'screen_share_view.dart';
 import 'voice_disconnect_reason.dart';
+import 'video_quality.dart';
 import 'video_subscription_culler.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
@@ -103,6 +104,10 @@ class VoiceSession with VoiceSessionAudioDevices {
   /// before that setting existed.
   double _speakingSensitivity = 1.0;
 
+  ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
+  final _loweredVideoSids = <String>{};
+  CameraQuality _cameraQuality = CameraQuality.balanced;
+
   /// Deafen, per-participant mute and per-participant gain, which are one
   /// listener's own business and never reach the room; see [LocalAudioState].
   final LocalAudioState _audio = LocalAudioState();
@@ -168,6 +173,17 @@ class VoiceSession with VoiceSessionAudioDevices {
     _speakingSensitivity = sensitivity.clamp(0.0, 1.0);
     _refreshParticipants();
   }
+
+  /// Caps the sharpness of the remote video you watch; live mid-call, and
+  /// kept for the next join.
+  void setReceiveVideoQuality(ReceiveVideoQuality quality) {
+    _receiveQuality = quality;
+    _refreshParticipants();
+  }
+
+  /// How sharp your camera publishes. Takes effect the next time the camera
+  /// turns on, because capture parameters cannot change on a live track.
+  void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
 
   /// Why the last attempt failed, when [state] is [VoiceSessionState.failed].
   Object? get lastError => _lastError;

@@ -19,8 +19,8 @@ import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/media_capability_section.dart';
-import '../widgets/pause_video_section.dart';
 import '../widgets/settings_section_header.dart';
+import '../widgets/video_quality_sections.dart';
 import '../widgets/settings_toggle_row.dart';
 
 /// Everything about a call this device controls, as a pane body.
@@ -37,8 +37,7 @@ class VoiceSettingsBody extends StatelessWidget {
     children: [
       _MicrophoneSection(),
       _DevicesSection(),
-      _ScreenShareSection(),
-      PauseVideoSection(),
+      VideoQualitySection(),
       _SoundsSection(),
     ],
   );
@@ -210,59 +209,6 @@ class _DevicesSection extends StatelessWidget {
       ],
     );
   }
-}
-
-class _ScreenShareSection extends ConsumerWidget {
-  const _ScreenShareSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(voiceSettingsControllerProvider);
-    final index = ScreenShareQuality.values.indexOf(
-      settings.screenShareQuality,
-    );
-    // A plain getter, not provider state, so `ref.read` rather than `ref.watch`.
-    final supportsAudio = ref
-        .read(voiceControllerProvider.notifier)
-        .supportsScreenShareAudio;
-
-    return SettingsSectionCard(
-      title: 'Screen share quality',
-      description: 'A cap on resolution and frame rate, to protect call audio.',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppSegmentedControl.inline(
-          semanticLabel: 'Screen share quality',
-          options: [
-            for (final quality in ScreenShareQuality.values)
-              AppSegmentedOption(label: _label(quality)),
-          ],
-          selectedIndex: index < 0 ? 1 : index,
-          onSegmentSelected: (i) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setScreenShareQuality(ScreenShareQuality.values[i]),
-        ),
-        // Absent, never disabled, where this platform cannot publish it; see supportsScreenShareAudio.
-        if (supportsAudio) ...[
-          const SizedBox(height: AppSpacing.s8),
-          SettingsToggleRow(
-            label: 'Share device audio',
-            value: settings.screenShareIncludeAudio,
-            semanticLabel: 'Share audio with a screen share',
-            onChanged: (value) => ref
-                .read(voiceSettingsControllerProvider.notifier)
-                .setScreenShareIncludeAudio(value),
-          ),
-        ],
-      ],
-    );
-  }
-
-  static String _label(ScreenShareQuality q) => switch (q) {
-    ScreenShareQuality.smooth => 'Smooth',
-    ScreenShareQuality.balanced => 'Balanced',
-    ScreenShareQuality.crisp => 'Crisp',
-  };
 }
 
 class _SoundsSection extends ConsumerWidget {

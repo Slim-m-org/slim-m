@@ -36,6 +36,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 /// An iPhone with a notch, in logical points.
 const double _topInset = 59;
 const double _bottomInset = 34;
@@ -79,7 +81,7 @@ http.Client _emptyApi() => MockClient((request) async {
 
 /// The minimum [VoiceSession] the controller needs, connecting on join so the
 /// in-call surface (and its bottom control bar) actually renders.
-class _FakeSession implements VoiceSession {
+class _FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   bool get supportsParticipantVolume => true;
 

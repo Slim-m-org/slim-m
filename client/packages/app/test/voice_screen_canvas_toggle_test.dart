@@ -24,11 +24,13 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 /// A [VoiceSession] whose `join` resolves straight to a connected call with
 /// one local participant, the shortest path to the dock this suite needs -
 /// `voice_screen_test.dart`'s own `_NoopSession` does the identical thing for
 /// its own camera-preview tests.
-class _ConnectedSession implements VoiceSession {
+class _ConnectedSession with VideoQualityRecorder implements VoiceSession {
   final _states = StreamController<VoiceSessionState>.broadcast();
   final _participants = StreamController<List<VoiceParticipant>>.broadcast();
 
