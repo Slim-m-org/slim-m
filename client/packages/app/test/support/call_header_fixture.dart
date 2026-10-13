@@ -139,13 +139,9 @@ Future<CallFixture> joinCall(
               ? buildTheme(Brightness.dark, AppTokens.dark)
               : buildTheme(Brightness.light, AppTokens.light),
           home: Scaffold(
-            body: Column(
-              children: [
-                if (withCanvasBar) const CanvasBar(channelId: 'channel-1'),
-                Expanded(
-                  child: VoiceScreen(channelId: 'channel-1', isDm: isDm),
-                ),
-              ],
+            body: _callBody(
+              voice: VoiceScreen(channelId: 'channel-1', isDm: isDm),
+              withCanvasBar: withCanvasBar && width >= kCompactWidth,
             ),
           ),
         ),
@@ -156,4 +152,22 @@ Future<CallFixture> joinCall(
   session.emitState(VoiceSessionState.connected);
   await tester.pump();
   return CallFixture(tester, harness, session);
+}
+
+/// Side by side like the real shell: the canvas pane never stacks above the stage, and a phone shows one or the other.
+Widget _callBody({required Widget voice, required bool withCanvasBar}) {
+  if (!withCanvasBar) return voice;
+  return Row(
+    children: [
+      Expanded(child: voice),
+      const Expanded(
+        child: Column(
+          children: [
+            CanvasBar(channelId: 'channel-1'),
+            Spacer(),
+          ],
+        ),
+      ),
+    ],
+  );
 }

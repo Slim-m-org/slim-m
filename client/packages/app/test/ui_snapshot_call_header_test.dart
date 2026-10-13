@@ -5,6 +5,10 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_design_system/design_system.dart' show kCompactWidth;
+import 'package:slimm_app/src/screens/canvas/canvas_bar.dart';
+import 'package:slimm_app/src/screens/voice_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/widgets/call_participant_tiles.dart';
 
 import 'support/call_header_fixture.dart';
@@ -12,6 +16,7 @@ import 'ui_snapshot_support.dart';
 
 void main() {
   setUpAll(loadRealFonts);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   final members = [
     callProfile('me', 'Me'),
@@ -39,6 +44,15 @@ void main() {
             find.byType(CallParticipantTile),
             findsNWidgets(alone ? 1 : 2),
           );
+          if (entry.value.$1 >= kCompactWidth) {
+            expect(
+              tester.getTopLeft(find.byType(CanvasBar)).dx,
+              greaterThanOrEqualTo(
+                tester.getTopRight(find.byType(VoiceScreen)).dx,
+              ),
+              reason: 'the canvas pane sits beside the stage, never above it',
+            );
+          }
           await writeSnapshot(tester, 'call-$state-${entry.key}-$theme');
           expect(tester.takeException(), isNull);
           await call.leave();
