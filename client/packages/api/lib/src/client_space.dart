@@ -29,6 +29,7 @@ class SpaceSettings {
     required this.totpPolicy,
     this.description = '',
     this.bannerUpdatedAt,
+    this.iconUpdatedAt,
   });
 
   final JoinPolicy joinPolicy;
@@ -40,6 +41,9 @@ class SpaceSettings {
   /// When the banner was set, or null for none.
   final int? bannerUpdatedAt;
 
+  /// When the icon was set, or null for none.
+  final int? iconUpdatedAt;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -50,6 +54,7 @@ class SpaceSettings {
         ),
         description: json['description'] as String? ?? '',
         bannerUpdatedAt: json['banner_updated_at'] as int?,
+        iconUpdatedAt: json['icon_updated_at'] as int?,
       );
 }
 
@@ -98,6 +103,17 @@ extension SlimmApiSpace on SlimmApi {
       _send('DELETE', '/space/banner', expectNoContent: true);
 
   Future<FetchedBytes> fetchSpaceBanner() => _fetchBytes('/space/banner');
+
+  /// Sets the space icon and returns when it was stored.
+  Future<int> uploadSpaceIcon(List<int> bytes) async {
+    final json = await _send('POST', '/space/icon', bytes: bytes);
+    return (json as Map<String, dynamic>)['icon_updated_at'] as int;
+  }
+
+  Future<void> deleteSpaceIcon() =>
+      _send('DELETE', '/space/icon', expectNoContent: true);
+
+  Future<FetchedBytes> fetchSpaceIcon() => _fetchBytes('/space/icon');
 
   Future<SpaceAnalytics> spaceAnalytics() async {
     final json = await _send('GET', '/space/analytics');

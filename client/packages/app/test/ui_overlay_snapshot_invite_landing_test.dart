@@ -17,6 +17,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
 import 'package:slimm_app/src/screens/onboarding_screen.dart';
 import 'package:slimm_app/src/widgets/invite_landing_section.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -42,6 +44,32 @@ Future<Uint8List> _bannerPng() async {
   final image = await recorder.endRecording().toImage(900, 300);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
   return data!.buffer.asUint8List();
+}
+
+Future<Uint8List> _iconPng() async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, 96, 96),
+    Paint()..color = const Color(0xFF2B5FA8),
+  );
+  canvas.drawCircle(
+    const Offset(48, 48),
+    26,
+    Paint()..color = const Color(0xFFFFFFFF),
+  );
+  final image = await recorder.endRecording().toImage(96, 96);
+  final data = await image.toByteData(format: ui.ImageByteFormat.png);
+  return data!.buffer.asUint8List();
+}
+
+class _LiveSync extends SyncController {
+  _LiveSync(super.ref) {
+    state = SyncStatus.live;
+  }
+
+  @override
+  Future<void> start() async {}
 }
 
 const _tokens = api.TokenPair(
@@ -90,6 +118,7 @@ void main() {
                   'A small home server for friends and family. Game nights '
                   'on Friday, movie nights on Sunday.',
               'banner_updated_at': 5,
+              'icon_updated_at': 5,
             },
           }),
           200,
@@ -136,6 +165,7 @@ void main() {
     testWidgets('admin controls and preview at $label', (tester) async {
       _view(tester, size);
       final png = (await tester.runAsync(_bannerPng))!;
+      final iconPng = (await tester.runAsync(_iconPng))!;
       final httpClient = MockClient((request) async {
         switch (request.url.path) {
           case '/space/settings':
@@ -145,9 +175,16 @@ void main() {
                 'totp_policy': 'optional',
                 'description': 'A small home server for friends and family.',
                 'banner_updated_at': 5,
+                'icon_updated_at': 5,
               }),
               200,
               headers: _json,
+            );
+          case '/space/icon':
+            return http.Response.bytes(
+              iconPng,
+              200,
+              headers: const {'content-type': 'image/png'},
             );
           case '/space/banner':
             return http.Response.bytes(
@@ -207,6 +244,73 @@ void main() {
       );
       await tester.pumpAndSettle();
       await _finish(tester, 'invite-landing-admin-$label');
+    });
+  }
+
+  for (final (label, size) in [('desktop', _desktop), ('phone', _phone)]) {
+    testWidgets('space header with its icon at $label', (tester) async {
+      _view(tester, size);
+      final iconPng = (await tester.runAsync(_iconPng))!;
+      final httpClient = MockClient((request) async {
+        if (request.url.path == '/space/icon') {
+          return http.Response.bytes(iconPng, 200);
+        }
+        if (request.url.path == '/version') {
+          return http.Response(
+            jsonEncode(const {
+              'name': 'Home',
+              'version': '1',
+              'protocol': 1,
+              'icon_updated_at': 5,
+            }),
+            200,
+            headers: _json,
+          );
+        }
+        return http.Response('{}', 404, headers: _json);
+      });
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          syncControllerProvider.overrideWith((ref) => _LiveSync(ref)),
+          apiProvider.overrideWith(
+            (ref) => api.SlimmApi(
+              baseUrl: Uri.parse('http://localhost:8080'),
+              session: ref.watch(sessionProvider),
+              httpClient: httpClient,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: RepaintBoundary(
+            key: snapshotBoundary,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: buildTheme(Brightness.dark, AppTokens.dark),
+              home: const Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(width: 280, child: RailHeader()),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pumpAndSettle();
+      await _finish(tester, 'space-header-icon-$label');
     });
   }
 }

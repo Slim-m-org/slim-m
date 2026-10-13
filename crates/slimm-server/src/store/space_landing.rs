@@ -17,12 +17,14 @@ pub struct SpaceLanding {
     pub description: String,
     /// When the banner was last set; `None` means no banner.
     pub banner_updated_at: Option<i64>,
+    /// When the icon was last set; `None` means no icon.
+    pub icon_updated_at: Option<i64>,
 }
 
 impl Store {
     pub async fn space_landing(&self) -> anyhow::Result<SpaceLanding> {
         let row = sqlx::query!(
-            r#"SELECT description AS "description!: String", banner_updated_at
+            r#"SELECT description AS "description!: String", banner_updated_at, icon_updated_at
                FROM space_settings WHERE id = 1"#
         )
         .fetch_optional(&self.pool)
@@ -32,6 +34,7 @@ impl Store {
             .map(|r| SpaceLanding {
                 description: r.description,
                 banner_updated_at: r.banner_updated_at,
+                icon_updated_at: r.icon_updated_at,
             })
             .unwrap_or_default())
     }
@@ -60,6 +63,20 @@ impl Store {
         .execute(&self.pool)
         .await
         .context("set space banner")?;
+        Ok(())
+    }
+
+    /// `Some(now)` records a new icon, `None` clears it.
+    pub async fn set_space_icon(&self, updated_at: Option<i64>) -> anyhow::Result<()> {
+        let now = now_ms();
+        sqlx::query!(
+            "UPDATE space_settings SET icon_updated_at = ?, updated_at = ? WHERE id = 1",
+            updated_at,
+            now
+        )
+        .execute(&self.pool)
+        .await
+        .context("set space icon")?;
         Ok(())
     }
 }

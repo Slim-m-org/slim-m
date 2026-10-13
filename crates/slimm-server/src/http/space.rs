@@ -42,6 +42,8 @@ struct SpaceSettingsDto {
     description: String,
     /// When the banner was last set, or null for none.
     banner_updated_at: Option<i64>,
+    /// When the icon was last set, or null for none.
+    icon_updated_at: Option<i64>,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -59,6 +61,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         totp_policy: Some(state.store.totp_policy().await?.as_str().to_owned()),
         description: landing.description,
         banner_updated_at: landing.banner_updated_at,
+        icon_updated_at: landing.icon_updated_at,
     })
 }
 

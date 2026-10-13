@@ -232,6 +232,7 @@ class InviteCommunity {
     required this.expiresAt,
     this.description = '',
     this.bannerUpdatedAt,
+    this.iconUpdatedAt,
   });
 
   /// This deployment's display name.
@@ -257,6 +258,9 @@ class InviteCommunity {
   /// landing card sends neither field.
   final int? bannerUpdatedAt;
 
+  /// When the icon was set, or null for none.
+  final int? iconUpdatedAt;
+
   factory InviteCommunity.fromJson(Map<String, dynamic> json) =>
       InviteCommunity(
         name: json['name'] as String,
@@ -266,6 +270,7 @@ class InviteCommunity {
         expiresAt: json['expires_at'] as int?,
         description: json['description'] as String? ?? '',
         bannerUpdatedAt: json['banner_updated_at'] as int?,
+        iconUpdatedAt: json['icon_updated_at'] as int?,
       );
 }
 

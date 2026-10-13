@@ -16,6 +16,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/attachment_picker.dart';
 import 'package:slimm_app/src/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/widgets/invite_landing_section.dart';
+import 'package:slimm_app/src/widgets/space_icon.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -28,11 +29,17 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
+// A 1x1 PNG: real enough for the crop sheet to lay itself out.
+final _png = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);
+
 const _json = {'content-type': 'application/json'};
 
 class _Server {
   String description = '';
   int? banner;
+  int? icon;
   final calls = <String>[];
   Object? lastPatch;
   int uploadStatus = 200;
@@ -63,6 +70,18 @@ class _Server {
       case ('DELETE', '/space/banner'):
         banner = null;
         return http.Response('', 204);
+      case ('POST', '/space/icon'):
+        icon = 9;
+        return http.Response(
+          jsonEncode({'icon_updated_at': 9}),
+          200,
+          headers: _json,
+        );
+      case ('DELETE', '/space/icon'):
+        icon = null;
+        return http.Response('', 204);
+      case ('GET', '/space/icon'):
+        return http.Response.bytes(_png, 200);
       case ('GET', '/version'):
         return http.Response(
           jsonEncode({'name': 'Home', 'version': '1', 'protocol': 1}),
@@ -81,6 +100,7 @@ class _Server {
     'totp_policy': 'optional',
     'description': description,
     'banner_updated_at': banner,
+    'icon_updated_at': icon,
   });
 }
 
@@ -88,7 +108,7 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
   tester.view.physicalSize = Size(width, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final file = FakePlatformFile('b.png', Uint8List.fromList([1, 2, 3]));
+  final file = FakePlatformFile('b.png', Uint8List.fromList(_png));
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -120,6 +140,22 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
       ),
     ),
   );
+  await tester.pumpAndSettle();
+}
+
+/// Image decoding finishes on the real clock, so alternate real waiting with
+/// pumps until the awaited call has gone out.
+Future<void> _untilCalled(
+  WidgetTester tester,
+  _Server server,
+  String call,
+) async {
+  for (var i = 0; i < 50 && !server.calls.contains(call); i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump();
+  }
   await tester.pumpAndSettle();
 }
 
@@ -159,7 +195,7 @@ void main() {
     await _pump(tester, server, 390);
     expect(find.text('Remove banner'), findsNothing);
     await tester.tap(find.text('Choose banner'));
-    await tester.pumpAndSettle();
+    await _untilCalled(tester, server, 'POST /space/banner');
     expect(server.calls, contains('POST /space/banner'));
     expect(find.text('Replace banner'), findsOneWidget);
 
@@ -176,8 +212,40 @@ void main() {
     final server = _Server()..uploadStatus = 400;
     await _pump(tester, server, 390);
     await tester.tap(find.text('Choose banner'));
-    await tester.pumpAndSettle();
+    await _untilCalled(tester, server, 'POST /space/banner');
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.text('Choose banner'), findsOneWidget);
+  });
+
+  testWidgets('cancelling the icon crop uploads nothing', (tester) async {
+    final server = _Server();
+    await _pump(tester, server, 390);
+    await tester.tap(find.text('Choose icon'));
+    await tester.pumpAndSettle();
+    expect(find.text('Crop your picture'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(server.calls, isNot(contains('POST /space/icon')));
+    expect(find.text('Choose icon'), findsOneWidget);
+  });
+
+  testWidgets('a cropped icon uploads, previews and can be removed', (
+    tester,
+  ) async {
+    final server = _Server();
+    await _pump(tester, server, 1280);
+    await tester.tap(find.text('Choose icon'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Use picture'));
+    await _untilCalled(tester, server, 'POST /space/icon');
+    expect(server.calls, contains('POST /space/icon'));
+    expect(find.text('Replace icon'), findsOneWidget);
+    expect(find.byType(SpaceIcon), findsOneWidget);
+
+    await tester.tap(find.text('Remove icon'));
+    await tester.pumpAndSettle();
+    expect(server.calls, contains('DELETE /space/icon'));
+    expect(find.text('Choose icon'), findsOneWidget);
+    expect(find.byType(SpaceIcon), findsNothing);
   });
 }

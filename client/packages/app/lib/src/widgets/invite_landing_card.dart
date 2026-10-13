@@ -15,6 +15,9 @@ import '../format.dart';
 /// Wide and short, so a phone photo still leaves the text above the fold.
 const double kInviteBannerAspect = 3;
 
+/// Large enough to read as the space's mark, small enough to leave the name its line.
+const double kInviteIconSize = AppSizes.icon32 + AppSpacing.s8;
+
 class InviteLandingCard extends StatelessWidget {
   const InviteLandingCard({
     super.key,
@@ -22,6 +25,7 @@ class InviteLandingCard extends StatelessWidget {
     required this.memberCount,
     this.description = '',
     this.banner,
+    this.icon,
     this.invitedBy,
     this.expiresAt,
     this.use24Hour = false,
@@ -33,6 +37,9 @@ class InviteLandingCard extends StatelessWidget {
 
   /// Drawn cropped to [kInviteBannerAspect]; null draws no banner at all.
   final Widget? banner;
+
+  /// Drawn at [kInviteIconSize] beside the name; null leaves the name alone.
+  final Widget? icon;
   final String? invitedBy;
   final int? expiresAt;
   final bool use24Hour;
@@ -78,17 +85,17 @@ class InviteLandingCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.s4),
                   ],
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.heading.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: AppWeights.semi,
-                      ),
-                    ),
+                  Row(
+                    children: [
+                      if (icon != null) ...[
+                        SizedBox.square(
+                          dimension: kInviteIconSize,
+                          child: icon,
+                        ),
+                        const SizedBox(width: AppSpacing.s12),
+                      ],
+                      Expanded(child: _title(tokens)),
+                    ],
                   ),
                   if (description.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.s8),
@@ -124,4 +131,17 @@ class InviteLandingCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _title(AppTokens tokens) => Semantics(
+    header: true,
+    child: Text(
+      name,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: AppText.heading.copyWith(
+        color: tokens.textPrimary,
+        fontWeight: AppWeights.semi,
+      ),
+    ),
+  );
 }
