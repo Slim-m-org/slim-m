@@ -26,7 +26,7 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
 use crate::ids::UserId;
 use crate::ratelimit::Class;
-use crate::store::{DmConversation, OpenDmError, User};
+use crate::store::{DmConversation, MemberGate, OpenDmError, User};
 
 const BODY_LIMIT: usize = 1024;
 
@@ -119,6 +119,10 @@ async fn open(
 ) -> Result<Json<DmConversationDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let target = UserId(parse_uuid(&user_id)?);
+    // The gate caps what a DM may do, but would still let one be created.
+    if state.store.member_gate(ctx.user_id).await? != MemberGate::Member {
+        return Err(ApiError::ForbiddenBecause("accept the rules first"));
+    }
 
     let channel = match state.store.open_dm(ctx.user_id, target).await {
         Ok(channel) => channel,

@@ -95,6 +95,7 @@ fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::SessionRevoked(_)
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
+        | Event::JoinGateChanged { .. }
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
@@ -217,6 +218,11 @@ pub(super) async fn authorize_unstamped(
                 until,
             }));
         }
+        Event::JoinGateChanged { user_id } => {
+            return Authorization::Deliver(Box::new(ServerFrame::JoinGateChanged {
+                user_id: user_id.map(|id| id.to_string()),
+            }));
+        }
         Event::MemberRemoved(user_id) => {
             return Authorization::Deliver(Box::new(ServerFrame::MemberRemoved {
                 seq: None,
@@ -322,6 +328,7 @@ pub(super) async fn authorize_unstamped(
             Event::SessionRevoked(_)
             | Event::PresenceChanged(_)
             | Event::MemberTimeoutChanged { .. }
+            | Event::JoinGateChanged { .. }
             | Event::MemberRemoved(_)
             | Event::MemberRestored(_)
             | Event::MemberJoined(_)
@@ -676,6 +683,7 @@ pub(super) async fn authorize_unstamped(
         Event::SessionRevoked(_)
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
+        | Event::JoinGateChanged { .. }
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)

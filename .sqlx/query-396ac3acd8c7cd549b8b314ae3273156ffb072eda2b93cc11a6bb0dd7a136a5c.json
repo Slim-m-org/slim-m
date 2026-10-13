@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT join_gate AS \"enabled!: bool\", rules_text AS \"rules!: String\",\n                  rules_channel_id AS \"rules_channel_id: ChannelId\", joins_paused AS \"joins_paused!: bool\"\n           FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "enabled!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "rules!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "rules_channel_id: ChannelId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "joins_paused!: bool",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "396ac3acd8c7cd549b8b314ae3273156ffb072eda2b93cc11a6bb0dd7a136a5c"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT s.rules_channel_id AS \"rules_channel_id: ChannelId\"\n               FROM pending_members p LEFT JOIN space_settings s ON s.id = 1\n               WHERE p.user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "rules_channel_id: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a285415dd87041c6316ee665ceed88415aab417abfbfb999e108cb645f1d5741"
+}

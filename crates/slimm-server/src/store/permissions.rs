@@ -218,12 +218,12 @@ impl Store {
 
     /// The user's guild-level permissions, ignoring any channel. Applies the
     /// `@everyone` base, the role union, and the administrator bypass, then
-    /// subtracts any timeout in force.
+    /// subtracts any timeout in force and the join gate.
     pub async fn base_permissions(&self, user_id: UserId) -> anyhow::Result<Permissions> {
         Ok(self
             .granted_base_permissions(user_id)
             .await?
-            .remove(self.timeout_deny(user_id).await?))
+            .remove(self.member_deny(user_id, None).await?))
     }
 
     /// [`Self::base_permissions`] before the timeout subtraction: what this
@@ -261,7 +261,7 @@ impl Store {
         Ok(self
             .granted_in_channel(user_id, channel_id)
             .await?
-            .remove(self.timeout_deny(user_id).await?))
+            .remove(self.member_deny(user_id, Some(channel_id)).await?))
     }
 
     /// [`Self::permissions_in_channel`] before the timeout subtraction, for a

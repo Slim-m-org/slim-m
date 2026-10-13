@@ -81,6 +81,8 @@ pub enum RegisterError {
     /// A code was presented but is expired, spent, revoked, or never existed.
     /// One variant for all four, so registration cannot be used to mine codes.
     InviteUnusable,
+    /// Raid mode: the Space is not taking new members, invite or not.
+    JoinsPaused,
     Internal(anyhow::Error),
 }
 
@@ -186,6 +188,13 @@ impl Store {
         } else {
             // Dropping `tx` without committing rolls the account insert back, so
             // every early return below leaves the username free.
+            let gate = super::member_gate::read_join_gate(&mut *tx).await?;
+            if gate.joins_paused {
+                return Err(RegisterError::JoinsPaused);
+            }
+            if gate.enabled {
+                super::member_gate::mark_pending(&mut tx, id, now).await?;
+            }
             let code = match (invite_code, policy) {
                 (Some(code), _) => Some(code),
                 // An open Space still accepts a code, so an invite that grants

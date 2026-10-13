@@ -229,6 +229,10 @@ pub enum Event {
     /// enabled and their sends start failing with 403, which reads as the app
     /// being broken rather than as something a moderator did.
     MemberTimeoutChanged { user_id: UserId, until: Option<i64> },
+    /// A member accepted the rules, or (`None`) the join gate's settings
+    /// changed. Either moves what a pending member may see, so every client
+    /// re-asks what it is allowed to do; it carries no rules text.
+    JoinGateChanged { user_id: Option<UserId> },
     /// A member was removed from the Space. Their own sockets close on the
     /// `SessionRevoked` events that accompany this; everyone else's member
     /// list uses this to drop them without waiting for a refetch.

@@ -234,6 +234,12 @@ paths:
           $ref: "#/components/responses/Tokens"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Raid mode is on, so the Space is taking no new members.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -6425,6 +6431,90 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/join-gate:
+    get:
+      operationId: getJoinGate
+      tags: [space]
+      summary: Read the join gate and raid mode settings.
+      description: Gated on MANAGE_SERVER, the bit that changes them.
+      responses:
+        "200":
+          description: The current settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinGate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: putJoinGate
+      tags: [space]
+      summary: Change the join gate and raid mode settings.
+      description: >
+        With `enabled`, an account that registers can view only
+        `rules_channel_id` (or nothing, when it is null) until it accepts the
+        rules; the owner, bots and earlier members are never gated. Turning
+        the gate off lets everyone waiting in. `joins_paused` refuses every
+        new registration, invite or not. `rules` is required to turn the gate
+        on, at most 4000 characters, and may hold line breaks but no other
+        control or invisible character. A refused request changes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinGate"
+      responses:
+        "200":
+          description: The settings as stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinGate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/rules:
+    get:
+      operationId: getSpaceRules
+      tags: [space]
+      summary: The Space's rules, and whether the caller still has to accept them.
+      description: Readable by every member, including one who is still pending.
+      responses:
+        "200":
+          description: The rules.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceRules"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/rules/accept:
+    post:
+      operationId: acceptSpaceRules
+      tags: [space]
+      summary: Accept the rules, which lets a pending member in.
+      description: >
+        Idempotent: accepting again, or with no gate on, changes nothing.
+        A real acceptance broadcasts `join_gate.changed`.
+      responses:
+        "204":
+          description: Accepted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /bots:
     get:
       operationId: listBots
@@ -9292,6 +9382,34 @@ components:
             default every deployment keeps on upgrade. `open` means anyone
             who can reach the server may register; a code is still accepted,
             so an invite granting a role keeps working.
+    JoinGate:
+      type: object
+      required: [enabled, rules, rules_channel_id, joins_paused]
+      properties:
+        enabled:
+          type: boolean
+        rules:
+          type: string
+          maxLength: 4000
+        rules_channel_id:
+          type: [string, "null"]
+          format: uuid
+          description: A text channel a pending member may read, or null for none.
+        joins_paused:
+          type: boolean
+          description: Raid mode; registration is refused while this is on.
+    SpaceRules:
+      type: object
+      required: [rules, rules_channel_id, pending]
+      properties:
+        rules:
+          type: string
+        rules_channel_id:
+          type: [string, "null"]
+          format: uuid
+        pending:
+          type: boolean
+          description: Whether the caller still has to accept the rules.
     UpdateSpaceSettings:
       type: object
       minProperties: 1
@@ -13506,6 +13624,7 @@ components:
         - $ref: "#/components/schemas/PollVoted"
         - $ref: "#/components/schemas/PresenceChanged"
         - $ref: "#/components/schemas/MemberTimeout"
+        - $ref: "#/components/schemas/JoinGateChanged"
         - $ref: "#/components/schemas/MemberRemoved"
         - $ref: "#/components/schemas/MemberRestored"
         - $ref: "#/components/schemas/MemberJoined"
@@ -14227,6 +14346,22 @@ components:
         until:
           type: [integer, "null"]
           format: int64
+
+    JoinGateChanged:
+      type: object
+      required: [type]
+      description: >
+        A member accepted the rules (`user_id`), or the join gate's settings
+        changed (`user_id` absent or null). Either can move what a pending
+        member may see, so the subject re-reads its channels; it carries no
+        rules text.
+      properties:
+        type:
+          type: string
+          enum: [join_gate.changed]
+        user_id:
+          type: [string, "null"]
+          format: uuid
 
     MemberRemoved:
       type: object

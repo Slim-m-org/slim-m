@@ -114,6 +114,7 @@ fn moves_permissions(event: &Event) -> bool {
         Event::RoleChanged { .. }
         | Event::MemberRoleChanged { .. }
         | Event::MemberTimeoutChanged { .. }
+        | Event::JoinGateChanged { .. }
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::OverwriteChanged { .. }
@@ -224,6 +225,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::RoleChanged { .. }
         | Event::MemberRoleChanged { .. }
         | Event::MemberTimeoutChanged { .. }
+        | Event::JoinGateChanged { .. }
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)

@@ -19,6 +19,7 @@ import '../../providers/providers.dart';
 import '../../providers/toasts.dart';
 import '../../routing/routes.dart';
 import '../../widgets/invite_landing_section.dart';
+import '../../widgets/join_gate_section.dart';
 import '../../widgets/join_policy_row.dart';
 import '../../widgets/totp_policy_row.dart';
 import '../../widgets/run_guarded.dart';
@@ -68,6 +69,8 @@ class InvitesPane extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
+          const SizedBox(height: AppSpacing.s16),
+          const JoinGateSection(),
           const SizedBox(height: AppSpacing.s16),
           const InviteLandingSection(),
           if (canInvite) const SizedBox(height: AppSpacing.s16),

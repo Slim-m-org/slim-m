@@ -205,6 +205,14 @@ class MemberTimeoutChanged extends ServerEvent {
   final int? until;
 }
 
+/// A member accepted the rules ([userId]), or the join gate changed (null).
+/// Either can move what a waiting member may see.
+class JoinGateChanged extends ServerEvent {
+  const JoinGateChanged({this.userId});
+
+  final String? userId;
+}
+
 /// A member was removed from the Space.
 ///
 /// The removed member's own sockets close on the accompanying session

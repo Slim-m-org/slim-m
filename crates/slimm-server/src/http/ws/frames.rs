@@ -140,6 +140,8 @@ pub(super) enum ServerFrame {
         #[serde(skip_serializing_if = "Option::is_none")]
         seq: Option<u64>,
     },
+    #[serde(rename = "join_gate.changed")]
+    JoinGateChanged { user_id: Option<String> },
     #[serde(rename = "member.removed")]
     MemberRemoved {
         user_id: String,

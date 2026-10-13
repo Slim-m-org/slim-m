@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO pending_members (user_id, since) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "21ab30164f7e335f69fc277ca1c71d2496eb0be5f5b11e744456735a5f462ad8"
+}

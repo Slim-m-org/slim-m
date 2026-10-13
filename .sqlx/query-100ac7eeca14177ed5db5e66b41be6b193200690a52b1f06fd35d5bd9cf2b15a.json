@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings SET join_gate = ?, rules_text = ?, rules_channel_id = ?,\n                    joins_paused = ?, updated_at = ? WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "100ac7eeca14177ed5db5e66b41be6b193200690a52b1f06fd35d5bd9cf2b15a"
+}
