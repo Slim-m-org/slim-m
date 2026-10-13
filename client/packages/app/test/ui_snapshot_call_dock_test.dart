@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/canvas_call_dock_fixtures.dart';
 import 'support/mid_flight_capture.dart';
@@ -38,6 +39,7 @@ Future<void> _capture(
 
 void main() {
   setUpAll(loadRealFonts);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   for (final brightness in Brightness.values) {
     for (final canvasOpen in [false, true]) {
