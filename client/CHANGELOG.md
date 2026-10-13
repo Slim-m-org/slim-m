@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.102.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.101.1...client-v0.102.0) (2026-10-13)
+
+
+### Features
+
+* **client:** preview the invite landing page as a visitor, and a clearer landing page settings section ([#2173](https://github.com/Slim-m-org/slim-m/issues/2173)) ([b33af6c](https://github.com/Slim-m-org/slim-m/commit/b33af6cc1118520a7fb8236694338a67e7c00b8a))
+* rename the space, role colours, thread and upload fixes, a resizable sidebar, and tighter input validation ([#2170](https://github.com/Slim-m-org/slim-m/issues/2170)) ([3129fc6](https://github.com/Slim-m-org/slim-m/commit/3129fc66b1feb4eaa43f422f3781ebddd475c1e8))
+
 ## [0.101.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.101.0...client-v0.101.1) (2026-10-13)
 
 
