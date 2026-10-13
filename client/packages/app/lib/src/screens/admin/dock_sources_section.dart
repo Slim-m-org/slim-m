@@ -55,6 +55,7 @@ class DockCommunitySection extends StatelessWidget {
       title: 'Community source: $repo',
       description:
           'Not the official registry, so review what each module can do.',
+      divided: true,
       children: [
         if (section.failed)
           Padding(
