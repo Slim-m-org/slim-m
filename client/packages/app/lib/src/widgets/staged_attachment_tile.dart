@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'attachment_format.dart';
 import 'composer_attachments.dart';
 import 'image_decode.dart';
 
@@ -43,15 +44,10 @@ class StagedAttachmentTile extends StatelessWidget {
     final failed = a is FailedAttachment;
     Widget? statusLine;
     if (a is UploadingAttachment) {
-      statusLine = Text(
-        'Uploading...',
-        style: AppText.caption.copyWith(color: tokens.textSecondary),
-      );
+      statusLine = _UploadProgress(upload: a);
     } else if (a is FailedAttachment) {
       statusLine = Text(
         a.message,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
         style: AppText.caption.copyWith(color: tokens.dangerText),
       );
     }
@@ -74,23 +70,25 @@ class StagedAttachmentTile extends StatelessWidget {
         children: [
           _AttachmentThumbnail(attachment: a),
           const SizedBox(width: AppSpacing.s8),
-          // A fixed cap, not `Flexible`: a `Wrap` child gets unbounded width, and flex would throw.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  a.filename,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(
-                    color: failed ? tokens.dangerText : tokens.textPrimary,
+          // A failure reads in full, so its column may grow; it still shrinks to the row.
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: failed ? 300 : 180),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    a.filename,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: failed ? tokens.dangerText : tokens.textPrimary,
+                    ),
                   ),
-                ),
-                if (statusLine != null) statusLine,
-              ],
+                  if (statusLine != null) statusLine,
+                ],
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.s8),
@@ -111,6 +109,37 @@ class StagedAttachmentTile extends StatelessWidget {
   }
 }
 
+/// The byte count and a bar for an upload in flight, so a large file shows it
+/// is moving rather than a spinner that could mean anything.
+class _UploadProgress extends StatelessWidget {
+  const _UploadProgress({required this.upload});
+
+  final UploadingAttachment upload;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final percent = (upload.fraction * 100).floor();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$percent% of ${formatByteSize(upload.body.length)}',
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.s4),
+        LinearProgressIndicator(
+          value: upload.fraction,
+          minHeight: 3,
+          semanticsLabel: 'Uploading ${upload.filename}',
+          semanticsValue: '$percent%',
+        ),
+      ],
+    );
+  }
+}
+
 class _AttachmentThumbnail extends StatelessWidget {
   const _AttachmentThumbnail({required this.attachment});
 
@@ -119,7 +148,8 @@ class _AttachmentThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final showImage = looksLikeImage(attachment.filename);
+    final bytes = attachment.bytes;
+    final showImage = bytes != null && looksLikeImage(attachment.filename);
     return SizedBox(
       width: _thumbnailSize,
       height: _thumbnailSize,
@@ -132,7 +162,7 @@ class _AttachmentThumbnail extends StatelessWidget {
                 color: tokens.surfaceBase,
                 child: showImage
                     ? Image.memory(
-                        attachment.bytes,
+                        bytes,
                         fit: BoxFit.cover,
                         cacheWidth: decodeEdge(context, _thumbnailSize),
                         cacheHeight: decodeEdge(context, _thumbnailSize),

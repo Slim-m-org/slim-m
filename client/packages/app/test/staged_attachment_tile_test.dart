@@ -21,7 +21,7 @@ Widget _harness(Widget child) => MaterialApp(
 UploadedAttachment _staged() => UploadedAttachment(
   localId: 'a1',
   filename: 'notes.pdf',
-  bytes: Uint8List.fromList(const [0]),
+  body: AttachmentBody.memory(Uint8List.fromList(const [0])),
   attachment: const api.Attachment(
     id: 'srv-1',
     filename: 'notes.pdf',

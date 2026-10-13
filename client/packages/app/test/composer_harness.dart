@@ -30,6 +30,8 @@ import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
 import 'package:slimm_app/src/widgets/photo_library.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'ui_snapshot_support.dart' show snapshotBoundary;
+
 /// Stands in for the real controller, which would open a websocket
 /// subscription the moment the first keystroke reaches it.
 class NoopTyping extends StateNotifier<Set<String>>
@@ -287,6 +289,9 @@ Widget composerHarness({
   /// `slowModeRemainingSecondsProvider`) does not have to rebuild the whole
   /// tree by hand.
   List<Override> extraOverrides = const [],
+
+  /// For a capture of the dark theme; every other suite stays on light.
+  Brightness brightness = Brightness.light,
 }) {
   return ProviderScope(
     overrides: [
@@ -301,26 +306,29 @@ Widget composerHarness({
     ],
     child: MaterialApp(
       theme: buildTheme(
-        Brightness.light,
-        AppTokens.light,
+        brightness,
+        brightness == Brightness.dark ? AppTokens.dark : AppTokens.light,
       ).copyWith(platform: platform),
       home: Scaffold(
-        body: Column(
-          children: [
-            const Spacer(),
-            if (mountComposer)
-              Composer(
-                controller: controller,
-                channelId: channelId,
-                channelName: channelName,
-                onSend: sends.call,
-                clipboardPasteStart:
-                    clipboardPaste?.start ?? startClipboardImagePaste,
-                clipboardPasteStop:
-                    clipboardPaste?.stop ?? stopClipboardImagePaste,
-              ),
-            extra,
-          ],
+        body: RepaintBoundary(
+          key: snapshotBoundary,
+          child: Column(
+            children: [
+              const Spacer(),
+              if (mountComposer)
+                Composer(
+                  controller: controller,
+                  channelId: channelId,
+                  channelName: channelName,
+                  onSend: sends.call,
+                  clipboardPasteStart:
+                      clipboardPaste?.start ?? startClipboardImagePaste,
+                  clipboardPasteStop:
+                      clipboardPaste?.stop ?? stopClipboardImagePaste,
+                ),
+              extra,
+            ],
+          ),
         ),
       ),
     ),

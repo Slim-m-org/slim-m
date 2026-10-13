@@ -34,7 +34,7 @@ void main() {
   test('a stage is visible before its upload resolves', () async {
     final gate = Completer<api.Attachment>();
     final controller = AttachmentStagingController(
-      upload: (_, _) => gate.future,
+      upload: (_, _, _) => gate.future,
     );
 
     final staged = controller.stage(bytes, 'holiday.png');
@@ -56,7 +56,7 @@ void main() {
   test('a failed upload stays staged, visibly, until retried', () async {
     var attempts = 0;
     final controller = AttachmentStagingController(
-      upload: (_, _) async {
+      upload: (_, _, _) async {
         attempts += 1;
         if (attempts == 1) {
           throw const api.ServerException('no space left', 507);
@@ -90,7 +90,7 @@ void main() {
   test('removing a staged attachment drops it, even mid-upload', () async {
     final gate = Completer<api.Attachment>();
     final controller = AttachmentStagingController(
-      upload: (_, _) => gate.future,
+      upload: (_, _, _) => gate.future,
     );
 
     unawaited(controller.stage(bytes, 'holiday.png'));
@@ -115,7 +115,7 @@ void main() {
     () async {
       var uploadCalls = 0;
       final controller = AttachmentStagingController(
-        upload: (_, _) async {
+        upload: (_, _, _) async {
           uploadCalls += 1;
           return _attachment();
         },

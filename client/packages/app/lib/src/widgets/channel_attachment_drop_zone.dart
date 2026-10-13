@@ -17,6 +17,7 @@ import '../permissions.dart';
 import '../providers/channel_permissions.dart';
 import '../providers/composer_attachment_drop.dart';
 import 'app_drop_zone.dart';
+import 'composer_attachments.dart';
 
 /// Whether a drop should even be offered here.
 ///
@@ -48,7 +49,14 @@ Future<void> handleComposerDrop(
       target.setError("Folders can't be attached - drop a file instead.");
       continue;
     }
-    await target.stage(await file.readAsBytes(), file.name);
+    await target.stageFile(
+      FileSource(
+        name: file.name,
+        length: file.length,
+        readAll: file.readAsBytes,
+        openRead: file.openRead,
+      ),
+    );
   }
 }
 

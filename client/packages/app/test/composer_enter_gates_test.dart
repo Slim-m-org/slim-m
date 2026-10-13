@@ -37,7 +37,7 @@ void main() {
     await t.tap(attachButton);
     await t.pump();
     await t.pump();
-    expect(find.text('Uploading...'), findsOneWidget);
+    expect(find.textContaining('% of 4 B'), findsOneWidget);
     await t.tap(find.byType(TextField));
     await t.enterText(find.byType(TextField), 'hi');
     await t.pump();

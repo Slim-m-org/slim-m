@@ -54,6 +54,9 @@ pub(super) struct Version {
     /// own capture, the same reason `invite_required` rides on `/version`
     /// rather than staying behind `/space/settings`.
     screen_share_max_height: i64,
+    /// The largest single attachment upload the server accepts, in bytes, so a
+    /// client can refuse an oversize pick before sending any of it.
+    max_attachment_bytes: u64,
     /// The oldest client this deployment will keep serving, or `None` for no
     /// floor at all, which is the default and the ordinary case.
     ///
@@ -152,6 +155,7 @@ pub(super) async fn version(
         icon_updated_at: state.store.space_landing().await?.icon_updated_at,
         link_previews_enabled: state.link_previews.is_enabled(),
         screen_share_max_height: state.store.screen_share_max_height().await?,
+        max_attachment_bytes: state.media.max_attachment_bytes(),
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,
         identity: ServerIdentityDto {

@@ -114,7 +114,7 @@ class _Host extends ConsumerStatefulWidget {
 
 class _HostState extends ConsumerState<_Host> {
   late final attachments = AttachmentStagingController(
-    upload: (bytes, filename) async => throw UnimplementedError(),
+    upload: (bytes, filename, _) async => throw UnimplementedError(),
   );
 
   @override

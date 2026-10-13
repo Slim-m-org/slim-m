@@ -121,51 +121,25 @@ void main() {
     expect(_tag, findsNothing);
   });
 
-  testWidgets('the hints are keycaps inside the field, below the text', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_row());
-    await tester.pumpAndSettle();
+  testWidgets('no shortcut hint row is drawn, at any width', (tester) async {
+    for (final width in [900.0, 320.0]) {
+      tester.view.physicalSize = Size(width, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_row(width: width));
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining('escape to cancel'), findsNothing);
-    final labels = tester
-        .widgetList<AppKbd>(find.byType(AppKbd))
-        .map((k) => k.label)
-        .toList();
-    expect(labels, ['Esc', 'Enter', 'Shift', 'Enter']);
-
-    final field = tester.getRect(find.byType(MessageEditField));
-    final input = tester.getRect(find.byType(TextField));
-    for (final cap in find.byType(AppKbd).evaluate()) {
-      final r = tester.getRect(find.byWidget(cap.widget));
-      expect(r.top, greaterThanOrEqualTo(input.bottom));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AppKbd), findsNothing);
+      expect(find.text('newline'), findsNothing);
+      expect(find.text('cancel'), findsNothing);
+      expect(find.text('save'), findsNothing);
+      final field = tester.getRect(find.byType(MessageEditField));
       expect(
-        field.contains(r.topLeft) && field.contains(r.bottomRight),
-        isTrue,
+        tester.getRect(find.text('Save')).right,
+        lessThanOrEqualTo(field.right),
       );
     }
-    expect(find.text('newline'), findsOneWidget);
-    expect(find.text('cancel'), findsOneWidget);
-    expect(find.text('save'), findsOneWidget);
-  });
-
-  testWidgets('the keycaps stay inside the field in a narrow window', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 700);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(_row(width: 320));
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-    final field = tester.getRect(find.byType(MessageEditField));
-    for (final cap in find.byType(AppKbd).evaluate()) {
-      final r = tester.getRect(find.byWidget(cap.widget));
-      expect(r.right, lessThanOrEqualTo(field.right));
-    }
-    final save = tester.getRect(find.text('Save'));
-    expect(save.right, lessThanOrEqualTo(field.right));
   });
 
   testWidgets('a soft keyboard shows no keycaps', (tester) async {
@@ -195,7 +169,7 @@ void main() {
     expect(_tag, findsOneWidget);
   });
 
-  testWidgets('Shift+Enter is a newline and Enter saves, as the keycaps say', (
+  testWidgets('Shift+Enter is a newline and Enter saves, with no hint drawn', (
     tester,
   ) async {
     final submitted = <String>[];
