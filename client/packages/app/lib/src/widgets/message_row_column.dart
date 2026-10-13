@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
 import 'app_surface_view.dart';
-import 'attachment_view.dart';
+import 'attachment_gallery.dart';
 import 'bot_ui_failure.dart';
 import 'call_record_view.dart';
 import 'embed_card.dart';
@@ -186,15 +186,8 @@ class MessageRowColumn extends ConsumerWidget {
             ),
           ),
         // A forward's attachments are part of what was forwarded, and are drawn inside its card instead.
-        if (message.forwarded == null)
-          for (final attachment in extras.attachments)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s4),
-              child: AttachmentView(
-                attachment: attachment,
-                siblings: openableImages(extras.attachments),
-              ),
-            ),
+        if (message.forwarded == null && extras.attachments.isNotEmpty)
+          MessageAttachments(attachments: extras.attachments),
         if (!_unsent)
           ReactionsRow(
             messageId: message.id,
