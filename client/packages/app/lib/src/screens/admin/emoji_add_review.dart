@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_api/api.dart' show InputLimits;
 
 import '../../widgets/image_decode.dart';
 import '../../widgets/standard_emoji.dart';
@@ -121,6 +122,7 @@ class _ReviewRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.s12),
               Expanded(
                 child: AppInput(
+                  maxLength: InputLimits.emojiName,
                   controller: item.name,
                   enabled: enabled,
                   mono: true,

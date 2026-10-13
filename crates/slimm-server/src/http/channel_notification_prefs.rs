@@ -13,6 +13,7 @@
 //! filter a client applies after a device has already buzzed.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -29,6 +30,9 @@ use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The channel-override routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -37,6 +41,7 @@ pub fn routes() -> Router<AppState> {
             "/notification-preferences/channels/{channel_id}",
             put(set).delete(clear),
         )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 // --- Wire types ---

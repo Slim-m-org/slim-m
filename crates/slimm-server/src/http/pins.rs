@@ -10,6 +10,7 @@
 //! list or its count needs only VIEW_CHANNEL, the same as reading messages.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -34,6 +35,9 @@ struct ListParams {
     limit: Option<i64>,
 }
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The pin routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -43,6 +47,7 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/channels/{channel_id}/pins", get(list))
         .route("/channels/{channel_id}/pins/count", get(count))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 // --- Wire types ---

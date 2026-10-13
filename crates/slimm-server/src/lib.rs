@@ -20,6 +20,7 @@ pub mod http;
 pub mod hub;
 pub mod identity;
 pub mod ids;
+pub mod limits;
 pub mod media;
 pub mod mentions;
 pub mod module_runtime;

@@ -7,6 +7,7 @@
 //! rather than a container of its own kind.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::request::Parts;
 use axum::routing::{get, post};
@@ -23,6 +24,9 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{OpenThreadError, ThreadListItem};
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The thread routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -32,6 +36,7 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/channels/{channel_id}/thread-parent", get(thread_parent))
         .route("/channels/{channel_id}/threads", get(list))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 /// Opens (or reuses) the thread hanging off a message.

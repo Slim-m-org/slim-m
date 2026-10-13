@@ -10,6 +10,7 @@
 //! clients but a window set here changes nothing about a live account's push.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -22,12 +23,17 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use crate::notifications::QuietHours;
 use crate::ratelimit::Class;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The quiet-hours routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
-    Router::new().route(
-        "/push/quiet-hours",
-        get(get_quiet_hours).put(set).delete(clear),
-    )
+    Router::new()
+        .route(
+            "/push/quiet-hours",
+            get(get_quiet_hours).put(set).delete(clear),
+        )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 // --- Wire types ---

@@ -80,10 +80,9 @@ pub fn pack_dir() -> (PathBuf, super::support::TestDirGuard) {
     (dir, guard)
 }
 
-/// A file the allowlist sniffs as a PNG. Only the magic number is real; the
-/// tail is filler, and varying it is how two "different images" are made.
+/// A small PNG; the tail is filler, and varying it is how two "different images" are made.
 pub fn png(filler: &[u8]) -> Vec<u8> {
-    let mut bytes = b"\x89PNG\r\n\x1a\n".to_vec();
+    let mut bytes = crate::support::images::small_png();
     bytes.extend_from_slice(filler);
     bytes
 }

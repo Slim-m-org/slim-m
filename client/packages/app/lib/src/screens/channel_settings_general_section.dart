@@ -15,7 +15,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../char_count.dart';
 import '../api_failure.dart';
 import '../entity_name.dart';
 import '../providers/providers.dart';
@@ -26,7 +25,7 @@ import '../widgets/settings_section_header.dart';
 /// `crates/slimm-server/src/http/channels.rs`), so the counter here never
 /// disagrees with the length check the request will actually be judged
 /// against.
-const int channelTopicMaxChars = 256;
+const int channelTopicMaxChars = api.InputLimits.channelTopic;
 
 class ChannelGeneralSection extends ConsumerStatefulWidget {
   const ChannelGeneralSection({
@@ -67,7 +66,7 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
 
   bool get _nameValid => entityNameValid(_name.text);
 
-  bool get _topicValid => trimmedCharCount(_topic.text) <= channelTopicMaxChars;
+  bool get _topicValid => inputCharCount(_topic.text) <= channelTopicMaxChars;
 
   bool get _canSave => !_saving && _dirty && _nameValid && _topicValid;
 
@@ -106,14 +105,12 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final topicLength = trimmedCharCount(_topic.text);
-
     return SettingsSectionCard(
       title: 'General',
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppInput(
+          counterMax: entityNameMaxChars,
           controller: _name,
           placeholder: 'Channel name',
           onChanged: (_) => setState(() {}),
@@ -124,24 +121,13 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
         ),
         const SizedBox(height: AppSpacing.s8),
         AppInput(
+          counterMax: channelTopicMaxChars,
           controller: _topic,
           placeholder: 'Description',
           onChanged: (_) => setState(() {}),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _canSave ? unawaited(_save()) : null,
           semanticLabel: 'Channel description',
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            '$topicLength/$channelTopicMaxChars',
-            style: AppText.micro.copyWith(
-              color: topicLength > channelTopicMaxChars
-                  ? tokens.dangerText
-                  : tokens.textSecondary,
-            ),
-          ),
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.s8),

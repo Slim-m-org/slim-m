@@ -22,12 +22,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../api_failure.dart';
 import '../providers/providers.dart';
 
-/// Matches the server's own ceiling (`validate_label` in
-/// `crates/slimm-server/src/http/auth.rs`), so the counter here never
-/// disagrees with the length check the request will actually be judged
-/// against.
-const int _displayNameMaxChars = 64;
-
 Future<void> showEditDisplayNameSheet(BuildContext context, String current) {
   return showAppSheet<void>(
     context,
@@ -58,9 +52,9 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
 
   bool get _dirty => _name.text.trim() != widget.current;
 
-  int get _length => _name.text.trim().runes.length;
+  int get _length => inputCharCount(_name.text);
 
-  bool get _nameValid => _length > 0 && _length <= _displayNameMaxChars;
+  bool get _nameValid => _length > 0 && _length <= api.InputLimits.name;
 
   bool get _canSave => !_saving && _dirty && _nameValid;
 
@@ -87,7 +81,6 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final length = _length;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -110,6 +103,7 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
             ),
             const SizedBox(height: AppSpacing.s12),
             AppInput(
+              counterMax: api.InputLimits.name,
               controller: _name,
               placeholder: 'Display name',
               autofocus: true,
@@ -118,18 +112,6 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
                 if (_canSave) unawaited(_save());
               },
               semanticLabel: 'Display name',
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$length/$_displayNameMaxChars',
-                style: AppText.micro.copyWith(
-                  color: length > _displayNameMaxChars
-                      ? tokens.dangerText
-                      : tokens.textSecondary,
-                ),
-              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.s8),

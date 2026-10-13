@@ -44,10 +44,9 @@ fn media_for_test() -> (Media, std::path::PathBuf, support::TestDirGuard) {
     (media, root.join("attachments"), guard)
 }
 
-/// A file the allowlist sniffs as a PNG. Only the magic number is real; the
-/// tail is filler, and varying it is how two "different images" are made.
+/// A small PNG; the tail is filler, and varying it is how two "different images" are made.
 fn png(filler: &[u8]) -> Vec<u8> {
-    let mut bytes = b"\x89PNG\r\n\x1a\n".to_vec();
+    let mut bytes = support::images::small_png();
     bytes.extend_from_slice(filler);
     bytes
 }

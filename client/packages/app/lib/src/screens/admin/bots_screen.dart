@@ -118,6 +118,10 @@ class _BotsPaneState extends ConsumerState<BotsPane>
               label: 'Username',
               helper: 'Letters, digits, _ . and - only, up to 32 characters.',
               child: AppInput(
+                maxLength: api.InputLimits.username,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(api.usernameCharacters),
+                ],
                 controller: _username,
                 autocorrect: false,
                 semanticLabel: 'Bot username',

@@ -139,6 +139,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
               label: 'Label',
               helper: 'Shown in this list and beside its posts.',
               child: AppInput(
+                maxLength: api.InputLimits.name,
                 controller: _label,
                 semanticLabel: 'Webhook label',
                 onSubmitted: (_) => _busy ? null : _create(),
@@ -421,6 +422,7 @@ class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
           ),
           const SizedBox(height: AppSpacing.s8),
           AppInput(
+            maxLength: api.InputLimits.name,
             controller: _label,
             semanticLabel: 'Webhook label',
             onSubmitted: (_) => _submitting ? null : _submit(),

@@ -370,7 +370,7 @@ async fn without_attach_files_the_route_is_forbidden_even_with_a_provider_config
 }
 
 #[tokio::test]
-async fn an_empty_query_is_refused_before_any_provider_call() {
+async fn an_empty_or_over_long_query_is_refused_before_any_provider_call() {
     let tenor_base = spawn_fake_tenor().await;
     let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
     let (store, _guard) = new_store().await;
@@ -383,6 +383,17 @@ async fn an_empty_query_is_refused_before_any_provider_call() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let too_long = format!("/gifs/search?q={}", "a".repeat(201));
+    let response = app
+        .clone()
+        .oneshot(req_get(&too_long, &token))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let at_cap = format!("/gifs/search?q={}", "a".repeat(200));
+    let response = app.clone().oneshot(req_get(&at_cap, &token)).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 /// A token this server no longer holds is the caller's results having gone

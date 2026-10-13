@@ -28,7 +28,7 @@ use crate::ratelimit::Class;
 use crate::store::ChannelCategory;
 
 const CATEGORY_BODY_LIMIT: usize = 4 * 1024;
-const CATEGORY_NAME_MAX_CHARS: usize = 64;
+const CATEGORY_NAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 
 /// The category routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {

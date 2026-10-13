@@ -47,6 +47,7 @@ class ChannelSearchBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           AppInput(
+            maxLength: api.InputLimits.searchQuery,
             controller: controller,
             placeholder: 'Search this channel',
             icon: Icon(

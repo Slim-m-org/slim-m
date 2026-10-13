@@ -21,8 +21,12 @@ async fn a_clean_import_adds_every_image_under_its_normalised_name() {
 
     let smile = png(b"smile");
     write(&dir, "Big Smile.png", &smile);
-    write(&dir, "party-parrot.gif", b"GIF89aparrot");
-    write(&dir, "okay.jpg", b"\xff\xd8\xffok");
+    write(
+        &dir,
+        "party-parrot.gif",
+        &crate::support::images::animated_gif(),
+    );
+    write(&dir, "okay.jpg", &crate::support::images::small_jpeg());
 
     let report = import_directory(&store, &media, &dir)
         .await

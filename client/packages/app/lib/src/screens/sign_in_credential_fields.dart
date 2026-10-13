@@ -14,7 +14,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_api/api.dart' show InputLimits, usernameCharacters;
 
 import '../widgets/labeled_field.dart';
 import 'sign_in_error.dart';
@@ -69,6 +71,10 @@ class SignInCredentialFields extends StatelessWidget {
           label: 'Username',
           helper: creatingAccount ? usernameRule : null,
           child: AppInput(
+            maxLength: InputLimits.username,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(usernameCharacters),
+            ],
             controller: username,
             errorText: errorFor(SignInErrorField.username),
             autocorrect: false,
@@ -95,6 +101,7 @@ class SignInCredentialFields extends StatelessWidget {
           label: 'Password',
           helper: creatingAccount ? passwordRule : null,
           child: AppInput(
+            maxLength: InputLimits.password,
             controller: password,
             errorText: errorFor(SignInErrorField.password),
             obscureText: true,

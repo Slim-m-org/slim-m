@@ -207,7 +207,7 @@ void main() {
     await t.pumpAndSettle();
     expect(rig.pickedSources, [
       AttachmentSource.photoLibrary,
-      AttachmentSource.fileBrowser,
+      AttachmentSource.stillImageFiles,
     ]);
   });
 

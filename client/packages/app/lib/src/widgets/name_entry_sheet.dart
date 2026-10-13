@@ -59,7 +59,7 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
   /// Names what is missing rather than sitting disabled with no explanation.
   String get _buttonLabel {
     if (_submitting) return 'Creating...';
-    if (entityNameLength(_name.text) == 0) return 'Add a ${widget.noun} name';
+    if (inputCharCount(_name.text) == 0) return 'Add a ${widget.noun} name';
     if (!entityNameValid(_name.text)) return 'Name is too long';
     return 'Create ${widget.noun}';
   }
@@ -89,7 +89,6 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final nameLength = entityNameLength(_name.text);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -119,6 +118,7 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
             ],
             const SizedBox(height: AppSpacing.s16),
             AppInput(
+              counterMax: entityNameMaxChars,
               controller: _name,
               placeholder: '$_label name',
               autofocus: true,
@@ -127,18 +127,6 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
                 if (_canSubmit) _submit();
               },
               semanticLabel: '$_label name',
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$nameLength/$entityNameMaxChars',
-                style: AppText.micro.copyWith(
-                  color: nameLength > entityNameMaxChars
-                      ? tokens.dangerText
-                      : tokens.textSecondary,
-                ),
-              ),
             ),
             ...widget.extraFields,
             if (_error != null) ...[

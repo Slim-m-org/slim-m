@@ -44,7 +44,7 @@ const double _fieldInset = 4;
 const double _pictureLabelWidth = 56;
 
 /// Matches the server's cap on a description.
-const int kInviteDescriptionMaxChars = 280;
+const int kInviteDescriptionMaxChars = api.InputLimits.spaceDescription;
 
 final _bannerBytesProvider = FutureProvider.autoDispose.family<Uint8List, int>(
   (ref, updatedAt) async =>

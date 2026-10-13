@@ -31,6 +31,10 @@ enum AttachmentSource {
   /// The general document browser: `UIDocumentPickerViewController` on iOS,
   /// the SAF browser on Android, the one dialog every desktop platform has.
   fileBrowser,
+
+  /// The same browser limited to still pictures, for a profile picture or
+  /// another surface that only takes one.
+  stillImageFiles,
 }
 
 /// Runs one pick and answers what was chosen, or null if nothing was.
@@ -41,6 +45,14 @@ Future<PlatformFile?> _pickPhotoLibrary() =>
 
 Future<PlatformFile?> _pickFileBrowser() => FilePicker.pickFile();
 
+/// The picture types every surface accepts as a still image.
+const stillImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+
+Future<PlatformFile?> _pickStillImageFile() => FilePicker.pickFile(
+  type: FileType.custom,
+  allowedExtensions: stillImageExtensions,
+);
+
 /// The picker each [AttachmentSource] runs, injectable because `file_picker`
 /// has no platform implementation under test: without this seam a widget
 /// test can tap a picker action and never get past it, the same gap
@@ -50,6 +62,7 @@ final attachmentPickerProvider =
       (ref, source) => switch (source) {
         AttachmentSource.photoLibrary => _pickPhotoLibrary,
         AttachmentSource.fileBrowser => _pickFileBrowser,
+        AttachmentSource.stillImageFiles => _pickStillImageFile,
       },
     );
 

@@ -375,3 +375,44 @@ async fn editing_a_message_does_not_delete_its_stored_embed() {
         "the edit itself did take effect"
     );
 }
+
+#[tokio::test]
+async fn an_embed_link_must_be_a_plain_web_link() {
+    let h = harness(LinkPreviews::disabled()).await;
+    let admin_token = member(&h.store, "admin").await;
+    let bot_token = bot(&h.app, &admin_token, "ci-bot").await;
+
+    let bad = [
+        json!({"url": "javascript:alert(1)"}),
+        json!({"url": "file:///etc/passwd"}),
+        json!({"url": format!("https://example.com/{}", "a".repeat(600))}),
+        json!({"author": {"name": "ci", "url": "javascript:alert(1)"}}),
+        json!({"author": {"name": "ci", "url": "https://user:pw@example.com"}}),
+    ];
+    for overrides in bad {
+        let response = h
+            .app
+            .clone()
+            .oneshot(send_with_embeds(
+                &h.channel_id,
+                &bot_token,
+                json!([one_embed(overrides.clone())]),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{overrides}");
+    }
+
+    let good = json!({"url": "https://ci.example/run/1", "author": {"name": "ci", "url": "https://ci.example"}});
+    let response = h
+        .app
+        .clone()
+        .oneshot(send_with_embeds(
+            &h.channel_id,
+            &bot_token,
+            json!([one_embed(good)]),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}

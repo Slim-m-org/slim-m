@@ -180,6 +180,9 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
           controller: _controller,
           placeholder: '000000',
           mono: true,
+          // Enrolment only ever takes the six digits; a recovery code does not exist yet.
+          maxLength: 6,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           enabled: !_busy,
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,

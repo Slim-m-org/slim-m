@@ -29,10 +29,7 @@ mod support;
 /// A one-pixel PNG, so `sniff_content_type` accepts it. The trailing bytes are
 /// varied per call to make each upload a different hash.
 fn png(tag: u8) -> Vec<u8> {
-    let mut bytes = vec![
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
-        0x52,
-    ];
+    let mut bytes = support::images::small_png();
     bytes.extend(std::iter::repeat_n(tag, 240));
     bytes
 }

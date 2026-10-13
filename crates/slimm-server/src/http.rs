@@ -115,6 +115,7 @@ mod sign_in_alert;
 mod space;
 mod space_banner;
 mod space_icon;
+mod still_picture;
 mod storage;
 mod sync;
 mod sync_ops;

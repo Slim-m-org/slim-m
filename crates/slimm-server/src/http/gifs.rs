@@ -390,8 +390,8 @@ async fn search(
 ) -> Result<Json<GifResultsDto>, ApiError> {
     require_attach_files(&state, ctx.user_id).await?;
     let query = params.q.trim();
-    if query.is_empty() {
-        return Err(ApiError::BadRequest("q must not be empty"));
+    if query.is_empty() || query.chars().count() > crate::limits::MAX_QUERY_CHARS {
+        return Err(ApiError::BadRequest("q must be 1 to 200 characters"));
     }
     let limit = params
         .limit
