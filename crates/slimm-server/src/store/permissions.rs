@@ -105,7 +105,8 @@ impl Store {
         allow: Permissions,
         deny: Permissions,
     ) -> anyhow::Result<()> {
-        set_overwrite(&self.pool, channel_id, "role", role_id.0, allow, deny).await
+        set_overwrite(&self.pool, channel_id, "role", role_id.0, allow, deny).await?;
+        super::category_overwrites::mark_unsynced(&self.pool, channel_id).await
     }
 
     /// Sets (or replaces) a channel overwrite for a single member.
@@ -116,7 +117,8 @@ impl Store {
         allow: Permissions,
         deny: Permissions,
     ) -> anyhow::Result<()> {
-        set_overwrite(&self.pool, channel_id, "member", user_id.0, allow, deny).await
+        set_overwrite(&self.pool, channel_id, "member", user_id.0, allow, deny).await?;
+        super::category_overwrites::mark_unsynced(&self.pool, channel_id).await
     }
 
     /// The overwrite currently set for one target in one channel, if any.
@@ -213,6 +215,7 @@ impl Store {
         )
         .execute(&self.pool)
         .await?;
+        super::category_overwrites::mark_unsynced(&self.pool, channel_id).await?;
         Ok(())
     }
 

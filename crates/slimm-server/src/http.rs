@@ -38,6 +38,7 @@ mod canvas_ops_write;
 mod canvas_write;
 pub mod capability;
 mod categories;
+mod category_overwrites;
 mod channel_notification_prefs;
 mod channel_order;
 mod channel_permissions;
@@ -228,6 +229,7 @@ pub fn router(state: AppState) -> Router {
         .merge(canvas_media_slots::routes())
         .merge(canvas_object_locks::routes())
         .merge(categories::routes())
+        .merge(category_overwrites::routes())
         .merge(channel_notification_prefs::routes())
         .merge(channels::routes())
         .merge(channel_order::routes())

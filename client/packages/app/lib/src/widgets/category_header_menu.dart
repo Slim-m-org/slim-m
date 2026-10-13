@@ -12,8 +12,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../permissions.dart';
+import '../providers/admin_providers.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/collapsed_categories_preference.dart';
+import 'category_permissions_sheet.dart';
 import 'context_menu_region.dart';
 import 'manage_category_sheet.dart';
 import 'mark_read_action.dart';
@@ -110,6 +113,21 @@ class CategoryHeaderMenu extends ConsumerWidget {
               );
             },
           ),
+          if (ref.watch(myPermissionsProvider).hasPermission(Perm.manageRoles))
+            AppMenuItem(
+              label: 'Category permissions...',
+              leading: AppIcons.permissions,
+              onTap: () {
+                close();
+                unawaited(
+                  showCategoryPermissionsSheet(
+                    context,
+                    categoryId: category.id,
+                    categoryName: category.name,
+                  ),
+                );
+              },
+            ),
           AppMenuItem(
             label: 'Delete category...',
             leading: AppIcons.delete,

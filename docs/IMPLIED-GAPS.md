@@ -125,6 +125,8 @@ A thread's `VIEW_CHANNEL`/`SEND_MESSAGES` are always the parent's, resolved live
 
 ## 9. Channel categories carry no permissions, and the owner confirmed that is fine
 
+**Superseded 2026-10-13 by `docs/decisions/0064-category-permissions.md`.** The owner asked for category permissions; a category now holds overwrites that its synced channels copy. The rest of this section is history.
+
 **What is missing, and why this entry differs from the rest of this document.** Every other entry here is something nobody planned for.
 This one is the opposite: `docs/decisions/0006-channel-categories.md` names the gap explicitly before any code was written, and the owner confirmed it directly ("no permissions for categories is fine") rather than it surfacing as an accidental omission.
 It is recorded here anyway, per that decision record's own instruction, because Discord's category model *does* let a category carry overwrites its channels inherit, and a contributor arriving from that expectation could otherwise assume this codebase's categories work the same way and go looking for the inheritance logic that was deliberately never built.

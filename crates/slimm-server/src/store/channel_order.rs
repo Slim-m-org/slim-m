@@ -303,6 +303,10 @@ impl Store {
                 )
                 .execute(&mut *tx)
                 .await?;
+                // A move never changes who can see a channel, so it keeps its rows but stops following a category.
+                if before.get(id).map(|(category, _)| *category) != Some(group.category_id) {
+                    super::category_overwrites::mark_unsynced(&mut *tx, *id).await?;
+                }
             }
         }
         tx.commit().await?;

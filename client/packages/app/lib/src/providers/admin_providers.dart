@@ -69,6 +69,21 @@ final channelOverwritesProvider = FutureProvider.autoDispose
           ref.watch(apiProvider).getChannelOverwrites(channelId),
     );
 
+/// A category's own overwrites (decision 0064); requires MANAGE_ROLES.
+final categoryOverwritesProvider = FutureProvider.autoDispose
+    .family<List<api.ChannelOverwrite>, String>(
+      (ref, categoryId) =>
+          ref.watch(apiProvider).getCategoryOverwrites(categoryId),
+    );
+
+/// Whether a channel's overwrites follow its category.
+final channelOverwritesSyncedProvider = FutureProvider.autoDispose
+    .family<bool, String>(
+      (ref, channelId) async =>
+          (await ref.watch(apiProvider).getChannelOverwriteSet(channelId))
+              .synced,
+    );
+
 /// Refetches [rolesProvider] and [meProvider] when a role's own definition
 /// changes or a member's assignment does: either can change what a role
 /// means for whoever is looking at this screen right now, and the caller's
@@ -126,6 +141,9 @@ final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
       ref.invalidate(channelPermissionsProvider(event.channelId));
       if (ref.exists(channelOverwritesProvider(event.channelId))) {
         ref.invalidate(channelOverwritesProvider(event.channelId));
+      }
+      if (ref.exists(channelOverwritesSyncedProvider(event.channelId))) {
+        ref.invalidate(channelOverwritesSyncedProvider(event.channelId));
       }
       // An overwrite can grant or revoke view, so who the channel lists is now wrong.
       if (ref.exists(channelMembersProvider(event.channelId))) {

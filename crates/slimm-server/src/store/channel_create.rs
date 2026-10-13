@@ -211,6 +211,9 @@ impl Store {
                 Permissions::NONE,
             )
             .await?;
+        } else if let Some(category_id) = category_id {
+            // A channel with no audience of its own takes its category's; see decision 0064.
+            super::category_overwrites::copy_category_overwrites(&mut tx, id, category_id).await?;
         }
 
         tx.commit().await?;

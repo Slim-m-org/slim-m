@@ -77,6 +77,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         json!({ "name": "extras", "position": 0 }),
     )
     .await;
+    super::content_roles::category_overwrite_calls(c, root, &category_id).await;
     let scratch_category = c
         .json(
             "createCategory",

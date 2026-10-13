@@ -63,16 +63,30 @@ pub fn routes() -> Router<AppState> {
 /// One overwrite on the wire: which role or member it targets and its
 /// allow/deny bit pair.
 #[derive(Serialize)]
-struct OverwriteDto {
-    kind: String,
-    id: String,
-    allow: i64,
-    deny: i64,
+pub(super) struct OverwriteDto {
+    pub(super) kind: String,
+    pub(super) id: String,
+    pub(super) allow: i64,
+    pub(super) deny: i64,
 }
 
 #[derive(Serialize)]
-struct OverwritesDto {
-    overwrites: Vec<OverwriteDto>,
+pub(super) struct OverwritesDto {
+    pub(super) overwrites: Vec<OverwriteDto>,
+    /// For a channel: whether its overwrites follow its category (decision 0064).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) synced: Option<bool>,
+}
+
+impl From<crate::store::ChannelOverwrite> for OverwriteDto {
+    fn from(o: crate::store::ChannelOverwrite) -> Self {
+        Self {
+            kind: o.target_type,
+            id: o.target_id.to_string(),
+            allow: o.allow.bits(),
+            deny: o.deny.bits(),
+        }
+    }
 }
 
 /// Lists every overwrite on a channel, so an editor sees the current
@@ -99,7 +113,8 @@ async fn list(
             deny: o.deny.bits(),
         })
         .collect();
-    Ok(Json(OverwritesDto { overwrites }))
+    let synced = state.store.channel_permissions_synced(channel_id).await?;
+    Ok(Json(OverwritesDto { overwrites, synced }))
 }
 
 #[derive(Deserialize)]
@@ -112,12 +127,12 @@ struct SetOverwriteRequest {
 
 /// What `{kind}/{id}` resolved to.
 #[derive(Clone, Copy)]
-enum Target {
+pub(super) enum Target {
     Role(RoleId),
     Member(UserId),
 }
 
-fn parse_target(kind: &str, id: &str) -> Result<Target, ApiError> {
+pub(super) fn parse_target(kind: &str, id: &str) -> Result<Target, ApiError> {
     let id = parse_uuid(id)?;
     match kind {
         "role" => Ok(Target::Role(RoleId(id))),
@@ -144,7 +159,10 @@ async fn require_manage_roles_here(
 }
 
 /// Refuses a write that hands out bits the caller lacks, naming them in the body.
-fn refuse_ungrantable(caller: Permissions, granted: Permissions) -> Result<(), ApiError> {
+pub(super) fn refuse_ungrantable(
+    caller: Permissions,
+    granted: Permissions,
+) -> Result<(), ApiError> {
     let missing = granted.remove(caller);
     if missing == Permissions::NONE {
         Ok(())
@@ -155,7 +173,7 @@ fn refuse_ungrantable(caller: Permissions, granted: Permissions) -> Result<(), A
 
 /// Refuses bits this server does not define, and a pair that both allows and
 /// denies one bit: the evaluator would have to pick a winner silently.
-fn check_bits(allow: Permissions, deny: Permissions) -> Result<(), ApiError> {
+pub(super) fn check_bits(allow: Permissions, deny: Permissions) -> Result<(), ApiError> {
     if !Permissions::ALL.contains(allow) || !Permissions::ALL.contains(deny) {
         return Err(ApiError::BadRequest("unknown permission bits"));
     }
@@ -236,24 +254,24 @@ async fn set(
 /// One entry of a [`batch_set`] request: same shape as [`SetOverwriteRequest`]
 /// with the target folded in, since a batch names several.
 #[derive(Deserialize)]
-struct BatchOverwriteEntry {
-    kind: String,
-    id: String,
+pub(super) struct BatchOverwriteEntry {
+    pub(super) kind: String,
+    pub(super) id: String,
     #[serde(default)]
-    allow: i64,
+    pub(super) allow: i64,
     #[serde(default)]
-    deny: i64,
+    pub(super) deny: i64,
 }
 
 #[derive(Deserialize)]
-struct BatchSetRequest {
-    overwrites: Vec<BatchOverwriteEntry>,
+pub(super) struct BatchSetRequest {
+    pub(super) overwrites: Vec<BatchOverwriteEntry>,
 }
 
 /// A grid has one column per principal shown on a channel, and a deployment
 /// with more than this many roles and members combined has bigger problems
 /// than this cap; kept well inside [`BODY_LIMIT`] regardless.
-const MAX_BATCH_ENTRIES: usize = 64;
+pub(super) const MAX_BATCH_ENTRIES: usize = 64;
 
 /// Applies every entry of [`BatchSetRequest::overwrites`] in one request:
 /// the permissions grid's save button, batching a pending set of cell
@@ -351,7 +369,10 @@ async fn batch_set(
             deny: o.deny.bits(),
         })
         .collect();
-    Ok(Json(OverwritesDto { overwrites }))
+    Ok(Json(OverwritesDto {
+        overwrites,
+        synced: Some(false),
+    }))
 }
 
 /// Clears an overwrite. Idempotent: clearing one that is not set still
@@ -414,7 +435,7 @@ async fn clear(
 /// See [`Event::OverwriteChanged`] for why the event needs it: the ordinary
 /// per-viewer check runs after the change, so the people whose access it just
 /// removed are exactly the ones it would exclude.
-async fn previously_visible_to(
+pub(super) async fn previously_visible_to(
     state: &AppState,
     channel_id: ChannelId,
     target: Target,

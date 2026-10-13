@@ -26,6 +26,7 @@ import '../../providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
 import '../../providers/providers.dart';
 import '../../widgets/run_guarded.dart';
+import 'category_sync_banner.dart';
 import 'channel_permissions_body.dart';
 import 'channel_permissions_escalation.dart';
 import 'channel_permissions_grid_rows.dart';
@@ -34,9 +35,17 @@ import 'channel_permissions_toolbar.dart';
 import 'channel_permissions_picker.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
-  const ChannelPermissionsGrid({super.key, required this.channel});
+  const ChannelPermissionsGrid({super.key, required Channel this.channel})
+    : categoryId = null;
 
-  final Channel channel;
+  /// A category's own overwrites, which its synced channels copy (decision 0064).
+  const ChannelPermissionsGrid.forCategory({
+    super.key,
+    required String this.categoryId,
+  }) : channel = null;
+
+  final Channel? channel;
+  final String? categoryId;
 
   @override
   ConsumerState<ChannelPermissionsGrid> createState() =>
@@ -58,6 +67,19 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   bool _saving = false;
   bool _loaded = false;
   final _filter = TextEditingController();
+
+  String? get _categoryId => widget.categoryId;
+
+  AutoDisposeFutureProvider<List<api.ChannelOverwrite>> get _overwrites =>
+      switch (_categoryId) {
+        final id? => categoryOverwritesProvider(id),
+        null => channelOverwritesProvider(widget.channel!.id),
+      };
+
+  /// The ceiling on what may be granted: in this channel, or Space-wide.
+  int _ceiling(WidgetRef ref) => _categoryId == null
+      ? ref.watch(myChannelPermissionsProvider(widget.channel!.id))
+      : ref.watch(myPermissionsProvider);
 
   @override
   void dispose() {
@@ -193,13 +215,15 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   /// Clears removals one at a time and forgets each once done, so a later
   /// refusal of the batch cannot make a retry delete the same column twice.
   Future<void> _applyRemovals() async {
+    // A category's batch removes a target given an all-zero pair, so removals ride along in _save.
+    if (_categoryId != null) return;
     for (final key in _removed.toList()) {
       final (kind, id) = _parseKey(key);
       try {
         await ref
             .read(apiProvider)
             .deleteChannelOverwrite(
-              channelId: widget.channel.id,
+              channelId: widget.channel!.id,
               kind: kind,
               id: id,
             );
@@ -213,7 +237,9 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   Future<void> _save() async {
     final blocked = _escalation(
-      ref.read(myChannelPermissionsProvider(widget.channel.id)),
+      _categoryId == null
+          ? ref.read(myChannelPermissionsProvider(widget.channel!.id))
+          : ref.read(myPermissionsProvider),
     );
     if (blocked != 0) {
       setActionError(escalationMessage(blocked));
@@ -234,11 +260,26 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
                 deny: entry.value.$2,
               ),
         ];
-        if (edits.isNotEmpty) {
+        final categoryId = _categoryId;
+        if (categoryId != null) {
+          await ref
+              .read(apiProvider)
+              .batchSetCategoryOverwrites(
+                categoryId: categoryId,
+                overwrites: [
+                  ...edits,
+                  for (final key in _removed)
+                    api.ChannelOverwriteEdit(
+                      kind: _parseKey(key).$1,
+                      id: _parseKey(key).$2,
+                    ),
+                ],
+              );
+        } else if (edits.isNotEmpty) {
           await ref
               .read(apiProvider)
               .batchSetChannelOverwrites(
-                channelId: widget.channel.id,
+                channelId: widget.channel!.id,
                 overwrites: edits,
               );
         }
@@ -252,9 +293,12 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   /// Reseeds from the server's answer rather than the provider's previous
   /// value, which an invalidate would hand straight back and pin as saved.
   Future<void> _reloadSaved() async {
-    final provider = channelOverwritesProvider(widget.channel.id);
+    final provider = _overwrites;
     // A saved overwrite can grant or revoke view, which changes who the channel's member list holds.
-    ref.invalidate(channelMembersProvider(widget.channel.id));
+    if (widget.channel case final channel?) {
+      ref.invalidate(channelMembersProvider(channel.id));
+      ref.invalidate(channelOverwritesSyncedProvider(channel.id));
+    }
     try {
       final fresh = await ref.refresh(provider.future);
       if (!mounted) return;
@@ -278,28 +322,25 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(channelOverwritesProvider(widget.channel.id), (previous, next) {
+    ref.listen(_overwrites, (previous, next) {
       if (!_loaded || !next.hasValue || next.isLoading) return;
       if (identical(previous?.value, next.value)) return;
       _mergeRemote(next.requireValue);
     });
-    final overwritesAsync = ref.watch(
-      channelOverwritesProvider(widget.channel.id),
-    );
+    final overwritesAsync = ref.watch(_overwrites);
     final rolesAsync = ref.watch(rolesProvider);
     final membersAsync = ref.watch(membersProvider);
-    final myPermissions = ref.watch(
-      myChannelPermissionsProvider(widget.channel.id),
-    );
+    final myPermissions = _ceiling(ref);
 
     if (!overwritesAsync.hasValue ||
         !rolesAsync.hasValue ||
         !membersAsync.hasValue) {
       if (overwritesAsync.hasError) {
         return AppErrorState(
-          message: "Could not load this channel's overwrites.",
-          onRetry: () =>
-              ref.invalidate(channelOverwritesProvider(widget.channel.id)),
+          message: _categoryId == null
+              ? "Could not load this channel's overwrites."
+              : "Could not load this category's overwrites.",
+          onRetry: () => ref.invalidate(_overwrites),
         );
       }
       if (rolesAsync.hasError) {
@@ -362,6 +403,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.channel case final channel? when channel.categoryId != null)
+          CategorySyncBanner(channelId: channel.id),
         PermissionsToolbar(
           filter: _filter,
           onFilterChanged: () => setState(() {}),
