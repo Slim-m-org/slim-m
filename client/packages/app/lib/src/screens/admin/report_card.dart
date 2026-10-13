@@ -248,39 +248,42 @@ class _ReportCardState extends ConsumerState<ReportCard>
           ),
         ],
         const SizedBox(height: AppSpacing.s8),
-        Row(
-          children: [
-            Text(
-              'Reporter',
-              style: AppText.caption.copyWith(
-                color: tokens.textSecondary,
-                fontWeight: AppWeights.medium,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s4),
-            // Expanded, not a bare Text: a long real display name would otherwise overflow the row.
-            Expanded(
-              child: Text(
-                reporterLabel(report.reporterId, profiles),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s8),
-            // Flexible so this can ellipsize rather than overflow at a large text scale.
-            Flexible(
-              child: Text(
-                formatDateTime(
-                  report.createdAt,
-                  use24Hour: watchUse24Hour(ref, context),
+        LayoutBuilder(
+          builder: (context, box) => Row(
+            children: [
+              Text(
+                'Reporter',
+                style: AppText.caption.copyWith(
+                  color: tokens.textSecondary,
+                  fontWeight: AppWeights.medium,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
-            ),
-          ],
+              const SizedBox(width: AppSpacing.s4),
+              // Expanded, not a bare Text: a long real display name would otherwise overflow the row.
+              Expanded(
+                child: Text(
+                  reporterLabel(report.reporterId, profiles),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s8),
+              // Not flexible: a flex sibling of the name would hand the date half the free space and strand it short of the right edge.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
+                child: Text(
+                  formatDateTime(
+                    report.createdAt,
+                    use24Hour: watchUse24Hour(ref, context),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+              ),
+            ],
+          ),
         ),
         // Only shown when it would clarify something: without either bit, no quick actions was already the ordinary reason.
         if (isSelf &&
