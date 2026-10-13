@@ -233,19 +233,26 @@ async fn vote_after_close_is_refused() {
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store.clone());
-    let (token, _user) = register(&store, "alice").await;
+    let (token, user) = register(&store, "alice").await;
 
-    let poll = create_poll(
-        &app,
-        &channel.id.to_string(),
-        &token,
-        "already closed?",
-        &["yes", "no"],
-        Some(now_ms() - 1_000),
-    )
-    .await;
-    assert_eq!(poll["poll"]["closed"], true);
-    let message_id = poll["id"].as_str().unwrap().to_owned();
+    // Through the store: the route refuses a close_at already past, see below.
+    let message_id = MessageId(Uuid::now_v7());
+    let options = ["yes".to_owned(), "no".to_owned()];
+    store
+        .send_poll_message(
+            channel.id,
+            UserId(user.parse().unwrap()),
+            message_id,
+            "",
+            slimm_server::store::NewPoll {
+                question: "already closed?",
+                options: &options,
+                close_at: Some(now_ms() - 1_000),
+            },
+        )
+        .await
+        .unwrap();
+    let message_id = message_id.to_string();
 
     let status = vote(&app, &message_id, &token, 0).await;
     assert_eq!(
@@ -253,6 +260,49 @@ async fn vote_after_close_is_refused() {
         StatusCode::CONFLICT,
         "a vote after close_at must be refused"
     );
+}
+
+/// A closing time must be ahead of now and at most 31 days out, so a typo
+/// cannot make a poll closed on arrival or pin one open for years.
+#[tokio::test]
+async fn close_at_must_be_soon_and_in_the_future() {
+    let (store, _guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES),
+            true,
+        )
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let app = app(store.clone());
+    let (token, _user) = register(&store, "alice").await;
+    let day = 24 * 60 * 60 * 1000;
+
+    for (close_at, expected) in [
+        (now_ms() - 1_000, StatusCode::BAD_REQUEST),
+        (now_ms() + 32 * day, StatusCode::BAD_REQUEST),
+        (now_ms() + day, StatusCode::OK),
+    ] {
+        let body = json!({
+            "id": Uuid::now_v7().to_string(),
+            "question": "lunch?",
+            "options": ["yes", "no"],
+            "close_at": close_at,
+        });
+        let response = app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/channels/{}/messages/polls", channel.id),
+                Some(&token),
+                Some(body),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), expected, "close_at {close_at}");
+    }
 }
 
 /// Voting requires the same permission sending a message does, evaluated per

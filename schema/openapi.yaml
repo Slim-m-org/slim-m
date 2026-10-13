@@ -4123,7 +4123,9 @@ paths:
         and gated on the same VIEW_CHANNEL plus SEND_MESSAGES permissions,
         evaluated in this channel. Options are ordered and fixed at
         creation; a poll needs between 2 and 4 of them. `close_at`, if given,
-        is a unix-millisecond deadline after which the server refuses votes.
+        is a unix-millisecond deadline after which the server refuses votes;
+        it must be in the future and at most 31 days out, or the poll is
+        refused with 400.
       requestBody:
         required: true
         content:
@@ -12717,6 +12719,7 @@ components:
           format: int64
           description: >-
             Unix milliseconds. Omitted or null means the poll never closes.
+            Must be in the future and at most 31 days out.
 
     LaunchAppRequest:
       type: object

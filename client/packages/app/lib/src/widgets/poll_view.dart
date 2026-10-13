@@ -4,8 +4,10 @@
 /// vote per user per poll (a second vote replaces the first, it never adds
 /// to it: see `store::polls::vote_poll`), so this widget carries no
 /// multi-select state at all. Voting is refused server-side once the poll
-/// is closed regardless of what this renders, so [poll]'s own `closed` flag
-/// (never the client's clock) is what disables the tap here too.
+/// is closed regardless of what this renders. The client's clock only ever
+/// closes a poll early in the view, at its `close_at`, never reopens one the
+/// server called closed, so a skewed clock can hide a few seconds of voting
+/// at worst.
 ///
 /// Each option bar is a track (`borderSubtle`, always visible) with a
 /// proportional fill on top: `borderStrong` for an ordinary option, so the
@@ -34,6 +36,9 @@
 /// would widen every option for a number the footer already states.
 library;
 
+import 'dart:async';
+
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -45,16 +50,63 @@ import 'poll_text.dart';
 /// whether that particular row carries the leading glyph.
 const double _percentColumnWidth = 72;
 
-class PollView extends StatelessWidget {
+class PollView extends StatefulWidget {
   const PollView({super.key, required this.poll, required this.onVote});
 
   final api.Poll poll;
   final ValueChanged<int> onVote;
 
   @override
+  State<PollView> createState() => _PollViewState();
+}
+
+class _PollViewState extends State<PollView> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(PollView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.poll.closeAt != widget.poll.closeAt ||
+        oldWidget.poll.closed != widget.poll.closed) {
+      _schedule();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  /// Wakes at the next minute or at the close, whichever is sooner, so the
+  /// countdown stays current and the poll closes on time without a refetch.
+  void _schedule() {
+    _tick?.cancel();
+    final closeAt = widget.poll.closeAt;
+    if (closeAt == null || pollClosed(widget.poll, clock.now())) return;
+    final left = closeAt - clock.now().millisecondsSinceEpoch;
+    final wait = left < 60000 ? left : 60000 - (left % 60000);
+    _tick = Timer(Duration(milliseconds: wait.clamp(1, 60000)), () {
+      if (!mounted) return;
+      setState(() {});
+      _schedule();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final poll = widget.poll;
+    final onVote = widget.onVote;
+    final now = clock.now();
+    final closed = pollClosed(poll, now);
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final canVote = !poll.closed;
+    final canVote = !closed;
     final leadingPosition = _leadingPosition(poll);
 
     return Container(
@@ -80,7 +132,7 @@ class PollView extends StatelessWidget {
                 ),
               ),
               // A closed poll used to say so only in the fine print below the options; this is the glance-able version.
-              if (poll.closed) ...[
+              if (closed) ...[
                 const SizedBox(width: AppSpacing.s8),
                 const AppBadge(variant: AppBadgeVariant.tag, label: 'Closed'),
               ],
@@ -98,7 +150,7 @@ class PollView extends StatelessWidget {
             const SizedBox(height: AppSpacing.s4),
           ],
           Text(
-            _footerText(poll),
+            _footerText(poll, closed: closed, now: now),
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
         ],
@@ -131,14 +183,35 @@ int? _leadingPosition(api.Poll poll) {
 /// What the line under the options says. A poll with no votes yet says so
 /// in words rather than every option drawing an identical, silent "0%" -
 /// see the library doc above for why that read as broken.
-String _footerText(api.Poll poll) {
-  if (poll.totalVotes == 0) {
-    return poll.closed
-        ? 'No one voted.'
-        : 'No votes yet. Tap an option to vote.';
-  }
+String _footerText(
+  api.Poll poll, {
+  required bool closed,
+  required DateTime now,
+}) {
   final count = poll.totalVotes;
-  return '$count vote${count == 1 ? '' : 's'}';
+  final votes = count == 0
+      ? (closed ? 'No one voted.' : 'No votes yet. Tap an option to vote.')
+      : '$count vote${count == 1 ? '' : 's'}';
+  final closeAt = poll.closeAt;
+  if (closed || closeAt == null) return votes;
+  return '$votes ${count == 0 ? '' : '- '}${closesIn(closeAt, now)}'.trim();
+}
+
+/// Closed by the server, or past its `close_at` by this device's clock.
+bool pollClosed(api.Poll poll, DateTime now) {
+  final closeAt = poll.closeAt;
+  return poll.closed ||
+      (closeAt != null && now.millisecondsSinceEpoch >= closeAt);
+}
+
+/// "Closes in 5 min.", "Closes in 3 h.", "Closes in 1 day.".
+String closesIn(int closeAt, DateTime now) {
+  final left = Duration(milliseconds: closeAt - now.millisecondsSinceEpoch);
+  if (left.inMinutes < 1) return 'Closes in under a minute.';
+  if (left.inHours < 1) return 'Closes in ${left.inMinutes} min.';
+  if (left.inHours < 24) return 'Closes in ${left.inHours} h.';
+  final days = left.inDays;
+  return 'Closes in $days day${days == 1 ? '' : 's'}.';
 }
 
 /// The fill under an option's own label: one colour for every option,

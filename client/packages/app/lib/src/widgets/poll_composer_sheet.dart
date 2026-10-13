@@ -11,6 +11,7 @@
 /// poll" produces is not a guess.
 library;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,7 @@ import '../providers/message_extras.dart';
 import '../providers/providers.dart';
 import 'emoji_picker.dart';
 import 'poll_view.dart';
+import 'settings_select_row.dart';
 import 'text_insert.dart';
 
 /// Mirrors `store::polls::MIN_OPTIONS`: below this a poll is not a choice.
@@ -65,6 +67,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
 
   bool _submitting = false;
   String? _error;
+  _PollLength _length = _PollLength.never;
 
   @override
   void dispose() {
@@ -131,6 +134,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             id: newMessageId(),
             question: _question.text.trim(),
             options: _filledOptions,
+            closeAt: _length.closeAt(clock.now()),
           );
       final store = await ref.read(storeProvider.future);
       await store.applyMessage(sent);
@@ -166,7 +170,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     ],
     totalVotes: 0,
     votedOption: null,
-    closeAt: null,
+    closeAt: _length.closeAt(clock.now()),
     closed: false,
   );
 
@@ -196,7 +200,8 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              '$_minOptions to $_maxOptions options, one vote each.',
+              '$_minOptions to $_maxOptions options, one vote each. '
+              'Votes are anonymous.',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
             const SizedBox(height: AppSpacing.s12),
@@ -265,6 +270,16 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
                   style: AppText.caption.copyWith(color: tokens.textSecondary),
                 ),
               ),
+            SettingsSelectRow<_PollLength>(
+              label: 'Closes',
+              value: _length,
+              sheetTitle: 'Closes',
+              choices: [
+                for (final length in _PollLength.values)
+                  SettingsChoice(value: length, label: length.label),
+              ],
+              onChanged: (length) => setState(() => _length = length),
+            ),
             const SizedBox(height: AppSpacing.s12),
             Text(
               'Preview',
@@ -297,4 +312,23 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
       ),
     );
   }
+}
+
+/// How long a new poll stays open.
+enum _PollLength {
+  never('Never', null),
+  hour('In 1 hour', Duration(hours: 1)),
+  day('In 1 day', Duration(days: 1)),
+  threeDays('In 3 days', Duration(days: 3)),
+  week('In 1 week', Duration(days: 7));
+
+  const _PollLength(this.label, this.duration);
+
+  final String label;
+  final Duration? duration;
+
+  int? closeAt(DateTime now) => switch (duration) {
+    final d? => now.add(d).millisecondsSinceEpoch,
+    null => null,
+  };
 }
