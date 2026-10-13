@@ -190,13 +190,21 @@ class SpaceConnectionDot extends StatelessWidget {
       ),
     );
     if (!haloed) return dot;
+    // A triangle fills its square and its weight sits low, so inside a round halo it shrinks and rises to its centroid.
+    final inset = status == SyncStatus.connecting ? 1.0 : 0.0;
+    const halo = AppAvatarGeometry.dotHalo;
     return Container(
-      padding: const EdgeInsets.all(AppAvatarGeometry.dotHalo),
+      padding: EdgeInsets.fromLTRB(
+        halo + inset,
+        halo,
+        halo + inset,
+        halo + 2 * inset,
+      ),
       decoration: BoxDecoration(
         color: tokens.surfaceSunken,
         shape: BoxShape.circle,
       ),
-      child: dot,
+      child: SizedBox.square(dimension: _size - 2 * inset, child: dot),
     );
   }
 }

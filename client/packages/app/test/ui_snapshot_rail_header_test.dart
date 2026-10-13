@@ -118,7 +118,8 @@ Future<void> _capture(
       ),
     ),
   );
-  for (var i = 0; i < 4; i++) {
+  // Only an icon loads from the network; with none there is nothing to wait for.
+  for (var i = 0; icon != null && i < 4; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 150)),
     );
@@ -140,7 +141,11 @@ void main() {
 
   for (final theme in const ['dark', 'light']) {
     for (final viewport in phoneAndDesktop) {
-      for (final icon in const [null, 'colour', 'pale']) {
+      // Phone draws the same row larger, so one icon there covers it.
+      final icons = viewport == phoneAndDesktop.first
+          ? const ['colour']
+          : const [null, 'colour', 'pale'];
+      for (final icon in icons) {
         for (final status in SyncStatus.values) {
           testWidgets(
             'rail header, ${icon ?? 'no icon'}, ${status.name}, at $viewport ($theme)',
