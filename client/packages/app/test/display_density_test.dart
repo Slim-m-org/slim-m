@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/widgets/image_decode.dart';
 import 'package:slimm_app/src/providers/display_density.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/user_profiles.dart';
@@ -260,5 +261,24 @@ void main() {
     expect(scaled.size, const Size(800, 640));
     expect(scaled.padding.top, 32);
     expect(scaleMediaQuery(data, 1), same(data));
+  });
+
+  testWidgets('a scaled UI decodes an avatar at the pixels it paints', (
+    tester,
+  ) async {
+    late int edge;
+    await tester.pumpWidget(
+      MediaQuery(
+        data: scaleMediaQuery(const MediaQueryData(size: Size(1000, 800)), 1.3),
+        child: Builder(
+          builder: (context) {
+            edge = decodeEdge(context, 40);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    expect(edge, 52);
   });
 }
