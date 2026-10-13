@@ -656,24 +656,10 @@ mod role_grant {
         top_level.sort();
         assert_eq!(top_level, ["community", "usable"]);
 
-        let mut community_keys: Vec<_> = check["community"]
-            .as_object()
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect();
-        community_keys.sort();
-        assert_eq!(
-            community_keys,
-            [
-                "banner_updated_at",
-                "description",
-                "expires_at",
-                "invited_by",
-                "member_count",
-                "name",
-                "uses_remaining"
-            ],
+        // The exact public key set is pinned in invite_landing.rs; this only guards the grant.
+        let community = check["community"].as_object().unwrap();
+        assert!(
+            !community.keys().any(|k| k.contains("role")),
             "a role_grant must never reach this response, even for a code that carries one"
         );
     }
