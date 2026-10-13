@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The admin's controls for the invite landing card: a short description, a
-/// banner, an icon, and a live preview of the card a visitor will see.
+/// The admin's controls for the invite landing card: the Space's name, a short
+/// description, a banner, an icon, and a live preview of the card a visitor
+/// will see.
 library;
 
 import 'dart:async';
@@ -23,6 +24,7 @@ import 'join_policy_row.dart';
 import 'run_guarded.dart';
 import 'settings_section_header.dart';
 import 'space_icon.dart';
+import 'space_name_field.dart';
 
 // The server's caps on the two pictures; a pick past either is shrunk first.
 const int _bannerMaxBytes = 4 * 1024 * 1024;
@@ -43,10 +45,6 @@ const double _pictureLabelWidth = 56;
 
 /// Matches the server's cap on a description.
 const int kInviteDescriptionMaxChars = 280;
-
-final _spaceNameProvider = FutureProvider.autoDispose<String>(
-  (ref) async => (await ref.watch(apiProvider).version()).name,
-);
 
 final _bannerBytesProvider = FutureProvider.autoDispose.family<Uint8List, int>(
   (ref, updatedAt) async =>
@@ -233,6 +231,8 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SpaceNameField(saved: loaded.name),
+          const SizedBox(height: AppSpacing.s16),
           AppInput(
             controller: _description,
             placeholder: 'Short description',
@@ -290,8 +290,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: InviteLandingCard(
-                  name:
-                      ref.watch(_spaceNameProvider).valueOrNull ?? 'Your Space',
+                  name: loaded.name,
                   memberCount:
                       ref.watch(membersProvider).valueOrNull?.length ?? 0,
                   description: _description.text.trim(),

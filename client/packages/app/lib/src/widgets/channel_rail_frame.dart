@@ -103,7 +103,7 @@ class RailHeader extends ConsumerWidget {
                         const SizedBox(width: AppSpacing.s8),
                       Flexible(
                         child: Text(
-                          server.valueOrNull?.name ?? 'slim-m',
+                          server.valueOrNull?.displayName ?? 'slim-m',
                           overflow: TextOverflow.ellipsis,
                           style: AppText.body.copyWith(
                             color: tokens.textPrimary,

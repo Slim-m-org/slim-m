@@ -161,11 +161,18 @@ fn resolve_handler(manifest_dir: &Path, route: &RouterRoute) -> Option<(String, 
     if let Some(f) = functions_in(&scrubbed).remove(&route.handler) {
         return Some((route.file.clone(), f));
     }
-    let module = imported_from(&scrubbed, &route.handler)?;
+    // A path-qualified handler such as `version::version` names its module outright.
+    let (module, name) = match route.handler.split_once("::") {
+        Some((module, name)) => (module.to_owned(), name.to_owned()),
+        None => (
+            imported_from(&scrubbed, &route.handler)?,
+            route.handler.clone(),
+        ),
+    };
     let target_rel = format!("src/http/{module}.rs");
     let target_source = std::fs::read_to_string(manifest_dir.join(&target_rel)).ok()?;
     let target_scrubbed = code_only(&target_source);
-    let f = functions_in(&target_scrubbed).remove(&route.handler)?;
+    let f = functions_in(&target_scrubbed).remove(&name)?;
     Some((target_rel, f))
 }
 
@@ -387,6 +394,22 @@ fn resolve_handler_follows_a_cross_module_import() {
         charges(&handler),
         "placeCanvasObject is expected to charge CANVAS"
     );
+}
+
+#[test]
+fn resolve_handler_follows_a_module_qualified_handler() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let route = RouterRoute {
+        method: Method::Get,
+        path: "/version".to_owned(),
+        handler: "version::version".to_owned(),
+        file: "src/http.rs".to_owned(),
+        line: 0,
+    };
+    let (def_file, handler) =
+        resolve_handler(manifest_dir, &route).expect("version resolves via http/version.rs");
+    assert_eq!(def_file, "src/http/version.rs");
+    assert!(charges(&handler), "/version is expected to charge READ");
 }
 
 /// `http_source_files` backs both this gate and `extract_router_routes`;

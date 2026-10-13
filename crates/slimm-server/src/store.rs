@@ -146,6 +146,7 @@ pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome}
 pub use channel_settings::ChannelPatch;
 pub use channels::DeleteChannelError;
 pub use code_runs::{CodeRunSummary, MAX_SHARED_OUTPUT_BYTES, clamp_output};
+pub use deployment_identity::MAX_SPACE_NAME_CHARS;
 pub(crate) use dms::DM_CHANNEL_KIND;
 pub use dms::{DmConversation, OpenDmError};
 pub use dock_sources::DockSource;
