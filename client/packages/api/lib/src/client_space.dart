@@ -25,12 +25,16 @@ enum JoinPolicy {
 /// declared here, and that file is a separate library which cannot see it.
 class SpaceSettings {
   const SpaceSettings({
+    this.name = 'slim-m',
     required this.joinPolicy,
     required this.totpPolicy,
     this.description = '',
     this.bannerUpdatedAt,
     this.iconUpdatedAt,
   });
+
+  /// The Space's name, shown in the channel list header and on invites.
+  final String name;
 
   final JoinPolicy joinPolicy;
   final TotpPolicy totpPolicy;
@@ -48,6 +52,7 @@ class SpaceSettings {
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
   factory SpaceSettings.fromJson(Map<String, dynamic> json) => SpaceSettings(
+        name: json['name'] as String? ?? 'slim-m',
         joinPolicy: JoinPolicy.parse(json['join_policy'] as String),
         totpPolicy: TotpPolicy.parse(
           json['totp_policy'] as String? ?? TotpPolicy.optional.wire,
@@ -65,26 +70,30 @@ extension SlimmApiSpace on SlimmApi {
     return SpaceSettings.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Writes whichever of [joinPolicy] and [totpPolicy] is given and leaves the
-  /// other alone.
+  /// Writes whichever fields are given and leaves the rest alone.
   ///
   /// A field is omitted rather than echoed back when the caller does not mean
   /// to change it: the server writes only what is present, so a screen holding
   /// a stale snapshot cannot overwrite the operator's other choice. At least
   /// one is required.
   Future<SpaceSettings> setSpaceSettings({
+    String? name,
     JoinPolicy? joinPolicy,
     TotpPolicy? totpPolicy,
     String? description,
   }) async {
     assert(
-      joinPolicy != null || totpPolicy != null || description != null,
+      name != null ||
+          joinPolicy != null ||
+          totpPolicy != null ||
+          description != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await _send(
       'PATCH',
       '/space/settings',
       body: {
+        if (name != null) 'name': name,
         if (joinPolicy != null) 'join_policy': joinPolicy.wire,
         if (totpPolicy != null) 'totp_policy': totpPolicy.wire,
         if (description != null) 'description': description,

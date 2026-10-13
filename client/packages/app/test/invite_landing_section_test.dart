@@ -143,6 +143,13 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
   await tester.pumpAndSettle();
 }
 
+Finder get _descriptionInput => find.byWidgetPredicate(
+  (w) => w is AppInput && w.semanticLabel == 'Description',
+);
+
+Finder get _descriptionField =>
+    find.descendant(of: _descriptionInput, matching: find.byType(TextField));
+
 Finder _button(String semanticLabel) => find.byWidgetPredicate(
   (w) => w is AppButton && w.semanticLabel == semanticLabel,
 );
@@ -174,10 +181,7 @@ void main() {
         final save = find.widgetWithText(AppButton, 'Save description');
         expect(tester.widget<AppButton>(save).disabled, isTrue);
 
-        await tester.enterText(
-          find.byType(TextField),
-          '  A small home server. ',
-        );
+        await tester.enterText(_descriptionField, '  A small home server. ');
         await tester.pump();
         expect(find.text('A small home server.'), findsWidgets);
         await tester.tap(save);
@@ -261,7 +265,7 @@ void main() {
           ..banner = 7
           ..icon = 9;
         await _pump(tester, server, width);
-        final field = tester.getRect(find.byType(AppInput));
+        final field = tester.getRect(_descriptionInput);
         final inset = field.left + 4;
         final banner = tester.getRect(find.text('Banner'));
         final icon = tester.getRect(find.text('Icon'));
@@ -288,7 +292,7 @@ void main() {
 
   testWidgets('the description field is multi-line', (tester) async {
     await _pump(tester, _Server(), 390);
-    final field = tester.widget<TextField>(find.byType(TextField));
+    final field = tester.widget<TextField>(_descriptionField);
     expect(field.minLines, 2);
     expect(field.maxLines, 4);
   });

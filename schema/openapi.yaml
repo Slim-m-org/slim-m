@@ -8527,6 +8527,10 @@ components:
       properties:
         name:
           type: string
+          description: The product, always `slim-m`.
+        space_name:
+          type: string
+          description: This deployment's own name, which an admin can change. Absent on older servers.
         version:
           type: string
           description: The server's release version.
@@ -9251,6 +9255,9 @@ components:
       type: object
       required: [join_policy]
       properties:
+        name:
+          type: string
+          description: The Space's name, shown in the channel list header and on invites.
         description:
           type: string
           description: Shown on the invite landing card; empty when none.
@@ -9281,6 +9288,9 @@ components:
       type: object
       minProperties: 1
       properties:
+        name:
+          type: string
+          description: Trimmed; 1 to 64 characters, no control or invisible characters.
         join_policy:
           type: string
           enum: [invite, open]
