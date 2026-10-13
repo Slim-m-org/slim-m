@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.87.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.86.0...server-v0.87.0) (2026-10-13)
+
+
+### Features
+
+* rename the space, role colours, thread and upload fixes, a resizable sidebar, and tighter input validation ([#2170](https://github.com/Slim-m-org/slim-m/issues/2170)) ([3129fc6](https://github.com/Slim-m-org/slim-m/commit/3129fc66b1feb4eaa43f422f3781ebddd475c1e8))
+
 ## [0.86.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.85.0...server-v0.86.0) (2026-10-13)
 
 
