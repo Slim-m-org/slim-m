@@ -356,9 +356,8 @@ class VoiceController extends StateNotifier<VoiceState>
     final generation = _callGeneration;
     final want = !state.cameraEnabled;
     state = state.copyWith(cameraPending: true);
-    final got = await _session.setCameraEnabled(want);
+    final (got, cause) = await setCameraWithin(_session, want);
     if (generation != _callGeneration) return;
-    final cause = got ? null : _session.lastError;
     if (cause != null) {
       _log('Camera ${want ? 'on' : 'off'} failed', detail: cause);
     }
