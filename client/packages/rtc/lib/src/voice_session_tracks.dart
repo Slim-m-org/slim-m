@@ -109,6 +109,10 @@ extension VoiceSessionTracks on VoiceSession {
     final result = await _cameraSwitching.setEnabled(
       room.localParticipant,
       enabled,
+      options: cameraCaptureOptionsFor(
+        room.roomOptions.defaultCameraCaptureOptions,
+        _cameraQuality,
+      ),
     );
     if (result.error != null) _lastError = result.error;
     // Off means the next enable republishes fresh, front-facing: reset now.
@@ -135,6 +139,9 @@ extension VoiceSessionTracks on VoiceSession {
     unawaited(_applyLocalAudioState(room));
     // Ahead of the unchanged-roster early return below: a subscription can change with no visible roster change at all.
     _applyVideoInterest();
+    unawaited(
+      applyReceiveVideoQuality(remoteVideoQualityRefs(room), _receiveQuality),
+    );
 
     final next = snapshotParticipants(
       room,

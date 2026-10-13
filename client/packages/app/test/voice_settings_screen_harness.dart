@@ -22,6 +22,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 const tokens = TokenPair(
   userId: 'user-1',
   accessToken: 'access',
@@ -51,7 +53,7 @@ http.Client voiceTokenClient() => MockClient((request) async {
 /// The minimum [VoiceSession] surface the controller needs, driven by hand.
 /// Implemented rather than subclassed so a new member on the real session is
 /// a compile error here, matching `voice_controller_test.dart`'s own fake.
-class FakeSession implements VoiceSession {
+class FakeSession with VideoQualityRecorder implements VoiceSession {
   FakeSession({
     this.supportsScreenShareAudio = true,
     this.supportsAudioInputSelection = true,

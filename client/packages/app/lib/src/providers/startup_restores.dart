@@ -77,6 +77,7 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
       entry.key: entry.value(container).restore(),
     'camera on join': voice.restoreCameraPreference(),
     'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
+    'video quality': voice.restoreVideoQuality(),
     'push to talk': voice.restorePushToTalkPreference(),
     'audio devices': voice.restoreAudioDevicePreferences(),
   };

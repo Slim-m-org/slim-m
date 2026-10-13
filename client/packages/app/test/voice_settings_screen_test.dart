@@ -163,12 +163,35 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Balanced'), findsOneWidget);
+    // Watching, camera and screen share each have their own Balanced.
+    expect(find.text('Balanced'), findsNWidgets(3));
     await tester.tap(find.text('Crisp'));
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('slimm.voice.screen_share_quality'), 'crisp');
+  });
+
+  testWidgets('picking watching and camera quality persists both', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Crisp'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    // Data saver is the first segment of watching quality, High the last of camera.
+    await tester.tap(find.text('Data saver').first);
+    await tester.tap(find.text('High'));
+    await tester.pumpAndSettle();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('slimm.voice.receive_video_quality'), 'dataSaver');
+    expect(prefs.getString('slimm.voice.camera_quality'), 'high');
   });
 
   testWidgets(

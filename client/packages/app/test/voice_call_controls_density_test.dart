@@ -36,6 +36,13 @@ const _desktop = Size(1400, 900);
 /// padding plus the border stroke `BoxDecoration.padding` folds in.
 double get _focusRingOverhead => 2 * (focusRingGap + focusRingWidth);
 
+/// At pointer density the share button is the leading half of a joined pair
+/// with its options caret, so it drops the ring overhead.
+Size _expectedSize(String label, double side, {bool joined = false}) =>
+    joined && label.startsWith('Share')
+    ? Size(side - _focusRingOverhead, side - _focusRingOverhead)
+    : Size(side, side);
+
 Future<void> _pumpAt(WidgetTester tester, Size size) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -62,7 +69,11 @@ void main() {
       final expected = AppSizes.controlMd + _focusRingOverhead;
       for (final label in labels) {
         final size = tester.getSize(find.bySemanticsLabel(label));
-        expect(size, Size(expected, expected), reason: label);
+        expect(
+          size,
+          _expectedSize(label, expected, joined: true),
+          reason: label,
+        );
         expect(
           size.shortestSide,
           lessThan(AppSizes.rowTouch + _focusRingOverhead),

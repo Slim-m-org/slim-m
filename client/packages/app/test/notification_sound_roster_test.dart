@@ -21,9 +21,11 @@ import 'package:slimm_app/src/providers/voice_settings_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 /// The minimum [VoiceSession] surface the controller needs, the same shape
 /// `voice_settings_screen_test.dart`'s own fake already establishes.
-class _FakeSession implements VoiceSession {
+class _FakeSession with VideoQualityRecorder implements VoiceSession {
   final _states = StreamController<VoiceSessionState>.broadcast();
   final _participants = StreamController<List<VoiceParticipant>>.broadcast();
 

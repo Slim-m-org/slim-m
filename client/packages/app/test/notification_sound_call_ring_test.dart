@@ -22,6 +22,8 @@ import 'package:slimm_app/src/providers/voice_settings_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 /// A [VoiceController] whose channel can be set directly, with no SFU round
 /// trip: this file only ever needs `channelId`, never a real call.
 class _FixedChannelVoiceController extends VoiceController {
@@ -31,7 +33,7 @@ class _FixedChannelVoiceController extends VoiceController {
       state = state.copyWith(channelId: channelId);
 }
 
-class _DeadSession implements VoiceSession {
+class _DeadSession with VideoQualityRecorder implements VoiceSession {
   @override
   Stream<VoiceSessionState> get states => const Stream.empty();
   @override

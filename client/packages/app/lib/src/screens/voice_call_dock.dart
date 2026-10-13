@@ -213,7 +213,10 @@ bool _fitsOneRow(
   final cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
+  // Measured, not derived: the caret's width less what the share half gives back, at pointer density only.
+  final shareCaret = touch ? 0.0 : AppSpacing.s24;
   final needed =
+      shareCaret +
       controlCount * button +
       (controlCount - 1) * AppSpacing.s8 +
       leaveDivider +

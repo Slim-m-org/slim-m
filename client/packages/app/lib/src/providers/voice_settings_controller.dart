@@ -21,6 +21,8 @@ const _cameraOnJoinKey = 'slimm.voice.camera_on_join';
 const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
+const _receiveQualityKey = 'slimm.voice.receive_video_quality';
+const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
 const _audioInputDeviceIdKey = 'slimm.voice.audio_input_device_id';
 const _audioOutputDeviceIdKey = 'slimm.voice.audio_output_device_id';
@@ -54,6 +56,29 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
   return prefs.getDouble(_sensitivityKey) ?? 100.0;
 }
 
+/// The persisted watching and camera video quality, for
+/// `VoiceControllerInputMixin.restoreVideoQuality` to apply before a call.
+Future<(ReceiveVideoQuality, CameraQuality)> loadVideoQualityPreferences(
+  Ref ref,
+) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return (
+    _byName(
+      ReceiveVideoQuality.values,
+      prefs.getString(_receiveQualityKey),
+      ReceiveVideoQuality.auto,
+    ),
+    _byName(
+      CameraQuality.values,
+      prefs.getString(_cameraQualityKey),
+      CameraQuality.balanced,
+    ),
+  );
+}
+
+T _byName<T extends Enum>(List<T> values, String? name, T fallback) =>
+    values.where((v) => v.name == name).firstOrNull ?? fallback;
+
 /// The persisted push-to-talk toggle, [loadCameraOnJoinPreference]'s own
 /// shape: [VoiceController.restorePushToTalkPreference] needs it before the
 /// first call so a push-to-talk join starts with the mic closed, not only
@@ -85,6 +110,8 @@ class VoiceSettingsState {
     this.callRingSoundEnabled = true,
     this.holdMusicEnabled = false,
     this.screenShareQuality = ScreenShareQuality.balanced,
+    this.receiveVideoQuality = ReceiveVideoQuality.auto,
+    this.cameraQuality = CameraQuality.balanced,
     this.cameraOnJoin = false,
     this.pushToTalkEnabled = false,
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
@@ -105,6 +132,12 @@ class VoiceSettingsState {
   /// Soft local music while you are the only one in a call. Off by default (owner decision 2026-09-28).
   final bool holdMusicEnabled;
   final ScreenShareQuality screenShareQuality;
+
+  /// How sharp the video you watch is; see [ReceiveVideoQuality].
+  final ReceiveVideoQuality receiveVideoQuality;
+
+  /// How sharp your camera publishes; see [CameraQuality].
+  final CameraQuality cameraQuality;
 
   /// Whether a fresh session's first join should ask for a camera; see
   /// [VoiceSettingsController.setCameraOnJoin].
@@ -149,6 +182,8 @@ class VoiceSettingsState {
     bool? callRingSoundEnabled,
     bool? holdMusicEnabled,
     ScreenShareQuality? screenShareQuality,
+    ReceiveVideoQuality? receiveVideoQuality,
+    CameraQuality? cameraQuality,
     bool? cameraOnJoin,
     bool? pushToTalkEnabled,
     LogicalKeyboardKey? pushToTalkKey,
@@ -164,6 +199,8 @@ class VoiceSettingsState {
     callRingSoundEnabled: callRingSoundEnabled ?? this.callRingSoundEnabled,
     holdMusicEnabled: holdMusicEnabled ?? this.holdMusicEnabled,
     screenShareQuality: screenShareQuality ?? this.screenShareQuality,
+    receiveVideoQuality: receiveVideoQuality ?? this.receiveVideoQuality,
+    cameraQuality: cameraQuality ?? this.cameraQuality,
     cameraOnJoin: cameraOnJoin ?? this.cameraOnJoin,
     pushToTalkEnabled: pushToTalkEnabled ?? this.pushToTalkEnabled,
     pushToTalkKey: pushToTalkKey ?? this.pushToTalkKey,
@@ -198,6 +235,16 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       screenShareQuality: ScreenShareQuality.values
           .where((q) => q.name == storedQuality)
           .firstOrDefault(ScreenShareQuality.balanced),
+      receiveVideoQuality: _byName(
+        ReceiveVideoQuality.values,
+        prefs.getString(_receiveQualityKey),
+        ReceiveVideoQuality.auto,
+      ),
+      cameraQuality: _byName(
+        CameraQuality.values,
+        prefs.getString(_cameraQualityKey),
+        CameraQuality.balanced,
+      ),
       cameraOnJoin: prefs.getBool(_cameraOnJoinKey) ?? false,
       pushToTalkEnabled: prefs.getBool(_pushToTalkEnabledKey) ?? false,
       pushToTalkKey: pushToTalkKeyOptions
@@ -232,6 +279,22 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(screenShareQuality: quality);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setString(_qualityKey, quality.name);
+  }
+
+  /// Persists and applies live: a call may already be open this session.
+  Future<void> setReceiveVideoQuality(ReceiveVideoQuality quality) async {
+    state = state.copyWith(receiveVideoQuality: quality);
+    _ref.read(voiceControllerProvider.notifier).setReceiveVideoQuality(quality);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(_receiveQualityKey, quality.name);
+  }
+
+  /// [setReceiveVideoQuality]'s counterpart for your camera.
+  Future<void> setCameraQuality(CameraQuality quality) async {
+    state = state.copyWith(cameraQuality: quality);
+    _ref.read(voiceControllerProvider.notifier).setCameraQuality(quality);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(_cameraQualityKey, quality.name);
   }
 
   Future<void> setScreenShareIncludeAudio(bool enabled) async {

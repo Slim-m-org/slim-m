@@ -36,6 +36,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/video_quality_recorder.dart';
+
 const _tokens = TokenPair(
   userId: 'user-1',
   accessToken: 'access',
@@ -43,7 +45,7 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-class _ConnectableSession implements VoiceSession {
+class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
   var joinCount = 0;
 
   final _states = StreamController<VoiceSessionState>.broadcast();
