@@ -14,6 +14,14 @@ import '../entity_name.dart';
 
 /// Makes the thing named [name] and returns what to do once the sheet has
 /// closed (a navigation, say), or null for nothing.
+/// Thrown by a create step that made the thing but not everything around it;
+/// its message is shown as is and the sheet stays open for a retry.
+class NameEntryPartialFailure implements Exception {
+  const NameEntryPartialFailure(this.message);
+
+  final String message;
+}
+
 typedef NameEntryCreate = Future<VoidCallback?> Function(String name);
 
 class NameEntrySheet extends StatefulWidget {
@@ -80,6 +88,8 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
           () => _error = describeApiFailure('create the ${widget.noun}', e),
         );
       }
+    } on NameEntryPartialFailure catch (e) {
+      if (mounted) setState(() => _error = e.message);
     } finally {
       // Any escape, not just ApiException, must not wedge "Creating..." on.
       if (mounted) setState(() => _submitting = false);

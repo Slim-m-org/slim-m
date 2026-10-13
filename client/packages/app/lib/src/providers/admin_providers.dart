@@ -21,6 +21,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import 'channel_permissions.dart';
 import 'live_events.dart';
+import 'member_presence.dart' show channelMembersProvider;
 import 'providers.dart';
 
 /// The caller's own base (deployment-level) permission bitmask, or 0 while
@@ -119,6 +120,10 @@ final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
       ref.invalidate(channelPermissionsProvider(event.channelId));
       if (ref.exists(channelOverwritesProvider(event.channelId))) {
         ref.invalidate(channelOverwritesProvider(event.channelId));
+      }
+      // An overwrite can grant or revoke view, so who the channel lists is now wrong.
+      if (ref.exists(channelMembersProvider(event.channelId))) {
+        ref.invalidate(channelMembersProvider(event.channelId));
       }
       refreshVisibleChannels();
     }

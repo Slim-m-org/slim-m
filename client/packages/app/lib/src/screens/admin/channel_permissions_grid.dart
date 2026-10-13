@@ -22,7 +22,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/channel_permissions.dart';
-import '../../providers/member_presence.dart' show membersProvider;
+import '../../providers/member_presence.dart'
+    show channelMembersProvider, membersProvider;
 import '../../providers/providers.dart';
 import '../../widgets/run_guarded.dart';
 import 'channel_permissions_body.dart';
@@ -252,6 +253,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   /// value, which an invalidate would hand straight back and pin as saved.
   Future<void> _reloadSaved() async {
     final provider = channelOverwritesProvider(widget.channel.id);
+    // A saved overwrite can grant or revoke view, which changes who the channel's member list holds.
+    ref.invalidate(channelMembersProvider(widget.channel.id));
     try {
       final fresh = await ref.refresh(provider.future);
       if (!mounted) return;
@@ -332,22 +335,31 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
           if (_resolve(key, roles, members) case final column?) column,
     ].map(_withCounts).toList();
 
-    // Embedded inline (unbounded height) or given the whole body (bounded); Expanded below needs a ceiling either way.
+    // Unbounded height means a scrolling pane hosts us: lay out at full height so that pane is the only vertical scroller.
     return LayoutBuilder(
-      builder: (context, outer) {
-        final maxHeight = outer.hasBoundedHeight
-            ? outer.maxHeight
-            : MediaQuery.sizeOf(context).height * 0.6;
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: _buildGrid(columns, myPermissions),
-        );
-      },
+      builder: (context, outer) => _buildGrid(
+        columns,
+        myPermissions,
+        shrinkWrap: !outer.hasBoundedHeight,
+      ),
     );
   }
 
-  Widget _buildGrid(List<GridColumn> columns, int myPermissions) {
+  Widget _buildGrid(
+    List<GridColumn> columns,
+    int myPermissions, {
+    required bool shrinkWrap,
+  }) {
+    final view = PermissionGridView(
+      shrinkWrap: shrinkWrap,
+      columns: columns,
+      filter: _filter.text,
+      onAdd: _pickTarget,
+      onRemove: _removeColumn,
+      cellBuilder: (column, spec) => _cell(column, spec, myPermissions),
+    );
     return Column(
+      mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         PermissionsToolbar(
@@ -369,32 +381,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
-        Expanded(
-          child: PermissionGridView(
-            columns: columns,
-            filter: _filter.text,
-            onAdd: _pickTarget,
-            onRemove: _removeColumn,
-            cellBuilder: (column, spec) {
-              final grantable = myPermissions.hasPermission(spec.bit);
-              final (allow, deny) = _pending[column.key] ?? (0, 0);
-              return Cell(
-                key: ValueKey('cell:${column.key}:${spec.bit}'),
-                state: CellState.resolve(allow, deny, spec.bit),
-                changed:
-                    CellState.resolve(allow, deny, spec.bit) !=
-                    CellState.resolve(
-                      _original[column.key]?.$1 ?? 0,
-                      _original[column.key]?.$2 ?? 0,
-                      spec.bit,
-                    ),
-                disabled: !grantable || _saving,
-                label: '${spec.label}, ${column.label}',
-                onTap: () => _cycle(column, spec.bit, grantable),
-              );
-            },
-          ),
-        ),
+        if (shrinkWrap) view else Expanded(child: view),
         if (_isDirty)
           UnsavedChangesBar(
             changeCount: _changeCount,
@@ -403,6 +390,21 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             onSave: _save,
           ),
       ],
+    );
+  }
+
+  Widget _cell(GridColumn column, PermSpec spec, int myPermissions) {
+    final grantable = myPermissions.hasPermission(spec.bit);
+    final (allow, deny) = _pending[column.key] ?? (0, 0);
+    final (origAllow, origDeny) = _original[column.key] ?? (0, 0);
+    final state = CellState.resolve(allow, deny, spec.bit);
+    return Cell(
+      key: ValueKey('cell:${column.key}:${spec.bit}'),
+      state: state,
+      changed: state != CellState.resolve(origAllow, origDeny, spec.bit),
+      disabled: !grantable || _saving,
+      label: '${spec.label}, ${column.label}',
+      onTap: () => _cycle(column, spec.bit, grantable),
     );
   }
 

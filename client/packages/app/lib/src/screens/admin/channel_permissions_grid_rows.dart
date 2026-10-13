@@ -75,10 +75,10 @@ class GridMetrics {
   }
 
   static const double compactLabelWidth = 112;
-  static const double wideLabelWidth = 200;
-  static const double minCellWidth = 60;
-  static const double maxCellWidth = 96;
-  static const double wideCellWidth = 88;
+  static const double wideLabelWidth = 168;
+  static const double minCellWidth = 56;
+  static const double maxCellWidth = 72;
+  static const double wideCellWidth = 72;
   static const double wideRowHeight = 40;
   static const double groupHeaderHeight = 40;
   static const double wideHeaderHeight = 124;

@@ -23,8 +23,12 @@ class PermissionGridView extends StatefulWidget {
     required this.cellBuilder,
     required this.onAdd,
     required this.onRemove,
+    this.shrinkWrap = false,
   });
 
+  /// Lay out at full height instead of scrolling the rows, for a host that
+  /// already scrolls; two nested vertical scrollers fight over the wheel.
+  final bool shrinkWrap;
   final List<GridColumn> columns;
 
   /// Case-insensitive text a permission's name or description must contain;
@@ -95,7 +99,26 @@ class _PermissionGridViewState extends State<PermissionGridView> {
         box.maxWidth,
         columnCount: widget.columns.length,
       );
+      final rows = Stack(
+        children: [
+          _rows(metrics),
+          if (metrics.scrolls)
+            Positioned(
+              left: metrics.labelWidth,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: _EdgeHints(
+                  controller: _body,
+                  rowHeight: metrics.rowHeight,
+                ),
+              ),
+            ),
+        ],
+      );
       return Column(
+        mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           HeaderRow(
@@ -105,26 +128,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             onAdd: widget.onAdd,
             onRemove: widget.onRemove,
           ),
-          Expanded(
-            child: Stack(
-              children: [
-                _rows(metrics),
-                if (metrics.scrolls)
-                  Positioned(
-                    left: metrics.labelWidth,
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: IgnorePointer(
-                      child: _EdgeHints(
-                        controller: _body,
-                        rowHeight: metrics.rowHeight,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          if (widget.shrinkWrap) rows else Expanded(child: rows),
         ],
       );
     },
@@ -136,60 +140,62 @@ class _PermissionGridViewState extends State<PermissionGridView> {
     return _rowsFor(metrics, groups);
   }
 
-  Widget _rowsFor(GridMetrics metrics, List<PermGroup> groups) =>
-      SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.s16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: metrics.labelWidth,
-              child: Column(
-                children: [
-                  for (final group in groups) ...[
-                    GroupHeaderRow(
-                      title: group.title,
-                      count: group.permissions.length,
-                      expanded: _isOpen(group),
-                      onToggle: () => _toggle(group),
-                    ),
-                    if (_isOpen(group))
-                      for (final spec in group.permissions)
-                        GridLabelRow(
-                          label: spec.label,
-                          height: metrics.rowHeight,
-                        ),
-                  ],
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _body,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: metrics.contentWidth,
-                  child: Column(
-                    children: [
-                      for (final group in groups) ...[
-                        const SizedBox(height: GridMetrics.groupHeaderHeight),
-                        if (_isOpen(group))
-                          for (final spec in group.permissions)
-                            GridRow(
-                              columns: widget.columns,
-                              metrics: metrics,
-                              cellBuilder: (column) =>
-                                  widget.cellBuilder(column, spec),
-                            ),
-                      ],
-                    ],
+  Widget _rowsFor(GridMetrics metrics, List<PermGroup> groups) {
+    final table = Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.s16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: metrics.labelWidth,
+            child: Column(
+              children: [
+                for (final group in groups) ...[
+                  GroupHeaderRow(
+                    title: group.title,
+                    count: group.permissions.length,
+                    expanded: _isOpen(group),
+                    onToggle: () => _toggle(group),
                   ),
+                  if (_isOpen(group))
+                    for (final spec in group.permissions)
+                      GridLabelRow(
+                        label: spec.label,
+                        height: metrics.rowHeight,
+                      ),
+                ],
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _body,
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: metrics.contentWidth,
+                child: Column(
+                  children: [
+                    for (final group in groups) ...[
+                      const SizedBox(height: GridMetrics.groupHeaderHeight),
+                      if (_isOpen(group))
+                        for (final spec in group.permissions)
+                          GridRow(
+                            columns: widget.columns,
+                            metrics: metrics,
+                            cellBuilder: (column) =>
+                                widget.cellBuilder(column, spec),
+                          ),
+                    ],
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+    return widget.shrinkWrap ? table : SingleChildScrollView(child: table);
+  }
 }
 
 /// Fades and a chevron on whichever side still has columns hidden.
