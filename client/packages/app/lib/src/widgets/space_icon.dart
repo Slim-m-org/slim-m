@@ -37,7 +37,7 @@ class SpaceIcon extends ConsumerWidget {
       size: size,
       child: bytes == null
           ? null
-          : Image(
+          : AppShapedImage(
               // Decoded near the painted size, as an avatar is; drawn straight from the source it aliased on a scaled desktop.
               image: ResizeImage(
                 MemoryImage(bytes),
@@ -45,15 +45,17 @@ class SpaceIcon extends ConsumerWidget {
                 height: edge,
                 policy: ResizeImagePolicy.fit,
               ),
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.medium,
+              size: size,
+              radius: AppRadii.control,
+              errorBuilder: (_) => SpaceIconFrame(size: size),
             ),
     );
   }
 }
 
 /// The rounded square every icon surface shares; a null [child] draws the
-/// sunken placeholder while the bytes load or fail.
+/// sunken placeholder while the bytes load or fail. A child shapes itself
+/// (see AppShapedImage): a clip here would not be anti-aliased on desktop GL.
 class SpaceIconFrame extends StatelessWidget {
   const SpaceIconFrame({super.key, required this.size, this.child});
 
@@ -64,12 +66,16 @@ class SpaceIconFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return ExcludeSemantics(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.control),
-        child: SizedBox.square(
-          dimension: size,
-          child: child ?? ColoredBox(color: tokens.surfaceSunken),
-        ),
+      child: SizedBox.square(
+        dimension: size,
+        child:
+            child ??
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: tokens.surfaceSunken,
+                borderRadius: BorderRadius.circular(AppRadii.control),
+              ),
+            ),
       ),
     );
   }

@@ -63,11 +63,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PR'), findsOneWidget);
-    expect(find.byType(Image), findsNothing);
+    expect(find.byType(AppShapedImage), findsNothing);
     expect(requested, isFalse);
   });
 
-  testWidgets('a known userId with resolved bytes renders through Image', (
+  testWidgets('a known userId with resolved bytes renders through AppShapedImage', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -94,10 +94,10 @@ void main() {
     await tester.pumpAndSettle();
 
     /// Not asserting the initials are gone: the bytes above are not valid
-    /// image data, so [Image.errorBuilder] fires and repaints them right back
+    /// image data, so [AppShapedImage.errorBuilder] fires and repaints them right back
     /// in. What matters here is that the right bytes actually reached the
     /// widget, which the assertion above already establishes.
-    final image = tester.widget<Image>(find.byType(Image));
+    final image = tester.widget<AppShapedImage>(find.byType(AppShapedImage));
     final resized = image.image as ResizeImage;
     expect((resized.imageProvider as MemoryImage).bytes, bytes);
     // 1x display: floored at a 2x ratio for a window-scaled desktop that under-reports it, then 3x headroom for the GPU to minify from.
@@ -133,7 +133,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final resized =
-        tester.widget<Image>(find.byType(Image)).image as ResizeImage;
+        tester.widget<AppShapedImage>(find.byType(AppShapedImage)).image
+            as ResizeImage;
     // A 3x screen decodes at 3x the painted pixels, because the engine's own downscale aliases when it lands on the painted size.
     expect(resized.width, 360);
     expect(resized.height, 360);
@@ -168,7 +169,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final resized =
-        tester.widget<Image>(find.byType(Image)).image as ResizeImage;
+        tester.widget<AppShapedImage>(find.byType(AppShapedImage)).image
+            as ResizeImage;
     // 40 logical at 2.5x paints 100px; 3x of that, past the 2x floor.
     expect(resized.width, 300);
   });
@@ -190,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PR'), findsOneWidget);
-    expect(find.byType(Image), findsNothing);
+    expect(find.byType(AppShapedImage), findsNothing);
   });
 
   testWidgets('UserAvatar resolves the profile before fetching the picture', (
@@ -227,7 +229,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final image = tester.widget<Image>(find.byType(Image));
+    final image = tester.widget<AppShapedImage>(find.byType(AppShapedImage));
     final resized = image.image as ResizeImage;
     expect((resized.imageProvider as MemoryImage).bytes, bytes);
   });

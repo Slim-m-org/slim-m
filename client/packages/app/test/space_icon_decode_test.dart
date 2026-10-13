@@ -32,7 +32,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final image = tester.widget<Image>(find.byType(Image));
+      final image = tester.widget<AppShapedImage>(find.byType(AppShapedImage));
       final resized = image.image as ResizeImage;
       expect((resized.imageProvider as MemoryImage).bytes, bytes);
       expect(resized.width, 120);

@@ -345,4 +345,90 @@ void main() {
 
     expect(find.byType(AppErrorState), findsOneWidget);
   });
+
+  EditableText composerField(WidgetTester tester) =>
+      tester.widget<EditableText>(find.byType(EditableText).first);
+
+  testWidgets('/gif cat opens the GIF tab searching for cat, field focused', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        apiBuilder: _apiWithGifs(gifSearchEnabled: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '/gif cat');
+    await tester.pump();
+    await tester.tap(sendButton);
+    await tester.pumpAndSettle();
+
+    expect(controller.text, isEmpty, reason: 'the command is not sent');
+    expect(sends.count, 0);
+    final search = tester.widget<EditableText>(find.byType(EditableText).last);
+    expect(search.controller.text, 'cat');
+    expect(search.focusNode.hasFocus, isTrue);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'Pick: a cat waving',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('picking a GIF puts the cursor back in the composer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        apiBuilder: _apiWithGifs(gifSearchEnabled: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The mouse route: open the panel, type in its search, pick.
+    await openGifTab(tester);
+    await tester.tap(find.byType(TextField).last);
+    await tester.enterText(find.byType(TextField).last, 'cat');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    expect(composerField(tester).focusNode.hasFocus, isFalse);
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'Pick: a cat waving',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('gif.gif'), findsOneWidget);
+    expect(composerField(tester).focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('with no GIF provider, /gif is just text', (tester) async {
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        apiBuilder: _apiWithGifs(
+          gifSearchEnabled: false,
+          failOnGifRequest: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '/gif cat');
+    await tester.pump();
+    await tester.tap(sendButton);
+    await tester.pumpAndSettle();
+    expect(sends.count, 1);
+  });
 }

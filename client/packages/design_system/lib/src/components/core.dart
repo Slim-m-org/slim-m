@@ -5,6 +5,7 @@
 library;
 
 export 'core/avatar.dart';
+export 'core/avatar_shaped_image.dart';
 export 'core/avatar_geometry.dart';
 export 'core/badge.dart';
 export 'core/brand_lattice.dart';
