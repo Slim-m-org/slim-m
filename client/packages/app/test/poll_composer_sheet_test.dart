@@ -181,4 +181,26 @@ void main() {
       expect(_previewText('Option 3'), findsOneWidget);
     });
   });
+
+  testWidgets('a closing time shows in the preview, and votes say anonymous', (
+    tester,
+  ) async {
+    await _openSheet(tester);
+    expect(find.textContaining('Votes are anonymous.'), findsOneWidget);
+    expect(
+      _previewText('No votes yet. Tap an option to vote.'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('Closes'));
+    await tester.tap(find.text('Closes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('In 1 day'));
+    await tester.pumpAndSettle();
+
+    expect(
+      _previewText('No votes yet. Tap an option to vote. Closes in 1 day.'),
+      findsOneWidget,
+    );
+  });
 }

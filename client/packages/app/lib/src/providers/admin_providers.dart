@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import 'channel_permissions.dart';
+import 'join_gate_providers.dart';
 import 'live_events.dart';
 import 'member_presence.dart' show channelMembersProvider;
 import 'providers.dart';
@@ -116,6 +117,11 @@ final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
       ref.invalidate(meProvider);
       ref.invalidate(channelPermissionsProvider);
       refreshVisibleChannels();
+    } else if (event is api.JoinGateChanged &&
+        (event.userId == null || event.userId == selfId)) {
+      ref.invalidate(channelPermissionsProvider);
+      refreshVisibleChannels();
+      if (ref.exists(spaceRulesProvider)) ref.invalidate(spaceRulesProvider);
     } else if (event is api.OverwriteChanged) {
       ref.invalidate(channelPermissionsProvider(event.channelId));
       if (ref.exists(channelOverwritesProvider(event.channelId))) {

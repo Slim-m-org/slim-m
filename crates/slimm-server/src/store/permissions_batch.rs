@@ -14,6 +14,7 @@
 use uuid::Uuid;
 
 use super::Store;
+use super::member_gate::MemberGate;
 use super::permissions::{ChannelOverwrite, RoleContext};
 use super::timeouts::TIMEOUT_DENY;
 use crate::ids::{ChannelId, UserId};
@@ -52,6 +53,7 @@ impl Store {
         if candidates.is_empty() {
             return Ok(Vec::new());
         }
+        let requested = channel_id;
         let Some(channel) = self.channel(channel_id).await? else {
             return Ok(Vec::new());
         };
@@ -63,12 +65,21 @@ impl Store {
 
         // One query: asking per candidate restores the cost this function removes.
         let timed_out = self.timed_out_among_until(candidates).await?;
+        let pending = self.pending_among(candidates).await?;
+        let rules_channel = match pending.is_empty() {
+            true => None,
+            false => self.join_gate().await?.rules_channel_id,
+        };
         let deny_for = |user_id: UserId| {
-            if timed_out.contains_key(&user_id) {
-                TIMEOUT_DENY
-            } else {
-                Permissions::NONE
-            }
+            let timeout = match timed_out.contains_key(&user_id) {
+                true => TIMEOUT_DENY,
+                false => Permissions::NONE,
+            };
+            let gate = match pending.contains(&user_id) {
+                true => MemberGate::Pending { rules_channel },
+                false => MemberGate::Member,
+            };
+            timeout.union(gate.deny_in(Some(requested)))
         };
 
         if channel.kind == super::dms::DM_CHANNEL_KIND {
@@ -233,6 +244,7 @@ impl Store {
         let roles = self.load_roles(user_id).await?;
         // Hoisted: the map closure below is synchronous and cannot await.
         let timeout_deny = self.timeout_deny(user_id).await?;
+        let gate = self.member_gate(user_id).await?;
 
         let by_channel = self
             .overwrites_by_channel(channels.iter().map(|channel| channel.id))
@@ -244,7 +256,10 @@ impl Store {
             .map(|channel| {
                 let overwrites = by_channel.get(&channel.id.0).unwrap_or(&empty);
                 let evaluated = roles.evaluate_for(user_id, overwrites);
-                let perms = evaluated.permissions.remove(timeout_deny);
+                let perms = evaluated
+                    .permissions
+                    .remove(timeout_deny)
+                    .remove(gate.deny_in(Some(channel.id)));
                 let restricted = !evaluate(
                     roles.everyone_perms,
                     &[],
@@ -334,6 +349,7 @@ impl Store {
         }
 
         let timeout_deny = self.timeout_deny(user_id).await?;
+        let gate = self.member_gate(user_id).await?;
         let roles = self.load_roles(user_id).await?;
 
         let resolved = self.resolve_permission_channels(channel_ids).await?;
@@ -350,7 +366,8 @@ impl Store {
                     .get(&dm_id)
                     .copied()
                     .unwrap_or(Permissions::NONE)
-                    .remove(timeout_deny);
+                    .remove(timeout_deny)
+                    .remove(gate.deny_in(Some(requested_id)));
                 result.insert(requested_id, mask_unless_viewable(permissions));
             }
         }
@@ -372,7 +389,8 @@ impl Store {
             let perms = roles
                 .evaluate_for(user_id, overwrites)
                 .permissions
-                .remove(timeout_deny);
+                .remove(timeout_deny)
+                .remove(gate.deny_in(Some(requested_id)));
             result.insert(requested_id, mask_unless_viewable(perms));
         }
 

@@ -101,6 +101,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
              than the person's own data",
         ),
     ),
+    ("pending_members", "user_id", OnDelete::Purge),
     ("message_forwards", "origin_author_id", OnDelete::Anonymize),
     ("message_mentions", "user_id", OnDelete::Purge),
     ("message_ops", "actor_id", OnDelete::Anonymize),

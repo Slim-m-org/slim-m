@@ -64,6 +64,7 @@ pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
 mod interactions;
 mod invites;
+mod join_gate;
 pub mod link_preview;
 mod member_nicknames;
 mod members;
@@ -260,6 +261,7 @@ pub fn router(state: AppState) -> Router {
         .merge(dms::routes())
         .merge(search::routes())
         .merge(space::routes())
+        .merge(join_gate::routes())
         .merge(space_banner::routes())
         .merge(space_icon::routes())
         .merge(totp::routes())

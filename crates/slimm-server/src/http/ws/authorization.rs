@@ -48,73 +48,6 @@ pub(super) enum Authorization {
 /// outage still gives up promptly.
 const RESOLVE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(25);
 
-/// The bit a frame needs beyond `VIEW_CHANNEL`, if any.
-///
-/// Exhaustive with no wildcard, so a new variant does not compile until
-/// somebody classifies it - the same discipline `moves_permissions`
-/// (`hub.rs`) already uses. Replaces a `matches!` naming one variant, which
-/// would have shipped the next canvas event gated on `VIEW_CHANNEL` alone.
-fn extra_bit(event: &Event) -> Option<Permissions> {
-    match event {
-        Event::CanvasObjectPlaced { .. }
-        | Event::CanvasObjectsRemoved { .. }
-        | Event::CanvasCleared { .. }
-        | Event::CanvasObjectsRestored { .. }
-        | Event::CanvasCursorMoved { .. }
-        | Event::CanvasStrokePreview { .. }
-        | Event::CanvasObjectMoved { .. }
-        | Event::CanvasObjectReordered { .. }
-        | Event::CanvasMediaSlotChanged { .. }
-        | Event::CanvasObjectLockChanged { .. } => Some(Permissions::USE_CANVAS),
-        Event::MessageCreated { .. }
-        | Event::MessageEdited { .. }
-        | Event::MessageDeleted { .. }
-        | Event::ReactionsChanged { .. }
-        | Event::CodeRunChanged { .. }
-        | Event::CodeRunsCleared { .. }
-        | Event::ThreadUpdated { .. }
-        | Event::MessagePinned { .. }
-        | Event::MessageUnpinned { .. }
-        | Event::PollVoted { .. }
-        | Event::MessageComponentsChanged { .. }
-        | Event::TypingStarted { .. }
-        | Event::TypingStopped { .. }
-        | Event::ChannelCreated(..)
-        | Event::ChannelUpdated(..)
-        | Event::OverwriteChanged { .. }
-        // The same VIEW_CHANNEL gate the roster read route itself uses.
-        | Event::VoiceActivityChanged { .. }
-        | Event::VoiceParticipantJoined { .. }
-        | Event::VoiceParticipantLeft { .. }
-        | Event::VoiceScreenShareChanged { .. }
-        | Event::WatchTick { .. }
-        // Same again: a DM's own VIEW_CHANNEL already limits this to the pair.
-        | Event::CallRinging { .. }
-        | Event::CallRingEnded { .. }
-        // Handled earlier in `authorize` and never reach this call.
-        | Event::SessionRevoked(_)
-        | Event::PresenceChanged(_)
-        | Event::MemberTimeoutChanged { .. }
-        | Event::MemberRemoved(_)
-        | Event::MemberRestored(_)
-        | Event::MemberJoined(_)
-        | Event::ProfileChanged(_)
-        | Event::BotUiChanged(_)
-        | Event::RoleChanged { .. }
-        | Event::MemberRoleChanged { .. }
-        | Event::ChannelDeleted { .. }
-        | Event::CategoryChanged
-        | Event::ReportsChanged
-        | Event::ReadStateChanged { .. }
-        | Event::NotificationOverrideChanged { .. }
-        | Event::EphemeralMessage { .. }
-        | Event::InteractionCreated { .. }
-        | Event::InteractionAnswered { .. }
-        | Event::NewDeviceSignIn { .. }
-        | Event::Stamped { .. } => None,
-    }
-}
-
 /// [`authorize_unstamped`], with a moderation event's number attached to the frame it delivers.
 pub(super) async fn authorize(
     store: &Store,
@@ -215,6 +148,11 @@ pub(super) async fn authorize_unstamped(
                 seq: None,
                 user_id: user_id.to_string(),
                 until,
+            }));
+        }
+        Event::JoinGateChanged { user_id } => {
+            return Authorization::Deliver(Box::new(ServerFrame::JoinGateChanged {
+                user_id: user_id.map(|id| id.to_string()),
             }));
         }
         Event::MemberRemoved(user_id) => {
@@ -322,6 +260,7 @@ pub(super) async fn authorize_unstamped(
             Event::SessionRevoked(_)
             | Event::PresenceChanged(_)
             | Event::MemberTimeoutChanged { .. }
+            | Event::JoinGateChanged { .. }
             | Event::MemberRemoved(_)
             | Event::MemberRestored(_)
             | Event::MemberJoined(_)
@@ -375,7 +314,7 @@ pub(super) async fn authorize_unstamped(
         return Authorization::Withhold;
     }
     // The canvas frames are gated on a second bit, as their own read routes are; without this a denial is void here.
-    if let Some(extra) = extra_bit(&event)
+    if let Some(extra) = super::authorization_bits::extra_bit(&event)
         && !permissions.contains(extra)
     {
         return Authorization::Withhold;
@@ -676,6 +615,7 @@ pub(super) async fn authorize_unstamped(
         Event::SessionRevoked(_)
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
+        | Event::JoinGateChanged { .. }
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)

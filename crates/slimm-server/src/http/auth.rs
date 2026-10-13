@@ -28,6 +28,7 @@ const AUTH_BODY_LIMIT: usize = 4 * 1024;
 /// Said the same way whether the code was missing up front or the deployment
 /// was claimed mid-request, so the client has one string to react to.
 const INVITE_REQUIRED: &str = "an invite code is required to join this server";
+const JOINS_PAUSED: &str = "this space is not taking new members right now";
 
 /// The auth routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
@@ -235,6 +236,9 @@ async fn register(
         Err(RegisterError::InviteRequired) => return Err(ApiError::BadRequest(INVITE_REQUIRED)),
         Err(RegisterError::InviteUnusable) => {
             return Err(ApiError::BadRequest("that invite cannot be used"));
+        }
+        Err(RegisterError::JoinsPaused) => {
+            return Err(ApiError::ForbiddenBecause(JOINS_PAUSED));
         }
         Err(RegisterError::Internal(err)) => return Err(err.into()),
     };

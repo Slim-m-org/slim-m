@@ -312,6 +312,9 @@ impl Store {
         sqlx::query!("DELETE FROM dm_hides WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query!("DELETE FROM pending_members WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query!("DELETE FROM saved_messages WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

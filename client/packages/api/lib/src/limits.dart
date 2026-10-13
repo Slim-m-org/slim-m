@@ -29,6 +29,9 @@ abstract final class InputLimits {
   /// `space_landing::MAX_SPACE_DESCRIPTION_CHARS`.
   static const int spaceDescription = 280;
 
+  /// `member_gate::MAX_RULES_CHARS`.
+  static const int spaceRules = 4000;
+
   /// `user_status::STATUS_TEXT_MAX_CHARS`.
   static const int statusText = 80;
 
