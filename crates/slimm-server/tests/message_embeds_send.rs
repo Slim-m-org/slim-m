@@ -283,10 +283,13 @@ async fn an_empty_field_name_is_a_400() {
 /// Decision 0030's motivating case: an internal snapshot must not block the rest.
 #[tokio::test]
 async fn a_bots_embed_image_pointed_at_a_blocked_address_is_dropped() {
-    let h = harness(LinkPreviews::new(&Config {
-        link_previews: true,
-        ..Config::default()
-    }))
+    let h = harness(LinkPreviews::new(
+        &Config {
+            link_previews: true,
+            ..Config::default()
+        },
+        [7; 32],
+    ))
     .await;
     let admin_token = member(&h.store, "admin").await;
     let bot_token = bot(&h.app, &admin_token, "ci-bot").await;

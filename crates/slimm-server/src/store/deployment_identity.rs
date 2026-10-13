@@ -22,6 +22,12 @@ impl Store {
         crate::identity::derived_key(&self.pool, b"slim-module-caller-key-v2").await
     }
 
+    /// The secret link preview image tokens are signed with, so a token still
+    /// redeems after a restart; see `http::link_preview::image_token`.
+    pub async fn link_preview_image_key(&self) -> anyhow::Result<[u8; 32]> {
+        crate::identity::derived_key(&self.pool, b"slim-link-preview-image-v1").await
+    }
+
     /// This deployment's display name, shown to a prospective joiner (invite
     /// metadata) before they have an account.
     ///

@@ -218,10 +218,13 @@ async fn an_embed_image_resolves_to_a_redeemable_token_when_previews_are_enabled
 /// since `for_test()` would wave the address through instead of refusing it.
 #[tokio::test]
 async fn an_embed_image_pointed_at_a_blocked_address_is_dropped() {
-    let enabled_with_guard = LinkPreviews::new(&Config {
-        link_previews: true,
-        ..Config::default()
-    });
+    let enabled_with_guard = LinkPreviews::new(
+        &Config {
+            link_previews: true,
+            ..Config::default()
+        },
+        [7; 32],
+    );
     let h = harness(enabled_with_guard).await;
     let token = register(&h.store, "alice").await;
     let channel = h.store.create_channel("general", "text").await.unwrap();

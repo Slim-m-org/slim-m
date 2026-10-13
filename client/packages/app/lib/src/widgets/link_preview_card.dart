@@ -190,6 +190,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.s8),
                       child: _LinkPreviewMedia(
+                        url: widget.url,
                         preview: preview,
                         revealed: _revealed,
                         onReveal: () => setState(() => _revealed = true),
@@ -253,6 +254,7 @@ class _AuthorRow extends StatelessWidget {
 /// top of it, never a way around it.
 class _LinkPreviewMedia extends ConsumerWidget {
   const _LinkPreviewMedia({
+    required this.url,
     required this.preview,
     required this.revealed,
     required this.onReveal,
@@ -260,6 +262,7 @@ class _LinkPreviewMedia extends ConsumerWidget {
     required this.onPlay,
   });
 
+  final String url;
   final LinkPreview preview;
   final bool revealed;
   final VoidCallback onReveal;
@@ -299,7 +302,7 @@ class _LinkPreviewMedia extends ConsumerWidget {
 
     final thumbnail = token == null
         ? const _LinkPreviewVideoPlaceholder()
-        : _LinkPreviewThumbnail(token: token);
+        : _LinkPreviewThumbnail(token: token, url: url);
     if (!preview.isPlayableVideo) return thumbnail;
 
     return MouseRegion(
@@ -315,15 +318,28 @@ class _LinkPreviewMedia extends ConsumerWidget {
   }
 }
 
+/// Links whose preview was refetched for a stale image token, so a token that
+/// stays dead (the image really is gone) costs one refetch, not a loop.
+final _refreshedStale = <String>{};
+
 /// The decoded thumbnail image, honoring the same preview-quality setting
 /// [AttachmentView] applies to an inline attachment image.
 class _LinkPreviewThumbnail extends ConsumerWidget {
-  const _LinkPreviewThumbnail({required this.token});
+  const _LinkPreviewThumbnail({required this.token, required this.url});
 
   final String token;
 
+  /// The link the preview is for, refetched once if [token] has gone stale.
+  final String url;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A stale token (a server restart before signed tokens) answers 404; one fresh preview brings a fresh token.
+    ref.listen(linkPreviewImageBytesProvider(token), (_, next) {
+      if (next.hasValue && next.value == null && _refreshedStale.add(url)) {
+        ref.invalidate(linkPreviewProvider(url));
+      }
+    });
     final previewScale = ref
         .watch(attachmentPreviewQualityControllerProvider)
         .decodeScale;

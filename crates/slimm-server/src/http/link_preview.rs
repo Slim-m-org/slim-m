@@ -29,6 +29,7 @@
 mod cache;
 mod extract;
 mod fetch;
+mod image_token;
 mod oembed;
 mod ssrf;
 mod video;
@@ -78,11 +79,12 @@ impl LinkPreviews {
     /// Enabled only when `SLIMM_LINK_PREVIEWS` is set; otherwise every route
     /// here answers "not configured", exactly like GIF search with no
     /// provider set.
-    pub fn new(config: &Config) -> Self {
+    /// [image_key] signs image tokens; see `image_token` for why it is persisted.
+    pub fn new(config: &Config, image_key: [u8; 32]) -> Self {
         let inner = config.link_previews.then(|| {
             Arc::new(Enabled {
                 client: build_client(false),
-                cache: Cache::new(),
+                cache: Cache::new(image_key),
                 allow_private: false,
             })
         });
@@ -102,7 +104,7 @@ impl LinkPreviews {
         Self {
             inner: Some(Arc::new(Enabled {
                 client: build_client(true),
-                cache: Cache::new(),
+                cache: Cache::new([7; 32]),
                 allow_private: true,
             })),
         }

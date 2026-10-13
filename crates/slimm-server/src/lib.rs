@@ -125,7 +125,8 @@ pub async fn run() -> anyhow::Result<()> {
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
     sweeps::spawn_message_retention_sweep(store.clone(), media.clone(), hub.clone());
     let gifs = http::gifs::GifSearch::new(&config)?;
-    let link_previews = http::link_preview::LinkPreviews::new(&config);
+    let link_previews =
+        http::link_preview::LinkPreviews::new(&config, store.link_preview_image_key().await?);
     let dock = http::dock::Dock::new(&config);
     let code_runner = code_runner::CodeRunner::new(&config)?;
     let app = cors.apply(http::router(http::AppState {
