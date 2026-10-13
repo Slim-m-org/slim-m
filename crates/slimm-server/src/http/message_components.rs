@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::request::Parts;
 use axum::routing::put;
@@ -21,11 +22,16 @@ use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
-    Router::new().route(
-        "/channels/{channelId}/messages/{messageId}/components",
-        put(set_components),
-    )
+    Router::new()
+        .route(
+            "/channels/{channelId}/messages/{messageId}/components",
+            put(set_components),
+        )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 /// `raw` checked against the caps. Only a bot may attach buttons, and saying

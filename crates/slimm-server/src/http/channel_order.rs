@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::State;
 use axum::http::request::Parts;
 use axum::routing::put;
@@ -28,9 +29,14 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 /// The channel-ordering route, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/channels/order", put(reorder))
+    Router::new()
+        .route("/channels/order", put(reorder))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Deserialize)]

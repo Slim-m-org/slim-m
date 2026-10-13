@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -24,6 +25,9 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{Interaction, InteractionKind, now_ms};
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -34,6 +38,7 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channelId}/interactions/{interactionId}/ack",
             post(ack),
         )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Deserialize)]

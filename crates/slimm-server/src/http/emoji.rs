@@ -246,6 +246,9 @@ fn refusal(err: AddError) -> ApiError {
         AddError::Empty => ApiError::BadRequest("emoji is empty"),
         AddError::TooLarge => ApiError::BadRequest("emoji is too large"),
         AddError::UnsupportedType => ApiError::BadRequest("unsupported emoji type"),
+        AddError::TooManyPixels => {
+            ApiError::BadRequest("emoji must be at most 1024 pixels on a side")
+        }
         AddError::NameTaken => ApiError::Conflict("an emoji with that name already exists"),
         AddError::BuiltinName => {
             ApiError::Conflict("that name is a standard emoji's shortcode, pick another")

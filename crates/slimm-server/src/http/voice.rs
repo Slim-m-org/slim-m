@@ -32,6 +32,7 @@
 //! cannot both publish either. The third publish site, the stale-heartbeat
 //! sweep, lives in `lib.rs` rather than here.
 
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -51,6 +52,9 @@ use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/{channel_id}/voice/token", post(token))
@@ -63,6 +67,7 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channel_id}/voice/participants/{user_id}/kick",
             post(kick),
         )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Serialize)]

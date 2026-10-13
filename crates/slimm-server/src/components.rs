@@ -113,16 +113,42 @@ fn validate_link(button: &mut Button, hidden: fn(char) -> bool) -> Result<(), &'
         return Err("a link button takes a url, not a custom_id");
     }
     let raw = button.url.as_deref().ok_or("a link button needs a url")?;
+    let url = checked_link(raw, hidden).map_err(|problem| match problem {
+        LinkProblem::TooLong => "button url is too long",
+        LinkProblem::Hidden => "a button url cannot hold spaces, control or invisible characters",
+        LinkProblem::Unreadable => "a button url could not be read",
+        LinkProblem::Scheme => "a button url must be http or https",
+        LinkProblem::NoHost => "a button url needs a host",
+        LinkProblem::Credentials => "a button url cannot carry a username or password",
+    })?;
+    button.url = Some(url);
+    Ok(())
+}
+
+/// Why [`checked_link`] refused a link.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkProblem {
+    TooLong,
+    Hidden,
+    Unreadable,
+    Scheme,
+    NoHost,
+    Credentials,
+}
+
+/// A link a client may show as clickable: http or https, a plain host, no
+/// credentials, at most [`MAX_URL_CHARS`]. Returns it as the parser writes it.
+pub fn checked_link(raw: &str, hidden: fn(char) -> bool) -> Result<String, LinkProblem> {
     if raw.chars().count() > MAX_URL_CHARS {
-        return Err("button url is too long");
+        return Err(LinkProblem::TooLong);
     }
     // Checked on the raw text: the parser silently drops tabs and newlines and trims spaces.
     if raw.chars().any(|c| c.is_whitespace() || hidden(c)) {
-        return Err("a button url cannot hold spaces, control or invisible characters");
+        return Err(LinkProblem::Hidden);
     }
-    let url = url::Url::parse(raw).map_err(|_| "a button url could not be read")?;
+    let url = url::Url::parse(raw).map_err(|_| LinkProblem::Unreadable)?;
     if !matches!(url.scheme(), "http" | "https") {
-        return Err("a button url must be http or https");
+        return Err(LinkProblem::Scheme);
     }
     // The parser forgives `https:///host` and `https:\\host`; a link that needs forgiving is not shown as written.
     let authority_start = format!("{}://", url.scheme());
@@ -131,16 +157,15 @@ fn validate_link(button: &mut Button, hidden: fn(char) -> bool) -> Result<(), &'
         .is_some_and(|head| head.eq_ignore_ascii_case(&authority_start))
         && !raw[authority_start.len()..].starts_with(['/', '\\', '?', '#']);
     if !plain_authority || url.host_str().is_none_or(str::is_empty) {
-        return Err("a button url needs a host");
+        return Err(LinkProblem::NoHost);
     }
     if !url.username().is_empty() || url.password().is_some() {
-        return Err("a button url cannot carry a username or password");
+        return Err(LinkProblem::Credentials);
     }
     if url.as_str().chars().count() > MAX_URL_CHARS {
-        return Err("button url is too long");
+        return Err(LinkProblem::TooLong);
     }
-    button.url = Some(url.into());
-    Ok(())
+    Ok(url.into())
 }
 
 /// The enabled, non-link button carrying `custom_id`, if any.

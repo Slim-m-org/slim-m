@@ -448,7 +448,7 @@ pub(crate) fn validate_password(password: &str) -> Result<(), ApiError> {
 /// front.
 pub(crate) fn validate_label(value: &str, message: &'static str) -> Result<(), ApiError> {
     let len = value.chars().count();
-    if !(1..=64).contains(&len) {
+    if !(1..=crate::limits::MAX_NAME_CHARS).contains(&len) {
         return Err(ApiError::BadRequest(message));
     }
     if value.trim().is_empty() {

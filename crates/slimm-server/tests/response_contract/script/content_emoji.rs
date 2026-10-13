@@ -55,8 +55,7 @@ pub(super) async fn emoji_calls(c: &mut Contract, root: &str) {
     )
     .await;
     // A gif emoji is served as the type sniffed from its bytes, not as png.
-    let mut gif = b"GIF89a".to_vec();
-    gif.extend([0u8; 8]);
+    let gif = crate::support::images::animated_gif();
     let animated = c
         .call(
             "uploadCustomEmoji",

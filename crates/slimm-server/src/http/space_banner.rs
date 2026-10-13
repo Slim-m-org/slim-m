@@ -54,9 +54,14 @@ async fn upload_banner(
     if body.len() as u64 > BANNER_MAX_BYTES {
         return Err(ApiError::BadRequest("banner is too large"));
     }
-    if !media::sniff_content_type(&body).is_some_and(media::is_inline) {
-        return Err(ApiError::BadRequest("unsupported banner type"));
-    }
+    super::still_picture::require_still_picture(
+        &body,
+        &super::still_picture::Refusals {
+            unsupported: "unsupported banner type",
+            animated: "banner must be a still image",
+            too_large: "banner must be at most 4096 pixels on a side",
+        },
+    )?;
     state
         .media
         .write_space_banner(body.to_vec())

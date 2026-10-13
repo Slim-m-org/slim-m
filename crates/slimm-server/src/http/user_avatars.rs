@@ -32,10 +32,9 @@ use crate::ratelimit::Class;
 /// overwritten (self-heals on the next successful upload) rather than a row
 /// that promises an avatar no file backs.
 ///
-/// An avatar is always a picture: sniffed against the same allowlist as a
-/// message attachment, but only the inline (image) entries qualify - a PDF is
-/// a valid attachment and not a valid avatar. The content type itself is not
-/// stored here; [`get_avatar`] re-sniffs it from disk.
+/// An avatar is always a still picture of bounded size: a PDF is a valid
+/// attachment and not a valid avatar, and neither is an animated GIF. The
+/// content type itself is not stored here; [`get_avatar`] re-sniffs it from disk.
 pub(super) async fn upload_avatar(
     Authed(ctx): Authed,
     parts: Parts,
@@ -50,11 +49,14 @@ pub(super) async fn upload_avatar(
     if body.len() as u64 > AVATAR_MAX_BYTES {
         return Err(ApiError::BadRequest("avatar is too large"));
     }
-    // Inline (image) allowlist entries only; see this function's own note.
-    let is_image = media::sniff_content_type(&body).is_some_and(media::is_inline);
-    if !is_image {
-        return Err(ApiError::BadRequest("unsupported avatar type"));
-    }
+    super::still_picture::require_still_picture(
+        &body,
+        &super::still_picture::Refusals {
+            unsupported: "unsupported avatar type",
+            animated: "avatar must be a still image",
+            too_large: "avatar must be at most 4096 pixels on a side",
+        },
+    )?;
 
     let user_id = ctx.user_id.to_string();
     state

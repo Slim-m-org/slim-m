@@ -397,7 +397,7 @@ fn role_guard_error(err: RoleGuardError) -> ApiError {
 
 fn validate_role_name(name: &str) -> Result<&str, ApiError> {
     let trimmed = name.trim();
-    if trimmed.is_empty() || trimmed.chars().count() > 64 {
+    if trimmed.is_empty() || trimmed.chars().count() > crate::limits::MAX_NAME_CHARS {
         return Err(ApiError::BadRequest("name must be 1 to 64 characters"));
     }
     if trimmed.chars().any(is_hidden_char) {

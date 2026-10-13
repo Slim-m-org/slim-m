@@ -16,6 +16,10 @@ use slimm_server::store::Store;
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;
 
+/// Picture bytes whose headers parse, for every upload that reads them.
+#[allow(dead_code)]
+pub mod images;
+
 /// Canvas reads and removals through the product's own paths.
 #[allow(dead_code)]
 pub mod canvas;

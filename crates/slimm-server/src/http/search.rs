@@ -58,7 +58,7 @@ use crate::permissions::Permissions;
 use crate::store::{MessageSearchFilters, SearchError};
 
 /// Longest a search query may be.
-const MAX_QUERY_CHARS: usize = 200;
+use crate::limits::MAX_QUERY_CHARS;
 /// Default and maximum page sizes. The same numbers `http::messages` uses
 /// today, deliberately not imported from it: a page size is a per-route
 /// decision each module is entitled to make, and coupling the two would mean

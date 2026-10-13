@@ -54,9 +54,14 @@ async fn upload_icon(
     if body.len() as u64 > ICON_MAX_BYTES {
         return Err(ApiError::BadRequest("icon is too large"));
     }
-    if !media::sniff_content_type(&body).is_some_and(media::is_inline) {
-        return Err(ApiError::BadRequest("unsupported icon type"));
-    }
+    super::still_picture::require_still_picture(
+        &body,
+        &super::still_picture::Refusals {
+            unsupported: "unsupported icon type",
+            animated: "icon must be a still image",
+            too_large: "icon must be at most 4096 pixels on a side",
+        },
+    )?;
     state
         .media
         .write_space_icon(body.to_vec())

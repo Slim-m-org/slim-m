@@ -14,6 +14,7 @@
 //! channel already grants over drawing.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,9 @@ use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
 
+/// Every body here is a small JSON document; refused well before axum's 2 MB default.
+const BODY_LIMIT: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/{channel_id}/canvas/media-slots", get(list))
@@ -34,6 +38,7 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channel_id}/canvas/media-slots/{kind}/{user_id}",
             put(upsert),
         )
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Serialize)]

@@ -95,7 +95,7 @@ async fn register(store: &Store, username: &str) -> String {
 }
 
 fn png(padding: usize) -> Vec<u8> {
-    let mut bytes = vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    let mut bytes = support::images::small_png();
     bytes.extend(std::iter::repeat_n(0u8, padding));
     bytes
 }

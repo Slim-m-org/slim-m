@@ -393,6 +393,9 @@ async fn search(
     if query.is_empty() {
         return Err(ApiError::BadRequest("q must not be empty"));
     }
+    if query.chars().count() > crate::limits::MAX_QUERY_CHARS {
+        return Err(ApiError::BadRequest("q must be 200 characters or fewer"));
+    }
     let limit = params
         .limit
         .unwrap_or(DEFAULT_LIMIT)

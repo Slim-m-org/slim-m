@@ -107,7 +107,7 @@ struct DeliveredDto {
 /// Longest a `username` label may be - the same ceiling
 /// `validate_label` gives a display name, since this fills the identical
 /// visual slot.
-const USERNAME_MAX_CHARS: usize = 64;
+const USERNAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 
 /// Delivers one webhook post.
 ///
