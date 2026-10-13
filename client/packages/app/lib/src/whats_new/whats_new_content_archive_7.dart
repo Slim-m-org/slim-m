@@ -207,4 +207,36 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.102.0',
+    headline: 'Rename your Space, role colours, and a sidebar you can resize',
+    points: [
+      WhatsNewPoint(
+        'Space admins can rename the Space and pick a colour for each role.',
+      ),
+      WhatsNewPoint(
+        'Drag the edge of the channel list to make it as wide as you like.',
+      ),
+      WhatsNewPoint(
+        'Several pictures on one message show as a compact grid. Tap one to '
+        'page through them all.',
+      ),
+      WhatsNewPoint(
+        'Big uploads show their progress, and a file that is too large says '
+        'so before it starts.',
+      ),
+      WhatsNewPoint(
+        "A thread shows the original message's attachments, and its reply "
+        'count says when the last reply was.',
+      ),
+      WhatsNewPoint(
+        'Drag a picture onto your profile picture, the Space banner or icon '
+        'to set it.',
+      ),
+      WhatsNewPoint(
+        'The Space icon now carries the connection dot, and stays sharp when '
+        'the app is scaled up.',
+      ),
+    ],
+  ),
 ];
