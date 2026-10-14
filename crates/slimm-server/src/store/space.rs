@@ -130,6 +130,31 @@ impl Store {
         read_screen_share_max_height(&self.pool).await
     }
 
+    /// Whether members' microphones default to the stronger noise
+    /// suppression; applied on each member's own device.
+    pub async fn strong_noise_suppression(&self) -> anyhow::Result<bool> {
+        let enabled = sqlx::query_scalar!(
+            r#"SELECT strong_noise_suppression AS "v!: bool" FROM space_settings WHERE id = 1"#
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("read strong noise suppression")?;
+        Ok(enabled.unwrap_or(false))
+    }
+
+    pub async fn set_strong_noise_suppression(&self, enabled: bool) -> anyhow::Result<()> {
+        let now = now_ms();
+        sqlx::query!(
+            "UPDATE space_settings SET strong_noise_suppression = ?, updated_at = ? WHERE id = 1",
+            enabled,
+            now
+        )
+        .execute(&self.pool)
+        .await
+        .context("set strong noise suppression")?;
+        Ok(())
+    }
+
     /// Sets the screen-share height ceiling. The caller is responsible for
     /// range-checking against `MIN_SCREEN_SHARE_MAX_HEIGHT` and
     /// `MAX_SCREEN_SHARE_MAX_HEIGHT`; the DB CHECK only guards the `>= 1`

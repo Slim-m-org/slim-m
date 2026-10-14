@@ -8896,6 +8896,13 @@ components:
             client caps its own capture parameters before starting a share,
             not only one with MANAGE_SERVER. Absent on servers older than
             this field, which a client must treat as no ceiling.
+        strong_noise_suppression:
+          type: boolean
+          description: >
+            Whether members' microphones use the stronger noise suppression
+            when they leave Voice settings on "Space default". Applied on each
+            member's own device. Absent on servers older than this field,
+            which a client must treat as false.
         max_attachment_bytes:
           type: integer
           format: int64
@@ -9571,6 +9578,11 @@ components:
           type: [integer, "null"]
           format: int64
           description: When the icon was set, or null for none.
+        strong_noise_suppression:
+          type: boolean
+          description: >
+            What "Space default" means for members' noise suppression; see
+            the same field on `/version`.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -9630,6 +9642,8 @@ components:
         description:
           type: string
           description: At most 280 characters, no control or invisible characters.
+        strong_noise_suppression:
+          type: boolean
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.

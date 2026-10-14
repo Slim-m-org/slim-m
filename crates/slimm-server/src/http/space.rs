@@ -46,6 +46,8 @@ struct SpaceSettingsDto {
     banner_updated_at: Option<i64>,
     /// When the icon was last set, or null for none.
     icon_updated_at: Option<i64>,
+    /// What "Space default" means for members' noise suppression.
+    strong_noise_suppression: bool,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -55,6 +57,7 @@ struct UpdateSpaceSettingsDto {
     join_policy: Option<String>,
     totp_policy: Option<String>,
     description: Option<String>,
+    strong_noise_suppression: Option<bool>,
 }
 
 async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
@@ -66,6 +69,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         description: landing.description,
         banner_updated_at: landing.banner_updated_at,
         icon_updated_at: landing.icon_updated_at,
+        strong_noise_suppression: state.store.strong_noise_suppression().await?,
     })
 }
 
@@ -126,9 +130,10 @@ async fn update(
         && body.join_policy.is_none()
         && body.totp_policy.is_none()
         && body.description.is_none()
+        && body.strong_noise_suppression.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy or description",
+            "send name, join_policy, totp_policy, description or strong_noise_suppression",
         ));
     }
     let name = body.name.as_deref().map(validate_name).transpose()?;
@@ -161,6 +166,9 @@ async fn update(
     }
     if let Some(description) = description {
         state.store.set_space_description(description).await?;
+    }
+    if let Some(enabled) = body.strong_noise_suppression {
+        state.store.set_strong_noise_suppression(enabled).await?;
     }
     Ok(Json(dto(&state).await?))
 }
