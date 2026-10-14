@@ -237,7 +237,7 @@ void main() {
       unawaited(DesktopWindowShell.registerListenersAndTray(container));
       async.flushMicrotasks();
 
-      port.bounds = const WindowRect(x: 45, y: 45, width: 380, height: 460);
+      port.bounds = const WindowRect(x: 45, y: 45, width: 480, height: 340);
       port.emit(DesktopWindowEventKind.resize);
       async.elapse(desktopGeometryDebounce);
 
@@ -262,7 +262,7 @@ void main() {
 
   /// The owner's report, twice: a desktop window opening on the phone
   /// layout. Measured on their KDE Wayland session, one launch in three
-  /// built the real UI at the splash's own 380 logical pixels, because the
+  /// built the real UI at the splash's own logical width, because the
   /// ready flip raced the compositor's metrics. `main.dart` now reveals
   /// first and flips second, and this is the comparison that decides when
   /// the view has caught up.
@@ -271,7 +271,7 @@ void main() {
 
     expect(viewMatchesSize(const Size(1280, 720), target), isTrue);
     expect(
-      viewMatchesSize(const Size(380, 508), target),
+      viewMatchesSize(const Size(480, 388), target),
       isFalse,
       reason: 'the splash size is exactly the case this exists to catch',
     );
@@ -294,43 +294,46 @@ void main() {
     );
   });
 
-  testWidgets('a maximized handoff does not finish while the view still '
-      'reports the splash width - the real UI must not build at 380px', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      windowGeometryPreferenceKey: jsonEncode(
-        const WindowGeometry(
-          windowedSize: WindowSize(width: 1400, height: 900),
-          runState: WindowRunState.maximized,
-        ).toJson(),
-      ),
-    });
-    final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    await DesktopWindowShell.prepareHandoff(_container());
-    tester.view.physicalSize = const Size(380, 507);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'a maximized handoff does not finish while the view still '
+    'reports the splash width - the real UI must not build at the splash width',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        windowGeometryPreferenceKey: jsonEncode(
+          const WindowGeometry(
+            windowedSize: WindowSize(width: 1400, height: 900),
+            runState: WindowRunState.maximized,
+          ).toJson(),
+        ),
+      });
+      final port = FakeDesktopWindowPort();
+      DesktopWindowShell.debugPort = port;
+      await DesktopWindowShell.prepareHandoff(_container());
+      tester.view.physicalSize = const Size(480, 387);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-    var done = false;
-    unawaited(DesktopWindowShell.revealAfterHandoff().then((_) => done = true));
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 400)),
-    );
-    await tester.pump();
-    expect(done, isFalse, reason: 'still at the splash width');
+      var done = false;
+      unawaited(
+        DesktopWindowShell.revealAfterHandoff().then((_) => done = true),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 400)),
+      );
+      await tester.pump();
+      expect(done, isFalse, reason: 'still at the splash width');
 
-    tester.view.physicalSize = const Size(1920, 1080);
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 400)),
-    );
-    await tester.pump();
-    expect(done, isTrue);
-  });
+      tester.view.physicalSize = const Size(1920, 1080);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 400)),
+      );
+      await tester.pump();
+      expect(done, isTrue);
+    },
+  );
 
   test('viewHasLeftSplash looks at width only', () {
-    expect(viewHasLeftSplash(const Size(380, 507)), isFalse);
+    expect(viewHasLeftSplash(const Size(480, 387)), isFalse);
     expect(viewHasLeftSplash(const Size(1920, 1080)), isTrue);
     expect(viewHasLeftSplash(null), isFalse);
   });

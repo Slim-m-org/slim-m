@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Discord-style startup screen: the brand lockup plus a status line,
-/// shown in its own small window while `main.dart`'s async bootstrap
-/// sequence runs, per decision 0012's superseding section.
+/// The startup window, after the "Startup Window" design: a dot lattice
+/// ripples out, four of its points assemble into the mark, the wordmark
+/// settles under it, and the real bootstrap phases tick off as a mono
+/// checklist over a hairline progress rule. Shown in its own small window
+/// while `main.dart`'s async bootstrap sequence runs, per decision 0012's
+/// superseding section; `DesktopEntrance` carries the mark on into the main
+/// window.
 ///
 /// A real, small OS window now, not a themed first frame inside the one
 /// real window the way this screen first shipped - the owner reaffirmed the
@@ -13,19 +17,9 @@
 /// frameless, centred, fixed-size splash shape; this widget only draws what
 /// sits inside it.
 ///
-/// [status] is the room for that future update text: "Checking for
-/// updates", "Downloading update", "Installing update" are the same one
-/// line this already shows during ordinary bootstrap, just with different
-/// words - see `main.dart`'s `startupStatusProvider` for where the current,
-/// simple phase text comes from.
-///
-/// The mark alone, at the size `BootSplashScreen` uses for a phone, read as
-/// an accidental placeholder rather than a designed screen once it sat in a
-/// full desktop window rather than a phone's - the owner's own "looks
-/// buggy" report. Pairing it with the wordmark `OnboardingShell`'s brand
-/// rail already carries gives the same content the weight a splash needs to
-/// read as deliberate, without inventing a new visual language for one
-/// screen.
+/// [status] feeds the checklist: each new value marks the previous phase
+/// done, update phases included ("Checking for updates", "Installing ...");
+/// see `main.dart`'s `startupStatusProvider`.
 ///
 /// Always dark, regardless of the stored theme choice: that choice is
 /// itself part of the async sequence this screen exists to mask, so there
@@ -33,10 +27,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'desktop_window_port.dart';
+import 'startup_lattice.dart';
+import 'startup_steps.dart';
 import 'startup_window_chrome.dart';
 import 'update_package_view.dart' show packageManagerCommand;
 
@@ -115,7 +112,7 @@ class StartupApp extends StatelessWidget {
   );
 }
 
-class StartupScreen extends StatelessWidget {
+class StartupScreen extends StatefulWidget {
   const StartupScreen({
     super.key,
     this.status = defaultStartupStatus,
@@ -130,61 +127,171 @@ class StartupScreen extends StatelessWidget {
   /// Fades the content out ahead of the handoff; see `startupLeavingProvider`.
   final bool leaving;
 
-  /// When set, the splash shows a question instead of the plain status line,
-  /// and waits on the user rather than proceeding on its own.
+  /// When set, the splash shows a question instead of the checklist, and
+  /// waits on the user rather than proceeding on its own.
   final StartupPrompt? prompt;
+
+  @override
+  State<StartupScreen> createState() => _StartupScreenState();
+}
+
+class _StartupScreenState extends State<StartupScreen>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker = createTicker(_tick);
+  double _seconds = 0;
+  final List<String> _steps = [];
+  bool _reduced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _record(widget.status);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = AppMotion.isReduced(context);
+    if (_reduced) {
+      _ticker.stop();
+      _seconds = kStartupSettledAt;
+    } else if (!_ticker.isActive && _seconds < kStartupSettledAt) {
+      _ticker.start();
+    }
+  }
+
+  @override
+  void didUpdateWidget(StartupScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.status != oldWidget.status) _record(widget.status);
+  }
+
+  void _record(String status) {
+    // The placeholder before bootstrap reports anything is not a phase of its own.
+    if (status == defaultStartupStatus || _steps.lastOrNull == status) return;
+    _steps.add(status);
+  }
+
+  void _tick(Duration elapsed) {
+    setState(() => _seconds = elapsed.inMicroseconds / 1e6);
+    if (widget.leaving && _seconds >= kStartupSettledAt) _ticker.stop();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  Widget _lockup(AppTokens tokens, double word) => Stack(
+    children: [
+      Positioned.fill(
+        child: CustomPaint(
+          painter: StartupLatticePainter(
+            seconds: _seconds,
+            dot: tokens.borderStrong,
+            accent: tokens.accent,
+          ),
+        ),
+      ),
+      Positioned(
+        top: 194 + 6 * (1 - word),
+        left: 0,
+        right: 0,
+        child: Opacity(
+          opacity: word,
+          child: Text(
+            'slim-m',
+            textAlign: TextAlign.center,
+            style: AppText.heading.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.medium,
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.dark;
-    final port = windowPort;
+    final port = widget.windowPort;
+    final prompt = widget.prompt;
+    final word = _reduced
+        ? 1.0
+        : AppMotion.entrance.transform(
+            ((_seconds - kStartupWordAt) / 0.25).clamp(0.0, 1.0),
+          );
     return Scaffold(
-      backgroundColor: tokens.surfaceBase,
+      backgroundColor: tokens.surfaceRaised,
       body: Stack(
         children: [
-          Center(
+          Positioned.fill(
             child: AnimatedOpacity(
-              opacity: leaving ? 0 : 1,
+              opacity: widget.leaving ? 0 : 1,
               duration: AppMotion.reduced(context, AppMotion.base),
               curve: AppMotion.exit,
-              child: AppFadeIn(
-                offset: 0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AppBrandMark(size: 64, color: tokens.accent),
-                    const SizedBox(height: AppSpacing.s16),
-                    Text(
-                      'slim-m',
-                      style: AppText.heading.copyWith(
-                        color: tokens.textPrimary,
-                        fontFamily: AppFonts.mono,
-                        fontWeight: AppWeights.medium,
-                        letterSpacing: 20 * AppTracking.mono,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.s24),
-                    if (prompt case final question?)
-                      _Prompt(prompt: question, tokens: tokens)
-                    else ...[
-                      AnimatedSwitcher(
-                        duration: AppMotion.reduced(context, AppMotion.base),
-                        child: Text(
-                          status,
-                          key: ValueKey(status),
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox.fromSize(
+                    size: kStartupCanvas,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: AnimatedSlide(
+                            // A question needs the lower half of the window, so the lockup rises to make room.
+                            offset: Offset(0, prompt == null ? 0 : -0.2),
+                            duration: AppMotion.reduced(
+                              context,
+                              AppMotion.base,
+                            ),
+                            curve: AppMotion.entrance,
+                            child: _lockup(tokens, word),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.s12),
-                      _LoadingLine(tokens: tokens),
-                    ],
-                  ],
+                        if (prompt == null)
+                          Positioned(
+                            left: 140,
+                            top: 236,
+                            width: 200,
+                            child: StartupSteps(
+                              steps: _steps,
+                              finished: widget.leaving,
+                              spin: _reduced ? 0 : _seconds * 1.5,
+                              tokens: tokens,
+                            ),
+                          )
+                        else
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 168,
+                            child: Center(
+                              child: _Prompt(prompt: prompt, tokens: tokens),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
+          if (prompt == null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: StartupProgressRule(
+                progress: startupProgress(
+                  _steps.length,
+                  finished: widget.leaving,
+                ),
+                tokens: tokens,
+              ),
+            ),
           if (port != null)
             Positioned(
               top: 0,
@@ -245,28 +352,4 @@ class _Prompt extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A thin indeterminate line under the status: the splash is content that
-/// reports progress, so it may move (decision 0004). Under reduce motion it
-/// rests as a short static line.
-class _LoadingLine extends StatelessWidget {
-  const _LoadingLine({required this.tokens});
-
-  final AppTokens tokens;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 120,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.full),
-      child: AppMotion.isReduced(context)
-          ? Container(height: 2, color: tokens.borderSubtle)
-          : LinearProgressIndicator(
-              minHeight: 2,
-              color: tokens.accent,
-              backgroundColor: tokens.borderSubtle,
-            ),
-    ),
-  );
 }

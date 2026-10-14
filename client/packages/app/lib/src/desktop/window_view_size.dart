@@ -21,7 +21,7 @@ bool viewMatchesSize(Size? size, WindowSize target) {
 
 /// Whether the view reports a size other than the splash's own, the only
 /// signal a maximized or fullscreen handoff has that the compositor resized.
-/// Width only: the height a real launch reports (507) is not the 460 asked for.
+/// Width only: a real launch reports a height that still carries a title bar, not the one asked for.
 bool viewHasLeftSplash(Size? size) {
   if (size == null) return false;
   return (size.width - kSplashWindowSize.width).abs() > 1;

@@ -12,7 +12,7 @@
 # client-ci.yml's dbus-run-session wrapper) or the last two checks below are
 # meaningless, since GApplication's own single-instance activation needs one.
 #
-# The window appears at DesktopWindowShell.splashWindowSize (380x460) before
+# The window appears at DesktopWindowShell.splashWindowSize (kSplashWindowSize) before
 # bootstrap finishes, then DesktopWindowShell.prepareHandoff hides it, applies
 # the real geometry, and DesktopWindowShell.revealAfterHandoff shows it again -
 # see that decision record's superseding section. wmctrl briefly stops
@@ -25,7 +25,7 @@
 # splash never having appeared, when it plainly had. Sampling still lost the
 # race on loaded CI runners, so the splash check now reads an xev log of the
 # root window's substructure events started before each launch: the X server
-# reports every create and configure, however brief, so the 380x460 window is
+# reports every create and configure, however brief, so the splash-sized window is
 # seen whenever it existed. A launch that never shows the splash still fails,
 # because no window of that size ever appears in the log.
 #
@@ -46,8 +46,15 @@
 set -euo pipefail
 
 readonly APP_NAME="slim-m"
-readonly SPLASH_WIDTH=380
-readonly SPLASH_HEIGHT=460
+# Read from the Dart constant itself, so a resized splash cannot leave this check looking for the old size.
+splash_source="$(dirname "$0")/../client/packages/app/lib/src/desktop/window_geometry.dart"
+SPLASH_WIDTH="$(sed -nE 's/^const kSplashWindowSize = WindowSize\(width: ([0-9]+), height: [0-9]+\);$/\1/p' "$splash_source")"
+SPLASH_HEIGHT="$(sed -nE 's/^const kSplashWindowSize = WindowSize\(width: [0-9]+, height: ([0-9]+)\);$/\1/p' "$splash_source")"
+readonly SPLASH_WIDTH SPLASH_HEIGHT
+if [ -z "$SPLASH_WIDTH" ] || [ -z "$SPLASH_HEIGHT" ]; then
+  echo "::error::could not read kSplashWindowSize from $splash_source" >&2
+  exit 1
+fi
 BUNDLE="${1:?usage: desktop-shell-smoke.sh <bundle-dir>}"
 BIN="${BUNDLE}/slimm_app"
 export DISPLAY=:99

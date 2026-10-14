@@ -56,6 +56,9 @@ class DesktopChrome extends ConsumerWidget {
 
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
     return DesktopEntrance(
+      topInset: DesktopWindowShell.frameless && !videoFullscreen
+          ? titleBarHeight
+          : 0,
       child: Material(
         type: MaterialType.transparency,
         child: Overlay.wrap(

@@ -6,8 +6,8 @@
 /// the full desktop window (that was the pre-superseding design this file
 /// used to snapshot at 1280x720 and 1920x1080): the splash is now a fixed
 /// small size regardless of the real window's own saved geometry, so there
-/// is exactly one size to check, plus a longer status string to confirm the
-/// line this record adds room for does not overflow that small window.
+/// is exactly one size to check: the lattice-to-mark sequence at three
+/// moments with real bootstrap phases, and an update prompt.
 ///
 /// Rendered through `flutter test`'s software rasteriser, never a real
 /// window - the same "no display involved" category decision 0012 itself
@@ -30,25 +30,50 @@ void main() {
     DesktopWindowShell.splashWindowSize.height,
   );
 
-  for (final entry in {
-    'startup-screen-splash': const StartupApp(),
-    'startup-screen-splash-update-status': const StartupApp(
-      status: 'Downloading update',
-    ),
-  }.entries) {
-    testWidgets('startup screen at ${entry.key}', (tester) async {
-      tester.view.physicalSize = splashSize;
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
+  Future<void> frame(WidgetTester tester, Widget app) =>
+      tester.pumpWidget(RepaintBoundary(key: snapshotBoundary, child: app));
 
-      await tester.pumpWidget(
-        RepaintBoundary(key: snapshotBoundary, child: entry.value),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 350));
+  Future<void> sized(WidgetTester tester) async {
+    tester.view.physicalSize = splashSize;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+  }
 
-      await writeSnapshot(tester, entry.key);
+  // Mid-ripple, mid-mark and settled, so the whole lattice-to-mark sequence can be looked at frame by frame.
+  for (final at in const [250, 550, 1100]) {
+    testWidgets('startup screen at ${at}ms with real phases', (tester) async {
+      await sized(tester);
+      await frame(tester, const StartupApp(status: 'Restoring session'));
+      await tester.pump(Duration(milliseconds: at ~/ 3));
+      await frame(tester, const StartupApp(status: 'Loading preferences'));
+      await tester.pump(Duration(milliseconds: at ~/ 3));
+      await frame(tester, const StartupApp(status: 'Connecting'));
+      await tester.pump(Duration(milliseconds: at - 2 * (at ~/ 3)));
+
+      await writeSnapshot(tester, 'startup-screen-splash-${at}ms');
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('startup screen with an update prompt', (tester) async {
+    await sized(tester);
+    await frame(
+      tester,
+      StartupApp(
+        prompt: StartupPrompt(
+          title: 'Version 0.106.0 is available',
+          detail:
+              'Update with your package manager: sudo dnf upgrade slim-m-client',
+          primaryLabel: 'Get update',
+          onPrimary: () {},
+          secondaryLabel: 'Not now',
+          onSecondary: () {},
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 1100));
+
+    await writeSnapshot(tester, 'startup-screen-splash-prompt');
+    expect(tester.takeException(), isNull);
+  });
 }

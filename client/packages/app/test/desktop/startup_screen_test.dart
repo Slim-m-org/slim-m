@@ -6,15 +6,21 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/desktop/startup_lattice.dart';
 import 'package:slimm_app/src/desktop/startup_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 void main() {
-  testWidgets('renders the brand mark and wordmark', (tester) async {
+  testWidgets('draws the lattice mark and the wordmark', (tester) async {
     await tester.pumpWidget(const StartupApp());
 
-    expect(find.byType(AppBrandMark), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is StartupLatticePainter,
+      ),
+      findsOneWidget,
+    );
     expect(find.text('slim-m'), findsOneWidget);
   });
 
