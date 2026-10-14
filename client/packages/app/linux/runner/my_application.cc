@@ -67,8 +67,8 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "slim-m");
   }
 
-  // 380x460 matches DesktopWindowShell.splashWindowSize (desktop_window_shell.dart): the GTK/Impeller embedder only completes a resize once a frame at the new size exists, so the window must be born at the splash size rather than resized into it after runApp.
-  gtk_window_set_default_size(window, 380, 460);
+  // 480x340 matches DesktopWindowShell.splashWindowSize (desktop_window_shell.dart): the GTK/Impeller embedder only completes a resize once a frame at the new size exists, so the window must be born at the splash size rather than resized into it after runApp.
+  gtk_window_set_default_size(window, 480, 340);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

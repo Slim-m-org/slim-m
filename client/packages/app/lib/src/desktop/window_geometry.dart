@@ -14,14 +14,14 @@ import 'dart:math' as math;
 /// there because this file is deliberately platform-channel-free per
 /// decision 0012's own rule, and `DesktopWindowShell` already imports this
 /// file, so the reverse import would be a cycle. See [looksLikeSplashSize].
-const kSplashWindowSize = WindowSize(width: 380, height: 460);
+const kSplashWindowSize = WindowSize(width: 480, height: 340);
 
 /// The tallest a native Linux title bar could still be adding on top of
 /// [kSplashWindowSize] at the instant a stray write landed, before
 /// `DesktopWindowShell.lockSplashChrome` hid it: decision 0012's own
 /// title-bar section measures "a native GNOME GTK header bar runs roughly
 /// 46-48 logical pixels." The regression this constant exists to catch
-/// produced exactly that: a saved height of 508, which is 460 plus 48.
+/// produced exactly that: a saved height of 508, the then 460 splash plus 48.
 const _splashTitleBarMargin = 48;
 
 /// True only if [size] could never be a real desktop window a user resized
@@ -35,8 +35,15 @@ const _splashTitleBarMargin = 48;
 /// size this small can only be leftover corruption from a build that
 /// shipped without it - see [healSplashCorruption].
 bool looksLikeSplashSize(WindowSize size) =>
-    size.width <= kSplashWindowSize.width &&
-    size.height <= kSplashWindowSize.height + _splashTitleBarMargin;
+    _within(size, kSplashWindowSize) || _within(size, _legacySplashSize);
+
+/// The splash before it took the Startup Window design's shape; the corrupt
+/// saves this guard heals were written at this size.
+const _legacySplashSize = WindowSize(width: 380, height: 460);
+
+bool _within(WindowSize size, WindowSize splash) =>
+    size.width <= splash.width &&
+    size.height <= splash.height + _splashTitleBarMargin;
 
 /// [geometry] as read from disk, replaced with [WindowGeometry.fallback]
 /// wholesale - not patched field by field - if its [WindowGeometry.windowedSize]

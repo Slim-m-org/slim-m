@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The splash dissolves into the main window: the splash content fades out
-/// when it is leaving, and the main window's content fades in once, unless
-/// motion is reduced.
+/// when it is leaving, and the main window's content fades in once while the
+/// startup mark glides into the rail corner, unless motion is reduced.
 library;
 
 import 'package:flutter/material.dart';
@@ -31,6 +31,34 @@ void main() {
     expect(mid, inExclusiveRange(0, 1));
     await tester.pumpAndSettle();
     expect(_opacityOf(tester, find.text('content')), 1);
+  });
+
+  testWidgets('the startup mark glides from the middle into the rail '
+      'header corner, below the title bar, and is gone afterwards', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: DesktopEntrance(topInset: 40, child: SizedBox.expand()),
+      ),
+    );
+    await tester.pump();
+    final first = tester.getRect(find.byType(AppBrandMark));
+    expect(first.center.dx, closeTo(640, 1));
+    expect(first.center.dy, closeTo(360, 1));
+
+    await tester.pump(kDesktopEntranceDuration * 0.8);
+    final landed = tester.getRect(find.byType(AppBrandMark));
+    expect(landed.left, closeTo(16, 1));
+    expect(landed.top, closeTo(56, 1));
+    expect(landed.width, closeTo(20, 1));
+
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBrandMark), findsNothing);
   });
 
   testWidgets('reduced motion shows the window at once', (tester) async {
