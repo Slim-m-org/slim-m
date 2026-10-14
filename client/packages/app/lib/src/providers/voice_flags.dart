@@ -158,12 +158,28 @@ final voiceParticipantsProvider = Provider<List<VoiceParticipant>>(
   (ref) => ref.watch(voiceControllerProvider.select((s) => s.participants)),
 );
 
-/// Your own mic's last reported level, 0 to 1, for the dock's level bar; its
-/// own slice so only that bar rebuilds when the level moves.
-final localMicLevelProvider = Provider<double>(
-  (ref) => ref.watch(
+/// Your microphone as the native input gate reads it, about 20 times a
+/// second in a call; never emits where the host has no gate.
+final inputGateReadingProvider = StreamProvider.autoDispose<InputGateReading>(
+  (ref) => ref.watch(voiceControllerProvider.notifier).inputGateReadings,
+);
+
+/// Your own mic's level, 0 to 1, for the dock's level bar; its own slice so
+/// only that bar rebuilds when the level moves. From the input gate where
+/// there is one, since the SFU's report lags by half a second.
+final localMicLevelProvider = Provider<double>((ref) {
+  if (ref.watch(voiceControllerProvider.notifier).supportsInputGate) {
+    final fraction = ref.watch(
+      inputGateReadingProvider.select(
+        (r) => inputLevelFraction(r.valueOrNull?.levelDb ?? kInputFloorDb),
+      ),
+    );
+    // Twenty steps is as fine as the bar can show, and spares the rebuilds.
+    return (fraction * 20).round() / 20;
+  }
+  return ref.watch(
     voiceParticipantsProvider.select(
       (all) => all.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0,
     ),
-  ),
-);
+  );
+});

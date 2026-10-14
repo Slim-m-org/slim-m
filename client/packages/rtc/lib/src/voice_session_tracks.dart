@@ -150,6 +150,7 @@ extension VoiceSessionTracks on VoiceSession {
     final next = snapshotParticipants(
       room,
       speakingSensitivity: _speakingSensitivity,
+      localVoice: _gate.running ? _gate.voice : null,
     );
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
     if (listEquals(next, _participants)) return;
@@ -162,6 +163,12 @@ extension VoiceSessionTracks on VoiceSession {
   void _setState(VoiceSessionState next) {
     if (_state == next || _disposed) return;
     _state = next;
+    if (next == VoiceSessionState.connected) {
+      unawaited(_applyInputGate());
+      _gate.start(_refreshParticipants);
+    } else {
+      _gate.stop();
+    }
     if (!_stateController.isClosed) _stateController.add(next);
   }
 }

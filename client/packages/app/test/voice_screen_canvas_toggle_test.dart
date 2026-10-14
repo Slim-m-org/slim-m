@@ -41,6 +41,15 @@ class _ConnectedSession with VideoQualityRecorder implements VoiceSession {
   bool get supportsScreenShareAudio => true;
 
   @override
+  bool get supportsInputGate => false;
+
+  @override
+  Stream<InputGateReading> get inputGateReadings => const Stream.empty();
+
+  @override
+  void setInputGate({required bool enabled, required double thresholdDb}) {}
+
+  @override
   void setSpeakingSensitivity(double sensitivity) {}
 
   @override

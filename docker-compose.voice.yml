@@ -101,6 +101,10 @@ services:
           relay_range_end: ${LIVEKIT_TURN_RELAY_PORT_END:-30100}
           # TURN/TLS is off: its listener needs a certificate of its own and
           # cannot borrow Caddy's. The four keys to add: deploy/README.md.
+        # Speaker updates every 200ms with one sample of smoothing, so speaking rings keep up with speech.
+        audio:
+          update_interval: 200
+          smooth_intervals: 1
         # Lets the server learn joins, leaves and screen shares the instant
         # LiveKit sees them rather than by polling; see
         # docs/decisions/0032-voice-participant-webhooks.md. "server" is this

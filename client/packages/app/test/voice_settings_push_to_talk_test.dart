@@ -23,7 +23,9 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('turning on push-to-talk persists it', (tester) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     final pttToggle = find.byWidgetPredicate(
@@ -45,7 +47,9 @@ void main() {
   testWidgets('the key picker is hidden until push-to-talk is on', (
     tester,
   ) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('V'), findsNothing);
@@ -66,7 +70,9 @@ void main() {
   });
 
   testWidgets('picking a push-to-talk key persists its keyId', (tester) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     final pttToggle = find.byWidgetPredicate(
@@ -105,7 +111,9 @@ void main() {
         'slimm.voice.push_to_talk_enabled': true,
       });
 
-      await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+      await tester.pumpWidget(
+        wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      );
       await tester.pumpAndSettle();
 
       final pttToggle = find.byWidgetPredicate(

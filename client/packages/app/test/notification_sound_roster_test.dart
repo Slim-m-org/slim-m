@@ -68,6 +68,15 @@ class _FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   void setVideoInterest(Set<String>? tileKeys) {}
   @override
+  bool get supportsInputGate => false;
+
+  @override
+  Stream<InputGateReading> get inputGateReadings => const Stream.empty();
+
+  @override
+  void setInputGate({required bool enabled, required double thresholdDb}) {}
+
+  @override
   void setSpeakingSensitivity(double sensitivity) {}
   @override
   bool get canFlipCamera => false;

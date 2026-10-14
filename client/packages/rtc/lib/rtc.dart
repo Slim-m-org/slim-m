@@ -15,6 +15,13 @@ export 'src/camera_devices.dart';
 export 'src/camera_failure.dart';
 export 'src/camera_switching.dart';
 export 'src/desktop_sources.dart';
+export 'src/input_gate.dart'
+    show
+        InputGateMonitor,
+        InputGateReading,
+        inputLevelFraction,
+        kDefaultInputThresholdDb,
+        kInputFloorDb;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/remote_video_publication.dart';
@@ -25,5 +32,5 @@ export 'src/video_quality.dart';
 export 'src/video_subscription_culler.dart';
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
-    show anyLiveVideo, passesActivationThreshold;
+    show anyLiveVideo, isSpeakingNow, passesActivationThreshold;
 export 'src/voice_session.dart';
