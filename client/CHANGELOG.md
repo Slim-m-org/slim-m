@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.105.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.104.0...client-v0.105.0) (2026-10-14)
+
+
+### Features
+
+* a startup window that draws the mark out of a lattice, from the startup window design ([#2189](https://github.com/Slim-m-org/slim-m/issues/2189)) ([18ebbab](https://github.com/Slim-m-org/slim-m/commit/18ebbabb5a1c323875d70ca2ae4c031c173185e4))
+* even out loud sounds, and strong noise suppression with a Space default ([#2187](https://github.com/Slim-m-org/slim-m/issues/2187)) ([2fcc1d0](https://github.com/Slim-m-org/slim-m/commit/2fcc1d0c5352b8eca99db3c049cc36a983d689d3))
+* idle voice channels show the last call, faster speaking rings, and a startup that fades into the window ([#2185](https://github.com/Slim-m-org/slim-m/issues/2185)) ([2b44875](https://github.com/Slim-m-org/slim-m/commit/2b44875b3e95e9fe44e0c69742d4d8e8d8c15a29))
+* image spoilers, composer focus fixes, voice lounge quick wins and password-free Linux updates ([#2193](https://github.com/Slim-m-org/slim-m/issues/2193)) ([7320717](https://github.com/Slim-m-org/slim-m/commit/732071781b7b49a135319d1eabbc141af68b03e6))
+* ranked-choice polls with an instant runoff ([#2191](https://github.com/Slim-m-org/slim-m/issues/2191)) ([24edae2](https://github.com/Slim-m-org/slim-m/commit/24edae24e9f02298c667216904157a1a4ea7a17a))
+* temporary voice rooms from a lobby channel, and the voice canvas reopens where you left it ([#2180](https://github.com/Slim-m-org/slim-m/issues/2180)) ([e61ef5c](https://github.com/Slim-m-org/slim-m/commit/e61ef5cf98dae03c8cc3b6150e636bbe155214cf))
+* voice connecting loader and the new profile cards, from claude design ([#2192](https://github.com/Slim-m-org/slim-m/issues/2192)) ([9b775f5](https://github.com/Slim-m-org/slim-m/commit/9b775f5d20a03fa48524c56d671593b326535072))
+
+
+### Bug Fixes
+
+* nothing on the canvas paints over its header ([#2195](https://github.com/Slim-m-org/slim-m/issues/2195)) ([966e76f](https://github.com/Slim-m-org/slim-m/commit/966e76f42f150d5f0a602c165c952cc749e7c75d))
+* settings modals use the whole panel instead of a narrow column inside it ([#2188](https://github.com/Slim-m-org/slim-m/issues/2188)) ([aa51c9b](https://github.com/Slim-m-org/slim-m/commit/aa51c9badb99136076ade8091eefad6062088b86))
+
 ## [0.104.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.103.0...client-v0.104.0) (2026-10-14)
 
 
