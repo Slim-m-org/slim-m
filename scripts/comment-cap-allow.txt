@@ -66,7 +66,7 @@ client/packages/app/lib/src/widgets/member_pane.dart 1
 client/packages/app/lib/src/widgets/message_edit_field.dart 2
 client/packages/app/lib/src/widgets/message_row.dart 2
 client/packages/app/lib/src/widgets/message_row_identity.dart 1
-client/packages/app/lib/src/widgets/message_row_parts.dart 2
+client/packages/app/lib/src/widgets/message_row_parts.dart 1
 client/packages/app/lib/src/widgets/message_transcript.dart 1
 client/packages/app/lib/src/widgets/personal_account_sections.dart 1
 client/packages/app/lib/src/widgets/presence_menu.dart 2
