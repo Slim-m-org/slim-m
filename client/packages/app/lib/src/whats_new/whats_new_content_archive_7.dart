@@ -239,4 +239,38 @@ const List<WhatsNewEntry> whatsNewArchiveEntries7 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.105.0',
+    headline: 'Ranked polls, spoilers, and calmer calls',
+    points: [
+      WhatsNewPoint(
+        'Polls can be ranked choice: tap the options in order, and the '
+        'least popular is dropped round by round until one has a majority.',
+      ),
+      WhatsNewPoint(
+        'Mark a picture or video as a spoiler before you send it. It stays '
+        'blurred for everyone until they tap it.',
+      ),
+      WhatsNewPoint(
+        'Shouts and sudden loud sounds are evened out in calls, and noise '
+        'suppression has a stronger setting that a Space can make its default.',
+      ),
+      WhatsNewPoint(
+        'A lobby voice channel gives everyone their own temporary room, and '
+        'the voice canvas reopens where you left it.',
+      ),
+      WhatsNewPoint(
+        'Joining a call, starting the app and opening a profile all look '
+        'new. Alone in a call, the dock has a button for music while you wait.',
+      ),
+      WhatsNewPoint(
+        'Reply and Edit put the cursor straight in the box, Tab stays inside '
+        'the GIF picker, and short calls no longer end on a recap.',
+      ),
+      WhatsNewPoint(
+        'On Linux, updating from inside the app stops asking for your '
+        'password after this update.',
+      ),
+    ],
+  ),
 ];
