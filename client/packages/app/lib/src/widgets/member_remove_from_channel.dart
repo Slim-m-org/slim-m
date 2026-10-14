@@ -23,6 +23,17 @@ bool canRemoveFromChannel(WidgetRef ref, String channelId) => ref
     .watch(myChannelPermissionsProvider(channelId))
     .hasPermission(Perm.manageRoles);
 
+/// Whether [MemberRemoveFromChannelItem] has anything to show, so a caller
+/// can leave out the section around it too.
+bool offersRemoveFromChannel(
+  WidgetRef ref,
+  String channelId,
+  api.UserProfile profile,
+) =>
+    ref.watch(channelByIdProvider(channelId)).valueOrNull != null &&
+    canRemoveFromChannel(ref, channelId) &&
+    !memberIsAdministrator(profile, ref.watch(rolesProvider).valueOrNull);
+
 /// Whether [profile]'s roles carry administrator, which no overwrite can deny.
 bool memberIsAdministrator(api.UserProfile profile, List<api.Role>? roles) =>
     roles?.any(
@@ -76,10 +87,7 @@ class MemberRemoveFromChannelItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-    final roles = ref.watch(rolesProvider).valueOrNull;
-    if (channel == null ||
-        !canRemoveFromChannel(ref, channelId) ||
-        memberIsAdministrator(profile, roles)) {
+    if (channel == null || !offersRemoveFromChannel(ref, channelId, profile)) {
       return const SizedBox.shrink();
     }
     final name = profile.displayName;

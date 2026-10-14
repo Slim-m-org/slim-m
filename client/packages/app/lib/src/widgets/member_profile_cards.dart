@@ -195,14 +195,12 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
     final hasNote =
         ref.watch(userNoteProvider(profile.id)).valueOrNull?.body?.isNotEmpty ??
         false;
-    final channelName = widget.channelId == null
+    final channelId = widget.channelId;
+    // The off-hours allow-list is per person, not per channel, so only removal belongs under the channel's heading.
+    final channelName =
+        channelId == null || !offersRemoveFromChannel(ref, channelId, profile)
         ? null
-        : ref.watch(channelByIdProvider(widget.channelId!)).valueOrNull?.name;
-    final notifyItem = MemberNotifyOffHoursItem(
-      host: host,
-      profile: profile,
-      run: run,
-    );
+        : ref.watch(channelByIdProvider(channelId)).valueOrNull?.name;
     final canMessage = widget.actions.contains(ParticipantAction.message);
     final blocked = ref.watch(blocksProvider).contains(profile.id);
 
@@ -279,9 +277,8 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         if (channelName != null) ...[
           _Section([
             AppMenuLabel('In #$channelName'),
-            notifyItem,
             MemberRemoveFromChannelItem(
-              channelId: widget.channelId!,
+              channelId: channelId!,
               profile: profile,
               host: host,
               guard: widget.guard,
@@ -291,7 +288,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
           const _Rule(),
         ],
         _Section([
-          if (channelName == null) notifyItem,
+          MemberNotifyOffHoursItem(host: host, profile: profile, run: run),
           if (widget.actions.contains(ParticipantAction.moderate))
             AppMenuItem(
               label: 'Moderate...',

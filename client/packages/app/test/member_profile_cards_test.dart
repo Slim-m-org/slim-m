@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The two member card layouts: someone else's (Message and Add note up top,
-/// "In #channel" rows when opened from a channel) and your own (activity,
-/// then Set status, Copy username, Profile settings), at popover and phone
-/// width, in both themes.
+/// "In #channel" removal when opened from a channel you manage) and your own
+/// (activity, then Set status, Copy username, Profile settings), at popover
+/// and phone width, in both themes.
 library;
 
 import 'package:flutter/material.dart';
@@ -225,12 +225,12 @@ void main() {
       expect(find.textContaining('Remove from #'), findsNothing);
     });
 
-    testWidgets('a channel without manage rights hides Remove only', (
+    testWidgets('a channel without manage rights has no channel section', (
       tester,
     ) async {
       await _pump(tester, _harness((_) => _card(channelId: _channelId)));
 
-      expect(find.text('IN #VOICE'), findsOneWidget);
+      expect(find.textContaining('IN #'), findsNothing);
       expect(find.text('Notify me off hours'), findsOneWidget);
       expect(find.textContaining('Remove from #'), findsNothing);
     });
