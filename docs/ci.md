@@ -733,6 +733,11 @@ This protects only tags cut at a commit that already contains this script: GitHu
 Closing that needs something outside this file: a tag protection ruleset, or GHCR's own immutable-tag setting.
 Without this, republishing a newer-than-nothing-else tag would silently roll every auto-updating deployment backwards to it.
 
+The version check alone is not enough, because `latest` has a second writer: `main-builds` publishes it from main on every server merge, so main is usually ahead of the release commit.
+On 2026-10-14 the 0.89.0 release built its image from the release commit, one commit behind a merged migration (0107), and moved `latest` backwards past it; Watchtower pulled it and the server refused to start against a database that had already applied 0107.
+So `server-image-merge` also fetches main and runs `scripts/release-latest-allowed.sh`, which allows the move only when main has no change under the server image paths (`scripts/server-image-paths.txt`, the same list `server-image-needed.sh` uses) that the release does not.
+When main is ahead, the release still publishes its version and sha tags, and `latest` stays with `main-builds`.
+
 ### server-binaries and server-release-assets
 
 `server-binaries` produces static musl binaries for direct download, built per arch into artifacts and aggregated by `server-release-assets`.
