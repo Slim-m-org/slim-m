@@ -33,6 +33,7 @@ class AppContentColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppBoundedWidth.isBounded(context)) return child;
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
@@ -41,4 +42,17 @@ class AppContentColumn extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Marks a surface that already bounds its own width, such as a floating
+/// modal panel, so an [AppContentColumn] inside it fills the surface rather
+/// than centring a narrower column with dead gutters either side.
+class AppBoundedWidth extends InheritedWidget {
+  const AppBoundedWidth({super.key, required super.child});
+
+  static bool isBounded(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppBoundedWidth>() != null;
+
+  @override
+  bool updateShouldNotify(AppBoundedWidth oldWidget) => false;
 }

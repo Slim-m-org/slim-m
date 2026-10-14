@@ -89,7 +89,7 @@ Page<void> modalPage(
     child: _ModalSurface(
       maxWidth: maxWidth,
       maxHeight: maxHeight,
-      child: child,
+      child: AppBoundedWidth(child: child),
     ),
   );
 }
