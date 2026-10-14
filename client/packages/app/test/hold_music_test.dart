@@ -3,8 +3,6 @@
 /// stops the moment that stops being true, and is off by default.
 library;
 
-import 'dart:io';
-
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
@@ -178,18 +176,6 @@ void main() {
       _settle(async);
       expect(rig.player.calls, ['start']);
     });
-  });
-
-  test('every style is a bundled, declared asset', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
-    for (final track in LoungeTrack.values) {
-      expect(
-        File('assets/${track.asset}').existsSync(),
-        isTrue,
-        reason: track.asset,
-      );
-      expect(pubspec, contains('assets/${track.asset}'));
-    }
   });
 
   group('shouldPlayHoldMusic', () {

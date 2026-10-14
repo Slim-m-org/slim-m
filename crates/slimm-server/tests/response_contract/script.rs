@@ -186,6 +186,13 @@ pub async fn run(c: &mut Contract) {
 
     c.bare("getSpaceRetention", "GET", "/space/retention", root)
         .await;
+    c.bare(
+        "previewSpaceRetention",
+        "GET",
+        "/space/retention/preview?days=30",
+        root,
+    )
+    .await;
     // Set back to disabled, so the rest of the pass keeps its own history.
     c.json(
         "updateSpaceRetention",
