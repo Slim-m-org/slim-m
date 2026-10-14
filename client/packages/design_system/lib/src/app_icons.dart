@@ -174,6 +174,9 @@ abstract final class AppIcons {
   /// your ears, so a call site that confuses them says the opposite thing.
   static const IconData speaker = LucideIcons.volume2300;
   static const IconData speakerOff = LucideIcons.volumeX300;
+
+  /// Music while alone in a call.
+  static const IconData music = LucideIcons.music300;
   static const IconData camera = LucideIcons.video300;
   static const IconData cameraOff = LucideIcons.videoOff300;
 
