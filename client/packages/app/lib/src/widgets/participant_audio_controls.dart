@@ -76,9 +76,8 @@ class MemberLocalAudioSection extends StatelessWidget {
   }
 }
 
-/// The slider half alone: a label, the current percentage, a reset-to-normal
-/// button once it has moved off [kDefaultParticipantVolume], and the slider
-/// itself. Reusable on its own - a quick-actions menu's own "Volume..." row
+/// The slider half alone, on one row: a label, the slider, the percentage and
+/// a reset-to-normal button once it has moved off [kDefaultParticipantVolume]. Reusable on its own - a quick-actions menu's own "Volume..." row
 /// opens a small popover holding just this, since a bare slider inside the
 /// menu itself would fight that menu's own outside-tap-to-dismiss model.
 ///
@@ -87,6 +86,9 @@ class MemberLocalAudioSection extends StatelessWidget {
 /// "absent, never disabled" split every caller of it already makes.
 /// How close to normal, as a fraction of it, a drag snaps to normal.
 const double _snapToNormal = 0.04;
+
+/// Wide enough for "200%" in the mono face, so the number never wraps or shifts the slider.
+const double _valueWidth = 40;
 
 class ParticipantVolumeControl extends StatefulWidget {
   const ParticipantVolumeControl({
@@ -131,52 +133,57 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
     final muted = widget.controller.isLocallyMuted(widget.identity);
     final atDefault = _volume == kDefaultParticipantVolume;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    final touch = AppTouchTargets.of(context);
+    return Row(
       children: [
-        Row(
-          children: [
-            if (widget.showLabel)
-              Expanded(
-                child: Text(
-                  'Volume for you',
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              )
-            else
-              const Spacer(),
-            // Absent at the default, never disabled - see this widget's own doc; beside the number it resets.
-            if (!atDefault)
-              AppIconButton(
-                icon: AppIcons.undo,
-                semanticLabel: 'Reset volume to normal',
-                tooltip: 'Reset to normal',
-                size: AppIconButtonSize.sm,
-                iconSize: AppSizes.icon16,
-                touch: AppTouchTargets.of(context),
-                onPressed: () => _setVolume(kDefaultParticipantVolume),
-              ),
-            Text(
-              '${(_volume * 100).round()}%',
-              style: AppText.code.copyWith(
-                color: tokens.textPrimary,
-                fontSize: 12,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+        if (widget.showLabel) ...[
+          Flexible(
+            child: Text(
+              'Volume for you',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
-          ],
+          ),
+          const SizedBox(width: AppSpacing.s8),
+        ],
+        Expanded(
+          child: AppSlider(
+            value: _volume * 100,
+            min: 0,
+            max: kMaxParticipantVolume * 100,
+            semanticLabel: 'Volume for you',
+            muted: muted,
+            onChanged: (next) => _setVolume(next / 100),
+          ),
         ),
-        const SizedBox(height: AppSpacing.s8),
-        AppSlider(
-          value: _volume * 100,
-          min: 0,
-          max: kMaxParticipantVolume * 100,
-          ticks: const ['0', '100', '200'],
-          semanticLabel: 'Volume for you',
-          muted: muted,
-          onChanged: (next) => _setVolume(next / 100),
+        SizedBox(
+          width: _valueWidth,
+          child: Text(
+            '${(_volume * 100).round()}%',
+            maxLines: 1,
+            textAlign: TextAlign.end,
+            style: AppText.code.copyWith(
+              color: tokens.textPrimary,
+              fontSize: 12,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        // The slot is always reserved so the slider does not resize as the reset button comes and goes.
+        SizedBox(
+          width: AppSizes.controlSm,
+          child: atDefault
+              ? null
+              : AppIconButton(
+                  icon: AppIcons.undo,
+                  semanticLabel: 'Reset volume to normal',
+                  tooltip: 'Reset to normal',
+                  size: AppIconButtonSize.sm,
+                  iconSize: AppSizes.icon16,
+                  touch: touch,
+                  onPressed: () => _setVolume(kDefaultParticipantVolume),
+                ),
         ),
       ],
     );
