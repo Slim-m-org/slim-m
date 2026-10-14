@@ -68,6 +68,7 @@ export 'src/client.dart'
         SlimmApiInteractions,
         SlimmApiUsers,
         SlimmApiVoice,
+        SlimmApiVoiceCalls,
         SlimmApiWatchSession,
         SlimmApiWebhooks,
         JoinPolicy;

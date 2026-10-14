@@ -84,7 +84,7 @@ void main() {
       await _pump(tester, const AsyncLoading());
 
       expect(find.text('This Space has no voice configured.'), findsOneWidget);
-      expect(find.textContaining('Nobody is in this call'), findsNothing);
+      expect(find.textContaining("Nobody's here"), findsNothing);
       expect(
         find.text("Can't tell who else is here right now."),
         findsOneWidget,
@@ -118,7 +118,7 @@ void main() {
   testWidgets('a checked, empty room says so', (tester) async {
     await _pump(tester, const AsyncData([]));
 
-    expect(find.text('Nobody is in this call yet.'), findsOneWidget);
+    expect(find.text("Nobody's here right now"), findsOneWidget);
   });
 
   testWidgets('the people already in it are named', (tester) async {
@@ -132,7 +132,7 @@ void main() {
 
     expect(find.textContaining('Ada'), findsWidgets);
     expect(find.textContaining('Grace'), findsWidgets);
-    expect(find.text('Nobody is in this call yet.'), findsNothing);
+    expect(find.text("Nobody's here right now"), findsNothing);
   });
 
   testWidgets('one person reads as one person, not as a list', (tester) async {

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"n!: i64\" FROM canvas_objects\n               WHERE channel_id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "n!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f898702ebe0a0553b4593e5b4da58322e12b10a6cb325805e9538e7875c9e0f9"
+}

@@ -280,6 +280,29 @@ pub async fn run(c: &mut Contract) {
         json!({ "scopes": [{ "channel_id": channel, "after_seq": 0 }] }),
     )
     .await;
+    // A call in the history, so the shape checked is a populated one.
+    let voice_channel = slimm_server::ids::ChannelId(channel.parse().unwrap());
+    let caller = slimm_server::ids::UserId(admin_id.parse().unwrap());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    for (at, kind) in [
+        (now - 2000, slimm_server::store::VoiceEventKind::Joined),
+        (now - 1000, slimm_server::store::VoiceEventKind::Left),
+    ] {
+        c.state
+            .store
+            .record_voice_event(voice_channel, caller, kind, at)
+            .await
+            .unwrap();
+    }
+    c.get(
+        "listVoiceCalls",
+        &format!("/channels/{channel}/voice/calls"),
+        root,
+    )
+    .await;
     c.bare(
         "mintVoiceToken",
         "POST",

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT at AS \"at!\", user_id AS \"user_id!: UserId\", kind AS \"kind!\"\n               FROM (SELECT at, user_id, kind FROM voice_call_events\n                     WHERE channel_id = ? AND at >= ?\n                     ORDER BY at DESC LIMIT ?)\n               ORDER BY at",
+  "describe": {
+    "columns": [
+      {
+        "name": "at!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f83844adbf9ff901e68dca36499979125a1b30b86e292526e4d9d371726434d9"
+}

@@ -99,7 +99,7 @@ void main() {
 
     expect(_location(tester), Routes.channel('t1'));
     expect(find.byType(ChannelScreen), findsOneWidget);
-    expect(find.text('Rejoin call'), findsNothing);
+    expect(find.text('Join muted'), findsNothing);
     final toasts = s.container.read(toastsProvider);
     expect(toasts.single.message, 'Call ended - 42 sec.');
     expect(toasts.single.severity, AppToastSeverity.success);
@@ -166,7 +166,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_location(tester), Routes.channel('c1'));
-    expect(find.text('Rejoin call'), findsOneWidget);
+    expect(find.text('Join muted'), findsOneWidget);
 
     await teardown(tester, s.container, s.db);
   });

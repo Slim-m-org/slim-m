@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM voice_call_events WHERE at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ead0d058f5c71dcf4a3bfcf9447a9ff9b3d484b51a7312e8ef9b3fec8dc23152"
+}

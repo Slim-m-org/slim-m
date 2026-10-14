@@ -45,6 +45,7 @@ part 'client_totp.dart';
 part 'client_transport.dart';
 part 'client_users.dart';
 part 'client_voice.dart';
+part 'client_voice_calls.dart';
 part 'client_webhooks.dart';
 
 /// Holds the current session and hands out the access token.

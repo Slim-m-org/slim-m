@@ -130,6 +130,7 @@ mod users;
 mod version;
 mod viewable_message;
 mod voice;
+mod voice_calls;
 mod voice_ring;
 mod voice_webhook;
 mod watch_session;
@@ -278,6 +279,7 @@ pub fn router(state: AppState) -> Router {
         .merge(interactions::routes())
         .merge(message_components::routes())
         .merge(voice::routes())
+        .merge(voice_calls::routes())
         .merge(voice_ring::routes())
         .merge(voice_webhook::routes())
         .merge(watch_session::routes())

@@ -6,6 +6,7 @@
 
 pub mod auth;
 pub mod bot_ui;
+pub mod call_history;
 pub mod code_runner;
 pub mod components;
 pub mod config;
@@ -122,6 +123,7 @@ pub async fn run() -> anyhow::Result<()> {
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
     sweeps::spawn_call_sweep(voice.clone(), hub.clone());
+    sweeps::spawn_call_history_sweep(store.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
     sweeps::spawn_message_retention_sweep(store.clone(), media.clone(), hub.clone());
     let gifs = http::gifs::GifSearch::new(&config)?;

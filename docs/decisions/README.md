@@ -74,3 +74,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0062](0062-display-density.md) | Message density, group spacing and interface scale in Appearance | accepted |
 | [0063](0063-confirmation-levels.md) | How strongly each permanent or security action is confirmed | accepted |
 | [0064](0064-category-permissions.md) | Category permissions, by syncing channels to their category | accepted |
+| [0066](0066-voice-call-history.md) | A voice channel's call history | accepted |
