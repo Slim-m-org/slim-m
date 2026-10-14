@@ -31,6 +31,7 @@ mod support;
 mod answers;
 mod bot_ui;
 mod call_control_options;
+mod embed_edits;
 mod presses;
 mod security;
 mod sending;

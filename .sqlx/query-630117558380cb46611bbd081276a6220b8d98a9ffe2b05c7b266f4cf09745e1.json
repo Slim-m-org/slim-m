@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM message_embeds WHERE message_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "630117558380cb46611bbd081276a6220b8d98a9ffe2b05c7b266f4cf09745e1"
+}

@@ -27,6 +27,20 @@ class MessageComponentsChanged extends ServerEvent {
   final List<ComponentRow> components;
 }
 
+/// A bot replaced or cleared the embeds on its message by editing it; the
+/// whole current list, so a receiver replaces rather than merges.
+class MessageEmbedsChanged extends ServerEvent {
+  const MessageEmbedsChanged({
+    required this.channelId,
+    required this.messageId,
+    required this.embeds,
+  });
+
+  final String channelId;
+  final String messageId;
+  final List<Embed> embeds;
+}
+
 /// The bot answered this account's button press, so the button can stop
 /// showing as pending. See docs/decisions/0039-bot-message-buttons.md.
 class InteractionAnswered extends ServerEvent {
