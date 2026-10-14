@@ -18,6 +18,7 @@ import 'package:flutter/painting.dart';
 
 import 'canvas_external_pointers.dart';
 import 'canvas_scene.dart';
+import 'canvas_snap.dart';
 import 'canvas_stroke.dart';
 
 export 'canvas_stroke.dart';
@@ -96,6 +97,9 @@ class CanvasDocument extends ChangeNotifier {
   /// arrives as a plain value), a shadow only while an object is literally
   /// off the plane rather than for as long as it merely sits selected.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
+
+  /// Alignment guides of a drag or resize that is snapping right now.
+  final ValueNotifier<List<SnapGuide>> snapGuides = ValueNotifier(const []);
 
   Camera get camera => _camera;
   Size get viewport => _viewport;
@@ -493,6 +497,7 @@ class CanvasDocument extends ChangeNotifier {
     objectCount.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
+    snapGuides.dispose();
     worldEdgeHit.dispose();
     scene.dispose();
     super.dispose();

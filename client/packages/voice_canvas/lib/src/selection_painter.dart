@@ -33,7 +33,12 @@ class SelectionPainter extends CustomPainter {
     required this.outline,
     required this.handleFill,
     required this.handleBorder,
-  }) : super(repaint: Listenable.merge([document, document.selectedObjectId]));
+  }) : super(
+            repaint: Listenable.merge([
+          document,
+          document.selectedObjectId,
+          document.snapGuides,
+        ]));
 
   final CanvasDocument document;
   final Color outline;
@@ -42,6 +47,7 @@ class SelectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    _paintGuides(canvas);
     final id = document.selectedObjectId.value;
     if (id == null) return;
     final bounds = document.objectBounds(id);
@@ -78,6 +84,24 @@ class SelectionPainter extends CustomPainter {
       );
       canvas.drawRect(handle, fill);
       canvas.drawRect(handle, border);
+    }
+  }
+
+  void _paintGuides(Canvas canvas) {
+    final camera = document.camera;
+    final paint = Paint()
+      ..color = outline.withValues(alpha: 0.6)
+      ..strokeWidth = 1;
+    for (final g in document.snapGuides.value) {
+      final p =
+          ((g.position - (g.vertical ? camera.x : camera.y)) * camera.zoom);
+      final a = (g.start - (g.vertical ? camera.y : camera.x)) * camera.zoom;
+      final b = (g.end - (g.vertical ? camera.y : camera.x)) * camera.zoom;
+      canvas.drawLine(
+        g.vertical ? Offset(p, a) : Offset(a, p),
+        g.vertical ? Offset(p, b) : Offset(b, p),
+        paint,
+      );
     }
   }
 
