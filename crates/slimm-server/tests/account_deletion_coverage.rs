@@ -69,6 +69,15 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("canvas_ops", "actor_id", OnDelete::Anonymize),
     ("code_runs", "ran_by", OnDelete::Anonymize),
     ("channel_notification_prefs", "user_id", OnDelete::Purge),
+    (
+        "channels",
+        "room_owner_id",
+        OnDelete::Keep(
+            "a temporary room is a channel other people are in, removed once \
+             its call empties; the id points at the tombstoned account, which \
+             names nobody",
+        ),
+    ),
     ("custom_emoji", "uploader_id", OnDelete::Anonymize),
     ("devices", "user_id", OnDelete::Purge),
     (
