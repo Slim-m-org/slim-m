@@ -32,6 +32,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/fullscreen_video.dart';
 import 'close_behavior.dart';
+import 'desktop_entrance.dart';
 import 'desktop_window_shell.dart';
 import 'first_run_tray_notice_banner.dart';
 import 'title_bar.dart';
@@ -54,35 +55,37 @@ class DesktopChrome extends ConsumerWidget {
     final videoFullscreen = ref.watch(fullscreenVideoActiveProvider);
 
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
-    return Material(
-      type: MaterialType.transparency,
-      child: Overlay.wrap(
-        // expand: the resize frame below needs the whole window, not just the Column's content size.
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Column(
-              children: [
-                // frameless is only ever set true on the Linux branch below.
-                if (DesktopWindowShell.frameless && !videoFullscreen)
-                  TitleBar(
-                    port: DesktopWindowShell.port,
-                    platform: DesktopPlatform.linux,
-                    onRequestClose: DesktopWindowShell.requestClose,
-                  ),
-                if (!videoFullscreen) ...[
-                  const FirstRunTrayNoticeBanner(),
-                  // The frameless title bar carries the compact update chip instead.
-                  if (!DesktopWindowShell.frameless)
-                    const UpdateAvailableBanner(),
-                  const SelfUpdateFailureBanner(),
+    return DesktopEntrance(
+      child: Material(
+        type: MaterialType.transparency,
+        child: Overlay.wrap(
+          // expand: the resize frame below needs the whole window, not just the Column's content size.
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Column(
+                children: [
+                  // frameless is only ever set true on the Linux branch below.
+                  if (DesktopWindowShell.frameless && !videoFullscreen)
+                    TitleBar(
+                      port: DesktopWindowShell.port,
+                      platform: DesktopPlatform.linux,
+                      onRequestClose: DesktopWindowShell.requestClose,
+                    ),
+                  if (!videoFullscreen) ...[
+                    const FirstRunTrayNoticeBanner(),
+                    // The frameless title bar carries the compact update chip instead.
+                    if (!DesktopWindowShell.frameless)
+                      const UpdateAvailableBanner(),
+                    const SelfUpdateFailureBanner(),
+                  ],
+                  Expanded(child: child),
                 ],
-                Expanded(child: child),
-              ],
-            ),
-            if (DesktopWindowShell.frameless && !videoFullscreen)
-              WindowResizeFrame(port: DesktopWindowShell.port),
-          ],
+              ),
+              if (DesktopWindowShell.frameless && !videoFullscreen)
+                WindowResizeFrame(port: DesktopWindowShell.port),
+            ],
+          ),
         ),
       ),
     );

@@ -20,6 +20,7 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart' show Size, WidgetsBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart' show AppMotion;
 
 import '../diagnostics/debug_log.dart';
 import '../providers/providers.dart';
@@ -28,6 +29,7 @@ import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
 import 'first_run_tray_notice.dart';
 import 'splash_mapped_wait.dart';
+import 'startup_state.dart' show startupLeavingProvider;
 import 'tray/desktop_tray_controller.dart';
 import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
@@ -242,6 +244,9 @@ class DesktopWindowShell {
   }) async {
     if (currentDesktopPlatform() == null) return;
     await awaitSplashMapped(floor: splashFloor);
+    // The splash fades out before its window hides, so the handoff is a dissolve rather than a cut.
+    container.read(startupLeavingProvider.notifier).state = true;
+    await Future<void>.delayed(AppMotion.base);
     try {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {

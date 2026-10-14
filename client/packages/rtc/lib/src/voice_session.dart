@@ -20,6 +20,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
 import 'input_gate.dart';
+import 'speaking_hold.dart';
 import 'local_audio.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 
@@ -119,6 +120,10 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   /// Deafen, per-participant mute and per-participant gain, which are one
   /// listener's own business and never reach the room; see [LocalAudioState].
   final LocalAudioState _audio = LocalAudioState();
+
+  /// See [SpeakingHold]; the timer drops a held ring when its time is up.
+  final SpeakingHold _speakingHold = SpeakingHold();
+  Timer? _speakingHoldTimer;
 
   VoiceSessionState get state => _state;
   Stream<VoiceSessionState> get states => _stateController.stream;

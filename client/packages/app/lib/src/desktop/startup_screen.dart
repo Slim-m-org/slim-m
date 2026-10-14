@@ -89,10 +89,14 @@ class StartupApp extends StatelessWidget {
     this.status = defaultStartupStatus,
     this.prompt,
     this.windowPort,
+    this.leaving = false,
   });
 
   final String status;
   final StartupPrompt? prompt;
+
+  /// See `startupLeavingProvider`.
+  final bool leaving;
 
   /// Set where the native title bar is hidden; see [StartupWindowChrome].
   final DesktopWindowPort? windowPort;
@@ -102,7 +106,12 @@ class StartupApp extends StatelessWidget {
     title: 'slim-m',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(Brightness.dark, AppTokens.dark),
-    home: StartupScreen(status: status, prompt: prompt, windowPort: windowPort),
+    home: StartupScreen(
+      status: status,
+      prompt: prompt,
+      windowPort: windowPort,
+      leaving: leaving,
+    ),
   );
 }
 
@@ -112,10 +121,14 @@ class StartupScreen extends StatelessWidget {
     this.status = defaultStartupStatus,
     this.prompt,
     this.windowPort,
+    this.leaving = false,
   });
 
   final String status;
   final DesktopWindowPort? windowPort;
+
+  /// Fades the content out ahead of the handoff; see `startupLeavingProvider`.
+  final bool leaving;
 
   /// When set, the splash shows a question instead of the plain status line,
   /// and waits on the user rather than proceeding on its own.
@@ -130,33 +143,45 @@ class StartupScreen extends StatelessWidget {
       body: Stack(
         children: [
           Center(
-            child: AppFadeIn(
-              offset: 0,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppBrandMark(size: 64, color: tokens.accent),
-                  const SizedBox(height: AppSpacing.s16),
-                  Text(
-                    'slim-m',
-                    style: AppText.heading.copyWith(
-                      color: tokens.textPrimary,
-                      fontFamily: AppFonts.mono,
-                      fontWeight: AppWeights.medium,
-                      letterSpacing: 20 * AppTracking.mono,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s24),
-                  if (prompt case final question?)
-                    _Prompt(prompt: question, tokens: tokens)
-                  else
+            child: AnimatedOpacity(
+              opacity: leaving ? 0 : 1,
+              duration: AppMotion.reduced(context, AppMotion.base),
+              curve: AppMotion.exit,
+              child: AppFadeIn(
+                offset: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppBrandMark(size: 64, color: tokens.accent),
+                    const SizedBox(height: AppSpacing.s16),
                     Text(
-                      status,
-                      style: AppText.caption.copyWith(
-                        color: tokens.textSecondary,
+                      'slim-m',
+                      style: AppText.heading.copyWith(
+                        color: tokens.textPrimary,
+                        fontFamily: AppFonts.mono,
+                        fontWeight: AppWeights.medium,
+                        letterSpacing: 20 * AppTracking.mono,
                       ),
                     ),
-                ],
+                    const SizedBox(height: AppSpacing.s24),
+                    if (prompt case final question?)
+                      _Prompt(prompt: question, tokens: tokens)
+                    else ...[
+                      AnimatedSwitcher(
+                        duration: AppMotion.reduced(context, AppMotion.base),
+                        child: Text(
+                          status,
+                          key: ValueKey(status),
+                          style: AppText.caption.copyWith(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s12),
+                      _LoadingLine(tokens: tokens),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -220,4 +245,28 @@ class _Prompt extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A thin indeterminate line under the status: the splash is content that
+/// reports progress, so it may move (decision 0004). Under reduce motion it
+/// rests as a short static line.
+class _LoadingLine extends StatelessWidget {
+  const _LoadingLine({required this.tokens});
+
+  final AppTokens tokens;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 120,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.full),
+      child: AppMotion.isReduced(context)
+          ? Container(height: 2, color: tokens.borderSubtle)
+          : LinearProgressIndicator(
+              minHeight: 2,
+              color: tokens.accent,
+              backgroundColor: tokens.borderSubtle,
+            ),
+    ),
+  );
 }
