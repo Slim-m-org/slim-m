@@ -25,6 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../providers/blocks_controller.dart';
+import '../../providers/canvas_camera_memory.dart';
 import '../../providers/live_events.dart';
 import '../../providers/providers.dart';
 import '../../providers/sync_controller.dart';
@@ -105,6 +106,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     });
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
     document.addListener(_onCameraMoved);
+    unawaited(_restoreCamera());
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());
   }
@@ -295,11 +297,37 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// those content notifications re-read a null [_fetched] and rescheduled a
   /// fetch for the unmoved viewport - forever, since the answer stays
   /// truncated for the same reason each time.
+  late final CanvasCameraMemory _cameraMemory = _ref.read(
+    canvasCameraMemoryProvider,
+  );
+  Timer? _cameraSave;
+
+  /// Puts the camera back where this channel's canvas was left, unless it
+  /// has already moved since opening.
+  Future<void> _restoreCamera() async {
+    await _cameraMemory.ready;
+    final saved = _cameraMemory.cameraFor(channelId);
+    if (!mounted || saved == null || document.camera != const Camera()) return;
+    document.setCamera(saved);
+  }
+
+  void _rememberCamera() {
+    _cameraSave?.cancel();
+    _cameraSave = Timer(
+      const Duration(milliseconds: 500),
+      () => unawaited(_cameraMemory.remember(channelId, document.camera)),
+    );
+  }
+
   void _onCameraMoved() {
     final view = document.worldView;
     if (view == _lastCameraView) return;
     final isFirstView = _lastCameraView == null;
     _lastCameraView = view;
+    if (document.camera != const Camera() ||
+        _cameraMemory.cameraFor(channelId) != null) {
+      _rememberCamera();
+    }
     final fetched = _fetched;
     if (fetched != null &&
         fetched.contains(view.topLeft) &&
@@ -390,6 +418,10 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     if (!mounted) return;
     hydrator.dispose();
     _panDebounce?.cancel();
+    if (_cameraSave?.isActive ?? false) {
+      _cameraSave!.cancel();
+      unawaited(_cameraMemory.remember(channelId, document.camera));
+    }
     _queue?.close();
     unawaited(_live?.cancel());
     _syncStatusSubscription?.close();
