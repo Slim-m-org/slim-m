@@ -25,7 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 /// entirely alone, which is still worth showing on its own duration.
 CallRecap _recap({
   required String channelId,
-  Duration duration = const Duration(minutes: 3),
+  Duration duration = const Duration(minutes: 6),
   bool withAlice = true,
 }) {
   final start = DateTime(2026, 1, 1);
@@ -122,7 +122,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CallRecapCard), findsOneWidget);
-      expect(find.text('3 min'), findsOneWidget);
+      expect(find.text('6 min'), findsOneWidget);
       expect(find.text('You left this call.'), findsNothing);
       expect(find.text('Your last call'), findsOneWidget);
     });
@@ -132,7 +132,7 @@ void main() {
     ) async {
       final recap = _recap(
         channelId: 'channel-1',
-        duration: const Duration(seconds: 4),
+        duration: const Duration(minutes: 4, seconds: 59),
       );
 
       await tester.pumpWidget(
@@ -151,7 +151,7 @@ void main() {
       expect(
         find.byType(CallRecapCard),
         findsNothing,
-        reason: 'a four-second mis-click is noise, not a summary',
+        reason: 'a call under five minutes is not a summary, not a summary',
       );
       expect(find.text('You left this call.'), findsOneWidget);
     });
@@ -181,7 +181,7 @@ void main() {
             'testing a call, screen share or camera alone is still a real '
             'use worth reporting on',
       );
-      expect(find.text('3 min'), findsOneWidget);
+      expect(find.text('6 min'), findsOneWidget);
       expect(find.text('Nobody else joined.'), findsOneWidget);
       expect(find.textContaining('other person'), findsNothing);
     });

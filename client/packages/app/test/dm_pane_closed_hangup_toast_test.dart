@@ -35,7 +35,7 @@ class _HangUpController extends VoiceController {
     state = VoiceState(
       recap: CallRecap(
         channelId: channelId,
-        startedAt: now.subtract(const Duration(seconds: 42)),
+        startedAt: now.subtract(const Duration(minutes: 6)),
         endedAt: now,
         others: const [],
         sharedScreen: false,
@@ -90,7 +90,7 @@ void main() {
       final toasts = await _hangUp(tester, paneOpen: false);
 
       expect(find.byType(CallRecapCard), findsNothing);
-      expect(toasts, ['Call ended - 42 sec.']);
+      expect(toasts, ['Call ended - 6 min.']);
     },
   );
 

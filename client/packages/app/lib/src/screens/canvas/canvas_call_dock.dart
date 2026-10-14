@@ -42,11 +42,14 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../call_leave_button.dart';
+import '../dock_solo_controls.dart';
 import '../voice_call_controls.dart';
+import '../../providers/call_solo.dart';
 import '../../providers/voice_controller.dart';
 import '../../providers/voice_flags.dart';
 import '../../widgets/floating_dock_card.dart';
@@ -172,7 +175,7 @@ const _oneRowMinWidth = 720.0;
 /// Anything narrower gives the five tools a row of their own.
 const _twoRowMinWidth = 390.0;
 
-class CanvasCallDock extends StatelessWidget {
+class CanvasCallDock extends ConsumerWidget {
   const CanvasCallDock({
     super.key,
     this.call,
@@ -191,7 +194,7 @@ class CanvasCallDock extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final call = this.call;
     final canvas = this.canvas;
     if (compact && canvas != null) {
@@ -208,14 +211,30 @@ class CanvasCallDock extends StatelessWidget {
     }
     final leave = CallLeaveButton(controller: call.controller);
     if (canvas == null) {
-      return FloatingDockCard(rows: [_callRow(call)], trailing: leave);
+      return LayoutBuilder(
+        // Distinct from the canvas branch below, or the open/close swap reuses a stale layout.
+        key: const ValueKey('call-only'),
+        builder: (context, constraints) => FloatingDockCard(
+          trailing: leave,
+          rows: callRowsWithExtras(
+            context,
+            ref,
+            width: constraints.maxWidth,
+            controller: call.controller,
+            voice: call.voice,
+          ),
+        ),
+      );
     }
+    final alone = ref.watch(callAloneProvider);
+    final extra = alone ? dockExtraExtent(context) : 0.0;
     return LayoutBuilder(
+      key: const ValueKey('call-and-canvas'),
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         return FloatingDockCard(
           trailing: leave,
-          rows: width >= _oneRowMinWidth
+          rows: width >= _oneRowMinWidth + extra
               ? [
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -224,14 +243,14 @@ class CanvasCallDock extends StatelessWidget {
                       const SizedBox(width: AppSpacing.s8),
                       const DockVerticalDivider(),
                       const SizedBox(width: AppSpacing.s8),
-                      _callRow(call, toggle: _toggle(canvas)),
+                      _callRow(call, toggle: _toggle(canvas), alone: alone),
                     ],
                   ),
                 ]
-              : width >= _twoRowMinWidth
+              : width >= _twoRowMinWidth + extra
               ? [
                   CanvasDockToolsRow(canvas: canvas),
-                  _callRow(call, toggle: _toggle(canvas)),
+                  _callRow(call, toggle: _toggle(canvas), alone: alone),
                 ]
               : [..._stackedCanvasRows(canvas), _callRow(call)],
         );
@@ -264,10 +283,14 @@ class CanvasCallDock extends StatelessWidget {
     ];
   }
 
-  static Widget _callRow(CallDockData call, {Widget? toggle}) => CallControls(
+  static Widget _callRow(
+    CallDockData call, {
+    Widget? toggle,
+    bool alone = false,
+  }) => CallControls(
     controller: call.controller,
     voice: call.voice,
-    extraControl: toggle,
+    extraControl: dockExtras(alone: alone, toggle: toggle),
   );
 
   static Widget? _toggle(CanvasDockData canvas) => canvas.fullscreen

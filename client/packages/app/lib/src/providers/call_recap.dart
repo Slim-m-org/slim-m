@@ -57,15 +57,13 @@ class CallRecap {
   /// Nobody else was ever in the call with you.
   bool get wasAlone => others.isEmpty;
 
-  /// Below this, a call reads as a mis-click rather than something worth a
-  /// summary; see [isWorthShowing].
-  static const minWorthwhileDuration = Duration(seconds: 10);
+  /// Below this, a call is too short to be worth a summary; see [isWorthShowing].
+  static const minWorthwhileDuration = Duration(minutes: 5);
 
-  /// A four-second call in the wrong channel is noise, not a summary -
-  /// asked once here rather than re-derived at every render site. A solo
-  /// call past the floor still counts: testing a screen share or a camera
-  /// alone is a real use of the call, and its own duration and activity are
-  /// worth reporting even with nobody else there to summarise.
+  /// A short call is noise, not a summary - asked once here rather than
+  /// re-derived at every render site. A solo call past the floor still
+  /// counts: testing a screen share or a camera alone is a real use of the
+  /// call, and its own duration and activity are worth reporting.
   bool get isWorthShowing => duration >= minWorthwhileDuration;
 }
 

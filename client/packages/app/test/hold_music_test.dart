@@ -3,6 +3,8 @@
 /// stops the moment that stops being true, and is off by default.
 library;
 
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,6 +94,31 @@ void main() {
       expect(rig.player.calls, ['start']);
     });
   });
+
+  test(
+    'asking for music while alone starts at once, and turning it off stops',
+    () {
+      fakeAsync((async) {
+        final rig = _Rig(enabled: false);
+        async.flushMicrotasks();
+        unawaited(
+          rig.container
+              .read(voiceSettingsControllerProvider.notifier)
+              .setHoldMusicEnabled(true),
+        );
+        rig.container.read(holdMusicControllerProvider).startNow();
+        async.flushMicrotasks();
+        expect(rig.player.calls, ['start']);
+        unawaited(
+          rig.container
+              .read(voiceSettingsControllerProvider.notifier)
+              .setHoldMusicEnabled(false),
+        );
+        async.flushMicrotasks();
+        expect(rig.player.calls, ['start', 'stop']);
+      });
+    },
+  );
 
   test('alone with the setting off stays silent', () {
     fakeAsync((async) {

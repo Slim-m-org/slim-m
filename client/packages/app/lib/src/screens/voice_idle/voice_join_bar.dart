@@ -54,7 +54,9 @@ class VoiceJoinBar extends ConsumerWidget {
       _ => "Can't tell who else is here right now.",
     };
     final subtitle = [
-      if (online.isNotEmpty) _joinNames(online, 'is online', 'are online'),
+      // An empty room is already said by the title; who is online adds nothing there.
+      if (here.isNotEmpty && online.isNotEmpty)
+        _joinNames(online, 'is online', 'are online'),
       if (!compact) 'joining starts you muted',
     ].join(' · ');
     final label = compact

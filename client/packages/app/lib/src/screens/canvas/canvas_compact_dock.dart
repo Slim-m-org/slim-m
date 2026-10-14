@@ -13,11 +13,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../widgets/floating_dock_card.dart';
 import '../call_leave_button.dart';
-import '../voice_call_controls.dart';
+import '../dock_solo_controls.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_tools.dart';
@@ -50,11 +51,18 @@ class CanvasCompactDock extends StatelessWidget {
             ),
           if (showTools && call != null) const SizedBox(height: AppSpacing.s8),
           if (call != null)
-            FloatingDockCard(
-              trailing: CallLeaveButton(controller: call.controller),
-              rows: [
-                CallControls(controller: call.controller, voice: call.voice),
-              ],
+            Consumer(
+              builder: (context, ref, _) => FloatingDockCard(
+                trailing: CallLeaveButton(controller: call.controller),
+                rows: callRowsWithExtras(
+                  context,
+                  ref,
+                  // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
+                  width: MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
+                  controller: call.controller,
+                  voice: call.voice,
+                ),
+              ),
             ),
         ],
       ),

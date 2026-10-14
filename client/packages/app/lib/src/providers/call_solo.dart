@@ -3,7 +3,15 @@
 /// stage's calm waiting hint and the local hold music so they cannot disagree.
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
+
+import 'voice_flags.dart';
 
 bool isAloneInCall(List<VoiceParticipant> participants) =>
     participants.length == 1;
+
+/// Whether the live call has only you in it; the dock's solo controls follow it.
+final callAloneProvider = Provider<bool>(
+  (ref) => isAloneInCall(ref.watch(voiceParticipantsProvider)),
+);
