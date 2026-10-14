@@ -33,7 +33,20 @@ void main() {
       'enabled': true,
       'thresholdDb': -42.0,
       'dynamics': false,
+      'strongNoiseSuppression': false,
     });
+  });
+
+  test('configure asks for strong noise suppression when told to', () async {
+    final fake = _FakeGate();
+    final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+    await gate.configure(
+      enabled: false,
+      thresholdDb: -50,
+      dynamics: true,
+      strongNoiseSuppression: true,
+    );
+    expect((fake.calls.single.$2! as Map)['strongNoiseSuppression'], isTrue);
   });
 
   test('an unsupported host never reaches the platform', () {

@@ -81,6 +81,7 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
     'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
     'input threshold': voice.restoreInputThreshold(),
     'even out loud sounds': voice.restoreEvenOutLoudSounds(),
+    'noise suppression': voice.restoreNoiseSuppression(),
     'video quality': voice.restoreVideoQuality(),
     'push to talk': voice.restorePushToTalkPreference(),
     'audio devices': voice.restoreAudioDevicePreferences(),

@@ -17,6 +17,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../api_failure.dart';
 import '../diagnostics/debug_log.dart';
 import 'call_recap.dart';
+import 'noise_suppression.dart';
 import 'providers.dart';
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
@@ -205,6 +206,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _activity.reset();
     // A queued rejoin was about the call this one replaces; see VoiceAutoRejoin.cancelPending.
     _autoRejoin.cancelPending();
+    unawaited(refreshSpaceNoiseSuppression());
     // See this method's own doc comment for what generation/superseded guard.
     final generation = ++_callGeneration;
     bool superseded() => generation != _callGeneration;

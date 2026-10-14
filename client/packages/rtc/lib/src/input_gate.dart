@@ -71,11 +71,13 @@ class InputGateMonitor {
   static Future<Object?> _invokeNative(String method, [Object? args]) =>
       rtc.WebRTC.invokeMethod<Object?, Object?>(method, args);
 
-  /// [dynamics] turns on the compressor and limiter that run after the gate.
+  /// [dynamics] turns on the compressor and limiter that run after the gate;
+  /// [strongNoiseSuppression] the rnnoise stage that runs before it.
   Future<void> configure({
     required bool enabled,
     required double thresholdDb,
     required bool dynamics,
+    bool strongNoiseSuppression = false,
   }) async {
     if (!_supported) return;
     try {
@@ -83,6 +85,7 @@ class InputGateMonitor {
         'enabled': enabled,
         'thresholdDb': thresholdDb,
         'dynamics': dynamics,
+        'strongNoiseSuppression': strongNoiseSuppression,
       });
     } on Object {
       // An older native build has no gate; the call then just carries on ungated.

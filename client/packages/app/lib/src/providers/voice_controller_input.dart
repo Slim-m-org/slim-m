@@ -56,6 +56,36 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   void setEvenOutLoudSounds(bool enabled) =>
       _inputSession.setEvenOutLoudSounds(enabled);
 
+  NoiseSuppressionChoice _noiseSuppression =
+      NoiseSuppressionChoice.spaceDefault;
+  bool _spaceStrongNoiseSuppression = false;
+
+  /// Seeds the noise suppression choice and the Space's default before any
+  /// call.
+  Future<void> restoreNoiseSuppression() async {
+    _noiseSuppression = await loadNoiseSuppressionChoice(_inputRef);
+    await refreshSpaceNoiseSuppression();
+  }
+
+  /// Live, in-call equivalent of [restoreNoiseSuppression].
+  void setNoiseSuppression(NoiseSuppressionChoice choice) {
+    _noiseSuppression = choice;
+    _applyNoiseSuppression();
+  }
+
+  /// Rereads the Space's default, which an admin may have changed since
+  /// launch; [VoiceController.join] calls this so a new call picks it up.
+  Future<void> refreshSpaceNoiseSuppression() async {
+    _spaceStrongNoiseSuppression = await fetchSpaceStrongNoiseSuppression(
+      _inputRef,
+    );
+    _applyNoiseSuppression();
+  }
+
+  void _applyNoiseSuppression() => _inputSession.setStrongNoiseSuppression(
+    _noiseSuppression.isStrong(spaceStrong: _spaceStrongNoiseSuppression),
+  );
+
   /// Push-to-talk decides when you are heard, so the gate only meters then.
   void _applyInputGate() => _inputSession.setInputGate(
     enabled: !_pushToTalkEnabled,

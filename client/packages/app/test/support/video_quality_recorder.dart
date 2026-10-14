@@ -17,4 +17,9 @@ mixin VideoQualityRecorder {
   bool? lastEvenOutLoudSounds;
 
   void setEvenOutLoudSounds(bool enabled) => lastEvenOutLoudSounds = enabled;
+
+  bool? lastStrongNoiseSuppression;
+
+  void setStrongNoiseSuppression(bool enabled) =>
+      lastStrongNoiseSuppression = enabled;
 }

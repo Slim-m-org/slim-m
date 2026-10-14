@@ -53,6 +53,18 @@ Measured with the stage compiled on its own and fed 48 kHz frames:
 
 It used about 0.05% of one core.
 
+## Strong noise suppression
+
+libwebrtc's own suppressor handles steady hiss well but lets keyboards, fans and room noise through.
+"Strong" runs rnnoise 0.2 (xiph, BSD-3-Clause, vendored in the fork under `third_party/rnnoise`) first in the capture chain, so the gate and its meter see the cleaned signal.
+It works on 480-sample frames, which is exactly one 10 ms hook frame at 48 kHz; at any other capture rate it passes audio through and `getInputGate` reports `strongNoiseSuppression: false`.
+
+Measured on its own with the e2e fake voice and added white noise: about 0.7% of one core (generic C, no SIMD dispatch), noise alone 30 to 37 dB quieter, speech level unchanged within 0.5 dB.
+It adds about 1.4 MB to the desktop plugin.
+
+Voice settings offers "Space default", "Standard" and "Strong" (`slimm.voice.noise_suppression`).
+"Space default" follows `space_settings.strong_noise_suppression` (migration 0109), which a server manager sets on the Retention and limits pane and every client reads from `/version`; it is off unless an admin turns it on, and a call rereads it when it starts.
+
 ## How fast remote rings move
 
 Remote rings come from LiveKit's active-speaker updates.
