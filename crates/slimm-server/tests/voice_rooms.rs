@@ -45,11 +45,18 @@ fn signed_webhook(body: &Value) -> Request<Body> {
         .unwrap()
         .as_secs()
         + 300;
-    let claims = json!({ "iss": API_KEY, "exp": exp, "sha256": BASE64STD.encode(Sha256::digest(&bytes)) });
-    let signing_input = format!("{header}.{}", BASE64URL.encode(serde_json::to_vec(&claims).unwrap()));
+    let claims =
+        json!({ "iss": API_KEY, "exp": exp, "sha256": BASE64STD.encode(Sha256::digest(&bytes)) });
+    let signing_input = format!(
+        "{header}.{}",
+        BASE64URL.encode(serde_json::to_vec(&claims).unwrap())
+    );
     let mut mac = <Hmac<Sha256>>::new_from_slice(API_SECRET.as_bytes()).unwrap();
     mac.update(signing_input.as_bytes());
-    let token = format!("{signing_input}.{}", BASE64URL.encode(mac.finalize().into_bytes()));
+    let token = format!(
+        "{signing_input}.{}",
+        BASE64URL.encode(mac.finalize().into_bytes())
+    );
     Request::builder()
         .method("POST")
         .uri("/voice/webhook")
@@ -153,12 +160,19 @@ async fn world(prefix: &str) -> World {
     };
     let admin = w.admin.clone();
     let (status, lobby) = w
-        .call("POST", "/channels", &admin, json!({"name": "join-to-create", "kind": "voice"}))
+        .call(
+            "POST",
+            "/channels",
+            &admin,
+            json!({"name": "join-to-create", "kind": "voice"}),
+        )
         .await;
     assert_eq!(status, StatusCode::OK, "{lobby}");
     w.lobby = lobby["id"].as_str().unwrap().to_owned();
     let uri = format!("/channels/{}", w.lobby);
-    let (status, body) = w.call("PATCH", &uri, &admin, json!({"creates_rooms": true})).await;
+    let (status, body) = w
+        .call("PATCH", &uri, &admin, json!({"creates_rooms": true}))
+        .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["creates_rooms"], true);
     w
@@ -181,7 +195,10 @@ impl World {
         let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
-        (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+        (
+            status,
+            serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+        )
     }
 
     async fn open_room(&self, token: &str) -> Value {
@@ -218,15 +235,17 @@ async fn a_lobby_makes_one_room_per_person_and_a_retry_returns_it() {
     assert_eq!(room["kind"], "voice");
     assert_eq!(room["room_owner_id"], json!(w.alice.1));
     assert_eq!(room["room_locked"], false);
-    assert_eq!(w.open_room(&w.alice.0).await["id"], room["id"], "one room each");
+    assert_eq!(
+        w.open_room(&w.alice.0).await["id"],
+        room["id"],
+        "one room each"
+    );
 
     let other = w.open_room(&w.bob.0).await;
     assert_ne!(other["id"], room["id"]);
     assert!(w.listed(&w.bob.0, room["id"].as_str().unwrap()).await);
 
-    let (_, lobby) = w
-        .call("GET", "/channels", &w.alice.0, Value::Null)
-        .await;
+    let (_, lobby) = w.call("GET", "/channels", &w.alice.0, Value::Null).await;
     let lobby_row = lobby
         .as_array()
         .unwrap()
@@ -234,7 +253,10 @@ async fn a_lobby_makes_one_room_per_person_and_a_retry_returns_it() {
         .find(|c| c["id"] == json!(w.lobby))
         .unwrap()
         .clone();
-    assert!(lobby_row.get("room_owner_id").is_none(), "a lobby is not a room");
+    assert!(
+        lobby_row.get("room_owner_id").is_none(),
+        "a lobby is not a room"
+    );
 }
 
 #[tokio::test]
@@ -244,12 +266,16 @@ async fn only_a_voice_channel_that_is_not_a_room_can_make_rooms() {
         .call("POST", "/channels", &w.admin, json!({"name": "chat"}))
         .await;
     let uri = format!("/channels/{}", text["id"].as_str().unwrap());
-    let (status, _) = w.call("PATCH", &uri, &w.admin, json!({"creates_rooms": true})).await;
+    let (status, _) = w
+        .call("PATCH", &uri, &w.admin, json!({"creates_rooms": true}))
+        .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     let room = w.open_room(&w.alice.0).await;
     let uri = format!("/channels/{}", room["id"].as_str().unwrap());
-    let (status, _) = w.call("PATCH", &uri, &w.admin, json!({"creates_rooms": true})).await;
+    let (status, _) = w
+        .call("PATCH", &uri, &w.admin, json!({"creates_rooms": true}))
+        .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "a room never makes rooms");
 
     let uri = format!("/channels/{}/voice/room", text["id"].as_str().unwrap());
@@ -270,12 +296,18 @@ async fn the_owner_renames_locks_and_caps_their_room_and_nobody_else_can() {
     assert_eq!(updated["room_locked"], true);
     assert_eq!(updated["user_limit"], 4);
 
-    let (status, _) = w.call("PATCH", &uri, &w.bob.0, json!({"locked": false})).await;
+    let (status, _) = w
+        .call("PATCH", &uri, &w.bob.0, json!({"locked": false}))
+        .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
-    let (status, _) = w.call("PATCH", &uri, &w.admin, json!({"locked": false})).await;
+    let (status, _) = w
+        .call("PATCH", &uri, &w.admin, json!({"locked": false}))
+        .await;
     assert_eq!(status, StatusCode::OK, "a channel manager can too");
 
-    let (status, _) = w.call("PATCH", &uri, &w.alice.0, json!({"user_limit": 100})).await;
+    let (status, _) = w
+        .call("PATCH", &uri, &w.alice.0, json!({"user_limit": 100}))
+        .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
@@ -285,7 +317,8 @@ async fn a_lock_and_a_limit_turn_away_new_people_but_never_the_owner_or_someone_
     let room = w.open_room(&w.alice.0).await;
     let id = room["id"].as_str().unwrap().to_owned();
     let uri = format!("/channels/{id}/room");
-    w.call("PATCH", &uri, &w.alice.0, json!({"locked": true})).await;
+    w.call("PATCH", &uri, &w.alice.0, json!({"locked": true}))
+        .await;
 
     assert_eq!(w.token_status(&w.bob.0, &id).await, StatusCode::CONFLICT);
     assert_eq!(w.token_status(&w.alice.0, &id).await, StatusCode::OK);
@@ -297,9 +330,19 @@ async fn a_lock_and_a_limit_turn_away_new_people_but_never_the_owner_or_someone_
     );
 
     w.present.lock().unwrap().clear();
-    w.call("PATCH", &uri, &w.alice.0, json!({"locked": false, "user_limit": 1})).await;
+    w.call(
+        "PATCH",
+        &uri,
+        &w.alice.0,
+        json!({"locked": false, "user_limit": 1}),
+    )
+    .await;
     w.present.lock().unwrap().push(w.alice.1.clone());
-    assert_eq!(w.token_status(&w.bob.0, &id).await, StatusCode::CONFLICT, "full");
+    assert_eq!(
+        w.token_status(&w.bob.0, &id).await,
+        StatusCode::CONFLICT,
+        "full"
+    );
     w.present.lock().unwrap().clear();
     assert_eq!(w.token_status(&w.bob.0, &id).await, StatusCode::OK);
 }
@@ -316,12 +359,19 @@ async fn an_empty_room_is_removed_and_a_busy_one_or_a_plain_channel_is_not() {
 
     w.present.lock().unwrap().clear();
     w.remove_if_empty(&w.lobby).await;
-    assert!(w.listed(&w.alice.0, &w.lobby).await, "a lobby is never removed");
+    assert!(
+        w.listed(&w.alice.0, &w.lobby).await,
+        "a lobby is never removed"
+    );
     w.remove_if_empty(&id).await;
     assert!(!w.listed(&w.alice.0, &id).await, "the empty room is gone");
 
     let again = w.open_room(&w.alice.0).await;
-    assert_ne!(again["id"], json!(id), "a fresh room after the old one went");
+    assert_ne!(
+        again["id"],
+        json!(id),
+        "a fresh room after the old one went"
+    );
 }
 
 #[tokio::test]
@@ -349,7 +399,10 @@ async fn a_room_copies_its_lobbys_audience() {
     let room = w.open_room(&w.alice.0).await;
     let id = room["id"].as_str().unwrap();
     assert!(w.listed(&w.alice.0, id).await);
-    assert!(!w.listed(&w.bob.0, id).await, "bob cannot see the lobby, so not its rooms");
+    assert!(
+        !w.listed(&w.bob.0, id).await,
+        "bob cannot see the lobby, so not its rooms"
+    );
     let uri = format!("/channels/{}/voice/room", w.lobby);
     assert_eq!(
         w.call("POST", &uri, &w.bob.0, Value::Null).await.0,
@@ -367,7 +420,13 @@ async fn the_last_person_leaving_removes_the_room_through_the_webhook() {
         "room": { "name": format!("channel-{id}") },
         "participant": { "identity": w.alice.1 },
     });
-    let status = w.app.clone().oneshot(signed_webhook(&left)).await.unwrap().status();
+    let status = w
+        .app
+        .clone()
+        .oneshot(signed_webhook(&left))
+        .await
+        .unwrap()
+        .status();
     assert_eq!(status, StatusCode::NO_CONTENT);
     for _ in 0..40 {
         if !w.listed(&w.alice.0, &id).await {
