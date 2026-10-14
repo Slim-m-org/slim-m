@@ -32,7 +32,9 @@ void main() {
   testWidgets('the accented sensitivity tick is the one the thumb sits on', (
     tester,
   ) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     final tokens = AppTokens.light;
@@ -57,7 +59,9 @@ void main() {
   testWidgets(
     'out of a call, the meter says so instead of showing a live level',
     (tester) async {
-      await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+      await tester.pumpWidget(
+        wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      );
       await tester.pumpAndSettle();
 
       expect(
@@ -130,7 +134,9 @@ void main() {
   });
 
   testWidgets('changing the sensitivity slider persists it', (tester) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     final slider = find.byWidgetPredicate(
@@ -155,7 +161,9 @@ void main() {
   testWidgets(
     'picking a screen share resolution and frame rate persists them',
     (tester) async {
-      await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+      await tester.pumpWidget(
+        wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      );
       await tester.pumpAndSettle();
 
       // The capability check section pushes this below the initial viewport.
@@ -177,7 +185,9 @@ void main() {
   testWidgets('picking watching and camera quality persists both', (
     tester,
   ) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('1440p'),
@@ -277,7 +287,9 @@ void main() {
   });
 
   testWidgets('turning off join and leave sounds persists it', (tester) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     final soundsToggle = find.byWidgetPredicate(
@@ -300,7 +312,9 @@ void main() {
   testWidgets('turning off the incoming-call sound persists it', (
     tester,
   ) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     final ringToggle = find.byWidgetPredicate(

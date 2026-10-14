@@ -11,15 +11,23 @@ import 'voice_models.dart';
 /// Every participant currently in [room], local first. [speakingSensitivity]
 /// is [VoiceSession]'s own threshold (0 strictest, 1 loosest); the default
 /// matches this function's behaviour before that setting existed.
+/// [localVoice], when known, is the local input gate's own voice state, which
+/// is instant where the SFU's report lags.
 List<VoiceParticipant> snapshotParticipants(
   lk.Room room, {
   double speakingSensitivity = 1.0,
+  bool? localVoice,
 }) {
   final next = <VoiceParticipant>[];
   final local = room.localParticipant;
   if (local != null) {
     next.add(
-      _toParticipant(local, isLocal: true, sensitivity: speakingSensitivity),
+      _toParticipant(
+        local,
+        isLocal: true,
+        sensitivity: speakingSensitivity,
+        voice: localVoice,
+      ),
     );
   }
   for (final remote in room.remoteParticipants.values) {
@@ -34,6 +42,7 @@ VoiceParticipant _toParticipant(
   lk.Participant p, {
   required bool isLocal,
   required double sensitivity,
+  bool? voice,
 }) {
   final audio = p.audioTrackPublications;
   final muted = audio.isEmpty || audio.every((t) => t.muted);
@@ -41,8 +50,13 @@ VoiceParticipant _toParticipant(
     identity: p.identity,
     // A participant with an empty name still gets a row, keyed by identity.
     name: p.name.isEmpty ? p.identity : p.name,
-    isSpeaking:
-        passesActivationThreshold(p.isSpeaking, p.audioLevel, sensitivity),
+    isSpeaking: isSpeakingNow(
+      reported: p.isSpeaking,
+      level: p.audioLevel,
+      sensitivity: sensitivity,
+      muted: muted,
+      voice: voice,
+    ),
     isMuted: muted,
     isLocal: isLocal,
     isScreenSharing: isSharingScreen(p),
@@ -50,6 +64,19 @@ VoiceParticipant _toParticipant(
     audioLevel: p.audioLevel,
   );
 }
+
+/// Whether a participant shows as speaking. [voice], the local input gate's
+/// own reading, wins over the SFU's lagging report whenever it is known.
+bool isSpeakingNow({
+  required bool reported,
+  required double level,
+  required double sensitivity,
+  required bool muted,
+  bool? voice,
+}) =>
+    voice != null
+        ? voice && !muted
+        : passesActivationThreshold(reported, level, sensitivity);
 
 /// Whether [reported] and [level] together clear [sensitivity]'s floor.
 ///

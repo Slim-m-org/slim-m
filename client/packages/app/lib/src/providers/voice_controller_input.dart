@@ -29,6 +29,30 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     _inputSession.setSpeakingSensitivity(sensitivityPercent / 100);
   }
 
+  double _inputThresholdDb = kDefaultInputThresholdDb;
+
+  bool get supportsInputGate => _inputSession.supportsInputGate;
+
+  Stream<InputGateReading> get inputGateReadings =>
+      _inputSession.inputGateReadings;
+
+  /// Seeds the input gate's threshold before any call.
+  Future<void> restoreInputThreshold() async {
+    setInputThreshold(await loadInputThreshold(_inputRef));
+  }
+
+  /// Live, in-call equivalent of [restoreInputThreshold].
+  void setInputThreshold(double db) {
+    _inputThresholdDb = db;
+    _applyInputGate();
+  }
+
+  /// Push-to-talk decides when you are heard, so the gate only meters then.
+  void _applyInputGate() => _inputSession.setInputGate(
+    enabled: !_pushToTalkEnabled,
+    thresholdDb: _inputThresholdDb,
+  );
+
   /// Seeds the session's video quality choices at launch, for the same
   /// reason as [restoreVoiceActivitySensitivity].
   Future<void> restoreVideoQuality() async {
@@ -59,6 +83,7 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   /// [VoiceController.join] reads.
   void setPushToTalkPreference(bool enabled) {
     _pushToTalkEnabled = enabled;
+    _applyInputGate();
     if (state.state != VoiceSessionState.connected) return;
     unawaited(setPushToTalkHeld(enabled ? false : true));
   }

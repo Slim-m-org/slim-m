@@ -92,6 +92,10 @@ services:
           use_external_ip: true
         keys:
           ${LIVEKIT_API_KEY:?LIVEKIT_API_KEY must be set in .env, see deploy/README.md}: ${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET must be set in .env to a random value of at least 32 characters}
+        # Speaker updates every 200ms with one sample of smoothing, so speaking rings keep up with speech.
+        audio:
+          update_interval: 200
+          smooth_intervals: 1
         turn:
           enabled: true
           udp_port: ${LIVEKIT_TURN_UDP_PORT:-3478}

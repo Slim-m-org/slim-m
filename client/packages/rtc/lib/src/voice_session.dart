@@ -19,6 +19,7 @@ import 'package:flutter/widgets.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
+import 'input_gate.dart';
 import 'local_audio.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 
@@ -40,6 +41,7 @@ import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 
 part 'voice_session_audio_devices.dart';
+part 'voice_session_input_gate.dart';
 part 'voice_session_tracks.dart';
 part 'voice_session_video.dart';
 
@@ -52,17 +54,23 @@ typedef RoomFactory = lk.Room Function();
 /// its lifetime. [dispose] must be called, and leaving is not the same as
 /// disposing, because a user can leave and rejoin without the surrounding
 /// screen being torn down.
-class VoiceSession with VoiceSessionAudioDevices {
+class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   VoiceSession({
     RoomFactory? roomFactory,
     BroadcastBridge? broadcast,
     DesktopSources? desktopSources,
     CameraDevices? cameraDevices,
+    InputGateMonitor? inputGate,
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching =
             CameraSwitching(cameraDevices ?? const HardwareCameraDevices()) {
     _roomFactory = roomFactory ?? _buildRoom;
+    // An injected room has no native capture behind it to gate.
+    _gate = inputGate ??
+        (roomFactory == null
+            ? InputGateMonitor()
+            : InputGateMonitor.disabled());
     _screenShare = ScreenShareControl(_broadcast);
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
@@ -486,6 +494,7 @@ class VoiceSession with VoiceSessionAudioDevices {
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();
+    await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();
   }

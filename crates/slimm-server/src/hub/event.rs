@@ -94,6 +94,13 @@ pub enum Event {
         message_id: MessageId,
         components: Arc<Vec<ComponentRow>>,
     },
+    /// A bot replaced or cleared the embeds on its message, by editing it.
+    /// The whole list, like `MessageComponentsChanged`.
+    MessageEmbedsChanged {
+        channel_id: ChannelId,
+        message_id: MessageId,
+        embeds: Arc<Vec<Embed>>,
+    },
     /// A message was soft-deleted; carries only the ids a live connection
     /// needs to drop it from view, not the content it no longer shows.
     MessageDeleted {

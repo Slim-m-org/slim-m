@@ -104,6 +104,7 @@ export 'src/events.dart'
         MessageDeleted,
         InteractionAnswered,
         MessageComponentsChanged,
+        MessageEmbedsChanged,
         MessageEphemeral,
         MessageEdited,
         MessagePinned,

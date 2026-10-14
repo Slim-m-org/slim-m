@@ -118,9 +118,11 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// Aspect locks by default; holding Shift frees it. Read fresh on every
   /// drag point rather than once at [_onSelectStart], so releasing the key
   /// mid-drag takes effect immediately rather than on the next gesture.
+  /// Alt moves freely; touch has no modifier, so it always snaps.
   void _onSelectDrag(Offset world) => _ops.dragSelect(
     world,
     lockAspect: !HardwareKeyboard.instance.isShiftPressed,
+    snap: !HardwareKeyboard.instance.isAltPressed,
   );
 
   Future<void> _onSelectEnd() async {
