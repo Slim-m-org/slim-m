@@ -79,7 +79,9 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
       entry.key: entry.value(container).restore(),
     'camera on join': voice.restoreCameraPreference(),
     'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
-    'input threshold': voice.restoreInputThreshold(),
+    'input threshold': voice.restoreInputThreshold().then(
+      (_) => voice.restoreInputThresholdAuto(),
+    ),
     'even out loud sounds': voice.restoreEvenOutLoudSounds(),
     'noise suppression': voice.restoreNoiseSuppression(),
     'video quality': voice.restoreVideoQuality(),

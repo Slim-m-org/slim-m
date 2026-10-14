@@ -164,6 +164,11 @@ final inputGateReadingProvider = StreamProvider.autoDispose<InputGateReading>(
   (ref) => ref.watch(voiceControllerProvider.notifier).inputGateReadings,
 );
 
+/// Where automatic sensitivity has put the gate threshold, as it moves.
+final autoInputThresholdProvider = StreamProvider.autoDispose<double>(
+  (ref) => ref.watch(voiceControllerProvider.notifier).autoInputThresholds,
+);
+
 /// Your own mic's level, 0 to 1, for the dock's level bar; its own slice so
 /// only that bar rebuilds when the level moves. From the input gate where
 /// there is one, since the SFU's report lags by half a second.

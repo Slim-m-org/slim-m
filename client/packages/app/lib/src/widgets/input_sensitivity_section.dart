@@ -19,9 +19,14 @@ class InputSensitivityMeter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final threshold = ref.watch(
+    final manual = ref.watch(
       voiceSettingsControllerProvider.select((s) => s.inputThresholdDb),
     );
+    final auto = ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.inputThresholdAuto),
+    );
+    final live = ref.watch(autoInputThresholdProvider).valueOrNull;
+    final threshold = auto ? (live ?? manual) : manual;
     final flags = ref.watch(voiceFlagsProvider);
     final inCall = flags.state == VoiceSessionState.connected;
     final reading = ref.watch(inputGateReadingProvider).valueOrNull;
@@ -55,11 +60,34 @@ class InputSensitivityMeter extends ConsumerWidget {
           meter: level == null ? 0 : inputLevelFraction(level) * 100,
           muted: !inCall || !flags.microphoneEnabled,
           semanticLabel: 'Input sensitivity',
-          onChanged: (db) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setInputThreshold(db),
+          onChanged: auto
+              ? null
+              : (db) => ref
+                    .read(voiceSettingsControllerProvider.notifier)
+                    .setInputThreshold(db),
         ),
       ],
+    );
+  }
+}
+
+/// Lets the gate follow the room's noise floor instead of the slider.
+class AutoSensitivityToggle extends ConsumerWidget {
+  const AutoSensitivityToggle({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.inputThresholdAuto),
+    );
+    return SettingsToggleRow(
+      label: 'Automatic sensitivity',
+      description: 'Follows the background noise in your room.',
+      value: enabled,
+      semanticLabel: 'Automatic sensitivity',
+      onChanged: (value) => ref
+          .read(voiceSettingsControllerProvider.notifier)
+          .setInputThresholdAuto(value),
     );
   }
 }

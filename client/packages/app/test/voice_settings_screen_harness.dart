@@ -199,6 +199,18 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   void setInputGate({required bool enabled, required double thresholdDb}) =>
       inputGateCalls.add((enabled: enabled, thresholdDb: thresholdDb));
 
+  bool autoInputThreshold = false;
+  double currentInputThresholdDb = -50;
+
+  @override
+  Stream<double> get autoInputThresholds => const Stream.empty();
+
+  @override
+  double get inputThresholdDb => currentInputThresholdDb;
+
+  @override
+  void setAutoInputThreshold(bool enabled) => autoInputThreshold = enabled;
+
   @override
   void setSpeakingSensitivity(double sensitivity) =>
       lastSpeakingSensitivity = sensitivity;

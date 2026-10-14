@@ -153,6 +153,8 @@ class _MicrophoneSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const InputSensitivityMeter(),
+          const SizedBox(height: AppSpacing.s8),
+          const AutoSensitivityToggle(),
           if (!inCall) ...[
             const SizedBox(height: AppSpacing.s8),
             const AppCallout(

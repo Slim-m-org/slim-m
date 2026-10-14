@@ -47,6 +47,21 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     _applyInputGate();
   }
 
+  /// The threshold the gate uses now, which automatic mode keeps moving.
+  double get inputThresholdDb => _inputSession.inputThresholdDb;
+
+  /// Where automatic mode has put the threshold, as it moves.
+  Stream<double> get autoInputThresholds => _inputSession.autoInputThresholds;
+
+  /// Whether the threshold follows the noise floor instead of the slider.
+  void setInputThresholdAuto(bool enabled) =>
+      _inputSession.setAutoInputThreshold(enabled);
+
+  /// Seeds automatic sensitivity before any call.
+  Future<void> restoreInputThresholdAuto() async {
+    setInputThresholdAuto(await loadInputThresholdAuto(_inputRef));
+  }
+
   /// Seeds the microphone's compressor and limiter before any call.
   Future<void> restoreEvenOutLoudSounds() async {
     setEvenOutLoudSounds(await loadEvenOutLoudSounds(_inputRef));
