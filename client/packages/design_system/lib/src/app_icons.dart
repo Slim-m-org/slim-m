@@ -255,6 +255,9 @@ abstract final class AppIcons {
   /// with [tileHide]: both mean "not shown to everyone".
   static const IconData privateReply = LucideIcons.eyeOff300;
 
+  /// An attachment hidden behind a spoiler until someone chooses to look.
+  static const IconData spoiler = LucideIcons.eyeOff300;
+
   /// A tile's own resize grip, drawn at its bottom-right corner.
   static const IconData tileResize = LucideIcons.moveDiagonal2300;
 

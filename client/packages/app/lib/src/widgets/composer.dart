@@ -75,7 +75,7 @@ class Composer extends ConsumerStatefulWidget {
   /// The send button is disabled while anything staged has not resolved to
   /// an id yet, so this never receives fewer ids than what is visibly
   /// attached.
-  final Future<void> Function(List<String> attachmentIds) onSend;
+  final Future<void> Function(StagedSend attachments) onSend;
 
   /// The Ctrl+V seam (see `composer_clipboard_image.dart`): real on web, a
   /// no-op everywhere else. Parameters rather than a direct call so a test
@@ -609,7 +609,7 @@ class _ComposerState extends ConsumerState<Composer> {
         hasStagedFile: !_attachments.isEmpty,
         isMounted: () => mounted,
         clearError: () => setState(() => _commandError = null),
-        post: () => widget.onSend(const []),
+        post: () => widget.onSend(const StagedSend([])),
         fail: _reportCommandError,
       );
     } finally {
@@ -676,6 +676,8 @@ class _ComposerState extends ConsumerState<Composer> {
               stagedAttachments: _attachments.items,
               onRemoveAttachment: _removeAttachment,
               onRetryAttachment: _retryAttachment,
+              isSpoiler: _attachments.isSpoiler,
+              onToggleSpoiler: _attachments.toggleSpoiler,
             ),
             // Above the field, never below: that is the send row and keyboard.
             ComposerAutocomplete(

@@ -24,6 +24,7 @@ mod ranges;
 mod serving;
 mod shared_staging;
 mod slow_upload;
+mod spoilers;
 mod uploading;
 
 #[path = "../support/mod.rs"]

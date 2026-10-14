@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO message_attachments (message_id, sha256, position, filename, spoiler)\n             SELECT ?, ?, ?, (SELECT filename FROM attachment_uploaders\n                              WHERE sha256 = ? AND uploaded_by = ?), ?\n             WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "294fdbb7d81f40b233ae1b0e7d679a4561df5a84940375bcde54671646110f1a"
+}

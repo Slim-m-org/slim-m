@@ -25,6 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/message_selection.dart';
 import '../providers/providers.dart';
 import '../widgets/composer.dart';
+import '../widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/composer_autofocus.dart';
 import '../widgets/ephemeral_tray.dart';
 import '../widgets/message_selection_bar.dart';
@@ -47,7 +48,7 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
   final String channelId;
   final TextEditingController controller;
   final String channelName;
-  final Future<void> Function(List<String>) onSend;
+  final Future<void> Function(StagedSend) onSend;
   final Message? replyingTo;
   final VoidCallback onCancelReply;
 

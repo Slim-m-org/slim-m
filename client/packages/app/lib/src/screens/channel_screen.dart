@@ -29,6 +29,7 @@ import '../routing/breakpoints.dart';
 import '../widgets/blocked_dm_notice.dart';
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
+import '../widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/channel_search.dart';
 import 'channel_composer_area.dart';
 import 'channel_read_marker.dart';
@@ -221,7 +222,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// copy when it lands. The field is cleared before the first await, so two
   /// calls in one turn cannot both read the same text: the second finds it
   /// empty and returns.
-  Future<void> _send(List<String> attachmentIds) async {
+  Future<void> _send(StagedSend attachments) async {
+    final attachmentIds = attachments.ids;
     final text = _composer.text.trim();
     // A staged file is a message on its own, so only a send carrying neither
     // text nor attachment is the one to drop.
@@ -241,6 +243,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       authorId: container.read(sessionProvider).tokens?.userId ?? '',
       content: text,
       attachmentIds: attachmentIds,
+      spoilerIds: attachments.spoilerIds,
       replyToId: replyToId,
       onQueued: _scrollToLatest,
     );

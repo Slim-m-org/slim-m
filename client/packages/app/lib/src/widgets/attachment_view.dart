@@ -22,6 +22,7 @@ import '../providers/media_preferences.dart';
 import 'attachment_chip.dart';
 import 'attachment_format.dart';
 import 'attachment_reveal.dart';
+import 'attachment_spoiler.dart';
 import 'attachment_video_player.dart';
 import 'image_actions_menu.dart';
 import 'run_guarded.dart';
@@ -123,6 +124,9 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
   /// A pointer resting on a held gif plays it for as long as it stays.
   bool _hovered = false;
 
+  /// Set once the reader looks behind a spoiler, for the life of this row.
+  bool _spoilerRevealed = false;
+
   api.Attachment get attachment => widget.attachment;
 
   bool get _isImage => isInlineImage(attachment.contentType);
@@ -131,6 +135,16 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
 
   @override
   Widget build(BuildContext context) {
+    final body = _body(context);
+    if (!attachment.spoiler || _spoilerRevealed) return body;
+    return AttachmentSpoilerCover(
+      filename: attachment.filename,
+      onReveal: () => setState(() => _spoilerRevealed = true),
+      child: body,
+    );
+  }
+
+  Widget _body(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
     if (isVideo(attachment.contentType)) {
@@ -225,9 +239,12 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         final image = _tappable(
           label: 'Open ${attachment.filename} fullscreen',
           onTap: () {
+            // Paging must never land on a spoiler nobody chose to look at.
             final images = widget.siblings.isEmpty
                 ? [attachment]
-                : widget.siblings;
+                : widget.siblings
+                      .where((a) => !a.spoiler || a.id == attachment.id)
+                      .toList();
             final index = images.indexWhere((a) => a.id == attachment.id);
             showFullscreenImage(
               context,

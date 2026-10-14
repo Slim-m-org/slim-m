@@ -50,6 +50,8 @@ pub struct AttachmentSummary {
     pub filename: String,
     pub content_type: String,
     pub size: i64,
+    /// Shown behind a spoiler on this message.
+    pub spoiler: bool,
 }
 
 /// Why linking an already-uploaded attachment to a message failed.
@@ -156,6 +158,7 @@ impl Store {
             filename: r.filename,
             content_type: r.content_type,
             size: r.size,
+            spoiler: false,
         }))
     }
 
@@ -249,7 +252,7 @@ impl Store {
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
             "SELECT ma.message_id, a.sha256, COALESCE(ma.filename, a.filename) AS filename, \
-                    a.content_type, a.size \
+                    a.content_type, a.size, ma.spoiler \
              FROM message_attachments ma \
              JOIN attachments a ON a.sha256 = ma.sha256 \
              WHERE ma.message_id IN (",
@@ -272,6 +275,7 @@ impl Store {
                 filename: row.try_get("filename")?,
                 content_type: row.try_get("content_type")?,
                 size: row.try_get("size")?,
+                spoiler: row.try_get("spoiler")?,
             };
             match grouped.iter_mut().find(|(id, _)| *id == message_id) {
                 Some((_, list)) => list.push(summary),
@@ -363,19 +367,22 @@ pub(super) async fn link_attachments(
     message_id: MessageId,
     author_id: UserId,
     sha256_list: &[Vec<u8>],
+    spoilers: &[Vec<u8>],
 ) -> Result<(), LinkError> {
     for (position, sha256) in sha256_list.iter().enumerate() {
         let position = position as i64;
+        let spoiler = spoilers.contains(sha256);
         let affected = sqlx::query!(
-            "INSERT INTO message_attachments (message_id, sha256, position, filename)
+            "INSERT INTO message_attachments (message_id, sha256, position, filename, spoiler)
              SELECT ?, ?, ?, (SELECT filename FROM attachment_uploaders
-                              WHERE sha256 = ? AND uploaded_by = ?)
+                              WHERE sha256 = ? AND uploaded_by = ?), ?
              WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)",
             message_id,
             sha256,
             position,
             sha256,
             author_id,
+            spoiler,
             sha256
         )
         .execute(&mut **tx)

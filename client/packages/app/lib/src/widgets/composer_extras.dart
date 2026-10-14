@@ -315,6 +315,8 @@ class ComposerBanners extends StatelessWidget {
     required this.stagedAttachments,
     required this.onRemoveAttachment,
     required this.onRetryAttachment,
+    this.isSpoiler,
+    this.onToggleSpoiler,
     this.commandError,
     this.onDismissCommandError,
   });
@@ -342,6 +344,10 @@ class ComposerBanners extends StatelessWidget {
   final List<StagedAttachment> stagedAttachments;
   final ValueChanged<String> onRemoveAttachment;
   final ValueChanged<String> onRetryAttachment;
+
+  /// Whether a staged item is marked as a spoiler; null offers no spoilers.
+  final bool Function(String localId)? isSpoiler;
+  final ValueChanged<String>? onToggleSpoiler;
 
   @override
   Widget build(BuildContext context) {
@@ -404,6 +410,13 @@ class ComposerBanners extends StatelessWidget {
                           onRemove: () =>
                               onRemoveAttachment(attachment.localId),
                           onRetry: () => onRetryAttachment(attachment.localId),
+                          spoiler: isSpoiler?.call(attachment.localId) ?? false,
+                          onToggleSpoiler:
+                              onToggleSpoiler != null &&
+                                  (looksLikeImage(attachment.filename) ||
+                                      looksLikeVideo(attachment.filename))
+                              ? () => onToggleSpoiler!(attachment.localId)
+                              : null,
                         ),
                     ],
                   ),

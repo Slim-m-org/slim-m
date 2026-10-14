@@ -12699,6 +12699,11 @@ components:
         size:
           type: integer
           format: int64
+        spoiler:
+          type: boolean
+          description: >-
+            Shown behind a spoiler on this message. A property of the message
+            carrying the bytes, not of the bytes; omitted when false.
 
     GifResult:
       type: object
@@ -13171,6 +13176,13 @@ components:
           items:
             type: string
           maxItems: 10
+        spoiler_attachment_ids:
+          type: array
+          description: >-
+            The subset of `attachment_ids` shown behind a spoiler. An id not
+            among `attachment_ids` is a 400.
+          items:
+            type: string
         reply_to_id:
           type: [string, "null"]
           format: uuid

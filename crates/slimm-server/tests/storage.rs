@@ -146,6 +146,7 @@ async fn top_channels_ranks_the_heaviest_channel_first_and_excludes_dms() {
         .unwrap();
     s.send_message(NewMessage {
         attachment_ids: &[[1; 32].to_vec()],
+        spoiler_ids: &[],
         ..NewMessage::plain(light.id, member.id, MessageId::generate(), "light")
     })
     .await
@@ -156,6 +157,7 @@ async fn top_channels_ranks_the_heaviest_channel_first_and_excludes_dms() {
         .unwrap();
     s.send_message(NewMessage {
         attachment_ids: &[[2; 32].to_vec()],
+        spoiler_ids: &[],
         ..NewMessage::plain(heavy.id, member.id, MessageId::generate(), "heavy")
     })
     .await
@@ -166,6 +168,7 @@ async fn top_channels_ranks_the_heaviest_channel_first_and_excludes_dms() {
         .unwrap();
     s.send_message(NewMessage {
         attachment_ids: &[[3; 32].to_vec()],
+        spoiler_ids: &[],
         ..NewMessage::plain(dm.id, member.id, MessageId::generate(), "dm")
     })
     .await

@@ -239,6 +239,7 @@ export const appIcons = {
   tileHide: EyeOff,
   preview: Eye,
   privateReply: EyeOff,
+  spoiler: EyeOff,
   tileResize: MoveDiagonal2,
   signOut: LogOut,
   account: CircleUser,

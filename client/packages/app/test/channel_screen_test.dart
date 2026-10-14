@@ -16,6 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/widgets/composer_attachments.dart'
+    show StagedSend;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/screens/channel_screen.dart';
@@ -301,8 +303,8 @@ void main() {
     // Both calls made before either is awaited, which is what one key press
     // producing two send paths does; awaiting between them would not repro.
     final composer = tester.widget<Composer>(find.byType(Composer));
-    final first = composer.onSend(const <String>[]);
-    final second = composer.onSend(const <String>[]);
+    final first = composer.onSend(const StagedSend([]));
+    final second = composer.onSend(const StagedSend([]));
     await Future.wait<void>([first, second]);
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 20));

@@ -145,6 +145,9 @@ pub(crate) struct AttachmentDto {
     filename: String,
     content_type: String,
     size: i64,
+    /// Shown behind a spoiler on this message; omitted when false.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    spoiler: bool,
 }
 
 impl From<AttachmentSummary> for AttachmentDto {
@@ -154,6 +157,7 @@ impl From<AttachmentSummary> for AttachmentDto {
             filename: a.filename,
             content_type: a.content_type,
             size: a.size,
+            spoiler: a.spoiler,
         }
     }
 }
