@@ -147,6 +147,7 @@ pub use canvas_ops_sweep::{CANVAS_OP_RETENTION_MS, SweptCanvasOps};
 pub use canvas_ops_write::{CanvasOpRequest, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp};
 pub use categories::CreatedCategory;
 pub use channel_create::{CreateChannelError, CreatedChannel};
+pub use channel_notification_prefs::NotificationChoice;
 pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 pub use channel_settings::ChannelPatch;
 pub use channels::DeleteChannelError;

@@ -8,14 +8,16 @@
 /// never alerts; the preference that applies is the channel's own override,
 /// else the parent channel's for a thread, else the account's
 /// (`COALESCE(c.preference, p.preference, u.notification_preference)` in
-/// `channel_notification_prefs.rs`); and the notification schedule has the
-/// last word.
+/// `channel_notification_prefs.rs`), with an "everything" account default
+/// read as "mentions" in a channel this account cannot post in; and the
+/// notification schedule has the last word.
 library;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../permissions.dart';
 import '../widgets/message_mentions.dart' show messageMentionsMe;
 import 'blocks_controller.dart';
 import 'channel_notification_overrides_controller.dart';
@@ -69,6 +71,9 @@ class MessageAlertPolicy {
   String? _selfLookupForId;
   Future<({String username, List<String> roles})?>? _selfLookup;
 
+  /// Whether this account can post in each channel, for [_canSendIn].
+  final Map<String, ({bool value, DateTime at})> _canSend = {};
+
   /// A thread's parent channel never changes, so each is asked for once.
   final Map<String, String?> _parentChannels = {};
 
@@ -99,7 +104,7 @@ class MessageAlertPolicy {
           message.channelId,
           overrides,
         ) ??
-        await _accountPreference();
+        await _accountDefaultIn(message.channelId, isDm: isDm);
     if (!channelEarnsASound(
       channelOverride: preference,
       isDm: isDm,
@@ -214,6 +219,39 @@ class MessageAlertPolicy {
     }
     final parentId = _parentChannels[channelId];
     return parentId == null ? null : overrides.overrideFor(parentId);
+  }
+
+  /// The account default as it applies in [channelId]: "everything" reads as
+  /// "mentions" where this account cannot post (see [readOnlyDefault]).
+  Future<api.NotificationPreference?> _accountDefaultIn(
+    String channelId, {
+    required bool isDm,
+  }) async {
+    final account = await _accountPreference();
+    if (isDm || !readOnlyDefaultApplies(account)) return account;
+    return readOnlyDefault(account, canSend: await _canSendIn(channelId));
+  }
+
+  /// Whether this account can post in [channelId], cached for
+  /// [alertStateMaxAge]. True when it cannot be read, so a failed lookup
+  /// never silences anything.
+  Future<bool> _canSendIn(String channelId) async {
+    final cached = _canSend[channelId];
+    if (cached != null &&
+        DateTime.now().difference(cached.at) <= alertStateMaxAge) {
+      return cached.value;
+    }
+    try {
+      final perms = await _ref
+          .read(apiProvider)
+          .getChannelPermissions(channelId)
+          .timeout(_refreshWait);
+      final value = perms.hasPermission(Perm.sendMessages);
+      _canSend[channelId] = (value: value, at: DateTime.now());
+      return value;
+    } on Object {
+      return cached?.value ?? true;
+    }
   }
 
   /// The account's own "Notify me for", null when it cannot be read, so a

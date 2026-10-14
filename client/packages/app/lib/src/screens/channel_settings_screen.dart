@@ -26,6 +26,7 @@ import 'admin/channel_permissions_screen.dart';
 import 'channel_settings_danger_zone.dart';
 import 'channel_settings_general_section.dart';
 import 'channel_settings_join_muted_section.dart';
+import 'channel_settings_private_row.dart';
 import 'channel_settings_rooms_section.dart';
 import 'channel_settings_slow_mode_section.dart';
 import 'settings_screen_scaffold.dart';
@@ -114,6 +115,7 @@ class ChannelSettingsPane extends ConsumerWidget {
           ChannelGeneralSection(
             channel: channel,
             rows: [
+              if (canManageRoles) ChannelPrivateRow(channel: channel),
               ChannelSlowModeSection(channel: channel, embedded: true),
               if (channel.kind == 'voice')
                 ChannelJoinMutedSection(channel: channel, embedded: true),

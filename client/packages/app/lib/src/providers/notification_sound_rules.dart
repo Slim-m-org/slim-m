@@ -48,6 +48,22 @@ bool channelEarnsASound({
   api.NotificationPreference.mentions => isDm || mentionsSelf,
 };
 
+/// Whether [readOnlyDefault] could change [account], so the caller only asks
+/// about posting rights when the answer matters.
+bool readOnlyDefaultApplies(api.NotificationPreference? account) =>
+    account == null || account == api.NotificationPreference.everything;
+
+/// The account default as it applies in one channel, mirroring the server's
+/// `push::recipients::read_only_default`: "everything" becomes "mentions"
+/// where this account cannot post, so a busy feed does not alert everyone it
+/// reaches. Only used when there is no override for the channel.
+api.NotificationPreference? readOnlyDefault(
+  api.NotificationPreference? account, {
+  required bool canSend,
+}) => !canSend && readOnlyDefaultApplies(account)
+    ? api.NotificationPreference.mentions
+    : account;
+
 /// Above this many participants (self included), join/leave chimes stop -
 /// the owner's own decision, "roughly 8", recorded in CLAUDE.md and already
 /// echoed in the Sounds settings copy before anything played them.
