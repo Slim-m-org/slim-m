@@ -49,6 +49,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../routing/routes.dart';
+import '../widgets/settings_section_header.dart';
+import '../widgets/media_capability_section.dart';
 import '../widgets/activity_sharing_section.dart';
 import '../widgets/app_info_section.dart';
 import '../widgets/app_lock_section.dart';
@@ -114,8 +116,7 @@ class PersonalSettingsScreen extends StatelessWidget {
               builder: (context) => const Column(
                 children: [
                   DevicesSection(),
-                  ChangePasswordSection(),
-                  TotpSection(),
+                  _SignInSection(),
                   AppLockSection(),
                   AccountSection(),
                 ],
@@ -168,6 +169,12 @@ class PersonalSettingsScreen extends StatelessWidget {
           label: 'App',
           panes: [
             SettingsPane(
+              id: 'troubleshooting',
+              label: 'Troubleshooting',
+              icon: AppIcons.troubleshooting,
+              builder: (context) => const MediaCapabilitySection(),
+            ),
+            SettingsPane(
               id: 'about',
               label: 'About slim-m',
               icon: AppIcons.info,
@@ -178,4 +185,21 @@ class PersonalSettingsScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Password and two-factor together: both are how you prove it is you, and
+/// one card of rows reads lighter than a card per single button.
+class _SignInSection extends StatelessWidget {
+  const _SignInSection();
+
+  @override
+  Widget build(BuildContext context) => const SettingsSectionCard(
+    title: 'Sign-in',
+    description: 'How you prove it is you on a new device.',
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      ChangePasswordSection(embedded: true),
+      TotpSection(embedded: true),
+    ],
+  );
 }

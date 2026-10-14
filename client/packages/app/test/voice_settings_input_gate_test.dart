@@ -54,7 +54,12 @@ ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(VoiceSettingsBody)));
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  // Manual unless a test says otherwise: most of these drive the slider by hand.
+  setUp(
+    () => SharedPreferences.setMockInitialValues({
+      'slimm.voice.input_threshold_auto': false,
+    }),
+  );
 
   testWidgets('the gate replaces the indicator-only sensitivity slider', (
     tester,
@@ -141,6 +146,42 @@ void main() {
       find.textContaining('Join a voice call to see your live input level'),
       findsNothing,
     );
+    // Clears the heartbeat timer a connected call keeps running.
+    await controller.leave();
+  });
+
+  testWidgets('a fresh install sets sensitivity automatically from the room', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final session = await _pump(tester);
+    final toggle = find.byWidgetPredicate(
+      (w) =>
+          w is SettingsToggleRow && w.label == 'Set sensitivity automatically',
+    );
+    expect(tester.widget<SettingsToggleRow>(toggle).value, isTrue);
+    expect(
+      tester.widget<AppSlider>(_meter()).onChanged,
+      isNull,
+      reason: 'the line is the room\'s to set while automatic',
+    );
+    expect(find.text('Listening'), findsOneWidget);
+
+    final controller = _container(
+      tester,
+    ).read(voiceControllerProvider.notifier);
+    controller.setAutoInputThreshold(true);
+    await controller.join('channel-1');
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 60; i++) {
+      session.inputGateController.add(
+        const InputGateReading(levelDb: -60, voice: false),
+      );
+    }
+    await tester.pumpAndSettle();
+
+    expect(session.inputGateCalls.last.thresholdDb, closeTo(-48, 0.5));
+    expect(find.text('-48 dB'), findsOneWidget);
     // Clears the heartbeat timer a connected call keeps running.
     await controller.leave();
   });

@@ -97,6 +97,9 @@ void main() {
       var retentionDays = 0;
       final patchedRetention = <int>[];
       final client = MockClient((request) async {
+        if (request.url.path == '/space/retention/preview') {
+          return _json({'retention_days': 30, 'messages': 1234});
+        }
         if (request.url.path == '/space/canvas-cap') {
           return _json({'object_cap': 20000});
         }
@@ -126,6 +129,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete messages older than 30 days?'), findsOneWidget);
+      expect(find.textContaining('1234 messages from before'), findsOneWidget);
       expect(patchedRetention, isEmpty, reason: 'nothing before confirming');
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -146,6 +150,9 @@ void main() {
     (tester) async {
       var retentionDays = 0;
       final client = MockClient((request) async {
+        if (request.url.path == '/space/retention/preview') {
+          return _json({'retention_days': 30, 'messages': 1234});
+        }
         if (request.url.path == '/space/canvas-cap') {
           return _json({'object_cap': 20000});
         }
@@ -196,6 +203,9 @@ void main() {
     'analytics is on',
     (tester) async {
       final client = MockClient((request) async {
+        if (request.url.path == '/space/retention/preview') {
+          return _json({'retention_days': 30, 'messages': 1234});
+        }
         if (request.url.path == '/space/canvas-cap') {
           return _json({'object_cap': 20000});
         }

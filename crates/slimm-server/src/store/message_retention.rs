@@ -88,6 +88,24 @@ impl Store {
         Ok(value.unwrap_or(0))
     }
 
+    /// How many live messages a window of `days` would prune if it applied
+    /// now, so an admin can see the cost before shortening it. `0` (keep
+    /// forever) prunes nothing.
+    pub async fn count_messages_past_retention(&self, days: i64) -> anyhow::Result<i64> {
+        if days <= 0 {
+            return Ok(0);
+        }
+        let cutoff = now_ms() - days * DAY_MS;
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "n!: i64" FROM messages
+               WHERE deleted_at IS NULL AND created_at < ?"#,
+            cutoff
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count)
+    }
+
     /// Sets the retention window. Callers validate `days` against
     /// [`MAX_MESSAGE_RETENTION_DAYS`] and non-negativity before reaching
     /// here; the column's own `CHECK` is the backstop.

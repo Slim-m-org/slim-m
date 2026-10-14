@@ -19,9 +19,14 @@ class InputSensitivityMeter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final threshold = ref.watch(
+    final manual = ref.watch(
       voiceSettingsControllerProvider.select((s) => s.inputThresholdDb),
     );
+    final automatic = ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.autoInputThreshold),
+    );
+    final live = ref.watch(autoInputThresholdProvider);
+    final threshold = automatic ? (live ?? manual) : manual;
     final flags = ref.watch(voiceFlagsProvider);
     final inCall = flags.state == VoiceSessionState.connected;
     final reading = ref.watch(inputGateReadingProvider).valueOrNull;
@@ -29,6 +34,16 @@ class InputSensitivityMeter extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        SettingsToggleRow(
+          label: 'Set sensitivity automatically',
+          description: "Follows your room's background noise.",
+          value: automatic,
+          semanticLabel: 'Set input sensitivity automatically',
+          onChanged: (value) => ref
+              .read(voiceSettingsControllerProvider.notifier)
+              .setAutoInputThreshold(value),
+        ),
+        const SizedBox(height: AppSpacing.s8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
           child: Row(
@@ -40,7 +55,9 @@ class InputSensitivityMeter extends ConsumerWidget {
                 ),
               ),
               Text(
-                '${threshold.round()} dB',
+                automatic && live == null
+                    ? 'Listening'
+                    : '${threshold.round()} dB',
                 style: AppText.code.copyWith(color: tokens.textSecondary),
               ),
             ],
@@ -55,9 +72,11 @@ class InputSensitivityMeter extends ConsumerWidget {
           meter: level == null ? 0 : inputLevelFraction(level) * 100,
           muted: !inCall || !flags.microphoneEnabled,
           semanticLabel: 'Input sensitivity',
-          onChanged: (db) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setInputThreshold(db),
+          onChanged: automatic
+              ? null
+              : (db) => ref
+                    .read(voiceSettingsControllerProvider.notifier)
+                    .setInputThreshold(db),
         ),
       ],
     );

@@ -124,8 +124,9 @@ void main() {
       await tester.pumpWidget(_app(container));
       await tester.pumpAndSettle();
 
-      // 2160 ("Source") matches no resolution's own height, so the copy says so.
-      expect(find.textContaining('already tops out at 1440p'), findsOneWidget);
+      // 2160 is a real tier now, so the copy names its size rather than calling it uncapped.
+      expect(find.textContaining('3840x2160'), findsOneWidget);
+      expect(find.text('Source'), findsNothing);
 
       await tester.ensureVisible(find.text('720p'));
       await tester.pumpAndSettle();

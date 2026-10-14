@@ -47,6 +47,10 @@ Widget _app(String brokenPath) {
       return http.Response('down', 500);
     }
     return switch (request.url.path) {
+      '/space/retention/preview' => _json({
+        'retention_days': 30,
+        'messages': 3,
+      }),
       '/space/retention' => _json({'retention_days': 0}),
       '/space/canvas-cap' => _json({'object_cap': 20000}),
       '/space/screen-share' => _json({'max_height': 2160}),

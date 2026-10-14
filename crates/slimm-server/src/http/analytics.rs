@@ -12,7 +12,7 @@
 //! does, so they stay on `AuthedRead`.
 
 use axum::Router;
-use axum::extract::{DefaultBodyLimit, State};
+use axum::extract::{DefaultBodyLimit, Query, State};
 use axum::http::request::Parts;
 use axum::routing::get;
 use serde::{Deserialize, Serialize};
@@ -49,6 +49,7 @@ pub fn routes() -> Router<AppState> {
             "/space/retention",
             get(read_retention).patch(update_retention),
         )
+        .route("/space/retention/preview", get(preview_retention))
         .route(
             "/space/canvas-cap",
             get(read_canvas_cap).patch(update_canvas_cap),
@@ -207,6 +208,38 @@ async fn read_retention(
     require_manage_server(&state, ctx.user_id).await?;
     Ok(Json(RetentionDto {
         retention_days: state.store.message_retention_days().await?,
+    }))
+}
+
+#[derive(Deserialize)]
+struct RetentionPreviewQuery {
+    days: i64,
+}
+
+/// What a window would prune right now; the admin screen asks before saving.
+#[derive(Serialize)]
+struct RetentionPreviewDto {
+    retention_days: i64,
+    messages: i64,
+}
+
+async fn preview_retention(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+    Query(query): Query<RetentionPreviewQuery>,
+) -> Result<Json<RetentionPreviewDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
+    require_manage_server(&state, ctx.user_id).await?;
+    if !(0..=MAX_MESSAGE_RETENTION_DAYS).contains(&query.days) {
+        return Err(ApiError::BadRequest("days out of range"));
+    }
+    Ok(Json(RetentionPreviewDto {
+        retention_days: query.days,
+        messages: state
+            .store
+            .count_messages_past_retention(query.days)
+            .await?,
     }))
 }
 

@@ -27,6 +27,13 @@ mod support;
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+}
+
 async fn harness(name: &str) -> (Store, SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
     let config = Config {
@@ -449,5 +456,53 @@ async fn an_offline_client_recovers_via_reset_once_its_cursor_falls_behind_the_r
         caught_up_body["scopes"][0]["reset"],
         json!(false),
         "{caught_up_body}"
+    );
+}
+
+#[tokio::test]
+async fn a_preview_counts_what_a_window_would_prune_and_changes_nothing() {
+    let (s, pool, _guard) = harness("slimm-retention-preview").await;
+    let admin = register(&s, "root").await;
+    let channel = general(&s).await;
+    let session = s.open_session(admin, "laptop").await.unwrap();
+    for (content, age_days) in [("ancient", 60), ("recent", 10)] {
+        let id = s
+            .send_message(NewMessage::plain(
+                channel,
+                admin,
+                MessageId::generate(),
+                content,
+            ))
+            .await
+            .unwrap()
+            .message
+            .id;
+        backdate_message(&pool, id, now_ms() - age_days * DAY_MS).await;
+    }
+    let router = app(s.clone());
+    let preview = |days: i64| {
+        router.clone().oneshot(request(
+            "GET",
+            &format!("/space/retention/preview?days={days}"),
+            &session.access_token,
+            None,
+        ))
+    };
+
+    for (days, expected) in [(30, 1), (5, 2), (0, 0)] {
+        let response = preview(days).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            json_body(response).await["messages"],
+            json!(expected),
+            "{days} days"
+        );
+    }
+    let response = preview(MAX_MESSAGE_RETENTION_DAYS + 1).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        s.message_retention_days().await.unwrap(),
+        0,
+        "a preview never changes the window"
     );
 }

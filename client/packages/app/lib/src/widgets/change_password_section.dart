@@ -16,7 +16,10 @@ import 'settings_notice.dart';
 import 'settings_section_header.dart';
 
 class ChangePasswordSection extends ConsumerStatefulWidget {
-  const ChangePasswordSection({super.key});
+  const ChangePasswordSection({super.key, this.embedded = false});
+
+  /// Rows only, for the Sign-in card that also holds two-factor.
+  final bool embedded;
 
   @override
   ConsumerState<ChangePasswordSection> createState() =>
@@ -64,26 +67,38 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
   }
 
   @override
-  Widget build(BuildContext context) => SettingsSectionCard(
-    title: 'Password',
-    description: 'Changing it signs out your other devices.',
-    children: [
-      AppListRow(
-        label: 'Change password',
-        leading: const Icon(AppIcons.changePassword),
-        onTap: _open,
-      ),
-      if (_changed) const SettingsNotice(message: 'Password changed.'),
-      if (_loadError case final error?)
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s8),
-          child: AppErrorState(
-            message: 'Could not start the change.',
-            detail: error,
-            onRetry: _open,
-            onDismiss: () => setState(() => _loadError = null),
-          ),
+  Widget build(BuildContext context) {
+    final rows = _rows();
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      );
+    }
+    return SettingsSectionCard(
+      title: 'Password',
+      description: 'Changing it signs out your other devices.',
+      children: rows,
+    );
+  }
+
+  List<Widget> _rows() => [
+    AppListRow(
+      label: 'Change password',
+      leading: const Icon(AppIcons.changePassword),
+      subtitle: widget.embedded ? 'Signs out your other devices.' : null,
+      onTap: _open,
+    ),
+    if (_changed) const SettingsNotice(message: 'Password changed.'),
+    if (_loadError case final error?)
+      Padding(
+        padding: const EdgeInsets.all(AppSpacing.s8),
+        child: AppErrorState(
+          message: 'Could not start the change.',
+          detail: error,
+          onRetry: _open,
+          onDismiss: () => setState(() => _loadError = null),
         ),
-    ],
-  );
+      ),
+  ];
 }

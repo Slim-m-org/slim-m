@@ -116,8 +116,8 @@ class _MediaCapabilitySectionState
       );
     }
     return SettingsSectionCard(
-      title: 'Device capabilities',
-      description: 'Tests the microphone, camera and screen capture.',
+      title: 'Device check',
+      description: 'Tests your microphone, camera and screen capture.',
       children: rows,
     );
   }
@@ -135,8 +135,8 @@ class _CapabilityRow extends StatelessWidget {
     final icon = result.supported ? AppIcons.check : AppIcons.danger;
     final color = result.supported ? tokens.textPrimary : tokens.dangerText;
     final detail = result.supported
-        ? 'Available: ${result.detail}.'
-        : 'Not available: ${result.error}';
+        ? 'Works on this device.'
+        : 'Not working: ${result.error}';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

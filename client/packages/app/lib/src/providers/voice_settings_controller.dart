@@ -22,6 +22,7 @@ const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
 const _inputThresholdKey = 'slimm.voice.input_threshold_db';
+const _inputThresholdAutoKey = 'slimm.voice.input_threshold_auto';
 const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
@@ -29,16 +30,6 @@ const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
 const _audioInputDeviceIdKey = 'slimm.voice.audio_input_device_id';
 const _audioOutputDeviceIdKey = 'slimm.voice.audio_output_device_id';
-
-/// The push-to-talk key options offered in Voice settings: plain letters,
-/// so each is reachable while typing - the composer-focus guard is what
-/// keeps that safe, not the choice of key. `V` for voice is the default.
-const pushToTalkKeyOptions = [
-  LogicalKeyboardKey.keyV,
-  LogicalKeyboardKey.keyC,
-  LogicalKeyboardKey.keyX,
-  LogicalKeyboardKey.keyZ,
-];
 
 /// The persisted "join calls with your camera on" preference, read here
 /// (where every other voice preference's storage key already lives) for
@@ -61,6 +52,18 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
 
 /// The persisted input gate threshold in dBFS, for
 /// `VoiceControllerInputMixin.restoreInputThreshold` to apply before a call.
+/// Whether the gate threshold follows the room. On unless someone already
+/// tuned the slider by hand, so nobody's careful setting is overridden.
+Future<bool> loadAutoInputThreshold(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getBool(_inputThresholdAutoKey) ??
+      !prefs.containsKey(_inputThresholdKey);
+}
+
+/// The threshold automatic sensitivity is using right now, or null when it
+/// is off or has not heard enough yet; for the settings meter to show.
+final autoInputThresholdProvider = StateProvider<double?>((ref) => null);
+
 Future<double> loadInputThreshold(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb;
@@ -146,6 +149,7 @@ class VoiceSettingsState {
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
+    this.autoInputThreshold = false,
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.pauseVideoWhenUnfocused = true,
@@ -180,7 +184,7 @@ class VoiceSettingsState {
   /// only - keyboard focus semantics make "held" meaningless on touch.
   final bool pushToTalkEnabled;
 
-  /// One of [pushToTalkKeyOptions]. Held while typing (a screen-reader user
+  /// Any single key the person picked. Held while typing (a screen-reader user
   /// or anyone drafting a message may well type it), so what actually keeps
   /// this safe is the composer-focus guard, not this being a rare key.
   final LogicalKeyboardKey pushToTalkKey;
@@ -195,6 +199,9 @@ class VoiceSettingsState {
   /// Microphone audio quieter than this, in dBFS, is not sent; see
   /// `InputGateMonitor` in the rtc package.
   final double inputThresholdDb;
+
+  /// Whether [inputThresholdDb] is set by the room's noise floor instead.
+  final bool autoInputThreshold;
 
   /// Whether shouts are softened and sudden peaks capped before sending.
   final bool evenOutLoudSounds;
@@ -231,6 +238,7 @@ class VoiceSettingsState {
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
     double? inputThresholdDb,
+    bool? autoInputThreshold,
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? pauseVideoWhenUnfocused,
@@ -252,6 +260,7 @@ class VoiceSettingsState {
     voiceActivitySensitivity:
         voiceActivitySensitivity ?? this.voiceActivitySensitivity,
     inputThresholdDb: inputThresholdDb ?? this.inputThresholdDb,
+    autoInputThreshold: autoInputThreshold ?? this.autoInputThreshold,
     evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
@@ -294,12 +303,17 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       ),
       cameraOnJoin: prefs.getBool(_cameraOnJoinKey) ?? false,
       pushToTalkEnabled: prefs.getBool(_pushToTalkEnabledKey) ?? false,
-      pushToTalkKey: pushToTalkKeyOptions
-          .where((k) => k.keyId == storedKeyId)
-          .firstOrDefault(LogicalKeyboardKey.keyV),
+      // Any key a person picked; `V` for voice until they pick one.
+      pushToTalkKey: storedKeyId == null
+          ? LogicalKeyboardKey.keyV
+          : LogicalKeyboardKey.findKeyByKeyId(storedKeyId) ??
+                LogicalKeyboardKey.keyV,
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
       inputThresholdDb:
           prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb,
+      autoInputThreshold:
+          prefs.getBool(_inputThresholdAutoKey) ??
+          !prefs.containsKey(_inputThresholdKey),
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
@@ -461,6 +475,14 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     _ref.read(voiceControllerProvider.notifier).setInputThreshold(clamped);
   }
 
+  /// Persists automatic sensitivity and applies it live.
+  Future<void> setAutoInputThreshold(bool enabled) async {
+    state = state.copyWith(autoInputThreshold: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_inputThresholdAutoKey, enabled);
+    _ref.read(voiceControllerProvider.notifier).setAutoInputThreshold(enabled);
+  }
+
   /// Persists the compressor and limiter choice and applies it live.
   Future<void> setEvenOutLoudSounds(bool enabled) async {
     state = state.copyWith(evenOutLoudSounds: enabled);
@@ -468,10 +490,6 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setBool(_evenOutLoudKey, enabled);
     _ref.read(voiceControllerProvider.notifier).setEvenOutLoudSounds(enabled);
   }
-}
-
-extension _FirstOrDefault<T> on Iterable<T> {
-  T firstOrDefault(T fallback) => isEmpty ? fallback : first;
 }
 
 final voiceSettingsControllerProvider =

@@ -7768,6 +7768,38 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/retention/preview:
+    get:
+      operationId: previewSpaceRetention
+      tags: [space]
+      summary: Count what a retention window would prune now.
+      description: >
+        Gated on MANAGE_SERVER, like `/space/retention`. Counts live messages
+        older than `days`, which the next sweep would prune if the window
+        were set to it. Nothing is changed. `0` (keep forever) counts none.
+      parameters:
+        - name: days
+          in: query
+          required: true
+          description: The window to preview, in days; 0 to 3650.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceRetentionPreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/canvas-cap:
     get:
       operationId: getSpaceCanvasCap
@@ -9822,6 +9854,19 @@ components:
           description: >
             Days a message is kept before the sweep prunes it. `0` means
             disabled - keep forever - and is the default.
+
+    SpaceRetentionPreview:
+      type: object
+      required: [retention_days, messages]
+      properties:
+        retention_days:
+          type: integer
+          format: int64
+        messages:
+          type: integer
+          format: int64
+          description: Live messages older than the window right now.
+
     SpaceCanvasCap:
       type: object
       required: [object_cap]

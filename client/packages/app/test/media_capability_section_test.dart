@@ -109,13 +109,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Microphone'), findsOneWidget);
-    expect(find.textContaining('Available: 2 audio track'), findsOneWidget);
+    expect(find.text('Works on this device.'), findsNWidgets(2));
     expect(find.text('Camera'), findsOneWidget);
-    expect(find.textContaining('Available: 1 video track'), findsOneWidget);
     expect(find.text('Screen capture'), findsOneWidget);
     expect(
       find.textContaining(
-        'Not available: the portal offered no capturable sources',
+        'Not working: the portal offered no capturable sources',
       ),
       findsOneWidget,
     );
@@ -154,7 +153,7 @@ void main() {
       reason: 'the raw failure still reaches the technical detail line',
     );
     expect(find.text('Microphone'), findsNothing);
-    expect(find.textContaining('Not available'), findsNothing);
+    expect(find.textContaining('Not working'), findsNothing);
 
     final entries = container.read(debugLogProvider);
     expect(entries, isNotEmpty);
