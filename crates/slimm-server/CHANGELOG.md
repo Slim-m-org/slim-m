@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.90.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.89.0...server-v0.90.0) (2026-10-14)
+
+
+### Features
+
+* even out loud sounds, and strong noise suppression with a Space default ([#2187](https://github.com/Slim-m-org/slim-m/issues/2187)) ([2fcc1d0](https://github.com/Slim-m-org/slim-m/commit/2fcc1d0c5352b8eca99db3c049cc36a983d689d3))
+* idle voice channels show the last call, faster speaking rings, and a startup that fades into the window ([#2185](https://github.com/Slim-m-org/slim-m/issues/2185)) ([2b44875](https://github.com/Slim-m-org/slim-m/commit/2b44875b3e95e9fe44e0c69742d4d8e8d8c15a29))
+* image spoilers, composer focus fixes, voice lounge quick wins and password-free Linux updates ([#2193](https://github.com/Slim-m-org/slim-m/issues/2193)) ([7320717](https://github.com/Slim-m-org/slim-m/commit/732071781b7b49a135319d1eabbc141af68b03e6))
+* ranked-choice polls with an instant runoff ([#2191](https://github.com/Slim-m-org/slim-m/issues/2191)) ([24edae2](https://github.com/Slim-m-org/slim-m/commit/24edae24e9f02298c667216904157a1a4ea7a17a))
+* temporary voice rooms from a lobby channel, and the voice canvas reopens where you left it ([#2180](https://github.com/Slim-m-org/slim-m/issues/2180)) ([e61ef5c](https://github.com/Slim-m-org/slim-m/commit/e61ef5cf98dae03c8cc3b6150e636bbe155214cf))
+
 ## [0.89.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.88.0...server-v0.89.0) (2026-10-14)
 
 
