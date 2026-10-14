@@ -1,0 +1,138 @@
+{
+  "projectId": "b42e64b3-fbe0-41af-9d05-59c9e2aa3c8e",
+  "shape": "package",
+  "pkg": "@slim-m/design-system",
+  "globalName": "SlimM",
+  "buildCmd": "cd design/web && npm ci && npm run build",
+  "cssEntry": "dist/styles.css",
+  "extraFonts": [
+    "src/styles/fonts.css"
+  ],
+  "provider": {
+    "component": "SlimRoot",
+    "props": {
+      "theme": "dark",
+      "style": {
+        "padding": 16
+      }
+    }
+  },
+  "overrides": {
+    "Dialog": {
+      "cardMode": "single",
+      "viewport": "720x480"
+    },
+    "Sheet": {
+      "cardMode": "single",
+      "viewport": "480x560"
+    },
+    "Menu": {
+      "cardMode": "column"
+    },
+    "CodeBlock": {
+      "cardMode": "column"
+    },
+    "ErrorState": {
+      "cardMode": "column"
+    },
+    "SettingsSectionCard": {
+      "cardMode": "column"
+    },
+    "BrandLattice": {
+      "cardMode": "column"
+    },
+    "Slider": {
+      "cardMode": "column"
+    },
+    "SettingsSelectRow": {
+      "cardMode": "column"
+    },
+    "SettingsToggleRow": {
+      "cardMode": "column"
+    },
+    "Callout": {
+      "cardMode": "column"
+    },
+    "Toast": {
+      "cardMode": "column"
+    },
+    "Composer": {
+      "cardMode": "column"
+    },
+    "DayDivider": {
+      "cardMode": "column"
+    },
+    "LinkEmbed": {
+      "cardMode": "column"
+    },
+    "MessageRow": {
+      "cardMode": "column"
+    },
+    "PollView": {
+      "cardMode": "column"
+    },
+    "TypingIndicator": {
+      "cardMode": "column"
+    },
+    "UnreadDivider": {
+      "cardMode": "column"
+    },
+    "MemberProfile": {
+      "cardMode": "column"
+    },
+    "SettingsDisclosure": {
+      "cardMode": "column"
+    },
+    "SettingsEmpty": {
+      "cardMode": "column"
+    },
+    "SettingsEntityRow": {
+      "cardMode": "column"
+    },
+    "SettingsLayout": {
+      "cardMode": "column"
+    },
+    "SettingsNotice": {
+      "cardMode": "column"
+    },
+    "AppShell": {
+      "cardMode": "column"
+    },
+    "ChannelHeader": {
+      "cardMode": "column"
+    },
+    "ChannelRail": {
+      "cardMode": "column"
+    },
+    "MemberList": {
+      "cardMode": "column"
+    },
+    "StatusBanner": {
+      "cardMode": "column"
+    },
+    "CallDock": {
+      "cardMode": "column"
+    },
+    "CallStrip": {
+      "cardMode": "column"
+    },
+    "IncomingCall": {
+      "cardMode": "column"
+    },
+    "ParticipantGrid": {
+      "cardMode": "column"
+    },
+    "ParticipantTile": {
+      "cardMode": "column"
+    },
+    "VoiceJoinBar": {
+      "cardMode": "column"
+    }
+  },
+  "guidelinesGlob": [
+    "../../docs/design/design-language.md",
+    "../../docs/design/desktop-vs-mobile.md",
+    "../../docs/design/wording.md"
+  ],
+  "readmeHeader": ".design-sync/conventions.md"
+}

@@ -1,0 +1,71 @@
+/* CallParticipantTile (widgets/call_participant_tiles.dart). */
+.sm-participant-tile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 0.625;
+  overflow: hidden;
+  border: var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+/* Flutter hard-codes a black camera surface and white label. */
+.sm-participant-tile--video { background: #000000; }
+.sm-participant-tile--speaking { outline: 2px solid var(--accent-fill); outline-offset: -2px; }
+.sm-participant-tile__stage {
+  position: absolute;
+  inset: 0 0 36px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sm-participant-tile__avatar { display: inline-flex; }
+.sm-participant-tile__avatar--compact { display: none; }
+.sm-participant-tile__video {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  background: repeating-linear-gradient(135deg, var(--stripe) 0 8px, transparent 8px 16px);
+}
+.sm-participant-tile__caption {
+  margin: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-secondary);
+}
+.sm-participant-tile__label {
+  position: absolute;
+  left: var(--space-8);
+  right: var(--space-8);
+  bottom: var(--space-12);
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text-primary);
+}
+.sm-participant-tile--video .sm-participant-tile__label { color: #ffffff; }
+.sm-participant-tile__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-participant-tile__you { flex: none; white-space: pre; }
+.sm-participant-tile__badge {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: var(--hairline);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+.sm-participant-tile__badge--live { color: var(--accent-text); }
+
+@container slim (max-width: 599px) {
+  .sm-participant-tile__avatar--wide { display: none; }
+  .sm-participant-tile__avatar--compact { display: inline-flex; }
+}

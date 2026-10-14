@@ -1,0 +1,28 @@
+{
+  "name": "@slim-m/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React mirror of slim-m's Flutter design system, for claude.ai/design.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "node build.mjs",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "dependencies": {
+    "lucide-react": "1.47.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.8",
+    "esbuild": "0.25.10",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "typescript": "5.9.3"
+  }
+}

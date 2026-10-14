@@ -1,0 +1,34 @@
+/* AppSpeakingRing (core/speaking_ring.dart). */
+.sm-speaking-ring {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+}
+/* An overlay, not a border, so a pulse moves no layout. */
+.sm-speaking-ring__ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--sm-speaking-color);
+  pointer-events: none;
+  animation: sm-speaking-pulse 600ms linear infinite alternate;
+}
+.sm-speaking-ring__glyph {
+  display: none;
+  position: absolute;
+  left: -2px;
+  bottom: -2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--sm-speaking-bg);
+  color: var(--sm-speaking-color);
+}
+.sm-speaking-ring__glyph svg { display: block; }
+@keyframes sm-speaking-pulse {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sm-speaking-ring__ring { animation: none; opacity: 1; }
+  .sm-speaking-ring__glyph { display: block; }
+}

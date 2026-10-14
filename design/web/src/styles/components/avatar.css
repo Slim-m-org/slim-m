@@ -1,0 +1,47 @@
+/* AppAvatar (core/avatar.dart, avatar_geometry.dart, avatar_shaped_image.dart). */
+.sm-avatar {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+  vertical-align: middle;
+}
+.sm-avatar__image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sm-avatar__face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+.sm-avatar__face--round { border-radius: var(--radius-full); }
+.sm-avatar__face--square {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+.sm-avatar__initials {
+  color: #fff; /* hard-coded in avatar.dart: themed ink inverts on the fixed tints */
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+.sm-avatar__ring { position: absolute; inset: 0; border: 2px solid; pointer-events: none; }
+/* A surface-coloured halo separates the dot from the picture. */
+.sm-avatar__dot {
+  position: absolute;
+  display: flex;
+  box-sizing: content-box;
+  border-radius: var(--radius-full);
+  background: var(--surface-base);
+}
+/* bot_avatar_placeholder.dart: a blank square read as broken, so a bot with no picture shows mono initials. */
+.sm-avatar__bot-initials {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-secondary);
+}

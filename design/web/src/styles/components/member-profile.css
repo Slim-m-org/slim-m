@@ -1,0 +1,71 @@
+/* MemberProfileBody and its sections (app/widgets/member_profile*.dart); the shell is Menu (popover) or Sheet (compact). */
+.sm-member-profile { color: var(--text-primary); font-family: var(--font-sans); }
+.sm-member-profile--sheet { max-height: 100%; overflow-y: auto; padding-bottom: var(--space-8); }
+.sm-member-profile__header, .sm-member-profile__about, .sm-member-profile__activity, .sm-member-profile__roles, .sm-member-profile__timeout, .sm-member-profile__commands, .sm-member-profile__note {
+  box-sizing: border-box;
+  padding-left: var(--space-12);
+  padding-right: var(--space-12);
+}
+.sm-member-profile__header { display: flex; align-items: center; gap: var(--space-12); padding-top: var(--space-12); padding-bottom: var(--space-12); }
+.sm-member-profile__avatar--dim { opacity: 0.7; }
+.sm-member-profile__identity { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sm-member-profile__name { font-size: var(--text-body); line-height: var(--leading-body); font-weight: var(--weight-semi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-member-profile__handle { display: block; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; }
+.sm-member-profile__identity .sm-member-profile__handle { white-space: nowrap; }
+.sm-member-profile__identity .sm-member-profile__handle:last-child { margin-top: 2px; }
+.sm-member-profile__call { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--accent-text); }
+.sm-member-profile__about { margin: 0; padding-bottom: var(--space-8); font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+.sm-member-profile__activity { display: flex; align-items: center; gap: var(--space-12); padding-bottom: var(--space-8); }
+.sm-member-profile__cover {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+.sm-member-profile__activity-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sm-member-profile__activity-title { font-size: var(--text-ui); line-height: var(--leading-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-member-profile__roles { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); padding-bottom: var(--space-12); }
+.sm-member-profile__role {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-8);
+  border: var(--hairline);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  /* 10px is literal in member_profile_identity.dart, below the micro token. */
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.sm-member-profile__joined, .sm-member-profile__micro { font-size: var(--text-micro); line-height: var(--leading-micro); color: var(--text-secondary); }
+.sm-member-profile__timeout {
+  display: flex;
+  gap: var(--space-8);
+  align-items: flex-start;
+  margin: 0 var(--space-12) var(--space-12);
+  padding: var(--space-8);
+  width: auto;
+  border-radius: var(--radius-control);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+.sm-member-profile__timeout > svg { flex: none; margin-top: 1px; }
+.sm-member-profile__timeout-head { display: block; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--warn-text); }
+.sm-member-profile__commands { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-12); }
+.sm-member-profile__label { font-size: var(--text-micro); line-height: var(--leading-micro); font-weight: var(--weight-semi); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--text-secondary); }
+.sm-member-profile__command { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-member-profile__command-name { font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-primary); }
+.sm-member-profile__command .sm-member-profile__handle { display: inline; }
+.sm-member-profile__more { font-size: var(--text-caption); color: var(--accent-text); }
+.sm-member-profile--sheet .sm-member-profile__more { display: flex; align-items: center; min-height: var(--row-touch); }
+.sm-member-profile__note { padding-top: var(--space-4); padding-bottom: var(--space-8); }
+.sm-member-profile__note-box { padding: 6px var(--space-8); border-radius: var(--radius-control); border: 1px dashed var(--border-subtle); font-size: var(--text-caption); line-height: var(--leading-caption); }
+.sm-member-profile__note-box--filled { border-style: solid; }
+.sm-member-profile__placeholder { color: var(--text-secondary); }
+.sm-member-profile__micro { display: block; margin-top: 2px; }

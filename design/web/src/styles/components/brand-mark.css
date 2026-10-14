@@ -1,0 +1,10 @@
+/* AppBrandMark and AppBrandLattice (core/brand_mark.dart, brand_lattice.dart). */
+.sm-brand-lattice { display: block; overflow: hidden; }
+.sm-brand-lattice__square { animation: sm-brand-lattice-settle var(--duration-slow) var(--ease-entrance) both; }
+@keyframes sm-brand-lattice-settle {
+  from { transform: translate(-14px, -14px); }
+  to { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sm-brand-lattice__square { animation: none; }
+}

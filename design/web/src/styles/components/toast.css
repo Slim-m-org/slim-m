@@ -1,0 +1,25 @@
+/* AppToast (surfaces/toast.dart). */
+.sm-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  box-sizing: border-box;
+  max-width: 380px;
+  padding: var(--space-12);
+  background: var(--surface-raised);
+  border: 1px solid var(--tone);
+  border-radius: var(--radius-card);
+  /* AppShadows.canvasTile. */
+  box-shadow: var(--shadow-tile);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--text-primary);
+}
+.sm-toast--success { --tone: var(--accent-text); }
+.sm-toast--info { --tone: var(--border-strong); }
+.sm-toast--warning { --tone: var(--warn-text); }
+.sm-toast--dismissible { cursor: pointer; }
+.sm-toast__icon { flex: none; display: grid; color: var(--tone); }
+.sm-toast__message { min-width: 0; flex: 1; }
+.sm-toast__dismiss { flex: none; color: var(--text-secondary); }

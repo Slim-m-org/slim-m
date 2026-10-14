@@ -1,0 +1,13 @@
+/* AppKbd (core/kbd.dart). */
+.sm-kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-micro);
+  white-space: nowrap;
+}

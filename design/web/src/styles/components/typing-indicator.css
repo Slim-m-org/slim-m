@@ -1,0 +1,16 @@
+/* typing_indicator.dart. */
+.sm-typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  max-width: 100%;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+}
+.sm-typing-indicator__label {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: var(--leading-code);
+  letter-spacing: var(--tracking-mono);
+}

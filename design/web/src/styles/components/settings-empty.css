@@ -1,0 +1,2 @@
+/* SettingsEmpty and SettingsEmptyLine (app/widgets/settings_empty.dart). */
+.sm-settings-empty__line { margin: 0; padding: var(--space-8); font-family: var(--font-sans); font-size: var(--text-body); line-height: var(--leading-body); color: var(--text-secondary); }

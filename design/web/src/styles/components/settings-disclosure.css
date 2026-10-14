@@ -1,0 +1,8 @@
+/* SettingsDisclosure (app/widgets/settings_disclosure.dart). */
+.sm-settings-disclosure { display: flex; flex-direction: column; align-items: stretch; font-family: var(--font-sans); }
+.sm-settings-disclosure__head { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--text-secondary); }
+.sm-settings-disclosure__head:hover { color: var(--text-primary); }
+.sm-settings-disclosure__head:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sm-settings-disclosure__title { font-size: var(--text-ui); line-height: var(--leading-ui); font-weight: var(--weight-medium); }
+.sm-settings-disclosure__summary { margin-left: auto; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+@container slim (max-width: 599px) { .sm-settings-disclosure__head { min-height: var(--row-touch); } }

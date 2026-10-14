@@ -1,0 +1,16 @@
+/* callGridTileWidth and the tile wrap in widgets/call_participant_tiles.dart. */
+.sm-participant-grid {
+  --sm-tile-w: 240px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: var(--space-16);
+  padding: var(--space-16);
+}
+.sm-participant-grid__cell { flex: 0 0 var(--sm-tile-w); max-width: 320px; min-width: 144px; }
+
+@container slim (max-width: 599px) {
+  .sm-participant-grid__cell { flex-basis: calc((100% - var(--space-16)) / 2); }
+  .sm-participant-grid[data-count='1'] .sm-participant-grid__cell { flex-basis: 100%; }
+}

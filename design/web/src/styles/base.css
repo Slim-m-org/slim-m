@@ -1,0 +1,37 @@
+/* The root every slim-m surface sits in: theme surface, Plex, and box sizing. */
+.sm-root {
+  /* The size container composites query, so a phone-width frame gets the compact layouts (desktop-vs-mobile.md: width decides, never platform). */
+  container: slim / inline-size;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  font-weight: var(--weight-regular);
+  font-feature-settings: 'tnum' 0;
+  -webkit-font-smoothing: antialiased;
+}
+.sm-root *,
+.sm-root *::before,
+.sm-root *::after {
+  box-sizing: border-box;
+}
+.sm-tabular {
+  font-variant-numeric: tabular-nums;
+}
+.sm-mono {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+}
+.sm-label {
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.sm-focusable:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

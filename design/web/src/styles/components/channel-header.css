@@ -1,0 +1,36 @@
+/* ChannelHeader (widgets/channel_header.dart) and CompactChannelAppBar (widgets/compact_channel_app_bar.dart). */
+.sm-channelheader { display: block; background: var(--surface-base); border-bottom: var(--hairline); font-family: var(--font-sans); }
+.sm-channelheader__wide, .sm-channelheader__compact { display: flex; align-items: center; }
+.sm-channelheader__wide { gap: var(--space-4); height: var(--header-bar); padding: 0 var(--space-20); }
+.sm-channelheader__compact { display: none; gap: 0; height: 48px; padding-right: var(--space-8); }
+.sm-channelheader__title { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-8); }
+.sm-channelheader__glyph { flex: none; display: inline-flex; color: var(--text-secondary); }
+.sm-channelheader__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+/* The name takes at most 60% of the title block so a long topic still shows. */
+.sm-channelheader__wide .sm-channelheader__title:has(.sm-channelheader__topic) .sm-channelheader__name { flex: 0 1 auto; max-width: 60%; }
+.sm-channelheader__rule { flex: none; width: 1px; height: 20px; margin: 0 var(--space-4); background: var(--border-subtle); }
+.sm-channelheader__topic {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--text-secondary);
+}
+.sm-channelheader__stack { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.sm-channelheader__stack .sm-channelheader__topic { flex: none; }
+@container slim (max-width: 599px) {
+  .sm-channelheader__wide { display: none; }
+  .sm-channelheader__compact { display: flex; }
+}

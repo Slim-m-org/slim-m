@@ -1,0 +1,55 @@
+/* AppMenu, AppMenuItem, AppMenuLabel, AppMenuFootnote, AppMenuDivider (surfaces/menu.dart). */
+.sm-menu {
+  box-sizing: border-box;
+  /* 6px padding is literal in the Flutter source, off the spacing grid. */
+  padding: 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  font-family: var(--font-sans);
+}
+.sm-menu--floating { box-shadow: var(--shadow-menu); }
+.sm-menu__label {
+  padding: 8px 10px 6px;
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.sm-menu__footnote {
+  padding: 6px 10px 8px;
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--text-secondary);
+}
+.sm-menu__divider { height: 1px; margin: 5px 8px; background: var(--border-subtle); }
+.sm-menuitem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  box-sizing: border-box;
+  height: var(--control-md);
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-entrance);
+}
+.sm-menuitem--touch { height: 48px; gap: var(--space-12); font-size: var(--text-body); line-height: var(--leading-body); }
+.sm-menuitem:hover, .sm-menuitem:active { background: var(--surface-sunken); }
+.sm-menuitem--selected, .sm-menuitem--selected:hover { background: var(--accent-soft); }
+.sm-menuitem--selected.sm-menuitem--warn, .sm-menuitem--selected.sm-menuitem--warn:hover { background: var(--warn-soft); }
+.sm-menuitem:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-menuitem--warn { color: var(--warn-text); }
+.sm-menuitem--danger { color: var(--danger-text); }
+.sm-menuitem__icon { flex: none; color: var(--text-secondary); }
+.sm-menuitem--warn .sm-menuitem__icon, .sm-menuitem--danger .sm-menuitem__icon { color: inherit; }
+.sm-menuitem__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-menuitem__end { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-caption); color: var(--text-secondary); }
+.sm-menuitem__check { color: var(--accent-text); }
+.sm-menuitem--warn .sm-menuitem__check { color: var(--warn-text); }
+.sm-menuitem__chevron { width: 12px; height: 12px; color: var(--text-secondary); }

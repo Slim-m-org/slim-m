@@ -1,0 +1,53 @@
+/* poll_view.dart. */
+.sm-poll {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-12);
+  border: var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+.sm-poll__head { display: flex; align-items: flex-start; gap: var(--space-8); margin-bottom: var(--space-8); }
+.sm-poll__question { flex: 1 1 0; min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); font-weight: var(--weight-semi); overflow-wrap: anywhere; }
+.sm-poll__option {
+  position: relative;
+  height: var(--control-md);
+  margin-bottom: var(--space-4);
+  overflow: hidden;
+  border: var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--border-subtle);
+}
+.sm-poll__option--open { cursor: pointer; }
+.sm-poll__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-poll__bar { position: absolute; inset: 0 auto 0 0; background: var(--border-strong); }
+.sm-poll__row { position: relative; display: flex; align-items: center; gap: var(--space-4); height: 100%; padding: 0 var(--space-8); }
+.sm-poll__label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+}
+.sm-poll__option--strong .sm-poll__label { font-weight: var(--weight-semi); }
+.sm-poll__percent {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  flex: none;
+  width: 72px;
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.sm-poll__footer { font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+@container slim (max-width: 599px) {
+  .sm-poll__option { height: var(--row-touch); }
+}

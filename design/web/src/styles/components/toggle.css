@@ -1,0 +1,28 @@
+/* AppToggle (forms/toggle.dart). */
+.sm-toggle {
+  flex: none;
+  box-sizing: border-box;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  padding: 2px;
+  display: block;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+.sm-toggle--on { border-color: var(--accent-fill); background: var(--accent-soft); }
+.sm-toggle--static { cursor: default; }
+.sm-toggle--locked { opacity: 0.6; }
+.sm-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sm-toggle__thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--status-offline);
+  transition: transform 150ms ease-out;
+}
+.sm-toggle--on .sm-toggle__thumb { background: var(--accent-fill); transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) { .sm-toggle__thumb { transition: none; } }

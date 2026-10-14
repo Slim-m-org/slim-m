@@ -1,0 +1,8 @@
+/* AppStatusDot (core/status_dot.dart). */
+.sm-status-dot {
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+  vertical-align: middle;
+}
+.sm-status-dot svg { display: block; }

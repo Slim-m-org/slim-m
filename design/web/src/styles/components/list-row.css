@@ -1,0 +1,62 @@
+/* AppListRow and AppListRowLabel (surfaces/list_row.dart, list_row_label.dart). */
+.sm-listrow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  box-sizing: border-box;
+  min-height: var(--row-pointer);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-control);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text-secondary);
+  transition: background var(--duration-fast) var(--ease-entrance);
+}
+.sm-listrow--touch { min-height: var(--row-touch); }
+.sm-listrow--two-line { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+.sm-listrow--interactive { cursor: pointer; }
+.sm-listrow--interactive:hover, .sm-listrow--interactive:active { background: var(--surface-raised); }
+.sm-listrow--selected, .sm-listrow--selected.sm-listrow--interactive:hover { background: var(--accent-soft); }
+.sm-listrow:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-listrow--emphasised { color: var(--text-primary); font-weight: var(--weight-medium); }
+.sm-listrow__marker {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  /* A literal 2px in the Flutter source, not a radius token. */
+  border-radius: 2px;
+  background: var(--accent-fill);
+}
+.sm-listrow__leading { flex: none; display: inline-flex; align-items: center; }
+.sm-listrow--muted .sm-listrow__leading, .sm-listrow--muted .sm-listrow__trailing { opacity: 0.62; }
+.sm-listrow__text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.sm-listrow__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-listrow__subtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-regular);
+  color: var(--text-secondary);
+}
+.sm-listrow__subtitle-icon { flex: none; width: 12px; height: 12px; }
+.sm-listrow__subtitle-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-listrow__meta {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-regular);
+  color: var(--text-secondary);
+}
+.sm-listrow__trailing { flex: none; display: inline-flex; align-items: center; }
+.sm-listrow__unread { width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--text-primary); }
+.sm-listrow__mention { width: 6px; height: 6px; transform: rotate(45deg) scale(0.7071); background: var(--accent-fill); }

@@ -1,0 +1,19 @@
+/* SettingsEntityRow and SettingsEntityDetail (app/widgets/settings_entity_row.dart). */
+.sm-entity-row { box-sizing: border-box; padding: var(--space-8); border-radius: var(--radius-control); font-family: var(--font-sans); transition: background var(--duration-fast) var(--ease-entrance); }
+.sm-entity-row--dense { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+.sm-entity-row:hover { background: var(--surface-sunken); }
+.sm-entity-row__main { display: flex; align-items: center; gap: var(--space-12); }
+.sm-entity-row--interactive .sm-entity-row__main { cursor: pointer; }
+.sm-entity-row__main:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sm-entity-row__leading { flex: none; display: inline-flex; }
+.sm-entity-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.sm-entity-row__title { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+.sm-entity-row__headline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); line-height: var(--leading-body); font-weight: var(--weight-medium); color: var(--text-primary); }
+.sm-entity-row__detail { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+.sm-entity-row__detail--wrap { overflow: visible; white-space: normal; }
+.sm-entity-row__detail--warn { color: var(--warn-text); }
+.sm-entity-row__detail--danger { color: var(--danger-text); }
+.sm-entity-row__actions { flex: none; display: flex; align-items: center; }
+.sm-entity-row__slot { width: var(--row-pointer); height: var(--row-pointer); }
+.sm-entity-row__error { margin-top: var(--space-8); padding: var(--space-8); border: 1px solid var(--danger-border); border-radius: var(--radius-control); font-size: var(--text-caption); color: var(--danger-text); }
+@container slim (max-width: 599px) { .sm-entity-row__slot { width: var(--row-touch); height: var(--row-touch); } }
