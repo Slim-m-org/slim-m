@@ -28,6 +28,7 @@ import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/splash_mapped_wait.dart';
+import 'package:slimm_app/src/desktop/startup_state.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
 import 'package:slimm_app/src/desktop/window_geometry_store.dart';
 
@@ -115,6 +116,29 @@ void main() {
 
     expect(port.hideCalls, 1);
     expect(port.lastSize, WindowGeometry.fallback.windowedSize);
+  });
+
+  testWidgets('prepareHandoff fades the splash out before the window hides', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    final container = _container();
+
+    final handoff = DesktopWindowShell.prepareHandoff(
+      container,
+      fadeOut: const Duration(milliseconds: 180),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(container.read(startupLeavingProvider), isTrue);
+    expect(port.hideCalls, 0, reason: 'still fading');
+
+    await tester.pump(const Duration(milliseconds: 100));
+    await handoff;
+
+    expect(port.hideCalls, 1);
   });
 
   testWidgets('prepareHandoff keeps a late-mapped splash up for the full '
