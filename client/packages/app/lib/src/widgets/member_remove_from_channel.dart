@@ -29,10 +29,14 @@ bool offersRemoveFromChannel(
   WidgetRef ref,
   String channelId,
   api.UserProfile profile,
-) =>
-    ref.watch(channelByIdProvider(channelId)).valueOrNull != null &&
-    canRemoveFromChannel(ref, channelId) &&
-    !memberIsAdministrator(profile, ref.watch(rolesProvider).valueOrNull);
+) {
+  // Every provider is watched before any short-circuit, so roles start loading on the first build.
+  final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
+  final roles = ref.watch(rolesProvider).valueOrNull;
+  return channel != null &&
+      canRemoveFromChannel(ref, channelId) &&
+      !memberIsAdministrator(profile, roles);
+}
 
 /// Whether [profile]'s roles carry administrator, which no overwrite can deny.
 bool memberIsAdministrator(api.UserProfile profile, List<api.Role>? roles) =>
