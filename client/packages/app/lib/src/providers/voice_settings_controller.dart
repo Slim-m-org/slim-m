@@ -22,6 +22,7 @@ const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
 const _inputThresholdKey = 'slimm.voice.input_threshold_db';
+const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
 const _cameraQualityKey = 'slimm.voice.camera_quality';
@@ -63,6 +64,14 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
 Future<double> loadInputThreshold(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb;
+}
+
+/// Whether the microphone's compressor and limiter run, for
+/// `VoiceControllerInputMixin.restoreEvenOutLoudSounds`. On unless turned off:
+/// it costs a fraction of a percent of one core and leaves normal speech alone.
+Future<bool> loadEvenOutLoudSounds(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getBool(_evenOutLoudKey) ?? true;
 }
 
 /// The persisted watching and camera video quality, for
@@ -137,6 +146,7 @@ class VoiceSettingsState {
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
+    this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.pauseVideoWhenUnfocused = true,
     this.audioInputDeviceId,
@@ -186,6 +196,9 @@ class VoiceSettingsState {
   /// `InputGateMonitor` in the rtc package.
   final double inputThresholdDb;
 
+  /// Whether shouts are softened and sudden peaks capped before sending.
+  final bool evenOutLoudSounds;
+
   /// Whether a screen share should try to publish this device's own audio
   /// alongside it. Defaults off: a stray notification chime becomes
   /// everyone's problem, where a share's video is at least something the
@@ -218,6 +231,7 @@ class VoiceSettingsState {
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
     double? inputThresholdDb,
+    bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? pauseVideoWhenUnfocused,
     String? audioInputDeviceId,
@@ -238,6 +252,7 @@ class VoiceSettingsState {
     voiceActivitySensitivity:
         voiceActivitySensitivity ?? this.voiceActivitySensitivity,
     inputThresholdDb: inputThresholdDb ?? this.inputThresholdDb,
+    evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
     pauseVideoWhenUnfocused:
@@ -285,6 +300,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
       inputThresholdDb:
           prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb,
+      evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
       audioInputDeviceId: prefs.getString(_audioInputDeviceIdKey),
@@ -443,6 +459,14 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setDouble(_inputThresholdKey, clamped);
     _ref.read(voiceControllerProvider.notifier).setInputThreshold(clamped);
+  }
+
+  /// Persists the compressor and limiter choice and applies it live.
+  Future<void> setEvenOutLoudSounds(bool enabled) async {
+    state = state.copyWith(evenOutLoudSounds: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_evenOutLoudKey, enabled);
+    _ref.read(voiceControllerProvider.notifier).setEvenOutLoudSounds(enabled);
   }
 }
 

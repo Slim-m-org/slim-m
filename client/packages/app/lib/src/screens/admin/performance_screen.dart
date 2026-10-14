@@ -28,6 +28,7 @@ import '../../widgets/settings_section_header.dart';
 import '../../widgets/success_flash.dart';
 import '../settings_screen_scaffold.dart';
 import 'canvas_cap_section.dart';
+import 'noise_suppression_default_section.dart';
 import 'screen_share_cap_section.dart';
 import '../../action_labels.dart';
 
@@ -43,7 +44,7 @@ class PerformanceScreen extends StatelessWidget {
   );
 }
 
-/// The three capacity controls, embeddable as a Space settings pane as well
+/// The capacity controls and the call defaults, embeddable as a Space settings pane as well
 /// as routed.
 class PerformancePane extends StatelessWidget {
   const PerformancePane({super.key});
@@ -57,6 +58,8 @@ class PerformancePane extends StatelessWidget {
       CanvasCapSection(),
       SizedBox(height: AppSpacing.s16),
       ScreenShareCapSection(),
+      SizedBox(height: AppSpacing.s16),
+      NoiseSuppressionDefaultSection(),
     ],
   );
 }

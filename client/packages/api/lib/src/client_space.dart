@@ -31,6 +31,7 @@ class SpaceSettings {
     this.description = '',
     this.bannerUpdatedAt,
     this.iconUpdatedAt,
+    this.strongNoiseSuppression = false,
   });
 
   /// The Space's name, shown in the channel list header and on invites.
@@ -48,6 +49,9 @@ class SpaceSettings {
   /// When the icon was set, or null for none.
   final int? iconUpdatedAt;
 
+  /// What "Space default" means for members' noise suppression.
+  final bool strongNoiseSuppression;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -60,6 +64,8 @@ class SpaceSettings {
         description: json['description'] as String? ?? '',
         bannerUpdatedAt: json['banner_updated_at'] as int?,
         iconUpdatedAt: json['icon_updated_at'] as int?,
+        strongNoiseSuppression:
+            json['strong_noise_suppression'] as bool? ?? false,
       );
 }
 
@@ -81,12 +87,14 @@ extension SlimmApiSpace on SlimmApi {
     JoinPolicy? joinPolicy,
     TotpPolicy? totpPolicy,
     String? description,
+    bool? strongNoiseSuppression,
   }) async {
     assert(
       name != null ||
           joinPolicy != null ||
           totpPolicy != null ||
-          description != null,
+          description != null ||
+          strongNoiseSuppression != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await _send(
@@ -97,6 +105,8 @@ extension SlimmApiSpace on SlimmApi {
         if (joinPolicy != null) 'join_policy': joinPolicy.wire,
         if (totpPolicy != null) 'totp_policy': totpPolicy.wire,
         if (description != null) 'description': description,
+        if (strongNoiseSuppression != null)
+          'strong_noise_suppression': strongNoiseSuppression,
       },
     );
     return SpaceSettings.fromJson(json as Map<String, dynamic>);

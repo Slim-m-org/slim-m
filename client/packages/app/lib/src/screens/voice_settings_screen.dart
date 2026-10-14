@@ -22,6 +22,7 @@ import '../widgets/input_sensitivity_section.dart';
 import '../widgets/media_capability_section.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
+import '../widgets/noise_suppression_section.dart';
 import '../widgets/settings_toggle_row.dart';
 
 /// Everything about a call this device controls, as a pane body.
@@ -170,6 +171,10 @@ class _MicrophoneSection extends ConsumerWidget {
               ),
             ),
           ],
+          const SizedBox(height: AppSpacing.s16),
+          const NoiseSuppressionSection(),
+          const SizedBox(height: AppSpacing.s16),
+          const EvenOutLoudSoundsToggle(),
           if (isDesktopHost) ...[
             const SizedBox(height: AppSpacing.s16),
             const _PushToTalkSection(),

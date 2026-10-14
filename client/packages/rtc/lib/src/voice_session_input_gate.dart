@@ -7,6 +7,8 @@ mixin VoiceSessionInputGate {
   late final InputGateMonitor _gate;
   bool _gateEnabled = true;
   double _gateThresholdDb = kDefaultInputThresholdDb;
+  bool _evenOutLoudSounds = true;
+  bool _strongNoiseSuppression = false;
 
   bool get supportsInputGate => _gate.supported;
 
@@ -21,6 +23,24 @@ mixin VoiceSessionInputGate {
     unawaited(_applyInputGate());
   }
 
-  Future<void> _applyInputGate() =>
-      _gate.configure(enabled: _gateEnabled, thresholdDb: _gateThresholdDb);
+  /// Softens shouts and caps sudden peaks on the microphone, where the
+  /// host gates the input natively.
+  void setEvenOutLoudSounds(bool enabled) {
+    _evenOutLoudSounds = enabled;
+    unawaited(_applyInputGate());
+  }
+
+  /// Runs rnnoise on the microphone ahead of the gate, for keyboards, fans
+  /// and room noise libwebrtc's own suppressor lets through.
+  void setStrongNoiseSuppression(bool enabled) {
+    _strongNoiseSuppression = enabled;
+    unawaited(_applyInputGate());
+  }
+
+  Future<void> _applyInputGate() => _gate.configure(
+        enabled: _gateEnabled,
+        thresholdDb: _gateThresholdDb,
+        dynamics: _evenOutLoudSounds,
+        strongNoiseSuppression: _strongNoiseSuppression,
+      );
 }

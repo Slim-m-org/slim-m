@@ -197,8 +197,15 @@ void main() {
     expect(find.text('Could not load the canvas object cap.'), findsOneWidget);
     expect(find.text('20,000'), findsNothing);
 
-    await tester.ensureVisible(find.text('Retry'));
-    await tester.tap(find.text('Retry'));
+    final retry = find.descendant(
+      of: find.widgetWithText(
+        AppErrorState,
+        'Could not load the canvas object cap.',
+      ),
+      matching: find.text('Retry'),
+    );
+    await tester.ensureVisible(retry);
+    await tester.tap(retry);
     await tester.pumpAndSettle();
 
     expect(find.text('Could not load the canvas object cap.'), findsNothing);

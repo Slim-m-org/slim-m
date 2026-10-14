@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The microphone card where the host gates the input natively: a live meter
-/// with the gate threshold as its draggable line.
+/// with the gate threshold as its draggable line, and the loud-sound toggle.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,6 +11,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart';
+import 'settings_toggle_row.dart';
 
 class InputSensitivityMeter extends ConsumerWidget {
   const InputSensitivityMeter({super.key});
@@ -59,6 +60,27 @@ class InputSensitivityMeter extends ConsumerWidget {
               .setInputThreshold(db),
         ),
       ],
+    );
+  }
+}
+
+/// The compressor and limiter after the gate, on the same hosts.
+class EvenOutLoudSoundsToggle extends ConsumerWidget {
+  const EvenOutLoudSoundsToggle({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.evenOutLoudSounds),
+    );
+    return SettingsToggleRow(
+      label: 'Even out loud sounds',
+      description: 'Softens shouts and sudden bangs before others hear them.',
+      value: enabled,
+      semanticLabel: 'Even out loud sounds',
+      onChanged: (value) => ref
+          .read(voiceSettingsControllerProvider.notifier)
+          .setEvenOutLoudSounds(value),
     );
   }
 }

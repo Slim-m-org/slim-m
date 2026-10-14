@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT strong_noise_suppression AS \"v!: bool\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "v!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "aef0bba61daeb2dbdebfd97147942fe966790a404fea57944c57e385ad3cf09a"
+}

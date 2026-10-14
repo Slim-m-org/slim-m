@@ -31,6 +31,7 @@ class Version {
     this.iconUpdatedAt,
     this.linkPreviewsEnabled,
     this.screenShareMaxHeight,
+    this.strongNoiseSuppression = false,
     this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
@@ -88,6 +89,11 @@ class Version {
   /// reach the MANAGE_SERVER-gated `GET /space/screen-share`.
   final int? screenShareMaxHeight;
 
+  /// Whether members' microphones use the stronger noise suppression when
+  /// they leave Voice settings on "Space default". False on a server older
+  /// than this field.
+  final bool strongNoiseSuppression;
+
   /// The largest single attachment the server accepts, in bytes. Null on a
   /// server older than this field, which a client treats as no known limit
   /// and lets the server refuse.
@@ -142,6 +148,8 @@ class Version {
         iconUpdatedAt: json['icon_updated_at'] as int?,
         linkPreviewsEnabled: json['link_previews_enabled'] as bool?,
         screenShareMaxHeight: json['screen_share_max_height'] as int?,
+        strongNoiseSuppression:
+            json['strong_noise_suppression'] as bool? ?? false,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
         maxAttachmentBytes: json['max_attachment_bytes'] as int?,

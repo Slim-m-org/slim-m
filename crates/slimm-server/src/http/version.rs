@@ -54,6 +54,9 @@ pub(super) struct Version {
     /// own capture, the same reason `invite_required` rides on `/version`
     /// rather than staying behind `/space/settings`.
     screen_share_max_height: i64,
+    /// Whether members' microphones default to the stronger noise
+    /// suppression, on `/version` for the reason `screen_share_max_height` is.
+    strong_noise_suppression: bool,
     /// The largest single attachment upload the server accepts, in bytes, so a
     /// client can refuse an oversize pick before sending any of it.
     max_attachment_bytes: u64,
@@ -155,6 +158,7 @@ pub(super) async fn version(
         icon_updated_at: state.store.space_landing().await?.icon_updated_at,
         link_previews_enabled: state.link_previews.is_enabled(),
         screen_share_max_height: state.store.screen_share_max_height().await?,
+        strong_noise_suppression: state.store.strong_noise_suppression().await?,
         max_attachment_bytes: state.media.max_attachment_bytes(),
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,
