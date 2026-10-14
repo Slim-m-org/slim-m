@@ -20,6 +20,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
 import 'input_gate.dart';
+import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
 import 'local_audio.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;

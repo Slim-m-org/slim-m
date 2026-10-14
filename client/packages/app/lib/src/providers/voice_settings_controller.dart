@@ -22,6 +22,7 @@ const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
 const _inputThresholdKey = 'slimm.voice.input_threshold_db';
+const _inputThresholdAutoKey = 'slimm.voice.input_threshold_auto';
 const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
@@ -64,6 +65,13 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
 Future<double> loadInputThreshold(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb;
+}
+
+/// Whether the gate threshold follows the room's noise floor, off until
+/// chosen: `restoreInputThreshold` has to know before the first call.
+Future<bool> loadInputThresholdAuto(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getBool(_inputThresholdAutoKey) ?? false;
 }
 
 /// Whether the microphone's compressor and limiter run, for
@@ -146,6 +154,7 @@ class VoiceSettingsState {
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
+    this.inputThresholdAuto = false,
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.pauseVideoWhenUnfocused = true,
@@ -196,6 +205,10 @@ class VoiceSettingsState {
   /// `InputGateMonitor` in the rtc package.
   final double inputThresholdDb;
 
+  /// Whether the threshold follows the room's noise floor instead of
+  /// [inputThresholdDb].
+  final bool inputThresholdAuto;
+
   /// Whether shouts are softened and sudden peaks capped before sending.
   final bool evenOutLoudSounds;
 
@@ -231,6 +244,7 @@ class VoiceSettingsState {
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
     double? inputThresholdDb,
+    bool? inputThresholdAuto,
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? pauseVideoWhenUnfocused,
@@ -252,6 +266,7 @@ class VoiceSettingsState {
     voiceActivitySensitivity:
         voiceActivitySensitivity ?? this.voiceActivitySensitivity,
     inputThresholdDb: inputThresholdDb ?? this.inputThresholdDb,
+    inputThresholdAuto: inputThresholdAuto ?? this.inputThresholdAuto,
     evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
@@ -300,6 +315,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
       inputThresholdDb:
           prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb,
+      inputThresholdAuto: prefs.getBool(_inputThresholdAutoKey) ?? false,
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
@@ -459,6 +475,17 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setDouble(_inputThresholdKey, clamped);
     _ref.read(voiceControllerProvider.notifier).setInputThreshold(clamped);
+  }
+
+  /// Turning it off keeps wherever the threshold had got to as the manual one.
+  Future<void> setInputThresholdAuto(bool enabled) async {
+    final voice = _ref.read(voiceControllerProvider.notifier);
+    final kept = enabled ? null : voice.inputThresholdDb;
+    state = state.copyWith(inputThresholdAuto: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_inputThresholdAutoKey, enabled);
+    if (kept != null) await setInputThreshold(kept);
+    voice.setInputThresholdAuto(enabled);
   }
 
   /// Persists the compressor and limiter choice and applies it live.

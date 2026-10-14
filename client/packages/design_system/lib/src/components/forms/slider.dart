@@ -151,7 +151,7 @@ class _AppSliderState extends State<AppSlider> {
     // Silent on keyboard focus in the source design, same as the other form
     // controls; this package's own accessibility ring fills the gap.
     final ring = Opacity(
-      opacity: widget.muted ? 0.5 : 1,
+      opacity: widget.muted ? 0.5 : (widget.onChanged == null ? 0.7 : 1),
       child: Container(
         padding: const EdgeInsets.all(focusRingGap),
         decoration: BoxDecoration(

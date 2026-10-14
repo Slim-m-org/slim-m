@@ -76,6 +76,63 @@ void main() {
     });
   });
 
+  group('AudioDeviceSwitching.selectInput on a live room', () {
+    const mics = _FixedAudioDevices(inputDevices: [
+      AudioDevice(id: 'raw-mic', label: 'Raw mic'),
+      AudioDevice(id: 'clean-mic', label: 'Cleaned mic'),
+    ]);
+
+    test('sends the chosen microphone to the live room, every time', () async {
+      final applied = <String>[];
+      final switching = AudioDeviceSwitching(
+        mics,
+        liveInput: (room, device) async => applied.add(device.deviceId),
+      );
+      final room = lk.Room();
+      await switching.selectInput(room, mics.inputDevices[1]);
+      await switching.selectInput(room, mics.inputDevices[0]);
+      await switching.selectInput(room, mics.inputDevices[1]);
+
+      expect(applied, ['clean-mic', 'raw-mic', 'clean-mic']);
+      expect(
+        switching
+            .roomOptions(const lk.RoomOptions())
+            .defaultAudioCaptureOptions
+            .deviceId,
+        'clean-mic',
+      );
+    });
+
+    test('the system default reselects the first enumerated microphone',
+        () async {
+      final applied = <String>[];
+      final switching = AudioDeviceSwitching(
+        mics,
+        liveInput: (room, device) async => applied.add(device.deviceId),
+      );
+      await switching.selectInput(lk.Room(), null);
+      expect(applied, ['raw-mic']);
+    });
+
+    test('a pick made before the call reaches the next room, not a live one',
+        () async {
+      final applied = <String>[];
+      final switching = AudioDeviceSwitching(
+        mics,
+        liveInput: (room, device) async => applied.add(device.deviceId),
+      );
+      await switching.selectInput(null, mics.inputDevices[1]);
+      expect(applied, isEmpty);
+      expect(
+        switching
+            .roomOptions(const lk.RoomOptions())
+            .defaultAudioCaptureOptions
+            .deviceId,
+        'clean-mic',
+      );
+    });
+  });
+
   group('AudioDeviceSwitching device listing', () {
     test('delegates to the injected seam', () async {
       final switching = AudioDeviceSwitching(

@@ -144,4 +144,43 @@ void main() {
     // Clears the heartbeat timer a connected call keeps running.
     await controller.leave();
   });
+
+  testWidgets('automatic sensitivity is off by default, locks the line and '
+      'reaches the session', (tester) async {
+    final session = await _pump(tester);
+    final toggle = find.byWidgetPredicate(
+      (w) => w is SettingsToggleRow && w.label == 'Automatic sensitivity',
+    );
+    expect(tester.widget<SettingsToggleRow>(toggle).value, isFalse);
+    expect(tester.widget<AppSlider>(_meter()).onChanged, isNotNull);
+
+    tester.widget<SettingsToggleRow>(toggle).onChanged!(true);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<AppSlider>(_meter()).onChanged, isNull);
+    expect(session.autoInputThreshold, isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('slimm.voice.input_threshold_auto'), isTrue);
+  });
+
+  testWidgets('turning automatic off keeps where the threshold got to', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.input_threshold_auto': true,
+    });
+    final session = await _pump(tester);
+    session.currentInputThresholdDb = -44.0;
+    final toggle = find.byWidgetPredicate(
+      (w) => w is SettingsToggleRow && w.label == 'Automatic sensitivity',
+    );
+    tester.widget<SettingsToggleRow>(toggle).onChanged!(false);
+    await tester.pumpAndSettle();
+
+    expect(find.text('-44 dB'), findsOneWidget);
+    expect(tester.widget<AppSlider>(_meter()).onChanged, isNotNull);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('slimm.voice.input_threshold_db'), -44);
+    expect(session.autoInputThreshold, isFalse);
+  });
 }
