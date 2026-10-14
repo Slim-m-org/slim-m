@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.89.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.88.0...server-v0.89.0) (2026-10-14)
+
+
+### Features
+
+* a mic noise gate with an input sensitivity meter, canvas snapping, bot embed edits, and gifs that pause off screen ([#2179](https://github.com/Slim-m-org/slim-m/issues/2179)) ([ea230b2](https://github.com/Slim-m-org/slim-m/commit/ea230b297c9d275957a9e42da5e3327e5293b920))
+
 ## [0.88.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.87.0...server-v0.88.0) (2026-10-13)
 
 
