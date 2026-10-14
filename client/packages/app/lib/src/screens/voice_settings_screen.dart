@@ -21,7 +21,9 @@ import '../widgets/input_sensitivity_section.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
+import '../audio/lounge_tracks.dart';
 import '../widgets/push_to_talk_key_row.dart';
+import '../widgets/settings_select_row.dart';
 import '../widgets/settings_toggle_row.dart';
 
 /// Everything about a call this device controls, as a pane body.
@@ -270,6 +272,22 @@ class _SoundsSection extends ConsumerWidget {
               .read(voiceSettingsControllerProvider.notifier)
               .setHoldMusicEnabled(value),
         ),
+        if (settings.holdMusicEnabled)
+          SettingsSelectRow<LoungeTrack>(
+            label: 'Music style',
+            value: settings.holdMusicTrack,
+            sheetTitle: 'Music style',
+            choices: [
+              for (final track in LoungeTrack.values)
+                SettingsChoice(
+                  value: track,
+                  label: '${track.style} - ${track.title}',
+                ),
+            ],
+            onChanged: (track) => ref
+                .read(voiceSettingsControllerProvider.notifier)
+                .setHoldMusicTrack(track),
+          ),
       ],
     );
   }

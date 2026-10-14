@@ -10,11 +10,14 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../audio/lounge_tracks.dart';
+
 import 'providers.dart';
 import 'voice_controller.dart';
 
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
 const _holdMusicKey = 'slimm.voice.hold_music_enabled';
+const _holdMusicTrackKey = 'slimm.voice.hold_music_track';
 const _callRingSoundKey = 'slimm.voice.call_ring_sound_enabled';
 const _qualityKey = 'slimm.voice.screen_share_quality';
 const _cameraOnJoinKey = 'slimm.voice.camera_on_join';
@@ -136,6 +139,7 @@ class VoiceSettingsState {
     this.joinLeaveSoundsEnabled = true,
     this.callRingSoundEnabled = true,
     this.holdMusicEnabled = false,
+    this.holdMusicTrack = LoungeTrack.lofi,
     this.screenShareQuality = ScreenShareQuality.standard,
     this.receiveVideoQuality = ReceiveVideoQuality.auto,
     this.cameraQuality = CameraQuality.balanced,
@@ -162,6 +166,9 @@ class VoiceSettingsState {
 
   /// Soft local music while you are the only one in a call. Off by default (owner decision 2026-09-28).
   final bool holdMusicEnabled;
+
+  /// Which style plays while you are alone.
+  final LoungeTrack holdMusicTrack;
   final ScreenShareQuality screenShareQuality;
 
   /// How sharp the video you watch is; see [ReceiveVideoQuality].
@@ -226,6 +233,7 @@ class VoiceSettingsState {
     bool? joinLeaveSoundsEnabled,
     bool? callRingSoundEnabled,
     bool? holdMusicEnabled,
+    LoungeTrack? holdMusicTrack,
     ScreenShareQuality? screenShareQuality,
     ReceiveVideoQuality? receiveVideoQuality,
     CameraQuality? cameraQuality,
@@ -247,6 +255,7 @@ class VoiceSettingsState {
         joinLeaveSoundsEnabled ?? this.joinLeaveSoundsEnabled,
     callRingSoundEnabled: callRingSoundEnabled ?? this.callRingSoundEnabled,
     holdMusicEnabled: holdMusicEnabled ?? this.holdMusicEnabled,
+    holdMusicTrack: holdMusicTrack ?? this.holdMusicTrack,
     screenShareQuality: screenShareQuality ?? this.screenShareQuality,
     receiveVideoQuality: receiveVideoQuality ?? this.receiveVideoQuality,
     cameraQuality: cameraQuality ?? this.cameraQuality,
@@ -286,6 +295,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       joinLeaveSoundsEnabled: prefs.getBool(_soundsKey) ?? true,
       callRingSoundEnabled: prefs.getBool(_callRingSoundKey) ?? true,
       holdMusicEnabled: prefs.getBool(_holdMusicKey) ?? false,
+      holdMusicTrack: LoungeTrack.fromName(prefs.getString(_holdMusicTrackKey)),
       screenShareQuality: screenShareQualityFromStored(storedQuality),
       receiveVideoQuality: _byName(
         ReceiveVideoQuality.values,
@@ -332,6 +342,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(holdMusicEnabled: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_holdMusicKey, enabled);
+  }
+
+  /// Persists the style that plays while you are alone.
+  Future<void> setHoldMusicTrack(LoungeTrack track) async {
+    state = state.copyWith(holdMusicTrack: track);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(_holdMusicTrackKey, track.name);
   }
 
   Future<void> setScreenShareResolution(ScreenShareResolution r) =>

@@ -102,6 +102,11 @@ flutter:
     - assets/audio/notifications/member_join.wav
     - assets/audio/notifications/member_leave.wav
     - assets/audio/notifications/mention.wav
+    # Music while alone in a call: CC0 tracks, credited in assets/audio/music/CREDITS.md.
+    - assets/audio/music/lofi.mp3
+    - assets/audio/music/jazz.mp3
+    - assets/audio/music/electronic.mp3
+    - assets/audio/music/ambient.mp3
     # A checked-in copy of packaging/linux/icons/, same reason as above: this
     # one was a symlink too, with the identical Windows checkout trap.
     - assets/icons/tray_icon.png

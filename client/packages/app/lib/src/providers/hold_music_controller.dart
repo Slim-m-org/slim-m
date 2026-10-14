@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../audio/hold_music_player.dart';
+import '../audio/lounge_tracks.dart';
 import 'call_solo.dart';
 import 'voice_controller.dart';
 import 'voice_settings_controller.dart';
@@ -36,6 +37,11 @@ class HoldMusicController {
     _ref.listen<VoiceSettingsState>(
       voiceSettingsControllerProvider,
       (_, _) => _evaluate(),
+    );
+    _ref.listen<LoungeTrack>(
+      voiceSettingsControllerProvider.select((s) => s.holdMusicTrack),
+      (_, track) => unawaited(_player.setTrack(track)),
+      fireImmediately: true,
     );
     _evaluate();
   }

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
+import 'package:slimm_app/src/audio/lounge_tracks.dart';
 import 'package:slimm_app/src/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/voice_settings_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -16,10 +17,13 @@ import 'support/canvas_call_dock_fixtures.dart';
 import 'voice_call_controls_harness.dart';
 
 const _connected = VoiceFlags(state: VoiceSessionState.connected);
-const _on = 'Music while alone: on. Turn off';
+const _on = 'Pause music (Lofi)';
 const _off = 'Play music while alone';
 
 class _FakePlayer implements HoldMusicPlayer {
+  @override
+  Future<void> setTrack(LoungeTrack track) async {}
+
   final calls = <String>[];
 
   @override
@@ -162,4 +166,25 @@ void main() {
       expect(find.bySemanticsLabel(_on), findsOneWidget);
     });
   }
+
+  testWidgets('the music options pick a style, turning music on with it', (
+    tester,
+  ) async {
+    final container = await _pump(tester);
+    container.read(voiceSettingsControllerProvider);
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('Music options'));
+    await tester.pumpAndSettle();
+    expect(find.text('STYLE'), findsOneWidget);
+    await tester.tap(find.text('Jazz - Elevator Music'));
+    await tester.pumpAndSettle();
+
+    final settings = container.read(voiceSettingsControllerProvider);
+    expect(settings.holdMusicTrack, LoungeTrack.jazz);
+    expect(settings.holdMusicEnabled, isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('slimm.voice.hold_music_track'), 'jazz');
+    expect(find.bySemanticsLabel('Pause music (Jazz)'), findsOneWidget);
+  });
 }
