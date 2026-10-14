@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.88.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.87.0...server-v0.88.0) (2026-10-13)
+
+
+### Features
+
+* a join gate and raid pause, polls that close on a timer, and a looser file budget ([#2174](https://github.com/Slim-m-org/slim-m/issues/2174)) ([79b86b8](https://github.com/Slim-m-org/slim-m/commit/79b86b855bc532be51b777c7a7a519587a22ee73))
+* category permissions, smooth avatars, link previews that survive restarts, and the owner's call and permission fixes ([#2177](https://github.com/Slim-m-org/slim-m/issues/2177)) ([c1f0cc7](https://github.com/Slim-m-org/slim-m/commit/c1f0cc7f036e73b1913811b08e6f0b058d9c9f6d))
+
 ## [0.87.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.86.0...server-v0.87.0) (2026-10-13)
 
 
