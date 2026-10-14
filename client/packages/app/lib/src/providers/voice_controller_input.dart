@@ -41,42 +41,10 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     setInputThreshold(await loadInputThreshold(_inputRef));
   }
 
-  /// Live, in-call equivalent of [restoreInputThreshold]. Ignored while the
-  /// threshold is automatic; the saved value comes back when it is turned off.
+  /// Live, in-call equivalent of [restoreInputThreshold].
   void setInputThreshold(double db) {
-    if (_autoInputThreshold) return;
     _inputThresholdDb = db;
     _applyInputGate();
-  }
-
-  bool _autoInputThreshold = false;
-  StreamSubscription<InputGateReading>? _autoReadings;
-
-  /// Seeds automatic sensitivity before any call.
-  Future<void> restoreAutoInputThreshold() async {
-    setAutoInputThreshold(await loadAutoInputThreshold(_inputRef));
-  }
-
-  /// Lets the gate threshold follow the room's noise floor, or hands it
-  /// back to the saved slider value.
-  void setAutoInputThreshold(bool enabled) {
-    _autoInputThreshold = enabled;
-    unawaited(_autoReadings?.cancel());
-    _autoReadings = null;
-    final shown = _inputRef.read(autoInputThresholdProvider.notifier);
-    if (!enabled) {
-      shown.state = null;
-      unawaited(restoreInputThreshold());
-      return;
-    }
-    final auto = AutoInputThreshold();
-    _autoReadings = inputGateReadings.listen((reading) {
-      final next = auto.add(reading.levelDb);
-      if (next == null || !_autoInputThreshold) return;
-      _inputThresholdDb = next;
-      _applyInputGate();
-      shown.state = next;
-    });
   }
 
   /// Seeds the microphone's compressor and limiter before any call.

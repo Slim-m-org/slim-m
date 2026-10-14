@@ -22,7 +22,6 @@ const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
 const _inputThresholdKey = 'slimm.voice.input_threshold_db';
-const _inputThresholdAutoKey = 'slimm.voice.input_threshold_auto';
 const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
@@ -52,18 +51,6 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
 
 /// The persisted input gate threshold in dBFS, for
 /// `VoiceControllerInputMixin.restoreInputThreshold` to apply before a call.
-/// Whether the gate threshold follows the room. On unless someone already
-/// tuned the slider by hand, so nobody's careful setting is overridden.
-Future<bool> loadAutoInputThreshold(Ref ref) async {
-  final prefs = await ref.read(preferencesProvider.future);
-  return prefs.getBool(_inputThresholdAutoKey) ??
-      !prefs.containsKey(_inputThresholdKey);
-}
-
-/// The threshold automatic sensitivity is using right now, or null when it
-/// is off or has not heard enough yet; for the settings meter to show.
-final autoInputThresholdProvider = StateProvider<double?>((ref) => null);
-
 Future<double> loadInputThreshold(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb;
@@ -149,7 +136,6 @@ class VoiceSettingsState {
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
-    this.autoInputThreshold = false,
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.pauseVideoWhenUnfocused = true,
@@ -200,9 +186,6 @@ class VoiceSettingsState {
   /// `InputGateMonitor` in the rtc package.
   final double inputThresholdDb;
 
-  /// Whether [inputThresholdDb] is set by the room's noise floor instead.
-  final bool autoInputThreshold;
-
   /// Whether shouts are softened and sudden peaks capped before sending.
   final bool evenOutLoudSounds;
 
@@ -238,7 +221,6 @@ class VoiceSettingsState {
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
     double? inputThresholdDb,
-    bool? autoInputThreshold,
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? pauseVideoWhenUnfocused,
@@ -260,7 +242,6 @@ class VoiceSettingsState {
     voiceActivitySensitivity:
         voiceActivitySensitivity ?? this.voiceActivitySensitivity,
     inputThresholdDb: inputThresholdDb ?? this.inputThresholdDb,
-    autoInputThreshold: autoInputThreshold ?? this.autoInputThreshold,
     evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
@@ -311,9 +292,6 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
       inputThresholdDb:
           prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb,
-      autoInputThreshold:
-          prefs.getBool(_inputThresholdAutoKey) ??
-          !prefs.containsKey(_inputThresholdKey),
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
@@ -473,14 +451,6 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setDouble(_inputThresholdKey, clamped);
     _ref.read(voiceControllerProvider.notifier).setInputThreshold(clamped);
-  }
-
-  /// Persists automatic sensitivity and applies it live.
-  Future<void> setAutoInputThreshold(bool enabled) async {
-    state = state.copyWith(autoInputThreshold: enabled);
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setBool(_inputThresholdAutoKey, enabled);
-    _ref.read(voiceControllerProvider.notifier).setAutoInputThreshold(enabled);
   }
 
   /// Persists the compressor and limiter choice and applies it live.
