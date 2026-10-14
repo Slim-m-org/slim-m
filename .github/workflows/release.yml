@@ -189,7 +189,13 @@ jobs:
         id: latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "move=$(bash scripts/decide-latest-tag.sh "$IMAGE" "${{ needs.release-please.outputs.server_version }}")" >> "$GITHUB_OUTPUT"
+        # Both must agree: no newer version on GHCR, and no server change on main past this release (main-builds owns :latest then).
+        run: |
+          newest="$(bash scripts/decide-latest-tag.sh "$IMAGE" "${{ needs.release-please.outputs.server_version }}")"
+          git fetch --no-tags --depth=1 origin main
+          current="$(bash scripts/release-latest-allowed.sh HEAD FETCH_HEAD)"
+          if [ "$newest" = "true" ] && [ "$current" = "true" ]; then move=true; else move=false; fi
+          echo "move=$move" >> "$GITHUB_OUTPUT"
       - name: create and inspect manifest
         id: manifest
         run: |

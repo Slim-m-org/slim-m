@@ -25,5 +25,6 @@ set -euo pipefail
 current_sha="${1:?usage: server-image-needed.sh <current-sha>}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-exec "$here/image-needed.sh" server server-image "$current_sha" \
-  crates/ Cargo.toml Cargo.lock rust-toolchain.toml docker/server.Dockerfile .sqlx/
+# One list, shared with release-latest-allowed.sh, so the two never disagree about what makes a server image.
+mapfile -t server_paths < "$here/server-image-paths.txt"
+exec "$here/image-needed.sh" server server-image "$current_sha" "${server_paths[@]}"

@@ -174,7 +174,7 @@ void main() {
         'in effect when the event that scheduled it fired', () async {
       final port = FakeDesktopWindowPort();
       final store = await _store();
-      port.bounds = const WindowRect(x: 45, y: 45, width: 380, height: 460);
+      port.bounds = const WindowRect(x: 45, y: 45, width: 480, height: 340);
       DesktopWindowController? controller;
 
       fakeAsync((async) {

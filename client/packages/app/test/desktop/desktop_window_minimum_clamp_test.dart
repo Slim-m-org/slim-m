@@ -109,17 +109,17 @@ void main() {
   test('the splash, smaller than the floor, is left alone', () async {
     final open = await _open(realWindow: false);
 
-    await _drag(open.port, _bounds(380, 460));
+    await _drag(open.port, _bounds(480, 340));
 
     expect(open.port.sizes, isEmpty);
   });
 
   test('the floor applies once the real window is in place', () async {
     final open = await _open(realWindow: false);
-    await _drag(open.port, _bounds(380, 460));
+    await _drag(open.port, _bounds(480, 340));
 
     open.controller.enableGeometryPersistence();
-    await _drag(open.port, _bounds(380, 460));
+    await _drag(open.port, _bounds(480, 340));
 
     expect(open.port.sizes, hasLength(1));
   });
