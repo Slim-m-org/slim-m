@@ -231,6 +231,7 @@ impl Store {
                 // The column default; a fresh channel has no slow mode set yet.
                 slow_mode_seconds: 0,
                 join_muted,
+                room: super::ChannelRoom::default(),
             },
             fresh: true,
         })
@@ -293,7 +294,12 @@ where
                   category_id AS "category_id: crate::ids::ChannelCategoryId",
                   created_at AS "created_at!",
                   slow_mode_seconds AS "slow_mode_seconds!: i64",
-                  join_muted AS "join_muted!: bool"
+                  join_muted AS "join_muted!: bool",
+                  creates_rooms AS "creates_rooms!: bool",
+                  user_limit AS "user_limit!: i64",
+                  room_owner_id AS "room_owner_id: crate::ids::UserId",
+                  room_lobby_id AS "room_lobby_id: ChannelId",
+                  room_locked AS "room_locked!: bool"
            FROM channels WHERE id = ?"#,
         id
     )
@@ -310,5 +316,12 @@ where
         created_at: r.created_at,
         slow_mode_seconds: r.slow_mode_seconds,
         join_muted: r.join_muted,
+        room: super::ChannelRoom {
+            creates_rooms: r.creates_rooms,
+            user_limit: r.user_limit,
+            owner_id: r.room_owner_id,
+            lobby_id: r.room_lobby_id,
+            locked: r.room_locked,
+        },
     }))
 }

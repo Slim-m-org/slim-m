@@ -124,6 +124,10 @@ async fn token(
         return Err(ApiError::Forbidden);
     }
 
+    if let Some(channel) = state.store.channel(channel_id).await? {
+        super::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
+    }
+
     // The token's name comes from the account, never from what the caller sends.
     let profile = state.store.user_profile(ctx.user_id).await?;
     let display_name = profile

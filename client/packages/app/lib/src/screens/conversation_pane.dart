@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/database_key_store.dart';
@@ -12,12 +13,14 @@ import '../providers/providers.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
 import '../providers/channel_search_controller.dart';
 import '../routing/breakpoints.dart';
+import '../routing/routes.dart';
 import '../widgets/compact_channel_app_bar.dart';
 import '../widgets/channel_header.dart';
 import 'canvas/canvas_pane.dart';
 import 'unlisted_channel.dart';
 import 'channel_screen.dart';
 import 'dm_call_pane.dart';
+import 'voice_lobby_redirect.dart';
 import 'voice_screen.dart';
 import 'voice_text_pane.dart';
 import 'home_shell.dart';
@@ -74,9 +77,13 @@ class ConversationPane extends ConsumerWidget {
     if (channel == null &&
         row.hasValue &&
         ref.watch(initialSyncCompleteProvider)) {
+      if (ref.watch(removedRoomsProvider).contains(channelId)) {
+        return _LeaveRemovedRoom(fallback: ref.read(lastTextChannelProvider));
+      }
       return UnlistedChannel(channelId: channelId);
     }
     final isVoice = channel?.kind == 'voice';
+    final isLobby = isVoice && channel?.createsRooms == true;
     final canvasOpen = ref.watch(canvasOpenProvider) == channelId;
     final dmCallOpen =
         channel?.kind == 'dm' && ref.watch(dmCallOpenProvider) == channelId;
@@ -97,6 +104,8 @@ class ConversationPane extends ConsumerWidget {
       key: ValueKey('pane-$stage'),
       child: canvasOpen
           ? CanvasPane(channelId: channelId)
+          : isLobby
+          ? VoiceLobbyRedirect(lobbyId: channelId)
           : isVoice
           ? VoiceScreen(channelId: channelId, openChat: openChat)
           : dmCallOpen
@@ -104,7 +113,9 @@ class ConversationPane extends ConsumerWidget {
           : ChannelScreen(channelId: channelId),
     );
 
-    if (!layout.showsBothPanes || !isVoice || canvasOpen) return body;
+    if (!layout.showsBothPanes || !isVoice || isLobby || canvasOpen) {
+      return body;
+    }
     return Column(
       children: [
         _VoiceConversationHeader(
@@ -155,4 +166,30 @@ class _VoiceConversationHeader extends ConsumerWidget {
       onToggleTextChat: () => setChatOpen(!chatOpen),
     );
   }
+}
+
+/// A temporary room that emptied and was removed while still on screen:
+/// back to the last text conversation, or the channel list without one.
+class _LeaveRemovedRoom extends StatefulWidget {
+  const _LeaveRemovedRoom({required this.fallback});
+
+  final String? fallback;
+
+  @override
+  State<_LeaveRemovedRoom> createState() => _LeaveRemovedRoomState();
+}
+
+class _LeaveRemovedRoomState extends State<_LeaveRemovedRoom> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final fallback = widget.fallback;
+      context.go(fallback == null ? Routes.channels : Routes.channel(fallback));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

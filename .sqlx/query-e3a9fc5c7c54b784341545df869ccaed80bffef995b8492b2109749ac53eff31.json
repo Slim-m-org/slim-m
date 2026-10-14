@@ -1,0 +1,104 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.id AS \"id!: ChannelId\", c.name AS \"name!\", c.kind AS \"kind!\", c.topic,\n                      c.position AS \"position!: i64\",\n                      c.parent_message_id AS \"parent_message_id: crate::ids::MessageId\",\n                      c.category_id AS \"category_id: crate::ids::ChannelCategoryId\",\n                      c.created_at AS \"created_at!\",\n                      c.slow_mode_seconds AS \"slow_mode_seconds!: i64\",\n                      c.join_muted AS \"join_muted!: bool\",\n                      c.creates_rooms AS \"creates_rooms!: bool\",\n                      c.user_limit AS \"user_limit!: i64\",\n                      c.room_owner_id AS \"room_owner_id: crate::ids::UserId\",\n                      c.room_lobby_id AS \"room_lobby_id: ChannelId\",\n                      c.room_locked AS \"room_locked!: bool\"\n               FROM channels c\n               LEFT JOIN channel_categories cc ON cc.id = c.category_id\n               WHERE c.deleted_at IS NULL AND c.kind != 'dm' AND c.parent_message_id IS NULL\n               ORDER BY CASE WHEN c.category_id IS NULL THEN -1 ELSE cc.position END,\n                        c.position, c.created_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "topic",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "parent_message_id: crate::ids::MessageId",
+        "ordinal": 5,
+        "type_info": "Blob"
+      },
+      {
+        "name": "category_id: crate::ids::ChannelCategoryId",
+        "ordinal": 6,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "slow_mode_seconds!: i64",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "join_muted!: bool",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "creates_rooms!: bool",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_limit!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "room_owner_id: crate::ids::UserId",
+        "ordinal": 12,
+        "type_info": "Blob"
+      },
+      {
+        "name": "room_lobby_id: ChannelId",
+        "ordinal": 13,
+        "type_info": "Blob"
+      },
+      {
+        "name": "room_locked!: bool",
+        "ordinal": 14,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "e3a9fc5c7c54b784341545df869ccaed80bffef995b8492b2109749ac53eff31"
+}

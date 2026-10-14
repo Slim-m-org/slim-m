@@ -115,6 +115,13 @@ class Channels extends Table {
   /// off. False for every existing row until the next channel refresh.
   BoolColumn get joinMuted => boolean().withDefault(const Constant(false))();
 
+  /// Temporary voice rooms (decision 0065), nullable so an existing row and
+  /// a row built in code read as "not a lobby, no limit, not a room".
+  BoolColumn get createsRooms => boolean().nullable()();
+  IntColumn get userLimit => integer().nullable()();
+  TextColumn get roomOwnerId => text().nullable()();
+  BoolColumn get roomLocked => boolean().nullable()();
+
   /// Whether `@everyone` lacks VIEW_CHANNEL here, mirroring the server's
   /// `channels.restricted` - null for a server too old to send it, which
   /// reads the same as false: nothing here claims a channel is public that
@@ -286,7 +293,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   /// How each schema version is reached, and why v3 throws the cache away.
   ///
@@ -386,6 +393,8 @@ class SlimmDatabase extends _$SlimmDatabase {
   ///
   /// v21 adds the `pending_attachments` table, empty for every existing send.
   ///
+  /// v22 adds the four temporary-room columns, null until the next refresh.
+  ///
   /// v17 adds `channels.manuallyUnread` the same way: false for every existing
   /// row, and the next refresh reads each channel's real flag back from the
   /// server, since the refresher already fetches read state per channel.
@@ -460,6 +469,12 @@ class SlimmDatabase extends _$SlimmDatabase {
           }
           if (from < 21) {
             await m.createTable(pendingAttachments);
+          }
+          if (from < 22) {
+            await m.addColumn(channels, channels.createsRooms);
+            await m.addColumn(channels, channels.userLimit);
+            await m.addColumn(channels, channels.roomOwnerId);
+            await m.addColumn(channels, channels.roomLocked);
           }
           // v2's null display names and the pre-op-stream epoch are both
           // unreachable by a keyset sync. See the doc comment above.

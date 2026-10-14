@@ -113,6 +113,7 @@ mod totp;
 mod totp_verify;
 mod user_notes;
 mod users;
+mod voice_rooms;
 mod watch_sessions;
 mod webhooks;
 
@@ -275,6 +276,31 @@ pub struct Channel {
     /// default, not a lock: SPEAK overwrites are what restrict speaking. See
     /// [`super::channel_settings::Store::update_channel_settings`].
     pub join_muted: bool,
+    /// Temporary voice rooms and the user limit; see decision 0065.
+    pub room: ChannelRoom,
+}
+
+/// A voice channel's room settings (decision 0065): all off for every other
+/// channel, which is what [`Default`] gives.
+#[derive(Debug, Clone, Default)]
+pub struct ChannelRoom {
+    /// This voice channel is a lobby that makes a room per person.
+    pub creates_rooms: bool,
+    /// The most people its call takes, 0 for no limit.
+    pub user_limit: i64,
+    /// Set on a room: who it belongs to.
+    pub owner_id: Option<UserId>,
+    /// Set on a room: the lobby that made it.
+    pub lobby_id: Option<ChannelId>,
+    /// Nobody new may join the room's call.
+    pub locked: bool,
+}
+
+impl ChannelRoom {
+    /// Whether this channel is a temporary room rather than a fixed channel.
+    pub fn is_room(&self) -> bool {
+        self.owner_id.is_some() || self.lobby_id.is_some()
+    }
 }
 
 /// A rail section: a channel of any kind may be filed under one, per

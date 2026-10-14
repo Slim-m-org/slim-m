@@ -13,6 +13,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_data/src/database.dart';
 
+import 'support/v22_columns.dart';
+
 Future<void> _downgradeToV18(File file) async {
   final db = SlimmDatabase(NativeDatabase(file));
   await db.into(db.channels).insert(
@@ -27,6 +29,7 @@ Future<void> _downgradeToV18(File file) async {
   await db.customStatement(
     'ALTER TABLE messages DROP COLUMN forwarded_removed',
   );
+  await dropV22Columns(db);
   await db.customStatement('PRAGMA user_version = 18');
   await db.close();
 }

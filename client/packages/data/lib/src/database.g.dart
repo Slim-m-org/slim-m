@@ -126,6 +126,36 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("join_muted" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _createsRoomsMeta =
+      const VerificationMeta('createsRooms');
+  @override
+  late final GeneratedColumn<bool> createsRooms = GeneratedColumn<bool>(
+      'creates_rooms', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("creates_rooms" IN (0, 1))'));
+  static const VerificationMeta _userLimitMeta =
+      const VerificationMeta('userLimit');
+  @override
+  late final GeneratedColumn<int> userLimit = GeneratedColumn<int>(
+      'user_limit', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _roomOwnerIdMeta =
+      const VerificationMeta('roomOwnerId');
+  @override
+  late final GeneratedColumn<String> roomOwnerId = GeneratedColumn<String>(
+      'room_owner_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _roomLockedMeta =
+      const VerificationMeta('roomLocked');
+  @override
+  late final GeneratedColumn<bool> roomLocked = GeneratedColumn<bool>(
+      'room_locked', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("room_locked" IN (0, 1))'));
   static const VerificationMeta _restrictedMeta =
       const VerificationMeta('restricted');
   @override
@@ -154,6 +184,10 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
         categoryId,
         slowModeSeconds,
         joinMuted,
+        createsRooms,
+        userLimit,
+        roomOwnerId,
+        roomLocked,
         restricted
       ];
   @override
@@ -257,6 +291,28 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       context.handle(_joinMutedMeta,
           joinMuted.isAcceptableOrUnknown(data['join_muted']!, _joinMutedMeta));
     }
+    if (data.containsKey('creates_rooms')) {
+      context.handle(
+          _createsRoomsMeta,
+          createsRooms.isAcceptableOrUnknown(
+              data['creates_rooms']!, _createsRoomsMeta));
+    }
+    if (data.containsKey('user_limit')) {
+      context.handle(_userLimitMeta,
+          userLimit.isAcceptableOrUnknown(data['user_limit']!, _userLimitMeta));
+    }
+    if (data.containsKey('room_owner_id')) {
+      context.handle(
+          _roomOwnerIdMeta,
+          roomOwnerId.isAcceptableOrUnknown(
+              data['room_owner_id']!, _roomOwnerIdMeta));
+    }
+    if (data.containsKey('room_locked')) {
+      context.handle(
+          _roomLockedMeta,
+          roomLocked.isAcceptableOrUnknown(
+              data['room_locked']!, _roomLockedMeta));
+    }
     if (data.containsKey('restricted')) {
       context.handle(
           _restrictedMeta,
@@ -306,6 +362,14 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
           .read(DriftSqlType.int, data['${effectivePrefix}slow_mode_seconds'])!,
       joinMuted: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}join_muted'])!,
+      createsRooms: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}creates_rooms']),
+      userLimit: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}user_limit']),
+      roomOwnerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}room_owner_id']),
+      roomLocked: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}room_locked']),
       restricted: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}restricted']),
     );
@@ -407,6 +471,13 @@ class Channel extends DataClass implements Insertable<Channel> {
   /// off. False for every existing row until the next channel refresh.
   final bool joinMuted;
 
+  /// Temporary voice rooms (decision 0065), nullable so an existing row and
+  /// a row built in code read as "not a lobby, no limit, not a room".
+  final bool? createsRooms;
+  final int? userLimit;
+  final String? roomOwnerId;
+  final bool? roomLocked;
+
   /// Whether `@everyone` lacks VIEW_CHANNEL here, mirroring the server's
   /// `channels.restricted` - null for a server too old to send it, which
   /// reads the same as false: nothing here claims a channel is public that
@@ -430,6 +501,10 @@ class Channel extends DataClass implements Insertable<Channel> {
       this.categoryId,
       required this.slowModeSeconds,
       required this.joinMuted,
+      this.createsRooms,
+      this.userLimit,
+      this.roomOwnerId,
+      this.roomLocked,
       this.restricted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -463,6 +538,18 @@ class Channel extends DataClass implements Insertable<Channel> {
     }
     map['slow_mode_seconds'] = Variable<int>(slowModeSeconds);
     map['join_muted'] = Variable<bool>(joinMuted);
+    if (!nullToAbsent || createsRooms != null) {
+      map['creates_rooms'] = Variable<bool>(createsRooms);
+    }
+    if (!nullToAbsent || userLimit != null) {
+      map['user_limit'] = Variable<int>(userLimit);
+    }
+    if (!nullToAbsent || roomOwnerId != null) {
+      map['room_owner_id'] = Variable<String>(roomOwnerId);
+    }
+    if (!nullToAbsent || roomLocked != null) {
+      map['room_locked'] = Variable<bool>(roomLocked);
+    }
     if (!nullToAbsent || restricted != null) {
       map['restricted'] = Variable<bool>(restricted);
     }
@@ -499,6 +586,18 @@ class Channel extends DataClass implements Insertable<Channel> {
           : Value(categoryId),
       slowModeSeconds: Value(slowModeSeconds),
       joinMuted: Value(joinMuted),
+      createsRooms: createsRooms == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createsRooms),
+      userLimit: userLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userLimit),
+      roomOwnerId: roomOwnerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(roomOwnerId),
+      roomLocked: roomLocked == null && nullToAbsent
+          ? const Value.absent()
+          : Value(roomLocked),
       restricted: restricted == null && nullToAbsent
           ? const Value.absent()
           : Value(restricted),
@@ -526,6 +625,10 @@ class Channel extends DataClass implements Insertable<Channel> {
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       slowModeSeconds: serializer.fromJson<int>(json['slowModeSeconds']),
       joinMuted: serializer.fromJson<bool>(json['joinMuted']),
+      createsRooms: serializer.fromJson<bool?>(json['createsRooms']),
+      userLimit: serializer.fromJson<int?>(json['userLimit']),
+      roomOwnerId: serializer.fromJson<String?>(json['roomOwnerId']),
+      roomLocked: serializer.fromJson<bool?>(json['roomLocked']),
       restricted: serializer.fromJson<bool?>(json['restricted']),
     );
   }
@@ -550,6 +653,10 @@ class Channel extends DataClass implements Insertable<Channel> {
       'categoryId': serializer.toJson<String?>(categoryId),
       'slowModeSeconds': serializer.toJson<int>(slowModeSeconds),
       'joinMuted': serializer.toJson<bool>(joinMuted),
+      'createsRooms': serializer.toJson<bool?>(createsRooms),
+      'userLimit': serializer.toJson<int?>(userLimit),
+      'roomOwnerId': serializer.toJson<String?>(roomOwnerId),
+      'roomLocked': serializer.toJson<bool?>(roomLocked),
       'restricted': serializer.toJson<bool?>(restricted),
     };
   }
@@ -572,6 +679,10 @@ class Channel extends DataClass implements Insertable<Channel> {
           Value<String?> categoryId = const Value.absent(),
           int? slowModeSeconds,
           bool? joinMuted,
+          Value<bool?> createsRooms = const Value.absent(),
+          Value<int?> userLimit = const Value.absent(),
+          Value<String?> roomOwnerId = const Value.absent(),
+          Value<bool?> roomLocked = const Value.absent(),
           Value<bool?> restricted = const Value.absent()}) =>
       Channel(
         id: id ?? this.id,
@@ -596,6 +707,11 @@ class Channel extends DataClass implements Insertable<Channel> {
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         slowModeSeconds: slowModeSeconds ?? this.slowModeSeconds,
         joinMuted: joinMuted ?? this.joinMuted,
+        createsRooms:
+            createsRooms.present ? createsRooms.value : this.createsRooms,
+        userLimit: userLimit.present ? userLimit.value : this.userLimit,
+        roomOwnerId: roomOwnerId.present ? roomOwnerId.value : this.roomOwnerId,
+        roomLocked: roomLocked.present ? roomLocked.value : this.roomLocked,
         restricted: restricted.present ? restricted.value : this.restricted,
       );
   Channel copyWithCompanion(ChannelsCompanion data) {
@@ -631,6 +747,14 @@ class Channel extends DataClass implements Insertable<Channel> {
           ? data.slowModeSeconds.value
           : this.slowModeSeconds,
       joinMuted: data.joinMuted.present ? data.joinMuted.value : this.joinMuted,
+      createsRooms: data.createsRooms.present
+          ? data.createsRooms.value
+          : this.createsRooms,
+      userLimit: data.userLimit.present ? data.userLimit.value : this.userLimit,
+      roomOwnerId:
+          data.roomOwnerId.present ? data.roomOwnerId.value : this.roomOwnerId,
+      roomLocked:
+          data.roomLocked.present ? data.roomLocked.value : this.roomLocked,
       restricted:
           data.restricted.present ? data.restricted.value : this.restricted,
     );
@@ -656,31 +780,40 @@ class Channel extends DataClass implements Insertable<Channel> {
           ..write('categoryId: $categoryId, ')
           ..write('slowModeSeconds: $slowModeSeconds, ')
           ..write('joinMuted: $joinMuted, ')
+          ..write('createsRooms: $createsRooms, ')
+          ..write('userLimit: $userLimit, ')
+          ..write('roomOwnerId: $roomOwnerId, ')
+          ..write('roomLocked: $roomLocked, ')
           ..write('restricted: $restricted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      name,
-      kind,
-      createdAt,
-      topic,
-      cursor,
-      lastReadSeq,
-      mentionedSeq,
-      manuallyUnread,
-      isPersonalSpace,
-      dmParticipantId,
-      position,
-      opCursor,
-      parentMessageId,
-      categoryId,
-      slowModeSeconds,
-      joinMuted,
-      restricted);
+  int get hashCode => Object.hashAll([
+        id,
+        name,
+        kind,
+        createdAt,
+        topic,
+        cursor,
+        lastReadSeq,
+        mentionedSeq,
+        manuallyUnread,
+        isPersonalSpace,
+        dmParticipantId,
+        position,
+        opCursor,
+        parentMessageId,
+        categoryId,
+        slowModeSeconds,
+        joinMuted,
+        createsRooms,
+        userLimit,
+        roomOwnerId,
+        roomLocked,
+        restricted
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -702,6 +835,10 @@ class Channel extends DataClass implements Insertable<Channel> {
           other.categoryId == this.categoryId &&
           other.slowModeSeconds == this.slowModeSeconds &&
           other.joinMuted == this.joinMuted &&
+          other.createsRooms == this.createsRooms &&
+          other.userLimit == this.userLimit &&
+          other.roomOwnerId == this.roomOwnerId &&
+          other.roomLocked == this.roomLocked &&
           other.restricted == this.restricted);
 }
 
@@ -723,6 +860,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
   final Value<String?> categoryId;
   final Value<int> slowModeSeconds;
   final Value<bool> joinMuted;
+  final Value<bool?> createsRooms;
+  final Value<int?> userLimit;
+  final Value<String?> roomOwnerId;
+  final Value<bool?> roomLocked;
   final Value<bool?> restricted;
   final Value<int> rowid;
   const ChannelsCompanion({
@@ -743,6 +884,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.categoryId = const Value.absent(),
     this.slowModeSeconds = const Value.absent(),
     this.joinMuted = const Value.absent(),
+    this.createsRooms = const Value.absent(),
+    this.userLimit = const Value.absent(),
+    this.roomOwnerId = const Value.absent(),
+    this.roomLocked = const Value.absent(),
     this.restricted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -764,6 +909,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.categoryId = const Value.absent(),
     this.slowModeSeconds = const Value.absent(),
     this.joinMuted = const Value.absent(),
+    this.createsRooms = const Value.absent(),
+    this.userLimit = const Value.absent(),
+    this.roomOwnerId = const Value.absent(),
+    this.roomLocked = const Value.absent(),
     this.restricted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -788,6 +937,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     Expression<String>? categoryId,
     Expression<int>? slowModeSeconds,
     Expression<bool>? joinMuted,
+    Expression<bool>? createsRooms,
+    Expression<int>? userLimit,
+    Expression<String>? roomOwnerId,
+    Expression<bool>? roomLocked,
     Expression<bool>? restricted,
     Expression<int>? rowid,
   }) {
@@ -809,6 +962,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       if (categoryId != null) 'category_id': categoryId,
       if (slowModeSeconds != null) 'slow_mode_seconds': slowModeSeconds,
       if (joinMuted != null) 'join_muted': joinMuted,
+      if (createsRooms != null) 'creates_rooms': createsRooms,
+      if (userLimit != null) 'user_limit': userLimit,
+      if (roomOwnerId != null) 'room_owner_id': roomOwnerId,
+      if (roomLocked != null) 'room_locked': roomLocked,
       if (restricted != null) 'restricted': restricted,
       if (rowid != null) 'rowid': rowid,
     });
@@ -832,6 +989,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       Value<String?>? categoryId,
       Value<int>? slowModeSeconds,
       Value<bool>? joinMuted,
+      Value<bool?>? createsRooms,
+      Value<int?>? userLimit,
+      Value<String?>? roomOwnerId,
+      Value<bool?>? roomLocked,
       Value<bool?>? restricted,
       Value<int>? rowid}) {
     return ChannelsCompanion(
@@ -852,6 +1013,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       categoryId: categoryId ?? this.categoryId,
       slowModeSeconds: slowModeSeconds ?? this.slowModeSeconds,
       joinMuted: joinMuted ?? this.joinMuted,
+      createsRooms: createsRooms ?? this.createsRooms,
+      userLimit: userLimit ?? this.userLimit,
+      roomOwnerId: roomOwnerId ?? this.roomOwnerId,
+      roomLocked: roomLocked ?? this.roomLocked,
       restricted: restricted ?? this.restricted,
       rowid: rowid ?? this.rowid,
     );
@@ -911,6 +1076,18 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     if (joinMuted.present) {
       map['join_muted'] = Variable<bool>(joinMuted.value);
     }
+    if (createsRooms.present) {
+      map['creates_rooms'] = Variable<bool>(createsRooms.value);
+    }
+    if (userLimit.present) {
+      map['user_limit'] = Variable<int>(userLimit.value);
+    }
+    if (roomOwnerId.present) {
+      map['room_owner_id'] = Variable<String>(roomOwnerId.value);
+    }
+    if (roomLocked.present) {
+      map['room_locked'] = Variable<bool>(roomLocked.value);
+    }
     if (restricted.present) {
       map['restricted'] = Variable<bool>(restricted.value);
     }
@@ -940,6 +1117,10 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
           ..write('categoryId: $categoryId, ')
           ..write('slowModeSeconds: $slowModeSeconds, ')
           ..write('joinMuted: $joinMuted, ')
+          ..write('createsRooms: $createsRooms, ')
+          ..write('userLimit: $userLimit, ')
+          ..write('roomOwnerId: $roomOwnerId, ')
+          ..write('roomLocked: $roomLocked, ')
           ..write('restricted: $restricted, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2703,6 +2884,10 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   Value<String?> categoryId,
   Value<int> slowModeSeconds,
   Value<bool> joinMuted,
+  Value<bool?> createsRooms,
+  Value<int?> userLimit,
+  Value<String?> roomOwnerId,
+  Value<bool?> roomLocked,
   Value<bool?> restricted,
   Value<int> rowid,
 });
@@ -2724,6 +2909,10 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<String?> categoryId,
   Value<int> slowModeSeconds,
   Value<bool> joinMuted,
+  Value<bool?> createsRooms,
+  Value<int?> userLimit,
+  Value<String?> roomOwnerId,
+  Value<bool?> roomLocked,
   Value<bool?> restricted,
   Value<int> rowid,
 });
@@ -2792,6 +2981,18 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<bool> get joinMuted => $composableBuilder(
       column: $table.joinMuted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get createsRooms => $composableBuilder(
+      column: $table.createsRooms, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get userLimit => $composableBuilder(
+      column: $table.userLimit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get roomOwnerId => $composableBuilder(
+      column: $table.roomOwnerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get roomLocked => $composableBuilder(
+      column: $table.roomLocked, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get restricted => $composableBuilder(
       column: $table.restricted, builder: (column) => ColumnFilters(column));
@@ -2863,6 +3064,19 @@ class $$ChannelsTableOrderingComposer
   ColumnOrderings<bool> get joinMuted => $composableBuilder(
       column: $table.joinMuted, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get createsRooms => $composableBuilder(
+      column: $table.createsRooms,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get userLimit => $composableBuilder(
+      column: $table.userLimit, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get roomOwnerId => $composableBuilder(
+      column: $table.roomOwnerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get roomLocked => $composableBuilder(
+      column: $table.roomLocked, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get restricted => $composableBuilder(
       column: $table.restricted, builder: (column) => ColumnOrderings(column));
 }
@@ -2927,6 +3141,18 @@ class $$ChannelsTableAnnotationComposer
   GeneratedColumn<bool> get joinMuted =>
       $composableBuilder(column: $table.joinMuted, builder: (column) => column);
 
+  GeneratedColumn<bool> get createsRooms => $composableBuilder(
+      column: $table.createsRooms, builder: (column) => column);
+
+  GeneratedColumn<int> get userLimit =>
+      $composableBuilder(column: $table.userLimit, builder: (column) => column);
+
+  GeneratedColumn<String> get roomOwnerId => $composableBuilder(
+      column: $table.roomOwnerId, builder: (column) => column);
+
+  GeneratedColumn<bool> get roomLocked => $composableBuilder(
+      column: $table.roomLocked, builder: (column) => column);
+
   GeneratedColumn<bool> get restricted => $composableBuilder(
       column: $table.restricted, builder: (column) => column);
 }
@@ -2971,6 +3197,10 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<String?> categoryId = const Value.absent(),
             Value<int> slowModeSeconds = const Value.absent(),
             Value<bool> joinMuted = const Value.absent(),
+            Value<bool?> createsRooms = const Value.absent(),
+            Value<int?> userLimit = const Value.absent(),
+            Value<String?> roomOwnerId = const Value.absent(),
+            Value<bool?> roomLocked = const Value.absent(),
             Value<bool?> restricted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -2992,6 +3222,10 @@ class $$ChannelsTableTableManager extends RootTableManager<
             categoryId: categoryId,
             slowModeSeconds: slowModeSeconds,
             joinMuted: joinMuted,
+            createsRooms: createsRooms,
+            userLimit: userLimit,
+            roomOwnerId: roomOwnerId,
+            roomLocked: roomLocked,
             restricted: restricted,
             rowid: rowid,
           ),
@@ -3013,6 +3247,10 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<String?> categoryId = const Value.absent(),
             Value<int> slowModeSeconds = const Value.absent(),
             Value<bool> joinMuted = const Value.absent(),
+            Value<bool?> createsRooms = const Value.absent(),
+            Value<int?> userLimit = const Value.absent(),
+            Value<String?> roomOwnerId = const Value.absent(),
+            Value<bool?> roomLocked = const Value.absent(),
             Value<bool?> restricted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -3034,6 +3272,10 @@ class $$ChannelsTableTableManager extends RootTableManager<
             categoryId: categoryId,
             slowModeSeconds: slowModeSeconds,
             joinMuted: joinMuted,
+            createsRooms: createsRooms,
+            userLimit: userLimit,
+            roomOwnerId: roomOwnerId,
+            roomLocked: roomLocked,
             restricted: restricted,
             rowid: rowid,
           ),

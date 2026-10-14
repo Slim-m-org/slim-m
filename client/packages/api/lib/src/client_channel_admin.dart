@@ -20,6 +20,8 @@ extension SlimmApiChannelAdmin on SlimmApi {
     String? topic,
     int? slowModeSeconds,
     bool? joinMuted,
+    bool? createsRooms,
+    int? userLimit,
   }) async {
     final json = await _send(
       'PATCH',
@@ -29,6 +31,8 @@ extension SlimmApiChannelAdmin on SlimmApi {
         if (topic != null) 'topic': topic,
         if (slowModeSeconds != null) 'slow_mode_seconds': slowModeSeconds,
         if (joinMuted != null) 'join_muted': joinMuted,
+        if (createsRooms != null) 'creates_rooms': createsRooms,
+        if (userLimit != null) 'user_limit': userLimit,
       },
     );
     return Channel.fromJson(json as Map<String, dynamic>);
