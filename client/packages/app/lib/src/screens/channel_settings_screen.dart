@@ -117,7 +117,8 @@ class ChannelSettingsPane extends ConsumerWidget {
               ChannelSlowModeSection(channel: channel, embedded: true),
               if (channel.kind == 'voice')
                 ChannelJoinMutedSection(channel: channel, embedded: true),
-              if (channel.kind == 'voice') ChannelRoomsSection(channel: channel),
+              if (channel.kind == 'voice')
+                ChannelRoomsSection(channel: channel),
             ],
           ),
         if (canManageChannels && canManageRoles)
