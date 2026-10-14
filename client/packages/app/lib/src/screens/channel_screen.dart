@@ -126,6 +126,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// the conversation it was started in, not carried across a channel switch.
   Message? _replyingTo;
 
+  /// Bumped by Reply so the composer takes the caret, as the thread pane's does.
+  final _composerFocusRequests = ValueNotifier<int>(0);
+
   late final ReadMarker _readMarker = ReadMarker(ref);
 
   /// The scroll controller, the jump-to-latest arrow's visibility, and the
@@ -212,6 +215,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     // Last chance to save unsent text before a torn-down State (voice, a DM call, canvas) loses it.
     _drafts.save(widget.channelId, _composer.text);
     _composer.dispose();
+    _composerFocusRequests.dispose();
     _scrollTracker.dispose();
     _searchController.dispose();
     super.dispose();
@@ -247,7 +251,10 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     _scrollToLatest();
   }
 
-  void _startReply(Message message) => setState(() => _replyingTo = message);
+  void _startReply(Message message) {
+    setState(() => _replyingTo = message);
+    _composerFocusRequests.value++;
+  }
 
   void _cancelReply() => setState(() => _replyingTo = null);
 
@@ -362,6 +369,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   replyingTo: _replyingTo,
                   onCancelReply: _cancelReply,
                   autofocus: widget.autofocusComposer,
+                  focusRequests: _composerFocusRequests,
                 ),
             ],
           );

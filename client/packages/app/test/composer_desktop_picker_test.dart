@@ -8,69 +8,15 @@
 /// where the Space-emoji-only sheet is still the right answer.
 library;
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/composer_picker_panel.dart';
 import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';
-
-/// Answers `/version` with [gifSearchEnabled] and a minimal working GIF
-/// flow: one trending result on open, one search result, its preview.
-api.SlimmApi Function(Ref) _api({required bool gifSearchEnabled}) {
-  return (ref) => api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: ref.watch(sessionProvider),
-    httpClient: MockClient((request) async {
-      final path = request.url.path;
-      if (request.method == 'GET' && path == '/version') {
-        return http.Response(
-          jsonEncode({
-            'name': 'slim-m',
-            'version': '0.39.0',
-            'protocol': 1,
-            'gif_search_enabled': gifSearchEnabled,
-          }),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }
-      if (request.method == 'GET' && path == '/gifs/trending') {
-        return http.Response(
-          jsonEncode({
-            'results': [
-              {
-                'id': 'tok-trending',
-                'title': 'a trending gif',
-                'width': 200,
-                'height': 150,
-              },
-            ],
-          }),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }
-      if (request.method == 'GET' && path == '/gifs/preview/tok-trending') {
-        return http.Response.bytes(
-          base64Decode('R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='),
-          200,
-          headers: {'content-type': 'image/gif'},
-        );
-      }
-      return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
-    }),
-  );
-}
+import 'composer_picker_api.dart';
 
 void main() {
   late TextEditingController controller;
@@ -92,7 +38,7 @@ void main() {
           controller: controller,
           sends: sends,
           platform: TargetPlatform.linux,
-          apiBuilder: _api(gifSearchEnabled: true),
+          apiBuilder: pickerApi(gifSearchEnabled: true),
         ),
       );
       await tester.pumpAndSettle();
@@ -125,7 +71,7 @@ void main() {
         controller: controller,
         sends: sends,
         platform: TargetPlatform.linux,
-        apiBuilder: _api(gifSearchEnabled: true),
+        apiBuilder: pickerApi(gifSearchEnabled: true),
       ),
     );
     await tester.pumpAndSettle();
@@ -152,7 +98,7 @@ void main() {
         controller: controller,
         sends: sends,
         platform: TargetPlatform.linux,
-        apiBuilder: _api(gifSearchEnabled: true),
+        apiBuilder: pickerApi(gifSearchEnabled: true),
       ),
     );
     await tester.pumpAndSettle();
@@ -174,7 +120,7 @@ void main() {
         controller: controller,
         sends: sends,
         platform: TargetPlatform.linux,
-        apiBuilder: _api(gifSearchEnabled: false),
+        apiBuilder: pickerApi(gifSearchEnabled: false),
       ),
     );
     await tester.pumpAndSettle();
@@ -201,7 +147,7 @@ void main() {
         controller: controller,
         sends: sends,
         platform: TargetPlatform.linux,
-        apiBuilder: _api(gifSearchEnabled: true),
+        apiBuilder: pickerApi(gifSearchEnabled: true),
         customEmoji: const [],
       ),
     );

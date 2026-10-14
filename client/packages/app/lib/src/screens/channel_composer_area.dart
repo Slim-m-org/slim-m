@@ -41,6 +41,7 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
     required this.replyingTo,
     required this.onCancelReply,
     this.autofocus = false,
+    this.focusRequests,
     super.key,
   });
 
@@ -53,6 +54,9 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
 
   /// See [ComposerAutofocus]; only the docked thread pane sets it.
   final bool autofocus;
+
+  /// Fires when something outside asks to type here, such as Reply.
+  final Listenable? focusRequests;
 
   @override
   ConsumerState<ChannelComposerArea> createState() =>
@@ -139,10 +143,12 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                 ),
         ),
         EphemeralTray(channelId: channelId),
-        if (widget.autofocus)
-          ComposerAutofocus(channelId: channelId, child: composer)
-        else
-          composer,
+        ComposerAutofocus(
+          channelId: channelId,
+          focusOnMount: widget.autofocus,
+          focusRequests: widget.focusRequests,
+          child: composer,
+        ),
       ],
     );
   }
