@@ -92,6 +92,10 @@ services:
           use_external_ip: true
         keys:
           ${LIVEKIT_API_KEY:?LIVEKIT_API_KEY must be set in .env, see deploy/README.md}: ${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET must be set in .env to a random value of at least 32 characters}
+        # Speaker updates every 200ms with one sample of smoothing, so speaking rings keep up with speech.
+        audio:
+          update_interval: 200
+          smooth_intervals: 1
         turn:
           enabled: true
           udp_port: ${LIVEKIT_TURN_UDP_PORT:-3478}
@@ -101,10 +105,6 @@ services:
           relay_range_end: ${LIVEKIT_TURN_RELAY_PORT_END:-30100}
           # TURN/TLS is off: its listener needs a certificate of its own and
           # cannot borrow Caddy's. The four keys to add: deploy/README.md.
-        # Speaker updates every 200ms with one sample of smoothing, so speaking rings keep up with speech.
-        audio:
-          update_interval: 200
-          smooth_intervals: 1
         # Lets the server learn joins, leaves and screen shares the instant
         # LiveKit sees them rather than by polling; see
         # docs/decisions/0032-voice-participant-webhooks.md. "server" is this
