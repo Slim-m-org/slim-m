@@ -31,7 +31,9 @@ use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{CreatePollError, NewPoll, Poll as StorePoll, Store, VoteError, now_ms};
+use crate::store::{
+    Ballot, CreatePollError, NewPoll, Poll as StorePoll, Runoff, Store, VoteError, now_ms,
+};
 
 /// Poll bodies are small: a question, up to four short options, and an
 /// optional close time.
@@ -64,6 +66,43 @@ pub(crate) struct PollDto {
     /// decide whether voting is still allowed; the server refuses the write
     /// regardless of what this says.
     closed: bool,
+    ranked: bool,
+    /// The viewer's own ranking, best first. Per-viewer like `voted_option`.
+    voted_ranking: Option<Vec<i64>>,
+    /// The instant-runoff count; null on an ordinary poll.
+    runoff: Option<RunoffDto>,
+}
+
+/// An instant-runoff count: each round's tally for the options still
+/// running, and the winner (null for no votes or a tie).
+#[derive(Serialize)]
+pub(crate) struct RunoffDto {
+    rounds: Vec<Vec<RoundCountDto>>,
+    winner: Option<i64>,
+}
+
+#[derive(Serialize)]
+struct RoundCountDto {
+    position: i64,
+    votes: i64,
+}
+
+impl From<Runoff> for RunoffDto {
+    fn from(runoff: Runoff) -> Self {
+        Self {
+            rounds: runoff
+                .rounds
+                .into_iter()
+                .map(|round| {
+                    round
+                        .into_iter()
+                        .map(|(position, votes)| RoundCountDto { position, votes })
+                        .collect()
+                })
+                .collect(),
+            winner: runoff.winner,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -92,6 +131,9 @@ impl From<StorePoll> for PollDto {
             voted_option: poll.voted_option,
             close_at: poll.close_at,
             closed,
+            ranked: poll.ranked,
+            voted_ranking: poll.voted_ranking,
+            runoff: poll.runoff.map(RunoffDto::from),
         }
     }
 }
@@ -162,12 +204,29 @@ struct CreatePollMessageRequest {
     options: Vec<String>,
     /// Unix milliseconds. Omitted or null means the poll never closes.
     close_at: Option<i64>,
+    /// Voters rank the options instead of picking one.
+    #[serde(default)]
+    ranked: bool,
 }
 
+/// Exactly one of the two: `option` on an ordinary poll, `ranking` on a
+/// ranked one.
 #[derive(Deserialize)]
 struct VoteRequest {
     /// Which option, by its 0-based position.
-    option: i64,
+    option: Option<i64>,
+    /// Positions best first; need not rank every option.
+    ranking: Option<Vec<i64>>,
+}
+
+impl VoteRequest {
+    fn ballot(self) -> Result<Ballot, ApiError> {
+        match (self.option, self.ranking) {
+            (Some(option), None) => Ok(Ballot::Single(option)),
+            (None, Some(ranking)) => Ok(Ballot::Ranked(ranking)),
+            _ => Err(ApiError::BadRequest("send either option or ranking")),
+        }
+    }
 }
 
 // --- Handlers ---
@@ -208,6 +267,7 @@ async fn create(
                 question: &req.question,
                 options: &req.options,
                 close_at: req.close_at,
+                ranked: req.ranked,
             },
         )
         .await
@@ -254,6 +314,7 @@ async fn create(
         // Nobody can have voted before this, the poll's own creation.
         let poll_for_event = poll.map(|mut poll| {
             poll.voted_option = None;
+            poll.voted_ranking = None;
             poll
         });
         state.hub.publish(Event::MessageCreated {
@@ -316,16 +377,19 @@ async fn vote(
     let message_id = MessageId(parse_uuid(&message_id)?);
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
 
-    let tally = match state
-        .store
-        .vote_poll(message_id, ctx.user_id, req.option)
-        .await
-    {
-        Ok(tally) => tally,
+    let ballot = req.ballot()?;
+    let outcome = match state.store.vote_poll(message_id, ctx.user_id, ballot).await {
+        Ok(outcome) => outcome,
         Err(VoteError::UnknownPoll) => return Err(ApiError::NotFound("no such poll")),
         Err(VoteError::PollClosed) => return Err(ApiError::Conflict("this poll is closed")),
         Err(VoteError::InvalidOption) => {
             return Err(ApiError::BadRequest("not a valid option for this poll"));
+        }
+        Err(VoteError::WrongBallot { ranked: true }) => {
+            return Err(ApiError::BadRequest("this poll takes a ranking"));
+        }
+        Err(VoteError::WrongBallot { ranked: false }) => {
+            return Err(ApiError::BadRequest("this poll takes a single option"));
         }
         Err(VoteError::Internal(e)) => return Err(e.into()),
     };
@@ -333,7 +397,8 @@ async fn vote(
     state.hub.publish(Event::PollVoted {
         channel_id,
         message_id,
-        options: tally,
+        options: outcome.tally,
+        runoff: outcome.runoff,
     });
     Ok(StatusCode::NO_CONTENT)
 }

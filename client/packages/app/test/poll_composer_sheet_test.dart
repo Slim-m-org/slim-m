@@ -203,4 +203,19 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('ranked choice switches the preview to a ranked ballot', (
+    tester,
+  ) async {
+    await _openSheet(tester);
+    final toggle = find.byWidgetPredicate(
+      (w) => w is AppToggle && w.semanticLabel == 'Ranked choice',
+    );
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(_previewText('Tap options in order of preference.'), findsOneWidget);
+    expect(tester.widget<PollView>(find.byType(PollView)).poll.ranked, isTrue);
+  });
 }

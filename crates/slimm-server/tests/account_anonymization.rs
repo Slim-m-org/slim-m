@@ -204,6 +204,7 @@ async fn delete_account_anonymizes_moderation_and_poll_authorship() {
                 question: "lunch?",
                 options: &["yes".into(), "no".into()],
                 close_at: None,
+                ranked: false,
             },
         )
         .await

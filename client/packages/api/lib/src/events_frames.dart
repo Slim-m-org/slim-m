@@ -142,11 +142,15 @@ class PollVoted extends ServerEvent {
     required this.channelId,
     required this.messageId,
     required this.options,
+    this.runoff,
   });
 
   final String channelId;
   final String messageId;
   final List<PollOptionTally> options;
+
+  /// The refreshed instant-runoff count, on a ranked poll only.
+  final PollRunoff? runoff;
 }
 
 /// One poll option's position and its current public vote count, as

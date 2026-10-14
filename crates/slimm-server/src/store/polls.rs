@@ -19,6 +19,7 @@
 use sqlx::QueryBuilder;
 
 use super::messages::row::{IdProbe, NewRow, insert_message_row, probe_id};
+use super::poll_runoff::{Runoff, instant_runoff};
 use super::{Sent, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 
@@ -37,6 +38,8 @@ pub struct NewPoll<'a> {
     pub options: &'a [String],
     /// Unix milliseconds. `None` means the poll never closes.
     pub close_at: Option<i64>,
+    /// Voters rank the options and the result is an instant runoff.
+    pub ranked: bool,
 }
 
 /// One option within a poll, with its current public tally.
@@ -59,13 +62,36 @@ pub struct Poll {
     /// The position the viewer themselves picked, or `None` if they have not
     /// voted. Per-viewer, exactly like `ReactionSummary::reacted`, and never
     /// broadcast to anyone but the voter: see [`Store::vote_poll`].
+    /// On a ranked poll this is the viewer's first choice.
     pub voted_option: Option<i64>,
+    pub ranked: bool,
+    /// The viewer's own full ranking on a ranked poll, best first. Per-viewer
+    /// for the same reason as `voted_option`.
+    pub voted_ranking: Option<Vec<i64>>,
+    /// The instant-runoff count, on a ranked poll only.
+    pub runoff: Option<Runoff>,
 }
 
 /// The per-option tally after a vote, in option order. This is what the hub
 /// event carries: the whole public tally rather than a delta, and never who
 /// cast which vote, exactly like `ReactionsChanged`.
 pub type PollTally = Vec<(i64, i64)>;
+
+/// What a vote changed, for the hub event: the first-choice tally, plus the
+/// runoff on a ranked poll.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoteOutcome {
+    pub tally: PollTally,
+    pub runoff: Option<Runoff>,
+}
+
+/// A vote as cast: one option on an ordinary poll, or a ranking (best first,
+/// not necessarily every option) on a ranked one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ballot {
+    Single(i64),
+    Ranked(Vec<i64>),
+}
 
 /// Why creating a poll message failed.
 #[derive(Debug)]
@@ -100,8 +126,13 @@ pub enum VoteError {
     /// The poll's `close_at` has passed. Refused server-side, not merely
     /// hidden by the client: a client clock cannot be trusted to enforce it.
     PollClosed,
-    /// `option` is not one of this poll's positions.
+    /// `option` is not one of this poll's positions, or a ranking is empty,
+    /// repeats an option or names one this poll does not have.
     InvalidOption,
+    /// A single option sent to a ranked poll, or a ranking to an ordinary one.
+    WrongBallot {
+        ranked: bool,
+    },
     Internal(anyhow::Error),
 }
 
@@ -132,6 +163,7 @@ impl Store {
             question,
             options,
             close_at,
+            ranked,
         } = poll;
         if options.len() < MIN_OPTIONS || options.len() > MAX_OPTIONS {
             return Err(CreatePollError::InvalidOptionCount);
@@ -179,14 +211,15 @@ impl Store {
         .await?;
 
         sqlx::query!(
-            r#"INSERT INTO polls (message_id, channel_id, question, close_at, created_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)"#,
+            r#"INSERT INTO polls (message_id, channel_id, question, close_at, created_by, created_at, ranked)
+               VALUES (?, ?, ?, ?, ?, ?, ?)"#,
             id,
             channel_id,
             question,
             close_at,
             author_id,
-            now
+            now,
+            ranked
         )
         .execute(&mut *tx)
         .await?;
@@ -212,21 +245,23 @@ impl Store {
 
     /// Casts or changes the caller's vote. A second vote replaces the first:
     /// the primary key on `poll_votes` is `(message_id, user_id)`, so this is
-    /// an upsert rather than a second row ever existing to double-count.
+    /// an upsert rather than a second row ever existing to double-count. A
+    /// ranked ballot stores its first choice there too, and its whole order
+    /// in `poll_rankings`, replaced as one.
     ///
-    /// Returns the fresh per-option tally so the caller can publish it as one
-    /// hub event carrying the whole count rather than a delta.
+    /// Returns the fresh tally (and runoff) so the caller can publish it as
+    /// one hub event carrying the whole count rather than a delta.
     pub async fn vote_poll(
         &self,
         message_id: MessageId,
         user_id: UserId,
-        option: i64,
-    ) -> Result<PollTally, VoteError> {
+        ballot: Ballot,
+    ) -> Result<VoteOutcome, VoteError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
 
         let poll = sqlx::query!(
-            r#"SELECT close_at FROM polls WHERE message_id = ?"#,
+            r#"SELECT close_at, ranked AS "ranked: bool" FROM polls WHERE message_id = ?"#,
             message_id
         )
         .fetch_optional(&mut *tx)
@@ -242,17 +277,22 @@ impl Store {
             return Err(VoteError::PollClosed);
         }
 
-        let option_exists = sqlx::query_scalar!(
-            r#"SELECT 1 AS "one!: i64" FROM poll_options WHERE message_id = ? AND position = ?"#,
-            message_id,
-            option
-        )
-        .fetch_optional(&mut *tx)
-        .await?
-        .is_some();
-        if !option_exists {
-            return Err(VoteError::InvalidOption);
+        let ranking = match (ballot, poll.ranked) {
+            (Ballot::Single(option), false) => vec![option],
+            (Ballot::Ranked(ranking), true) => ranking,
+            (_, ranked) => return Err(VoteError::WrongBallot { ranked }),
+        };
+        let positions = option_positions(&mut *tx, message_id).await?;
+        let mut seen = Vec::with_capacity(ranking.len());
+        for position in &ranking {
+            if !positions.contains(position) || seen.contains(position) {
+                return Err(VoteError::InvalidOption);
+            }
+            seen.push(*position);
         }
+        let Some(&first) = ranking.first() else {
+            return Err(VoteError::InvalidOption);
+        };
 
         sqlx::query!(
             r#"INSERT INTO poll_votes (message_id, user_id, position, voted_at)
@@ -261,15 +301,47 @@ impl Store {
                DO UPDATE SET position = excluded.position, voted_at = excluded.voted_at"#,
             message_id,
             user_id,
-            option,
+            first,
             now
         )
         .execute(&mut *tx)
         .await?;
 
+        if poll.ranked {
+            sqlx::query!(
+                "DELETE FROM poll_rankings WHERE message_id = ? AND user_id = ?",
+                message_id,
+                user_id
+            )
+            .execute(&mut *tx)
+            .await?;
+            for (rank, position) in ranking.iter().enumerate() {
+                let rank = rank as i64;
+                sqlx::query!(
+                    "INSERT INTO poll_rankings (message_id, user_id, rank, position) VALUES (?, ?, ?, ?)",
+                    message_id,
+                    user_id,
+                    rank,
+                    position
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
         let tally = fetch_tally(&mut *tx, message_id).await?;
+        let runoff = if poll.ranked {
+            let ballots = fetch_ballots(&mut *tx, &[message_id])
+                .await?
+                .into_iter()
+                .map(|(_, _, ballot)| ballot)
+                .collect::<Vec<_>>();
+            Some(instant_runoff(&positions, &ballots))
+        } else {
+            None
+        };
         tx.commit().await?;
-        Ok(tally)
+        Ok(VoteOutcome { tally, runoff })
     }
 
     /// A single message's poll, from one viewer's point of view. `None` if the
@@ -302,7 +374,7 @@ impl Store {
         use sqlx::Row;
 
         let mut header_q = QueryBuilder::new(
-            "SELECT message_id, question, close_at, created_by, created_at \
+            "SELECT message_id, question, close_at, created_by, created_at, ranked \
              FROM polls WHERE message_id IN (",
         );
         push_id_list(&mut header_q, message_ids);
@@ -343,6 +415,9 @@ impl Store {
                         created_at: row.try_get("created_at")?,
                         options: Vec::new(),
                         voted_option: None,
+                        ranked: row.try_get("ranked")?,
+                        voted_ranking: None,
+                        runoff: None,
                     },
                 ))
             })
@@ -363,6 +438,30 @@ impl Store {
             let message_id: MessageId = row.try_get("message_id")?;
             if let Some((_, poll)) = polls.iter_mut().find(|(id, _)| *id == message_id) {
                 poll.voted_option = Some(row.try_get("position")?);
+            }
+        }
+
+        let ranked_ids: Vec<MessageId> = polls
+            .iter()
+            .filter(|(_, poll)| poll.ranked)
+            .map(|(id, _)| *id)
+            .collect();
+        if !ranked_ids.is_empty() {
+            let ballots = fetch_ballots(&self.pool, &ranked_ids).await?;
+            for (message_id, poll) in polls.iter_mut().filter(|(_, poll)| poll.ranked) {
+                let mine: Vec<&Vec<i64>> = ballots
+                    .iter()
+                    .filter(|(id, voter, _)| id == message_id && *voter == viewer)
+                    .map(|(_, _, ballot)| ballot)
+                    .collect();
+                poll.voted_ranking = mine.first().map(|ballot| (*ballot).clone());
+                let these: Vec<Vec<i64>> = ballots
+                    .iter()
+                    .filter(|(id, _, _)| id == message_id)
+                    .map(|(_, _, ballot)| ballot.clone())
+                    .collect();
+                let positions: Vec<i64> = poll.options.iter().map(|o| o.position).collect();
+                poll.runoff = Some(instant_runoff(&positions, &these));
             }
         }
 
@@ -397,4 +496,41 @@ async fn fetch_tally(
     .fetch_all(executor)
     .await?;
     Ok(rows.into_iter().map(|r| (r.position, r.votes)).collect())
+}
+
+async fn option_positions(
+    executor: impl sqlx::SqliteExecutor<'_>,
+    message_id: MessageId,
+) -> anyhow::Result<Vec<i64>> {
+    Ok(sqlx::query_scalar!(
+        r#"SELECT position AS "position!: i64" FROM poll_options WHERE message_id = ? ORDER BY position"#,
+        message_id
+    )
+    .fetch_all(executor)
+    .await?)
+}
+
+/// Every ranked ballot on these polls as `(message, voter, ranking)`, each
+/// ranking best first.
+async fn fetch_ballots(
+    executor: impl sqlx::SqliteExecutor<'_>,
+    message_ids: &[MessageId],
+) -> anyhow::Result<Vec<(MessageId, UserId, Vec<i64>)>> {
+    use sqlx::Row;
+    let mut q = QueryBuilder::new(
+        "SELECT message_id, user_id, position FROM poll_rankings WHERE message_id IN (",
+    );
+    push_id_list(&mut q, message_ids);
+    q.push(") ORDER BY message_id, user_id, rank");
+    let mut ballots: Vec<(MessageId, UserId, Vec<i64>)> = Vec::new();
+    for row in q.build().fetch_all(executor).await? {
+        let message_id: MessageId = row.try_get("message_id")?;
+        let user_id: UserId = row.try_get("user_id")?;
+        let position: i64 = row.try_get("position")?;
+        match ballots.last_mut() {
+            Some((m, u, ranking)) if *m == message_id && *u == user_id => ranking.push(position),
+            _ => ballots.push((message_id, user_id, vec![position])),
+        }
+    }
+    Ok(ballots)
 }

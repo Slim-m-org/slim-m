@@ -14,6 +14,7 @@ class MessageRowCallbacks {
     required this.onPickReaction,
     required this.onReactionTap,
     required this.onVote,
+    this.onRank,
     required this.onSubmitEdit,
     required this.onCancelEdit,
     this.onEditFailed,
@@ -42,6 +43,9 @@ class MessageRowCallbacks {
   /// Always required, like every other callback here, even though it is only
   /// ever invoked when there is a poll to vote on.
   final ValueChanged<int> onVote;
+
+  /// Submits a ranking on a ranked poll; null leaves ranked polls read-only.
+  final ValueChanged<List<int>>? onRank;
 
   /// Called with the trimmed new content when an inline edit is saved.
   final ValueChanged<String> onSubmitEdit;

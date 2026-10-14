@@ -166,7 +166,11 @@ class MessageRowColumn extends ConsumerWidget {
         if (extras.poll != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
-            child: PollView(poll: extras.poll!, onVote: callbacks.onVote),
+            child: PollView(
+              poll: extras.poll!,
+              onVote: callbacks.onVote,
+              onRank: callbacks.onRank,
+            ),
           ),
         if (extras.call != null)
           Padding(

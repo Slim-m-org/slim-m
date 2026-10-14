@@ -269,6 +269,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           ),
                           onVote: (m, option) =>
                               unawaited(castVote(ref, m.id, option)),
+                          onRank: (m, ranking) =>
+                              unawaited(castRanking(ref, m.id, ranking)),
                           onSubmitEdit: (m, content) =>
                               _submitEdit(context, ref, m, content),
                           onCancelEdit: () => _cancelEdit(ref),

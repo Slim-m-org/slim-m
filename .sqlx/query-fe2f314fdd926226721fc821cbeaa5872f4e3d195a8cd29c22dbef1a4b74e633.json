@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM poll_rankings WHERE message_id = ? AND user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "fe2f314fdd926226721fc821cbeaa5872f4e3d195a8cd29c22dbef1a4b74e633"
+}

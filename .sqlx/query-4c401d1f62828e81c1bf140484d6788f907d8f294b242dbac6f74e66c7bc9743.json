@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO polls (message_id, channel_id, question, close_at, created_by, created_at, ranked)\n               VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "4c401d1f62828e81c1bf140484d6788f907d8f294b242dbac6f74e66c7bc9743"
+}

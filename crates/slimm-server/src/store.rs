@@ -81,6 +81,7 @@ mod permissions;
 mod permissions_batch;
 mod permissions_resolve;
 mod pins;
+mod poll_runoff;
 mod polls;
 mod presence;
 mod push;
@@ -180,9 +181,10 @@ pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
 pub use permissions::ChannelOverwrite;
 pub use pins::{MAX_PINS_PER_CHANNEL, PinError, PinnedMessage};
+pub use poll_runoff::Runoff;
 pub use polls::{
-    CreatePollError, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_QUESTION_CHARS, MIN_OPTIONS, NewPoll, Poll,
-    PollOption, PollTally, VoteError,
+    Ballot, CreatePollError, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_QUESTION_CHARS, MIN_OPTIONS,
+    NewPoll, Poll, PollOption, PollTally, VoteError, VoteOutcome,
 };
 pub use push::{PushError, PushRegistration, PushTarget};
 pub use reactions::{MAX_EMOJI_BYTES, ReactError, ReactionSummary, ReactorCursor};

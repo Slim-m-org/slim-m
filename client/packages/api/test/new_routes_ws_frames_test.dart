@@ -72,6 +72,56 @@ void main() {
       expect(voted.options.map((o) => o.votes), [4, 1]);
     });
 
+    test('a ranked poll.voted carries its runoff, and a ranked poll reads back',
+        () {
+      final event = ServerEvent.parse(jsonEncode({
+        'type': 'poll.voted',
+        'channel_id': 'c',
+        'message_id': 'm',
+        'options': [
+          {'position': 0, 'votes': 2},
+          {'position': 1, 'votes': 1},
+        ],
+        'runoff': {
+          'rounds': [
+            [
+              {'position': 0, 'votes': 2},
+              {'position': 1, 'votes': 1},
+            ],
+          ],
+          'winner': 0,
+        },
+      }))! as PollVoted;
+      expect(event.runoff?.rounds.single, {0: 2, 1: 1});
+      expect(event.runoff?.winner, 0);
+
+      final poll = Poll.fromJson({
+        'question': 'q',
+        'options': [
+          {'position': 0, 'label': 'a', 'votes': 1},
+          {'position': 1, 'label': 'b', 'votes': 0},
+        ],
+        'total_votes': 1,
+        'voted_option': 0,
+        'close_at': null,
+        'closed': false,
+        'ranked': true,
+        'voted_ranking': [0, 1],
+        'runoff': {'rounds': <Object>[], 'winner': null},
+      });
+      expect(poll.ranked, isTrue);
+      expect(poll.votedRanking, [0, 1]);
+      expect(poll.runoff?.rounds, isEmpty);
+      final older = Poll.fromJson({
+        'question': 'q',
+        'options': <Object>[],
+        'total_votes': 0,
+        'closed': false,
+      });
+      expect(older.ranked, isFalse,
+          reason: 'a server older than ranked polls omits it');
+    });
+
     test('presence.changed decodes a known status', () {
       final event = ServerEvent.parse(jsonEncode({
         'type': 'presence.changed',

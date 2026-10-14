@@ -398,6 +398,7 @@ extension SlimmApiMessages on SlimmApi {
     required List<String> options,
     String? content,
     int? closeAt,
+    bool ranked = false,
   }) async {
     final json = await _send(
       'POST',
@@ -408,6 +409,7 @@ extension SlimmApiMessages on SlimmApi {
         'options': options,
         if (content != null) 'content': content,
         if (closeAt != null) 'close_at': closeAt,
+        if (ranked) 'ranked': true,
       },
     );
     return Message.fromJson(json as Map<String, dynamic>);
@@ -441,12 +443,20 @@ extension SlimmApiMessages on SlimmApi {
   /// Casts or changes the caller's vote on a message's poll: one vote per
   /// user, so a second call replaces the first rather than adding to it.
   /// Requires viewing the channel plus SEND_MESSAGES there, and is refused
-  /// once the poll's close time has passed.
-  Future<void> votePoll({required String messageId, required int option}) =>
+  /// once the poll's close time has passed. Pass [option] on an ordinary
+  /// poll and [ranking] (positions best first) on a ranked one.
+  Future<void> votePoll({
+    required String messageId,
+    int? option,
+    List<int>? ranking,
+  }) =>
       _send(
         'PUT',
         '/messages/$messageId/polls/vote',
-        body: {'option': option},
+        body: {
+          if (option != null) 'option': option,
+          if (ranking != null) 'ranking': ranking,
+        },
         expectNoContent: true,
       );
 }
