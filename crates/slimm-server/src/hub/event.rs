@@ -86,6 +86,8 @@ pub enum Event {
         channel_id: ChannelId,
         message_id: MessageId,
         options: Vec<(i64, i64)>,
+        /// The instant-runoff count, on a ranked poll only.
+        runoff: Option<crate::store::Runoff>,
     },
     /// A bot replaced or cleared the buttons on its message. Carries the whole
     /// list, like `PollVoted`, so a client that missed a frame cannot drift.

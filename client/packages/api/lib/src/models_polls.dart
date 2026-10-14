@@ -15,6 +15,9 @@ class Poll {
     required this.votedOption,
     required this.closeAt,
     required this.closed,
+    this.ranked = false,
+    this.votedRanking,
+    this.runoff,
   });
 
   final String question;
@@ -36,6 +39,34 @@ class Poll {
   /// to be.
   final bool closed;
 
+  /// Voters rank the options; [options] votes and [votedOption] are then
+  /// first choices, and [runoff] carries the result.
+  final bool ranked;
+
+  /// The calling user's own ranking, best first, on a ranked poll.
+  final List<int>? votedRanking;
+
+  final PollRunoff? runoff;
+
+  Poll copyWith({
+    List<PollOption>? options,
+    int? totalVotes,
+    int? votedOption,
+    List<int>? votedRanking,
+    PollRunoff? runoff,
+  }) =>
+      Poll(
+        question: question,
+        options: options ?? this.options,
+        totalVotes: totalVotes ?? this.totalVotes,
+        votedOption: votedOption ?? this.votedOption,
+        closeAt: closeAt,
+        closed: closed,
+        ranked: ranked,
+        votedRanking: votedRanking ?? this.votedRanking,
+        runoff: runoff ?? this.runoff,
+      );
+
   factory Poll.fromJson(Map<String, dynamic> json) => Poll(
         question: json['question'] as String,
         options: (json['options'] as List<dynamic>)
@@ -45,6 +76,37 @@ class Poll {
         votedOption: json['voted_option'] as int?,
         closeAt: json['close_at'] as int?,
         closed: json['closed'] as bool,
+        ranked: json['ranked'] as bool? ?? false,
+        votedRanking: (json['voted_ranking'] as List<dynamic>?)
+            ?.map((p) => p as int)
+            .toList(growable: false),
+        runoff: json['runoff'] is Map<String, dynamic>
+            ? PollRunoff.fromJson(json['runoff'] as Map<String, dynamic>)
+            : null,
+      );
+}
+
+/// An instant-runoff count. Each round counts every ballot for its best
+/// option still running; an option with more than half wins, otherwise
+/// every option tied for fewest drops. [winner] is null for no votes or a
+/// tie.
+class PollRunoff {
+  const PollRunoff({required this.rounds, required this.winner});
+
+  /// Each round's votes by option position, for the options still running.
+  final List<Map<int, int>> rounds;
+  final int? winner;
+
+  factory PollRunoff.fromJson(Map<String, dynamic> json) => PollRunoff(
+        rounds: [
+          for (final round in json['rounds'] as List<dynamic>)
+            {
+              for (final count
+                  in (round as List<dynamic>).cast<Map<String, dynamic>>())
+                count['position'] as int: count['votes'] as int,
+            },
+        ],
+        winner: json['winner'] as int?,
       );
 }
 

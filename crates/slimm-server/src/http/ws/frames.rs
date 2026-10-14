@@ -91,6 +91,8 @@ pub(super) enum ServerFrame {
         channel_id: String,
         message_id: String,
         options: Vec<PollOptionCountDto>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        runoff: Option<super::super::polls::RunoffDto>,
     },
     #[serde(rename = "message.components")]
     MessageComponentsChanged {

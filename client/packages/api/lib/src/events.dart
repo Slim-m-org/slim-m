@@ -122,6 +122,9 @@ sealed class ServerEvent {
           options: (decoded['options'] as List<dynamic>)
               .map((o) => PollOptionTally.fromJson(o as Map<String, dynamic>))
               .toList(growable: false),
+          runoff: decoded['runoff'] is Map<String, dynamic>
+              ? PollRunoff.fromJson(decoded['runoff'] as Map<String, dynamic>)
+              : null,
         ),
       'presence.changed'
           when decoded['user_id'] is String &&

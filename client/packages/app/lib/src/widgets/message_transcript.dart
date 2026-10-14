@@ -69,6 +69,7 @@ class MessageTranscript extends StatefulWidget {
     required this.onPickReaction,
     required this.onReactionTap,
     required this.onVote,
+    this.onRank,
     required this.onSubmitEdit,
     required this.onCancelEdit,
     required this.onJumpToReply,
@@ -145,6 +146,7 @@ class MessageTranscript extends StatefulWidget {
   final void Function(Message message, api.ReactionSummary reaction)
   onReactionTap;
   final void Function(Message message, int option) onVote;
+  final void Function(Message message, List<int> ranking)? onRank;
   final void Function(Message message, String content) onSubmitEdit;
   final VoidCallback onCancelEdit;
 
@@ -441,6 +443,9 @@ class _MessageTranscriptState extends State<MessageTranscript> {
                     onReactionTap: (reaction) =>
                         widget.onReactionTap(message, reaction),
                     onVote: (option) => widget.onVote(message, option),
+                    onRank: widget.onRank == null
+                        ? null
+                        : (ranking) => widget.onRank!(message, ranking),
                     onSubmitEdit: (content) =>
                         widget.onSubmitEdit(message, content),
                     onCancelEdit: widget.onCancelEdit,

@@ -14,7 +14,7 @@ mod support;
 
 use slimm_server::ids::MessageId;
 use slimm_server::notifications::NotificationPreference;
-use slimm_server::store::{NewMessage, Store};
+use slimm_server::store::{Ballot, NewMessage, Store};
 use sqlx::Row;
 
 async fn new_store() -> (Store, sqlx::SqlitePool, support::TestDbGuard) {
@@ -68,11 +68,15 @@ async fn deleting_an_account_takes_its_poll_votes() {
                 question: "lunch?",
                 options: &["yes".into(), "no".into()],
                 close_at: None,
+                ranked: false,
             },
         )
         .await
         .unwrap();
-    store.vote_poll(poll_message, voter.id, 0).await.unwrap();
+    store
+        .vote_poll(poll_message, voter.id, Ballot::Single(0))
+        .await
+        .unwrap();
     assert_eq!(
         count(
             &pool,
