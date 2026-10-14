@@ -10,11 +10,14 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../audio/lounge_tracks.dart';
+
 import 'providers.dart';
 import 'voice_controller.dart';
 
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
 const _holdMusicKey = 'slimm.voice.hold_music_enabled';
+const _holdMusicTrackKey = 'slimm.voice.hold_music_track';
 const _callRingSoundKey = 'slimm.voice.call_ring_sound_enabled';
 const _qualityKey = 'slimm.voice.screen_share_quality';
 const _cameraOnJoinKey = 'slimm.voice.camera_on_join';
@@ -22,6 +25,7 @@ const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
 const _inputThresholdKey = 'slimm.voice.input_threshold_db';
+const _inputThresholdAutoKey = 'slimm.voice.input_threshold_auto';
 const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
@@ -29,16 +33,6 @@ const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
 const _audioInputDeviceIdKey = 'slimm.voice.audio_input_device_id';
 const _audioOutputDeviceIdKey = 'slimm.voice.audio_output_device_id';
-
-/// The push-to-talk key options offered in Voice settings: plain letters,
-/// so each is reachable while typing - the composer-focus guard is what
-/// keeps that safe, not the choice of key. `V` for voice is the default.
-const pushToTalkKeyOptions = [
-  LogicalKeyboardKey.keyV,
-  LogicalKeyboardKey.keyC,
-  LogicalKeyboardKey.keyX,
-  LogicalKeyboardKey.keyZ,
-];
 
 /// The persisted "join calls with your camera on" preference, read here
 /// (where every other voice preference's storage key already lives) for
@@ -64,6 +58,13 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
 Future<double> loadInputThreshold(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb;
+}
+
+/// Whether the gate threshold follows the room's noise floor, off until
+/// chosen: `restoreInputThreshold` has to know before the first call.
+Future<bool> loadInputThresholdAuto(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getBool(_inputThresholdAutoKey) ?? false;
 }
 
 /// Whether the microphone's compressor and limiter run, for
@@ -138,6 +139,7 @@ class VoiceSettingsState {
     this.joinLeaveSoundsEnabled = true,
     this.callRingSoundEnabled = true,
     this.holdMusicEnabled = false,
+    this.holdMusicTrack = LoungeTrack.lofi,
     this.screenShareQuality = ScreenShareQuality.standard,
     this.receiveVideoQuality = ReceiveVideoQuality.auto,
     this.cameraQuality = CameraQuality.balanced,
@@ -146,6 +148,7 @@ class VoiceSettingsState {
     this.pushToTalkKey = LogicalKeyboardKey.keyV,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
+    this.inputThresholdAuto = false,
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.pauseVideoWhenUnfocused = true,
@@ -163,6 +166,9 @@ class VoiceSettingsState {
 
   /// Soft local music while you are the only one in a call. Off by default (owner decision 2026-09-28).
   final bool holdMusicEnabled;
+
+  /// Which style plays while you are alone.
+  final LoungeTrack holdMusicTrack;
   final ScreenShareQuality screenShareQuality;
 
   /// How sharp the video you watch is; see [ReceiveVideoQuality].
@@ -180,7 +186,7 @@ class VoiceSettingsState {
   /// only - keyboard focus semantics make "held" meaningless on touch.
   final bool pushToTalkEnabled;
 
-  /// One of [pushToTalkKeyOptions]. Held while typing (a screen-reader user
+  /// Any single key the person picked. Held while typing (a screen-reader user
   /// or anyone drafting a message may well type it), so what actually keeps
   /// this safe is the composer-focus guard, not this being a rare key.
   final LogicalKeyboardKey pushToTalkKey;
@@ -195,6 +201,10 @@ class VoiceSettingsState {
   /// Microphone audio quieter than this, in dBFS, is not sent; see
   /// `InputGateMonitor` in the rtc package.
   final double inputThresholdDb;
+
+  /// Whether the threshold follows the room's noise floor instead of
+  /// [inputThresholdDb].
+  final bool inputThresholdAuto;
 
   /// Whether shouts are softened and sudden peaks capped before sending.
   final bool evenOutLoudSounds;
@@ -223,6 +233,7 @@ class VoiceSettingsState {
     bool? joinLeaveSoundsEnabled,
     bool? callRingSoundEnabled,
     bool? holdMusicEnabled,
+    LoungeTrack? holdMusicTrack,
     ScreenShareQuality? screenShareQuality,
     ReceiveVideoQuality? receiveVideoQuality,
     CameraQuality? cameraQuality,
@@ -231,6 +242,7 @@ class VoiceSettingsState {
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
     double? inputThresholdDb,
+    bool? inputThresholdAuto,
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? pauseVideoWhenUnfocused,
@@ -243,6 +255,7 @@ class VoiceSettingsState {
         joinLeaveSoundsEnabled ?? this.joinLeaveSoundsEnabled,
     callRingSoundEnabled: callRingSoundEnabled ?? this.callRingSoundEnabled,
     holdMusicEnabled: holdMusicEnabled ?? this.holdMusicEnabled,
+    holdMusicTrack: holdMusicTrack ?? this.holdMusicTrack,
     screenShareQuality: screenShareQuality ?? this.screenShareQuality,
     receiveVideoQuality: receiveVideoQuality ?? this.receiveVideoQuality,
     cameraQuality: cameraQuality ?? this.cameraQuality,
@@ -252,6 +265,7 @@ class VoiceSettingsState {
     voiceActivitySensitivity:
         voiceActivitySensitivity ?? this.voiceActivitySensitivity,
     inputThresholdDb: inputThresholdDb ?? this.inputThresholdDb,
+    inputThresholdAuto: inputThresholdAuto ?? this.inputThresholdAuto,
     evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
@@ -281,6 +295,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       joinLeaveSoundsEnabled: prefs.getBool(_soundsKey) ?? true,
       callRingSoundEnabled: prefs.getBool(_callRingSoundKey) ?? true,
       holdMusicEnabled: prefs.getBool(_holdMusicKey) ?? false,
+      holdMusicTrack: LoungeTrack.fromName(prefs.getString(_holdMusicTrackKey)),
       screenShareQuality: screenShareQualityFromStored(storedQuality),
       receiveVideoQuality: _byName(
         ReceiveVideoQuality.values,
@@ -294,12 +309,15 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       ),
       cameraOnJoin: prefs.getBool(_cameraOnJoinKey) ?? false,
       pushToTalkEnabled: prefs.getBool(_pushToTalkEnabledKey) ?? false,
-      pushToTalkKey: pushToTalkKeyOptions
-          .where((k) => k.keyId == storedKeyId)
-          .firstOrDefault(LogicalKeyboardKey.keyV),
+      // Any key a person picked; `V` for voice until they pick one.
+      pushToTalkKey: storedKeyId == null
+          ? LogicalKeyboardKey.keyV
+          : LogicalKeyboardKey.findKeyByKeyId(storedKeyId) ??
+                LogicalKeyboardKey.keyV,
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
       inputThresholdDb:
           prefs.getDouble(_inputThresholdKey) ?? kDefaultInputThresholdDb,
+      inputThresholdAuto: prefs.getBool(_inputThresholdAutoKey) ?? false,
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
@@ -324,6 +342,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(holdMusicEnabled: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_holdMusicKey, enabled);
+  }
+
+  /// Persists the style that plays while you are alone.
+  Future<void> setHoldMusicTrack(LoungeTrack track) async {
+    state = state.copyWith(holdMusicTrack: track);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(_holdMusicTrackKey, track.name);
   }
 
   Future<void> setScreenShareResolution(ScreenShareResolution r) =>
@@ -461,6 +486,17 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     _ref.read(voiceControllerProvider.notifier).setInputThreshold(clamped);
   }
 
+  /// Turning it off keeps wherever the threshold had got to as the manual one.
+  Future<void> setInputThresholdAuto(bool enabled) async {
+    final voice = _ref.read(voiceControllerProvider.notifier);
+    final kept = enabled ? null : voice.inputThresholdDb;
+    state = state.copyWith(inputThresholdAuto: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_inputThresholdAutoKey, enabled);
+    if (kept != null) await setInputThreshold(kept);
+    voice.setInputThresholdAuto(enabled);
+  }
+
   /// Persists the compressor and limiter choice and applies it live.
   Future<void> setEvenOutLoudSounds(bool enabled) async {
     state = state.copyWith(evenOutLoudSounds: enabled);
@@ -468,10 +504,6 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setBool(_evenOutLoudKey, enabled);
     _ref.read(voiceControllerProvider.notifier).setEvenOutLoudSounds(enabled);
   }
-}
-
-extension _FirstOrDefault<T> on Iterable<T> {
-  T firstOrDefault(T fallback) => isEmpty ? fallback : first;
 }
 
 final voiceSettingsControllerProvider =

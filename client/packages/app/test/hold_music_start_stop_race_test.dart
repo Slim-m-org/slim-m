@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A stop that lands while the first loop is still rendering must win.
+/// A stop that lands while a track is still opening must win, and a style
+/// change while playing switches the music live.
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
+import 'package:slimm_app/src/audio/lounge_tracks.dart';
 
 class _Output implements HoldLoopOutput {
   final calls = <String>[];
+  Completer<void>? gate;
 
   @override
-  Future<void> play(Uint8List wav) async => calls.add('play');
+  Future<void> play(String asset) async {
+    calls.add('play $asset');
+    await gate?.future;
+  }
+
   @override
   Future<void> stop() async => calls.add('stop');
   @override
@@ -20,33 +26,46 @@ class _Output implements HoldLoopOutput {
 }
 
 void main() {
-  test('stop during the first render means the loop never starts', () async {
-    final render = Completer<Uint8List>();
-    final output = _Output();
-    final player = AudioPlayersHoldMusicPlayer(
-      render: () => render.future,
-      output: output,
-    );
+  test('a stop while the track is opening silences it again', () async {
+    final output = _Output()..gate = Completer<void>();
+    final player = AudioPlayersHoldMusicPlayer(output: output);
 
     final started = player.start();
     await player.stop();
-    render.complete(Uint8List(4));
+    output.gate!.complete();
     await started;
 
-    expect(output.calls, isNot(contains('play')));
+    expect(output.calls.last, 'stop');
   });
 
   test('start after a stop still plays', () async {
     final output = _Output();
-    final player = AudioPlayersHoldMusicPlayer(
-      render: () async => Uint8List(4),
-      output: output,
-    );
+    final player = AudioPlayersHoldMusicPlayer(output: output);
 
     await player.start();
     await player.stop();
     await player.start();
 
-    expect(output.calls.where((c) => c == 'play'), hasLength(2));
+    expect(output.calls.where((c) => c.startsWith('play')), hasLength(2));
+  });
+
+  test('a new style plays straight away while music is on', () async {
+    final output = _Output();
+    final player = AudioPlayersHoldMusicPlayer(output: output);
+
+    await player.start();
+    await player.setTrack(LoungeTrack.jazz);
+
+    expect(output.calls.last, 'play ${LoungeTrack.jazz.asset}');
+  });
+
+  test('a new style while stopped waits for the next start', () async {
+    final output = _Output();
+    final player = AudioPlayersHoldMusicPlayer(output: output);
+
+    await player.setTrack(LoungeTrack.ambient);
+    expect(output.calls, isEmpty);
+    await player.start();
+    expect(output.calls.single, 'play ${LoungeTrack.ambient.asset}');
   });
 }

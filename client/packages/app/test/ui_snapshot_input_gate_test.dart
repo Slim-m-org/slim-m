@@ -27,61 +27,69 @@ void main() {
   const sizes = {'phone': Size(390, 900), 'desktop': Size(900, 700)};
   for (final theme in const ['dark', 'light']) {
     for (final entry in sizes.entries) {
-      testWidgets('input gate meter at ${entry.key} ($theme)', (tester) async {
-        tester.view.physicalSize = entry.value;
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.reset);
-        final session = FakeSession(supportsInputGate: true);
-        final container = ProviderContainer(
-          overrides: [
-            keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-            sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: voiceTokenClient(),
-              );
-              ref.onDispose(api.close);
-              return api;
-            }),
-            voiceControllerProvider.overrideWith(
-              (ref) => VoiceController(ref, session: session),
-            ),
-          ],
-        )..read(preferencesProvider);
-        addTearDown(container.dispose);
-        final dark = theme == 'dark';
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: RepaintBoundary(
-              key: snapshotBoundary,
-              child: MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: dark
-                    ? buildTheme(Brightness.dark, AppTokens.dark)
-                    : buildTheme(Brightness.light, AppTokens.light),
-                home: const Scaffold(
-                  body: SingleChildScrollView(child: VoiceSettingsBody()),
+      for (final auto in const [false, true]) {
+        final label = auto ? 'auto' : 'manual';
+        testWidgets('input gate $label meter at ${entry.key} ($theme)', (
+          tester,
+        ) async {
+          SharedPreferences.setMockInitialValues({
+            'slimm.voice.input_threshold_auto': auto,
+          });
+          tester.view.physicalSize = entry.value;
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.reset);
+          final session = FakeSession(supportsInputGate: true);
+          final container = ProviderContainer(
+            overrides: [
+              keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+              sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
+              apiProvider.overrideWith((ref) {
+                final api = SlimmApi(
+                  baseUrl: Uri.parse('http://localhost:8080'),
+                  session: ref.watch(sessionProvider),
+                  httpClient: voiceTokenClient(),
+                );
+                ref.onDispose(api.close);
+                return api;
+              }),
+              voiceControllerProvider.overrideWith(
+                (ref) => VoiceController(ref, session: session),
+              ),
+            ],
+          )..read(preferencesProvider);
+          addTearDown(container.dispose);
+          final dark = theme == 'dark';
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: RepaintBoundary(
+                key: snapshotBoundary,
+                child: MaterialApp(
+                  debugShowCheckedModeBanner: false,
+                  theme: dark
+                      ? buildTheme(Brightness.dark, AppTokens.dark)
+                      : buildTheme(Brightness.light, AppTokens.light),
+                  home: const Scaffold(
+                    body: SingleChildScrollView(child: VoiceSettingsBody()),
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        final controller = container.read(voiceControllerProvider.notifier);
-        await controller.join('channel-1');
-        await tester.pumpAndSettle();
-        session.inputGateController.add(
-          const InputGateReading(levelDb: -28, voice: true),
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('Input sensitivity'), findsOneWidget);
-        await writeSnapshot(tester, 'input-gate-${entry.key}-$theme');
-        expect(tester.takeException(), isNull);
-        await controller.leave();
-      });
+          );
+          await tester.pumpAndSettle();
+          final controller = container.read(voiceControllerProvider.notifier);
+          await controller.join('channel-1');
+          await tester.pumpAndSettle();
+          session.inputGateController.add(
+            const InputGateReading(levelDb: -28, voice: true),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('Input sensitivity'), findsOneWidget);
+          await writeSnapshot(tester, 'input-gate-$label-${entry.key}-$theme');
+          expect(tester.takeException(), isNull);
+          await controller.leave();
+        });
+      }
     }
   }
 }

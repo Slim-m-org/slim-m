@@ -162,6 +162,16 @@ extension SlimmApiSpace on SlimmApi {
     return (json as Map<String, dynamic>)['retention_days'] as int;
   }
 
+  /// How many live messages a retention window of [days] would prune now.
+  Future<int> previewSpaceMessageRetention(int days) async {
+    final json = await _send(
+      'GET',
+      '/space/retention/preview',
+      query: {'days': '$days'},
+    );
+    return (json as Map<String, dynamic>)['messages'] as int;
+  }
+
   Future<int> spaceCanvasObjectCap() async {
     final json = await _send('GET', '/space/canvas-cap');
     return (json as Map<String, dynamic>)['object_cap'] as int;

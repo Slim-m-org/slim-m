@@ -26,7 +26,7 @@ const _screenShareCapOptions = <(String, int)>[
   ('720p', 720),
   ('1080p', 1080),
   ('1440p', 1440),
-  ('Source', 2160),
+  ('2160p', 2160),
 ];
 
 /// What choosing [maxHeight] actually bounds: this setting scales the

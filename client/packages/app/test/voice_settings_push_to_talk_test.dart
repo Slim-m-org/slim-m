@@ -87,12 +87,14 @@ void main() {
     await tester.tap(pttToggle);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('C'),
+      find.text('Change'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('C'));
+    await tester.tap(find.text('Change'));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
@@ -133,13 +135,9 @@ void main() {
         isTrue,
       );
 
-      final keyPicker = find.byWidgetPredicate(
-        (w) =>
-            w is AppSegmentedControl && w.semanticLabel == 'Push-to-talk key',
-      );
-      expect(keyPicker, findsOneWidget);
-      final pickerNode = tester.getSemantics(keyPicker);
-      expect(pickerNode.label, contains('Push-to-talk key'));
+      final keyCap = find.bySemanticsLabel(RegExp('Push-to-talk key: V'));
+      expect(keyCap, findsOneWidget);
+      expect(find.text('Change'), findsOneWidget);
 
       semantics.dispose();
     },

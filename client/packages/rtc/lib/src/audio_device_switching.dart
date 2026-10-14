@@ -9,10 +9,19 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'audio_devices.dart';
 import 'voice_models.dart';
 
+/// Points a live [lk.Room]'s capture at [device]. A seam so tests can see
+/// what a mid-call pick sends without a native audio stack.
+typedef LiveInputSwitch = Future<void> Function(
+  lk.Room room,
+  lk.MediaDevice device,
+);
+
 class AudioDeviceSwitching {
-  AudioDeviceSwitching(this._devices);
+  AudioDeviceSwitching(this._devices, {LiveInputSwitch? liveInput})
+      : _liveInput = liveInput ?? switchLiveInput;
 
   final AudioDevices _devices;
+  final LiveInputSwitch _liveInput;
 
   String? _preferredInputId;
   String? _preferredOutputId;
@@ -65,7 +74,23 @@ class AudioDeviceSwitching {
     if (room == null || !supportsInputSelection) return;
     final target = device ?? await _firstOf(_devices.inputs);
     if (target == null) return;
-    await room.setAudioInputDevice(_asMediaDevice(target, 'audioinput'));
+    await _liveInput(room, _asMediaDevice(target, 'audioinput'));
+  }
+
+  /// `Room.setAudioInputDevice` only sets the native recording device and the
+  /// room default on desktop, so the published track kept its own old
+  /// `deviceId`: it went on capturing the previous microphone, and any later
+  /// restart (unmute, push-to-talk) re-opened that one.
+  static Future<void> switchLiveInput(
+    lk.Room room,
+    lk.MediaDevice device,
+  ) async {
+    await room.setAudioInputDevice(device);
+    for (final publication
+        in room.localParticipant?.audioTrackPublications ?? const []) {
+      final track = publication.track;
+      if (track is lk.LocalAudioTrack) await track.setDeviceId(device.deviceId);
+    }
   }
 
   /// [selectInput]'s counterpart for output.

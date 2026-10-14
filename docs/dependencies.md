@@ -132,9 +132,9 @@ On Android it is configured to request no audio focus at all (`AndroidAudioFocus
 A single `AudioPlayer` instance handles every chime (`AudioPlayersSoundPlayer`), stopped and restarted on each `play()` call rather than pooled, since overlap is rare and briefly cutting one chime short for the next is not a defect worth the complexity of a pool.
 Playback goes through a `SoundPlayer` seam so a test never touches a real audio device; see `notification_sound_message_test.dart`, `notification_sound_roster_test.dart` and `notification_sound_call_ring_test.dart` for the fakes.
 The alone-in-a-call hold music (`hold_music_player.dart`) reuses the same package and the same no-audio-focus configuration.
-Its loop is synthesised at play time from `scene_synth.dart`'s bell voice, so it ships no third-party audio and has no licence to record.
+It plays one of four bundled CC0 tracks (`assets/audio/music/`, credited in its `CREDITS.md`), as MP3 because `audioplayers` on Windows and iOS cannot decode OGG.
 It goes to the device's own player and is never published to the room.
-`audioplayers` has no output-device selection, so the loop plays on the system default output rather than the speaker chosen in Voice settings.
+`audioplayers` has no output-device selection, so the music plays on the system default output rather than the speaker chosen in Voice settings.
 
 ### No charting package, for the Space analytics screen
 

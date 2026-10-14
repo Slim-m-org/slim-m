@@ -109,7 +109,7 @@ void main() {
 
       // The device card's rows share one merged ancestor, so ask by name.
       final node = tester.getSemantics(
-        find.bySemanticsLabel('Join calls with your camera on'),
+        find.bySemanticsLabel(RegExp('Join calls with your camera on')),
       );
       expect(node.label, contains('Join calls with your camera on'));
       expect(

@@ -95,6 +95,24 @@ bool retentionDeletesHistory({required int from, required int to}) =>
 String retentionCutoff(int days) =>
     _dateOnly(DateTime.now().millisecondsSinceEpoch - days * _dayMs);
 
+/// The confirmation's body: how many messages go, and when. The sweep runs
+/// every few hours, so nothing is deleted the instant this is saved.
+String retentionConfirmMessage(int days, int? count) {
+  final when =
+      'within the next few hours, for everyone. This cannot be undone.';
+  if (count == null) {
+    return 'Messages and attachments from before ${retentionCutoff(days)} '
+        'are deleted $when';
+  }
+  if (count == 0) {
+    return 'No messages are older than $days days yet. From now on, messages '
+        'are deleted once they are $days days old.';
+  }
+  final noun = count == 1 ? 'message' : 'messages';
+  return '$count $noun from before ${retentionCutoff(days)}, and their '
+      'attachments, will be deleted $when';
+}
+
 /// What choosing [days] actually does, grounded in `message_retention.rs`'s
 /// own doc: a prune is a soft delete that leaves message text in place (it is
 /// small next to attachment bytes) and only reclaims attachments no longer
@@ -143,13 +161,13 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
         OptimisticSettingState<_RetentionSection, int> {
   Future<void> _setDays(int days, {required int current}) async {
     if (retentionDeletesHistory(from: current, to: days)) {
+      final count = await _previewCount(days);
+      if (!mounted) return;
       final confirmed = await confirmDangerousAction(
         context,
         title: 'Delete messages older than $days days?',
-        message:
-            'Messages and attachments from before ${retentionCutoff(days)} '
-            'are removed for everyone. This cannot be undone.',
-        confirmLabel: 'Delete old messages',
+        message: retentionConfirmMessage(days, count),
+        confirmLabel: count == 0 ? 'Set to $days days' : 'Delete old messages',
       );
       if (!confirmed || !mounted) return;
     }
@@ -159,6 +177,15 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
       action: () => ref.read(apiProvider).setSpaceMessageRetentionDays(days),
       refresh: spaceRetentionProvider,
     );
+  }
+
+  /// Null when the count could not be read; the dialog still warns, without it.
+  Future<int?> _previewCount(int days) async {
+    try {
+      return await ref.read(apiProvider).previewSpaceMessageRetention(days);
+    } on api.ApiException {
+      return null;
+    }
   }
 
   @override

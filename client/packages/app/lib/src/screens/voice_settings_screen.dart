@@ -8,7 +8,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
@@ -19,10 +18,12 @@ import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
-import '../widgets/media_capability_section.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
+import '../audio/lounge_tracks.dart';
+import '../widgets/push_to_talk_key_row.dart';
+import '../widgets/settings_select_row.dart';
 import '../widgets/settings_toggle_row.dart';
 
 /// Everything about a call this device controls, as a pane body.
@@ -93,7 +94,6 @@ class _PushToTalkSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (!isDesktopHost) return const SizedBox.shrink();
     final settings = ref.watch(voiceSettingsControllerProvider);
-    final index = pushToTalkKeyOptions.indexOf(settings.pushToTalkKey);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,23 +109,16 @@ class _PushToTalkSection extends ConsumerWidget {
         ),
         if (settings.pushToTalkEnabled) ...[
           const SizedBox(height: AppSpacing.s8),
-          AppSegmentedControl.inline(
-            semanticLabel: 'Push-to-talk key',
-            options: [
-              for (final key in pushToTalkKeyOptions)
-                AppSegmentedOption(label: _keyLabel(key)),
-            ],
-            selectedIndex: index < 0 ? 0 : index,
-            onSegmentSelected: (i) => ref
+          PushToTalkKeyRow(
+            current: settings.pushToTalkKey,
+            onChanged: (key) => ref
                 .read(voiceSettingsControllerProvider.notifier)
-                .setPushToTalkKey(pushToTalkKeyOptions[i]),
+                .setPushToTalkKey(key),
           ),
         ],
       ],
     );
   }
-
-  static String _keyLabel(LogicalKeyboardKey key) => key.keyLabel;
 }
 
 /// A live level for the local microphone, sourced from the one real signal
@@ -162,6 +155,8 @@ class _MicrophoneSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const InputSensitivityMeter(),
+          const SizedBox(height: AppSpacing.s8),
+          const AutoSensitivityToggle(),
           if (!inCall) ...[
             const SizedBox(height: AppSpacing.s8),
             const AppCallout(
@@ -234,8 +229,6 @@ class _DevicesSection extends StatelessWidget {
         AudioDeviceSection(embedded: true),
         SizedBox(height: AppSpacing.s8),
         CameraOnJoinSection(embedded: true),
-        SizedBox(height: AppSpacing.s8),
-        MediaCapabilitySection(embedded: true),
       ],
     );
   }
@@ -279,6 +272,22 @@ class _SoundsSection extends ConsumerWidget {
               .read(voiceSettingsControllerProvider.notifier)
               .setHoldMusicEnabled(value),
         ),
+        if (settings.holdMusicEnabled)
+          SettingsSelectRow<LoungeTrack>(
+            label: 'Music style',
+            value: settings.holdMusicTrack,
+            sheetTitle: 'Music style',
+            choices: [
+              for (final track in LoungeTrack.values)
+                SettingsChoice(
+                  value: track,
+                  label: '${track.style} - ${track.title}',
+                ),
+            ],
+            onChanged: (track) => ref
+                .read(voiceSettingsControllerProvider.notifier)
+                .setHoldMusicTrack(track),
+          ),
       ],
     );
   }

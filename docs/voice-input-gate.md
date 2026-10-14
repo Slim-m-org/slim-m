@@ -65,6 +65,24 @@ It adds about 1.4 MB to the desktop plugin.
 Voice settings offers "Space default", "Standard" and "Strong" (`slimm.voice.noise_suppression`).
 "Space default" follows `space_settings.strong_noise_suppression` (migration 0109), which a server manager sets on the Retention and limits pane and every client reads from `/version`; it is off unless an admin turns it on, and a call rereads it when it starts.
 
+## Automatic sensitivity
+
+Owner, 2026-10-14: "option to automatically determine input sensitivity".
+
+"Automatic sensitivity" in Voice settings (`slimm.voice.input_threshold_auto`, off by default) hands the threshold to `NoiseFloorEstimator` in `slimm_rtc`.
+It reads the same 50 ms level readings as the meter, takes the 20th percentile of the last 12 s as the noise floor (speech is the loud minority, so it never lifts it), and keeps the threshold 12 dB above that, clamped to -60 to -38 dBFS.
+It rises at most 3 dB a second and falls at most 1 dB a second, ignores digital silence (a muted device), and waits for 3 s of readings before moving off the manual value.
+The slider then shows where the threshold is but cannot be dragged; turning Automatic off keeps the last value as the manual one.
+It is off by default because the estimator has only been checked on synthetic levels, and an existing user who never touched the slider cannot be told from a new one.
+
+## Choosing a microphone
+
+The picker stores the device id (the PulseAudio/PipeWire source name) in `slimm.voice.audio_input_device_id`.
+A join passes it as `sourceId`, and the fork's `GetUserAudio` maps it to an ADM index and calls `SetRecordingDevice`.
+A change mid-call went through livekit_client's `Room.setAudioInputDevice`, which on desktop only sets the native recording device and the room default.
+The published track kept its own old `deviceId`, so any restart of it (unmute, push-to-talk, since capture stops on mute) reopened the previous microphone.
+`AudioDeviceSwitching.switchLiveInput` now also calls `LocalAudioTrack.setDeviceId` on every published microphone track, which restarts it on the new device.
+
 ## How fast remote rings move
 
 Remote rings come from LiveKit's active-speaker updates.

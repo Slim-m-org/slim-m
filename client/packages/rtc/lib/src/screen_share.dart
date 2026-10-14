@@ -10,7 +10,8 @@ library;
 enum ScreenShareResolution {
   p720(width: 1280, height: 720),
   p1080(width: 1920, height: 1080),
-  p1440(width: 2560, height: 1440);
+  p1440(width: 2560, height: 1440),
+  p2160(width: 3840, height: 2160);
 
   const ScreenShareResolution({required this.width, required this.height});
 
@@ -59,6 +60,7 @@ class ScreenShareQuality {
     [1000000, 1500000, 2500000],
     [1600000, 2400000, 4000000],
     [3000000, 3600000, 5000000],
+    [4500000, 5000000, 5000000],
   ];
 
   final ScreenShareResolution resolution;

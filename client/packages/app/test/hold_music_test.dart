@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
+import 'package:slimm_app/src/audio/lounge_tracks.dart';
 import 'package:slimm_app/src/providers/hold_music_controller.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/voice_settings_controller.dart';
@@ -32,6 +33,11 @@ class _FakePlayer implements HoldMusicPlayer {
   Future<void> start() async => calls.add('start');
   @override
   Future<void> stop() async => calls.add('stop');
+
+  /// Track switches, kept apart from [calls] so start/stop order reads alone.
+  final tracks = <LoungeTrack>[];
+  @override
+  Future<void> setTrack(LoungeTrack track) async => tracks.add(track);
   @override
   Future<void> dispose() async {}
 }
@@ -170,13 +176,6 @@ void main() {
       _settle(async);
       expect(rig.player.calls, ['start']);
     });
-  });
-
-  test('the synthesised loop is a sixteen second mono clip', () {
-    final wav = renderHoldLoop();
-    const header = 44;
-    expect((wav.length - header) / 2 / 48000, closeTo(16.4, 0.5));
-    expect(String.fromCharCodes(wav.sublist(0, 4)), 'RIFF');
   });
 
   group('shouldPlayHoldMusic', () {

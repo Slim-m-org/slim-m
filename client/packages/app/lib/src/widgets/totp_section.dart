@@ -32,16 +32,24 @@ final totpStatusProvider = FutureProvider.autoDispose<api.TotpStatus>(
 const _lowRecoveryCodes = 3;
 
 class TotpSection extends ConsumerWidget {
-  const TotpSection({super.key});
+  const TotpSection({super.key, this.embedded = false});
+
+  /// Rows only, for the Sign-in card that also holds the password.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(totpStatusProvider);
     return status.when(
-      loading: () => const SettingsSectionCard(
-        title: 'Two-factor authentication',
-        children: [AppListRow(label: 'Loading…')],
-      ),
+      loading: () => embedded
+          ? const AppListRow(
+              label: 'Two-factor authentication',
+              meta: 'Loading',
+            )
+          : const SettingsSectionCard(
+              title: 'Two-factor authentication',
+              children: [AppListRow(label: 'Loading…')],
+            ),
       // A fixed sentence, never the exception itself; see `JoinPolicyRow`.
       error: (e, _) => SettingsSectionCard(
         title: 'Two-factor authentication',
@@ -55,32 +63,45 @@ class TotpSection extends ConsumerWidget {
           ),
         ],
       ),
-      data: (loaded) => _TotpBody(status: loaded),
+      data: (loaded) => _TotpBody(status: loaded, embedded: embedded),
     );
   }
 }
 
 class _TotpBody extends ConsumerWidget {
-  const _TotpBody({required this.status});
+  const _TotpBody({required this.status, required this.embedded});
 
   final api.TotpStatus status;
+  final bool embedded;
 
   bool get _hidden => status.policy == api.TotpPolicy.off && !status.enabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (_hidden) return const SizedBox.shrink();
+    final rows = status.enabled
+        ? [
+            if (status.recoveryCodesRemaining <= _lowRecoveryCodes)
+              _LowCodesNotice(remaining: status.recoveryCodesRemaining),
+            _RecoveryCodesRow(remaining: status.recoveryCodesRemaining),
+            const _DisableRow(),
+          ]
+        : [
+            _TurnOnRow(
+              pending: status.pending,
+              subtitle: embedded ? _description : null,
+            ),
+          ];
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      );
+    }
     return SettingsSectionCard(
       title: 'Two-factor authentication',
       description: _description,
-      children: status.enabled
-          ? [
-              if (status.recoveryCodesRemaining <= _lowRecoveryCodes)
-                _LowCodesNotice(remaining: status.recoveryCodesRemaining),
-              _RecoveryCodesRow(remaining: status.recoveryCodesRemaining),
-              const _DisableRow(),
-            ]
-          : [_TurnOnRow(pending: status.pending)],
+      children: rows,
     );
   }
 
@@ -96,7 +117,10 @@ class _TotpBody extends ConsumerWidget {
 }
 
 class _TurnOnRow extends ConsumerWidget {
-  const _TurnOnRow({required this.pending});
+  const _TurnOnRow({required this.pending, this.subtitle});
+
+  /// What two-factor does, when no card heading above already says so.
+  final String? subtitle;
 
   /// An enrolment was started and never confirmed. Worth saying, because the
   /// offer is "finish this" rather than "start something".
@@ -109,7 +133,7 @@ class _TurnOnRow extends ConsumerWidget {
     subtitle: pending
         ? 'You started setting this up and did not finish, so it is not on '
               'yet. Starting again gives you a fresh key.'
-        : null,
+        : subtitle,
     onTap: () async {
       final done = await showTotpEnrolSheet(context, ref);
       if (done == true) ref.invalidate(totpStatusProvider);

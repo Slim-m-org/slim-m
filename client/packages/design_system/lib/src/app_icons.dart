@@ -261,6 +261,9 @@ abstract final class AppIcons {
   /// An attachment hidden behind a spoiler until someone chooses to look.
   static const IconData spoiler = LucideIcons.eyeOff300;
 
+  /// Checks for when something does not work, beside About in settings.
+  static const IconData troubleshooting = LucideIcons.lifeBuoy300;
+
   /// A tile's own resize grip, drawn at its bottom-right corner.
   static const IconData tileResize = LucideIcons.moveDiagonal2300;
 
