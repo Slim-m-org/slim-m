@@ -82,10 +82,10 @@ void main() {
 
     expect(find.text('maya'), findsOneWidget);
     expect(find.text('@maya'), findsOneWidget);
-    expect(find.text('online'), findsOneWidget);
+    expect(find.text('Online'), findsOneWidget);
     expect(find.text('Message'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
-    expect(find.text('Add a private note'), findsOneWidget);
+    expect(find.text('Add note'), findsOneWidget);
 
     // No call in progress, so nothing about hearing them.
     expect(
@@ -130,8 +130,8 @@ void main() {
     await tester.pumpWidget(_harness(_body(_other)));
     await tester.pump();
 
-    expect(find.text('mod'), findsOneWidget);
-    expect(find.textContaining('joined'), findsOneWidget);
+    expect(find.text('MOD'), findsOneWidget);
+    expect(find.textContaining('Joined'), findsOneWidget);
   });
 
   testWidgets('a Moderate row opens only with a moderation right', (
@@ -203,10 +203,10 @@ void main() {
     tester,
   ) async {
     for (final (state, word) in const [
-      (api.PresenceState.online, 'online'),
-      (api.PresenceState.away, 'away'),
-      (api.PresenceState.dnd, 'do not disturb'),
-      (api.PresenceState.offline, 'offline'),
+      (api.PresenceState.online, 'Online'),
+      (api.PresenceState.away, 'Away'),
+      (api.PresenceState.dnd, 'Do not disturb'),
+      (api.PresenceState.offline, 'Offline'),
     ]) {
       await tester.pumpWidget(
         _harness(_body(_other), presence: {_other.id: state}),
@@ -222,7 +222,7 @@ void main() {
   ) async {
     await tester.pumpWidget(_harness(_body(_other), presence: const {}));
     await tester.pump();
-    for (final word in ['online', 'away', 'offline', 'unknown']) {
+    for (final word in ['Online', 'Away', 'Offline', 'Unknown']) {
       expect(find.text(word), findsNothing);
     }
     expect(find.byType(AppStatusDot), findsNothing);

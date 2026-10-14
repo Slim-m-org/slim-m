@@ -23,12 +23,12 @@ class MemberProfileActivity extends ConsumerWidget {
     if (activity == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s12,
+        AppSpacing.s16,
         0,
+        AppSpacing.s16,
         AppSpacing.s12,
-        AppSpacing.s8,
       ),
-      child: ActivityCard(activity: activity),
+      child: ActivityCard(activity: activity, boxed: true),
     );
   }
 }

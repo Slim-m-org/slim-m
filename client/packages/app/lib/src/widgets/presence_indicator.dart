@@ -13,15 +13,21 @@ class PresenceIndicator extends StatelessWidget {
     super.key,
     required this.presence,
     this.backgroundColor,
+    this.size = 10,
   });
 
   final AppPresence presence;
 
   /// What the dot sits on, when that is not the base surface.
   final Color? backgroundColor;
+  final double size;
 
   @override
   Widget build(BuildContext context) => presence == AppPresence.unknown
       ? const SizedBox.shrink()
-      : AppStatusDot(status: presence, backgroundColor: backgroundColor);
+      : AppStatusDot(
+          status: presence,
+          size: size,
+          backgroundColor: backgroundColor,
+        );
 }

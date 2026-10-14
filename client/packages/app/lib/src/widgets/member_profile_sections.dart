@@ -17,9 +17,10 @@ import 'package:slimm_design_system/design_system.dart';
 import '../format.dart';
 import '../providers/presence_view.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
+import 'presence_indicator.dart';
 import 'user_avatar.dart';
 
-/// Avatar, name, role badge, and the presence word beside its dot - never the
+/// Avatar, name, handle, and the presence word beside its dot - never the
 /// dot alone, which is the rule every surface in this app follows.
 class MemberProfileHeader extends ConsumerWidget {
   const MemberProfileHeader({
@@ -43,22 +44,32 @@ class MemberProfileHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final word = ref.watch(presenceForProvider(profile.id)).word;
+    final presence = ref.watch(presenceForProvider(profile.id));
     final timedOut = timeoutActive(profile.timedOutUntil);
+    final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
+    final extras = [
+      // A nickname hides the account's own name everywhere else, so say it here.
+      if (profile.nickname != null && profile.accountDisplayName != null)
+        'account name ${profile.accountDisplayName}',
+      ?profile.pronouns,
+    ];
 
-    final handleLine = Text(
-      [
-        '@${profile.username}',
-        // A nickname hides the account's own name everywhere else, so say it here.
-        if (profile.nickname != null && profile.accountDisplayName != null)
-          'account name ${profile.accountDisplayName}',
-        ?profile.pronouns,
-      ].join(' · '),
+    final handleLine = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '@${profile.username}',
+            style: AppText.code.copyWith(fontSize: AppText.caption.fontSize),
+          ),
+          if (extras.isNotEmpty) TextSpan(text: ' · ${extras.join(' · ')}'),
+        ],
+      ),
+      maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: AppText.caption.copyWith(color: tokens.textSecondary),
+      style: secondary,
     );
 
-    final subtitle = inCallTogether
+    final statusLine = inCallTogether
         ? Row(
             children: [
               Icon(AppIcons.speaker, size: 12, color: tokens.accent),
@@ -74,15 +85,43 @@ class MemberProfileHeader extends ConsumerWidget {
               ),
             ],
           )
-        : Text(
-            isSelf ? [?word, 'you'].join(' - ') : word ?? '',
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+        : Row(
+            spacing: AppSpacing.s8,
+            children: [
+              if (presence.word != null)
+                PresenceIndicator(
+                  presence: presence,
+                  size: 8,
+                  backgroundColor: tokens.surfaceRaised,
+                ),
+              Flexible(
+                child: Text(
+                  _sentenceCase(presence.word),
+                  overflow: TextOverflow.ellipsis,
+                  style: secondary,
+                ),
+              ),
+            ],
           );
 
+    final name = Text(
+      profile.displayName,
+      overflow: TextOverflow.ellipsis,
+      style: AppText.body.copyWith(
+        color: tokens.textPrimary,
+        fontWeight: AppWeights.semi,
+      ),
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.s12),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        AppSpacing.s16,
+        AppSpacing.s16,
+        AppSpacing.s12,
+      ),
       child: Row(
+        spacing: AppSpacing.s12,
         children: [
           // The avatar only, never the text, which would cost its contrast.
           Opacity(
@@ -91,7 +130,7 @@ class MemberProfileHeader extends ConsumerWidget {
               userId: profile.id,
               avatarUpdatedAt: profile.avatarUpdatedAt,
               name: profile.displayName,
-              size: AppAvatarSize.s44,
+              size: AppAvatarSize.s56,
               presence: true,
               // The ring here means "in a call with you", so the name says that.
               speaking: inCallTogether,
@@ -102,23 +141,30 @@ class MemberProfileHeader extends ConsumerWidget {
                   : null,
             ),
           ),
-          const SizedBox(width: AppSpacing.s12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
+              spacing: 2,
               children: [
-                Text(
-                  profile.displayName,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.body.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
-                ),
+                if (isSelf)
+                  Row(
+                    spacing: AppSpacing.s8,
+                    children: [
+                      Flexible(child: name),
+                      const AppBadge(
+                        variant: AppBadgeVariant.tag,
+                        label: 'You',
+                      ),
+                    ],
+                  )
+                else
+                  name,
                 handleLine,
-                const SizedBox(height: 2),
-                subtitle,
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: statusLine,
+                ),
               ],
             ),
           ),
@@ -127,6 +173,10 @@ class MemberProfileHeader extends ConsumerWidget {
     );
   }
 }
+
+String _sentenceCase(String? word) => word == null || word.isEmpty
+    ? ''
+    : word[0].toUpperCase() + word.substring(1);
 
 /// The member card's own avatar ring, from an index into the design system's
 /// closed categorical colour set - reused rather than a new palette, per the
@@ -162,9 +212,9 @@ class MemberTimeoutBadge extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s12,
+        AppSpacing.s16,
         0,
-        AppSpacing.s12,
+        AppSpacing.s16,
         AppSpacing.s12,
       ),
       child: AppCallout(
