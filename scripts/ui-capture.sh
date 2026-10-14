@@ -47,6 +47,7 @@ JOBS=(
   "dock-sources|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_dock_sources_test.dart"
   "fullscreen-viewer|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_fullscreen_viewer_test.dart"
   "hold-music|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_hold_music_test.dart"
+  "input-gate|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_input_gate_test.dart"
   "image-menu|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_image_menu_test.dart"
   "member-roster|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_member_roster_test.dart"
   "message-row|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_row_test.dart"

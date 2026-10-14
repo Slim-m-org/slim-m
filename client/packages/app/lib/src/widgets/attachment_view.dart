@@ -28,6 +28,7 @@ import 'run_guarded.dart';
 import 'fullscreen_image_viewer.dart';
 import 'image_decode.dart';
 import 'message_row_parts.dart' show AttachmentPlaceholder;
+import 'viewport_freeze.dart';
 
 /// Mirrors `media::is_inline` in `crates/slimm-server/src/media.rs`: the
 /// allowlisted types the server serves inline rather than as a forced
@@ -202,19 +203,21 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
               onReveal: () => setState(() => _revealed = true),
               // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
               showBadge: !_hovered,
-              preview: Stack(
-                fit: StackFit.passthrough,
-                children: [
-                  AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
-                  if (_hovered)
-                    Positioned.fill(
-                      child: Image.memory(
-                        bytes,
-                        fit: BoxFit.contain,
-                        cacheWidth: decodeWidth,
+              preview: ViewportFreeze(
+                child: Stack(
+                  fit: StackFit.passthrough,
+                  children: [
+                    AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
+                    if (_hovered)
+                      Positioned.fill(
+                        child: Image.memory(
+                          bytes,
+                          fit: BoxFit.contain,
+                          cacheWidth: decodeWidth,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -260,26 +263,30 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                           // The tile's 1px border sits outside the image, so the image gives it back.
                           : BoxConstraints.tight(Size.square(tile - 2)),
                       // Never decodes wider than the transcript can draw it.
-                      child: still
-                          ? AttachmentFirstFrame(
-                              bytes: bytes,
-                              cacheWidth: decodeWidth,
-                            )
-                          : Image.memory(
-                              bytes,
-                              fit: tile == null ? BoxFit.contain : BoxFit.cover,
-                              semanticLabel: attachment.filename,
-                              cacheWidth: decodeWidth,
-                              // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _FailureBox(
-                                    tokens: tokens,
-                                    message:
-                                        'Could not open ${attachment.filename}.',
-                                    width: kInlineImageMax,
-                                    height: 168,
-                                  ),
-                            ),
+                      child: ViewportFreeze(
+                        child: still
+                            ? AttachmentFirstFrame(
+                                bytes: bytes,
+                                cacheWidth: decodeWidth,
+                              )
+                            : Image.memory(
+                                bytes,
+                                fit: tile == null
+                                    ? BoxFit.contain
+                                    : BoxFit.cover,
+                                semanticLabel: attachment.filename,
+                                cacheWidth: decodeWidth,
+                                // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _FailureBox(
+                                      tokens: tokens,
+                                      message:
+                                          'Could not open ${attachment.filename}.',
+                                      width: kInlineImageMax,
+                                      height: 168,
+                                    ),
+                              ),
+                      ),
                     ),
                   ),
                 ),

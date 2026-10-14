@@ -281,6 +281,18 @@ sealed class ServerEvent {
           messageId: decoded['message_id'] as String,
           components: ComponentRow.listFromJson(decoded['components']),
         ),
+      'message.embeds'
+          when decoded['channel_id'] is String &&
+              decoded['message_id'] is String &&
+              decoded['embeds'] is List =>
+        MessageEmbedsChanged(
+          channelId: decoded['channel_id'] as String,
+          messageId: decoded['message_id'] as String,
+          embeds: [
+            for (final e in decoded['embeds'] as List)
+              Embed.fromJson(e as Map<String, dynamic>),
+          ],
+        ),
       'interaction.answered'
           when decoded['interaction_id'] is String &&
               decoded['channel_id'] is String =>

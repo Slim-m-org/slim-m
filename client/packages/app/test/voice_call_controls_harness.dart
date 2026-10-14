@@ -151,6 +151,15 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   void setVideoInterest(Set<String>? tileKeys) {}
 
   @override
+  bool get supportsInputGate => false;
+
+  @override
+  Stream<InputGateReading> get inputGateReadings => const Stream.empty();
+
+  @override
+  void setInputGate({required bool enabled, required double thresholdDb}) {}
+
+  @override
   void setSpeakingSensitivity(double sensitivity) {}
 
   /// Every camera-switching call this session received, in order, so a test

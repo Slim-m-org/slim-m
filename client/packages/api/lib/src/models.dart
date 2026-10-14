@@ -253,7 +253,8 @@ class Message {
   final String? webhookUsername;
 
   /// Buttons a bot attached, in rows. A bot can replace them later, so a live
-  /// `message.components` frame, not this field on an edit, is what changes them.
+  /// `message.components` frame, not this field on an edit, is what changes
+  /// them; `message.embeds` does the same for embeds.
   final List<ComponentRow> components;
 
   factory Message.fromJson(Map<String, dynamic> json) => Message(

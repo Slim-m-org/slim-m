@@ -18,6 +18,7 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
+import '../widgets/input_sensitivity_section.dart';
 import '../widgets/media_capability_section.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
@@ -152,6 +153,30 @@ class _MicrophoneSection extends ConsumerWidget {
     }
     final speaking = inCall && (local?.isSpeaking ?? false);
     final muted = !inCall || (local?.isMuted ?? true);
+
+    if (hostHasInputGate(ref)) {
+      return SettingsSectionCard(
+        title: 'Microphone',
+        description: 'Sound below the line is not sent.',
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const InputSensitivityMeter(),
+          if (!inCall) ...[
+            const SizedBox(height: AppSpacing.s8),
+            const AppCallout(
+              tone: AppCalloutTone.info,
+              child: Text(
+                'Join a voice call to see your live input level here.',
+              ),
+            ),
+          ],
+          if (isDesktopHost) ...[
+            const SizedBox(height: AppSpacing.s16),
+            const _PushToTalkSection(),
+          ],
+        ],
+      );
+    }
 
     return SettingsSectionCard(
       title: 'Microphone',

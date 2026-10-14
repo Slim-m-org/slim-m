@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -60,6 +61,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     this.supportsAudioOutputSelection = true,
     this.audioInputDeviceList = const [],
     this.audioOutputDeviceList = const [],
+    this.supportsInputGate = false,
   });
 
   @override
@@ -183,6 +185,21 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   double? lastSpeakingSensitivity;
 
   @override
+  final bool supportsInputGate;
+
+  final inputGateController = StreamController<InputGateReading>.broadcast();
+
+  @override
+  Stream<InputGateReading> get inputGateReadings => inputGateController.stream;
+
+  /// Every gate configuration the controller pushed, in order.
+  final List<({bool enabled, double thresholdDb})> inputGateCalls = [];
+
+  @override
+  void setInputGate({required bool enabled, required double thresholdDb}) =>
+      inputGateCalls.add((enabled: enabled, thresholdDb: thresholdDb));
+
+  @override
   void setSpeakingSensitivity(double sensitivity) =>
       lastSpeakingSensitivity = sensitivity;
 
@@ -250,10 +267,19 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     await _states.close();
     await _participants.close();
     await _audioDeviceChanges.close();
+    await inputGateController.close();
   }
 
   void emitParticipants(List<VoiceParticipant> p) => _participants.add(p);
 }
+
+/// A controller over a gateless [FakeSession], so the pane renders the same
+/// on every test host rather than following that host's own gate support.
+List<Override> ungatedSession() => [
+  voiceControllerProvider.overrideWith(
+    (ref) => VoiceController(ref, session: FakeSession()),
+  ),
+];
 
 Widget wrap(Widget child, {List<Override> overrides = const []}) {
   return UncontrolledProviderScope(

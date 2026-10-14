@@ -10880,6 +10880,26 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ComponentRow"
+    MessageEmbeds:
+      type: object
+      required: [type, channel_id, message_id, embeds]
+      description: >
+        A bot replaced or cleared the embeds on its message by editing it. The
+        whole current list, like `message.components`.
+      properties:
+        type:
+          type: string
+          enum: [message.embeds]
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        embeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Embed"
     BotUiEntry:
       type: object
       required: [id, label]
@@ -13012,6 +13032,16 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+        embeds:
+          type: array
+          description: >-
+            Replaces the message's embeds (empty clears them), honoured only
+            from the bot that wrote the message and silently dropped from
+            anyone else, with `SendMessageRequest.embeds`' own limits. Absent
+            leaves them as they are. A replacement is announced as a
+            `message.embeds` frame.
+          items:
+            $ref: "#/components/schemas/RequestEmbed"
 
     RegisterPushRequest:
       type: object
@@ -13765,6 +13795,7 @@ components:
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
+        - $ref: "#/components/schemas/MessageEmbeds"
         - $ref: "#/components/schemas/InteractionCreated"
         - $ref: "#/components/schemas/InteractionAnswered"
         - $ref: "#/components/schemas/NewDeviceSignIn"

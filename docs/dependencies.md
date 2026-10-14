@@ -254,6 +254,8 @@ One opens the camera off the platform thread on Linux and Windows, where that th
 It also fixes the plugin's Linux and Windows task runners, which ran each task while holding their queue lock and hung if a task enqueued another.
 Two make the video renderer cheaper: it creates its pixel buffer once, and converts a frame at the drawn size rather than the full frame.
 The latest runs `getStats` off the platform thread too, since a stats poll during a camera open waited behind it for 1.5 to 1.9 s, and records Unified Plan remote tracks from `OnTrack` so a lookup by id (per-person volume) always finds them.
+It adds a microphone noise gate and level meter on the capture path, described in `docs/voice-input-gate.md`.
+On Windows it opens the default console devices by index, because libwebrtc's default communications role makes Windows turn every other app down during a call.
 It is an override rather than a dependency of `slimm_rtc` because `livekit_client` 2.10.0 requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.
 `scripts/check-dart-licenses.py` reads the fork's LICENSE (MIT) from the pub cache's checkout, so it is classified like a hosted package.
 Rebase steps are in `docs/research/linux-wayland-share-switch-2026-09-29/README.md`.
