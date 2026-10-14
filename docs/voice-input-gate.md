@@ -27,3 +27,17 @@ Elsewhere (web, macOS, iOS, Android) the old indicator-only slider stays until t
 ## Measuring it
 
 A probe that publishes the mic into a local `livekit-server --dev`, toggles the gate and reads both `getInputGate` and the sender's `media-source` level showed: gate closed, sent level 0.0000; gate open, sent level unchanged; gate off, the meter and voice detection still working.
+
+## How fast remote rings move
+
+Remote rings come from LiveKit's active-speaker updates.
+Measured on 2026-10-13 against `livekit-server` 1.10.1 with LiveKit's Python SDK, one participant switching between silence and a -20 dBFS tone in real time and another timing `active_speakers_changed`:
+
+| `audio` config | start talking to lit | stop talking to clear |
+| --- | --- | --- |
+| defaults (500 ms, smoothing 2) | 190-610 ms | 700-910 ms |
+| `update_interval: 200`, `smooth_intervals: 1` | 30-215 ms | 690-750 ms |
+| `update_interval: 100`, `smooth_intervals: 1`, `min_percentile: 20` | 50-120 ms | 140-210 ms |
+
+The last row is what `docker-compose.voice.yml` ships.
+Clearing that fast would flicker between words, so the client keeps a ring lit for 300 ms after the SFU drops it (`SpeakingHold` in `slimm_rtc`); the local ring on a host with the input gate already has the gate's own hold and skips this.
