@@ -40,6 +40,8 @@ import '../widgets/dock_height_reporter.dart';
 import '../widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
+import 'canvas/canvas_pane.dart' show canvasOpenProvider;
+import 'voice_idle/voice_channel_idle.dart';
 import 'voice_join_preview.dart';
 import 'voice_text_pane.dart';
 
@@ -150,6 +152,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     controller.join(widget.channelId);
   }
 
+  /// The idle pane's join: always muted, marked as attempted like a rejoin.
+  void _joinMuted(VoiceController controller) {
+    _autoJoinedFor = widget.channelId;
+    unawaited(controller.joinMuted(widget.channelId));
+  }
+
   /// A DM's first ring is spent once it was declined or timed out, so a rejoin
   /// calls again unless the other person is already in the room or a ring is out.
   void _rejoin(VoiceController controller) {
@@ -244,6 +252,14 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         // A rejoin in progress never reaches here: it maps to 'call' above, with its own overlay instead of this full-screen spinner.
         'connecting' || 'joining' => const VoiceConnecting(),
         'switch' => VoiceSwitchPrompt(onSwitch: () => _switchNow(controller)),
+        _ when !widget.isDm => VoiceChannelIdle(
+          channelId: channelId,
+          errorMessage: errorMessage,
+          canRetry: canRetry,
+          onJoin: () => _joinMuted(controller),
+          onOpenCanvas: () =>
+              ref.read(canvasOpenProvider.notifier).state = channelId,
+        ),
         _ => VoiceRejoinScreen(
           channelId: channelId,
           isDm: widget.isDm,

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT author_id AS \"user_id!: UserId\", kind AS \"kind!\",\n                      MIN(created_at) AS \"first_at!: i64\", COUNT(*) AS \"count!: i64\"\n               FROM canvas_objects\n               WHERE channel_id = ? AND created_at >= ? AND created_at <= ?\n                 AND author_id IS NOT NULL\n               GROUP BY author_id, kind\n               ORDER BY MIN(created_at)",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "first_at!: i64",
+        "ordinal": 2,
+        "type_info": "Null"
+      },
+      {
+        "name": "count!: i64",
+        "ordinal": 3,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "4c609df092b00f14440106babb5fefbdc9a8d4381922a2f3647c6e1843d9d59a"
+}

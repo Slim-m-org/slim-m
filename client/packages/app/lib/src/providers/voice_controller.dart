@@ -183,6 +183,15 @@ class VoiceController extends StateNotifier<VoiceState>
     setCameraPreference(await loadCameraOnJoinPreference(_ref));
   }
 
+  /// [join] with the mic off for this call, whatever the saved preference;
+  /// the idle pane's "Join muted".
+  Future<void> joinMuted(String channelId) {
+    _muteNextJoin = true;
+    return join(channelId);
+  }
+
+  bool _muteNextJoin = false;
+
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:
   /// reproduced without it, an abandoned join's belated failure landed as
@@ -190,6 +199,8 @@ class VoiceController extends StateNotifier<VoiceState>
   /// actually connected - see `voice_controller_join_race_test.dart`.
   @override
   Future<void> join(String channelId) async {
+    final mutedByCaller = _muteNextJoin;
+    _muteNextJoin = false;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
     // A queued rejoin was about the call this one replaces; see VoiceAutoRejoin.cancelPending.
@@ -221,7 +232,7 @@ class VoiceController extends StateNotifier<VoiceState>
         return;
       }
       state = state.copyWith(canPublish: token.canPublish);
-      if (mutedByChannel) state = _joinMuted.showMuted(state);
+      if (mutedByChannel || mutedByCaller) state = _joinMuted.showMuted(state);
       // Push-to-talk joins closed: it opens only while the key is held; see setPushToTalkPreference.
       final microphoneAtJoin =
           state.microphoneEnabled && token.canPublish && !_pushToTalkEnabled;

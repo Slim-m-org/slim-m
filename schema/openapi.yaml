@@ -6217,6 +6217,41 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/voice/calls:
+    get:
+      operationId: listVoiceCalls
+      tags: [voice]
+      summary: A voice channel's recent calls.
+      description: >
+        Worked out from the joins, leaves and screen shares the LiveKit
+        webhook reported (decision 0066), newest first, with what was placed
+        on the canvas during each. Kept for `retention_days`; nothing about
+        audio or speaking is stored. Someone whose presence is hidden is left
+        out for every viewer but themselves. Needs `VIEW_CHANNEL`. `limit`
+        is 1 to 30, 10 by default.
+      parameters:
+        - $ref: "#/components/parameters/ChannelId"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The channel's recent calls.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallHistory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/voice/heartbeat:
     post:
       operationId: sendVoiceHeartbeat
@@ -10971,6 +11006,71 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Embed"
+    VoiceCallHistory:
+      type: object
+      required: [retention_days, canvas_object_count, calls]
+      properties:
+        retention_days:
+          type: integer
+          format: int64
+        canvas_object_count:
+          type: integer
+          format: int64
+          description: Live objects on the channel's canvas now.
+        calls:
+          type: array
+          items:
+            $ref: "#/components/schemas/VoiceCall"
+    VoiceCall:
+      type: object
+      required: [started_at, events, canvas]
+      properties:
+        started_at:
+          type: integer
+          format: int64
+        ended_at:
+          type: [integer, "null"]
+          format: int64
+          description: Null while the call is still going.
+        events:
+          type: array
+          description: Only the events that changed something, oldest first.
+          items:
+            $ref: "#/components/schemas/VoiceCallEvent"
+        canvas:
+          type: array
+          description: What each person placed on the canvas during the call, per kind.
+          items:
+            $ref: "#/components/schemas/VoiceCallCanvasActivity"
+    VoiceCallEvent:
+      type: object
+      required: [at, user_id, kind]
+      properties:
+        at:
+          type: integer
+          format: int64
+        user_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [joined, left, share_started, share_stopped]
+    VoiceCallCanvasActivity:
+      type: object
+      required: [user_id, kind, first_at, count]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: The canvas object kind, such as stroke, image, gif or window.
+        first_at:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
     BotUiEntry:
       type: object
       required: [id, label]

@@ -162,7 +162,11 @@ Future<void> _bootstrapApp(
     // After the session restore: having an account decides whether the splash asks about updates at all.
     await runStartupUpdates(container);
   });
-  await DesktopWindowShell.prepareHandoff(container, splashFloor: floor);
+  await DesktopWindowShell.prepareHandoff(
+    container,
+    splashFloor: floor,
+    fadeOut: AppMotion.base,
+  );
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
   await DesktopWindowShell.revealAfterHandoff();
   container.read(appReadyProvider.notifier).state = true;
@@ -254,6 +258,7 @@ class SlimMApp extends ConsumerWidget {
       return StartupApp(
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
+        leaving: ref.watch(startupLeavingProvider),
         windowPort: currentDesktopPlatform() == DesktopPlatform.linux
             ? DesktopWindowShell.port
             : null,

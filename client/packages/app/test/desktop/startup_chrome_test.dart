@@ -16,7 +16,8 @@ void main() {
   testWidgets('the splash drags the window and closes it', (tester) async {
     final port = FakeDesktopWindowPort();
     await tester.pumpWidget(StartupApp(windowPort: port));
-    await tester.pumpAndSettle();
+    // The loading line moves for as long as the splash is up, so frames are pumped rather than settled.
+    await tester.pump(const Duration(milliseconds: 400));
 
     final drag = find.byKey(const ValueKey('startup-drag-region'));
     expect(drag, findsOneWidget);
@@ -39,7 +40,8 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const StartupApp());
-    await tester.pumpAndSettle();
+    // The loading line moves for as long as the splash is up, so frames are pumped rather than settled.
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey('startup-drag-region')), findsNothing);
     expect(find.bySemanticsLabel('Close'), findsNothing);
   });

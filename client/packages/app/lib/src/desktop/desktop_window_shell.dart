@@ -28,6 +28,7 @@ import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
 import 'first_run_tray_notice.dart';
 import 'splash_mapped_wait.dart';
+import 'startup_state.dart' show startupLeavingProvider;
 import 'tray/desktop_tray_controller.dart';
 import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
@@ -235,13 +236,19 @@ class DesktopWindowShell {
   /// [DesktopWindowController.enableGeometryPersistence] is flipped
   /// unconditionally afterwards, success or failure, so a failure here never
   /// leaves persistence disabled for the rest of the run. [splashFloor] is
-  /// how long the splash must have been on screen once mapped.
+  /// how long the splash must have been on screen once mapped. [fadeOut] is
+  /// how long the splash content dissolves before its window hides.
   static Future<void> prepareHandoff(
     ProviderContainer container, {
     Duration splashFloor = Duration.zero,
+    Duration fadeOut = Duration.zero,
   }) async {
     if (currentDesktopPlatform() == null) return;
     await awaitSplashMapped(floor: splashFloor);
+    if (fadeOut > Duration.zero) {
+      container.read(startupLeavingProvider.notifier).state = true;
+      await Future<void>.delayed(fadeOut);
+    }
     try {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {

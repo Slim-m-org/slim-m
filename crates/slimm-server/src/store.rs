@@ -113,6 +113,7 @@ mod totp;
 mod totp_verify;
 mod user_notes;
 mod users;
+mod voice_call_events;
 mod voice_rooms;
 mod watch_sessions;
 mod webhooks;
@@ -212,6 +213,9 @@ pub use totp::{RECOVERY_CODE_COUNT, TotpEnrolment, TotpError, TotpPolicy, TotpSt
 pub use totp_verify::{ChallengeError, TotpChallenge, TotpProof, TotpSignIn};
 pub use user_notes::UserNote;
 pub use users::ProfileUpdate;
+pub use voice_call_events::{
+    CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
+};
 pub use watch_sessions::{
     WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
 };

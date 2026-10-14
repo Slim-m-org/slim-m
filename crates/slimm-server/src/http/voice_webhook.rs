@@ -19,6 +19,7 @@ use super::extract::enforce;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::Class;
+use crate::store::VoiceEventKind;
 use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
 
 pub fn routes() -> Router<AppState> {
@@ -79,6 +80,8 @@ fn apply(state: &AppState, event: WebhookEvent) {
 
     match event.event.as_str() {
         "participant_joined" => {
+            // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
+            record(state, channel_id, user_id, VoiceEventKind::Joined);
             if live_state.mark_joined(channel_id, user_id) {
                 state.hub.publish(Event::VoiceParticipantJoined {
                     channel_id,
@@ -87,6 +90,7 @@ fn apply(state: &AppState, event: WebhookEvent) {
             }
         }
         "participant_left" => {
+            record(state, channel_id, user_id, VoiceEventKind::Left);
             if live_state.mark_left(channel_id, user_id) {
                 state.hub.publish(Event::VoiceParticipantLeft {
                     channel_id,
@@ -130,10 +134,48 @@ fn publish_share_change(
         live_state.track_unpublished(channel_id, user_id, &track.sid)
     };
     if is_real_transition {
+        let kind = if started {
+            VoiceEventKind::ShareStarted
+        } else {
+            VoiceEventKind::ShareStopped
+        };
+        record(state, channel_id, user_id, kind);
         state.hub.publish(Event::VoiceScreenShareChanged {
             channel_id,
             user_id,
             is_sharing_screen: started,
         });
     }
+}
+
+/// The last stamp handed out, so two events in the same millisecond still
+/// read back in the order they arrived.
+static LAST_STAMP: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+/// Now in milliseconds, or one past the last stamp if that is later.
+fn next_stamp() -> i64 {
+    use std::sync::atomic::Ordering;
+    let mut last = LAST_STAMP.load(Ordering::Relaxed);
+    loop {
+        let next = crate::store::now_ms().max(last + 1);
+        match LAST_STAMP.compare_exchange_weak(last, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return next,
+            Err(seen) => last = seen,
+        }
+    }
+}
+
+/// Adds one event to the channel's call history (decision 0066), stamped on
+/// arrival so the write can land in any order.
+fn record(state: &AppState, channel_id: ChannelId, user_id: UserId, kind: VoiceEventKind) {
+    let at = next_stamp();
+    let store = state.store.clone();
+    tokio::spawn(async move {
+        if let Err(err) = store
+            .record_voice_event(channel_id, user_id, kind, at)
+            .await
+        {
+            tracing::warn!(%err, "could not record a voice call event");
+        }
+    });
 }

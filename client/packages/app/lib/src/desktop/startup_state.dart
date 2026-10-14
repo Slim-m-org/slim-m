@@ -30,3 +30,7 @@ final startupStatusProvider = StateProvider<String>(
 /// waits on it, or null when it is not asking anything. The splash renders
 /// the buttons; their callbacks resolve the wait. See decision 0025.
 final startupPromptProvider = StateProvider<StartupPrompt?>((ref) => null);
+
+/// True for the splash's last moment, while its content fades out ahead of
+/// the window hiding for the handoff, so it leaves instead of vanishing.
+final startupLeavingProvider = StateProvider<bool>((ref) => false);

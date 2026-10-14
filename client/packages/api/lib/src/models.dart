@@ -18,6 +18,7 @@ export 'models_bot_ui.dart';
 export 'models_watch_session.dart';
 export 'models_call_record.dart';
 export 'models_voice.dart';
+export 'models_voice_calls.dart';
 export 'models_attachments.dart';
 export 'models_dms.dart';
 export 'models_read_states.dart';

@@ -68,6 +68,8 @@ extension VoiceSessionTracks on VoiceSession {
   /// uncancelled listener would still reach `_onDisconnected` mid-teardown,
   /// which `_onDisconnected`'s own doc says a `leave()` must never do.
   Future<void> _teardown() async {
+    _speakingHoldTimer?.cancel();
+    _speakingHoldTimer = null;
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
@@ -147,11 +149,17 @@ extension VoiceSessionTracks on VoiceSession {
       ),
     );
 
-    final next = snapshotParticipants(
-      room,
-      speakingSensitivity: _speakingSensitivity,
-      localVoice: _gate.running ? _gate.voice : null,
+    final (next, recheck) = _speakingHold.apply(
+      snapshotParticipants(
+        room,
+        speakingSensitivity: _speakingSensitivity,
+        localVoice: _gate.running ? _gate.voice : null,
+      ),
+      skipLocal: _gate.running,
     );
+    _speakingHoldTimer?.cancel();
+    _speakingHoldTimer =
+        recheck == null ? null : Timer(recheck, _refreshParticipants);
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
     if (listEquals(next, _participants)) return;
     _participants = List.unmodifiable(next);

@@ -315,6 +315,10 @@ impl Store {
         sqlx::query!("DELETE FROM pending_members WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        // Who was on which call, and when, is this person's own presence history (decision 0066).
+        sqlx::query!("DELETE FROM voice_call_events WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query!("DELETE FROM saved_messages WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

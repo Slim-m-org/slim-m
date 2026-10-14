@@ -184,6 +184,21 @@ pub(crate) fn spawn_call_sweep(voice: voice::VoiceService, hub: hub::Hub) {
     });
 }
 
+/// How often call history past its retention is deleted (decision 0066).
+const CALL_HISTORY_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60 * 60);
+
+/// Runs the call history retention sweep in the background; see [`spawn_sweep`].
+pub(crate) fn spawn_call_history_sweep(store: store::Store) {
+    spawn_sweep(CALL_HISTORY_SWEEP_INTERVAL, move || {
+        let store = store.clone();
+        async move {
+            if let Err(err) = store.sweep_voice_events().await {
+                tracing::warn!(%err, "could not sweep old call history");
+            }
+        }
+    });
+}
+
 /// How often emptied temporary voice rooms are looked for; the webhook
 /// usually removes them first, so this only catches a missed one.
 const ROOM_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);

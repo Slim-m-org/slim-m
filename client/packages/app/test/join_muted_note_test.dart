@@ -11,6 +11,7 @@ import 'package:slimm_app/src/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/voice_roster.dart';
+import 'package:slimm_app/src/screens/voice_idle/voice_channel_idle.dart';
 import 'package:slimm_app/src/screens/voice_screen.dart';
 import 'package:slimm_app/src/widgets/channel_rail_sections.dart';
 import 'package:slimm_data/data.dart';
@@ -117,20 +118,13 @@ void main() {
     },
   );
 
-  testWidgets('the rejoin screen says a join_muted channel joins with the mic '
-      'off', (tester) async {
-    await _pumpRejoin(tester, _voice(joinMuted: true));
+  for (final joinMuted in [true, false]) {
+    testWidgets('a voice channel not joined shows the idle pane, which '
+        'always joins muted (join_muted: $joinMuted)', (tester) async {
+      await _pumpRejoin(tester, _voice(joinMuted: joinMuted));
 
-    expect(find.text('Joins with your mic off'), findsOneWidget);
-    expect(find.byIcon(AppIcons.micOff), findsOneWidget);
-  });
-
-  testWidgets('the rejoin screen is unchanged for an ordinary channel', (
-    tester,
-  ) async {
-    await _pumpRejoin(tester, _voice(joinMuted: false));
-
-    expect(find.text('Voice channel'), findsOneWidget);
-    expect(find.text('Joins with your mic off'), findsNothing);
-  });
+      expect(find.byType(VoiceChannelIdle), findsOneWidget);
+      expect(find.text('Voice channel'), findsNothing, reason: 'the old card');
+    });
+  }
 }

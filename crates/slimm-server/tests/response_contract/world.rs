@@ -36,7 +36,7 @@ pub enum Payload {
 }
 
 pub struct Contract {
-    state: AppState,
+    pub(crate) state: AppState,
     api: Api,
     covered: BTreeSet<String>,
     problems: Vec<String>,

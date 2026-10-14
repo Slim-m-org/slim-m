@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO voice_call_events (channel_id, at, user_id, kind) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "099ff11c8132c1f830cdd52e0bfcbe6ad6482905665fd29501dc84f296dc31e4"
+}

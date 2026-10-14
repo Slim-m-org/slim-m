@@ -75,3 +75,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0063](0063-confirmation-levels.md) | How strongly each permanent or security action is confirmed | accepted |
 | [0064](0064-category-permissions.md) | Category permissions, by syncing channels to their category | accepted |
 | [0065](0065-temporary-voice-rooms.md) | Temporary voice rooms, as a voice channel setting | accepted |
+| [0066](0066-voice-call-history.md) | A voice channel's call history | accepted |

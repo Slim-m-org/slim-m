@@ -277,7 +277,11 @@ void main() {
           'hanging up must not be read as an arrival worth auto-joining, '
           'however this screen was mounted',
     );
-    expect(find.text('You left this call.'), findsOneWidget);
+    expect(
+      find.text('Join muted'),
+      findsOneWidget,
+      reason: 'left, on the idle pane',
+    );
   });
 
   testWidgets(
@@ -315,7 +319,11 @@ void main() {
             'an explicit hang-up made before the canvas even closes must '
             'still land on the left-this-call screen, not a silent rejoin',
       );
-      expect(find.text('You left this call.'), findsOneWidget);
+      expect(
+        find.text('Join muted'),
+        findsOneWidget,
+        reason: 'left, on the idle pane',
+      );
       expect(find.byType(CircularProgressIndicator), findsNothing);
     },
   );

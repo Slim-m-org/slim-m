@@ -73,7 +73,7 @@ void main() {
         findsOneWidget,
         reason: 'chat is open',
       );
-      expect(find.text('Join call'), findsOneWidget);
+      expect(find.text('Join muted'), findsOneWidget);
 
       await teardown(tester, s.container, s.db);
     },
