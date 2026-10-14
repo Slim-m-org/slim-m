@@ -26,6 +26,8 @@ import 'voice_controller_harness.dart' show FakeSession;
 class _HangUpController extends VoiceController {
   _HangUpController(super.ref) : super(session: FakeSession());
 
+  Duration callLength = const Duration(minutes: 6);
+
   @override
   Future<void> join(String channelId) async {
     state = VoiceState(
@@ -41,7 +43,7 @@ class _HangUpController extends VoiceController {
     state = VoiceState(
       recap: CallRecap(
         channelId: channelId,
-        startedAt: now.subtract(const Duration(seconds: 42)),
+        startedAt: now.subtract(callLength),
         endedAt: now,
         others: const [],
         sharedScreen: false,
@@ -89,6 +91,20 @@ String _location(WidgetTester tester) =>
     GoRouter.of(tester.element(find.byType(HomeShell))).state.uri.toString();
 
 void main() {
+  testWidgets('a call under five minutes ends with no recap toast', (
+    tester,
+  ) async {
+    final s = await _inCall(tester, 390);
+    s.voice.callLength = const Duration(minutes: 4, seconds: 59);
+
+    await s.voice.leave();
+    await tester.pumpAndSettle();
+
+    expect(s.container.read(toastsProvider), isEmpty);
+
+    await teardown(tester, s.container, s.db);
+  });
+
   testWidgets('a phone hang-up lands on the last text channel with a recap '
       'toast', (tester) async {
     final s = await _inCall(tester, 390);
@@ -101,7 +117,7 @@ void main() {
     expect(find.byType(ChannelScreen), findsOneWidget);
     expect(find.text('Join muted'), findsNothing);
     final toasts = s.container.read(toastsProvider);
-    expect(toasts.single.message, 'Call ended - 42 sec.');
+    expect(toasts.single.message, 'Call ended - 6 min.');
     expect(toasts.single.severity, AppToastSeverity.success);
 
     await teardown(tester, s.container, s.db);
@@ -183,7 +199,7 @@ void main() {
 
       expect(_location(tester), Routes.channel('t1'));
       final toasts = s.container.read(toastsProvider);
-      expect(toasts.single.message, 'Call ended - 42 sec.');
+      expect(toasts.single.message, 'Call ended - 6 min.');
 
       await teardown(tester, s.container, s.db);
     });

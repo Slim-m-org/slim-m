@@ -24,6 +24,7 @@ void main() {
     unawaited(
       RpmUpdater(
         run: runner,
+        helperInstalled: () => false,
       ).apply(currentVersion: '0.74.0').then((r) => result = r),
     );
     await tester.pump(const Duration(hours: 2));

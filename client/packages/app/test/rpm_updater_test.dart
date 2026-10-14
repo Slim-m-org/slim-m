@@ -41,6 +41,10 @@ List<String>? _upgradeCall(_Runner runner) {
   return null;
 }
 
+/// An updater that behaves as on an install without the rpm's helper.
+RpmUpdater _updater(_Runner runner, {bool helper = false}) =>
+    RpmUpdater(run: runner.call, helperInstalled: () => helper);
+
 /// A runner whose repo is enabled and whose `rpm -q` walks from [before] to
 /// [after] across the upgrade, which is how a real install proves it moved.
 _Runner _upgrading({String before = '0.74.0', String after = '0.75.0'}) {
@@ -103,7 +107,7 @@ void main() {
   group('apply', () {
     test('upgrades straight away when the repo is already enabled', () async {
       final runner = _upgrading();
-      final result = await RpmUpdater(run: runner.call).apply();
+      final result = await _updater(runner).apply();
 
       expect(result.ok, isTrue);
       expect(
@@ -121,11 +125,24 @@ void main() {
       ]);
     });
 
+    test(
+      'runs the packaged helper, with no arguments, when it is there',
+      () async {
+        final runner = _upgrading();
+        final result = await _updater(runner, helper: true).apply();
+
+        expect(result.ok, isTrue);
+        expect(runner.calls.where((c) => c.first == 'pkexec'), [
+          ['pkexec', rpmUpdateHelper],
+        ]);
+      },
+    );
+
     test('enables the repo first when it is missing', () async {
       var asked = 0;
       final runner = _Runner({'repolist': _ok('fedora  Fedora 44')});
       runner.versions = () => _ok(asked++ == 0 ? '0.74.0' : '0.75.0');
-      final result = await RpmUpdater(run: runner.call).apply();
+      final result = await _updater(runner).apply();
 
       expect(result.ok, isTrue);
       expect(runner.calls[1], [
@@ -144,7 +161,7 @@ void main() {
         'repolist': _ok('fedora  Fedora 44'),
         'copr enable': _fail('Error executing command as another user'),
       });
-      final result = await RpmUpdater(run: runner.call).apply();
+      final result = await _updater(runner).apply();
 
       expect(result.ok, isFalse);
       expect(result.detail, contains('another user'));
@@ -160,7 +177,7 @@ void main() {
       runner.responses['upgrade'] = _fail(
         'Error: Transaction failed\nNothing to do',
       );
-      final result = await RpmUpdater(run: runner.call).apply();
+      final result = await _updater(runner).apply();
 
       expect(result.ok, isFalse);
       expect(result.detail, contains('Transaction failed'));
@@ -169,7 +186,7 @@ void main() {
     test('an exit 0 that installed nothing is not an update', () async {
       // The ordinary race: GitHub has the tag before COPR has the rpm, and `dnf upgrade -y` exits 0 having done nothing.
       final runner = _upgrading(before: '0.74.0', after: '0.74.0');
-      final result = await RpmUpdater(run: runner.call).apply();
+      final result = await _updater(runner).apply();
 
       expect(result.ok, isFalse);
       expect(result.detail, contains('still be building'));
@@ -180,9 +197,7 @@ void main() {
       () async {
         // Naming the running version must not turn a real "still building" into success.
         final runner = _upgrading(before: '0.74.0', after: '0.74.0');
-        final result = await RpmUpdater(
-          run: runner.call,
-        ).apply(currentVersion: '0.74.0');
+        final result = await _updater(runner).apply(currentVersion: '0.74.0');
 
         expect(result.ok, isFalse);
         expect(result.detail, contains('still be building'));
@@ -194,9 +209,7 @@ void main() {
         'only a restart is left', () async {
       // The owner's own box: rpm -q says 0.83.0, but the process never restarted into it.
       final runner = _upgrading(before: '0.83.0', after: '0.83.0');
-      final result = await RpmUpdater(
-        run: runner.call,
-      ).apply(currentVersion: '0.82.0');
+      final result = await _updater(runner).apply(currentVersion: '0.82.0');
 
       expect(result.ok, isTrue);
       expect(
@@ -208,7 +221,7 @@ void main() {
 
     test('the upgrade always refreshes the metadata first', () async {
       final runner = _upgrading();
-      await RpmUpdater(run: runner.call).apply();
+      await _updater(runner).apply();
 
       // Measured on a real box: a cache written before the build was published hides it outright.
       expect(
@@ -221,7 +234,10 @@ void main() {
     test('no dnf on this box is a failure, not a crash', () async {
       Future<ProcessResult> missing(String e, List<String> a) =>
           throw const ProcessException('dnf', [], 'No such file');
-      final result = await RpmUpdater(run: missing).apply();
+      final result = await RpmUpdater(
+        run: missing,
+        helperInstalled: () => false,
+      ).apply();
 
       expect(result.ok, isFalse);
     });

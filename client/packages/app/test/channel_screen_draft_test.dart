@@ -254,7 +254,7 @@ void main() {
     await _switchTo(tester, h.container, 'c1');
 
     final composer = tester.widget<Composer>(find.byType(Composer));
-    await composer.onSend(const <String>[]);
+    await composer.onSend(const StagedSend([]));
     await _flush(tester);
 
     expect(h.posted, ['send me']);

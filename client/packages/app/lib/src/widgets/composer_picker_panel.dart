@@ -65,29 +65,46 @@ class ComposerPickerPanel extends StatefulWidget {
 class _ComposerPickerPanelState extends State<ComposerPickerPanel> {
   late ComposerPickerTab _tab = widget.initialTab;
 
+  // An overlay is not a route, so without its own closed-loop scope Tab walks out into the transcript behind.
+  final _scope = FocusScopeNode(
+    debugLabel: 'composer picker',
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+  );
+
+  @override
+  void dispose() {
+    _scope.dispose();
+    super.dispose();
+  }
+
   void _selectTab(int index) =>
       setState(() => _tab = ComposerPickerTab.values[index]);
 
   @override
   Widget build(BuildContext context) {
     final close = activatorFor(AppAction.escape);
-    return CallbackShortcuts(
-      // The emoji tab's own search/grid nav lives inside ComposerEmojiPicker.
-      bindings: {if (close != null) close: widget.onClose},
-      child: AppMenu(
-        width: widget.width,
-        children: _pickerBody(
-          tab: _tab,
-          onSelectTab: _selectTab,
-          showGifTab: widget.showGifTab,
-          // The richer pointer view; touch hosts SpaceEmojiSheetBody instead.
-          emojiBody: ComposerEmojiPicker(
+    return FocusScope(
+      node: _scope,
+      child: FocusTraversalGroup(
+        child: CallbackShortcuts(
+          // The emoji tab's own search/grid nav lives inside ComposerEmojiPicker.
+          bindings: {if (close != null) close: widget.onClose},
+          child: AppMenu(
             width: widget.width,
-            onSelect: widget.onSelectEmoji,
-            onClose: widget.onClose,
+            children: _pickerBody(
+              tab: _tab,
+              onSelectTab: _selectTab,
+              showGifTab: widget.showGifTab,
+              // The richer pointer view; touch hosts SpaceEmojiSheetBody instead.
+              emojiBody: ComposerEmojiPicker(
+                width: widget.width,
+                onSelect: widget.onSelectEmoji,
+                onClose: widget.onClose,
+              ),
+              onPickedGif: widget.onPickedGif,
+              gifQuery: widget.gifQuery,
+            ),
           ),
-          onPickedGif: widget.onPickedGif,
-          gifQuery: widget.gifQuery,
         ),
       ),
     );

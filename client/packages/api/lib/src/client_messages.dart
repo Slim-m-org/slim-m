@@ -58,6 +58,7 @@ extension SlimmApiMessages on SlimmApi {
     required String id,
     required String content,
     List<String> attachmentIds = const [],
+    List<String> spoilerAttachmentIds = const [],
     String? replyToId,
     String? forwardedFromId,
   }) async {
@@ -68,6 +69,8 @@ extension SlimmApiMessages on SlimmApi {
         'id': id,
         'content': content,
         if (attachmentIds.isNotEmpty) 'attachment_ids': attachmentIds,
+        if (spoilerAttachmentIds.isNotEmpty)
+          'spoiler_attachment_ids': spoilerAttachmentIds,
         if (replyToId != null) 'reply_to_id': replyToId,
         if (forwardedFromId != null) 'forwarded_from_id': forwardedFromId,
       },

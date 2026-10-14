@@ -257,6 +257,7 @@ async fn deleting_a_message_whose_image_is_also_an_emoji_still_works() {
             id: message,
             content: "look at this",
             attachment_ids: &[shared.to_vec()],
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })

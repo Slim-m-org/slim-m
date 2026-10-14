@@ -184,6 +184,7 @@ Future<HistoryHarness> mountChannel(
   String Function(int seq)? authorFor,
   int olderPageRateLimits = 0,
   int? rateLimitRetryAfter,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = const Size(500, 800);
   tester.view.devicePixelRatio = 1;
@@ -221,6 +222,7 @@ Future<HistoryHarness> mountChannel(
   );
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       messagePageSizeControllerProvider.overrideWith(

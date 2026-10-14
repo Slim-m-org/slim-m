@@ -46,7 +46,10 @@ class HoldMusicController {
   Timer? _pending;
   bool _playing = false;
 
-  void _evaluate() {
+  /// Skips the grace for a person who just asked for music, if it is due at all.
+  void startNow() => _evaluate(immediate: true);
+
+  void _evaluate({bool immediate = false}) {
     final want = shouldPlayHoldMusic(
       _ref.read(voiceControllerProvider),
       _ref.read(voiceSettingsControllerProvider),
@@ -60,7 +63,15 @@ class HoldMusicController {
       }
       return;
     }
-    if (_playing || _pending != null) return;
+    if (_playing) return;
+    if (immediate) {
+      _pending?.cancel();
+      _pending = null;
+      _playing = true;
+      unawaited(_player.start());
+      return;
+    }
+    if (_pending != null) return;
     _pending = Timer(_grace, () {
       _pending = null;
       _playing = true;

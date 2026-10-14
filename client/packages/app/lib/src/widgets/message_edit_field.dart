@@ -30,8 +30,18 @@ class MessageEditField extends StatefulWidget {
 }
 
 class _MessageEditFieldState extends State<MessageEditField> {
-  late final _controller = TextEditingController(text: widget.initialContent);
+  late final _controller = TextEditingController(text: widget.initialContent)
+    ..selection = TextSelection.collapsed(offset: widget.initialContent.length);
   final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Asked for, not autofocus alone: autofocus yields to the composer when it already holds focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {

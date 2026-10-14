@@ -37,6 +37,7 @@ async fn forward(
             id,
             content: note,
             attachment_ids: &[],
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: Some(source.origin),
         })

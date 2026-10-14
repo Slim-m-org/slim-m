@@ -29,6 +29,7 @@ import '../routing/breakpoints.dart';
 import '../widgets/blocked_dm_notice.dart';
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
+import '../widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/channel_search.dart';
 import 'channel_composer_area.dart';
 import 'channel_read_marker.dart';
@@ -126,6 +127,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// the conversation it was started in, not carried across a channel switch.
   Message? _replyingTo;
 
+  /// Bumped by Reply so the composer takes the caret, as the thread pane's does.
+  final _composerFocusRequests = ValueNotifier<int>(0);
+
   late final ReadMarker _readMarker = ReadMarker(ref);
 
   /// The scroll controller, the jump-to-latest arrow's visibility, and the
@@ -212,6 +216,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     // Last chance to save unsent text before a torn-down State (voice, a DM call, canvas) loses it.
     _drafts.save(widget.channelId, _composer.text);
     _composer.dispose();
+    _composerFocusRequests.dispose();
     _scrollTracker.dispose();
     _searchController.dispose();
     super.dispose();
@@ -221,7 +226,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// copy when it lands. The field is cleared before the first await, so two
   /// calls in one turn cannot both read the same text: the second finds it
   /// empty and returns.
-  Future<void> _send(List<String> attachmentIds) async {
+  Future<void> _send(StagedSend attachments) async {
+    final attachmentIds = attachments.ids;
     final text = _composer.text.trim();
     // A staged file is a message on its own, so only a send carrying neither
     // text nor attachment is the one to drop.
@@ -241,13 +247,17 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       authorId: container.read(sessionProvider).tokens?.userId ?? '',
       content: text,
       attachmentIds: attachmentIds,
+      spoilerIds: attachments.spoilerIds,
       replyToId: replyToId,
       onQueued: _scrollToLatest,
     );
     _scrollToLatest();
   }
 
-  void _startReply(Message message) => setState(() => _replyingTo = message);
+  void _startReply(Message message) {
+    setState(() => _replyingTo = message);
+    _composerFocusRequests.value++;
+  }
 
   void _cancelReply() => setState(() => _replyingTo = null);
 
@@ -362,6 +372,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   replyingTo: _replyingTo,
                   onCancelReply: _cancelReply,
                   autofocus: widget.autofocusComposer,
+                  focusRequests: _composerFocusRequests,
                 ),
             ],
           );

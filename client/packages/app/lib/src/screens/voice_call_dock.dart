@@ -37,14 +37,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/camera_switch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../widgets/floating_dock_card.dart';
 import 'canvas/canvas_pane.dart';
 import 'call_leave_button.dart';
 import 'canvas/canvas_dock_toggle.dart';
-import 'voice_call_controls.dart';
+import 'dock_solo_controls.dart';
 
 class VoiceCallDock extends StatefulWidget {
   const VoiceCallDock({
@@ -139,89 +138,34 @@ class _VoiceCallDockState extends State<VoiceCallDock>
   Widget build(BuildContext context) {
     final channelId = widget.canvasChannelId;
     final leave = CallLeaveButton(controller: widget.controller);
-    Widget callRow({Widget? toggle}) => CallControls(
-      controller: widget.controller,
-      voice: widget.voice,
-      extraControl: toggle,
-    );
     final botRow = widget.botControls;
-    final card = channelId == null
-        ? FloatingDockCard(
-            rows: [?botRow, callRow()],
-            trailing: leave,
-            hugsWidth: true,
-          )
-        : Consumer(
-            builder: (context, ref, _) => LayoutBuilder(
-              builder: (context, constraints) {
-                final toggle = _CanvasToggleButton(channelId: channelId);
-                final fits = _fitsOneRow(
-                  context,
-                  constraints.maxWidth,
-                  widget.voice.cameraEnabled &&
-                      canSwitchCamera(ref, widget.controller),
-                  widget.controller.supportsAudioOutputSelection,
-                );
-                return FloatingDockCard(
-                  trailing: leave,
-                  hugsWidth: true,
-                  rows: [
-                    ?botRow,
-                    if (!fits) Center(child: toggle),
-                    callRow(toggle: fits ? toggle : null),
-                  ],
-                );
-              },
+    final card = Consumer(
+      builder: (context, ref, _) => LayoutBuilder(
+        builder: (context, constraints) => FloatingDockCard(
+          trailing: leave,
+          hugsWidth: true,
+          rows: [
+            ?botRow,
+            ...callRowsWithExtras(
+              context,
+              ref,
+              width: constraints.maxWidth,
+              controller: widget.controller,
+              voice: widget.voice,
+              toggle: channelId == null
+                  ? null
+                  : _CanvasToggleButton(channelId: channelId),
             ),
-          );
+          ],
+        ),
+      ),
+    );
     return SlideTransition(
       key: VoiceCallDock.slideKey,
       position: _slide,
       child: card,
     );
   }
-}
-
-/// Whether the call row plus the canvas toggle fit one line at [width],
-/// mirroring [CallDockButton]'s own fixed-size formula rather than measuring
-/// real render objects - cheap, and exact, since every control here draws at
-/// one of exactly two sizes and nothing here ever wraps text.
-///
-/// Every button sits inside an [AppFocusRing], whose own `Container` adds
-/// `focusRingGap` padding plus its border's own `focusRingGap.dimensions` on
-/// every edge, reserved whether or not the ring is drawn - the same
-/// measured-not-assumed extra `voice_call_controls_density_test.dart`
-/// already found for this same chip.
-///
-/// [FloatingDockCard]'s own `Container` costs an extra 2dp beyond its
-/// declared padding too, for the identical reason: `Border.all()`'s default
-/// 1dp width is itself `BoxDecoration.padding`, added on top rather than
-/// painted over the declared padding.
-bool _fitsOneRow(
-  BuildContext context,
-  double width,
-  bool switchCameraShown,
-  bool supportsAudioOutputSelection,
-) {
-  final touch = AppTouchTargets.of(context);
-  final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
-  final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
-  final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, [speaker], camera, [switch camera], share, leave, and the toggle itself.
-  final controlCount =
-      (switchCameraShown ? 5 : 4) + (supportsAudioOutputSelection ? 1 : 0) + 1;
-  final cardPadding = AppSpacing.s12 * 2 + 2;
-  // The divider before leave takes the place of one gap: s4, 1dp, s4.
-  const leaveDivider = 1.0;
-  // Measured, not derived: the caret's width less what the share half gives back, at pointer density only.
-  final shareCaret = touch ? 0.0 : AppSpacing.s24;
-  final needed =
-      shareCaret +
-      controlCount * button +
-      (controlCount - 1) * AppSpacing.s8 +
-      leaveDivider +
-      cardPadding;
-  return needed <= width;
 }
 
 /// The toggle itself: [CanvasDockToggle], lit while [channelId]'s canvas is open.

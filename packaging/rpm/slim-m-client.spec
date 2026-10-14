@@ -52,9 +52,10 @@ Source11:       top.npcserver.slimm.svg
 # without first asking polkit to enable a repo. See the file's own header for
 # why its id is not COPR's.
 Source12:       slim-m-client.repo
-# The polkit rule that pre-approves the client's own `dnf upgrade`. Security
-# reasoning and the exact match: README.md alongside this file.
-Source13:       49-slim-m-client-update.rules
+# The root helper and the polkit action that lets an active local user run it
+# without a password. Security reasoning: README.md alongside this file.
+Source13:       slim-m-client-update-helper
+Source14:       top.npcserver.slimm.update.policy
 
 # The upstream Flutter engine and the bundled libwebrtc are x86_64-only builds.
 ExclusiveArch:  x86_64
@@ -140,8 +141,9 @@ install -Dpm0644 %{SOURCE11} \
 
 install -Dpm0644 %{SOURCE12} %{buildroot}%{_sysconfdir}/yum.repos.d/%{name}.repo
 
-install -Dpm0644 %{SOURCE13} \
-    %{buildroot}%{_datadir}/polkit-1/rules.d/49-%{name}-update.rules
+install -Dpm0755 %{SOURCE13} %{buildroot}%{_libexecdir}/%{name}/update-helper
+install -Dpm0644 %{SOURCE14} \
+    %{buildroot}%{_datadir}/polkit-1/actions/%{appid}.update.policy
 
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/%{appid}.desktop
@@ -158,7 +160,10 @@ test -f %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/%{appid}.svg
 # The updater matches on the repo id, so a renamed section is a silent
 # regression: it would fall back to prompting for polkit on every update.
 grep -qx '\[slim-m\]' %{buildroot}%{_sysconfdir}/yum.repos.d/%{name}.repo
-test -f %{buildroot}%{_datadir}/polkit-1/rules.d/49-%{name}-update.rules
+test -x %{buildroot}%{_libexecdir}/%{name}/update-helper
+# polkit matches the action by the helper's path, so the two must agree.
+grep -qF '%{_libexecdir}/%{name}/update-helper</annotate>' \
+    %{buildroot}%{_datadir}/polkit-1/actions/%{appid}.update.policy
 
 %files
 %license LICENSE
@@ -171,7 +176,9 @@ test -f %{buildroot}%{_datadir}/polkit-1/rules.d/49-%{name}-update.rules
 %{_datadir}/icons/hicolor/*/apps/%{appid}.png
 %{_datadir}/icons/hicolor/scalable/apps/%{appid}.svg
 %config(noreplace) %{_sysconfdir}/yum.repos.d/%{name}.repo
-%{_datadir}/polkit-1/rules.d/49-%{name}-update.rules
+%dir %{_libexecdir}/%{name}
+%attr(0755,root,root) %{_libexecdir}/%{name}/update-helper
+%{_datadir}/polkit-1/actions/%{appid}.update.policy
 
 %changelog
 * Mon Jul 27 2026 NC1107 <nickpconn@gmail.com> - 0.4.0-1

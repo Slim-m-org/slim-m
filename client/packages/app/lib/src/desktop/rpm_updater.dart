@@ -4,9 +4,9 @@
 /// Decision 0020 fixed the rule: an rpm is root-owned, so the app never
 /// replaces its own files; it asks the package manager to. `pkexec` puts
 /// the system's own polkit prompt in front of that, which is the consent
-/// step - the app never escalates silently, though an active local admin
-/// gets that step pre-approved for the upgrade command alone by the polkit
-/// rule the rpm ships. The package comes from the COPR
+/// step - the app never escalates silently, though an active local user
+/// gets that step pre-approved for the one root helper the rpm ships, whose
+/// polkit action allows only that. The package comes from the COPR
 /// repo `release.yml` publishes on every client release, so the first thing
 /// checked is that the repo is enabled at all; without it dnf would report
 /// "nothing to do" against a release page it cannot see.
@@ -39,10 +39,16 @@ const packagedRepoId = 'slim-m';
 
 const rpmPackage = 'slim-m-client';
 
-/// The exact argv `apply` hands to pkexec for the upgrade.
+/// The root helper `packaging/rpm/slim-m-client-update-helper` installs here.
 ///
-/// `packaging/rpm/49-slim-m-client-update.rules` authorizes this command line
-/// without a prompt, so changing it here means changing the rule too.
+/// Its polkit action (`top.npcserver.slimm.update.policy`) is keyed on this
+/// exact path and lets an active local user run it without a password.
+const rpmUpdateHelper = '/usr/libexec/slim-m-client/update-helper';
+
+bool _helperOnDisk() => File(rpmUpdateHelper).existsSync();
+
+/// The argv `apply` hands to pkexec for the upgrade when the rpm's helper is
+/// absent (a portable install or an rpm older than the helper), which prompts.
 const rpmUpgradeCommand = <String>[
   'dnf',
   'upgrade',
@@ -72,10 +78,13 @@ class RpmUpdater {
   const RpmUpdater({
     ProcessRunner run = _realRunner,
     Duration stepTimeout = rpmStepTimeout,
+    bool Function() helperInstalled = _helperOnDisk,
   }) : _run = run,
-       _stepTimeout = stepTimeout;
+       _stepTimeout = stepTimeout,
+       _helperInstalled = helperInstalled;
 
   final ProcessRunner _run;
+  final bool Function() _helperInstalled;
   final Duration _stepTimeout;
 
   /// Whether the COPR repo is enabled, read from `dnf repolist --enabled`,
@@ -154,7 +163,9 @@ class RpmUpdater {
     }
 
     final before = await installedVersion();
-    final upgraded = await _privileged(rpmUpgradeCommand);
+    final upgraded = await _privileged(
+      _helperInstalled() ? [rpmUpdateHelper] : rpmUpgradeCommand,
+    );
     if (!upgraded.ok) return upgraded;
 
     final after = await installedVersion();

@@ -100,6 +100,7 @@ async fn one_attachment_in_many_channels(s: &Store, count: usize) -> Shared {
             id: MessageId::generate(),
             content: "here it is again",
             attachment_ids: std::slice::from_ref(&sha256),
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })
@@ -123,6 +124,7 @@ async fn forward(store: &Store, channel_id: ChannelId, author_id: UserId, sha256
             id: MessageId::generate(),
             content: "forwarding",
             attachment_ids: std::slice::from_ref(&sha256.to_vec()),
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })
@@ -226,6 +228,7 @@ async fn spread(s: &Store, uploader: UserId, count: usize) -> Vec<u8> {
             id: MessageId::generate(),
             content: "spreading",
             attachment_ids: std::slice::from_ref(&sha256),
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })

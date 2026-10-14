@@ -73,6 +73,9 @@ struct SendRequest {
     /// drop.
     #[serde(default)]
     attachment_ids: Vec<String>,
+    /// The subset of `attachment_ids` shown behind a spoiler.
+    #[serde(default)]
+    spoiler_attachment_ids: Vec<String>,
     /// The message this one replies to, if any. Must already exist in this
     /// same channel (live or soft-deleted); anything else is a 400.
     #[serde(default)]
@@ -147,6 +150,12 @@ async fn send(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let attachment_ids = parse_attachment_ids(&req.attachment_ids)?;
+    let spoiler_ids = parse_attachment_ids(&req.spoiler_attachment_ids)?;
+    if spoiler_ids.iter().any(|id| !attachment_ids.contains(id)) {
+        return Err(ApiError::BadRequest(
+            "spoiler_attachment_ids must be among attachment_ids",
+        ));
+    }
 
     // ATTACH_FILES only when the send carries something; see this function's
     // note for why a missing channel and a denied one look the same.
@@ -202,6 +211,7 @@ async fn send(
                 id,
                 content,
                 attachment_ids: &attachment_ids,
+                spoiler_ids: &spoiler_ids,
                 reply_to_id,
                 forward,
             },

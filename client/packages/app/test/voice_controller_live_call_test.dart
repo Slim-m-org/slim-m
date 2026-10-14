@@ -372,13 +372,13 @@ void main() {
       session.emitParticipants(const [_me, _alice]);
       await Future<void>.delayed(Duration.zero);
 
-      now = now.add(const Duration(minutes: 3));
+      now = now.add(const Duration(minutes: 6));
       await controller.leave();
 
       final recap = controller.state.recap;
       expect(recap, isNotNull);
       expect(recap!.channelId, 'channel-1');
-      expect(recap.duration, const Duration(minutes: 3));
+      expect(recap.duration, const Duration(minutes: 6));
       expect(recap.others.single.name, 'Alice');
       expect(recap.isWorthShowing, isTrue);
     });

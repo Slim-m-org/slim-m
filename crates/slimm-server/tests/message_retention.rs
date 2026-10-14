@@ -238,6 +238,7 @@ async fn the_sweep_prunes_an_old_message_and_frees_its_only_attachment() {
             id: MessageId::generate(),
             content: "old",
             attachment_ids: std::slice::from_ref(&sha256),
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })

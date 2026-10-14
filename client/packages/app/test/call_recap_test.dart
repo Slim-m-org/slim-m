@@ -165,6 +165,26 @@ void main() {
       expect(recap.isWorthShowing, isTrue);
     });
 
+    test(
+      'four minutes fifty-nine seconds is too short, five minutes is not',
+      () {
+        expect(
+          recapOf(
+            duration: const Duration(minutes: 4, seconds: 59),
+            alone: false,
+          ).isWorthShowing,
+          isFalse,
+        );
+        expect(
+          recapOf(
+            duration: const Duration(minutes: 5),
+            alone: false,
+          ).isWorthShowing,
+          isTrue,
+        );
+      },
+    );
+
     test('a four-second mis-click is not worth showing', () {
       final recap = recapOf(duration: const Duration(seconds: 4), alone: false);
       expect(recap.isWorthShowing, isFalse);

@@ -174,6 +174,9 @@ abstract final class AppIcons {
   /// your ears, so a call site that confuses them says the opposite thing.
   static const IconData speaker = LucideIcons.volume2300;
   static const IconData speakerOff = LucideIcons.volumeX300;
+
+  /// Music while alone in a call.
+  static const IconData music = LucideIcons.music300;
   static const IconData camera = LucideIcons.video300;
   static const IconData cameraOff = LucideIcons.videoOff300;
 
@@ -254,6 +257,9 @@ abstract final class AppIcons {
   /// A bot's private answer, marked "Only you can see this". Shares its glyph
   /// with [tileHide]: both mean "not shown to everyone".
   static const IconData privateReply = LucideIcons.eyeOff300;
+
+  /// An attachment hidden behind a spoiler until someone chooses to look.
+  static const IconData spoiler = LucideIcons.eyeOff300;
 
   /// A tile's own resize grip, drawn at its bottom-right corner.
   static const IconData tileResize = LucideIcons.moveDiagonal2300;

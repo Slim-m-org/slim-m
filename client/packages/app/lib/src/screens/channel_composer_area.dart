@@ -25,6 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/message_selection.dart';
 import '../providers/providers.dart';
 import '../widgets/composer.dart';
+import '../widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/composer_autofocus.dart';
 import '../widgets/ephemeral_tray.dart';
 import '../widgets/message_selection_bar.dart';
@@ -41,18 +42,22 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
     required this.replyingTo,
     required this.onCancelReply,
     this.autofocus = false,
+    this.focusRequests,
     super.key,
   });
 
   final String channelId;
   final TextEditingController controller;
   final String channelName;
-  final Future<void> Function(List<String>) onSend;
+  final Future<void> Function(StagedSend) onSend;
   final Message? replyingTo;
   final VoidCallback onCancelReply;
 
   /// See [ComposerAutofocus]; only the docked thread pane sets it.
   final bool autofocus;
+
+  /// Fires when something outside asks to type here, such as Reply.
+  final Listenable? focusRequests;
 
   @override
   ConsumerState<ChannelComposerArea> createState() =>
@@ -139,10 +144,12 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                 ),
         ),
         EphemeralTray(channelId: channelId),
-        if (widget.autofocus)
-          ComposerAutofocus(channelId: channelId, child: composer)
-        else
-          composer,
+        ComposerAutofocus(
+          channelId: channelId,
+          focusOnMount: widget.autofocus,
+          focusRequests: widget.focusRequests,
+          child: composer,
+        ),
       ],
     );
   }

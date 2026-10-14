@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>slim-m</vendor>
+  <vendor_url>https://github.com/Slim-m-org/slim-m</vendor_url>
+
+  <action id="top.npcserver.slimm.update-client">
+    <description>Update the slim-m desktop client</description>
+    <message>Authentication is required to update the slim-m desktop client</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/slim-m-client/update-helper</annotate>
+  </action>
+</policyconfig>

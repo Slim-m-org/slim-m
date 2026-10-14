@@ -131,11 +131,28 @@ class FailedAttachment extends StagedAttachment {
 /// this only decides what is worth *trying* to draw before that answer
 /// exists, and `StagedAttachmentTile`'s `errorBuilder` is what a wrong guess
 /// falls back to.
+/// [looksLikeImage]'s twin for video, for offering a spoiler before upload.
+bool looksLikeVideo(String filename) {
+  final dot = filename.lastIndexOf('.');
+  if (dot < 0) return false;
+  const videoExtensions = {'.mp4', '.webm', '.mov', '.mkv', '.m4v'};
+  return videoExtensions.contains(filename.substring(dot).toLowerCase());
+}
+
 bool looksLikeImage(String filename) {
   final dot = filename.lastIndexOf('.');
   if (dot == -1) return false;
   const imageExtensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'};
   return imageExtensions.contains(filename.substring(dot).toLowerCase());
+}
+
+/// What a send takes from the staging: the uploaded ids in display order,
+/// and which of them go behind a spoiler.
+class StagedSend {
+  const StagedSend(this.ids, {this.spoilerIds = const []});
+
+  final List<String> ids;
+  final List<String> spoilerIds;
 }
 
 /// Stages attachments for one channel's composer: a pick is visible the
@@ -188,6 +205,16 @@ class AttachmentStagingController extends ChangeNotifier {
       .toList(growable: false);
 
   int _nextLocalId = 0;
+
+  final Set<String> _spoilers = {};
+
+  /// Whether the staged item [localId] will be sent behind a spoiler.
+  bool isSpoiler(String localId) => _spoilers.contains(localId);
+
+  void toggleSpoiler(String localId) {
+    if (!_spoilers.remove(localId)) _spoilers.add(localId);
+    notifyListeners();
+  }
 
   /// Stages [attachment] as already uploaded, with [bytes] purely for the
   /// tile's own local preview - the picker (`gif_picker.dart`'s own selectGif
@@ -266,14 +293,23 @@ class AttachmentStagingController extends ChangeNotifier {
   /// Hands the uploaded ids to [send], taking them out of the staging in the
   /// same synchronous step so a second send finds nothing left to post. They
   /// go back if [send] throws before the message was queued.
-  Future<void> sendReady(Future<void> Function(List<String> ids) send) async {
+  Future<void> sendReady(Future<void> Function(StagedSend staged) send) async {
     final taken = _items.whereType<UploadedAttachment>().toList();
     if (taken.isNotEmpty) {
       _items.removeWhere((a) => a is UploadedAttachment);
       notifyListeners();
     }
     try {
-      await send([for (final a in taken) a.attachment.id]);
+      await send(
+        StagedSend(
+          [for (final a in taken) a.attachment.id],
+          spoilerIds: [
+            for (final a in taken)
+              if (_spoilers.contains(a.localId)) a.attachment.id,
+          ],
+        ),
+      );
+      _spoilers.removeAll([for (final a in taken) a.localId]);
     } on Object {
       _items.insertAll(0, taken);
       notifyListeners();
@@ -283,11 +319,13 @@ class AttachmentStagingController extends ChangeNotifier {
 
   void remove(String localId) {
     _items.removeWhere((a) => a.localId == localId);
+    _spoilers.remove(localId);
     notifyListeners();
   }
 
   void clear() {
     _items.clear();
+    _spoilers.clear();
     notifyListeners();
   }
 

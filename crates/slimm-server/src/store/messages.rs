@@ -145,6 +145,8 @@ pub struct NewMessage<'a> {
     pub content: &'a str,
     /// sha256 hashes of already-uploaded attachments, in display order.
     pub attachment_ids: &'a [Vec<u8>],
+    /// The subset of [`Self::attachment_ids`] shown behind a spoiler.
+    pub spoiler_ids: &'a [Vec<u8>],
     pub reply_to_id: Option<MessageId>,
     /// What this message forwards, already resolved by the caller with
     /// [`Store::forward_source`] and only after checking the sender can see
@@ -167,6 +169,7 @@ impl<'a> NewMessage<'a> {
             id,
             content,
             attachment_ids: &[],
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         }

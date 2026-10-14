@@ -82,6 +82,7 @@ mod tests {
             filename: name.to_owned(),
             content_type: kind.to_owned(),
             size: 1,
+            spoiler: false,
         }
     }
 
