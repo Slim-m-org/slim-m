@@ -84,14 +84,14 @@ void main() {
     },
   );
 
-  testWidgets('a first connection still reads as Connecting', (tester) async {
+  testWidgets('a first connection names its negotiating phase', (tester) async {
     final container = await _pump(
       tester,
       const VoiceState(channelId: 'c1', state: VoiceSessionState.connecting),
     );
     addTearDown(container.dispose);
 
-    expect(find.text('Connecting'), findsOneWidget);
+    expect(find.text('Negotiating audio'), findsOneWidget);
     expect(find.byType(VoiceReconnectBanner), findsNothing);
   });
 

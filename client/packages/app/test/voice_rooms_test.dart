@@ -104,7 +104,7 @@ void main() {
       harness(
         const VoiceLobbyRedirect(lobbyId: 'lobby'),
         handler: (request) {
-          calls++;
+          if (request.url.path == '/channels/lobby/voice/room') calls++;
           return http.Response(
             jsonEncode({'error': 'this channel does not make rooms'}),
             400,
