@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The microphone card on a host with the native input gate: the threshold
-/// is the meter's draggable line, it persists and reaches the session, and
-/// push-to-talk turns the silencing off.
+/// is the meter's draggable line, it persists and reaches the session,
+/// push-to-talk turns the silencing off, and loud sounds are evened out
+/// unless turned off.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/widgets/settings_toggle_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -88,6 +90,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.inputGateCalls.last.enabled, isFalse);
     expect(session.inputGateCalls.last.thresholdDb, kDefaultInputThresholdDb);
+  });
+
+  testWidgets('even out loud sounds starts on and turning it off persists '
+      'and reaches the session', (tester) async {
+    final session = await _pump(tester);
+    final toggle = find.byWidgetPredicate(
+      (w) => w is SettingsToggleRow && w.label == 'Even out loud sounds',
+    );
+    expect(toggle, findsOneWidget);
+    expect(tester.widget<SettingsToggleRow>(toggle).value, isTrue);
+
+    tester.widget<SettingsToggleRow>(toggle).onChanged!(false);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<SettingsToggleRow>(toggle).value, isFalse);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('slimm.voice.even_out_loud'), isFalse);
+    expect(session.lastEvenOutLoudSounds, isFalse);
+  });
+
+  testWidgets('a saved choice is applied to the session at startup', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.even_out_loud': false,
+    });
+    final session = await _pump(tester);
+    await _container(
+      tester,
+    ).read(voiceControllerProvider.notifier).restoreEvenOutLoudSounds();
+    expect(session.lastEvenOutLoudSounds, isFalse);
   });
 
   testWidgets('in a call the meter follows the live level', (tester) async {

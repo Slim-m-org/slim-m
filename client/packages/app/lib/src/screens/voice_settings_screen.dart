@@ -170,6 +170,8 @@ class _MicrophoneSection extends ConsumerWidget {
               ),
             ),
           ],
+          const SizedBox(height: AppSpacing.s16),
+          const EvenOutLoudSoundsToggle(),
           if (isDesktopHost) ...[
             const SizedBox(height: AppSpacing.s16),
             const _PushToTalkSection(),

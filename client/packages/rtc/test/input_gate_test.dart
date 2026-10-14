@@ -22,19 +22,25 @@ class _FakeGate {
 }
 
 void main() {
-  test('configure sends the threshold and whether to silence', () async {
+  test(
+      'configure sends the threshold, whether to silence, and whether to '
+      'even out loud sounds', () async {
     final fake = _FakeGate();
     final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
-    await gate.configure(enabled: true, thresholdDb: -42);
+    await gate.configure(enabled: true, thresholdDb: -42, dynamics: false);
     expect(fake.calls.single.$1, 'setInputGate');
-    expect(fake.calls.single.$2, {'enabled': true, 'thresholdDb': -42.0});
+    expect(fake.calls.single.$2, {
+      'enabled': true,
+      'thresholdDb': -42.0,
+      'dynamics': false,
+    });
   });
 
   test('an unsupported host never reaches the platform', () {
     fakeAsync((async) {
       final fake = _FakeGate();
       final gate = InputGateMonitor(invoke: fake.invoke, supported: false);
-      gate.configure(enabled: true, thresholdDb: -42);
+      gate.configure(enabled: true, thresholdDb: -42, dynamics: true);
       gate.start(() {});
       async.elapse(const Duration(seconds: 1));
       expect(fake.calls, isEmpty);

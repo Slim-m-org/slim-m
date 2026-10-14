@@ -80,6 +80,7 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
     'camera on join': voice.restoreCameraPreference(),
     'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
     'input threshold': voice.restoreInputThreshold(),
+    'even out loud sounds': voice.restoreEvenOutLoudSounds(),
     'video quality': voice.restoreVideoQuality(),
     'push to talk': voice.restorePushToTalkPreference(),
     'audio devices': voice.restoreAudioDevicePreferences(),
