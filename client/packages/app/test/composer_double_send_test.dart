@@ -158,13 +158,13 @@ void main() {
       )..addResolved(_attachment, Uint8List(0));
       final gate = Completer<void>();
       final seen = <List<String>>[];
-      Future<void> send(List<String> ids) async {
-        seen.add(ids);
+      Future<void> send(StagedSend staged) async {
+        seen.add(staged.ids);
         await gate.future;
       }
 
       final first = staging.sendReady(send);
-      await staging.sendReady((ids) async => seen.add(ids));
+      await staging.sendReady((staged) async => seen.add(staged.ids));
       gate.complete();
       await first;
       expect(seen, [
@@ -179,9 +179,9 @@ class _GatedSends extends Sends {
   _GatedSends(this.gate);
   final Completer<void> gate;
   @override
-  Future<void> call(List<String> attachmentIds) async {
+  Future<void> call(StagedSend attachments) async {
     count += 1;
-    ids = attachmentIds;
+    ids = attachments.ids;
     await gate.future;
   }
 }

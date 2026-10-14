@@ -16,6 +16,7 @@ class Attachment {
     required this.filename,
     required this.contentType,
     required this.size,
+    this.spoiler = false,
   });
 
   /// Hex sha256 of the stored bytes. Also the path segment a fetch uses, and
@@ -32,11 +33,16 @@ class Attachment {
   final String contentType;
   final int size;
 
+  /// Shown behind a spoiler on the message carrying it; per message, never
+  /// a property of the bytes.
+  final bool spoiler;
+
   factory Attachment.fromJson(Map<String, dynamic> json) => Attachment(
         id: json['id'] as String,
         filename: json['filename'] as String,
         contentType: json['content_type'] as String,
         size: json['size'] as int,
+        spoiler: json['spoiler'] as bool? ?? false,
       );
 }
 

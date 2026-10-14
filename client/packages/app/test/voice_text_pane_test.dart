@@ -20,6 +20,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/widgets/composer_attachments.dart'
+    show StagedSend;
 import 'package:slimm_app/src/providers/mounted_channels.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -235,7 +237,7 @@ void main() {
           'hello from voice chat',
         );
         final composer = tester.widget<Composer>(find.byType(Composer));
-        await composer.onSend(const <String>[]);
+        await composer.onSend(const StagedSend([]));
         await _settle(tester);
 
         expect(harness.posted, contains('hello from voice chat'));
@@ -333,7 +335,7 @@ void main() {
           'hello from the compact chat view',
         );
         final composer = tester.widget<Composer>(find.byType(Composer));
-        await composer.onSend(const <String>[]);
+        await composer.onSend(const StagedSend([]));
         await _settle(tester);
         expect(harness.posted, contains('hello from the compact chat view'));
 

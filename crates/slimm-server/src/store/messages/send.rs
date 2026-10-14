@@ -85,6 +85,7 @@ impl Store {
             id,
             content,
             attachment_ids,
+            spoiler_ids,
             reply_to_id,
             forward,
         } = msg;
@@ -155,7 +156,7 @@ impl Store {
         .await?;
 
         if !attachment_ids.is_empty() {
-            link_attachments(&mut tx, id, author_id, attachment_ids).await?;
+            link_attachments(&mut tx, id, author_id, attachment_ids, spoiler_ids).await?;
         }
 
         if let Some(origin) = &forward {

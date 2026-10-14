@@ -183,6 +183,7 @@ async fn delete_account_removes_attachment_uploader_rows() {
             id: MessageId::generate(),
             content: "before",
             attachment_ids: std::slice::from_ref(&sha256),
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })
@@ -199,6 +200,7 @@ async fn delete_account_removes_attachment_uploader_rows() {
             id: MessageId::generate(),
             content: "after",
             attachment_ids: std::slice::from_ref(&sha256),
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })

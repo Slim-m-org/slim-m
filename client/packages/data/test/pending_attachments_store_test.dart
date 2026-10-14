@@ -42,6 +42,21 @@ void main() {
     expect(await store.pendingAttachmentIds('m1'), ['b', 'a']);
   });
 
+  test('a retry keeps which ids were spoilers, and reads them back plain',
+      () async {
+    await store.addPending(
+      id: 'm1',
+      channelId: 'c1',
+      authorId: 'u1',
+      content: '',
+      attachmentIds: const ['b', 'a'],
+      spoilerIds: const ['a'],
+    );
+
+    expect(await store.pendingAttachmentIds('m1'), ['b', 'a']);
+    expect(await store.pendingSpoilerIds('m1'), ['a']);
+  });
+
   test('a send with no attachments has none to remember', () async {
     await _queue(store, 'm1');
 

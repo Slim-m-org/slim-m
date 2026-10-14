@@ -358,8 +358,9 @@ class MessageStore {
     required String content,
     String? replyToId,
     List<String> attachmentIds = const [],
+    List<String> spoilerIds = const [],
   }) async {
-    await _savePendingAttachments(this, id, attachmentIds);
+    await _savePendingAttachments(this, id, attachmentIds, spoilerIds);
     await db.into(db.messages).insertOnConflictUpdate(
           MessagesCompanion.insert(
             id: id,
@@ -399,6 +400,10 @@ class MessageStore {
   /// The attachment ids a send was queued with, for a retry to carry again.
   Future<List<String>> pendingAttachmentIds(String id) =>
       _pendingAttachmentIds(this, id);
+
+  /// Which of [pendingAttachmentIds] were queued as spoilers.
+  Future<List<String>> pendingSpoilerIds(String id) =>
+      _pendingAttachmentIds(this, id, spoilersOnly: true);
 
   /// Applies an edit to a message already held, and does nothing else.
   ///

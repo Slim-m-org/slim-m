@@ -215,6 +215,7 @@ async fn an_attachment_already_visible_in_a_message_may_be_placed_by_anyone_who_
             id: slimm_server::ids::MessageId::generate(),
             content: "look",
             attachment_ids: &[slimm_server::media::from_hex(&attachment).unwrap()],
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })

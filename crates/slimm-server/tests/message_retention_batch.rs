@@ -61,6 +61,7 @@ async fn send_old(s: &Store, pool: &SqlitePool, channel: ChannelId, author: User
             id: MessageId::generate(),
             content: "old",
             attachment_ids: &attachments,
+            spoiler_ids: &[],
             reply_to_id: None,
             forward: None,
         })
@@ -166,6 +167,7 @@ async fn an_attachment_a_surviving_message_still_holds_is_not_freed() {
         id: MessageId::generate(),
         content: "recent",
         attachment_ids: std::slice::from_ref(&sha256),
+        spoiler_ids: &[],
         reply_to_id: None,
         forward: None,
     })

@@ -7,6 +7,8 @@
 /// unit test with no Flutter binding at all.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -31,11 +33,19 @@ class StagedAttachmentTile extends StatelessWidget {
     required this.attachment,
     required this.onRemove,
     required this.onRetry,
+    this.spoiler = false,
+    this.onToggleSpoiler,
   });
 
   final StagedAttachment attachment;
   final VoidCallback onRemove;
   final VoidCallback onRetry;
+
+  /// Whether this will be sent behind a spoiler.
+  final bool spoiler;
+
+  /// Null for a file that cannot be a spoiler, which hides the control.
+  final VoidCallback? onToggleSpoiler;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +78,7 @@ class StagedAttachmentTile extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _AttachmentThumbnail(attachment: a),
+          _AttachmentThumbnail(attachment: a, spoiler: spoiler),
           const SizedBox(width: AppSpacing.s8),
           // A failure reads in full, so its column may grow; it still shrinks to the row.
           Flexible(
@@ -92,6 +102,16 @@ class StagedAttachmentTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.s8),
+          if (onToggleSpoiler case final toggle?)
+            _TileButton(
+              icon: AppIcons.spoiler,
+              semanticLabel: spoiler
+                  ? 'Show ${a.filename} without a spoiler'
+                  : 'Mark ${a.filename} as a spoiler',
+              tooltip: spoiler ? 'Remove spoiler' : 'Mark as spoiler',
+              active: spoiler,
+              onTap: toggle,
+            ),
           if (failed)
             _TileButton(
               icon: AppIcons.retry,
@@ -141,9 +161,10 @@ class _UploadProgress extends StatelessWidget {
 }
 
 class _AttachmentThumbnail extends StatelessWidget {
-  const _AttachmentThumbnail({required this.attachment});
+  const _AttachmentThumbnail({required this.attachment, required this.spoiler});
 
   final StagedAttachment attachment;
+  final bool spoiler;
 
   @override
   Widget build(BuildContext context) {
@@ -161,12 +182,16 @@ class _AttachmentThumbnail extends StatelessWidget {
               child: ColoredBox(
                 color: tokens.surfaceBase,
                 child: showImage
-                    ? Image.memory(
-                        bytes,
-                        fit: BoxFit.cover,
-                        cacheWidth: decodeEdge(context, _thumbnailSize),
-                        cacheHeight: decodeEdge(context, _thumbnailSize),
-                        errorBuilder: (_, _, _) => _fileGlyph(tokens),
+                    ? ImageFiltered(
+                        enabled: spoiler,
+                        imageFilter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                        child: Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          cacheWidth: decodeEdge(context, _thumbnailSize),
+                          cacheHeight: decodeEdge(context, _thumbnailSize),
+                          errorBuilder: (_, _, _) => _fileGlyph(tokens),
+                        ),
                       )
                     : _fileGlyph(tokens),
               ),
@@ -179,6 +204,15 @@ class _AttachmentThumbnail extends StatelessWidget {
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          if (spoiler && attachment is UploadedAttachment)
+            _scrim(
+              tokens,
+              child: Icon(
+                AppIcons.spoiler,
+                size: AppSizes.icon16,
+                color: tokens.textPrimary,
               ),
             ),
           if (attachment is FailedAttachment)
@@ -225,11 +259,17 @@ class _TileButton extends StatefulWidget {
     required this.icon,
     required this.semanticLabel,
     required this.onTap,
+    this.tooltip,
+    this.active = false,
   });
 
   final IconData icon;
   final String semanticLabel;
   final VoidCallback onTap;
+  final String? tooltip;
+
+  /// On, for a toggle: drawn in the accent, the viewer's own choice.
+  final bool active;
 
   @override
   State<_TileButton> createState() => _TileButtonState();
@@ -246,8 +286,9 @@ class _TileButtonState extends State<_TileButton> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Semantics(
+    final button = Semantics(
       button: true,
+      toggled: widget.tooltip == null ? null : widget.active,
       label: widget.semanticLabel,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -264,11 +305,17 @@ class _TileButtonState extends State<_TileButton> {
             child: Icon(
               widget.icon,
               size: AppSizes.icon16,
-              color: _hovered ? tokens.textPrimary : tokens.textSecondary,
+              color: widget.active
+                  ? tokens.accent
+                  : _hovered
+                  ? tokens.textPrimary
+                  : tokens.textSecondary,
             ),
           ),
         ),
       ),
     );
+    final tooltip = widget.tooltip;
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
   }
 }
