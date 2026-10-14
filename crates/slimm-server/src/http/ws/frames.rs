@@ -98,6 +98,12 @@ pub(super) enum ServerFrame {
         message_id: String,
         components: Vec<crate::components::ComponentRow>,
     },
+    #[serde(rename = "message.embeds")]
+    MessageEmbedsChanged {
+        channel_id: String,
+        message_id: String,
+        embeds: Vec<crate::http::embeds::EmbedDto>,
+    },
     /// A member used this bot's button, menu entry or call control. Bot
     /// connections only. `custom_id` is the entry id for the latter two, and a
     /// call control names no message.

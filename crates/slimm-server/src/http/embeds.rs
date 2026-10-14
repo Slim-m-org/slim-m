@@ -9,12 +9,15 @@ mod webhook;
 pub(crate) use build::{RawEmbed, build_embeds};
 pub(crate) use webhook::{WebhookEmbed, null_as_empty};
 
+use std::sync::Arc;
+
 use serde::Serialize;
 
 use super::AppState;
 use super::error::ApiError;
 use super::link_preview::LinkPreviews;
-use crate::ids::{MessageId, UserId};
+use crate::hub::Event;
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{Embed as StoreEmbed, NewEmbed};
 
 /// A caller-supplied colour, reduced to one of a small closed set of
@@ -157,6 +160,49 @@ pub(crate) async fn honored_for_send(
         return Ok(Vec::new());
     }
     build_embeds(raw, &state.link_previews)
+}
+
+/// `raw` built into a replacement for a message's embeds, only when the edit
+/// carries embeds and comes from the bot that wrote the message; anyone
+/// else's are dropped, as on send.
+pub(crate) async fn honored_for_edit(
+    state: &AppState,
+    caller: UserId,
+    is_author: bool,
+    raw: Option<Vec<RawEmbed>>,
+) -> Result<Option<Vec<NewEmbed>>, ApiError> {
+    let Some(raw) = raw else { return Ok(None) };
+    if !is_author || !state.store.is_bot(caller).await? {
+        return Ok(None);
+    }
+    build_embeds(raw, &state.link_previews).map(Some)
+}
+
+/// Applies an edit's replacement, if any, and answers the message's embeds
+/// as they now stand. A replacement is announced as its own
+/// `message.embeds` frame, so it reaches clients even when the text did not
+/// change.
+pub(crate) async fn after_edit(
+    state: &AppState,
+    channel_id: ChannelId,
+    message_id: MessageId,
+    replacement: Option<Vec<NewEmbed>>,
+) -> anyhow::Result<Vec<EmbedDto>> {
+    if let Some(embeds) = &replacement {
+        state
+            .store
+            .replace_message_embeds(message_id, embeds)
+            .await?;
+    }
+    let stored = store_and_reload(state, message_id, false, &[]).await?;
+    if replacement.is_some() {
+        state.hub.publish(Event::MessageEmbedsChanged {
+            channel_id,
+            message_id,
+            embeds: Arc::new(stored.clone()),
+        });
+    }
+    Ok(dtos_from_stored(&state.link_previews, stored))
 }
 
 /// Stores `embeds` when `fresh`, then reads back whatever actually landed.

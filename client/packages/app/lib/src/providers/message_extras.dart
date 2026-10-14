@@ -80,15 +80,16 @@ class MessageExtras {
   final List<api.ReactionSummary> reactions;
   final List<api.Attachment> attachments;
 
-  /// Fixed once a message exists, like [attachments]; see decision 0030.
+  /// A bot can replace or clear them by editing, so they follow [components]'
+  /// rule, through a `message.embeds` frame.
   final List<api.Embed> embeds;
 
   /// A webhook post's own username label; fixed once the message exists.
   final String? webhookUsername;
 
-  /// A bot's buttons. Unlike [embeds] a bot can replace or clear them, so a
-  /// REST fetch and a `message.components` frame both replace the list, where
-  /// a bare live create or edit frame only ever adds.
+  /// A bot's buttons. A bot can replace or clear them, so a REST fetch and a
+  /// `message.components` frame both replace the list, where a bare live
+  /// create or edit frame only ever adds.
   final List<api.ComponentRow> components;
 
   /// The shared result of each fenced code block run in this message, one
@@ -128,6 +129,7 @@ class MessageExtras {
     api.Poll? poll,
     api.AppSurface? appSurface,
     api.CallRecord? call,
+    List<api.Embed>? embeds,
     List<api.ComponentRow>? components,
     String? threadChannelId,
     int? threadReplyCount,
@@ -139,7 +141,7 @@ class MessageExtras {
     poll: poll ?? this.poll,
     appSurface: appSurface ?? this.appSurface,
     call: call ?? this.call,
-    embeds: embeds,
+    embeds: embeds ?? this.embeds,
     webhookUsername: webhookUsername,
     components: components ?? this.components,
     threadChannelId: threadChannelId ?? this.threadChannelId,
@@ -179,6 +181,8 @@ class MessageExtrasController
         _applyPollTally(messageId, options);
       case api.MessageComponentsChanged(:final messageId, :final components):
         _set(messageId, extrasFor(messageId).copyWith(components: components));
+      case api.MessageEmbedsChanged(:final messageId, :final embeds):
+        _set(messageId, extrasFor(messageId).copyWith(embeds: embeds));
       case api.ThreadUpdated(
         :final parentMessageId,
         :final threadChannelId,
@@ -260,7 +264,8 @@ class MessageExtrasController
     poll: message.poll ?? existing?.poll,
     appSurface: message.appSurface ?? existing?.appSurface,
     call: message.call ?? existing?.call,
-    embeds: message.embeds.isNotEmpty
+    // Same rule as components: a bot can replace or clear them, so a REST fetch replaces.
+    embeds: authoritative || message.embeds.isNotEmpty
         ? message.embeds
         : existing?.embeds ?? const [],
     webhookUsername: message.webhookUsername ?? existing?.webhookUsername,

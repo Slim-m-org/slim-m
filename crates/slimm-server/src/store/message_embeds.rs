@@ -135,7 +135,8 @@ pub(super) async fn insert_embeds(
 
 impl Store {
     /// Stores `embeds`, in order, against `message_id` - insert only, called
-    /// at most once per message; an edit never touches them.
+    /// at most once per message; a bot's edit goes through
+    /// [`Self::replace_message_embeds`] instead.
     pub async fn set_message_embeds(
         &self,
         message_id: MessageId,
@@ -145,6 +146,31 @@ impl Store {
             return Ok(());
         }
         let mut tx = self.begin_write().await?;
+        insert_embeds(&mut tx, message_id, embeds).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Replaces every embed on `message_id` with `embeds`, in one
+    /// transaction; an empty list clears them.
+    pub async fn replace_message_embeds(
+        &self,
+        message_id: MessageId,
+        embeds: &[NewEmbed],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
+        sqlx::query!(
+            "DELETE FROM message_embed_fields WHERE message_id = ?",
+            message_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "DELETE FROM message_embeds WHERE message_id = ?",
+            message_id
+        )
+        .execute(&mut *tx)
+        .await?;
         insert_embeds(&mut tx, message_id, embeds).await?;
         tx.commit().await?;
         Ok(())

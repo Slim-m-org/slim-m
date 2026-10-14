@@ -96,6 +96,10 @@ struct SendRequest {
 #[derive(Deserialize)]
 struct EditRequest {
     content: String,
+    /// A replacement for the message's embeds, honoured only from the bot
+    /// that wrote it; see [`embeds::honored_for_edit`].
+    #[serde(default)]
+    embeds: Option<Vec<embeds::RawEmbed>>,
 }
 
 #[derive(Deserialize)]
@@ -451,6 +455,8 @@ async fn edit(
 
     // An edit carries no attachment list, so nothing stands in for cleared text - unless the message forwards something.
     let content = validate_content(&req.content, forwarded.is_some())?;
+    // Built before the text changes, so a refused embed leaves the edit undone rather than half done.
+    let replacement = embeds::honored_for_edit(&state, ctx.user_id, is_author, req.embeds).await?;
     let updated = match state
         .store
         .edit_message(message_id, content, ctx.user_id)
@@ -491,5 +497,6 @@ async fn edit(
     };
     let mut dto: MessageDto = updated.into();
     dto.forwarded = forwarded.map(Into::into);
+    dto.embeds = embeds::after_edit(&state, channel_id, message_id, replacement).await?;
     Ok(Json(dto))
 }

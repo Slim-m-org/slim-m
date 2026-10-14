@@ -233,6 +233,7 @@ pub(super) async fn authorize_unstamped(
             Event::MessageUnpinned { channel_id, .. } => *channel_id,
             Event::PollVoted { channel_id, .. } => *channel_id,
             Event::MessageComponentsChanged { channel_id, .. } => *channel_id,
+            Event::MessageEmbedsChanged { channel_id, .. } => *channel_id,
             Event::TypingStarted { channel_id, .. } | Event::TypingStopped { channel_id, .. } => {
                 *channel_id
             }
@@ -512,6 +513,15 @@ pub(super) async fn authorize_unstamped(
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             components: (*components).clone(),
+        },
+        Event::MessageEmbedsChanged {
+            channel_id,
+            message_id,
+            embeds,
+        } => ServerFrame::MessageEmbedsChanged {
+            channel_id: channel_id.to_string(),
+            message_id: message_id.to_string(),
+            embeds: super::super::embeds::dtos_from_stored(link_previews, (*embeds).clone()),
         },
         Event::TypingStarted {
             channel_id,
