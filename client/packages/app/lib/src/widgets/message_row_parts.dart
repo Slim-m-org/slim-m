@@ -267,44 +267,48 @@ class FailedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    // The time slot already says "not sent" in red (MessageTimeMark), so
-    // these buttons are only the way forward: Retry outlined in danger, the
-    // neutral verbs beside it (error grammar: red is outlined, never filled,
-    // and always ships a verb).
+    // The time slot already says "not sent" in red, so this stays one quiet line: why, then the ways forward as borderless verbs.
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(top: AppSpacing.s4),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.s4,
         children: [
           if (reason != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.s4),
+              padding: const EdgeInsets.only(right: AppSpacing.s4),
               child: Text(
                 reason!,
-                style: AppText.label.copyWith(color: tokens.dangerText),
+                style: AppText.caption.copyWith(color: tokens.dangerText),
               ),
             ),
-          Wrap(
-            spacing: AppSpacing.s8,
-            children: [
-              AppButton(
-                label: 'Retry',
-                size: AppButtonSize.sm,
-                variant: AppButtonVariant.danger,
-                onPressed: onRetry,
-              ),
-              if (onEdit != null)
+          // Pulled left by the buttons' own padding so the first verb lines up with the text above when it wraps.
+          Transform.translate(
+            offset: const Offset(-AppSpacing.s12, 0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 AppButton(
-                  label: 'Edit',
+                  label: 'Retry',
                   size: AppButtonSize.sm,
-                  onPressed: onEdit,
+                  variant: AppButtonVariant.ghost,
+                  onPressed: onRetry,
                 ),
-              AppButton(
-                label: 'Discard',
-                size: AppButtonSize.sm,
-                onPressed: onDiscard,
-              ),
-            ],
+                if (onEdit != null)
+                  AppButton(
+                    label: 'Edit',
+                    size: AppButtonSize.sm,
+                    variant: AppButtonVariant.ghost,
+                    onPressed: onEdit,
+                  ),
+                AppButton(
+                  label: 'Discard',
+                  size: AppButtonSize.sm,
+                  variant: AppButtonVariant.ghost,
+                  onPressed: onDiscard,
+                ),
+              ],
+            ),
           ),
         ],
       ),

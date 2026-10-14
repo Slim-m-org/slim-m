@@ -50,6 +50,18 @@ impl Store {
         channel_id: ChannelId,
         candidates: &[UserId],
     ) -> anyhow::Result<Vec<UserId>> {
+        self.holders_among(channel_id, candidates, Permissions::VIEW_CHANNEL)
+            .await
+    }
+
+    /// [`Store::viewers_among`] for any set of bits: the candidates who hold
+    /// all of `needed` in `channel_id`.
+    pub async fn holders_among(
+        &self,
+        channel_id: ChannelId,
+        candidates: &[UserId],
+        needed: Permissions,
+    ) -> anyhow::Result<Vec<UserId>> {
         if candidates.is_empty() {
             return Ok(Vec::new());
         }
@@ -96,7 +108,7 @@ impl Store {
                     .dm_permissions(user_id, channel_id)
                     .await?
                     .remove(deny_for(user_id))
-                    .contains(Permissions::VIEW_CHANNEL)
+                    .contains(needed)
                 {
                     viewers.push(user_id);
                 }
@@ -156,7 +168,7 @@ impl Store {
                 .evaluate_for(user_id, &overwrites)
                 .permissions
                 .remove(deny_for(user_id));
-            if perms.contains(Permissions::VIEW_CHANNEL) {
+            if perms.contains(needed) {
                 viewers.push(user_id);
             }
         }

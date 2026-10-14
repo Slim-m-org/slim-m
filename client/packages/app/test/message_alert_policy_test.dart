@@ -77,6 +77,10 @@ class _Rig {
   bool meFails = false;
   final Map<String, String> overrides;
   final bool parentFails;
+
+  /// Channels this account can read but not post in.
+  Set<String> readOnly = const {};
+  int permissionRequests = 0;
   final threadParentRequests = <String>[];
 
   late final SlimmDatabase db;
@@ -174,6 +178,11 @@ class _Rig {
         for (final e in overrides.entries)
           {'channel_id': e.key, 'preference': e.value},
       ]);
+    }
+    if (path.startsWith('/channels/') && path.endsWith('/permissions')) {
+      permissionRequests++;
+      final id = path.split('/')[2];
+      return _json({'permissions': readOnly.contains(id) ? 2 : 6});
     }
     if (path == '/channels/thread-1/thread-parent') {
       threadParentRequests.add(path);
@@ -468,6 +477,32 @@ void main() {
 
       expect(await _alerts(rig, _message('group-1', 'hi @nick')), isTrue);
       expect(rig.meRequests, 2);
+    });
+  });
+
+  group('a channel this account cannot post in', () {
+    test('an everything default reads as mentions there', () async {
+      await wire(_Rig()..readOnly = {'group-1'});
+
+      expect(await _alerts(rig, _message('group-1', 'new article')), isFalse);
+      expect(await _alerts(rig, _message('group-1', 'hi @nick')), isTrue);
+    });
+
+    test('an override for the channel still gets every post', () async {
+      await wire(
+        _Rig(overrides: {'group-1': 'everything'})..readOnly = {'group-1'},
+      );
+
+      expect(await _alerts(rig, _message('group-1', 'new article')), isTrue);
+    });
+
+    test('posting rights are only asked when they could matter', () async {
+      await wire(_Rig(account: 'mentions')..readOnly = {'group-1'});
+
+      await _alerts(rig, _message('group-1', 'hi all'));
+      await _alerts(rig, _message('dm-1', 'hello'));
+
+      expect(rig.permissionRequests, 0);
     });
   });
 }

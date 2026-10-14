@@ -13,7 +13,7 @@ use crate::notification_schedule::degrade_for_off_hours;
 use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 use crate::presence::PresenceTracker;
-use crate::store::{Store, ThreadParent};
+use crate::store::{NotificationChoice, Store, ThreadParent};
 
 use super::mention_grammar::{mentioned_role_names, mentioned_usernames};
 use crate::http::code_fences::prose_outside_code;
@@ -269,6 +269,10 @@ async fn narrow_for_thread(
 /// allow-list. A recipient with no schedule configured at all is untouched -
 /// see `store/notification_schedule.rs`'s own doc comment for why that is a
 /// distinct state from a schedule with every day empty.
+///
+/// A channel the recipient can read but not post in (a feed, an announcement
+/// channel) wakes them only for mentions unless they chose otherwise for that
+/// channel: [`read_only_default`] has the rule.
 async fn narrow_for_notification_preference(
     store: &Store,
     scope: Scope,
@@ -283,9 +287,14 @@ async fn narrow_for_notification_preference(
         channel_id,
         parent_channel_id,
     } = scope;
-    let preferences = store
-        .channel_notification_preferences(channel_id, parent_channel_id, &viewers)
+    let choices = store
+        .channel_notification_choices(channel_id, parent_channel_id, &viewers)
         .await?;
+    let senders: HashSet<UserId> = store
+        .holders_among(channel_id, &viewers, Permissions::SEND_MESSAGES)
+        .await?
+        .into_iter()
+        .collect();
     let is_dm = store.channel_notifies_as_dm(channel_id).await?;
     let schedules = store.notification_schedules_for_users(&viewers).await?;
     let channel_allowed = store
@@ -298,7 +307,11 @@ async fn narrow_for_notification_preference(
     Ok(viewers
         .into_iter()
         .filter(|user_id| {
-            let mut preference = preferences.get(user_id).copied().unwrap_or_default();
+            let choice = choices.get(user_id).copied().unwrap_or(NotificationChoice {
+                preference: NotificationPreference::default(),
+                overridden: false,
+            });
+            let mut preference = read_only_default(choice, senders.contains(user_id));
             if let Some(schedule) = schedules.get(user_id) {
                 preference = degrade_for_off_hours(
                     preference,
@@ -314,4 +327,15 @@ async fn narrow_for_notification_preference(
             }
         })
         .collect())
+}
+
+/// The preference that applies once posting rights are known: without an
+/// override for this channel, "everything" becomes "mentions" for a reader
+/// who cannot post in it, so a busy feed does not wake everyone it reaches.
+/// An explicit choice for the channel always stands.
+fn read_only_default(choice: NotificationChoice, can_send: bool) -> NotificationPreference {
+    match (choice.preference, choice.overridden, can_send) {
+        (NotificationPreference::Everything, false, false) => NotificationPreference::Mentions,
+        (preference, _, _) => preference,
+    }
 }

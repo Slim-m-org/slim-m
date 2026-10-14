@@ -132,6 +132,24 @@ impl Store {
         parent_channel_id: Option<ChannelId>,
         user_ids: &[UserId],
     ) -> anyhow::Result<HashMap<UserId, NotificationPreference>> {
+        Ok(self
+            .channel_notification_choices(channel_id, parent_channel_id, user_ids)
+            .await?
+            .into_iter()
+            .map(|(id, choice)| (id, choice.preference))
+            .collect())
+    }
+
+    /// [`Store::channel_notification_preferences`], also saying whether each
+    /// answer is an override set on this channel (or its thread parent) rather
+    /// than the account default, which the push gate treats differently in a
+    /// channel the reader cannot post in.
+    pub async fn channel_notification_choices(
+        &self,
+        channel_id: ChannelId,
+        parent_channel_id: Option<ChannelId>,
+        user_ids: &[UserId],
+    ) -> anyhow::Result<HashMap<UserId, NotificationChoice>> {
         if user_ids.is_empty() {
             return Ok(HashMap::new());
         }
@@ -139,7 +157,8 @@ impl Store {
         // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
         let mut builder = QueryBuilder::new(
             "SELECT u.id AS id, \
-             COALESCE(c.preference, p.preference, u.notification_preference) AS preference \
+             COALESCE(c.preference, p.preference, u.notification_preference) AS preference, \
+             COALESCE(c.preference, p.preference) IS NOT NULL AS overridden \
              FROM users u LEFT JOIN channel_notification_prefs c \
              ON c.user_id = u.id AND c.channel_id = ",
         );
@@ -161,8 +180,20 @@ impl Store {
         for row in rows {
             let id: UserId = row.try_get("id")?;
             let raw: String = row.try_get("preference")?;
-            preferences.insert(id, NotificationPreference::parse(&raw).unwrap_or_default());
+            let choice = NotificationChoice {
+                preference: NotificationPreference::parse(&raw).unwrap_or_default(),
+                overridden: row.try_get("overridden")?,
+            };
+            preferences.insert(id, choice);
         }
         Ok(preferences)
     }
+}
+
+/// One reader's effective notification preference for a channel, and whether
+/// they chose it for this channel (or its thread parent) specifically.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NotificationChoice {
+    pub preference: NotificationPreference,
+    pub overridden: bool,
 }
