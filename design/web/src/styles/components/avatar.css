@@ -38,3 +38,10 @@
   border-radius: var(--radius-full);
   background: var(--surface-base);
 }
+/* bot_avatar_placeholder.dart: a blank square read as broken, so a bot with no picture shows mono initials. */
+.sm-avatar__bot-initials {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-secondary);
+}

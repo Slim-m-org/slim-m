@@ -1,5 +1,7 @@
 /* The root every slim-m surface sits in: theme surface, Plex, and box sizing. */
 .sm-root {
+  /* The size container composites query, so a phone-width frame gets the compact layouts (desktop-vs-mobile.md: width decides, never platform). */
+  container: slim / inline-size;
   background: var(--surface-base);
   color: var(--text-primary);
   font-family: var(--font-sans);

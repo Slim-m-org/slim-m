@@ -1,0 +1,86 @@
+/* VoiceCallDock, CallControls, CallDockButton, FloatingDockCard (screens/voice_call_dock.dart, voice_call_controls.dart, call_dock_button.dart, widgets/floating_dock_card.dart). */
+.sm-call-dock {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 100%;
+  padding: var(--space-4) var(--space-12);
+  border: var(--hairline);
+  border-radius: var(--radius-window);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-tile);
+}
+.sm-call-dock__row { display: flex; align-items: center; justify-content: center; gap: var(--space-4); }
+.sm-call-dock__row--solo { margin-bottom: var(--space-4); padding-bottom: var(--space-4); border-bottom: var(--hairline); }
+.sm-call-dock__controls { display: flex; align-items: center; gap: var(--space-8); }
+.sm-call-dock__share { display: inline-flex; }
+.sm-call-dock__divider { flex: none; width: 1px; height: var(--space-24); margin: 0 var(--space-4); background: var(--border-subtle); }
+
+.sm-call-dock-button {
+  --sm-cdb-hit: var(--row-pointer);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: max(var(--control-md), var(--sm-cdb-hit));
+  height: max(var(--control-md), var(--sm-cdb-hit));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sm-call-dock-button__chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border: var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  transition: transform var(--duration-fast) var(--ease-entrance);
+}
+.sm-call-dock-button:active .sm-call-dock-button__chip { transform: scale(var(--press-scale)); }
+.sm-call-dock-button:focus-visible { outline: none; }
+.sm-call-dock-button:focus-visible .sm-call-dock-button__chip { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sm-call-dock-button--active { color: var(--accent-text); }
+.sm-call-dock-button--active .sm-call-dock-button__chip { background: var(--accent-soft); }
+.sm-call-dock-button--destructive { color: var(--danger-text); }
+.sm-call-dock-button--destructive .sm-call-dock-button__chip { background: transparent; border-color: var(--danger-border); }
+.sm-call-dock-button--unavailable { color: var(--text-disabled); }
+.sm-call-dock-button__level {
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: 3px;
+  height: 2px;
+}
+.sm-call-dock-button__level > span { display: block; height: 100%; background: var(--status-online); }
+.sm-call-dock-button__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--text-secondary);
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+/* Joined to the share caret: left corners round, right edge flush. */
+.sm-control-with-options--joined > .sm-call-dock-button { justify-content: flex-end; }
+.sm-control-with-options--joined > .sm-call-dock-button .sm-call-dock-button__chip {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sm-control-with-options--joined > .sm-call-dock-button--active .sm-call-dock-button__chip { border-color: var(--border-subtle); }
+
+/* Compact is touch: 44px hit targets and no caret, a long press opens the options instead. */
+@container slim (max-width: 599px) {
+  .sm-call-dock-button { --sm-cdb-hit: var(--row-touch); }
+  .sm-call-dock .sm-control-with-options__caret { display: none; }
+  .sm-call-dock .sm-control-with-options--joined > .sm-call-dock-button .sm-call-dock-button__chip {
+    border-right-width: 1px;
+    border-radius: var(--radius-control);
+  }
+}

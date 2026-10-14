@@ -8,6 +8,8 @@
 - Shipped values that differ from the July design export (code wins): modal scrim is black 54% (Flutter's `black54`), not 62%; the content column is 720px (`kContentColumnMax`), not 760.
 - Playwright: the cached chromium here is build 1228, which pins `playwright@1.61.1` in `.ds-sync`.
 - Previews render inside `SlimRoot theme="dark"` with 16px padding (`cfg.provider`).
+- Composites (Chat, Shell, Voice, Profile, Settings groups) port app-level widgets from `client/packages/app/lib/src/widgets` and `screens`. They respond to width through CSS container queries on the `slim` container that `SlimRoot` declares, at the app's breakpoints (compact < 600, medium 600-999, expanded >= 1000; settings two-pane at 800). Their previews put each form in its own fixed-width SlimRoot.
+- Avatar squares with no picture draw mono initials by default (the app's `bot_avatar_placeholder.dart`); composites must not pass an icon placeholder for bots.
 - Groups come from `category` frontmatter in `design/web/docs/<Name>.md` (Foundations, Core, Brand, Forms, Settings, Surfaces); those docs are also each component's `.prompt.md`.
 - Groups (the `category` frontmatter) are read only by a full `package-build.mjs` run; `preview-rebuild.mjs` keeps whatever group the last full build assigned, so a scoped wave shows everything under "general" until the next full build.
 - BrandLattice draws its accent square at a fixed spot (column 4, row 12, about x 126 / y 350); a panel shorter than about 380px shows only faint dots. Previews and its doc use 420px or taller.
@@ -26,5 +28,7 @@
 - `design/web` is hand-ported from Flutter. Nothing checks that it still matches; a Flutter component change (sizes, variants, tokens) silently leaves the React twin stale. Recheck the touched component on every sync, starting from `git log client/packages/design_system` since the last one.
 - `src/styles/tokens.css` is transcribed by hand from `app_tokens.dart` and friends. Same risk; diff the Dart token files since the last sync.
 - `src/icons.ts` is generated; rerun `npm run icons` before building when `app_icons.dart` changed.
-- The core batch wrote its docs from the React source and JSDoc, not from the Flutter originals; spot-check them against the Dart widgets when touching those components.
+- The core batch and the composite grading waves worked partly from the React source and sheets rather than every Flutter original (only MessageRow, Composer, AppShell, MemberProfile and the bot avatar were checked against Flutter by hand); spot-check others against the Dart widgets when touching them. LinkEmbed ports the link preview card only, not `embed_card.dart`'s bot embed with its accent bar.
 - The playwright pin (1.61.1) depends on the locally cached chromium 1228.
+- Column cards are about 860px wide. A composite preview wider than that (expanded 1100 shell, 900 wide frames) must render at its real width inside a `transform: scale()` wrapper sized to the scaled box, as `.design-sync/previews/AppShell.tsx` does: the transform shrinks the picture without changing the width the `slim` container queries see. Shrinking the frame instead would flip it into the medium or compact layout.
+- A preview cell taller than about 1000px is cropped by the capture; split tall cells (several 560px phone frames) into separate exports.

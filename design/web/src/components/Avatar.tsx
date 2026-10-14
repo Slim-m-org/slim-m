@@ -24,7 +24,7 @@ export interface AvatarProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'chil
   speaking?: boolean;
   /** A static 2px ring in this colour, drawn when not speaking. */
   ringColor?: string;
-  /** Content of a square avatar with no src; squares never show initials. */
+  /** Content of a square avatar with no src; defaults to the name's initials in mono, as the app draws a bot with no picture. */
   placeholder?: ReactNode;
 }
 
@@ -67,7 +67,7 @@ function initialsScale(size: number, withDot: boolean, g: ReturnType<typeof geom
   return Math.min(1, Math.max(0, half * 2) / textWidth);
 }
 
-/** A user picture: round tinted initials for a person, a square with a placeholder for a bot or webhook. Takes an optional presence dot and speaking ring without moving layout. */
+/** A user picture: round tinted initials for a person, a square with mono initials for a bot or webhook. Takes an optional presence dot and speaking ring without moving layout. */
 export function Avatar({
   name,
   tintKey,
@@ -100,7 +100,7 @@ export function Avatar({
       </span>
     </span>
   ) : (
-    <span className="sm-avatar__face sm-avatar__face--square">{placeholder}</span>
+    <span className="sm-avatar__face sm-avatar__face--square">{placeholder ?? <span className="sm-avatar__bot-initials">{initialsFor(name)}</span>}</span>
   );
 
   if (speaking) {

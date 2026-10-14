@@ -15,8 +15,8 @@ const panel = (label: string) => (
 
 export const Themes = () => (
   <div style={{ display: 'flex', gap: 'var(--space-12)', flexWrap: 'wrap' }}>
-    <SlimRoot theme="dark" style={{ padding: 16 }}>{panel('Dark')}</SlimRoot>
-    <SlimRoot theme="light" style={{ padding: 16 }}>{panel('Light')}</SlimRoot>
-    <SlimRoot theme="black" style={{ padding: 16 }}>{panel('True black')}</SlimRoot>
+    <SlimRoot theme="dark" style={{ padding: 16, width: 272 }}>{panel('Dark')}</SlimRoot>
+    <SlimRoot theme="light" style={{ padding: 16, width: 272 }}>{panel('Light')}</SlimRoot>
+    <SlimRoot theme="black" style={{ padding: 16, width: 272 }}>{panel('True black')}</SlimRoot>
   </div>
 );

@@ -9,7 +9,7 @@ A user picture: round tinted initials for a person, a square with a placeholder 
 ## Shapes and sizes
 
 - `circle` (default) is a person. With no `src` it shows the first two letters of `name` on a fixed muted tint hashed from `tintKey` (a user id), or from `name` when no key is given.
-- `square` marks a non-human author such as a webhook or CI bot. Squares never show initials; pass `placeholder` for the content, usually an `Icon`.
+- `square` marks a non-human author such as a webhook or CI bot. With no `src` it shows the name's initials in mono, the way the app draws a bot with no picture; `placeholder` replaces them (for example an `Icon`).
 - `size` is one of 16, 20, 24, 28, 32, 36, 40, 44, 56, 72, 96. 16 and 20 are rail rows, 28 a DM row, 32 a member row, 36 the default, 40 a message author, 56 a canvas bubble, 96 an incoming call.
 
 ## Usage

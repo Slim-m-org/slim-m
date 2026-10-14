@@ -1,0 +1,66 @@
+/* HomeShell and its pane slots (screens/home_shell.dart, home_shell_pane_slots.dart, widgets/compact_drawer_scaffold.dart, widgets/channel_rail_drawer.dart). */
+.sm-appshell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+.sm-appshell__banner { flex: none; }
+.sm-appshell__body { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; }
+.sm-appshell__rail { flex: none; width: 240px; min-height: 0; border-right: var(--hairline); background: var(--surface-sunken); }
+.sm-appshell__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.sm-appshell__content { flex: 1; min-height: 0; overflow: hidden; }
+.sm-appshell__members { flex: none; width: 236px; min-height: 0; }
+.sm-appshell__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: var(--scrim);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-base) var(--ease-entrance), visibility 0s linear var(--duration-base);
+}
+.sm-appshell--members-hidden .sm-appshell__members { display: none; }
+
+/* The member pane is a right drawer wherever it cannot dock: rail 240 + 30 + pane 236 + 330 minimum transcript. */
+@container slim (max-width: 835px) {
+  .sm-appshell__members {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 11;
+    max-width: calc(100% - 56px);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform var(--duration-base) var(--ease-entrance), visibility 0s linear var(--duration-base);
+  }
+  .sm-appshell--members-hidden .sm-appshell__members { display: block; }
+  .sm-appshell--members-open .sm-appshell__members { transform: none; visibility: visible; transition-delay: 0s; }
+  .sm-appshell--members-open .sm-appshell__scrim { opacity: 1; visibility: visible; transition-delay: 0s; }
+}
+@container slim (min-width: 1000px) {
+  .sm-appshell__rail { width: 248px; }
+}
+/* Compact: the content is the only pane and the rail slides in from the left. */
+@container slim (max-width: 599px) {
+  .sm-appshell__rail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 11;
+    width: 304px;
+    max-width: calc(100% - 56px);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform var(--duration-base) var(--ease-entrance), visibility 0s linear var(--duration-base);
+  }
+  .sm-appshell--rail-open .sm-appshell__rail { transform: none; visibility: visible; transition-delay: 0s; }
+  .sm-appshell--rail-open .sm-appshell__scrim { opacity: 1; visibility: visible; transition-delay: 0s; }
+}

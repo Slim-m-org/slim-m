@@ -1,0 +1,22 @@
+/* RailConnectionBar, VoiceReconnectBanner, TimeoutBanner, BannerHostLayout (widgets/channel_rail_frame.dart, voice_reconnect_banner.dart, timeout_banner.dart, banner_host_layout.dart). */
+.sm-statusbanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-16);
+  border-bottom: var(--hairline);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--text-secondary);
+}
+.sm-statusbanner__icon { flex: none; display: inline-flex; }
+.sm-statusbanner__body { flex: 1; min-width: 0; }
+.sm-statusbanner__detail { margin-top: 2px; }
+.sm-statusbanner--transient { background: var(--warn-soft); color: var(--warn-text); }
+.sm-statusbanner--failure { background: var(--surface-base); color: var(--danger-text); border-bottom-color: var(--danger-border); }
+.sm-statusbanner--info { background: var(--surface-raised); }
+@container slim (max-width: 599px) {
+  .sm-statusbanner { min-height: var(--row-touch); padding-inline: var(--space-12); }
+}

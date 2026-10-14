@@ -1,0 +1,39 @@
+/* AppMemberPane, MemberGroupLabel and MemberRow (widgets/member_pane.dart, member_pane_rows.dart). */
+.sm-memberlist {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface-sunken);
+  border-left: var(--hairline);
+  font-family: var(--font-sans);
+}
+.sm-memberlist__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: var(--header-bar);
+  padding: 0 var(--space-16);
+  border-bottom: var(--hairline);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.sm-memberlist__scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-8); }
+.sm-memberlist__label {
+  padding: 10px var(--space-8) 6px;
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.sm-memberlist .sm-memberlist__row { min-height: 36px; }
+@container slim (max-width: 599px) {
+  .sm-memberlist .sm-memberlist__row { min-height: var(--row-touch); }
+}

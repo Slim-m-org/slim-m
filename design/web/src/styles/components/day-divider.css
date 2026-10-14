@@ -1,0 +1,21 @@
+/* DayDivider in message_row_parts.dart. */
+.sm-day-divider {
+  display: flex;
+  align-items: center;
+  padding: var(--space-16) 20px 6px;
+  font-family: var(--font-sans);
+}
+.sm-day-divider__rule { flex: 1 1 0; height: 1px; background: var(--border-subtle); }
+.sm-day-divider__label {
+  padding: 0 var(--space-12);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+@container slim (max-width: 599px) {
+  .sm-day-divider { padding-left: 10px; padding-right: 10px; }
+}

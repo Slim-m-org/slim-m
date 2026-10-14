@@ -1,0 +1,32 @@
+/* NewMessagesDivider in message_row_parts.dart. */
+.sm-unread-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 14px 20px 6px;
+  font-family: var(--font-sans);
+}
+.sm-unread-divider__rule {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: calc(50% + 4px);
+  height: 1px;
+  background: var(--accent-fill);
+  opacity: 0.5;
+}
+.sm-unread-divider__label {
+  position: relative;
+  padding-left: var(--space-8);
+  background: var(--surface-base);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  color: var(--accent-text);
+}
+@container slim (max-width: 599px) {
+  .sm-unread-divider { padding-left: 10px; padding-right: 10px; }
+  .sm-unread-divider__rule { left: 10px; right: 10px; }
+}

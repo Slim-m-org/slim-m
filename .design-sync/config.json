@@ -55,6 +55,78 @@
     },
     "Toast": {
       "cardMode": "column"
+    },
+    "Composer": {
+      "cardMode": "column"
+    },
+    "DayDivider": {
+      "cardMode": "column"
+    },
+    "LinkEmbed": {
+      "cardMode": "column"
+    },
+    "MessageRow": {
+      "cardMode": "column"
+    },
+    "PollView": {
+      "cardMode": "column"
+    },
+    "TypingIndicator": {
+      "cardMode": "column"
+    },
+    "UnreadDivider": {
+      "cardMode": "column"
+    },
+    "MemberProfile": {
+      "cardMode": "column"
+    },
+    "SettingsDisclosure": {
+      "cardMode": "column"
+    },
+    "SettingsEmpty": {
+      "cardMode": "column"
+    },
+    "SettingsEntityRow": {
+      "cardMode": "column"
+    },
+    "SettingsLayout": {
+      "cardMode": "column"
+    },
+    "SettingsNotice": {
+      "cardMode": "column"
+    },
+    "AppShell": {
+      "cardMode": "column"
+    },
+    "ChannelHeader": {
+      "cardMode": "column"
+    },
+    "ChannelRail": {
+      "cardMode": "column"
+    },
+    "MemberList": {
+      "cardMode": "column"
+    },
+    "StatusBanner": {
+      "cardMode": "column"
+    },
+    "CallDock": {
+      "cardMode": "column"
+    },
+    "CallStrip": {
+      "cardMode": "column"
+    },
+    "IncomingCall": {
+      "cardMode": "column"
+    },
+    "ParticipantGrid": {
+      "cardMode": "column"
+    },
+    "ParticipantTile": {
+      "cardMode": "column"
+    },
+    "VoiceJoinBar": {
+      "cardMode": "column"
     }
   },
   "guidelinesGlob": [

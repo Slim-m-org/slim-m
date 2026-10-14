@@ -12,6 +12,14 @@ Wrap the whole screen in `SlimRoot` once. It sets `data-theme` (which switches e
 
 `theme` is `dark` (default), `light` or `black`. Outside a SlimRoot components fall back to dark tokens and light/black never apply. True black is every fill at #000 with hairlines carrying structure; never add shadows or lighter fills to compensate.
 
+## Screens are built from composites
+
+Build screens from the composites, not from raw rows: `AppShell` (slots `rail`, `header`, `content`, `members`, `banner`) holding a `ChannelRail`, a `ChannelHeader`, a column of `MessageRow`s with `DayDivider` / `UnreadDivider` / `TypingIndicator`, a `Composer`, and a `MemberList`. Voice: `CallDock`, `ParticipantGrid` of `ParticipantTile`s, `VoiceJoinBar`, `CallStrip`, `IncomingCall`. People: `MemberProfile`. Settings: `SettingsLayout` with `SettingsSectionCard`s of `SettingsToggleRow` / `SettingsSelectRow` / `SettingsEntityRow`. Status: `StatusBanner`.
+
+## Desktop and mobile: width decides, never platform
+
+`SlimRoot` is a size container and every composite reads its width, with the app's breakpoints: compact below 600, medium 600 to 999, expanded 1000 and up (settings goes two-pane at 800). So a phone mock is a `SlimRoot` about 390 wide and a desktop mock about 1280; the same components change shape on their own. `AppShell` at compact is one pane with the rail and members as drawers (`railOpen`, `membersOpen`); medium is rail plus content; expanded adds the member pane. Hover toolbars exist only on wide (`MessageRow hovered`); compact uses 44px touch rows. Where compact is a different surface, pick it with a prop: `MemberProfile presentation="popover"` on wide, `"sheet"` on compact; menus become a `Sheet` of touch `MenuItem`s. Give a SlimRoot an explicit width when it sits in a flex row.
+
 ## Styling idiom: CSS custom properties
 
 No utility framework. Components style themselves; your own layout glue uses inline styles with these tokens (all defined in `styles.css` via `_ds_bundle.css`):
@@ -38,15 +46,21 @@ Read `guidelines/design-language.md` (the visual rules), `guidelines/desktop-vs-
 ## Example
 
 ```jsx
-<SlimRoot theme="dark" style={{ display: 'flex', height: 480 }}>
-  <nav style={{ width: 240, background: 'var(--surface-sunken)', borderRight: 'var(--hairline)', padding: 'var(--space-8)' }}>
-    <div className="sm-label" style={{ padding: 'var(--space-8)' }}>Channels</div>
-    <ListRow label="general" leading={<Icon name="hash" />} selected />
-    <ListRow label="design-review" leading={<Icon name="hash" />} unread />
-    <ListRow label="voice-lobby" leading={<Icon name="voice" />} />
-  </nav>
-  <main style={{ flex: 1, padding: 'var(--space-20)' }}>
-    <ErrorState message="Could not load messages." onRetry={() => {}} />
-  </main>
+<SlimRoot theme="dark" style={{ width: 1280, height: 760 }}>
+  <AppShell
+    rail={<ChannelRail spaceName="slim-m" categories={categories} user={me} />}
+    header={<ChannelHeader name="general" topic="Everything that is not somewhere else" />}
+    content={
+      <>
+        <DayDivider label="Today" />
+        <MessageRow author="Mara Lindqvist" time="9:41" body="Pushed the new call dock to design-review." />
+        <MessageRow author="Mara Lindqvist" time="9:42" grouped body="Looks right to me at 100%." />
+        <Composer channelName="general" />
+      </>
+    }
+    members={<MemberList sections={sections} />}
+  />
 </SlimRoot>
 ```
+
+The same tree at `width: 390` is the phone layout.
