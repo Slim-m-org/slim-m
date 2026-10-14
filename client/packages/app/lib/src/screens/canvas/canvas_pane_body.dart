@@ -292,32 +292,35 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
               ),
             if (widget.truncated) const CanvasTruncatedNotice(),
             Expanded(
-              child: Stack(
-                children: [
-                  _activityLogOpen ? _panel() : _surface(tokens),
-                  if (!_activityLogOpen)
-                    CanvasPresenceRoster(
-                      callParticipants: widget.callParticipants,
-                      cursors: widget.cursors,
-                    ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.s12),
-                      // The dock's own hidden-tiles list has to notice a hide or show landing in tileOverrides, which nothing else here rebuilds this widget for.
-                      child: DockHeightReporter(
-                        child: ListenableBuilder(
-                          listenable: widget.tileOverrides,
-                          builder: (context, _) => CanvasCallDock(
-                            call: widget.callDock,
-                            canvas: _dockData(),
-                            compact: compact,
+              // Canvas content panned past the top edge must never paint over the header above it.
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    _activityLogOpen ? _panel() : _surface(tokens),
+                    if (!_activityLogOpen)
+                      CanvasPresenceRoster(
+                        callParticipants: widget.callParticipants,
+                        cursors: widget.cursors,
+                      ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.s12),
+                        // The dock's own hidden-tiles list has to notice a hide or show landing in tileOverrides, which nothing else here rebuilds this widget for.
+                        child: DockHeightReporter(
+                          child: ListenableBuilder(
+                            listenable: widget.tileOverrides,
+                            builder: (context, _) => CanvasCallDock(
+                              call: widget.callDock,
+                              canvas: _dockData(),
+                              compact: compact,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             // Mounted regardless of the panel's own open state: browsing history is optional, hearing about it is not.

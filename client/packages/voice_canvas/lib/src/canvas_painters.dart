@@ -54,8 +54,9 @@ class GridPainter extends CustomPainter {
     final paint = Paint()
       ..color = line
       ..strokeWidth = 1;
-    final firstX = (document.camera.x / spacing).floorToDouble() * spacing;
-    final firstY = (document.camera.y / spacing).floorToDouble() * spacing;
+    // Ceil, not floor: a line before the camera would land at a negative offset, outside this painter's box.
+    final firstX = (document.camera.x / spacing).ceilToDouble() * spacing;
+    final firstY = (document.camera.y / spacing).ceilToDouble() * spacing;
     for (var wx = firstX;
         (wx - document.camera.x) * zoom <= size.width;
         wx += spacing) {
