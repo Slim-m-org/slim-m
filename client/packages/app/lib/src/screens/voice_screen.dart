@@ -250,7 +250,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       child: switch (stage) {
         'call' => _InCall(channelId: channelId, isDm: widget.isDm),
         // A rejoin in progress never reaches here: it maps to 'call' above, with its own overlay instead of this full-screen spinner.
-        'connecting' || 'joining' => const VoiceConnecting(),
+        'connecting' || 'joining' => VoiceConnecting(
+          channelId: channelId,
+          negotiating: connectingHere,
+          onCancel: () => unawaited(controller.leave()),
+        ),
         'switch' => VoiceSwitchPrompt(onSwitch: () => _switchNow(controller)),
         _ when !widget.isDm => VoiceChannelIdle(
           channelId: channelId,

@@ -17,6 +17,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/voice_roster.dart';
+import 'package:slimm_app/src/widgets/voice_connecting_loader.dart';
 import 'package:slimm_app/src/screens/voice_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -242,7 +243,7 @@ void main() {
             'a join in flight is not a rejoin screen, however briefly the '
             'stage computation might disagree',
       );
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(VoiceConnectingLoader), findsOneWidget);
 
       tokenGate.complete();
       await tester.pumpAndSettle();
