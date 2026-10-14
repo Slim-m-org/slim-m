@@ -21,6 +21,7 @@ export 'src/canvas_presence_tile_overrides.dart';
 export 'src/canvas_presence_visibility.dart';
 export 'src/canvas_resize.dart';
 export 'src/canvas_scene.dart';
+export 'src/canvas_snap.dart';
 export 'src/canvas_stroke_drafts.dart';
 export 'src/canvas_surface.dart';
 export 'src/spatial_grid.dart';
