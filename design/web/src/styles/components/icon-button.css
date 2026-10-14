@@ -1,0 +1,53 @@
+/* AppIconButton (core/icon_button.dart). */
+.sm-icon-button {
+  --sm-ib-visual: 28px;
+  --sm-ib-hit: var(--row-pointer);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: max(var(--sm-ib-visual), var(--sm-ib-hit));
+  height: max(var(--sm-ib-visual), var(--sm-ib-hit));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sm-icon-button--sm { --sm-ib-visual: var(--control-sm); }
+.sm-icon-button--md { --sm-ib-visual: 28px; }
+.sm-icon-button--touch { --sm-ib-visual: var(--control-lg); }
+.sm-icon-button--touch-target { --sm-ib-hit: var(--row-touch); }
+.sm-icon-button:disabled { opacity: 0.4; cursor: default; }
+.sm-icon-button__visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--sm-ib-visual);
+  height: var(--sm-ib-visual);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  transition: transform var(--duration-fast) var(--ease-entrance), background-color var(--duration-fast) var(--ease-entrance), color var(--duration-fast) var(--ease-entrance);
+}
+.sm-icon-button--touch .sm-icon-button__visual { border-radius: var(--radius-card); }
+.sm-icon-button:active:not(:disabled) .sm-icon-button__visual { transform: scale(var(--press-scale)); }
+.sm-icon-button:focus-visible { outline: none; }
+.sm-icon-button:focus-visible .sm-icon-button__visual { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-icon-button:hover:not(:disabled):not(.sm-icon-button--active):not(.sm-icon-button--no-hover-fill) .sm-icon-button__visual { background: var(--surface-raised); }
+.sm-icon-button--danger { color: var(--danger-text); }
+.sm-icon-button--danger .sm-icon-button__visual { border-color: var(--danger-border); }
+.sm-icon-button--dangerGhost:hover:not(:disabled) { color: var(--danger-text); }
+.sm-icon-button--active { color: var(--accent-text); }
+.sm-icon-button--active .sm-icon-button__visual { background: var(--accent-soft); border-color: var(--accent-fill); }
+
+/* Leading half of a control with options: outer corners round, right edge square and flush with the caret. */
+.sm-control-with-options--joined > .sm-icon-button { justify-content: flex-end; }
+.sm-control-with-options--joined > .sm-icon-button .sm-icon-button__visual {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sm-control-with-options--joined > .sm-icon-button--active .sm-icon-button__visual { border-color: var(--border-subtle); }

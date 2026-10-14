@@ -1,0 +1,31 @@
+/* AppControlWithOptions (core/control_with_options.dart). */
+.sm-control-with-options {
+  display: inline-flex;
+  align-items: center;
+}
+.sm-control-with-options__caret {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+/* Flush left so the caret reads as part of the control; the rest of the hit box is slack. */
+.sm-control-with-options__caret-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: var(--sm-cwo-height, 34px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+.sm-control-with-options__caret--active .sm-control-with-options__caret-visual { background: var(--accent-soft); color: var(--accent-text); }
+.sm-control-with-options__caret:focus-visible { outline: none; }
+.sm-control-with-options__caret:focus-visible .sm-control-with-options__caret-visual { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

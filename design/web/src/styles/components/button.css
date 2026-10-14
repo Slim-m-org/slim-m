@@ -1,0 +1,39 @@
+/* AppButton (core/button.dart). */
+.sm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-family: var(--font-sans);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-entrance), opacity var(--duration-fast);
+}
+.sm-button:active:not(:disabled) { transform: scale(var(--press-scale)); }
+.sm-button:disabled { opacity: 0.45; cursor: default; }
+.sm-button--busy:disabled { opacity: 1; }
+.sm-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+.sm-button__label { overflow: hidden; text-overflow: ellipsis; }
+.sm-button--sm { height: 28px; padding: 0 var(--space-12); font-size: var(--text-caption); }
+.sm-button--md { height: var(--control-md); padding: 0 var(--space-16); font-size: var(--text-ui); }
+.sm-button--lg { height: 40px; padding: 0 var(--space-20); font-size: var(--text-ui); }
+.sm-button--full { width: 100%; }
+.sm-button--primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-on); font-weight: var(--weight-semi); }
+.sm-button--secondary { border-color: var(--border-subtle); color: var(--text-primary); font-weight: var(--weight-medium); }
+.sm-button--ghost { color: var(--text-secondary); font-weight: var(--weight-regular); }
+.sm-button--soft { background: var(--accent-soft); border-color: var(--accent-fill); color: var(--accent-text); font-weight: var(--weight-medium); }
+.sm-button--danger { border-color: var(--danger-border); color: var(--danger-text); font-weight: var(--weight-medium); }
+.sm-button__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: sm-spin 0.8s linear infinite;
+}
+@keyframes sm-spin { to { transform: rotate(360deg); } }

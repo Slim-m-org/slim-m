@@ -1,0 +1,20 @@
+/* AppBadge (core/badge.dart). */
+.sm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 100%;
+  padding: 1px 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semi);
+  line-height: var(--leading-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sm-badge__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sm-badge--role { border-color: var(--accent-fill); color: var(--accent-text); letter-spacing: 0.06em; }
+.sm-badge--tag { border-color: var(--border-subtle); color: var(--text-secondary); letter-spacing: 0.08em; }
+.sm-badge--warn { border-color: var(--warn-text); color: var(--warn-text); letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }

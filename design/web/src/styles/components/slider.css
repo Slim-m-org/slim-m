@@ -1,0 +1,48 @@
+/* AppSlider (forms/slider.dart, slider_shapes.dart). */
+.sm-slider { display: flex; flex-direction: column; align-items: stretch; --sm-slider-h: 4px; --sm-slider-inset: 12px; --sm-slider-fill: var(--accent-fill); --sm-slider-thumb: var(--text-primary); }
+.sm-slider--tall { --sm-slider-h: 22px; --sm-slider-inset: 14px; }
+.sm-slider--muted { --sm-slider-fill: var(--text-secondary); --sm-slider-thumb: var(--text-secondary); }
+/* The hit box is the overlay diameter plus the 2px focus ring gap and width on each side. */
+.sm-slider__hit {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: calc(var(--sm-slider-inset) * 2 + 8px);
+  padding: 0 var(--sm-slider-inset);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+.sm-slider--static .sm-slider__hit { cursor: default; }
+.sm-slider--muted .sm-slider__hit { opacity: 0.5; }
+.sm-slider__hit:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-slider__track { position: relative; flex: 1; height: var(--sm-slider-h); }
+.sm-slider__clip { position: absolute; inset: 0; overflow: hidden; background: var(--surface-sunken); border-radius: var(--radius-full); }
+.sm-slider--tall .sm-slider__clip { border-radius: var(--radius-control); }
+.sm-slider__meter { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); }
+.sm-slider__fill { position: absolute; inset: 0 auto 0 0; width: var(--sm-slider-pos); background: var(--sm-slider-fill); }
+.sm-slider--tall .sm-slider__fill { inset: 0 auto 0 calc(var(--sm-slider-pos) - 1px); width: 2px; }
+/* The hairline paints over the fill, as the Flutter track strokes last. */
+.sm-slider__outline { position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--border-subtle); }
+.sm-slider__thumb {
+  position: absolute;
+  top: 50%;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 1px solid var(--surface-base);
+  border-radius: var(--radius-full);
+  background: var(--sm-slider-thumb);
+}
+.sm-slider--tall .sm-slider__thumb { width: 12px; height: 22px; margin: -11px 0 0 -6px; border-radius: var(--radius-control); }
+/* The accent ring around a hovered, focused or dragged thumb. */
+.sm-slider__halo { position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: var(--radius-full); background: var(--accent-ring); opacity: 0; pointer-events: none; transition: opacity var(--duration-fast); }
+.sm-slider--tall .sm-slider__halo { width: 28px; height: 28px; margin: -14px 0 0 -14px; }
+.sm-slider:not(.sm-slider--static) .sm-slider__hit:hover .sm-slider__halo,
+.sm-slider__hit:focus-visible .sm-slider__halo,
+.sm-slider--dragging .sm-slider__halo { opacity: 1; }
+.sm-slider__ticks { display: flex; justify-content: space-between; margin-top: var(--space-8); }
+.sm-slider__tick { font-family: var(--font-mono); font-size: var(--text-micro); line-height: var(--leading-micro); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.sm-slider__tick--near { color: var(--accent-text); }

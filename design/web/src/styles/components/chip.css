@@ -1,0 +1,28 @@
+/* AppChip.reaction (forms/chip.dart). */
+.sm-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 24px;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+.sm-chip--static { cursor: default; }
+.sm-chip--active { background: var(--accent-soft); color: var(--accent-text); }
+.sm-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* 13px with line-height 1 is the design's own literal, off the type scale. */
+.sm-chip__glyph { font-size: 13px; line-height: 1; }
+.sm-chip__count {
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+.sm-chip--active .sm-chip__count { font-weight: var(--weight-semi); }

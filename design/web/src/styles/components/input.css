@@ -1,0 +1,57 @@
+/* AppInput (forms/input.dart). */
+.sm-input {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+  font-family: var(--font-sans);
+}
+.sm-input--mono .sm-input__control { font-family: var(--font-mono); }
+.sm-input__label { font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); font-family: var(--font-sans); }
+/* The 2px ring space is always reserved so focus never shifts layout. */
+.sm-input__ring { padding: 2px; border: 2px solid transparent; border-radius: calc(var(--radius-control) + 2px); }
+.sm-input:focus-within:not(.sm-input--disabled) .sm-input__ring { border-color: var(--accent-ring); }
+.sm-input__field {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+.sm-input--sm .sm-input__field { min-height: 32px; }
+.sm-input--md .sm-input__field { min-height: 38px; }
+.sm-input--lg .sm-input__field { min-height: 44px; }
+.sm-input:focus-within:not(.sm-input--disabled) .sm-input__field { border-color: var(--accent-fill); }
+.sm-input--error .sm-input__field { border-color: var(--danger-border); }
+.sm-input--disabled .sm-input__field { border-color: var(--border-subtle); background: var(--surface-sunken); }
+.sm-input__icon, .sm-input__trailing { display: inline-flex; align-items: center; flex: none; color: var(--text-secondary); }
+.sm-input__control {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  caret-color: var(--accent-fill);
+  font: inherit;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.sm-input__control::placeholder { color: var(--text-secondary); opacity: 1; }
+.sm-input--disabled .sm-input__control { cursor: not-allowed; }
+.sm-input--multiline .sm-input__field { align-items: flex-start; padding-top: var(--space-8); padding-bottom: var(--space-8); }
+.sm-input--multiline .sm-input__control {
+  resize: none;
+  field-sizing: content;
+  /* field-sizing ignores rows, so the minimum height carries minLines; an unset max leaves the calc invalid, which means none. */
+  min-height: calc(var(--sm-input-min-lines, 1) * 1lh);
+  max-height: calc(var(--sm-input-max-lines) * 1lh);
+}
+.sm-input__counter { align-self: flex-end; font-size: var(--text-micro); line-height: var(--leading-micro); color: var(--text-secondary); }
+.sm-input__counter--over { color: var(--danger-text); }
+.sm-input__error { font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--danger-text); }

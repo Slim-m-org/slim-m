@@ -1,0 +1,78 @@
+/* AppCodeBlock and AppInlineCode (surfaces/code_block.dart). */
+.sm-codeblock {
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: var(--hairline);
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+}
+.sm-codeblock__header {
+  display: flex;
+  align-items: center;
+  /* 6px 10px is literal in the Flutter source, off the spacing grid. */
+  padding: 6px 10px;
+  border-bottom: var(--hairline);
+}
+.sm-codeblock__lang {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-secondary);
+}
+.sm-codeblock__body {
+  margin: 0;
+  overflow-x: auto;
+  /* 10px 12px, 13px and 1.6 are literal in the Flutter source; the code token is tuned for inline text. */
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+}
+.sm-codeblock__toggle {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  border-top: var(--hairline);
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sm-codeblock__toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-code--keyword { color: var(--code-keyword); }
+.sm-code--string { color: var(--code-string); }
+.sm-code--number { color: var(--code-number); }
+.sm-code--comment { color: var(--code-comment); }
+.sm-code--punctuation { color: var(--code-punctuation); }
+.sm-code--hidden { color: var(--danger-text); font-weight: var(--weight-semi); background: color-mix(in srgb, var(--danger-border) 20%, transparent); }
+.sm-inline-code {
+  padding: 0 var(--space-4);
+  background: var(--surface-raised);
+  border: var(--hairline);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: var(--leading-code);
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-primary);
+}
+/* The band the app puts between header and code: message_code_block_runner.dart's hidden-characters notice. */
+.sm-codeblock__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  color: var(--danger-text);
+}

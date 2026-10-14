@@ -1,0 +1,15 @@
+/* SettingsToggleRow (app/widgets/settings_toggle_row.dart). */
+.sm-settings-toggle-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--row-pointer);
+  padding: var(--space-4) var(--space-8);
+  font-family: var(--font-sans);
+}
+.sm-settings-toggle-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.sm-settings-toggle-row__label { font-size: var(--text-ui); line-height: var(--leading-ui); color: var(--text-primary); }
+.sm-settings-toggle-row__description { font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+/* Compact widths raise the row to the touch height; layout follows width, never platform. */
+@media (max-width: 599px) { .sm-settings-toggle-row { min-height: var(--row-touch); } }

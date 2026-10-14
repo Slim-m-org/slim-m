@@ -1,0 +1,32 @@
+/* AppCard (surfaces/card.dart). */
+.sm-card {
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: var(--hairline);
+  border-radius: var(--radius-card);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+.sm-card--sunken { background: var(--surface-sunken); }
+.sm-card--floating { box-shadow: var(--shadow-float); }
+.sm-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  border-bottom: var(--hairline);
+}
+.sm-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  font-weight: var(--weight-semi);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.sm-card__body { padding: var(--space-16); }

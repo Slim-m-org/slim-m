@@ -1,0 +1,21 @@
+/* AppErrorState (surfaces/error_state.dart). */
+.sm-errorstate {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-12);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-control);
+  font-family: var(--font-sans);
+}
+.sm-errorstate__head { display: flex; align-items: flex-start; gap: var(--space-8); }
+.sm-errorstate__icon { flex: none; display: grid; color: var(--danger-text); }
+.sm-errorstate__message { flex: 1; min-width: 0; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--danger-text); }
+.sm-errorstate__detail {
+  margin-top: var(--space-8);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: var(--leading-code);
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-secondary);
+}
+.sm-errorstate__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: var(--space-12); }

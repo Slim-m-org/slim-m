@@ -1,0 +1,30 @@
+/* SettingsSelectRow (app/widgets/settings_select_row.dart). */
+.sm-settings-select-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--row-pointer);
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-entrance);
+}
+.sm-settings-select-row:hover { background: var(--surface-raised); }
+.sm-settings-select-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sm-settings-select-row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-ui); line-height: var(--leading-ui); color: var(--text-primary); }
+.sm-settings-select-row__value { flex: 0 1 auto; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+.sm-settings-select-row__chevron { display: inline-flex; flex: none; color: var(--text-secondary); }
+/* Down for a dropdown at desktop widths, right for a sheet at phone widths. */
+.sm-settings-select-row__chevron--right { display: none; }
+@media (max-width: 599px) {
+  .sm-settings-select-row { min-height: var(--row-touch); }
+  .sm-settings-select-row__chevron--down { display: none; }
+  .sm-settings-select-row__chevron--right { display: inline-flex; }
+}

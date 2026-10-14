@@ -1,0 +1,40 @@
+/* AppSegmentedControl.inline (forms/segmented_control.dart). */
+.sm-segmented {
+  box-sizing: border-box;
+  display: inline-flex;
+  gap: var(--space-4);
+  max-width: 100%;
+  /* 3px trough padding is the design's own literal. */
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+}
+.sm-segmented__segment {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: var(--control-sm);
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-regular);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 150ms, border-color 150ms;
+}
+.sm-segmented__segment--selected {
+  border-color: var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+.sm-segmented__segment:disabled { color: var(--text-disabled); cursor: default; }
+.sm-segmented__segment:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .sm-segmented__segment { transition: none; } }

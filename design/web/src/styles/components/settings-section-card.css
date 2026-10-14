@@ -1,0 +1,17 @@
+/* SettingsSectionCard and SettingsSectionHeader (app/widgets/settings_section_header.dart). */
+.sm-settings-section { display: flex; flex-direction: column; align-items: stretch; font-family: var(--font-sans); }
+.sm-settings-section__header { padding: var(--space-24) 0 var(--space-8); }
+.sm-settings-section__spacer { height: var(--space-24); }
+.sm-settings-section__title { margin: 0; font-size: var(--text-ui); line-height: var(--leading-ui); font-weight: var(--weight-semi); color: var(--text-primary); }
+.sm-settings-section__description { margin: var(--space-4) 0 0; font-size: var(--text-caption); line-height: var(--leading-caption); color: var(--text-secondary); }
+.sm-settings-section__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-8);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.sm-settings-section__rule { height: 1px; margin: 0 var(--space-8); border: 0; background: var(--border-subtle); flex: none; }

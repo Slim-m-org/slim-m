@@ -76,3 +76,11 @@ client/packages/app/build/ui-snapshots/
 # Job-file instances handed to subagents; the template is docs/agents/job-template.md.
 .claude/jobs/
 __pycache__/
+
+# design-sync (claude.ai/design) staging and output
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+design/web/dist/
