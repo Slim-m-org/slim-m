@@ -28,6 +28,31 @@ Elsewhere (web, macOS, iOS, Android) the old indicator-only slider stays until t
 
 A probe that publishes the mic into a local `livekit-server --dev`, toggles the gate and reads both `getInputGate` and the sender's `media-source` level showed: gate closed, sent level 0.0000; gate open, sent level unchanged; gate off, the meter and voice detection still working.
 
+## Evening out loud sounds
+
+Owner, 2026-10-13: "handling harsh noises ... some sort of mic compression might be nice".
+
+The capture step is a short chain (`flutter_capture_chain.cc`): the gate first, so its meter and threshold see the level you actually speak at, then `flutter_voice_dynamics.cc`.
+That stage is a compressor on the RMS level (threshold -14 dBFS, 4:1, 6 dB soft knee, 10 ms attack, 150 ms release) followed by a limiter with an instant attack, a 60 ms release and a -1 dBFS ceiling.
+The threshold sits above speech that auto gain control has already levelled, so normal talking passes through; a shout is pulled down and no sample leaves above the ceiling.
+libwebrtc's own AGC2 limiter would have been the first choice, but the prebuilt only exposes this custom processing hook, not the processing config.
+
+It runs on the speaker's device, so it costs the server nothing.
+"Even out loud sounds" in Voice settings turns it off (`slimm.voice.even_out_loud`, on by default); it is sent as `dynamics` on the same `setInputGate` call, which an older native build simply ignores.
+
+Measured with the stage compiled on its own and fed 48 kHz frames:
+
+| Input | In RMS / peak (dBFS) | Out RMS / peak (dBFS) |
+|---|---|---|
+| Normal speech | -26.0 / -18.7 | -26.0 / -18.7 |
+| Loud speech | -20.0 / -12.7 | -20.3 / -13.1 |
+| Recorded speech (e2e fake voice) | -19.6 / -8.6 | -20.8 / -9.7 |
+| Shout | -8.0 / -0.7 | -15.9 / -8.7 |
+| Full-scale square wave | 0.0 / 0.0 | -10.5 / -1.0 |
+| 5 ms full-scale plosive | - / 0.0 | - / -1.0 |
+
+It used about 0.05% of one core.
+
 ## How fast remote rings move
 
 Remote rings come from LiveKit's active-speaker updates.

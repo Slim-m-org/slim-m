@@ -47,6 +47,15 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     _applyInputGate();
   }
 
+  /// Seeds the microphone's compressor and limiter before any call.
+  Future<void> restoreEvenOutLoudSounds() async {
+    setEvenOutLoudSounds(await loadEvenOutLoudSounds(_inputRef));
+  }
+
+  /// Live, in-call equivalent of [restoreEvenOutLoudSounds].
+  void setEvenOutLoudSounds(bool enabled) =>
+      _inputSession.setEvenOutLoudSounds(enabled);
+
   /// Push-to-talk decides when you are heard, so the gate only meters then.
   void _applyInputGate() => _inputSession.setInputGate(
     enabled: !_pushToTalkEnabled,

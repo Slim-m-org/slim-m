@@ -7,6 +7,7 @@ mixin VoiceSessionInputGate {
   late final InputGateMonitor _gate;
   bool _gateEnabled = true;
   double _gateThresholdDb = kDefaultInputThresholdDb;
+  bool _evenOutLoudSounds = true;
 
   bool get supportsInputGate => _gate.supported;
 
@@ -21,6 +22,16 @@ mixin VoiceSessionInputGate {
     unawaited(_applyInputGate());
   }
 
-  Future<void> _applyInputGate() =>
-      _gate.configure(enabled: _gateEnabled, thresholdDb: _gateThresholdDb);
+  /// Softens shouts and caps sudden peaks on the microphone, where the
+  /// host gates the input natively.
+  void setEvenOutLoudSounds(bool enabled) {
+    _evenOutLoudSounds = enabled;
+    unawaited(_applyInputGate());
+  }
+
+  Future<void> _applyInputGate() => _gate.configure(
+        enabled: _gateEnabled,
+        thresholdDb: _gateThresholdDb,
+        dynamics: _evenOutLoudSounds,
+      );
 }
