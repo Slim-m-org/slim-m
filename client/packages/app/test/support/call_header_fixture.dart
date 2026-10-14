@@ -58,10 +58,13 @@ class FakePresence extends PresenceController {
 /// Everyone listed is a channel member; [online] are the ids reading online.
 List<Override> callPeople(
   List<api.UserProfile> members,
-  Set<String> online,
-) => [
+  Set<String> online, {
+  List<api.VoiceRosterParticipant>? roster,
+}) => [
   voiceRosterProvider.overrideWith(
-    (ref, channelId) => const Stream<List<api.VoiceRosterParticipant>>.empty(),
+    (ref, channelId) => roster == null
+        ? const Stream<List<api.VoiceRosterParticipant>>.empty()
+        : Stream.value(roster),
   ),
   channelMembersProvider.overrideWith((ref, channelId) async => members),
   // The real presence controller listens to live events, which would start sync against a server that is not there.

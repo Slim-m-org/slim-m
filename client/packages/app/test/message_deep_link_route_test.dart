@@ -192,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(voice.joins, isEmpty, reason: 'a link is not consent to join');
-    expect(find.text('Join call'), findsOneWidget);
+    expect(find.text('Join muted'), findsOneWidget);
 
     await _teardown(tester, container, db);
   });

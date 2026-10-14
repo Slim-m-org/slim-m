@@ -83,7 +83,7 @@ void main() {
         findsOneWidget,
         reason: 'chat docked open',
       );
-      expect(find.text('Join call'), findsOneWidget);
+      expect(find.text('Join muted'), findsOneWidget);
       expect(
         find.text('You left this call.'),
         findsNothing,
@@ -91,7 +91,7 @@ void main() {
       );
       expect(find.text('Rejoin call'), findsNothing);
 
-      await tester.tap(find.text('Join call'));
+      await tester.tap(find.text('Join muted'));
       await tester.pumpAndSettle();
       expect(s.voice.joins, ['c1']);
 
@@ -135,7 +135,7 @@ void main() {
 
       await tester.tap(chatToggle);
       await tester.pumpAndSettle();
-      expect(find.text('Join call'), findsOneWidget);
+      expect(find.text('Join'), findsOneWidget, reason: 'the compact join bar');
       expect(
         s.voice.joins,
         isEmpty,

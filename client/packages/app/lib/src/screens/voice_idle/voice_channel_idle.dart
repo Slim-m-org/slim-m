@@ -67,11 +67,7 @@ class VoiceChannelIdle extends ConsumerWidget {
         errorMessage: errorMessage,
         canRetry: canRetry,
       ),
-      if (history.hasError && !history.isLoading)
-        AppErrorState(
-          message: "Could not load this channel's calls.",
-          onRetry: () => ref.invalidate(voiceCallHistoryProvider(channelId)),
-        ),
+      // History is secondary: a failed load leaves it out rather than stacking a second error under a join failure.
       if (shown != null) ...[
         _LastCall(
           call: shown,

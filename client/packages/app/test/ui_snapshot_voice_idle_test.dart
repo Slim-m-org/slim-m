@@ -147,15 +147,19 @@ void main() {
                 ),
               ),
             ),
-            ...callPeople([
-              for (final e in _names.entries)
-                api.UserProfile(
-                  id: e.key,
-                  username: e.key,
-                  displayName: e.value,
-                  createdAt: 0,
-                ),
-            ], {'kiki'}),
+            ...callPeople(
+              [
+                for (final e in _names.entries)
+                  api.UserProfile(
+                    id: e.key,
+                    username: e.key,
+                    displayName: e.value,
+                    createdAt: 0,
+                  ),
+              ],
+              {'kiki'},
+              roster: const [],
+            ),
             userProfileProvider.overrideWith(
               (ref, id) async => api.UserProfile(
                 id: id,

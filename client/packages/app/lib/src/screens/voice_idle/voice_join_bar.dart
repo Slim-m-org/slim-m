@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/member_presence.dart';
-import '../../providers/presence_controller.dart';
+import '../../providers/presence_view.dart';
 import '../../providers/providers.dart';
 import '../../providers/voice_roster.dart';
 import 'call_history_rows.dart' show callDayLabel;
@@ -133,7 +133,6 @@ class VoiceJoinBar extends ConsumerWidget {
   List<String> _online(WidgetRef ref, Set<String> inCall) {
     final selfId = ref.watch(sessionProvider).tokens?.userId;
     ref.watch(presenceSeedProvider(channelId));
-    final presence = ref.watch(presenceControllerProvider);
     final members =
         ref.watch(channelMembersProvider(channelId)).valueOrNull ??
         const <api.UserProfile>[];
@@ -141,7 +140,7 @@ class VoiceJoinBar extends ConsumerWidget {
       for (final m in members)
         if (m.id != selfId &&
             !inCall.contains(m.id) &&
-            presence[m.id] == api.PresenceState.online)
+            ref.watch(presenceForProvider(m.id)) == AppPresence.online)
           m.displayName,
     ];
   }
