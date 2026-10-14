@@ -20,7 +20,7 @@ Future<VoiceController> _controller() async {
 
 void main() {
   testWidgets(
-    'the phone sheet has one title and the slider fills its content width',
+    'the phone sheet has one title and the control fills its content width',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -53,8 +53,9 @@ void main() {
         findsNothing,
         reason: 'one title, not two',
       );
-      final slider = tester.getRect(find.byType(AppSlider));
-      expect(slider.width, closeTo(390 - 2 * AppSpacing.s16, 1));
+      final row = tester.getRect(find.byType(ParticipantVolumeControl));
+      expect(row.width, closeTo(390 - 2 * AppSpacing.s16, 1));
+      expect(row.height, lessThan(40), reason: 'one row, not stacked');
       final bordered = find.ancestor(
         of: find.byType(AppSlider),
         matching: find.byWidgetPredicate(
