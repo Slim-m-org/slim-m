@@ -24,6 +24,7 @@ import 'channel_move.dart';
 import 'channel_row_menu.dart';
 import 'context_menu_region.dart';
 import 'rail_join_muted_glyph.dart';
+import 'rail_room_glyphs.dart';
 import 'rail_voice_participants.dart';
 import 'voice_channel_tap.dart';
 
@@ -201,7 +202,21 @@ class VoiceChannelRow extends ConsumerWidget {
   /// own press/hover highlight rather than beside it.
   final Widget? trailingExtra;
 
-  Widget? _trailing() => channel.joinMuted ? const RailJoinMutedGlyph() : null;
+  Widget? _trailing(int present) {
+    final limit = channel.userLimit ?? 0;
+    final marks = [
+      if (channel.roomLocked == true) const RailRoomLockedGlyph(),
+      if (limit > 0) RailUserLimit(present: present, limit: limit),
+      if (channel.joinMuted) const RailJoinMutedGlyph(),
+    ];
+    if (marks.isEmpty) return null;
+    if (marks.length == 1) return marks.single;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s4,
+      children: marks,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -248,12 +263,14 @@ class VoiceChannelRow extends ConsumerWidget {
           unread: indicator.unread,
           mentioned: indicator.mentioned,
           muted: override == api.NotificationPreference.nothing,
-          leading: ChannelKindIcon(
-            isVoice: true,
-            restricted: channel.restricted ?? false,
-            color: iconColor,
-          ),
-          trailing: _trailing(),
+          leading: channel.createsRooms == true
+              ? RailLobbyIcon(color: iconColor)
+              : ChannelKindIcon(
+                  isVoice: true,
+                  restricted: channel.restricted ?? false,
+                  color: iconColor,
+                ),
+          trailing: _trailing(participants.length),
           trailingExtra: trailingExtra,
           onTap: () => openVoiceChannel(
             context,

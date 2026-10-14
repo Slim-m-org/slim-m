@@ -184,6 +184,20 @@ pub(crate) fn spawn_call_sweep(voice: voice::VoiceService, hub: hub::Hub) {
     });
 }
 
+/// How often emptied temporary voice rooms are looked for; the webhook
+/// usually removes them first, so this only catches a missed one.
+const ROOM_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Runs the empty-room sweep in the background; see [`spawn_sweep`].
+pub(crate) fn spawn_room_sweep(store: store::Store, voice: voice::VoiceService, hub: hub::Hub) {
+    spawn_sweep(ROOM_SWEEP_INTERVAL, move || {
+        let (store, voice, hub) = (store.clone(), voice.clone(), hub.clone());
+        async move {
+            crate::room_cleanup::sweep_empty_rooms(&store, &voice, &hub).await;
+        }
+    });
+}
+
 /// One pass of the stale-call sweep, evicting every call whose heartbeat has
 /// gone stale as of now.
 pub async fn sweep_stale_voice_calls(voice: &voice::VoiceService, hub: &hub::Hub) {

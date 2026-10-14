@@ -32,6 +32,10 @@ Future<void> _upsertChannels(
           slowModeSeconds: Value(channel.slowModeSeconds),
           joinMuted: Value(channel.joinMuted),
           restricted: Value(channel.restricted),
+          createsRooms: Value(channel.createsRooms),
+          userLimit: Value(channel.userLimit),
+          roomOwnerId: Value(channel.roomOwnerId),
+          roomLocked: Value(channel.roomLocked),
         ),
         onConflict: DoUpdate(
           (_) => ChannelsCompanion.custom(
@@ -46,6 +50,10 @@ Future<void> _upsertChannels(
             slowModeSeconds: Variable(channel.slowModeSeconds),
             joinMuted: Variable(channel.joinMuted),
             restricted: Variable(channel.restricted),
+            createsRooms: Variable(channel.createsRooms),
+            userLimit: Variable(channel.userLimit),
+            roomOwnerId: Variable(channel.roomOwnerId),
+            roomLocked: Variable(channel.roomLocked),
           ),
         ),
       );

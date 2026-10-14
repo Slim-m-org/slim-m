@@ -13,6 +13,13 @@ abstract final class AppIcons {
   // Navigation and structure.
   static const IconData hash = LucideIcons.hash300;
   static const IconData voice = LucideIcons.volume2300;
+
+  /// A voice lobby that makes everyone a room of their own (decision 0065).
+  static const IconData voiceLobby = LucideIcons.circlePlus300;
+
+  /// A temporary room its owner locked; not [restrictedChannel], which means
+  /// a channel some people cannot see at all.
+  static const IconData roomLocked = LucideIcons.userLock300;
   static const IconData settings = LucideIcons.settings300;
   static const IconData members = LucideIcons.users300;
 

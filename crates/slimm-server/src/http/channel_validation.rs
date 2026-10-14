@@ -32,6 +32,18 @@ pub(super) fn validate_channel_topic(topic: &str) -> Result<Option<String>, ApiE
 }
 
 pub(super) const JOIN_MUTED_VOICE_ONLY: &str = "join_muted only applies to a voice channel";
+pub(super) const ROOMS_VOICE_ONLY: &str =
+    "creates_rooms and user_limit only apply to a voice channel, and a room cannot make rooms";
+
+/// The largest user limit a voice channel takes.
+pub(super) const MAX_USER_LIMIT: i64 = 99;
+
+pub(super) fn validate_user_limit(limit: i64) -> Result<i64, ApiError> {
+    if !(0..=MAX_USER_LIMIT).contains(&limit) {
+        return Err(ApiError::BadRequest("user_limit must be 0 to 99"));
+    }
+    Ok(limit)
+}
 
 pub(super) fn validate_channel_name(name: &str) -> Result<&str, ApiError> {
     let trimmed = name.trim();

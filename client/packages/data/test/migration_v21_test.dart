@@ -11,9 +11,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_data/src/database.dart';
 
+import 'support/v22_columns.dart';
+
 Future<void> _downgradeToV20(File file) async {
   final db = SlimmDatabase(NativeDatabase(file));
   await db.customStatement('DROP TABLE pending_attachments');
+  await dropV22Columns(db);
   await db.customStatement('PRAGMA user_version = 20');
   await db.close();
 }
@@ -52,6 +55,6 @@ void main() {
     addTearDown(db.close);
 
     expect(await db.select(db.messages).get(), isEmpty);
-    expect(db.schemaVersion, 21);
+    expect(db.schemaVersion, greaterThanOrEqualTo(21));
   });
 }

@@ -17,6 +17,8 @@
 /// the review budget once it also carried the kebab's own `GlobalKey` wiring.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +33,7 @@ import 'channel_move.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'row_menu_notifications.dart';
 import 'voice_channel_tap.dart';
+import 'voice_room_settings_sheet.dart';
 
 /// Opening it always, muting it or narrowing it to mentions only (the same
 /// two toggles the header used to duplicate until 2026-08-13, tapping the
@@ -102,6 +105,21 @@ List<Widget> channelRowMenuItems(
               move.move(delta);
             },
           ),
+    ],
+    if (canEditRoom(
+      channel,
+      container.read(sessionProvider).tokens?.userId,
+      canManage: canManage,
+    )) ...[
+      const AppMenuDivider(),
+      AppMenuItem(
+        label: 'Room settings...',
+        leading: AppIcons.settings,
+        onTap: () {
+          close();
+          unawaited(showVoiceRoomSettingsSheet(context, room: channel));
+        },
+      ),
     ],
     if (canManage || canManageRoles) ...[
       const AppMenuDivider(),
