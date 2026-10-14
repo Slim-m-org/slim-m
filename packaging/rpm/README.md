@@ -87,31 +87,35 @@ Checked on Fedora 44 rather than assumed: dnf5 tolerates the duplicate and silen
 `client/packages/app/lib/src/desktop/rpm_updater.dart` accepts either id, so the enable path stays the fallback for an rpm from an older release that predates this file.
 `%check` asserts the `[slim-m]` section header is present, because the updater matches on the id and a renamed section would silently put the polkit prompt back.
 
-## The polkit rule
+## The update helper and its polkit action
 
-`49-slim-m-client-update.rules` is `Source13`, installed to `/usr/share/polkit-1/rules.d/49-slim-m-client-update.rules`.
-Without it the client's self-update shows a polkit dialog on every run, because `pkexec` asks for `org.freedesktop.policykit.exec`, which defaults to `auth_admin`.
+`slim-m-client-update-helper` is `Source13`, installed `0755` as `/usr/libexec/slim-m-client/update-helper`.
+`top.npcserver.slimm.update.policy` is `Source14`, installed to `/usr/share/polkit-1/actions/top.npcserver.slimm.update.policy`.
+Together they let the client's self-update run without a password prompt.
 
-The rule answers `YES` only when all of these hold:
+The helper takes no arguments and runs one command, `/usr/bin/dnf upgrade --refresh -y slim-m-client`, from a scrubbed environment (`env -i`, fixed `PATH`).
+The policy carries the `org.freedesktop.policykit.exec.path` annotation for that path, so `pkexec <helper>` asks for the action `top.npcserver.slimm.update-client` instead of the generic `org.freedesktop.policykit.exec`.
+That action is `yes` for an active local session and `auth_admin` for everything else.
 
-- the action is `org.freedesktop.policykit.exec`
-- `program` is `/usr/bin/dnf`
-- `command_line` is exactly `/usr/bin/dnf upgrade --refresh -y slim-m-client`, the string pkexec builds from the resolved program path and its arguments (the same string the old dialog quoted)
-- the subject is a local, active session and a member of `wheel`
+Why this replaced a polkit rule on `dnf` itself: the rule never matched on Fedora 41 and later.
+`pkexec` resolves the program with `realpath` before it asks polkit, and `/usr/bin/dnf` is a symlink to `/usr/bin/dnf5`, so the rule's `program == "/usr/bin/dnf"` was false and the prompt came back on every update.
+The owner's journal showed `polkit-agent-helper-1` authenticating just before `pkexec` ran the command, which is how it was found.
+A helper path has no symlink to resolve and no command line to match, so there is nothing to drift between dnf versions.
 
-Anything else returns nothing, so polkit falls through to its normal prompt.
+Why this is acceptable: the helper cannot be steered.
+It ignores its arguments, reads nothing from the caller's environment or home, and only upgrades one named package from repositories root has already configured, with gpgcheck on.
+The worst a local user in an active session can do is upgrade slim-m-client to the newest signed build, which is also what Discover and PackageKit allow for signed packages.
 The `dnf copr enable` step is not covered; the packaged repo file makes it a rare fallback.
 
-Why this is acceptable: it lets an admin who is sitting at the machine upgrade one named package from repositories root has already configured, with gpgcheck on, which is what Discover and PackageKit already allow for signed packages.
-It grants no arbitrary dnf arguments and no other program.
-The one caveat is that `command_line` is a space-joined string, so an argv of `upgrade`, `--refresh -y slim-m-client` would match too; dnf rejects that as an unknown option, so it gains nothing.
+PackageKit (`pkcon` or its D-Bus API) was considered and not chosen.
+Fedora's own `org.freedesktop.packagekit.rules` already grants `package-install` without a password, but only to wheel members, and the client would then depend on the PackageKit daemon being present and on its distribution-specific policy.
+It would also drive a different code path from the dnf the client already inspects (repolist, rpm -q).
+One helper with one action is the simpler thing to keep correct.
 
-PackageKit (`pkcon`) was considered and not chosen.
-It would avoid the rule, but the client would then depend on the PackageKit daemon being present and on its own policy, and would drive a different code path than the dnf it already inspects (repolist, rpm -q). One dnf command with a narrow rule is the simpler thing to keep correct.
-
-The match is kept in one place by `rpmUpgradeCommand` in `rpm_updater.dart`, and `client/packages/app/test/desktop/rpm_polkit_rule_test.dart` fails if the rule and the constant disagree.
-The first update that installs this rule still prompts once, since the rule is not on disk until that upgrade finishes.
-Not verified against a real polkit daemon on an installed rpm; only the rule syntax and the match string were checked here.
+`rpm_updater.dart` runs the helper when that file exists and otherwise falls back to `pkexec dnf upgrade ...`, which prompts.
+`client/packages/app/test/desktop/rpm_update_helper_test.dart` fails if the policy path, the spec and the updater disagree.
+The first update that installs the helper still prompts once, since the helper is not on disk until that upgrade finishes.
+Not verified against a real polkit daemon on an installed rpm; the policy was validated against polkit's DTD and the helper with shellcheck only.
 
 ## rpmlint findings left in place
 

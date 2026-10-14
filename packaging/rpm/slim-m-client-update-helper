@@ -1,0 +1,13 @@
+#!/bin/bash
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+# Root-side half of the client's self-update; see packaging/rpm/README.md.
+# Takes no arguments on purpose: polkit authorizes this program, not a command line.
+set -euo pipefail
+
+umask 022
+cd /
+
+exec /usr/bin/env -i \
+    PATH=/usr/sbin:/usr/bin \
+    LANG=C.UTF-8 \
+    /usr/bin/dnf upgrade --refresh -y slim-m-client
