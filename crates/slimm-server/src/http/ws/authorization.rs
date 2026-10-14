@@ -497,6 +497,7 @@ pub(super) async fn authorize_unstamped(
             channel_id,
             message_id,
             options,
+            runoff,
         } => ServerFrame::PollVoted {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
@@ -504,6 +505,7 @@ pub(super) async fn authorize_unstamped(
                 .into_iter()
                 .map(|(position, votes)| PollOptionCountDto { position, votes })
                 .collect(),
+            runoff: runoff.map(Into::into),
         },
         Event::MessageComponentsChanged {
             channel_id,

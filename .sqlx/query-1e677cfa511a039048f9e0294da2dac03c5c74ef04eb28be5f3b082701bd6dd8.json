@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT close_at, ranked AS \"ranked: bool\" FROM polls WHERE message_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "close_at",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "ranked: bool",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "1e677cfa511a039048f9e0294da2dac03c5c74ef04eb28be5f3b082701bd6dd8"
+}

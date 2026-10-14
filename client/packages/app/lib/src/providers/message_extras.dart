@@ -177,8 +177,8 @@ class MessageExtrasController
         applyCodeRun(messageId, run);
       case api.CodeRunsCleared(:final messageId):
         _applyCodeRunsCleared(messageId);
-      case api.PollVoted(:final messageId, :final options):
-        _applyPollTally(messageId, options);
+      case api.PollVoted(:final messageId, :final options, :final runoff):
+        _applyPollTally(messageId, options, runoff);
       case api.MessageComponentsChanged(:final messageId, :final components):
         _set(messageId, extrasFor(messageId).copyWith(components: components));
       case api.MessageEmbedsChanged(:final messageId, :final embeds):
@@ -393,7 +393,11 @@ class MessageExtrasController
   /// known yet: a bare tally carries neither the question nor the option
   /// labels, so there is nothing to merge it into until some REST fetch has
   /// taught this cache those. The next fetch including this message picks it up.
-  void _applyPollTally(String messageId, List<api.PollOptionTally> tallies) {
+  void _applyPollTally(
+    String messageId,
+    List<api.PollOptionTally> tallies,
+    api.PollRunoff? runoff,
+  ) {
     final poll = extrasFor(messageId).poll;
     if (poll == null) return;
     final byPosition = {for (final t in tallies) t.position: t.votes};
@@ -408,13 +412,10 @@ class MessageExtrasController
     _set(
       messageId,
       extrasFor(messageId).copyWith(
-        poll: api.Poll(
-          question: poll.question,
+        poll: poll.copyWith(
           options: options,
-          totalVotes: options.fold(0, (sum, o) => sum + o.votes),
-          votedOption: poll.votedOption,
-          closeAt: poll.closeAt,
-          closed: poll.closed,
+          totalVotes: options.fold<int>(0, (sum, o) => sum + o.votes),
+          runoff: runoff,
         ),
       ),
     );
@@ -423,39 +424,32 @@ class MessageExtrasController
   /// Records the caller's own vote immediately, ahead of the `poll.voted`
   /// broadcast: that event never reports back who cast a vote, only the
   /// refreshed tally, so [Poll.votedOption] (per-viewer, never broadcast)
-  /// would otherwise never update on the voter's own screen at all.
-  void applyLocalVote(String messageId, int option) {
+  /// would otherwise never update on the voter's own screen at all. A
+  /// [ranking] counts as a vote for its first choice; the runoff itself
+  /// waits for the broadcast.
+  void applyLocalVote(String messageId, int option, {List<int>? ranking}) {
     final poll = extrasFor(messageId).poll;
     if (poll == null) return;
     final previous = poll.votedOption;
-    if (previous == option) return;
+    if (previous == option && ranking == null) return;
+    int moved(api.PollOption o) =>
+        (o.position == option ? 1 : 0) - (o.position == previous ? 1 : 0);
     final options = [
       for (final o in poll.options)
-        if (o.position == option)
-          api.PollOption(
-            position: o.position,
-            label: o.label,
-            votes: o.votes + 1,
-          )
-        else if (o.position == previous)
-          api.PollOption(
-            position: o.position,
-            label: o.label,
-            votes: (o.votes - 1).clamp(0, 1 << 31),
-          )
-        else
-          o,
+        api.PollOption(
+          position: o.position,
+          label: o.label,
+          votes: (o.votes + moved(o)).clamp(0, 1 << 31),
+        ),
     ];
     _set(
       messageId,
       extrasFor(messageId).copyWith(
-        poll: api.Poll(
-          question: poll.question,
+        poll: poll.copyWith(
           options: options,
-          totalVotes: options.fold(0, (sum, o) => sum + o.votes),
+          totalVotes: options.fold<int>(0, (sum, o) => sum + o.votes),
           votedOption: option,
-          closeAt: poll.closeAt,
-          closed: poll.closed,
+          votedRanking: ranking,
         ),
       ),
     );

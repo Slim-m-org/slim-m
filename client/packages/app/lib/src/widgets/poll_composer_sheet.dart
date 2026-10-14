@@ -25,6 +25,7 @@ import '../providers/providers.dart';
 import 'emoji_picker.dart';
 import 'poll_view.dart';
 import 'settings_select_row.dart';
+import 'settings_toggle_row.dart';
 import 'text_insert.dart';
 
 /// Mirrors `store::polls::MIN_OPTIONS`: below this a poll is not a choice.
@@ -68,6 +69,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
   bool _submitting = false;
   String? _error;
   _PollLength _length = _PollLength.never;
+  bool _ranked = false;
 
   @override
   void dispose() {
@@ -135,6 +137,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             question: _question.text.trim(),
             options: _filledOptions,
             closeAt: _length.closeAt(clock.now()),
+            ranked: _ranked,
           );
       final store = await ref.read(storeProvider.future);
       await store.applyMessage(sent);
@@ -172,6 +175,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     votedOption: null,
     closeAt: _length.closeAt(clock.now()),
     closed: false,
+    ranked: _ranked,
   );
 
   @override
@@ -200,8 +204,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              '$_minOptions to $_maxOptions options, one vote each. '
-              'Votes are anonymous.',
+              '$_minOptions to $_maxOptions options. Votes are anonymous.',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
             const SizedBox(height: AppSpacing.s12),
@@ -280,6 +283,14 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
               ],
               onChanged: (length) => setState(() => _length = length),
             ),
+            SettingsToggleRow(
+              label: 'Ranked choice',
+              description:
+                  'Voters rank options, dropping the last until one has a majority.',
+              value: _ranked,
+              onChanged: (value) => setState(() => _ranked = value),
+              semanticLabel: 'Ranked choice',
+            ),
             const SizedBox(height: AppSpacing.s12),
             Text(
               'Preview',
@@ -291,7 +302,11 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
               child: Opacity(
                 opacity: 0.7,
                 child: ExcludeSemantics(
-                  child: PollView(poll: _previewPoll, onVote: (_) {}),
+                  child: PollView(
+                    poll: _previewPoll,
+                    onVote: (_) {},
+                    onRank: (_) {},
+                  ),
                 ),
               ),
             ),

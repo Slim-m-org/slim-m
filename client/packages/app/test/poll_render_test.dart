@@ -101,8 +101,133 @@ final _states = <String, ({api.Poll poll, Size size, String theme})>{
   ),
 };
 
+api.Poll _ranked({
+  List<int> firstChoices = const [0, 0, 0],
+  List<int>? votedRanking,
+  api.PollRunoff? runoff,
+  bool closed = false,
+}) => api.Poll(
+  question: 'Where should the summer trip go?',
+  options: [
+    for (final (i, label) in const ['Beach', 'City', 'Hills'].indexed)
+      api.PollOption(position: i, label: label, votes: firstChoices[i]),
+  ],
+  totalVotes: firstChoices.fold(0, (a, b) => a + b),
+  votedOption: votedRanking?.first,
+  closeAt: null,
+  closed: closed,
+  ranked: true,
+  votedRanking: votedRanking,
+  runoff: runoff,
+);
+
+const _decided = api.PollRunoff(
+  rounds: [
+    {0: 4, 1: 3, 2: 2},
+    {0: 4, 1: 5},
+  ],
+  winner: 1,
+);
+
+/// Ranked polls, with the options to tap first for a ballot in progress.
+final _rankedStates =
+    <String, ({api.Poll poll, Size size, String theme, List<String> taps})>{
+      'poll-ranked-ballot': (
+        poll: _ranked(),
+        size: const Size(480, 460),
+        theme: 'dark',
+        taps: const ['Hills', 'Beach'],
+      ),
+      'poll-ranked-result': (
+        poll: _ranked(
+          firstChoices: const [4, 3, 2],
+          votedRanking: const [2, 1],
+          runoff: _decided,
+        ),
+        size: const Size(480, 460),
+        theme: 'light',
+        taps: const [],
+      ),
+      'poll-ranked-tied-closed': (
+        poll: _ranked(
+          firstChoices: const [2, 2, 0],
+          closed: true,
+          runoff: const api.PollRunoff(
+            rounds: [
+              {0: 2, 1: 2, 2: 0},
+              {0: 2, 1: 2},
+            ],
+            winner: null,
+          ),
+        ),
+        size: const Size(480, 460),
+        theme: 'dark',
+        taps: const [],
+      ),
+      'poll-ranked-result-phone': (
+        poll: _ranked(
+          firstChoices: const [4, 3, 2],
+          votedRanking: const [0, 1, 2],
+          runoff: _decided,
+        ),
+        size: const Size(390, 520),
+        theme: 'dark',
+        taps: const [],
+      ),
+    };
+
+Future<void> _pumpPoll(
+  WidgetTester tester,
+  api.Poll poll, {
+  required Size size,
+  required String theme,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  final tokens = theme == 'dark' ? AppTokens.dark : AppTokens.light;
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: snapshotBoundary,
+      child: MaterialApp(
+        builder: (_, child) => ProviderScope(child: child!),
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(
+          theme == 'dark' ? Brightness.dark : Brightness.light,
+          tokens,
+        ),
+        home: Scaffold(
+          backgroundColor: tokens.surfaceBase,
+          body: Padding(
+            padding: const EdgeInsets.all(AppSpacing.s16),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: PollView(poll: poll, onVote: (_) {}, onRank: (_) {}),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
+}
+
 void main() {
   setUpAll(loadRealFonts);
+
+  for (final entry in _rankedStates.entries) {
+    testWidgets('${entry.key} fits its viewport', (tester) async {
+      final state = entry.value;
+      await _pumpPoll(tester, state.poll, size: state.size, theme: state.theme);
+      for (final label in state.taps) {
+        await tester.tap(find.text(label));
+        await tester.pump(const Duration(milliseconds: 350));
+      }
+      await writeSnapshot(tester, entry.key);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final entry in _states.entries) {
     testWidgets('${entry.key} fits its viewport', (tester) async {

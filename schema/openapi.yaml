@@ -13007,6 +13007,43 @@ components:
             Whether the server's own clock already considers this poll past
             close_at. Voting is refused server-side regardless of what a
             client believes this to be.
+        ranked:
+          type: boolean
+          description: >-
+            Voters rank the options and the result is an instant runoff. On a
+            ranked poll, option votes and voted_option are first choices.
+        voted_ranking:
+          type: [array, "null"]
+          items:
+            type: integer
+            format: int64
+          description: >-
+            The calling user's own ranking, best first, on a ranked poll.
+            Per-viewer, like voted_option.
+        runoff:
+          oneOf:
+            - $ref: "#/components/schemas/PollRunoff"
+            - type: "null"
+
+    PollRunoff:
+      type: object
+      required: [rounds, winner]
+      description: >-
+        An instant-runoff count. Each round counts every ballot for its best
+        option still running; an option with more than half wins, otherwise
+        every option tied for fewest is dropped. No winner means no votes or
+        a tie.
+      properties:
+        rounds:
+          type: array
+          items:
+            type: array
+            description: The options still running that round, in option order.
+            items:
+              $ref: "#/components/schemas/PollOptionCount"
+        winner:
+          type: [integer, "null"]
+          format: int64
 
     PollOption:
       type: object
@@ -13060,6 +13097,9 @@ components:
           description: >-
             Unix milliseconds. Omitted or null means the poll never closes.
             Must be in the future and at most 31 days out.
+        ranked:
+          type: boolean
+          description: Voters rank the options instead of picking one. Defaults to false.
 
     LaunchAppRequest:
       type: object
@@ -13087,12 +13127,21 @@ components:
 
     VotePollRequest:
       type: object
-      required: [option]
+      description: >-
+        Exactly one of option (an ordinary poll) or ranking (a ranked poll).
       properties:
         option:
           type: integer
           format: int64
           description: The 0-based position of the option being voted for.
+        ranking:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: >-
+            Positions best first, each at most once; need not rank every
+            option. Replaces any earlier ranking whole.
 
     SendMessageRequest:
       type: object
@@ -14637,6 +14686,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PollOptionCount"
+        runoff:
+          $ref: "#/components/schemas/PollRunoff"
+          description: Present on a ranked poll only.
 
     PollOptionCount:
       type: object

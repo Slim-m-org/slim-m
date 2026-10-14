@@ -76,6 +76,25 @@ Future<void> castVote(WidgetRef ref, String messageId, int option) async {
   }
 }
 
+/// Casts (or replaces) a ranked ballot, best first, the same best-effort way
+/// as [castVote].
+Future<void> castRanking(
+  WidgetRef ref,
+  String messageId,
+  List<int> ranking,
+) async {
+  ref
+      .read(messageExtrasProvider.notifier)
+      .applyLocalVote(messageId, ranking.first, ranking: ranking);
+  try {
+    await ref
+        .read(apiProvider)
+        .votePoll(messageId: messageId, ranking: ranking);
+  } on api.ApiException {
+    // Best-effort, like castVote.
+  }
+}
+
 bool _isAuthor(Message message, String? myUserId) =>
     message.authorId != null && message.authorId == myUserId;
 
