@@ -97,6 +97,10 @@ fn apply(state: &AppState, event: WebhookEvent) {
                     user_id,
                 });
             }
+            let (store, voice, hub) = (state.store.clone(), state.voice.clone(), state.hub.clone());
+            tokio::spawn(async move {
+                crate::room_cleanup::remove_if_empty(&store, &voice, &hub, channel_id).await;
+            });
         }
         "track_published" => {
             publish_share_change(state, &live_state, channel_id, user_id, &event, true);

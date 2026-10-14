@@ -21,6 +21,10 @@ class Channel {
     this.slowModeSeconds = 0,
     this.joinMuted = false,
     this.restricted,
+    this.createsRooms = false,
+    this.userLimit = 0,
+    this.roomOwnerId,
+    this.roomLocked = false,
   });
 
   final String id;
@@ -95,7 +99,22 @@ class Channel {
   /// visibility must never claim it is public.
   final bool? restricted;
 
+  /// A voice lobby: opening it makes the caller a temporary room
+  /// ([SlimmApiVoiceRooms.openVoiceRoom], decision 0065).
+  final bool createsRooms;
+
+  /// The most people a voice channel's call takes, 0 for no limit.
+  final int userLimit;
+
+  /// Set only on a temporary room: who owns it.
+  final String? roomOwnerId;
+
+  /// Whether nobody new may join this temporary room.
+  final bool roomLocked;
+
   bool get isVoice => kind == 'voice';
+
+  bool get isRoom => roomOwnerId != null;
 
   /// Whether this row is a thread rather than an ordinary channel - see
   /// [parentMessageId].
@@ -114,6 +133,10 @@ class Channel {
         slowModeSeconds: json['slow_mode_seconds'] as int? ?? 0,
         joinMuted: json['join_muted'] as bool? ?? false,
         restricted: json['restricted'] as bool?,
+        createsRooms: json['creates_rooms'] as bool? ?? false,
+        userLimit: json['user_limit'] as int? ?? 0,
+        roomOwnerId: json['room_owner_id'] as String?,
+        roomLocked: json['room_locked'] as bool? ?? false,
       );
 }
 

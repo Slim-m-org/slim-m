@@ -174,13 +174,20 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   /// selection's box toward [world] if a handle was grabbed ([lockAspect]
   /// true unless a modifier is held), or moves it by the same drag delta
   /// otherwise. Does nothing if neither is under way.
-  void dragSelect(Offset world, {required bool lockAspect}) {
+  ///
+  /// With [snap], the moved box (or the dragged corner) pulls onto other
+  /// visible boxes' edges and centres; the pointer-to-box anchor is untouched,
+  /// so releasing [snap] mid-drag releases the box immediately.
+  void dragSelect(Offset world, {required bool lockAspect, bool snap = false}) {
     final resize = _resize;
     if (resize != null) {
+      final point = snap
+          ? _snapped(resize.objectId, Rect.fromLTWH(world.dx, world.dy, 0, 0))
+          : _unsnapped();
       resize.current = resizeBounds(
         corner: resize.corner,
         original: resize.fromBounds,
-        pointerWorld: world,
+        pointerWorld: world + point,
         lockAspect: lockAspect,
       );
       document.moveObject(
@@ -195,10 +202,39 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     }
     final drag = _drag;
     if (drag == null) return;
-    drag.x = drag.fromX + (world.dx - drag.anchor.dx);
-    drag.y = drag.fromY + (world.dy - drag.anchor.dy);
+    final x = drag.fromX + (world.dx - drag.anchor.dx);
+    final y = drag.fromY + (world.dy - drag.anchor.dy);
+    final shift = snap
+        ? _snapped(drag.objectId, Rect.fromLTWH(x, y, drag.fromW, drag.fromH))
+        : _unsnapped();
+    drag.x = x + shift.dx;
+    drag.y = y + shift.dy;
     document.moveObject(drag.objectId, drag.x, drag.y, drag.fromW, drag.fromH);
     document.refresh();
+  }
+
+  Offset _unsnapped() {
+    document.snapGuides.value = const [];
+    return Offset.zero;
+  }
+
+  /// The shift that aligns [moving] with the other visible boxes, publishing
+  /// the guides it earned. Strokes are skipped: their bounds are not edges a
+  /// person lines anything up with.
+  Offset _snapped(String movingId, Rect moving) {
+    final targets = [
+      for (final id in document.visibleIds)
+        if (id != movingId && document.kindOf(id) != CanvasObjectKind.stroke)
+          if (document.objectBounds(id) case final b?)
+            Rect.fromLTWH(b.x, b.y, b.w, b.h),
+    ];
+    final result = snapRect(
+      moving,
+      targets,
+      threshold: snapScreenThreshold / document.camera.zoom,
+    );
+    document.snapGuides.value = result.guides;
+    return result.offset;
   }
 
   /// Commits whichever gesture [beginSelect] started as one `move` op, or
@@ -219,6 +255,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   /// resurrect the shadow along with the position.
   Future<void> endSelect() async {
     document.elevatedObjectId.value = null;
+    document.snapGuides.value = const [];
     final resize = _resize;
     _resize = null;
     if (resize != null) {

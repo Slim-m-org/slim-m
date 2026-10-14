@@ -34,7 +34,7 @@
 openapi: 3.1.0
 info:
   title: slim-m API
-  version: 0.88.0 # x-release-please-version
+  version: 0.89.0 # x-release-please-version
   description: >
     The server surface: liveness, auth with opaque rotating tokens, channel
     management, text messaging with reactions, polls, deletion, and full-text
@@ -6122,6 +6122,11 @@ paths:
         A 501 means this deployment has no SFU configured, which is a supported
         way to run a text-only server rather than a fault, so a client should
         hide voice instead of retrying.
+
+
+        A 409 means a temporary room is locked or the channel's `user_limit`
+        is reached (decision 0065). Someone already in the call, the room's
+        owner and anyone with `MANAGE_CHANNELS` are never refused this way.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
       responses:
@@ -6137,6 +6142,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "501":
@@ -6145,6 +6152,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /channels/{channelId}/voice/room:
+    post:
+      operationId: openVoiceRoom
+      tags: [voice]
+      summary: Get your temporary room from a lobby voice channel.
+      description: >
+        For a voice channel with `creates_rooms` (decision 0065). Answers the
+        caller's existing room from this lobby, or makes one named after them,
+        right below the lobby with a copy of its overwrites. Needs
+        `VIEW_CHANNEL` and `CONNECT` on the lobby. The client then joins the
+        returned channel as usual.
+      parameters:
+        - $ref: "#/components/parameters/ChannelId"
+      responses:
+        "200":
+          description: The caller's room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/room:
+    patch:
+      operationId: updateVoiceRoom
+      tags: [voice]
+      summary: Rename, lock or cap a temporary room.
+      description: >
+        The room's owner, or anyone with `MANAGE_CHANNELS`. At least one field.
+      parameters:
+        - $ref: "#/components/parameters/ChannelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVoiceRoomRequest"
+      responses:
+        "200":
+          description: The updated room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /channels/{channelId}/voice/calls:
     get:
@@ -10915,6 +10986,26 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ComponentRow"
+    MessageEmbeds:
+      type: object
+      required: [type, channel_id, message_id, embeds]
+      description: >
+        A bot replaced or cleared the embeds on its message by editing it. The
+        whole current list, like `message.components`.
+      properties:
+        type:
+          type: string
+          enum: [message.embeds]
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        embeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Embed"
     VoiceCallHistory:
       type: object
       required: [retention_days, canvas_object_count, calls]
@@ -11416,6 +11507,22 @@ components:
             SPEAK overwrites are what restrict who may speak. Set with
             `updateChannel` or at `createChannel`. Absent on servers older
             than this field, which a client must treat as false.
+        creates_rooms:
+          type: boolean
+          description: >
+            A voice lobby: opening it makes the caller a temporary room
+            (`openVoiceRoom`, decision 0065). Absent on older servers, false.
+        user_limit:
+          type: integer
+          format: int64
+          description: The most people a voice channel's call takes, 0 to 99, 0 for no limit.
+        room_owner_id:
+          type: string
+          format: uuid
+          description: Present only on a temporary room, naming its owner.
+        room_locked:
+          type: boolean
+          description: Present only on a temporary room; nobody new may join.
         permissions:
           type: integer
           format: int64
@@ -11576,6 +11683,29 @@ components:
           description: >
             Sets the join-muted default. Absent leaves it unchanged. `true` is
             refused on a text channel.
+        creates_rooms:
+          type: boolean
+          description: >
+            Makes a voice channel a lobby for temporary rooms (decision 0065).
+            Refused on a text channel or on a room.
+        user_limit:
+          type: integer
+          format: int64
+          description: Caps a voice channel's call, 0 to 99; 0 removes the limit.
+
+    UpdateVoiceRoomRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        locked:
+          type: boolean
+        user_limit:
+          type: integer
+          format: int64
+          description: 0 to 99; 0 removes the limit.
 
     ReorderChannelsRequest:
       type: object
@@ -13112,6 +13242,16 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+        embeds:
+          type: array
+          description: >-
+            Replaces the message's embeds (empty clears them), honoured only
+            from the bot that wrote the message and silently dropped from
+            anyone else, with `SendMessageRequest.embeds`' own limits. Absent
+            leaves them as they are. A replacement is announced as a
+            `message.embeds` frame.
+          items:
+            $ref: "#/components/schemas/RequestEmbed"
 
     RegisterPushRequest:
       type: object
@@ -13865,6 +14005,7 @@ components:
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
+        - $ref: "#/components/schemas/MessageEmbeds"
         - $ref: "#/components/schemas/InteractionCreated"
         - $ref: "#/components/schemas/InteractionAnswered"
         - $ref: "#/components/schemas/NewDeviceSignIn"

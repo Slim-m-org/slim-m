@@ -15,7 +15,9 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('the voice pane has four section headers', (tester) async {
-    await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(SettingsSectionHeader), findsNWidgets(4));

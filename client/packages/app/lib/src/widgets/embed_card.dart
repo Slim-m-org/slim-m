@@ -19,6 +19,7 @@ import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import 'image_decode.dart';
 import 'text_link.dart';
+import 'viewport_freeze.dart';
 
 Color _accentColor(api.EmbedAccent accent) => switch (accent) {
   api.EmbedAccent.red => AppEmbedAccents.red,
@@ -313,12 +314,14 @@ class _EmbedImageState extends ConsumerState<_EmbedImage> {
           decoration: BoxDecoration(
             border: Border.all(color: tokens.borderSubtle),
           ),
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            cacheWidth: decodeWidth,
-            errorBuilder: (context, error, stackTrace) =>
-                const SizedBox.shrink(),
+          child: ViewportFreeze(
+            child: Image.memory(
+              bytes,
+              fit: BoxFit.cover,
+              cacheWidth: decodeWidth,
+              errorBuilder: (context, error, stackTrace) =>
+                  const SizedBox.shrink(),
+            ),
           ),
         ),
       ),

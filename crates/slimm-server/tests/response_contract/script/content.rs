@@ -51,6 +51,32 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
             json!({ "name": "scratch", "kind": "voice" }),
         )
         .await;
+    let scratch_id = text(&scratch, "id");
+    c.json(
+        "updateChannel",
+        "PATCH",
+        &format!("/channels/{scratch_id}"),
+        root,
+        json!({ "creates_rooms": true, "user_limit": 5 }),
+    )
+    .await;
+    let room = c
+        .json(
+            "openVoiceRoom",
+            "POST",
+            &format!("/channels/{scratch_id}/voice/room"),
+            root,
+            json!({}),
+        )
+        .await;
+    c.json(
+        "updateVoiceRoom",
+        "PATCH",
+        &format!("/channels/{}/room", text(&room, "id")),
+        root,
+        json!({ "name": "contract room", "locked": true, "user_limit": 4 }),
+    )
+    .await;
     c.bare(
         "deleteChannel",
         "DELETE",

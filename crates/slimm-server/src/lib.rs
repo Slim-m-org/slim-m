@@ -34,6 +34,7 @@ pub mod presence_activity;
 mod process_metrics;
 pub mod push;
 pub mod ratelimit;
+pub mod room_cleanup;
 mod sidecar_url;
 pub mod store;
 mod sweeps;
@@ -124,6 +125,7 @@ pub async fn run() -> anyhow::Result<()> {
     let voice = voice::VoiceService::new(&config)?;
     sweeps::spawn_call_sweep(voice.clone(), hub.clone());
     sweeps::spawn_call_history_sweep(store.clone());
+    sweeps::spawn_room_sweep(store.clone(), voice.clone(), hub.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
     sweeps::spawn_message_retention_sweep(store.clone(), media.clone(), hub.clone());
     let gifs = http::gifs::GifSearch::new(&config)?;

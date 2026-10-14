@@ -26,7 +26,8 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::channel_slow_mode::validate_slow_mode_seconds;
 use super::channel_validation::{
-    JOIN_MUTED_VOICE_ONLY, validate_channel_name, validate_channel_topic,
+    JOIN_MUTED_VOICE_ONLY, ROOMS_VOICE_ONLY, validate_channel_name, validate_channel_topic,
+    validate_user_limit,
 };
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
@@ -104,6 +105,16 @@ pub(crate) struct ChannelDto {
     /// Whether joining this voice channel starts with the mic off. A
     /// default members can override, not a lock; always present.
     join_muted: bool,
+    /// A voice lobby that makes a room per person; see decision 0065.
+    creates_rooms: bool,
+    /// The most people a voice channel's call takes, 0 for no limit.
+    user_limit: i64,
+    /// Set only on a temporary room: who owns it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    room_owner_id: Option<String>,
+    /// Set only on a temporary room: whether nobody new may join.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    room_locked: Option<bool>,
     /// Whether `@everyone` lacks VIEW_CHANNEL here, so the channel is hidden
     /// from ordinary members rather than visible to anyone in the
     /// deployment. Identical for every caller, unlike `permissions` - see
@@ -128,6 +139,10 @@ impl From<Channel> for ChannelDto {
             permissions: None,
             slow_mode_seconds: channel.slow_mode_seconds,
             join_muted: channel.join_muted,
+            creates_rooms: channel.room.creates_rooms,
+            user_limit: channel.room.user_limit,
+            room_owner_id: channel.room.owner_id.map(|id| id.to_string()),
+            room_locked: channel.room.is_room().then_some(channel.room.locked),
             restricted: None,
         }
     }
@@ -195,6 +210,12 @@ struct UpdateChannelRequest {
     /// Absent leaves the join-muted default unchanged; present replaces it.
     #[serde(default)]
     join_muted: Option<bool>,
+    /// Voice only: makes this channel a lobby for temporary rooms.
+    #[serde(default)]
+    creates_rooms: Option<bool>,
+    /// Voice only: the most people in the call, 0 for no limit.
+    #[serde(default)]
+    user_limit: Option<i64>,
 }
 
 /// Lists the channels the caller can view. One batched store call: the
@@ -334,18 +355,31 @@ async fn update(
         .slow_mode_seconds
         .map(validate_slow_mode_seconds)
         .transpose()?;
-    if name.is_none() && topic.is_none() && slow_mode_seconds.is_none() && req.join_muted.is_none()
+    let user_limit = req.user_limit.map(validate_user_limit).transpose()?;
+    if name.is_none()
+        && topic.is_none()
+        && slow_mode_seconds.is_none()
+        && req.join_muted.is_none()
+        && req.creates_rooms.is_none()
+        && user_limit.is_none()
     {
         return Err(ApiError::BadRequest("nothing to update"));
     }
-    if req.join_muted == Some(true) {
+    let makes_rooms = req.creates_rooms == Some(true);
+    let limits = user_limit.is_some_and(|limit| limit > 0);
+    if req.join_muted == Some(true) || makes_rooms || limits {
         let current = state
             .store
             .channel(channel_id)
             .await?
             .ok_or(ApiError::NotFound("channel not found"))?;
-        if current.kind != "voice" {
+        if current.kind != "voice" && req.join_muted == Some(true) {
             return Err(ApiError::BadRequest(JOIN_MUTED_VOICE_ONLY));
+        }
+        if (makes_rooms || limits) && current.kind != "voice"
+            || makes_rooms && current.room.is_room()
+        {
+            return Err(ApiError::BadRequest(ROOMS_VOICE_ONLY));
         }
     }
 
@@ -358,6 +392,9 @@ async fn update(
                 topic: topic.as_ref().map(|t| t.as_deref()),
                 slow_mode_seconds,
                 join_muted: req.join_muted,
+                creates_rooms: req.creates_rooms,
+                user_limit,
+                room_locked: None,
             },
         )
         .await?

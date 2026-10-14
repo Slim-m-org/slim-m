@@ -90,7 +90,9 @@ void main() {
     (tester) async {
       final semantics = tester.ensureSemantics();
 
-      await tester.pumpWidget(wrap(const VoiceSettingsBody()));
+      await tester.pumpWidget(
+        wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      );
       await tester.pumpAndSettle();
 
       final cameraToggle = find.byWidgetPredicate(

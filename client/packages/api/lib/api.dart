@@ -69,6 +69,7 @@ export 'src/client.dart'
         SlimmApiUsers,
         SlimmApiVoice,
         SlimmApiVoiceCalls,
+        SlimmApiVoiceRooms,
         SlimmApiWatchSession,
         SlimmApiWebhooks,
         JoinPolicy;
@@ -104,6 +105,7 @@ export 'src/events.dart'
         MessageDeleted,
         InteractionAnswered,
         MessageComponentsChanged,
+        MessageEmbedsChanged,
         MessageEphemeral,
         MessageEdited,
         MessagePinned,

@@ -181,6 +181,7 @@ impl Store {
                 // Never read: a thread has no slow-mode setter of its own.
                 slow_mode_seconds: 0,
                 join_muted: false,
+                room: super::ChannelRoom::default(),
             },
             fresh: true,
         })
