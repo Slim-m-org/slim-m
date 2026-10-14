@@ -19,11 +19,13 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/call_recap.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/dm_call.dart';
+import '../providers/providers.dart';
 import '../providers/voice_roster.dart';
 import '../routing/routes.dart';
 import '../widgets/call_recap_card.dart';
 import '../widgets/join_muted_note.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/voice_connecting_loader.dart';
 
 /// Leaves the ended call for wherever this channel's own conversation
 /// already is.
@@ -51,64 +53,144 @@ void leaveRecapScreen(
   context.go(Routes.channels);
 }
 
-class VoiceConnecting extends StatelessWidget {
-  const VoiceConnecting({super.key});
+/// The loader between a join and the call: see `voice_connecting_loader.dart`.
+/// [negotiating] is the SFU half of the join, after the token arrived.
+class VoiceConnecting extends ConsumerWidget {
+  const VoiceConnecting({
+    super.key,
+    required this.channelId,
+    this.negotiating = false,
+    this.onCancel,
+  });
+
+  /// Null before there is a call to look into, such as a lobby still
+  /// opening the caller's own room: the lane then runs alone.
+  final String? channelId;
+  final bool negotiating;
+
+  /// Null hides Cancel.
+  final VoidCallback? onCancel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final id = channelId;
+    final me = id == null ? null : ref.watch(effectiveMeProvider);
+    final room =
+        (id == null ? null : ref.watch(voiceRosterProvider(id)).valueOrNull) ??
+        const <api.VoiceRosterParticipant>[];
+    final status = negotiating ? 'Negotiating audio' : 'Connecting';
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const AppBreathingHalo(
-            size: 56,
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
+          VoiceConnectingLoader(
+            phase: negotiating
+                ? VoiceConnectPhase.negotiating
+                : VoiceConnectPhase.reaching,
+            self: id == null
+                ? const SizedBox.shrink()
+                : UserAvatar(
+                    name: me?.displayName ?? '',
+                    userId: me?.id,
+                    size: AppAvatarSize.s32,
+                  ),
+            room: id == null
+                ? const SizedBox.shrink()
+                : _RoomSeats(room: room, tokens: tokens),
+          ),
+          const SizedBox(height: AppSpacing.s20),
+          AnimatedSwitcher(
+            duration: AppMotion.reduced(context, AppMotion.slow),
+            switchInCurve: AppMotion.entrance,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween(
+                  begin: const Offset(0, 0.25),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: Text(
+              status,
+              key: ValueKey(status),
+              style: AppText.ui.copyWith(color: tokens.textSecondary),
             ),
           ),
-          const SizedBox(height: AppSpacing.s16),
-          Text('Connecting', style: TextStyle(color: tokens.textSecondary)),
-          const SizedBox(height: AppSpacing.s24),
-          _EmptySeats(tokens: tokens),
+          if (onCancel != null) ...[
+            const SizedBox(height: AppSpacing.s16),
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.ghost,
+              onPressed: onCancel,
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// Faint outlined seats standing in for the roster that has not arrived yet
-/// - the same circle a participant tile's own avatar takes, so the room
-/// this spinner is about to fill reads as a room waiting to seat people
-/// rather than an empty pane.
-class _EmptySeats extends StatelessWidget {
-  const _EmptySeats({required this.tokens});
+/// Who is already in the call, overlapped, or one empty seat when nobody is:
+/// the lane always runs toward the room.
+class _RoomSeats extends StatelessWidget {
+  const _RoomSeats({required this.room, required this.tokens});
 
+  final List<api.VoiceRosterParticipant> room;
   final AppTokens tokens;
 
-  static const int _seats = 3;
-  static const double _diameter = 40;
+  static const int _shown = 3;
+  static const double _overlap = 8;
+
+  /// The gap cut around each later avatar where it overlaps the one before.
+  static const double _ring = 2;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (var i = 0; i < _seats; i++)
-        Padding(
-          padding: EdgeInsets.only(left: i == 0 ? 0 : AppSpacing.s8),
-          child: Container(
-            width: _diameter,
-            height: _diameter,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: tokens.borderSubtle),
-            ),
-          ),
+  Widget build(BuildContext context) {
+    if (room.isEmpty) {
+      return Container(
+        width: AppAvatarSize.s32,
+        height: AppAvatarSize.s32,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: tokens.borderStrong),
         ),
-    ],
-  );
+      );
+    }
+    final shown = room.take(_shown).toList(growable: false);
+    const step = AppAvatarSize.s32 - _overlap;
+    return Semantics(
+      label: '${room.length} in the call',
+      child: SizedBox(
+        width: AppAvatarSize.s32 + step * (shown.length - 1),
+        height: AppAvatarSize.s32,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final (i, person) in shown.indexed)
+              Positioned(
+                left: step * i - (i == 0 ? 0 : _ring),
+                top: i == 0 ? 0 : -_ring,
+                child: Container(
+                  padding: EdgeInsets.all(i == 0 ? 0 : _ring),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: tokens.surfaceBase,
+                  ),
+                  child: UserAvatar(
+                    name: person.displayName,
+                    userId: person.userId,
+                    size: AppAvatarSize.s32,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Shown instead of an automatic join when the caller is already connected

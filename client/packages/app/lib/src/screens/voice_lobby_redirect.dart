@@ -57,7 +57,7 @@ class _VoiceLobbyRedirectState extends ConsumerState<VoiceLobbyRedirect>
   @override
   Widget build(BuildContext context) {
     final error = actionError;
-    if (error == null) return const VoiceConnecting();
+    if (error == null) return const VoiceConnecting(channelId: null);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.s24),

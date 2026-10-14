@@ -7,10 +7,12 @@
 /// `AvatarSettingsSection`'s own live preview of "what people in this Space
 /// see when they open your card" - see `settings_profile_preview.dart`.
 ///
-/// The profile (header, about, roles, join date) composes in a fixed order
-/// and a section you have no content for is *absent*, never present-and-
-/// empty - a member with no about line shows no about row at all. Actions
-/// follow: Message, a private note, "Moderate...", then Report/Block.
+/// The profile (header, about, activity, roles, join date) composes in a
+/// fixed order and a section you have no content for is *absent*, never
+/// present-and-empty. Someone else's card follows with Message and Add note,
+/// the "In #channel" rows when opened from a channel, then Moderate, Report
+/// and Block; your own ends in Set status, Copy username and Profile settings
+/// (see `member_profile_cards.dart`).
 ///
 /// Moderation is one row, not a wall of rows: a "Moderate..." row pushes
 /// [MemberModerateView] into the same popover ([_moderating]), rather than
@@ -27,134 +29,28 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/blocks_controller.dart';
 import '../providers/member_moderation_error.dart';
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/providers.dart';
 import '../providers/voice_controller.dart';
-import '../routing/routes.dart';
 import 'confirm_dialog.dart';
 import 'member_actions.dart';
 import 'member_moderate_view.dart';
 import 'member_moderation_gates.dart';
-import 'member_notify_off_hours_item.dart';
-import 'member_profile_activity.dart';
-import 'member_profile_bot_commands.dart';
-import 'member_profile_identity.dart';
-import 'member_profile_note_field.dart';
-import 'member_profile_popover.dart';
+import 'member_profile_cards.dart';
 import 'member_profile_push_transition.dart';
-import 'member_profile_sections.dart';
-import 'member_remove_from_channel.dart';
+import 'member_profile_show.dart' show memberPopoverWidth;
 import 'participant_actions.dart';
 import 'participant_audio_controls.dart' show MemberLocalAudioSection;
 import 'run_guarded.dart';
 
-/// The popover's width on a pointer layout, from the design.
-const double _popoverWidth = 300;
+export 'member_profile_show.dart' show showMemberProfile;
 
-/// Opens the profile surface for [profile], anchored to [anchor] where there
-/// is a pointer and presented as a sheet where there is not.
-///
-/// [anchor] is the widget the popover hangs off; the caller passes its own
-/// context so the popover lands beside the row that was clicked rather than
-/// in the middle of the window.
-///
-/// On compact width the roster this popover can open from lives in a
-/// `Scaffold.endDrawer`, whose open state lives on the `ScaffoldState` and
-/// outlives a `go_router` navigation - the shell's `Scaffold` is reused
-/// rather than rebuilt. [Scaffold.maybeOf] is read from [anchor] here, before
-/// anything else runs, so a navigating action can close it as part of
-/// itself; see [MemberProfileBody.memberPaneScaffold].
-Future<void> showMemberProfile(
-  BuildContext anchor, {
-  required api.UserProfile profile,
-  String? callChannelName,
-  bool initiallyModerating = false,
-  String? channelId,
-}) {
-  // Read before anything pops: a popped context has no navigator above it.
-  final host = Navigator.of(anchor, rootNavigator: true).context;
-  final compact = MediaQuery.sizeOf(anchor).width < kCompactWidth;
-  final memberPaneScaffold = Scaffold.maybeOf(anchor);
-
-  if (compact) {
-    // Its own controller reads the platform's own reduce-motion feature, never this app's MotionOverride; see sheet.dart's library doc.
-    final noAnimation = AppMotion.isReduced(anchor)
-        ? AnimationStyle.noAnimation
-        : null;
-    return showModalBottomSheet<void>(
-      context: anchor,
-      isScrollControlled: true,
-      showDragHandle: true,
-      sheetAnimationStyle: noAnimation,
-      builder: (context) => SafeArea(
-        top: false,
-        child: MemberProfileBody(
-          profile: profile,
-          callChannelName: callChannelName,
-          compact: true,
-          host: host,
-          memberPaneScaffold: memberPaneScaffold,
-          initiallyModerating: initiallyModerating,
-          channelId: channelId,
-          onDone: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
-
-  final box = anchor.findRenderObject() as RenderBox?;
-  final overlay = Overlay.of(anchor).context.findRenderObject() as RenderBox?;
-  final origin = box == null || overlay == null
-      ? Offset.zero
-      : box.localToGlobal(Offset.zero, ancestor: overlay);
-  final anchorSize = box?.size ?? Size.zero;
-
-  return showGeneralDialog<void>(
-    context: anchor,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    barrierColor: Colors.transparent,
-    transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
-    pageBuilder: (context, _, __) => AnchoredMemberPopover(
-      origin: origin,
-      anchorSize: anchorSize,
-      child: MemberProfileBody(
-        profile: profile,
-        callChannelName: callChannelName,
-        compact: false,
-        host: host,
-        memberPaneScaffold: memberPaneScaffold,
-        initiallyModerating: initiallyModerating,
-        channelId: channelId,
-        onDone: () => Navigator.of(context).pop(),
-      ),
-    ),
-    transitionBuilder: (context, animation, _, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.entrance,
-        reverseCurve: AppMotion.exit,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: AnimatedBuilder(
-          animation: curved,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, (1 - curved.value) * 8),
-            child: child,
-          ),
-          child: child,
-        ),
-      );
-    },
-  );
-}
+/// Matches [AppMenu]'s own inset, which the moderation view was drawn for.
+const double _moderateInset = 6;
 
 /// The sections themselves, shared by both presentations.
 class MemberProfileBody extends ConsumerStatefulWidget {
@@ -301,7 +197,6 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     final isSelf = gates.isSelf;
     final inCallTogether = gates.inCallTogether;
     final voiceChannelId = gates.voiceChannelId;
-    final canTimeOut = gates.canTimeOut;
     final canRemove = gates.canRemove;
     final canManageRoles = gates.canManageRoles;
     final canIssueReset = gates.canIssueReset;
@@ -322,143 +217,73 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
       unawaited(action(container));
     }
 
-    final profileRows = <Widget>[
-      MemberProfileHeader(
-        profile: profile,
-        isSelf: isSelf,
-        inCallTogether: inCallTogether,
-        callChannelName: widget.callChannelName,
-      ),
-      if (profile.about case final about? when about.isNotEmpty)
-        MemberProfileAbout(about: about),
-      MemberProfileActivity(userId: profile.id),
-      MemberProfileRolesAndJoin(
-        roles: profile.roles,
-        createdAt: profile.createdAt,
-      ),
-
-      if (timeoutActive(profile.timedOutUntil))
-        MemberTimeoutBadge(
-          until: profile.timedOutUntil!,
-          onLift: canTimeOut ? _liftTimeout : null,
-        ),
-
-      if (profile.isBot) MemberProfileBotCommands(botId: profile.id),
-
-      const AppMenuDivider(),
-
-      if (actions.contains(ParticipantAction.muteForMe)) ...[
-        MemberLocalAudioSection(
-          identity: profile.id,
-          controller: controller,
-          showVolume: actions.contains(ParticipantAction.volume),
-        ),
-        const AppMenuDivider(),
-      ],
-
-      if (isSelf) ...[
-        AppMenuItem(
-          label: 'Profile settings',
-          leading: AppIcons.settings,
-          onTap: () {
-            widget.onDone();
-            widget.memberPaneScaffold?.closeEndDrawer();
-            host.push(Routes.personalSettings);
-          },
-        ),
-      ] else ...[
-        if (actions.contains(ParticipantAction.message))
-          AppMenuItem(
-            label: 'Message',
-            leading: AppIcons.send,
-            onTap: () {
-              widget.memberPaneScaffold?.closeEndDrawer();
-              run((container) => messageMember(host, container, profile));
-            },
-          ),
-        MemberProfileNoteField(subjectId: profile.id),
-        MemberNotifyOffHoursItem(host: host, profile: profile, run: run),
-        if (widget.channelId case final channelId?)
-          MemberRemoveFromChannelItem(
-            channelId: channelId,
+    final profileRows = isSelf
+        ? SelfMemberCard(
             profile: profile,
+            host: host,
+            onDone: widget.onDone,
+            run: run,
+            memberPaneScaffold: widget.memberPaneScaffold,
+          )
+        : OtherMemberCard(
+            profile: profile,
+            gates: gates,
+            actions: actions,
             host: host,
             guard: guard,
             onDone: widget.onDone,
-          ),
-        if (actions.contains(ParticipantAction.moderate)) ...[
-          const AppMenuDivider(),
-          AppMenuItem(
-            label: 'Moderate...',
-            leading: AppIcons.shield,
-            submenu: true,
-            onTap: () => setState(() => _moderating = true),
-          ),
-        ],
-        const AppMenuDivider(),
-        AppMenuItem(
-          label: 'Report user',
-          leading: AppIcons.report,
-          onTap: () =>
-              run((container) => reportMember(host, container, profile)),
-        ),
-        // Offering Block again to a blocked member reads as the block failing.
-        if (ref.watch(blocksProvider).contains(profile.id))
-          AppMenuItem(
-            label: 'Unblock',
-            leading: AppIcons.restoreAccess,
-            onTap: () =>
-                run((container) => unblockMember(host, container, profile)),
-          )
-        else
-          AppMenuItem(
-            label: 'Block',
-            leading: AppIcons.revoke,
-            tone: AppMenuItemTone.danger,
-            onTap: () =>
-                run((container) => blockMember(host, container, profile)),
-          ),
-      ],
-    ];
+            run: run,
+            onModerate: () => setState(() => _moderating = true),
+            onLiftTimeout: _liftTimeout,
+            localAudio: actions.contains(ParticipantAction.muteForMe)
+                ? MemberLocalAudioSection(
+                    identity: profile.id,
+                    controller: controller,
+                    showVolume: actions.contains(ParticipantAction.volume),
+                  )
+                : null,
+            callChannelName: widget.callChannelName,
+            channelId: widget.channelId,
+            memberPaneScaffold: widget.memberPaneScaffold,
+          );
 
     final content = _moderating
-        ? MemberModerateView(
-            profile: profile,
-            host: host,
-            canManageRoles: canManageRoles,
-            outranked: gates.outranked,
-            canOfferTimeoutChips: gates.canOfferTimeoutChips,
-            canRename: gates.canRename,
-            canIssueReset: canIssueReset,
-            canRemove: canRemove,
-            canEject: canEject,
-            compact: widget.compact,
-            onBack: () => setState(() => _moderating = false),
-            onTimeOut: _timeOut,
-            onEject: () {
-              final container = ProviderScope.containerOf(
-                context,
-                listen: false,
-              );
-              final channelId = voiceChannelId;
-              widget.onDone();
-              unawaited(_eject(host, container, channelId!));
-            },
-            onRemove: () {
-              final container = ProviderScope.containerOf(
-                context,
-                listen: false,
-              );
-              widget.onDone();
-              unawaited(removeMemberFromSpace(host, container, profile));
-            },
-            onDone: widget.onDone,
+        ? Padding(
+            padding: const EdgeInsets.all(_moderateInset),
+            child: MemberModerateView(
+              profile: profile,
+              host: host,
+              canManageRoles: canManageRoles,
+              outranked: gates.outranked,
+              canOfferTimeoutChips: gates.canOfferTimeoutChips,
+              canRename: gates.canRename,
+              canIssueReset: canIssueReset,
+              canRemove: canRemove,
+              canEject: canEject,
+              compact: widget.compact,
+              onBack: () => setState(() => _moderating = false),
+              onTimeOut: _timeOut,
+              onEject: () {
+                final container = ProviderScope.containerOf(
+                  context,
+                  listen: false,
+                );
+                final channelId = voiceChannelId;
+                widget.onDone();
+                unawaited(_eject(host, container, channelId!));
+              },
+              onRemove: () {
+                final container = ProviderScope.containerOf(
+                  context,
+                  listen: false,
+                );
+                widget.onDone();
+                unawaited(removeMemberFromSpace(host, container, profile));
+              },
+              onDone: widget.onDone,
+            ),
           )
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: profileRows,
-          );
+        : profileRows;
 
     final rows = <Widget>[
       MemberProfilePushTransition(
@@ -486,15 +311,16 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     if (widget.compact) {
       // One scroll view for the whole sheet; the inset keeps a field above the keyboard.
       return SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.s8,
-          0,
-          AppSpacing.s8,
-          AppSpacing.s8 + MediaQuery.viewInsetsOf(context).bottom,
+        padding: EdgeInsets.only(
+          bottom: AppSpacing.s8 + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: rows),
       );
     }
-    return AppMenu(width: _popoverWidth, children: rows);
+    return AppMenu(
+      width: memberPopoverWidth,
+      padding: EdgeInsets.zero,
+      children: rows,
+    );
   }
 }

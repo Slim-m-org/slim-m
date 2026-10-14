@@ -30,9 +30,16 @@ import '../providers/user_notes.dart';
 /// Dashed border until a note has been written; saved when the field loses
 /// focus, not on every keystroke.
 class MemberProfileNoteField extends ConsumerStatefulWidget {
-  const MemberProfileNoteField({super.key, required this.subjectId});
+  const MemberProfileNoteField({
+    super.key,
+    required this.subjectId,
+    this.autofocus = false,
+  });
 
   final String subjectId;
+
+  /// Set when the field was just revealed by "Add note", so typing can start.
+  final bool autofocus;
 
   @override
   ConsumerState<MemberProfileNoteField> createState() =>
@@ -72,6 +79,11 @@ class _MemberProfileNoteFieldState
     _seeded = true;
     _original = note.body ?? '';
     _controller.text = _original;
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
   }
 
   void _onFocusChange() {
@@ -109,10 +121,10 @@ class _MemberProfileNoteFieldState
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s12,
+        AppSpacing.s16,
         0,
+        AppSpacing.s16,
         AppSpacing.s12,
-        AppSpacing.s8,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

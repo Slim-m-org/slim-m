@@ -51,10 +51,10 @@ class _MemberProfileBotCommandsState
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s12,
+        AppSpacing.s16,
         0,
-        AppSpacing.s12,
-        AppSpacing.s12,
+        AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

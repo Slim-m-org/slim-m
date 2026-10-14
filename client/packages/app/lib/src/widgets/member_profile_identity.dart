@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The profile-first content between the header and the actions: an about
-/// line, role chips, and a join date. Split out of `member_profile_sections
+/// line, role badges, and a join date. Split out of `member_profile_sections
 /// .dart` to keep that file under the review budget.
 ///
 /// Each piece is *absent* rather than present-and-empty, the same rule the
@@ -16,10 +16,10 @@ const List<String> _shortMonths = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-/// "joined Mar 2026", from Unix milliseconds.
+/// "Joined Mar 2026", from Unix milliseconds.
 String formatJoinDate(int createdAtMs) {
   final dt = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
-  return 'joined ${_shortMonths[dt.month - 1]} ${dt.year}';
+  return 'Joined ${_shortMonths[dt.month - 1]} ${dt.year}';
 }
 
 /// A short "about" paragraph under the status line.
@@ -33,10 +33,10 @@ class MemberProfileAbout extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s12,
+        AppSpacing.s16,
         0,
+        AppSpacing.s16,
         AppSpacing.s12,
-        AppSpacing.s8,
       ),
       child: Text(
         about,
@@ -46,8 +46,7 @@ class MemberProfileAbout extends StatelessWidget {
   }
 }
 
-/// Role chips (visible to everyone, per the design - editing them is a
-/// Moderate-only affair) beside the join date.
+/// Role badges on the left, the join date on the right.
 class MemberProfileRolesAndJoin extends StatelessWidget {
   const MemberProfileRolesAndJoin({
     super.key,
@@ -63,55 +62,32 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s12,
+        AppSpacing.s16,
         0,
-        AppSpacing.s12,
+        AppSpacing.s16,
         AppSpacing.s12,
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: AppSpacing.s8,
-        runSpacing: AppSpacing.s4,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          for (final role in roles) _RoleChip(label: role),
+          Expanded(
+            child: Wrap(
+              spacing: AppSpacing.s4,
+              runSpacing: AppSpacing.s4,
+              children: [
+                for (final role in roles)
+                  AppBadge(variant: AppBadgeVariant.tag, label: role),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.s8),
           Text(
             formatJoinDate(createdAt),
-            style: AppText.micro.copyWith(color: tokens.textSecondary),
+            maxLines: 1,
+            softWrap: false,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Mono 10, outlined - the design's own wording for a role chip. Distinct
-/// from [AppBadge]'s single-role badge in the header of the old layout: this
-/// one shows every role a member holds, not just the first.
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      height: 20,
-      // No Container.alignment: with no explicit width it expands to fill the parent.
-      decoration: BoxDecoration(
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: Center(
-        widthFactor: 1,
-        child: Text(
-          label,
-          style: AppText.code.copyWith(
-            color: tokens.textSecondary,
-            fontSize: 10,
-          ),
-        ),
       ),
     );
   }

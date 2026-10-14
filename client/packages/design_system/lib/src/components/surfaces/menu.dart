@@ -40,11 +40,15 @@ class AppMenu extends StatelessWidget {
       {super.key,
       required this.children,
       this.width = 250,
-      this.floating = true});
+      this.floating = true,
+      this.padding = const EdgeInsets.all(6)});
 
   final List<Widget> children;
   final double width;
   final bool floating;
+
+  /// Zero for a card whose sections draw their own insets, like a profile.
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -60,8 +64,8 @@ class AppMenu extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadii.card),
           boxShadow: floating ? AppShadows.menu : null,
         ),
-        // 6 is literal in the source, not on the --space-* grid.
-        padding: const EdgeInsets.all(6),
+        // The default 6 is literal in the source, not on the --space-* grid.
+        padding: padding,
         child: Material(
           type: MaterialType.transparency,
           child: Column(mainAxisSize: MainAxisSize.min, children: children),

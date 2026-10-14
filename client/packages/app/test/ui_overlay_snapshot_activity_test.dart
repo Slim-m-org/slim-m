@@ -243,11 +243,11 @@ void main() {
         );
         await tester.tap(find.text('Priya'));
         await tester.pumpAndSettle();
-        expect(find.text('Listening on Spotify'), findsOne);
+        expect(find.text('LISTENING ON SPOTIFY'), findsOne);
         expect(find.text('Weightless'), findsOne);
         expect(find.text('Marconi Union'), findsOne);
         final cover = tester.getSize(find.byKey(const Key('activity-cover')));
-        expect(cover, const Size(AppSpacing.s48, AppSpacing.s48));
+        expect(cover, const Size(AppSpacing.s40, AppSpacing.s40));
         expect(find.byType(Image), findsOne);
         await _finish(tester, 'activity-card-$suffix');
       });
@@ -263,7 +263,7 @@ void main() {
         );
         await tester.tap(find.text('Kess'));
         await tester.pumpAndSettle();
-        expect(find.text('Listening on Mozilla Firefox'), findsOne);
+        expect(find.text('LISTENING ON MOZILLA FIREFOX'), findsOne);
         expect(find.byType(Image), findsNothing);
         expect(find.byIcon(AppIcons.listening), findsWidgets);
         await _finish(tester, 'activity-card-browser-$suffix');

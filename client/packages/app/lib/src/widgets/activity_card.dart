@@ -26,20 +26,28 @@ final activityArtImageProvider = Provider<ImageProvider Function(String url)>(
 );
 
 const _artSide = AppSpacing.s48;
+const _boxedArtSide = AppSpacing.s40;
 const _artDecodeWidth = 192;
 
 class ActivityCard extends ConsumerWidget {
-  const ActivityCard({super.key, required this.activity});
+  const ActivityCard({super.key, required this.activity, this.boxed = false});
 
   final api.PresenceActivity activity;
+
+  /// The profile card's version: a sunken box, a smaller tile and a label heading.
+  final bool boxed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final subtitle = activity.subtitle;
-    return Row(
+    final row = Row(
       children: [
-        _Cover(activity: activity),
+        _Cover(
+          activity: activity,
+          side: boxed ? _boxedArtSide : _artSide,
+          tile: boxed,
+        ),
         const SizedBox(width: AppSpacing.s12),
         Expanded(
           child: Column(
@@ -47,16 +55,23 @@ class ActivityCard extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                activityHeading(activity),
+                boxed
+                    ? activityHeading(activity).toUpperCase()
+                    : activityHeading(activity),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
+                style: (boxed ? AppText.label : AppText.caption).copyWith(
+                  color: tokens.textSecondary,
+                ),
               ),
               Text(
                 activity.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.ui.copyWith(color: tokens.textPrimary),
+                style: AppText.ui.copyWith(
+                  color: tokens.textPrimary,
+                  fontWeight: boxed ? AppWeights.medium : null,
+                ),
               ),
               if (subtitle != null)
                 Text(
@@ -70,20 +85,38 @@ class ActivityCard extends ConsumerWidget {
         ),
       ],
     );
+    if (!boxed) return row;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.s12),
+      decoration: BoxDecoration(
+        color: tokens.surfaceSunken,
+        border: Border.all(color: tokens.borderSubtle),
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: row,
+    );
   }
 }
 
 class _Cover extends ConsumerWidget {
-  const _Cover({required this.activity});
+  const _Cover({
+    required this.activity,
+    required this.side,
+    required this.tile,
+  });
 
   final api.PresenceActivity activity;
+  final double side;
+
+  /// Sits on a sunken box, so the placeholder lifts to the raised surface.
+  final bool tile;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final url = activity.artUrl;
     final placeholder = ColoredBox(
-      color: tokens.surfaceSunken,
+      color: tile ? tokens.surfaceRaised : tokens.surfaceSunken,
       child: Center(
         child: Icon(
           activityIcon(activity.kind),
@@ -95,8 +128,8 @@ class _Cover extends ConsumerWidget {
     return ExcludeSemantics(
       child: Container(
         key: const Key('activity-cover'),
-        width: _artSide,
-        height: _artSide,
+        width: side,
+        height: side,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.control),
