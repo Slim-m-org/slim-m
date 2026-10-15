@@ -10,6 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../routing/routes.dart';
 import '../../widgets/settings_entity_row.dart';
+import 'dock_install_consent.dart';
 
 class DockModuleRow extends StatelessWidget {
   const DockModuleRow({
@@ -54,6 +55,20 @@ class DockModuleRow extends StatelessWidget {
       ? 'v${entry.version}'
       : 'Installed v${installed.version}, latest v${entry.version}';
 
+  /// The version line, led by the Verified mark for the official source; it
+  /// lives here because the headline row has no room for a second badge.
+  Widget _versionDetail(api.InstalledDockModule? installed) {
+    final line = SettingsEntityDetail(_versionLine(entry, installed));
+    if (!dockIsVerified(source)) return line;
+    return Row(
+      children: [
+        const DockVerifiedBadge(),
+        const SizedBox(width: AppSpacing.s8),
+        Flexible(child: line),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -72,7 +87,7 @@ class DockModuleRow extends StatelessWidget {
           ? null
           : _stateBadge(entry, installed),
       details: [
-        SettingsEntityDetail(_versionLine(entry, installed)),
+        _versionDetail(installed),
         SettingsEntityDetail(entry.summary, wrap: true),
         if (blocked)
           const SettingsEntityDetail(

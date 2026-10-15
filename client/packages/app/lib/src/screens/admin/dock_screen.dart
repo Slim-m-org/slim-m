@@ -29,6 +29,7 @@ import '../../widgets/ring_flush.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'dock_install_consent.dart';
 import 'dock_module_row.dart';
 import 'dock_sources_section.dart';
 
@@ -123,13 +124,21 @@ class _DockPaneState extends ConsumerState<DockPane>
     setState(() => _updatingAll = true);
     final failed = <String>[];
     final needApproval = <String>[];
+    final needReview = <String>[];
     for (final (:entry, :source) in outdated) {
-      final before = ref
+      final current = ref
           .read(dockCatalogProvider)
           .valueOrNull
-          ?.installedFor(entry.id)
-          ?.approvedHostCapabilities;
+          ?.installedFor(entry.id);
+      final before = current?.approvedHostCapabilities;
       try {
+        final manifest = await ref.read(
+          dockManifestFor(entry.id, source).future,
+        );
+        if (newConsentCapabilities(manifest, current).isNotEmpty) {
+          needReview.add(entry.name);
+          continue;
+        }
         final updated = await ref
             .read(apiProvider)
             .installDockModule(
@@ -153,12 +162,14 @@ class _DockPaneState extends ConsumerState<DockPane>
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
-    if (failed.isEmpty && needApproval.isEmpty) return;
-    final updated = outdated.length - failed.length;
+    if (failed.isEmpty && needApproval.isEmpty && needReview.isEmpty) return;
+    final updated = outdated.length - failed.length - needReview.length;
     setActionError(
       [
         'Updated $updated of ${outdated.length}.',
         if (failed.isNotEmpty) 'Could not update ${failed.join(', ')}.',
+        if (needReview.isNotEmpty)
+          '${needReview.join(', ')} asks for new access. Open it to review.',
         if (needApproval.isNotEmpty)
           '${needApproval.join(', ')} needs Post messages approved again.',
       ].join(' '),

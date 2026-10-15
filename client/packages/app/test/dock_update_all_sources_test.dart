@@ -22,6 +22,8 @@ import 'package:slimm_app/src/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'dock_manifest_fixture.dart';
+
 const _tokens = api.TokenPair(
   userId: 'admin',
   accessToken: 'access',
@@ -77,6 +79,10 @@ _world({
       return _json(source == 'comm' ? communityRegistry : officialRegistry);
     }
     if (path == '/space/dock/installed') return _json(installed);
+    if (RegExp(r'^/space/dock/modules/([^/]+)$').firstMatch(path)
+        case final manifest?) {
+      return _json(dockManifestJson(manifest.group(1)!, '9.9.9'));
+    }
     final match = RegExp(
       r'^/space/dock/modules/([^/]+)/install$',
     ).firstMatch(path);

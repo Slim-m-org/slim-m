@@ -25,6 +25,8 @@ import 'package:slimm_app/src/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'dock_manifest_fixture.dart';
+
 const _tokens = api.TokenPair(
   userId: 'admin',
   accessToken: 'access',
@@ -64,12 +66,25 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
   required List<Map<String, dynamic>> registry,
   required List<Map<String, dynamic>> installed,
   Set<String> refuse = const {},
+  Set<String> asksForAccess = const {},
 }) {
   final installs = <String>[];
   final client = MockClient((request) async {
     final path = request.url.path;
     if (path == '/space/dock/modules') return _json(registry);
     if (path == '/space/dock/installed') return _json(installed);
+    if (RegExp(r'^/space/dock/modules/([^/]+)$').firstMatch(path)
+        case final manifest?) {
+      return _json(
+        dockManifestJson(
+          manifest.group(1)!,
+          '9.9.9',
+          capabilities: asksForAccess.contains(manifest.group(1))
+              ? ['message.post']
+              : const [],
+        ),
+      );
+    }
     final match = RegExp(
       r'^/space/dock/modules/([^/]+)/install$',
     ).firstMatch(path);
@@ -212,5 +227,24 @@ void main() {
       reason: 'a partial result has to say so; silence would read as success',
     );
     expect(find.textContaining('a'), findsWidgets);
+  });
+
+  testWidgets('an update that asks for new access is left for review', (
+    tester,
+  ) async {
+    final world = _world(
+      registry: [_entry('a', '2.0.0'), _entry('b', '2.0.0')],
+      installed: [_installed('a', '1.0.0'), _installed('b', '1.0.0')],
+      asksForAccess: {'a'},
+    );
+    await _open(tester, world.client);
+    await tester.tap(find.text('Update all'));
+    await tester.pumpAndSettle();
+
+    expect(world.installs, ['b'], reason: 'a needs the consent step first');
+    expect(
+      find.textContaining('a asks for new access. Open it to review.'),
+      findsOneWidget,
+    );
   });
 }
