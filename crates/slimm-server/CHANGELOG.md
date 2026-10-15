@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.91.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.90.0...server-v0.91.0) (2026-10-15)
+
+
+### Features
+
+* real lounge music, mic switching that sticks, retention counts, 4K screen share and settings cleanup ([#2197](https://github.com/Slim-m-org/slim-m/issues/2197)) ([1175e0e](https://github.com/Slim-m-org/slim-m/commit/1175e0e9c9585980fe077c50b0cad3e5a2b6bc34))
+
+
+### Bug Fixes
+
+* live photos send as pictures, a swipeable photo grid, compact phone sheets, and no redundant paste row on iOS ([#2202](https://github.com/Slim-m-org/slim-m/issues/2202)) ([c2d6f5b](https://github.com/Slim-m-org/slim-m/commit/c2d6f5bc092fc86b75be3f540ec08d6c7f227c37))
+* read-only channels stop notifying everyone, a private toggle in channel settings, and a quieter failed message ([#2198](https://github.com/Slim-m-org/slim-m/issues/2198)) ([3ab285e](https://github.com/Slim-m-org/slim-m/commit/3ab285ec5ee230886f039657e8cbd88d5e893437))
+
 ## [0.90.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.89.0...server-v0.90.0) (2026-10-14)
 
 
