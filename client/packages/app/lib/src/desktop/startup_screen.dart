@@ -74,6 +74,7 @@ String updateActionHint(InstallFormat format) => switch (format) {
   InstallFormat.rpm =>
     'Update with your package manager: ${packageManagerCommand(format)}',
   InstallFormat.deb => 'Update with your package manager.',
+  InstallFormat.testFlight => 'Update in the TestFlight app.',
   InstallFormat.appImage ||
   InstallFormat.tarball ||
   InstallFormat.apk ||

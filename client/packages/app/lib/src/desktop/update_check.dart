@@ -85,7 +85,11 @@ Future<ClientUpdate?> checkForClientUpdate({
   String? failedVersion,
 }) async {
   final installFormat = format ?? currentInstallFormat();
-  if (installFormat == InstallFormat.unknown) return null;
+  // TestFlight tells an iPhone about its own updates.
+  if (installFormat == InstallFormat.unknown ||
+      installFormat == InstallFormat.testFlight) {
+    return null;
+  }
 
   final owned = client ?? http.Client();
   try {
