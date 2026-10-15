@@ -119,4 +119,81 @@ void main() {
     await waitFor(() => seen.contains('Bearer tokB'));
     expect(seen, contains('Bearer tokB'), reason: 'requests seen: $seen');
   });
+
+  test('a seek after the token rotated, mid-playback, reopens with the new '
+      'token instead of stalling on a 401 (issue 1936)', () async {
+    final bytes = _wav();
+    final seen = <String>[];
+    var refuse = '';
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((req) {
+      final auth = req.headers.value('authorization') ?? '';
+      seen.add(auth);
+      final response = req.response;
+      if (auth == refuse) {
+        response.statusCode = 401;
+        response.close().catchError((_) {});
+        return;
+      }
+      final range = RegExp(
+        r'bytes=(\d+)-',
+      ).firstMatch(req.headers.value('range') ?? '');
+      final from = range == null ? 0 : int.parse(range.group(1)!);
+      response.headers.set('accept-ranges', 'bytes');
+      response.headers.contentType = ContentType('audio', 'wav');
+      if (range != null) {
+        response.statusCode = 206;
+        response.headers.set(
+          'content-range',
+          'bytes $from-${bytes.length - 1}/${bytes.length}',
+        );
+      }
+      response.headers.contentLength = bytes.length - from;
+      response.add(bytes.sublist(from));
+      response.close().catchError((_) {});
+    });
+    final session = api.SessionStore(tokens: _tokens('tokA'));
+    final client = api.SlimmApi(
+      baseUrl: Uri.parse('http://127.0.0.1:${server.port}'),
+      session: session,
+    );
+    addTearDown(client.close);
+
+    final player = Player();
+    addTearDown(player.dispose);
+    final platform = player.platform as dynamic;
+    await platform.setProperty('vo', 'null');
+    await platform.setProperty('ao', 'null');
+    // No read-ahead cache, so the seek has to go back to the server.
+    await platform.setProperty('cache', 'no');
+    await platform.setProperty('demuxer-max-bytes', '4096');
+
+    final source = createAttachmentVideoSource();
+    final reopener = StaleTokenReopener(
+      player: player,
+      source: source,
+      apiClient: client,
+      attachment: _video,
+      onFailure: () => fail('reopen failed'),
+    )..start();
+    addTearDown(reopener.dispose);
+    player.stream.error.listen((_) => reopener.reopenIfStale());
+
+    await player.open(
+      await source.open(
+        apiClient: client,
+        attachment: _video,
+        onProgress: (_) {},
+      ),
+    );
+    await waitFor(() => player.state.playing);
+
+    refuse = 'Bearer tokA';
+    session.set(_tokens('tokB'));
+    await player.seek(const Duration(seconds: 4));
+
+    await waitFor(() => seen.contains('Bearer tokB'));
+    expect(seen, contains('Bearer tokB'), reason: 'requests seen: $seen');
+  });
 }

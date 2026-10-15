@@ -4,7 +4,9 @@
 ///
 /// libmpv keeps sending the one header it was given for every later range
 /// request, so a video left paused past the access token's lifetime would
-/// otherwise 401 on its next read and stall without raising an error.
+/// otherwise 401 on its next read and stall without raising an error. A seek
+/// or a cache refill well into playback hits the same wall, so a stall or an
+/// error while the token is stale reopens too.
 library;
 
 import 'dart:async';
@@ -29,15 +31,29 @@ class StaleTokenReopener {
   final api.Attachment attachment;
   final void Function() onFailure;
 
-  StreamSubscription<bool>? _playing;
+  final _subscriptions = <StreamSubscription<Object>>[];
   bool _reopening = false;
 
   void start() {
-    _playing = player.stream.playing.listen((playing) {
-      if (playing && !_reopening && source.isStale(apiClient)) {
-        unawaited(_reopen());
-      }
-    });
+    _subscriptions
+      ..add(
+        player.stream.playing.listen((playing) {
+          if (playing) reopenIfStale();
+        }),
+      )
+      ..add(
+        player.stream.buffering.listen((buffering) {
+          if (buffering) reopenIfStale();
+        }),
+      );
+  }
+
+  /// Reopens when the open-time token has rotated; returns whether it did, so
+  /// a caller seeing a playback error knows it is already being handled.
+  bool reopenIfStale() {
+    if (_reopening || !source.isStale(apiClient)) return false;
+    unawaited(_reopen());
+    return true;
   }
 
   Future<void> _reopen() async {
@@ -59,5 +75,9 @@ class StaleTokenReopener {
     }
   }
 
-  Future<void> dispose() async => _playing?.cancel();
+  Future<void> dispose() async {
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+  }
 }
