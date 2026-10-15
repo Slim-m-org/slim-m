@@ -200,6 +200,21 @@ extension SlimmApiSpace on SlimmApi {
     return (json as Map<String, dynamic>)['max_height'] as int;
   }
 
+  Future<SpaceAttachmentLimit> spaceAttachmentLimit() async {
+    final json = await _send('GET', '/space/attachment-limit');
+    return SpaceAttachmentLimit.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// [maxBytes] of 0 clears the admin limit.
+  Future<SpaceAttachmentLimit> setSpaceAttachmentLimit(int maxBytes) async {
+    final json = await _send(
+      'PATCH',
+      '/space/attachment-limit',
+      body: {'max_bytes': maxBytes},
+    );
+    return SpaceAttachmentLimit.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Operator-visible storage usage and sweep health. Always computes -
   /// there is no on/off toggle the way `spaceAnalytics` has.
   Future<SpaceStorage> fetchSpaceStorage() async {

@@ -55,6 +55,7 @@ Future<void> handleComposerDrop(
         length: file.length,
         readAll: file.readAsBytes,
         openRead: file.openRead,
+        openReadAt: (offset) => file.openRead(offset),
       ),
     );
   }

@@ -53,6 +53,10 @@ const Map<String, String> _allowlist = {
       'the batch route now, even for one changed column, so this binding has '
       'no in-app caller. The server route stays for any caller that wants to '
       'set exactly one overwrite without touching the rest',
+  'uploadAttachmentStream': 'the single-request half of '
+      'uploadAttachmentAuto, which is what the composer calls: it picks this '
+      'for small files and for servers without upload sessions, so the app '
+      'reaches it only through that method (2026-10-15)',
   'getMessage': 'message_jump.dart\'s jumpTo pages channel_history.dart '
       'backwards and only ever renders a message once it lands in the local '
       'drift store, so a cold single-message fetch has nowhere to be shown '

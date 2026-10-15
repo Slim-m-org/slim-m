@@ -38,6 +38,10 @@ export 'src/client.dart'
         Webhook,
         SlimmApiAdmin,
         SlimmApiAttachments,
+        SlimmApiUploadSessions,
+        kUploadSessionThreshold,
+        kUploadPartBytes,
+        usesUploadSessions,
         SlimmApiAuth,
         SlimmApiTotp,
         SlimmApiBotCommands,
@@ -73,6 +77,7 @@ export 'src/client.dart'
         SlimmApiWatchSession,
         SlimmApiWebhooks,
         JoinPolicy;
+export 'src/upload_source.dart';
 export 'src/events.dart'
     show
         CanvasCleared,
