@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'app_metrics.dart';
 import 'app_tokens.dart';
 import 'app_typography.dart';
-import 'components/surfaces/sheet.dart' show kSheetMaxWidth;
 
 /// Names [AppFonts.sans] on [style] explicitly, for a style handed straight
 /// to a Material component theme that resolves it with `??` rather than
@@ -279,7 +278,6 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
       actionTextColor: tokens.accentFill,
       elevation: 0,
       behavior: SnackBarBehavior.floating,
-      width: kSheetMaxWidth,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.card),
         side: BorderSide(color: tokens.borderSubtle),

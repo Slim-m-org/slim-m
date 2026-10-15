@@ -198,19 +198,26 @@ class _AppButtonState extends State<AppButton> {
       ],
     );
 
-    final content = AnimatedSwitcher(
-      duration: AppMotion.reduced(context, AppMotion.fast),
-      child: widget.busy
-          ? SizedBox(
-              key: const ValueKey('busy'),
-              width: AppSizes.icon16,
-              height: AppSizes.icon16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: look.foreground,
-              ),
-            )
-          : labelRow,
+    // The label keeps its space under the spinner, so going busy never resizes the button.
+    final content = Stack(
+      alignment: Alignment.center,
+      children: [
+        AnimatedOpacity(
+          opacity: widget.busy ? 0 : 1,
+          duration: AppMotion.reduced(context, AppMotion.fast),
+          child: labelRow,
+        ),
+        if (widget.busy)
+          SizedBox(
+            key: const ValueKey('busy'),
+            width: AppSizes.icon16,
+            height: AppSizes.icon16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: look.foreground,
+            ),
+          ),
+      ],
     );
 
     final button = Container(

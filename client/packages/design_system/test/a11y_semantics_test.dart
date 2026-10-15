@@ -108,9 +108,23 @@ void main() {
     );
     final node = tester.getSemantics(find.bySemanticsLabel(RegExp('Saved')));
     expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-    tester.binding.pipelineOwner.semanticsOwner!
-        .performAction(node.id, SemanticsAction.tap);
+    tester.semantics.tap(find.semantics.byLabel(RegExp('Saved')));
     expect(dismissed, isTrue);
     handle.dispose();
+  });
+
+  testWidgets('a button keeps its width while busy (issue 2025)',
+      (tester) async {
+    Future<double> widthWhen({required bool busy}) async {
+      await tester.pumpWidget(
+        _harness(
+            AppButton(label: 'Save changes', busy: busy, onPressed: () {})),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      return tester.getSize(find.byType(AppButton)).width;
+    }
+
+    final idle = await widthWhen(busy: false);
+    expect(await widthWhen(busy: true), idle);
   });
 }

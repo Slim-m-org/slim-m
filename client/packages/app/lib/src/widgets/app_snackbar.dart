@@ -47,6 +47,8 @@
 /// cover, so there is nothing there worth a reshow's visual reset.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -90,12 +92,19 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _showOn(
   required String message,
 }) {
   if (messenger == null) return null;
+  // Centred at sheet width on a wide window, inset from the edges on a phone.
+  final width = MediaQuery.sizeOf(messenger.context).width;
+  final side = math.max(15.0, (width - kSheetMaxWidth) / 2);
   return messenger.showSnackBar(
     SnackBar(
       content: Text(message),
-      margin: reserveBottom > 0
-          ? EdgeInsets.fromLTRB(15, 5, 15, reserveBottom + AppSpacing.s16)
-          : null,
+      behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.fromLTRB(
+        side,
+        5,
+        side,
+        reserveBottom > 0 ? reserveBottom + AppSpacing.s16 : 10,
+      ),
     ),
     snackBarAnimationStyle: reduceMotion ? AnimationStyle.noAnimation : null,
   );

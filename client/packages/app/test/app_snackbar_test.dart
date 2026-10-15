@@ -19,6 +19,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/app_snackbar.dart';
+import 'package:slimm_design_system/design_system.dart' show kSheetMaxWidth;
 
 /// Pumps a screen with one button that calls [showAppSnackbar], and taps it.
 ///
@@ -109,5 +110,40 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('a message'), findsNothing);
+  });
+
+  group('width', () {
+    Future<Rect> snackRect(WidgetTester tester, Size size) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await _pumpOpener(tester, reduceMotion: true);
+      await tester.pump();
+      // The SnackBar's own box includes its margin; the Material is what shows.
+      return tester.getRect(
+        find
+            .descendant(
+              of: find.byType(SnackBar),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+    }
+
+    testWidgets('on a phone it sits inside the screen with a gutter', (
+      tester,
+    ) async {
+      final rect = await snackRect(tester, const Size(390, 800));
+      expect(rect.left, greaterThanOrEqualTo(15));
+      expect(rect.right, lessThanOrEqualTo(390 - 15));
+    });
+
+    testWidgets('on a wide window it is centred at sheet width', (
+      tester,
+    ) async {
+      final rect = await snackRect(tester, const Size(1200, 800));
+      expect(rect.width, moreOrLessEquals(kSheetMaxWidth, epsilon: 1));
+      expect(rect.center.dx, moreOrLessEquals(600, epsilon: 1));
+    });
   });
 }
