@@ -69,7 +69,7 @@ void main() {
       composerHarness(
         controller: controller,
         sends: sends,
-        platform: TargetPlatform.iOS,
+        platform: TargetPlatform.android,
       ),
     );
     await _openActionsSheet(tester);
@@ -94,7 +94,7 @@ void main() {
         composerHarness(
           controller: controller,
           sends: sends,
-          platform: TargetPlatform.iOS,
+          platform: TargetPlatform.android,
         ),
       );
       await _openActionsSheet(tester);
@@ -129,7 +129,7 @@ void main() {
         composerHarness(
           controller: controller,
           sends: sends,
-          platform: TargetPlatform.iOS,
+          platform: TargetPlatform.android,
         ),
       );
       await _openActionsSheet(tester);
@@ -150,4 +150,22 @@ void main() {
       expect(find.byType(AppErrorState), findsNothing);
     },
   );
+
+  testWidgets('iOS never offers the row: its long-press Paste takes images', (
+    tester,
+  ) async {
+    _useTouchViewport(tester);
+    _mock((call) async => call.method == 'hasImage');
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.iOS,
+      ),
+    );
+    await _openActionsSheet(tester);
+
+    expect(find.text('Photo library'), findsOneWidget);
+    expect(find.text('Paste image'), findsNothing);
+  });
 }

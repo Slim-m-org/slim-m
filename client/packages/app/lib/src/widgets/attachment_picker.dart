@@ -40,8 +40,15 @@ enum AttachmentSource {
 /// Runs one pick and answers what was chosen, or null if nothing was.
 typedef AttachmentPicker = Future<PlatformFile?> Function();
 
-Future<PlatformFile?> _pickPhotoLibrary() =>
-    FilePicker.pickFile(type: FileType.image);
+/// A compatible representation, so iOS hands over a JPEG rather than the
+/// HEIC original that only Apple devices can show; a live photo picked here
+/// arrived as HEIC and played as a broken video for everyone else.
+Future<PlatformFile?> _pickPhotoLibrary() => FilePicker.pickFile(
+  type: FileType.image,
+  darwinOptions: const DarwinOptions(
+    assetRepresentationMode: DarwinAssetRepresentationMode.compatible,
+  ),
+);
 
 Future<PlatformFile?> _pickFileBrowser() => FilePicker.pickFile();
 

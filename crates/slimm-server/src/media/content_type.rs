@@ -102,6 +102,13 @@ struct AllowedType {
     magic: fn(&[u8]) -> bool,
 }
 
+/// Whether `bytes` open with an ISO `ftyp` box whose major brand is one of `brands`.
+/// Only the major brand counts: an iPhone video lists `heic` among its compatible
+/// brands but is still a video.
+fn ftyp_brand_in(bytes: &[u8], brands: &[&[u8; 4]]) -> bool {
+    bytes.len() >= 12 && &bytes[4..8] == b"ftyp" && brands.iter().any(|b| &bytes[8..12] == *b)
+}
+
 /// `text/plain` is last on purpose: every other entry matches on a real
 /// signature, so this last-resort heuristic is only ever reached once none
 /// of them has already claimed the bytes.
@@ -130,6 +137,22 @@ const ALLOWED_TYPES: &[AllowedType] = &[
         content_type: "application/pdf",
         inline: false,
         magic: |b| b.starts_with(b"%PDF-"),
+    },
+    // HEIF and AVIF stills share the ISO `ftyp` box with mp4, so their brands go first.
+    AllowedType {
+        content_type: "image/heic",
+        inline: false,
+        magic: |b| ftyp_brand_in(b, &[b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx"]),
+    },
+    AllowedType {
+        content_type: "image/heif",
+        inline: false,
+        magic: |b| ftyp_brand_in(b, &[b"mif1", b"msf1"]),
+    },
+    AllowedType {
+        content_type: "image/avif",
+        inline: false,
+        magic: |b| ftyp_brand_in(b, &[b"avif", b"avis"]),
     },
     AllowedType {
         content_type: "video/mp4",
@@ -269,6 +292,28 @@ mod tests {
         );
         assert_eq!(sniff_content_type(b"%PDF-1.7"), Some("application/pdf"));
         assert_eq!(sniff_content_type(b"<html><script>"), Some("text/plain"));
+    }
+
+    fn ftyp(brand: &[u8; 4]) -> Vec<u8> {
+        let mut bytes = vec![0, 0, 0, 0x18];
+        bytes.extend_from_slice(b"ftyp");
+        bytes.extend_from_slice(brand);
+        bytes.extend_from_slice(b"\0\0\0\0mif1heic");
+        bytes
+    }
+
+    #[test]
+    fn an_iphone_photo_is_an_image_not_a_video() {
+        assert_eq!(sniff_content_type(&ftyp(b"heic")), Some("image/heic"));
+        assert_eq!(sniff_content_type(&ftyp(b"mif1")), Some("image/heif"));
+        assert_eq!(sniff_content_type(&ftyp(b"avif")), Some("image/avif"));
+        assert!(!is_inline("image/heic"), "browsers mostly cannot draw it");
+    }
+
+    #[test]
+    fn a_video_listing_heic_as_compatible_is_still_a_video() {
+        assert_eq!(sniff_content_type(&ftyp(b"qt  ")), Some("video/mp4"));
+        assert_eq!(sniff_content_type(&ftyp(b"isom")), Some("video/mp4"));
     }
 
     #[test]

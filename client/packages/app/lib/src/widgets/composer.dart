@@ -468,7 +468,9 @@ class _ComposerState extends ConsumerState<Composer> {
       ),
       onBrowseFiles: () =>
           unawaited(_pickAttachment(AttachmentSource.fileBrowser)),
-      canPasteImage: composerClipboardPasteAvailable(),
+      canPasteImage: composerClipboardPasteAvailable(
+        platform: Theme.of(context).platform,
+      ),
       onPasteImage: () =>
           unawaited(pasteClipboardImage(_stageAttachment, _setAttachmentError)),
       onPoll: () => showPollComposerSheet(context, widget.channelId),

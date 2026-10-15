@@ -23,9 +23,13 @@ final _png = base64Decode(
 );
 
 class _FakeLibrary implements PhotoLibrary {
-  _FakeLibrary(this.access, {this.throws = false});
+  _FakeLibrary(this.access, {this.throws = false, this.total = 2});
 
   final bool throws;
+
+  /// How many photos the camera roll holds.
+  final int total;
+  final requests = <int>[];
 
   PhotoAccess access;
   int manageCalls = 0;
@@ -37,9 +41,10 @@ class _FakeLibrary implements PhotoLibrary {
   }
 
   @override
-  Future<List<RecentPhoto>> recent(int n) async => [
-    for (var i = 0; i < 2; i++) RecentPhoto('p$i'),
-  ];
+  Future<List<RecentPhoto>> recent(int n) async {
+    requests.add(n);
+    return [for (var i = 0; i < n && i < total; i++) RecentPhoto('p$i')];
+  }
 
   @override
   Future<Uint8List?> thumbnail(String id, int pixels) async => _png;
@@ -93,7 +98,9 @@ void main() {
     expect(picker.calls, 0, reason: 'the strip replaces the system picker');
     final tiles = find.bySemanticsLabel('Attach photo');
     expect(tiles, findsNWidgets(2));
-    expect(tester.getSize(tiles.first), const Size.square(88));
+    final tile = tester.getSize(tiles.first);
+    expect(tile.width, tile.height, reason: 'square tiles');
+    expect(tile.width, lessThanOrEqualTo(140));
     final field = tester.getRect(find.byType(TextField));
     expect(
       tester.getRect(tiles.first).top,
@@ -224,5 +231,72 @@ void main() {
 
     expect(find.byType(Text), findsNothing);
     expect(tester.getSize(find.byType(ComposerPhotoStrip)), Size.zero);
+  });
+
+  testWidgets('the panel is a three column grid that scrolls down and loads '
+      'more near the end', (tester) async {
+    final library = _FakeLibrary(PhotoAccess.full, total: 200);
+    await pump(tester, library);
+    await _openStrip(tester);
+
+    final tiles = find.bySemanticsLabel('Attach photo');
+    final all = tester.getRect(
+      find
+          .ancestor(
+            of: find.text('All photos'),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    final first = tester.getRect(tiles.at(0));
+    final second = tester.getRect(tiles.at(1));
+    final third = tester.getRect(tiles.at(2));
+    expect(first.top, all.top, reason: 'All photos leads the first row');
+    expect(second.top, first.top);
+    expect(third.top, greaterThan(first.bottom), reason: 'three per row');
+    expect(library.requests, [60]);
+
+    await tester.drag(find.byType(GridView), const Offset(0, -3000));
+    await tester.pumpAndSettle();
+    expect(library.requests.last, greaterThan(60));
+    expect(find.byType(ComposerPhotoStrip), findsOneWidget);
+  });
+
+  testWidgets('swiping the handle down closes the panel', (tester) async {
+    await pump(tester, _FakeLibrary(PhotoAccess.full));
+    await _openStrip(tester);
+
+    await tester.drag(find.text('Recent photos'), const Offset(0, 160));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ComposerPhotoStrip), findsNothing);
+  });
+
+  testWidgets('a short pull springs back instead of closing', (tester) async {
+    await pump(tester, _FakeLibrary(PhotoAccess.full));
+    await _openStrip(tester);
+    final before = tester.getRect(find.text('Recent photos'));
+
+    await tester.timedDrag(
+      find.text('Recent photos'),
+      const Offset(0, 30),
+      const Duration(milliseconds: 600),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ComposerPhotoStrip), findsOneWidget);
+    expect(tester.getRect(find.text('Recent photos')), before);
+  });
+
+  testWidgets('pulling down from the top of the grid closes the panel', (
+    tester,
+  ) async {
+    await pump(tester, _FakeLibrary(PhotoAccess.full, total: 200));
+    await _openStrip(tester);
+
+    await tester.drag(find.byType(GridView), const Offset(0, 200));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ComposerPhotoStrip), findsNothing);
   });
 }
