@@ -2,7 +2,7 @@
 /// A right-click inside a nested [ContextMenuRegion] opens only the innermost
 /// menu.
 ///
-/// The rail wraps its whole viewport in a region ("Create channel...") and
+/// The rail wraps its whole viewport in a region ("Create channel") and
 /// every DM row carries one of its own. Opening on the *down* event meant
 /// both fired - Flutter delivers every nested recognizer's down callback once
 /// the press deadline passes, arena or not - and the owner saw the rail's

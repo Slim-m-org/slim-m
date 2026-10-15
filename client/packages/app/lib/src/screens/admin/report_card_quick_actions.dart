@@ -80,7 +80,7 @@ class ReportQuickActions extends StatelessWidget {
         ),
         if (onTimeOut case final onTimeOut?) ...[
           const SizedBox(height: AppSpacing.s8),
-          TimeoutDurationChips(onChosen: onTimeOut),
+          TimeoutDurationChips(onChosen: onTimeOut, padding: EdgeInsets.zero),
         ],
       ],
     );

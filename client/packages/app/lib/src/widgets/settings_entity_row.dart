@@ -110,6 +110,10 @@ class SettingsEntityRow extends StatefulWidget {
   State<SettingsEntityRow> createState() => _SettingsEntityRowState();
 }
 
+/// Below this width and at this text scale the actions drop under the text instead of squeezing it.
+const _stackActionsBelowWidth = 600.0;
+const _stackActionsScale = 1.5;
+
 class _SettingsEntityRowState extends State<SettingsEntityRow> {
   bool _hovered = false;
 
@@ -126,47 +130,65 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (widget.leading != null) ...[
-                widget.leading!,
-                const SizedBox(width: AppSpacing.s12),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            widget.headline,
-                            overflow: TextOverflow.ellipsis,
-                            style: (widget.headlineStyle ?? AppText.body)
-                                .copyWith(
-                                  color: tokens.textPrimary,
-                                  fontWeight: AppWeights.medium,
-                                ),
-                          ),
-                        ),
-                        if (widget.badge != null) ...[
-                          const SizedBox(width: AppSpacing.s8),
-                          widget.badge!,
-                        ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  widget.actions.isNotEmpty &&
+                  constraints.maxWidth < _stackActionsBelowWidth &&
+                  MediaQuery.textScalerOf(context).scale(1) >=
+                      _stackActionsScale;
+              final actions = _SettingsEntityActions(children: widget.actions);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (widget.leading != null) ...[
+                        widget.leading!,
+                        const SizedBox(width: AppSpacing.s12),
                       ],
-                    ),
-                    for (final detail in widget.details) ...[
-                      const SizedBox(height: AppSpacing.s4),
-                      detail,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    widget.headline,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        (widget.headlineStyle ?? AppText.body)
+                                            .copyWith(
+                                              color: tokens.textPrimary,
+                                              fontWeight: AppWeights.medium,
+                                            ),
+                                  ),
+                                ),
+                                if (widget.badge != null) ...[
+                                  const SizedBox(width: AppSpacing.s8),
+                                  widget.badge!,
+                                ],
+                              ],
+                            ),
+                            for (final detail in widget.details) ...[
+                              const SizedBox(height: AppSpacing.s4),
+                              detail,
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (widget.actions.isNotEmpty && !stacked) actions,
                     ],
-                  ],
-                ),
-              ),
-              if (widget.actions.isNotEmpty)
-                _SettingsEntityActions(children: widget.actions),
-            ],
+                  ),
+                  if (stacked)
+                    Align(alignment: Alignment.centerRight, child: actions),
+                ],
+              );
+            },
           ),
           if (widget.error != null) ...[
             const SizedBox(height: AppSpacing.s8),

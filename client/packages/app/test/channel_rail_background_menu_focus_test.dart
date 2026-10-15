@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The rail's blank-space "Create channel.../Create category..." menu
+/// The rail's blank-space "Create channel/Create category" menu
 /// (`channel_rail.dart`) wraps the whole scrollable list, not one row, so it
 /// must not also claim its own tab stop on top of it: that painted a focus
 /// ring around the entire rail instead of a row - the owner: "sidebar
@@ -162,13 +162,13 @@ void main() {
         final fixture = await _pumpRailOnly(tester, width);
 
         await _tabUntil(tester, _isAddChannelGlyph);
-        expect(find.text('Create channel...'), findsNothing);
+        expect(find.text('Create channel'), findsNothing);
 
         await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
         await tester.pumpAndSettle();
 
-        expect(find.text('Create channel...'), findsOneWidget);
-        expect(find.text('Create category...'), findsOneWidget);
+        expect(find.text('Create channel'), findsOneWidget);
+        expect(find.text('Create category'), findsOneWidget);
 
         await teardownFixture(tester, fixture.container, fixture.db);
       },

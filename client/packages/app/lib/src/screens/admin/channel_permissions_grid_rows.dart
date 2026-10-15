@@ -129,7 +129,7 @@ class Legend extends StatelessWidget {
         item(CellState.allow, 'Allow'),
         item(CellState.inherit, 'Inherit from role'),
         item(CellState.deny, 'Deny'),
-        item(CellState.inherit, "you can't grant this", disabled: true),
+        item(CellState.inherit, inheritBlockedLabel, disabled: true),
         const _EditedKey(),
       ],
     );

@@ -65,6 +65,7 @@ class _NothingSelected extends StatelessWidget {
             const SizedBox(height: AppSpacing.s12),
             Text(
               'Pick a channel to start reading.',
+              textAlign: TextAlign.center,
               style: AppText.title.copyWith(color: tokens.textPrimary),
             ),
             if (!keyboard) ...[
@@ -104,7 +105,10 @@ class _ShortcutHint extends StatelessWidget {
     final keys = describeAppAction(action);
     if (keys.isEmpty) return const SizedBox.shrink();
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 360),
+      // Grows with the text so the label half keeps room at a large text scale.
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.textScalerOf(context).scale(360),
+      ),
       child: Row(
         children: [
           Expanded(
