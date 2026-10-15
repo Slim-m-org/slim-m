@@ -13,24 +13,34 @@ class PollSkip implements Exception {
 
 /// Reads now and then every [interval], emitting only when the answer
 /// changes. Any other failure reads as "nothing", never as an error.
+///
+/// A tick that finds the previous read still running is skipped, and a read
+/// past [readTimeout] counts as a failure, so a hung source cannot pile up reads.
 Stream<T?> polledStream<T>({
   required Duration interval,
   required Future<T?> Function() read,
   Future<void> Function()? onCancel,
+  Duration readTimeout = const Duration(seconds: 30),
 }) {
   Timer? timer;
   T? last;
   var first = true;
   late final StreamController<T?> controller;
 
+  var inFlight = false;
+
   Future<void> poll() async {
+    if (inFlight) return;
+    inFlight = true;
     T? current;
     try {
-      current = await read();
+      current = await read().timeout(readTimeout);
     } on PollSkip {
       return;
     } on Object {
       current = null;
+    } finally {
+      inFlight = false;
     }
     if (controller.isClosed || (!first && current == last)) return;
     first = false;

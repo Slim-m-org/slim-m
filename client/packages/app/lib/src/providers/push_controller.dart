@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../desktop/desktop_window_shell.dart';
 import 'providers.dart';
 import 'push_content_preview_settings.dart';
 import 'push_status.dart';
@@ -36,7 +37,7 @@ final fcmTokenChannelProvider = Provider<FcmTokenChannel>(
 /// as the two above - a test can substitute one that reports "denied"
 /// without a real Android device or plugin channel behind it.
 final localNotificationsProvider = Provider<LocalNotifications>(
-  (ref) => LocalNotifications(),
+  (ref) => LocalNotifications(onActivated: DesktopWindowShell.raise),
 );
 
 /// Registers this device's push token and encryption public key, and reports

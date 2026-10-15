@@ -426,6 +426,12 @@ class DesktopWindowShell {
   /// natively, in `my_application.cc`'s own early return, before this ran.
   static Future<void> _onSecondInstanceCall(MethodCall call) async {
     if (call.method != 'focus') return;
+    await raise();
+  }
+
+  /// Brings the window forward for a notification click or a second launch.
+  static Future<void> raise() async {
+    if (currentDesktopPlatform() == null) return;
     try {
       await _port.show();
       await _port.restore();
