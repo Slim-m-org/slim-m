@@ -5,6 +5,7 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "clipboard_image_channel.h"
 #include "now_playing_channel.h"
+#include "single_instance.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -28,6 +29,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   RegisterNowPlayingChannel(flutter_controller_->engine()->messenger());
+  RegisterSecondInstanceChannel(flutter_controller_->engine()->messenger());
   RegisterClipboardImageChannel(flutter_controller_->engine()->messenger(),
                                 GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
@@ -64,6 +66,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     if (result) {
       return *result;
     }
+  }
+
+  if (message == SecondInstanceMessage()) {
+    OnSecondInstance(hwnd);
+    return 0;
   }
 
   switch (message) {

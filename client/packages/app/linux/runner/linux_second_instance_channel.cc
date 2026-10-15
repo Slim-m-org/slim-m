@@ -3,7 +3,7 @@
 
 namespace {
 
-const char* kChannelName = "top.npcserver.slimm/linux_second_instance";
+const char* kChannelName = "top.npcserver.slimm/second_instance";
 // Never released: this only ever sends, but still outlives every call.
 FlMethodChannel* g_channel = nullptr;
 

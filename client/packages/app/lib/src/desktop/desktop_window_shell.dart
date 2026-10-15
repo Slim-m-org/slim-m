@@ -55,9 +55,10 @@ class DesktopWindowShell {
   /// screen a thrown exception used to cause before this file caught one.
   static const _setupTimeout = Duration(seconds: 5);
 
-  /// Named to match `linux_second_instance_channel.cc`, the only sender.
+  /// Named to match the senders, `linux_second_instance_channel.cc` and
+  /// the Windows runner's `single_instance.cpp`.
   static const _secondInstanceChannelName =
-      'top.npcserver.slimm/linux_second_instance';
+      'top.npcserver.slimm/second_instance';
 
   /// The splash's fixed size - room for the 64px brand mark, the wordmark
   /// and a status line, no more - and deliberately unrelated to
@@ -404,10 +405,9 @@ class DesktopWindowShell {
     return view.physicalSize / ratio;
   }
 
-  /// Registers the Linux-only receiving end of
-  /// `linux_second_instance_channel.cc`'s notification that a launcher
-  /// click re-entered the native `activate` handler in this process rather
-  /// than starting a second one. `main.dart` calls this right after
+  /// Registers the receiving end of the runners' notification that a second
+  /// launch was turned away in favour of this process: the Linux GtkApplication
+  /// re-entering `activate`, or the Windows runner's named mutex. `main.dart` calls this right after
   /// [applyInitialGeometry], before there is a [ProviderContainer], since a
   /// second launch racing the very start of this process is not something
   /// any later ordering could rule out.
