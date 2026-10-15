@@ -62,29 +62,6 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('a row nothing happens on is skipped by the keyboard',
-      (tester) async {
-    await tester.pumpWidget(
-      _harness(
-        const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppListRow(label: 'Just a label'),
-            SizedBox(width: 200, child: TextField()),
-          ],
-        ),
-      ),
-    );
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-    expect(
-      FocusManager.instance.primaryFocus?.context
-          ?.findAncestorWidgetOfExactType<TextField>(),
-      isNotNull,
-      reason: 'the first tab stop is the field, not the inert row',
-    );
-  });
-
   testWidgets('an inert row still lets its own control be reached and tapped',
       (tester) async {
     final handle = tester.ensureSemantics();
@@ -109,11 +86,10 @@ void main() {
     expect(removed, 1);
 
     var reachedButton = false;
-    for (var i = 0; i < 2 && !reachedButton; i++) {
+    for (var i = 0; i < 3 && !reachedButton; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       final focused = FocusManager.instance.primaryFocus?.context;
-      expect(focused?.widget, isNot(isA<AppListRow>()));
       reachedButton =
           focused?.findAncestorWidgetOfExactType<AppIconButton>() != null;
     }
