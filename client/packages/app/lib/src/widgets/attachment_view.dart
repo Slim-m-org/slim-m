@@ -147,7 +147,22 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
   Widget _body(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
+    final autoDownload = ref.watch(mediaAutoDownloadControllerProvider);
+    final downloadGated =
+        autoDownload == MediaAutoDownload.manual && !_revealed;
+
     if (isVideo(attachment.contentType)) {
+      // A player opens its source on mount, so the manual setting holds it back too.
+      if (downloadGated) {
+        return AttachmentRevealTile(
+          icon: AppIcons.play,
+          line: 'Tap to load',
+          caption:
+              '${attachment.filename} · ${formatByteSize(attachment.size)}',
+          maxEdge: kInlineVideoMax,
+          onReveal: () => setState(() => _revealed = true),
+        );
+      }
       return AttachmentVideoPlayer(attachment: attachment);
     }
 
@@ -156,10 +171,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     }
 
     final tile = widget.tileEdge;
-    final autoDownload = ref.watch(mediaAutoDownloadControllerProvider);
     final gifAutoplay = ref.watch(gifAutoplayControllerProvider);
-    final downloadGated =
-        autoDownload == MediaAutoDownload.manual && !_revealed;
     final hoverPlays =
         _isGif && gifAutoplay == GifAutoplay.tapToPlay && !_revealed;
     final playGated = hoverPlays;

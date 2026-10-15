@@ -19,6 +19,7 @@ import 'package:slimm_app/src/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/providers/media_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/attachment_reveal.dart';
+import 'package:slimm_app/src/widgets/attachment_video_player.dart';
 import 'package:slimm_app/src/widgets/attachment_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -110,6 +111,28 @@ void main() {
     expect(fetched, isTrue, reason: 'the tap is what triggers the fetch');
     expect(find.text('Tap to load'), findsNothing);
   });
+
+  testWidgets(
+    'auto-download off holds a video too, since a player opens on mount '
+    '(issue 1935)',
+    (tester) async {
+      const video = api.Attachment(
+        id: 'v1',
+        filename: 'clip.mp4',
+        contentType: 'video/mp4',
+        size: 2048,
+      );
+      final container = _container(const []);
+      await container
+          .read(mediaAutoDownloadControllerProvider.notifier)
+          .select(MediaAutoDownload.manual);
+
+      await _pump(tester, container, video);
+
+      expect(find.text('Tap to load'), findsOneWidget);
+      expect(find.byType(AttachmentVideoPlayer), findsNothing);
+    },
+  );
 
   testWidgets('by default a gif holds under a play badge until the tap', (
     tester,
