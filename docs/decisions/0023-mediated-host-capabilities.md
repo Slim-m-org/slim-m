@@ -235,4 +235,6 @@ The third power from the owner's 2026-10-14 decision: a module acts on its own t
   The run is recorded before it starts, so a run that fails is not retried every minute.
 - A disabled module, a withdrawn approval, or no channel means no scheduled runs.
 
-Still to do: the Dock screens for approving `schedule` and choosing the channel, and a dedicated module badge in the transcript in place of the footer.
+The Dock screens now exist: `schedule` is an approval switch like the others, and the installed module's page has a "Posts in" channel picker with the schedules in plain words.
+
+Still to do: a dedicated module badge in the transcript in place of the footer.
