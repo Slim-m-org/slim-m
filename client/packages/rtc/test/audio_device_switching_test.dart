@@ -76,6 +76,29 @@ void main() {
     });
   });
 
+  group('AudioDeviceSwitching capture options', () {
+    const base = lk.RoomOptions();
+
+    test('never stop the capture device on mute, whatever is preferred',
+        () async {
+      final switching = AudioDeviceSwitching(const _FixedAudioDevices());
+      final built = <lk.AudioCaptureOptions>[
+        switching.roomOptions(base).defaultAudioCaptureOptions,
+      ];
+      await switching.selectInput(
+        null,
+        const AudioDevice(id: 'mic-1', label: 'Mic'),
+      );
+      built.add(switching.roomOptions(base).defaultAudioCaptureOptions);
+      await switching.selectInput(null, null);
+      built.add(switching.roomOptions(base).defaultAudioCaptureOptions);
+
+      for (final options in built) {
+        expect(options.stopAudioCaptureOnMute, isFalse);
+      }
+    });
+  });
+
   group('AudioDeviceSwitching.selectInput on a live room', () {
     const mics = _FixedAudioDevices(inputDevices: [
       AudioDevice(id: 'raw-mic', label: 'Raw mic'),
