@@ -25,8 +25,9 @@ class EventConnection {
     required String ticket,
     Duration timeout = const Duration(seconds: 15),
     Duration keepaliveInterval = const Duration(seconds: 20),
+    WebSocketChannel Function(Uri url)? open,
   }) async {
-    final channel = WebSocketChannel.connect(url);
+    final channel = (open ?? WebSocketChannel.connect)(url);
     // A connect that lands after the timeout would otherwise leave a socket nobody listens to.
     final ready = channel.ready;
     try {

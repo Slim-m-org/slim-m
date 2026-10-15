@@ -72,6 +72,13 @@ pub(super) struct Version {
     /// see decision 0025.
     #[serde(skip_serializing_if = "Option::is_none")]
     min_client_version: Option<String>,
+    /// Where a native client on the deployment's own network can reach the
+    /// same TLS endpoint directly, as `host:port`, bypassing a proxy such as
+    /// Cloudflare. The client still verifies the certificate against the
+    /// public hostname, so an address that is not this deployment just fails
+    /// its handshake. Empty, and so absent, unless the operator sets it.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    direct_addresses: Vec<String>,
     /// The optional features this build serves, read off the router itself.
     /// See [`capability`] for why it is not a list kept by hand.
     capabilities: Vec<&'static str>,
@@ -161,6 +168,7 @@ pub(super) async fn version(
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
+        direct_addresses: direct_addresses(std::env::var("SLIMM_DIRECT_ADDRESSES").ok()),
         capabilities: capabilities(state).await,
         identity: ServerIdentityDto {
             public_key: BASE64.encode(identity.public_key()),
@@ -184,4 +192,53 @@ fn min_client_version() -> Option<String> {
     std::env::var("SLIMM_MIN_CLIENT_VERSION")
         .ok()
         .filter(|value| !value.trim().is_empty())
+}
+
+/// `SLIMM_DIRECT_ADDRESSES`, comma separated, read here for the reason
+/// [`min_client_version`] is. An entry that is not `host:port` is dropped
+/// with a warning rather than advertised for clients to trip over.
+fn direct_addresses(raw: Option<String>) -> Vec<String> {
+    let Some(raw) = raw else {
+        return Vec::new();
+    };
+    raw.split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .filter(|entry| {
+            let valid = is_host_port(entry);
+            if !valid {
+                tracing::warn!(entry, "SLIMM_DIRECT_ADDRESSES entry is not host:port; ignoring it");
+            }
+            valid
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+fn is_host_port(entry: &str) -> bool {
+    let Some((host, port)) = entry.rsplit_once(':') else {
+        return false;
+    };
+    !host.is_empty()
+        && !host.contains(['/', ' ', '@'])
+        && port.parse::<u16>().is_ok_and(|port| port != 0)
+}
+
+#[cfg(test)]
+mod direct_address_tests {
+    use super::direct_addresses;
+
+    #[test]
+    fn unset_or_blank_advertises_nothing() {
+        assert!(direct_addresses(None).is_empty());
+        assert!(direct_addresses(Some(" , ".to_owned())).is_empty());
+    }
+
+    #[test]
+    fn host_port_entries_are_kept_and_anything_else_dropped() {
+        let parsed = direct_addresses(Some(
+            "10.0.0.100:443, nas.lan:8443,https://x:1,10.0.0.5,host:0,host:99999".to_owned(),
+        ));
+        assert_eq!(parsed, ["10.0.0.100:443", "nas.lan:8443"]);
+    }
 }

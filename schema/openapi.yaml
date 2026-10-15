@@ -9228,6 +9228,16 @@ components:
             The oldest client version this deployment serves, as `X.Y.Z`.
             Absent means no floor, the default. Below it a client stops and
             offers to update. Set with SLIMM_MIN_CLIENT_VERSION.
+        direct_addresses:
+          type: array
+          items:
+            type: string
+          description: >
+            `host:port` addresses where a native client on the deployment's
+            own network can reach the same TLS endpoint directly, skipping a
+            proxy. The client verifies the certificate against the public
+            hostname and falls back when an address fails. Absent unless set
+            with SLIMM_DIRECT_ADDRESSES.
         capabilities:
           type: array
           items:
