@@ -8122,6 +8122,52 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/schedule-channel:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: setDockModuleScheduleChannel
+      tags: [space]
+      summary: Choose where a module's scheduled runs post.
+      description: >
+        Gated on MANAGE_SERVER. Needs the module's schedule capability
+        approved (409 otherwise). The module's principal is allowed to view
+        and post in the chosen text channel, and loses that in the channel it
+        had before. null stops scheduled runs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel_id]
+              properties:
+                channel_id:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: The module after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstalledDockModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/installed:
     get:
       operationId: listInstalledDockModules
@@ -10079,6 +10125,23 @@ components:
               description: >
                 Whether the module asks to reach local network addresses,
                 which needs the separate approve_local_network approval.
+        schedules:
+          type: array
+          description: >
+            Commands the host runs on a timer, with nobody invoking them, once
+            the schedule capability is approved and a channel is chosen.
+          items:
+            $ref: "#/components/schemas/DockSchedule"
+    DockSchedule:
+      type: object
+      required: [command, every_minutes]
+      properties:
+        command:
+          type: string
+          description: One of the module's own command extension points.
+        every_minutes:
+          type: integer
+          description: The interval, 5 minutes to a week.
     InstallDockModuleRequest:
       type: object
       required: [version]
@@ -10094,7 +10157,7 @@ components:
             type: string
           description: >
             The host capabilities the admin approved after seeing them listed
-            (kv.store, message.post, net.fetch; decision 0023). Each must be declared in
+            (kv.store, message.post, net.fetch, schedule; decision 0023). Each must be declared in
             the manifest and implemented by the host, or the install is refused
             with 400. An empty list withdraws every approval. Omitted keeps
             what was approved before, minus anything the new manifest no
@@ -10123,6 +10186,7 @@ components:
           installed_at,
           network_hosts,
           local_network_approved,
+          schedules,
         ]
       properties:
         id:
@@ -10141,6 +10205,18 @@ components:
         local_network_approved:
           type: boolean
           description: Whether net.fetch may reach local network addresses.
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/DockSchedule"
+        bot_user_id:
+          type: string
+          description: >
+            The module's own principal, which its scheduled runs post as;
+            absent until schedule is approved.
+        schedule_channel_id:
+          type: string
+          description: Where its scheduled runs post; absent until an admin chooses.
         approved_capabilities:
           type: array
           items:

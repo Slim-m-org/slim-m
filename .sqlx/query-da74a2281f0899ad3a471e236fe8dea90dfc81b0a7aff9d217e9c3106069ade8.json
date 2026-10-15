@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT bot_user_id AS \"id: UserId\" FROM installed_modules WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "da74a2281f0899ad3a471e236fe8dea90dfc81b0a7aff9d217e9c3106069ade8"
+}

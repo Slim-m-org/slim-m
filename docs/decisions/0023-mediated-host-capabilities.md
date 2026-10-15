@@ -218,3 +218,21 @@ The owner's 2026-10-14 module powers decision added outbound HTTP as the next ca
 - The module sees the status, `Content-Type`, `Location` and body, never anything about the address it resolved to.
 
 The Dock install screen shows the hosts and the second approval; that client work follows the consent flow.
+
+## Amendment, 2026-10-15: `schedule`
+
+The third power from the owner's 2026-10-14 decision: a module acts on its own timer, and runs with no invoker post as the module.
+
+- The manifest declares `schedule` and `schedules`: up to 8 entries, each naming one of the module's own `command` extension points once, every 5 minutes to every week.
+  `schedule` without schedules, or schedules without `schedule`, is a malformed manifest.
+- Approving `schedule` at install gives the module its own principal: an `is_bot` user with no token and no session, named after the module, kept across reinstalls.
+  Nothing can sign in as it.
+- An admin chooses the one text channel its scheduled runs post in (`PUT /space/dock/modules/{id}/schedule-channel`).
+  The principal gets a member overwrite to view and post there and loses the one on the channel it had before; `null` stops scheduled runs.
+- The host checks once a minute and runs each due command one at a time, as the principal, with no input, under the same sandbox limits as any run.
+  `message.post` is bound to the chosen channel, and each post's footer names the module.
+- When a command last ran is stored, so continuous deploys do not reset a long interval.
+  The run is recorded before it starts, so a run that fails is not retried every minute.
+- A disabled module, a withdrawn approval, or no channel means no scheduled runs.
+
+Still to do: the Dock screens for approving `schedule` and choosing the channel, and a dedicated module badge in the transcript in place of the footer.

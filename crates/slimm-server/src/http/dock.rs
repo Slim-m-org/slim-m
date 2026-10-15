@@ -36,12 +36,13 @@ use super::dock_sources::{add_source, list_sources, remove_source};
 use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
+use super::module_host;
 use crate::config::Config;
 use crate::media::to_hex;
 use crate::ratelimit::Class;
 use crate::store::{
     DockProvenance, InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec,
-    ModuleRuntimeLimits,
+    ModuleRuntimeLimits, ModuleSchedule,
 };
 
 use capabilities::{
@@ -373,6 +374,14 @@ async fn install(
         .collect();
     let extension_points: Vec<ModuleExtensionPointSpec> =
         manifest.extension_points.iter().map(Into::into).collect();
+    let schedules: Vec<ModuleSchedule> = manifest
+        .schedules
+        .iter()
+        .map(|s| ModuleSchedule {
+            command: s.command.clone(),
+            every_minutes: s.every_minutes,
+        })
+        .collect();
     let runtime_limits = ModuleRuntimeLimits {
         memory_mb: manifest.runtime.limits.memory_mb,
         wall_ms: manifest.runtime.limits.wall_ms,
@@ -397,9 +406,23 @@ async fn install(
                 source_repo: resolved.repo.as_deref(),
                 network_hosts,
                 local_network_approved: local_network,
+                schedules: &schedules,
             },
         )
         .await?;
+    let installed = if module_host::schedule_approved(&installed) {
+        state
+            .store
+            .ensure_module_bot(&installed.id, &installed.name)
+            .await?;
+        state
+            .store
+            .installed_module(&installed.id)
+            .await?
+            .ok_or(ApiError::Internal)?
+    } else {
+        installed
+    };
     Ok(Json(InstalledModuleDto::from(installed)))
 }
 

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT command AS \"command!\", last_run_at AS \"last_run_at!\"\n               FROM module_schedule_runs WHERE module_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "command!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_run_at!",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6056b244a7232771c32262497b4a87a85d3ff2ef381a9de70d2997ad0b37915e"
+}

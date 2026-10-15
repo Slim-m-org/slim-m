@@ -87,6 +87,9 @@ mod module_caller;
 mod module_commands;
 mod module_host;
 mod module_net;
+mod module_run;
+mod module_schedule;
+pub use module_schedule::run_due as run_scheduled_modules;
 mod module_permissions;
 mod notification_schedule;
 mod overwrites;
@@ -226,6 +229,7 @@ pub fn router(state: AppState) -> Router {
         .route("/healthz", get(healthz))
         .route("/version", get(version::version))
         .merge(analytics::routes())
+        .merge(module_schedule::routes())
         .merge(apps::routes())
         .merge(auth::routes())
         .merge(canvas::routes())

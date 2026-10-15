@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", name AS \"name!\", version AS \"version!\",\n                      artifact_sha256 AS \"artifact_sha256!\",\n                      approved_capabilities AS \"approved_capabilities!\",\n                      approved_host_capabilities AS \"approved_host_capabilities!\",\n                      runtime_limits AS \"runtime_limits!\",\n                      extension_points AS \"extension_points!\",\n                      enabled AS \"enabled!: bool\", installed_at AS \"installed_at!\",\n                      source_repo,\n                      network_hosts AS \"network_hosts!\",\n                      local_network_approved AS \"local_network_approved!: bool\"\n               FROM installed_modules WHERE id = ?",
+  "query": "SELECT id AS \"id!\", name AS \"name!\", version AS \"version!\",\n                      artifact_sha256 AS \"artifact_sha256!\",\n                      approved_capabilities AS \"approved_capabilities!\",\n                      approved_host_capabilities AS \"approved_host_capabilities!\",\n                      runtime_limits AS \"runtime_limits!\",\n                      extension_points AS \"extension_points!\",\n                      enabled AS \"enabled!: bool\", installed_at AS \"installed_at!\",\n                      source_repo,\n                      network_hosts AS \"network_hosts!\",\n                      local_network_approved AS \"local_network_approved!: bool\",\n                      schedules AS \"schedules!\",\n                      bot_user_id AS \"bot_user_id: UserId\",\n                      schedule_channel_id AS \"schedule_channel_id: ChannelId\"\n               FROM installed_modules ORDER BY installed_at DESC",
   "describe": {
     "columns": [
       {
@@ -67,10 +67,25 @@
         "name": "local_network_approved!: bool",
         "ordinal": 12,
         "type_info": "Integer"
+      },
+      {
+        "name": "schedules!",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "bot_user_id: UserId",
+        "ordinal": 14,
+        "type_info": "Blob"
+      },
+      {
+        "name": "schedule_channel_id: ChannelId",
+        "ordinal": 15,
+        "type_info": "Blob"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -85,8 +100,11 @@
       false,
       true,
       false,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
-  "hash": "6d68b3af020781dfebb43fa0479d283b0b9545019a004bf0ae6a1e6b3c214886"
+  "hash": "6c87fe32ddd8df0268212bd3a9e37e91550182a5ce6ae29d187923c1050b6252"
 }

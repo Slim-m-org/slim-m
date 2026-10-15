@@ -96,6 +96,14 @@ pub(super) struct ManifestDto {
     /// Where `net.fetch` may reach; absent when the module declares none.
     #[serde(skip_serializing_if = "Option::is_none")]
     network: Option<NetworkDto>,
+    /// Commands the host runs on a timer once `schedule` is approved.
+    schedules: Vec<ScheduleDto>,
+}
+
+#[derive(Serialize)]
+pub(in crate::http) struct ScheduleDto {
+    command: String,
+    every_minutes: u32,
 }
 
 #[derive(Serialize)]
@@ -141,6 +149,14 @@ impl From<Manifest> for ManifestDto {
                 hosts: m.network.hosts,
                 local: m.network.local,
             }),
+            schedules: m
+                .schedules
+                .into_iter()
+                .map(|s| ScheduleDto {
+                    command: s.command,
+                    every_minutes: s.every_minutes,
+                })
+                .collect(),
         }
     }
 }
@@ -170,6 +186,13 @@ pub(in crate::http) struct InstalledModuleDto {
     network_hosts: Vec<String>,
     /// Whether the admin gave the second approval for local addresses.
     local_network_approved: bool,
+    schedules: Vec<ScheduleDto>,
+    /// The module's own principal, which its scheduled runs post as.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bot_user_id: Option<String>,
+    /// Where its scheduled runs post; absent until an admin chooses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    schedule_channel_id: Option<String>,
 }
 
 impl From<InstalledModule> for InstalledModuleDto {
@@ -187,6 +210,16 @@ impl From<InstalledModule> for InstalledModuleDto {
             source_repo: m.source_repo,
             network_hosts: m.network_hosts,
             local_network_approved: m.local_network_approved,
+            schedules: m
+                .schedules
+                .into_iter()
+                .map(|s| ScheduleDto {
+                    command: s.command,
+                    every_minutes: s.every_minutes,
+                })
+                .collect(),
+            bot_user_id: m.bot_user_id.map(|id| id.to_string()),
+            schedule_channel_id: m.schedule_channel_id.map(|id| id.to_string()),
         }
     }
 }
