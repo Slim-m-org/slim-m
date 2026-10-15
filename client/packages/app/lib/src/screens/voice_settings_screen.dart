@@ -101,7 +101,7 @@ class _PushToTalkSection extends ConsumerWidget {
         SettingsToggleRow(
           label: 'Hold a key to talk',
           description:
-              'Hold the key to unmute. Your mic indicator stays on while muted in a call.',
+              'Hold the key to talk; your mic stays on between presses.',
           value: settings.pushToTalkEnabled,
           semanticLabel: 'Push-to-talk',
           onChanged: (value) => ref
