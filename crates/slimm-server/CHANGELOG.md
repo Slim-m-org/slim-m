@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.92.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.91.0...server-v0.92.0) (2026-10-15)
+
+
+### Features
+
+* resumable large uploads, an attachment size limit setting, real screen share encodings, call stats, and module network and schedule powers ([#2206](https://github.com/Slim-m-org/slim-m/issues/2206)) ([65593d8](https://github.com/Slim-m-org/slim-m/commit/65593d849121d52f4f0ffcc81c534ad8c3dafb4b))
+
 ## [0.91.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.90.0...server-v0.91.0) (2026-10-15)
 
 
