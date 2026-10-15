@@ -3733,6 +3733,170 @@ paths:
         "507":
           $ref: "#/components/responses/InsufficientStorage"
 
+  /attachments/uploads:
+    post:
+      operationId: createUploadSession
+      tags: [attachments]
+      summary: Open a resumable upload for a large attachment.
+      description: >
+        For a file too large for one request behind a proxy that caps request
+        bodies. Send the bytes as ordered parts with `appendUploadPart`, then
+        call `completeUploadSession` to store them exactly as
+        `uploadAttachment` would. The size, ATTACH_FILES and storage checks
+        run here and again on completion. An unfinished session is dropped a
+        day after it opened, and a member may hold eight at once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadSession"
+      responses:
+        "201":
+          description: The new session, at offset 0.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "507":
+          $ref: "#/components/responses/InsufficientStorage"
+
+  /attachments/uploads/{uploadId}:
+    parameters:
+      - name: uploadId
+        in: path
+        required: true
+        description: The id `createUploadSession` returned.
+        schema:
+          type: string
+    get:
+      operationId: getUploadSession
+      tags: [attachments]
+      summary: Read where a resumable upload should continue.
+      description: >
+        After a dropped part, `offset` is how many bytes the server holds; the
+        next part starts there. Another member's session answers 404.
+      responses:
+        "200":
+          description: The session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: appendUploadPart
+      tags: [attachments]
+      summary: Send the next part of a resumable upload.
+      description: >
+        The body is appended at `offset`, which must equal the session's
+        current offset; any other value answers 409 so a retried part is
+        never written twice. A part may be at most `part_max_bytes` and may
+        not run past the declared size. If the connection drops mid-part, the
+        bytes that arrived are kept: read the session and resume from its
+        offset.
+      parameters:
+        - name: offset
+          in: query
+          required: true
+          description: Where this part starts, in bytes.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: The session after the part.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: discardUploadSession
+      tags: [attachments]
+      summary: Cancel a resumable upload and drop its bytes.
+      responses:
+        "204":
+          description: The session is gone.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /attachments/uploads/{uploadId}/complete:
+    parameters:
+      - name: uploadId
+        in: path
+        required: true
+        description: The id `createUploadSession` returned.
+        schema:
+          type: string
+    post:
+      operationId: completeUploadSession
+      tags: [attachments]
+      summary: Store a fully sent resumable upload as an attachment.
+      description: >
+        Answers what `uploadAttachment` answers for the same bytes: the type
+        is sniffed from the assembled file, identical bytes reuse the stored
+        copy, and the id is referenced the same way on `sendMessage`. A
+        session still short of its declared size answers 409. An unsupported
+        type or a full deployment drops the session.
+      responses:
+        "201":
+          description: The stored attachment's metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "507":
+          $ref: "#/components/responses/InsufficientStorage"
+
   /attachments/{attachmentId}:
     parameters:
       - name: attachmentId
@@ -7866,6 +8030,63 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/attachment-limit:
+    get:
+      operationId: getSpaceAttachmentLimit
+      tags: [space]
+      summary: Read the attachment size limit.
+      description: >
+        Gated on MANAGE_SERVER. `max_bytes` is the admin's limit, or 0 when
+        only the operator's `SLIMM_ATTACHMENT_MAX_BYTES` applies;
+        `server_max_bytes` is that operator ceiling. Members read the limit in
+        force from `/version`'s `max_attachment_bytes`.
+      responses:
+        "200":
+          description: The current limit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceAttachmentLimit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    patch:
+      operationId: updateSpaceAttachmentLimit
+      tags: [space]
+      summary: Change the attachment size limit.
+      description: >
+        0 clears the admin limit. Any other value must be at least 1 MiB and
+        at most `server_max_bytes`; outside that it is refused rather than
+        clamped. Applies to the next upload; files already stored are kept.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [max_bytes]
+              properties:
+                max_bytes:
+                  type: integer
+                  description: The new limit in bytes, or 0 for none.
+      responses:
+        "200":
+          description: The limit after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceAttachmentLimit"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/screen-share:
     get:
       operationId: getSpaceScreenShareCap
@@ -8965,7 +9186,7 @@ components:
           type: array
           items:
             type: string
-            enum: [block, report, webhooks]
+            enum: [block, report, webhooks, upload_sessions]
           description: >
             The optional features this build serves, read off the router at
             runtime rather than declared, so the list cannot drift from what
@@ -9889,6 +10110,44 @@ components:
             Most live objects one channel's canvas may hold before a placement
             is refused. Applies to every client. Settable range is 100 to
             100000; the default is 20000.
+    SpaceAttachmentLimit:
+      type: object
+      required: [max_bytes, server_max_bytes]
+      properties:
+        max_bytes:
+          type: integer
+          description: The admin's limit in bytes, or 0 for none.
+        server_max_bytes:
+          type: integer
+          description: The operator's ceiling, which max_bytes may not exceed.
+    CreateUploadSession:
+      type: object
+      required: [size]
+      properties:
+        filename:
+          type: string
+          description: Original filename, sanitized as uploadAttachment's is.
+        size:
+          type: integer
+          description: The whole file's size in bytes.
+    UploadSession:
+      type: object
+      required: [id, size, offset, part_max_bytes, expires_at]
+      properties:
+        id:
+          type: string
+        size:
+          type: integer
+          description: The whole file's declared size in bytes.
+        offset:
+          type: integer
+          description: Bytes received so far; the next part starts here.
+        part_max_bytes:
+          type: integer
+          description: The largest part the server accepts.
+        expires_at:
+          type: integer
+          description: When an unfinished session is dropped, in epoch milliseconds.
     SpaceScreenShareCap:
       type: object
       required: [max_height]

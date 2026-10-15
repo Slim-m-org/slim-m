@@ -23,7 +23,9 @@ use crate::voice::VoiceService;
 mod analytics;
 mod apps;
 mod attachment_ids;
+mod attachment_limit;
 mod attachment_range;
+mod attachment_uploads;
 mod attachments;
 mod auth;
 mod bot_commands;
@@ -225,6 +227,7 @@ pub fn router(state: AppState) -> Router {
         .route("/healthz", get(healthz))
         .route("/version", get(version::version))
         .merge(analytics::routes())
+        .merge(attachment_limit::routes())
         .merge(apps::routes())
         .merge(auth::routes())
         .merge(canvas::routes())

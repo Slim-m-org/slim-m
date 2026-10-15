@@ -159,7 +159,7 @@ pub(super) async fn version(
         link_previews_enabled: state.link_previews.is_enabled(),
         screen_share_max_height: state.store.screen_share_max_height().await?,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
-        max_attachment_bytes: state.media.max_attachment_bytes(),
+        max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,
         identity: ServerIdentityDto {

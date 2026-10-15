@@ -33,12 +33,17 @@ use uuid::Uuid;
 mod content_type;
 mod image_header;
 mod stream;
+mod upload_session;
 pub use content_type::{is_inline, sniff_content_type};
 pub use image_header::{
     ImageHeader, ImageProblem, MAX_EMOJI_SIDE, MAX_IMAGE_PIXELS, MAX_PROFILE_IMAGE_SIDE, Motion,
     check_image,
 };
 pub use stream::{PendingAttachment, StreamError};
+pub use upload_session::{
+    AppendError, FinishedUpload, MAX_OPEN_SESSIONS_PER_USER, UPLOAD_PART_MAX_BYTES,
+    UPLOAD_SESSION_TTL, UploadMeta, Uploads,
+};
 
 /// Largest attachment a single upload may store, for [`Media::for_tests`],
 /// which builds a handle without a `Config` to read the real default from.
@@ -125,6 +130,7 @@ pub struct Media {
     /// hand in dozens of test files that have no opinion about it.
     max_total_attachment_bytes: Option<u64>,
     upload_timeout: Duration,
+    uploads: Uploads,
     /// Set only by [`Media::for_tests`]; always `None` in a real deployment,
     /// whose media root outlives the process on purpose.
     temp_root: Option<Arc<TempRoot>>,
@@ -155,7 +161,10 @@ impl Media {
         let avatars_dir = root.join("avatars");
         std::fs::create_dir_all(&attachments_dir)?;
         std::fs::create_dir_all(&avatars_dir)?;
+        let uploads_dir = root.join("uploads");
+        std::fs::create_dir_all(&uploads_dir)?;
         Ok(Self {
+            uploads: Uploads::new(uploads_dir, attachments_dir.clone()),
             attachments_dir,
             avatars_dir,
             max_attachment_bytes,
@@ -212,6 +221,11 @@ impl Media {
 
     pub fn upload_timeout(&self) -> Duration {
         self.upload_timeout
+    }
+
+    /// Resumable upload sessions; see [`upload_session`].
+    pub fn uploads(&self) -> &Uploads {
+        &self.uploads
     }
 
     fn attachment_path(&self, sha256_hex: &str) -> PathBuf {

@@ -194,6 +194,14 @@ final spaceScreenShareCeilingProvider = FutureProvider.autoDispose<int>(
   (ref) => ref.watch(apiProvider).spaceScreenShareMaxHeight(),
 );
 
+/// The admin's attachment size limit beside the operator's ceiling,
+/// `GET /space/attachment-limit`. Members read the limit in force from
+/// `/version`; see `screens/admin/attachment_limit_section.dart`.
+final spaceAttachmentLimitProvider =
+    FutureProvider.autoDispose<api.SpaceAttachmentLimit>(
+      (ref) => ref.watch(apiProvider).spaceAttachmentLimit(),
+    );
+
 /// Operator-visible storage usage and sweep health, `GET /space/storage`.
 /// Always computed - unlike [spaceAnalyticsProvider] there is no toggle. See
 /// `screens/admin/storage_screen.dart`.

@@ -126,6 +126,11 @@ pub(crate) fn spawn_attachment_sweep(store: store::Store, media: media::Media) {
                 }
                 Err(err) => tracing::warn!(error = %err, "attachment sweep failed"),
             }
+            match media.uploads().sweep_expired(store::now_ms()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::info!(count, "swept expired upload sessions"),
+                Err(err) => tracing::warn!(error = %err, "upload session sweep failed"),
+            }
         }
     });
 }
