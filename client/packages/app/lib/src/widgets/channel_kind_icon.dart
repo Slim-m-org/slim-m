@@ -26,6 +26,7 @@ class ChannelKindIcon extends StatelessWidget {
   final double size;
 
   static const _label = "Restricted channel: not visible to everyone";
+  static const voiceLabel = 'Private voice channel';
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +37,11 @@ class ChannelKindIcon extends StatelessWidget {
     );
     if (!restricted) return kind;
     final badge = (size * 0.56).roundToDouble();
+    final label = isVoice ? voiceLabel : _label;
     return Tooltip(
-      message: _label,
+      message: label,
       child: Semantics(
-        label: _label,
+        label: label,
         child: SizedBox.square(
           dimension: size,
           child: Stack(

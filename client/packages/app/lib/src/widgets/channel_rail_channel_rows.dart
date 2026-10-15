@@ -202,18 +202,12 @@ class VoiceChannelRow extends ConsumerWidget {
   /// own press/hover highlight rather than beside it.
   final Widget? trailingExtra;
 
-  bool get _privateVoice =>
-      channel.restricted == true && channel.createsRooms != true;
-
   Widget? _trailing(int present) {
     final limit = channel.userLimit ?? 0;
     final marks = [
       if (channel.roomLocked == true) const RailRoomLockedGlyph(),
       if (limit > 0) RailUserLimit(present: present, limit: limit),
-      if (_privateVoice)
-        RailPrivateVoiceMarks(joinMuted: channel.joinMuted)
-      else if (channel.joinMuted)
-        const RailJoinMutedGlyph(),
+      if (channel.joinMuted) const RailJoinMutedGlyph(),
     ];
     if (marks.isEmpty) return null;
     if (marks.length == 1) return marks.single;
@@ -265,6 +259,11 @@ class VoiceChannelRow extends ConsumerWidget {
       children: [
         AppListRow(
           label: channel.name,
+          // The leading glyph is excluded from semantics, so its privacy is said here.
+          semanticLabel:
+              channel.restricted == true && channel.createsRooms != true
+              ? '${channel.name}, ${ChannelKindIcon.voiceLabel}'
+              : null,
           selected: selected,
           unread: indicator.unread,
           mentioned: indicator.mentioned,
@@ -272,7 +271,7 @@ class VoiceChannelRow extends ConsumerWidget {
           leading: channel.createsRooms == true
               ? RailLobbyIcon(color: iconColor)
               : ChannelKindIcon(
-                  isVoice: !_privateVoice,
+                  isVoice: true,
                   restricted: channel.restricted ?? false,
                   color: iconColor,
                 ),
