@@ -109,8 +109,10 @@ Future<List<Map<String, dynamic>>> _pump(
     ],
   );
   addTearDown(container.dispose);
-  await tester.binding.setSurfaceSize(size);
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  // The view, not just the surface: layout reads MediaQuery, which follows the view.
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
