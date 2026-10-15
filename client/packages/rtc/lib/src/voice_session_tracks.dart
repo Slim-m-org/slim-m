@@ -93,6 +93,7 @@ extension VoiceSessionTracks on VoiceSession {
     try {
       await room.localParticipant?.setMicrophoneEnabled(enabled);
       _refreshParticipants();
+      if (enabled) _followPreferredDevices();
       return true;
     } catch (e) {
       _lastError = e;

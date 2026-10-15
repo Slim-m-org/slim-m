@@ -5,6 +5,7 @@ library;
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'pulse_audio.dart';
 import 'voice_models.dart';
 
 /// The seam. The default implementation asks the platform's own device
@@ -21,15 +22,25 @@ abstract class AudioDevices {
 class HardwareAudioDevices implements AudioDevices {
   const HardwareAudioDevices();
 
+  /// libwebrtc's list, unless it is empty on Linux, where the sound server's
+  /// own list stands in; see `pulse_audio_io.dart`.
   @override
-  Future<List<AudioDevice>> inputs() async => withoutPseudoDefaults(
-        _toAudioDevices(await lk.Hardware.instance.audioInputs()),
-      );
+  Future<List<AudioDevice>> inputs() async {
+    final listed = withoutPseudoDefaults(
+      _toAudioDevices(await lk.Hardware.instance.audioInputs()),
+    );
+    if (listed.isNotEmpty || !PulseAudio.supported) return listed;
+    return await PulseAudio().sources() ?? listed;
+  }
 
   @override
-  Future<List<AudioDevice>> outputs() async => withoutPseudoDefaults(
-        _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
-      );
+  Future<List<AudioDevice>> outputs() async {
+    final listed = withoutPseudoDefaults(
+      _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
+    );
+    if (listed.isNotEmpty || !PulseAudio.supported) return listed;
+    return await PulseAudio().sinks() ?? listed;
+  }
 
   @override
   Stream<void> get onChange =>
