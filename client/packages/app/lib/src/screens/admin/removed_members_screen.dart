@@ -138,6 +138,8 @@ class _RemovalRowState extends ConsumerState<_RemovalRow>
       headline: removal.displayName,
       details: [
         SettingsEntityDetail('@${removal.username}'),
+        if (removal.inviteCode case final code?)
+          SettingsEntityDetail('Joined with invite $code'),
         // Wrapped: the one line here a person typed, and the point of the screen.
         if (removal.reason case final reason?)
           SettingsEntityDetail(reason, wrap: true)

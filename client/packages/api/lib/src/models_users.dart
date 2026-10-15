@@ -28,6 +28,7 @@ class UserProfile {
     this.profileColor,
     this.isBot = false,
     this.isWebhook = false,
+    this.inviteCode,
   });
 
   final String id;
@@ -121,6 +122,10 @@ class UserProfile {
   /// See `docs/decisions/0030-incoming-webhooks.md`.
   final bool isWebhook;
 
+  /// The invite this member registered through, sent only to a caller who
+  /// can manage roles, as a sign of a returning account.
+  final String? inviteCode;
+
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         id: json['id'] as String,
         username: json['username'] as String,
@@ -143,6 +148,7 @@ class UserProfile {
         profileColor: json['profile_color'] as int?,
         isBot: json['is_bot'] as bool? ?? false,
         isWebhook: json['is_webhook'] as bool? ?? false,
+        inviteCode: json['invite_code'] as String?,
       );
 
   /// Value equality so a `.select`ed [UserProfile] (see
@@ -166,6 +172,7 @@ class UserProfile {
           pronouns == other.pronouns &&
           about == other.about &&
           profileColor == other.profileColor &&
+          inviteCode == other.inviteCode &&
           _listEquals(roles, other.roles) &&
           _listEquals(roleIds, other.roleIds));
 
@@ -184,6 +191,7 @@ class UserProfile {
         pronouns,
         about,
         profileColor,
+        inviteCode,
         Object.hashAll(roles),
         Object.hashAll(roleIds),
       );

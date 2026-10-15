@@ -287,6 +287,7 @@ class SpaceRemoval {
     required this.removedAt,
     this.reason,
     this.removedBy,
+    this.inviteCode,
   });
 
   final String userId;
@@ -301,6 +302,9 @@ class SpaceRemoval {
   /// Null once the removing moderator's own account is deleted.
   final String? removedBy;
 
+  /// The invite they registered through, for a caller who can manage roles.
+  final String? inviteCode;
+
   factory SpaceRemoval.fromJson(Map<String, dynamic> json) => SpaceRemoval(
         userId: json['user_id'] as String,
         username: json['username'] as String,
@@ -308,5 +312,6 @@ class SpaceRemoval {
         removedAt: json['removed_at'] as int,
         reason: json['reason'] as String?,
         removedBy: json['removed_by'] as String?,
+        inviteCode: json['invite_code'] as String?,
       );
 }

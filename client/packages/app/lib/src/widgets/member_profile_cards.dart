@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/blocks_controller.dart';
 import '../providers/channel_by_id_provider.dart';
+import '../providers/member_presence.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
 import '../providers/user_notes.dart';
@@ -220,6 +221,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         MemberProfileRolesAndJoin(
           roles: profile.roles,
           createdAt: profile.createdAt,
+          inviteCode: _inviteCode(ref, profile, gates),
         ),
         if (timeoutActive(profile.timedOutUntil))
           MemberTimeoutBadge(
@@ -322,4 +324,20 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
       ],
     );
   }
+}
+
+/// A profile resolved from a message author carries no invite code, so a
+/// moderator gets it from the member list, the one read the server adds it to.
+String? _inviteCode(
+  WidgetRef ref,
+  api.UserProfile profile,
+  MemberModerationGates gates,
+) {
+  if (profile.inviteCode case final code?) return code;
+  if (!gates.canManageRoles) return null;
+  final members = ref.watch(membersProvider).valueOrNull ?? const [];
+  for (final member in members) {
+    if (member.id == profile.id) return member.inviteCode;
+  }
+  return null;
 }
