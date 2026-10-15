@@ -45,7 +45,7 @@ class HoldMusicDockToggle extends ConsumerWidget {
         const ControlOptionHeading('Style'),
         for (final style in LoungeTrack.values)
           ControlOption(
-            label: '${style.style} - ${style.title}',
+            label: style.style,
             selected: style == track,
             onSelected: () => pick(style),
           ),

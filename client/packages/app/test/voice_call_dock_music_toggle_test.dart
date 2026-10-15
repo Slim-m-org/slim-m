@@ -177,7 +177,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Music options'));
     await tester.pumpAndSettle();
     expect(find.text('STYLE'), findsOneWidget);
-    await tester.tap(find.text('Jazz - Elevator Music'));
+    await tester.tap(find.text('Jazz'));
     await tester.pumpAndSettle();
 
     final settings = container.read(voiceSettingsControllerProvider);

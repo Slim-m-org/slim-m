@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/call_could_join.dart';
 import 'package:slimm_app/src/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -21,19 +20,6 @@ final members = [
 ];
 
 void main() {
-  group('couldJoinLine', () {
-    test('handles zero, one, two and many names', () {
-      expect(couldJoinLine([]), isNull);
-      expect(couldJoinLine(['Nadia']), 'Nadia is online');
-      expect(couldJoinLine(['Nadia', 'Kiki']), 'Nadia and Kiki are online');
-      expect(couldJoinLine(['A', 'B', 'C']), 'A, B and 1 other are online');
-      expect(
-        couldJoinLine(['A', 'B', 'C', 'D', 'E']),
-        'A, B and 3 others are online',
-      );
-    });
-  });
-
   testWidgets('the header reads channel, then count, then the timer', (
     tester,
   ) async {
@@ -72,9 +58,8 @@ void main() {
     await call.leave();
   });
 
-  testWidgets('alone: one normal tile with its label inside, then the line', (
-    tester,
-  ) async {
+  testWidgets('alone: one normal tile with its label inside, and no list of '
+      'who is online', (tester) async {
     final call = await joinCall(
       tester,
       width: 1400,
@@ -89,27 +74,11 @@ void main() {
     expect(tile.contains(label.topLeft), isTrue);
     expect(tile.contains(label.bottomRight), isTrue);
 
-    final line = tester.getRect(find.text('Kiki and Nadia are online'));
-    expect(line.top, greaterThanOrEqualTo(tile.bottom));
-    expect((line.center.dx - tile.center.dx).abs(), lessThan(1));
-    expect(find.textContaining('Helper'), findsNothing, reason: 'bots skipped');
-
-    await call.leave();
-  });
-
-  testWidgets('alone with nobody online draws the tile and no line', (
-    tester,
-  ) async {
-    final call = await joinCall(
-      tester,
-      width: 1400,
-      members: members,
-      online: <String>{},
+    expect(
+      find.textContaining(' online'),
+      findsNothing,
+      reason: 'the owner does not want to be told who is online while alone',
     );
-    await call.emit([callMe]);
-
-    expect(find.byType(CallParticipantTile), findsOneWidget);
-    expect(find.textContaining(' online'), findsNothing);
 
     await call.leave();
   });
@@ -130,7 +99,7 @@ void main() {
     await call.leave();
   });
 
-  testWidgets('many online members fit a phone without overflow', (
+  testWidgets('alone on a phone, the tile fits without overflow', (
     tester,
   ) async {
     final many = [
@@ -149,11 +118,6 @@ void main() {
     expect(tester.takeException(), isNull);
     final tile = tester.getRect(find.byType(CallParticipantTile));
     expect(tile.width, lessThanOrEqualTo(360 - 2 * AppSpacing.s16));
-    final line = tester.getRect(
-      find.textContaining('and 10 others are online'),
-    );
-    expect(line.left, greaterThanOrEqualTo(0));
-    expect(line.right, lessThanOrEqualTo(360));
 
     await call.leave();
   });
@@ -171,7 +135,6 @@ void main() {
     final before = tester.element(
       find.widgetWithText(CallParticipantTile, 'Me', skipOffstage: false),
     );
-    expect(find.text('Alice and Nadia are online'), findsOneWidget);
 
     await call.emit([callMe, callAlice]);
 
