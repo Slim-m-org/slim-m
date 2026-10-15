@@ -82,8 +82,8 @@ void main() {
       tracker.markFirstFrame();
       await tester.pump();
 
-      expect(probe.inits, 1);
-      expect(probe.disposes, 0);
+      expect(probe.counts.inits, 1);
+      expect(probe.counts.disposes, 0);
     });
 
     testWidgets('covers the child with the placeholder before the first frame',
@@ -187,12 +187,16 @@ class _ProbeState extends State<_Probe> {
   Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
+class _Counts {
+  int inits = 0;
+  int disposes = 0;
+}
+
 /// Counts how often its state is created and disposed, to show a remount.
 class _LifecycleProbe extends StatefulWidget {
   _LifecycleProbe();
 
-  int inits = 0;
-  int disposes = 0;
+  final counts = _Counts();
 
   @override
   State<_LifecycleProbe> createState() => _LifecycleProbeState();
@@ -202,12 +206,12 @@ class _LifecycleProbeState extends State<_LifecycleProbe> {
   @override
   void initState() {
     super.initState();
-    widget.inits++;
+    widget.counts.inits++;
   }
 
   @override
   void dispose() {
-    widget.disposes++;
+    widget.counts.disposes++;
     super.dispose();
   }
 

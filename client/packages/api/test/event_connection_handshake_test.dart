@@ -123,7 +123,8 @@ void main() {
       () async {
     onHello = (socket) => socket
       ..add(jsonEncode({'type': 'hello', 'protocol': protocolVersion}))
-      ..add(jsonEncode({'type': 'message.created', 'message': {}}))
+      ..add(jsonEncode(
+          {'type': 'message.created', 'message': <String, Object?>{}}))
       ..add(jsonEncode({'type': 'pong'}));
     final uncaught = <Object>[];
     await runZonedGuarded(() async {
