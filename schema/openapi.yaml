@@ -3684,7 +3684,8 @@ paths:
         in `attachment_ids` on `sendMessage`. Content type is decided by
         sniffing the uploaded bytes against a fixed server-side allowlist,
         never from a client-declared Content-Type header or a filename
-        extension - an unrecognized type is refused outright. The allowlist
+        extension. Any file is accepted: one the allowlist does not
+        recognize is stored as `application/octet-stream`. The allowlist
         covers images, PDF, mp4 and webm video, mpeg/ogg/wav audio, zip and
         gzip archives, and a last-resort `text/plain` match for bytes that
         are plausibly readable text (valid UTF-8, no control characters
@@ -3873,8 +3874,8 @@ paths:
         Answers what `uploadAttachment` answers for the same bytes: the type
         is sniffed from the assembled file, identical bytes reuse the stored
         copy, and the id is referenced the same way on `sendMessage`. A
-        session still short of its declared size answers 409. An unsupported
-        type or a full deployment drops the session.
+        session still short of its declared size answers 409. A full
+        deployment drops the session.
       responses:
         "201":
           description: The stored attachment's metadata.

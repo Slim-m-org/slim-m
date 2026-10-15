@@ -148,10 +148,9 @@ async fn the_sniffed_type_wins_over_a_lying_filename_and_content_type_header() {
 }
 
 /// Bytes matching no signature and failing the `text/plain` fallback too
-/// (a NUL byte, here) are still refused outright - the allowlist widened,
-/// it did not disappear.
+/// (a disk image, an installer) are kept as a generic forced download.
 #[tokio::test]
-async fn bytes_matching_nothing_at_all_are_still_refused() {
+async fn bytes_matching_nothing_are_kept_as_a_generic_download() {
     let (store, _guard) = new_store().await;
     store
         .create_role(
@@ -175,7 +174,10 @@ async fn bytes_matching_nothing_at_all_are_still_refused() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let stored = json_body(response).await;
+    assert_eq!(stored["content_type"], "application/octet-stream");
+    assert_eq!(stored["filename"], "mystery.bin");
 }
 
 #[tokio::test]

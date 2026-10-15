@@ -127,10 +127,7 @@ async fn upload(
         return Err(ApiError::BadRequest("attachment is empty"));
     }
     // Decided from the bytes only; `sniffable` guards the streamed-prefix seam.
-    let Some(content_type) = media::sniff_content_type(sniffable(pending.sniff_prefix())) else {
-        pending.abandon().await.ok();
-        return Err(ApiError::BadRequest("unsupported attachment type"));
-    };
+    let content_type = media::attachment_content_type(sniffable(pending.sniff_prefix()));
     // The true streamed size no Content-Length can hide; a refusal drops the temp.
     if let Err(err) = room_for(&state, pending.size() as i64).await {
         pending.abandon().await.ok();
@@ -390,5 +387,30 @@ mod tests {
                 .unwrap();
             assert_eq!(nosniff, "nosniff");
         }
+    }
+
+    /// Anything the allowlist does not recognize is stored as generic binary
+    /// and goes out as a download under its own name, never rendered.
+    #[test]
+    fn an_unrecognized_file_is_a_forced_download_under_its_own_name() {
+        let bytes = vec![0u8, 1, 2, 3, 0xff];
+        let content_type = media::attachment_content_type(&bytes);
+        assert_eq!(content_type, media::GENERIC_BINARY);
+        let response = serve(bytes, content_type, "Win11.iso");
+        let disposition = response
+            .headers()
+            .get(header::CONTENT_DISPOSITION)
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(disposition.starts_with("attachment"), "{disposition}");
+        assert!(disposition.contains("Win11.iso"), "{disposition}");
+        assert_eq!(
+            response
+                .headers()
+                .get(HeaderName::from_static("x-content-type-options"))
+                .unwrap(),
+            "nosniff"
+        );
     }
 }

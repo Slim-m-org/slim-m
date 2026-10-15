@@ -204,22 +204,18 @@ async fn another_members_session_reads_as_missing() {
 }
 
 #[tokio::test]
-async fn an_unsupported_type_is_refused_by_its_first_part_and_the_session_dropped() {
+async fn an_unrecognized_type_completes_as_a_generic_download() {
     let (_store, _guard, app, token) = member_app(media_for_test()).await;
     let mut bytes = vec![0u8, 1, 2, 3, 0xff, 0xfe, 0, 7];
     bytes.resize(3000, 0);
     let (_, session) = open(&app, &token, bytes.len()).await;
     let id = session["id"].as_str().unwrap().to_owned();
 
-    // The leading bytes decide the type, so the refusal comes before the rest is sent.
-    let (status, _) = part(&app, &token, &id, 0, &bytes[..1000]).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = send(
-        &app,
-        request_plain("GET", &format!("/attachments/uploads/{id}"), &token),
-    )
-    .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = part(&app, &token, &id, 0, &bytes).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, stored) = complete(&app, &token, &id).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(stored["content_type"], "application/octet-stream");
 }
 
 #[tokio::test]

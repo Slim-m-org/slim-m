@@ -154,16 +154,6 @@ async fn append(
             AppendError::Body => ApiError::BadRequest("upload stream ended early"),
             AppendError::Io(err) => io_error(err),
         })?;
-    // The type is decided by the leading bytes alone, so refuse as soon as they are in, not after the last part.
-    let sniffable_len = meta.size.min(512);
-    if params.offset < sniffable_len && offset >= sniffable_len {
-        let uploads = state.media.uploads();
-        let prefix = uploads.leading_bytes(id).await.map_err(io_error)?;
-        if media::sniff_content_type(sniffable(&prefix)).is_none() {
-            uploads.discard(id).await.ok();
-            return Err(ApiError::BadRequest("unsupported attachment type"));
-        }
-    }
     Ok(Json(UploadSessionDto::new(id, &meta, offset)))
 }
 
@@ -189,10 +179,7 @@ async fn complete(
             _ => ApiError::Internal,
         })?
         .ok_or(ApiError::Conflict("upload is not complete"))?;
-    let Some(content_type) = media::sniff_content_type(sniffable(&finished.sniff_prefix)) else {
-        uploads.discard(id).await.ok();
-        return Err(ApiError::BadRequest("unsupported attachment type"));
-    };
+    let content_type = media::attachment_content_type(sniffable(&finished.sniff_prefix));
     let size = i64::try_from(finished.size).unwrap_or(i64::MAX);
     if let Err(err) = room_for(&state, size).await {
         uploads.discard(id).await.ok();

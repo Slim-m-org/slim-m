@@ -34,7 +34,7 @@ mod content_type;
 mod image_header;
 mod stream;
 mod upload_session;
-pub use content_type::{is_inline, sniff_content_type};
+pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
 pub use image_header::{
     ImageHeader, ImageProblem, MAX_EMOJI_SIDE, MAX_IMAGE_PIXELS, MAX_PROFILE_IMAGE_SIDE, Motion,
     check_image,
