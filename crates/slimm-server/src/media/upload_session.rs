@@ -293,6 +293,27 @@ impl Uploads {
         .await
     }
 
+    /// The first bytes a session holds, as many as a type sniff reads.
+    pub async fn leading_bytes(&self, id: Uuid) -> io::Result<Vec<u8>> {
+        let path = self.session_dir(id).join(DATA_FILE);
+        blocking(move || {
+            let mut file = std::fs::File::open(path)?;
+            let mut prefix = vec![0u8; SNIFF_PREFIX_BYTES];
+            let mut filled = 0;
+            loop {
+                let n = file.read(&mut prefix[filled..])?;
+                if n == 0 || filled + n == SNIFF_PREFIX_BYTES {
+                    filled += n;
+                    break;
+                }
+                filled += n;
+            }
+            prefix.truncate(filled);
+            Ok(prefix)
+        })
+        .await
+    }
+
     pub async fn discard(&self, id: Uuid) -> io::Result<()> {
         self.lock_running().remove(&id);
         let dir = self.session_dir(id);
