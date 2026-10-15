@@ -47,7 +47,7 @@ Anything claiming the accent is `#4FBDB4` is stale: that is the pre-0.4.0 teal.
 |---|---|
 | `mark.svg` | the mark alone, `currentColor`, for docs and in-client use |
 | `glyph.svg` | the below-16px fallback, square alone, `currentColor` |
-| `icon-master.svg` | 512 tile, 114 radius, mark at 60%; web, Android legacy, Linux |
+| `icon-master.svg` | 512 tile, 114 radius, mark at 60%; web, Android legacy, Linux, macOS, Windows |
 | `icon-ios.svg` | as above but square and opaque; iOS, and the web touch icon |
 | `icon-maskable.svg` | smaller mark, full bleed; the maskable web icons |
 | `android-foreground.svg` | 108dp adaptive foreground, transparent |
@@ -73,6 +73,8 @@ Outputs, none of which should be edited by hand:
 - `client/packages/app/android/app/src/main/res/mipmap-*/`, the legacy launcher icon plus the adaptive foreground and monochrome layers
 - `client/packages/app/web/`, `favicon.png`, the four manifest icons, and the Apple touch icon
 - `packaging/linux/icons/`, the hicolor ladder the rpm installs
+- `client/packages/app/macos/Runner/Assets.xcassets/AppIcon.appiconset/`, the tile on Apple's 824-in-1024 grid with a transparent margin
+- `client/packages/app/windows/runner/resources/app_icon.ico`, seven sizes from 16 to 256, edge to edge
 
 Two things the script works around, both of which fail quietly rather than loudly.
 ImageMagick renders an SVG at its natural size and upscales from there unless `-density` drives it, which costs a visibly soft edge, so the script renders natively at `96*px/units` for every target.
