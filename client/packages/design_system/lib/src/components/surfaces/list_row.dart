@@ -232,6 +232,17 @@ class AppListRow extends StatefulWidget {
 }
 
 class _AppListRowState extends State<AppListRow> {
+  late final FocusNode _passiveFocus = FocusNode(
+    debugLabel: 'AppListRow (no action)',
+    skipTraversal: true,
+  );
+
+  @override
+  void dispose() {
+    _passiveFocus.dispose();
+    super.dispose();
+  }
+
   bool _hovered = false;
   bool _focused = false;
 
@@ -451,9 +462,9 @@ class _AppListRowState extends State<AppListRow> {
       button: widget.onTap != null,
       selected: widget.selected,
       child: FocusableActionDetector(
-        // A row nothing happens on is no keyboard stop; its own controls still are.
-        enabled: widget.onTap != null,
-        focusNode: widget.focusNode,
+        // A row nothing happens on is no Tab stop; disabling it instead would take its own controls down too.
+        focusNode:
+            widget.focusNode ?? (widget.onTap == null ? _passiveFocus : null),
         mouseCursor:
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
         onShowHoverHighlight: (v) => setState(() => _hovered = v),

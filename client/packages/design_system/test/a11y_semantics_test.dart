@@ -85,6 +85,43 @@ void main() {
     );
   });
 
+  testWidgets('an inert row still lets its own control be reached and tapped',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    var removed = 0;
+    await tester.pumpWidget(
+      _harness(
+        SizedBox(
+          width: 320,
+          child: AppListRow(
+            label: 'Maya',
+            trailing: AppIconButton(
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Remove',
+              onPressed: () => removed++,
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.bySemanticsLabel('Remove'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Remove'));
+    expect(removed, 1);
+
+    var reachedButton = false;
+    for (var i = 0; i < 2 && !reachedButton; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      final focused = FocusManager.instance.primaryFocus?.context;
+      expect(focused?.widget, isNot(isA<AppListRow>()));
+      reachedButton =
+          focused?.findAncestorWidgetOfExactType<AppIconButton>() != null;
+    }
+    expect(reachedButton, isTrue,
+        reason: 'the row is skipped, its button is the stop');
+    handle.dispose();
+  });
+
   testWidgets('a disabled menu item is dimmed', (tester) async {
     await tester.pumpWidget(
       _harness(

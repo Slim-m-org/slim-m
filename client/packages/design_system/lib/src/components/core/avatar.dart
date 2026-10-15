@@ -228,8 +228,7 @@ class AppAvatar extends StatelessWidget {
       image: true,
       label: semanticLabel ??
           [
-            name,
-            if (speaking) 'speaking',
+            speaking ? '$name, speaking' : name,
             if (status?.word case final word?) word,
           ].join(', '),
       child: ExcludeSemantics(child: content),

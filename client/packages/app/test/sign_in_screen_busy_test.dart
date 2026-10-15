@@ -112,8 +112,9 @@ void main() {
 
       final button = find.byType(AppButton);
       expect(
-        find.descendant(of: button, matching: find.text('Sign in')),
-        findsNothing,
+        _labelOpacity(tester, button),
+        0,
+        reason: 'the label keeps its space, so the button never resizes',
       );
       expect(
         find.descendant(
@@ -144,8 +145,8 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(of: button, matching: find.text('Sign in')),
-        findsNothing,
+        _labelOpacity(tester, button),
+        0,
         reason:
             'reduce motion must land in one frame, never carrying the '
             'outgoing label along for a beat',
@@ -155,4 +156,11 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+}
+
+/// How opaque the button's label is painted; it stays laid out while busy.
+double _labelOpacity(WidgetTester tester, Finder button) {
+  final label = find.descendant(of: button, matching: find.text('Sign in'));
+  final fade = find.ancestor(of: label, matching: find.byType(FadeTransition));
+  return tester.widget<FadeTransition>(fade.first).opacity.value;
 }
