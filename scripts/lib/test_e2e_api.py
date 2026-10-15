@@ -24,6 +24,46 @@ def _fake_response(payload=b"{}"):
     return response
 
 
+class KeepSignedInTest(unittest.TestCase):
+    def _expired(self):
+        import urllib.error
+        return urllib.error.HTTPError("http://x", 401, "expired", {}, None)
+
+    def test_an_opted_in_caller_logs_in_again_and_retries_on_a_401(self):
+        api = e2e_api.Api("https://example.invalid", token="old")
+        api.keep_signed_in("ada", "pw", "seed-0")
+        seen = []
+
+        def fake_open(request):
+            seen.append((request.full_url.rsplit("/", 1)[-1], request.get_header("Authorization")))
+            if request.full_url.endswith("/auth/login"):
+                return _fake_response(b'{"access_token": "new"}')
+            if request.get_header("Authorization") == "Bearer old":
+                raise self._expired()
+            return _fake_response()
+
+        with patch("urllib.request.urlopen", side_effect=fake_open):
+            api.call("GET", "/me")
+        self.assertEqual(api.token, "new")
+        self.assertEqual(seen[-1], ("me", "Bearer new"))
+
+    def test_a_caller_that_did_not_opt_in_still_sees_the_401(self):
+        import urllib.error
+        api = e2e_api.Api("https://example.invalid", token="old")
+        with patch("urllib.request.urlopen", side_effect=self._expired()):
+            with self.assertRaises(urllib.error.HTTPError):
+                api.call("GET", "/me")
+
+    def test_a_401_from_the_login_itself_is_not_retried(self):
+        import urllib.error
+        api = e2e_api.Api("https://example.invalid")
+        api.keep_signed_in("ada", "wrong", "seed-0")
+        with patch("urllib.request.urlopen", side_effect=self._expired()) as mock_open:
+            with self.assertRaises(urllib.error.HTTPError):
+                api.call("POST", "/auth/login", {})
+        self.assertEqual(mock_open.call_count, 1)
+
+
 class UserAgentTest(unittest.TestCase):
     """Cloudflare answers a default urllib UA with a 403; see CLAUDE.md."""
 

@@ -54,8 +54,8 @@ info:
     WebSocket uses a single-use ticket from `/auth/ws-ticket`, because an
     upgrade request cannot reliably carry an Authorization header.
   license:
-    name: Apache-2.0
-    identifier: Apache-2.0
+    name: PolyForm Noncommercial 1.0.0
+    identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 servers:
   - url: https://{host}
     variables:

@@ -60,6 +60,13 @@ Path-gated so a client-only change never triggers a server build.
 `crates/slimm-server/tests/response_contract/` goes further and validates real response bodies against the document, including refusals: one representative case per documented error status, since `Error` is the same object on every route.
 Before that, every non-2xx returned before the schema was consulted, so an error body that had drifted from `Error` passed every gate here.
 
+### The Rust compiler is pinned
+
+`rust-toolchain.toml` names an exact version rather than `stable`, and every job that installs Rust reads it, so a new Rust release cannot turn `clippy -D warnings` red on a pull request that touched no Rust (as it did once with `unnecessary_sort_by`).
+The server image copies that file in with the source, so `docker/server.Dockerfile`'s builder tag carries the same version; `scripts/lib/test_rust_toolchain_pinned.py` fails when the two disagree, or when the channel stops being an exact version.
+Bumping Rust is one pull request that changes the pin, the Dockerfile tag and digest together.
+`Cargo.toml` still declares `rust-version = "1.94"`, but no job builds with that version, so the MSRV is declared and not checked.
+
 ### The sqlx cache
 
 `cargo sqlx prepare --workspace --check -- --all-targets`, against a database created and migrated in the same step.
@@ -330,7 +337,7 @@ Any run after that point counts like it does in every other language, and `//` a
 
 Two jobs, one policy.
 `deny.toml` holds the allowlist; cargo-deny reads it directly for the Rust tree and `scripts/check-dart-licenses.py` reads the same `[licenses]` table for the Dart tree.
-One file rather than two, because the failure this gate exists to catch is a copyleft dependency arriving quietly in the Apache-2.0 client, and two policies that can drift is how that arrives.
+One file rather than two, because the failure this gate exists to catch is a copyleft dependency arriving quietly in the client, and two policies that can drift is how that arrives.
 
 It is not part of `hygiene` because both halves need a toolchain.
 `hygiene` is the seconds-long grep job that runs on every push with nothing installed, and a cargo metadata resolve plus a `flutter pub get` would turn that into minutes.
@@ -338,13 +345,13 @@ So it is path-gated on the manifests, the lockfiles and the policy, plus every p
 
 ### What is allowed, and what is not
 
-Every entry in `allow` is permissive and imposes no source-disclosure obligation on either the AGPL server or the Apache-2.0 client (see `LICENSING.md`).
+Every entry in `allow` is permissive and imposes no source-disclosure obligation on either the server or the client (see `LICENSING.md`).
 Nothing is listed speculatively: the list is exactly what the two trees resolve to today, so a new license of any kind stops the gate and gets a human decision.
 
 Three package-level exceptions, each named one package at a time rather than allowing the license outright:
 
 - `slimm-server` is allowed `LicenseRef-PolyForm-Noncommercial-1.0.0`, since it is slim-m itself. Allowing that across the board would let an unrelated crate claim it unnoticed, which is the opposite of what this is for.
-- `dbus` and `nm` are allowed `MPL-2.0`. MPL-2.0 is per-file copyleft: the obligation reaches modifications to those packages' own files and not the application that links them, so it is compatible with shipping an Apache-2.0 client. That is a decision rather than a default, which is why it is two named entries and not a line in `allow`; a new MPL dependency still stops the gate. Both are Linux desktop transitives reached through `connectivity_plus`.
+- `dbus` and `nm` are allowed `MPL-2.0`. MPL-2.0 is per-file copyleft: the obligation reaches modifications to those packages' own files and not the application that links them, so it is compatible with shipping the client. That is a decision rather than a default, which is why it is two named entries and not a line in `allow`; a new MPL dependency still stops the gate. Both are Linux desktop transitives reached through `connectivity_plus`.
 
 Advisories and bans are deliberately not configured here, so this is `cargo deny check licenses` and not `check all`.
 A CVE published upstream would turn every unrelated pull request red through no fault of its own, which is a different job wanting a different trigger; `docs/STRATEGY.md` names `cargo audit` and `osv-scanner` for it.

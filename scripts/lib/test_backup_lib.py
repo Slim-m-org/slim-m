@@ -172,6 +172,15 @@ class SyncAvatarsTest(BackupTestCase):
         name = str(uuid.UUID(bytes=user_id))
         self.assertEqual((self.backup_root / "avatars" / name).read_bytes(), data)
 
+    def test_a_deleted_account_with_no_avatar_file_is_not_a_missing_source(self):
+        user_id = fixtures.new_user_id()
+        fixtures.build_database(self.source_db, deleted_avatar_users=[(user_id, "gone")])
+
+        result = backup_lib.sync_avatars(self.source_db, self.media_dir, self.backup_root)
+
+        self.assertEqual(result["missing_source"], [])
+        self.assertEqual(result["total"], 0)
+
     def test_reports_a_missing_avatar_by_name(self):
         user_id = fixtures.new_user_id()
         fixtures.build_database(self.source_db, avatar_users=[(user_id, "bob")])

@@ -32,6 +32,49 @@ def stroke_placer(api, channel_id="c"):
     return place
 
 
+class _AuthorOnlyApi:
+    def __init__(self, name):
+        self.name = name
+
+
+class BatchRemoveTest(unittest.TestCase):
+    def _run(self, candidates, limit=None):
+        sent = []
+        stats = {"forbidden": 0, "removed": 0, "restored": 0}
+        apis = {i: _AuthorOnlyApi(i) for i in {c["author_index"] for c in candidates}}
+        owner = {c["id"]: c["author_index"] for c in candidates}
+
+        def fake_remove(api, channel_id, op_id, ids):
+            sent.append((api.name, list(ids)))
+            if any(owner[i] != api.name for i in ids):
+                raise urllib.error.HTTPError("http://x", 403, "no", {}, None)
+            return {"op": {"id": str(op_id), "affected": len(ids)}}
+
+        def fake_restore(api, channel_id, op_id, target):
+            return {"op": {"id": "r", "affected": 1}}
+
+        orig = (ops.remove, ops.restore)
+        ops.remove, ops.restore = fake_remove, fake_restore
+        try:
+            history._run_removes_and_restores(
+                apis, None, "c", candidates, random.Random(1), stats)
+        finally:
+            ops.remove, ops.restore = orig
+        return stats, sent
+
+    def test_a_batch_of_several_authors_is_sent_one_remove_per_author(self):
+        candidates = [{"id": f"o{i}", "author_index": i % 2} for i in range(12)]
+        stats, sent = self._run(candidates)
+        self.assertEqual(stats["forbidden"], 0)
+        self.assertTrue(any(len(ids) > 1 for _, ids in sent))
+
+    def test_a_batch_over_the_server_limit_is_chunked(self):
+        candidates = [{"id": f"o{i}", "author_index": 0} for i in range(300)]
+        stats, sent = self._run(candidates)
+        self.assertEqual(stats["forbidden"], 0)
+        self.assertLessEqual(max(len(ids) for _, ids in sent), 64)
+
+
 class ThrowawayBatchTest(unittest.TestCase):
     def test_a_full_batch_leaves_no_placeholder_art(self):
         server = FakeCanvasServer()
