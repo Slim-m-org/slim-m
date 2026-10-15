@@ -11,6 +11,9 @@ export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
 export 'src/audio_gain.dart';
 export 'src/broadcast_bridge.dart';
+export 'src/call_stats.dart';
+export 'src/call_stats_sampler.dart'
+    show CallStatsSampler, CallStatsSnapshot, CallStatsTarget;
 export 'src/camera_devices.dart';
 export 'src/camera_failure.dart';
 export 'src/camera_switching.dart';
@@ -28,6 +31,7 @@ export 'src/remote_video_publication.dart';
 export 'src/screen_share.dart';
 export 'src/screen_share_audio.dart';
 export 'src/screen_share_control.dart';
+export 'src/video_publish_options.dart';
 export 'src/video_quality.dart';
 export 'src/video_subscription_culler.dart';
 export 'src/voice_models.dart';

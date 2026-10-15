@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
@@ -28,6 +29,8 @@ import 'screen_share_audio.dart' as rtc_share_audio;
 import 'audio_device_switching.dart';
 import 'audio_devices.dart';
 import 'broadcast_bridge.dart';
+import 'call_stats.dart';
+import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
 import 'camera_switching.dart';
 import 'camera_view.dart';
@@ -35,8 +38,10 @@ import 'desktop_sources.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_control.dart';
+import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
 import 'voice_disconnect_reason.dart';
+import 'video_publish_options.dart';
 import 'video_quality.dart';
 import 'video_subscription_culler.dart';
 import 'voice_models.dart';
@@ -44,6 +49,7 @@ import 'voice_roster_snapshot.dart';
 
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
+part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
 part 'voice_session_video.dart';
 
@@ -83,7 +89,11 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   /// Settings has chosen; see [VoiceSessionAudioDevices].
   lk.Room _buildRoom() => lk.Room(
         roomOptions: _audioSwitching.roomOptions(
-          const lk.RoomOptions(adaptiveStream: true, dynacast: true),
+          lk.RoomOptions(
+            adaptiveStream: true,
+            dynacast: true,
+            defaultVideoPublishOptions: cameraPublishOptions(),
+          ),
         ),
       );
 
@@ -93,6 +103,12 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
   late final VideoSubscriptionCuller _videoCuller;
+
+  /// Per-track video stats, sampled only while something is listening.
+  late final callStats = CallStatsSampler(
+    targets: () => _callStatsTargets(),
+    log: debugPrint,
+  );
 
   @override
   lk.Room? _room;
@@ -376,14 +392,13 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
       sourceId: sourceId,
       includeAudio: includeAudio,
       maxHeight: maxHeight,
-      publish: (enabled, options, audio) async {
-        // `captureScreenAudio` here, not on `options`, is the flag that actually publishes audio.
-        await room.localParticipant?.setScreenShareEnabled(
-          enabled,
-          captureScreenAudio: audio,
-          screenShareCaptureOptions: options,
-        );
-      },
+      publish: (enabled, options, audio) => publishScreenShare(
+        room.localParticipant,
+        enabled: enabled,
+        options: options,
+        includeAudio: audio,
+        publishOptions: screenSharePublishOptionsFor(quality),
+      ),
       isSharing: () => isSharingScreen(room.localParticipant),
       onSettled: (error) {
         if (error != null) _lastError = error;
@@ -497,6 +512,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
     if (_disposed) return;
     _disposed = true;
     _videoCuller.dispose();
+    await callStats.dispose();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();

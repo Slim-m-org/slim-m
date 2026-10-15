@@ -40,6 +40,7 @@ import '../screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../screens/message_deep_link.dart';
 import '../screens/debug_log_screen.dart';
+import '../screens/call_stats_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/sign_in_screen.dart';
 import '../screens/thread_screen.dart';
@@ -220,6 +221,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             source: state.uri.queryParameters['source'],
           ),
         ),
+      ),
+      GoRoute(
+        path: Routes.callStats,
+        pageBuilder: (context, state) =>
+            modalPage(context, const CallStatsScreen()),
       ),
       GoRoute(
         path: Routes.debugLog,

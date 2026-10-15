@@ -308,7 +308,8 @@ void main() {
         expect(q.width, greaterThan(0));
         expect(q.height, greaterThan(0));
         expect(q.fps, inInclusiveRange(1, 60));
-        expect(q.maxBitrate, inInclusiveRange(1, 5000000),
+        expect(q.maxBitrate,
+            inInclusiveRange(1, ScreenShareQuality.bitrateCeiling),
             reason: '${q.id} must stay inside a home upload');
       }
     });
@@ -330,9 +331,9 @@ void main() {
       }
     });
 
-    test('the default stays 1080p30 at 2.4 Mbps', () {
+    test('the default stays 1080p30, at LiveKit\'s 5 Mbps', () {
       expect(ScreenShareQuality.standard.id, '1080p30');
-      expect(ScreenShareQuality.standard.maxBitrate, 2400000);
+      expect(ScreenShareQuality.standard.maxBitrate, 5000000);
     });
 
     test('an id round-trips and an unknown one is null', () {

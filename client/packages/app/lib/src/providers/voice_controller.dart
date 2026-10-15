@@ -399,6 +399,9 @@ class VoiceController extends StateNotifier<VoiceState>
   @override
   bool get supportsScreenShareAudio => _session.supportsScreenShareAudio;
 
+  /// Live per-track video numbers; sampled only while something listens.
+  CallStatsSampler get callStats => _session.callStats;
+
   /// Toggles local playback of everyone else's audio; independent of muting.
   Future<void> toggleDeafen() async {
     final generation = _callGeneration;

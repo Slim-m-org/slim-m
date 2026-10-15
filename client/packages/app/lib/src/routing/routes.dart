@@ -53,6 +53,7 @@ abstract final class Routes {
   static const adminWebhooks = '/settings/webhooks';
   static const adminAccountRecovery = '/settings/account-recovery';
   static const debugLog = '/settings/debug-log';
+  static const callStats = '/settings/call-stats';
 
   /// One module's manifest and lifecycle, drilled into from the Dock.
   ///
