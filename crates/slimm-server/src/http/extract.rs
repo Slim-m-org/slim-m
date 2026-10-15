@@ -85,13 +85,32 @@ pub(crate) fn limit_key(
     if trusted_hops > 0
         && let Some(addr) = forwarded_for(parts, trusted_hops)
     {
-        return format!("ip:{addr}");
+        return match addr.parse::<std::net::IpAddr>() {
+            Ok(ip) => anonymous_key(ip),
+            Err(_) => format!("ip:{addr}"),
+        };
     }
     parts
         .extensions
         .get::<ConnectInfo<SocketAddr>>()
-        .map(|ConnectInfo(addr)| format!("ip:{}", addr.ip()))
+        .map(|ConnectInfo(addr)| anonymous_key(addr.ip()))
         .unwrap_or_else(|| "ip:unknown".to_owned())
+}
+
+/// One key per IPv4 address, but one per IPv6 /64: a single subscriber
+/// usually holds a whole /64, so keying each address would let one network
+/// mint fresh buckets without end (issue 2068).
+fn anonymous_key(ip: std::net::IpAddr) -> String {
+    match ip {
+        std::net::IpAddr::V4(v4) => format!("ip:{v4}"),
+        std::net::IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
+            Some(v4) => format!("ip:{v4}"),
+            None => {
+                let prefix = u128::from(v6) & !((1u128 << 64) - 1);
+                format!("ip:{}/64", std::net::Ipv6Addr::from(prefix))
+            }
+        },
+    }
 }
 
 /// The address `hops` from the right of `X-Forwarded-For`, or `None` when the
@@ -328,7 +347,7 @@ pub(crate) async fn require_base_permission(
 mod tests {
     use super::{
         ASSET, AUTHED_READ, CANVAS, GIF, INVITE_CHECK, LINK_PREVIEW, PASSWORD, READ, REFRESH,
-        UPLOAD, WRITE, class_of, forwarded_for,
+        UPLOAD, WRITE, anonymous_key, class_of, forwarded_for,
     };
     use crate::ratelimit::Class;
     use axum::http::Request;
@@ -432,5 +451,18 @@ mod tests {
             forwarded_for(&parts(Some("a,, b")), 1).as_deref(),
             Some("b")
         );
+    }
+
+    #[test]
+    fn an_ipv6_caller_is_keyed_by_its_slash_64_and_ipv4_by_its_address() {
+        let key = |s: &str| anonymous_key(s.parse().unwrap());
+        assert_eq!(key("2001:db8:1:2:aaaa::1"), "ip:2001:db8:1:2::/64");
+        assert_eq!(
+            key("2001:db8:1:2:ffff:ffff:ffff:ffff"),
+            "ip:2001:db8:1:2::/64"
+        );
+        assert_ne!(key("2001:db8:1:3::1"), key("2001:db8:1:2::1"));
+        assert_eq!(key("192.0.2.7"), "ip:192.0.2.7");
+        assert_eq!(key("::ffff:192.0.2.7"), "ip:192.0.2.7");
     }
 }

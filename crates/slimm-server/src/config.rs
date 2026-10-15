@@ -389,7 +389,10 @@ mod tests {
             "http://piston:2000".to_owned(),
         )]);
         let config: Config = envy::from_iter(env).expect("a real URL parses");
-        assert_eq!(config.code_runner_url.as_deref(), Some("http://piston:2000"));
+        assert_eq!(
+            config.code_runner_url.as_deref(),
+            Some("http://piston:2000")
+        );
     }
 
     /// The blank-is-none reading must not have swallowed real values.
