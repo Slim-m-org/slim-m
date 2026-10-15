@@ -99,14 +99,15 @@ class AudioDeviceSwitching {
   Future<void> selectInput(lk.Room? room, AudioDevice? device) async {
     _preferredInputId = device?.id;
     if (room == null || !supportsInputSelection) return;
-    final serverDefault =
-        device == null ? await _pulse.defaultNode(capture: true) : null;
-    if (serverDefault != null) {
-      await _pulse.moveOwnStreams(capture: true, deviceId: serverDefault);
+    final target = device ?? await _devices.systemDefaultInput();
+    if (target == null) {
+      // libwebrtc knows no default here; the sound server's own one is the system default.
+      final serverDefault = await _pulse.defaultNode(capture: true);
+      if (serverDefault != null) {
+        await _pulse.moveOwnStreams(capture: true, deviceId: serverDefault);
+      }
       return;
     }
-    final target = device ?? await _devices.systemDefaultInput();
-    if (target == null) return;
     if (isPulseDeviceId(target.id)) {
       await _pulse.moveOwnStreams(capture: true, deviceId: target.id);
       return;
@@ -147,14 +148,15 @@ class AudioDeviceSwitching {
   Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {
     _preferredOutputId = device?.id;
     if (room == null || !supportsOutputSelection) return;
-    final serverDefault =
-        device == null ? await _pulse.defaultNode(capture: false) : null;
-    if (serverDefault != null) {
-      await _pulse.moveOwnStreams(capture: false, deviceId: serverDefault);
+    final target = device ?? await _devices.systemDefaultOutput();
+    if (target == null) {
+      // libwebrtc knows no default here; the sound server's own one is the system default.
+      final serverDefault = await _pulse.defaultNode(capture: false);
+      if (serverDefault != null) {
+        await _pulse.moveOwnStreams(capture: false, deviceId: serverDefault);
+      }
       return;
     }
-    final target = device ?? await _devices.systemDefaultOutput();
-    if (target == null) return;
     if (isPulseDeviceId(target.id)) {
       await _pulse.moveOwnStreams(capture: false, deviceId: target.id);
       return;
