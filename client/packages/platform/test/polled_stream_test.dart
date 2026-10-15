@@ -57,4 +57,30 @@ void main() {
     await sub.cancel();
     expect(calls, greaterThan(3));
   });
+
+  test(
+      'cancel waits out a read part way through, so nothing is sent after it '
+      'resolves', () async {
+    final steps = <String>[];
+    final secondStep = Completer<void>();
+    final sub = polledStream<int>(
+      interval: const Duration(hours: 1),
+      read: () async {
+        steps.add('first');
+        await secondStep.future;
+        steps.add('second');
+        return 1;
+      },
+    ).listen((_) {});
+    await _pause(1);
+
+    final cancelled = sub.cancel();
+    secondStep.complete();
+    await cancelled;
+    final atCancel = List.of(steps);
+    await _pause(3);
+
+    expect(atCancel, ['first', 'second']);
+    expect(steps, atCancel);
+  });
 }
