@@ -156,6 +156,8 @@ Change: the local participant gets a normal tile (320x200, radius 10, the same c
 Names come from presence intersected with channel members, so it shows nothing new to anyone who could not already see them.
 When someone joins, the grid adds a tile.
 
+Amended 2026-10-14: the who-could-join line is gone. The owner asked not to be told who is online while alone in a voice channel, and the lounge music button in the dock now fills that state instead.
+
 Why: for a small group this is the most common call state, and it is currently the emptiest.
 
 ## The controls-with-options rule

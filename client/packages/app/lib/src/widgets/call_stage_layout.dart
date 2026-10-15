@@ -29,12 +29,9 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../providers/call_could_join.dart';
-import '../providers/call_solo.dart';
 import '../providers/voice_controller.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
@@ -347,11 +344,6 @@ class _ParticipantGrid extends StatelessWidget {
                       menuItemsBuilder: menuItemsBuilder,
                     ),
                   ),
-                  if (isAloneInCall(participants) && channelId != null && !isDm)
-                    _AloneHint(
-                      channelId: channelId!,
-                      joined: {for (final p in participants) p.identity},
-                    ),
                 ],
               ),
             ),
@@ -360,34 +352,6 @@ class _ParticipantGrid extends StatelessWidget {
       );
     },
   );
-}
-
-/// One line naming who could join, shown only while you are alone in a voice
-/// channel's call; a DM has no member list to draw from.
-class _AloneHint extends ConsumerWidget {
-  const _AloneHint({required this.channelId, required this.joined});
-
-  final String channelId;
-  final Set<String> joined;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final names = [
-      for (final m in ref.watch(callCouldJoinProvider(channelId)))
-        if (!joined.contains(m.id)) m.displayName,
-    ];
-    final line = couldJoinLine(names);
-    if (line == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s16),
-      child: Text(
-        line,
-        textAlign: TextAlign.center,
-        style: AppText.caption.copyWith(color: tokens.textSecondary),
-      ),
-    );
-  }
 }
 
 /// One participant's tile, shared by the grid and the filmstrip: their live
