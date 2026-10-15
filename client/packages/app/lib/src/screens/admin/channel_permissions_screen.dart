@@ -153,7 +153,10 @@ class _ChannelList extends ConsumerWidget {
                 ),
                 label: c.name,
                 trailing: (c.restricted ?? false)
-                    ? const Icon(AppIcons.restrictedChannel, size: AppSizes.icon16)
+                    ? const Icon(
+                        AppIcons.restrictedChannel,
+                        size: AppSizes.icon16,
+                      )
                     : null,
                 onTap: () => onPick(c),
               ),
