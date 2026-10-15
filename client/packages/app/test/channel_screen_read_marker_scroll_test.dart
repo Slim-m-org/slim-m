@@ -94,7 +94,10 @@ class _Harness {
   final MessageStore store;
 }
 
-Future<_Harness> _mount(WidgetTester tester) async {
+Future<_Harness> _mount(
+  WidgetTester tester, {
+  Future<void> Function(MessageStore store)? beforeOpen,
+}) async {
   tester.view.physicalSize = const Size(500, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -110,6 +113,7 @@ Future<_Harness> _mount(WidgetTester tester) async {
   await store.applyMessages([
     for (var seq = 1; seq <= _seedCount; seq++) _message('m$seq', seq),
   ]);
+  await beforeOpen?.call(store);
 
   final container = ProviderContainer(
     overrides: [
@@ -189,6 +193,30 @@ Future<void> _unmount(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'a channel whose newest message was deleted before it was read still '
+    'clears its unread mark when opened',
+    (tester) async {
+      final h = await _mount(
+        tester,
+        beforeOpen: (store) async {
+          await store.applyMessage(_message('gone', _seedCount + 1));
+          await store.discard('gone');
+        },
+      );
+
+      expect(
+        h.markReadSeqs,
+        contains(_seedCount + 1),
+        reason:
+            'the deleted message advanced the channel past every visible one',
+      );
+      expect(await _lastReadSeq(h.db), _seedCount + 1);
+
+      await _unmount(tester);
+    },
+  );
+
   testWidgets(
     'opening a channel before the scroll view has laid out still marks it '
     'read, the same as before this change',
