@@ -46,7 +46,7 @@ class _FakeSource implements NowPlayingSource {
 }
 
 class _Harness {
-  _Harness({this.source, this.storedVisibility}) {
+  _Harness({this.source, this.storedVisibility, this.meHeld}) {
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -60,12 +60,12 @@ class _Harness {
             httpClient: MockClient((request) async {
               // The stored visibility is read from /me; it is not an activity call.
               if (request.url.path == '/me') {
+                await meHeld?.future;
                 final stored = storedVisibility;
-                if (stored == null) return http.Response('{}', 404);
                 return http.Response(
                   '{"id":"self","username":"self","display_name":"Self",'
-                  '"created_at":0,"permissions":0,'
-                  '"presence_visibility":"$stored"}',
+                  '"created_at":0,"permissions":0'
+                  '${stored == null ? '' : ',"presence_visibility":"$stored"'}}',
                   200,
                   headers: {'content-type': 'application/json'},
                 );
@@ -86,6 +86,9 @@ class _Harness {
 
   final _FakeSource? source;
   final String? storedVisibility;
+
+  /// Holds /me unanswered until completed, for the launch window.
+  final Completer<void>? meHeld;
   final events = StreamController<api.ServerEvent>.broadcast(sync: true);
   final calls = <String>[];
   late final ProviderContainer container;
@@ -96,6 +99,8 @@ class _Harness {
     });
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);
+    // The feeds wait for /me to say the member is visible.
+    if (meHeld == null) await container.read(meProvider.future);
     await settle();
   }
 
@@ -196,6 +201,33 @@ void main() {
     expect(h.calls, isEmpty);
     expect(source.open, isFalse);
   });
+
+  test(
+    'nothing is shared before /me says whether the member is hidden',
+    () async {
+      final source = _FakeSource();
+      final held = Completer<void>();
+      final h = _Harness(
+        source: source,
+        storedVisibility: 'hidden',
+        meHeld: held,
+      );
+      await h.start(enabled: true);
+      source.play(const NowPlaying(title: 'Song', artist: 'Band'));
+      await h.settle();
+      expect(
+        h.calls,
+        isEmpty,
+        reason: 'visibility is unknown, so nothing goes out',
+      );
+
+      held.complete();
+      await h.settle();
+      await h.settle();
+      expect(h.calls, isEmpty, reason: 'and then it is hidden');
+      await h.dispose();
+    },
+  );
 
   test('hiding after sharing clears it, and unhiding shares again', () async {
     final source = _FakeSource();

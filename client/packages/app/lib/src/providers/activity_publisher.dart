@@ -31,6 +31,10 @@ class ActivityPublisher {
       ownVisibilityProvider,
       (_, _) => _refresh(),
     );
+    _ref.listen(
+      effectiveMeProvider.select((me) => me != null),
+      (_, _) => _refresh(),
+    );
     _events = _ref.read(liveEventsProvider).listen(_onEvent);
     _refresh();
   }
@@ -48,11 +52,17 @@ class ActivityPublisher {
   bool _pushing = false;
   bool _disposed = false;
 
-  bool get _hidden =>
-      _ref.read(ownVisibilityProvider) == api.PresenceVisibility.hidden;
+  /// Visible only once known: before /me answers, a member the server has as
+  /// hidden would otherwise share for a moment. A loaded /me with no field
+  /// is a server too old to say, which never hides anyone.
+  bool get _visible {
+    final visibility = _ref.read(ownVisibilityProvider);
+    if (visibility != null) return visibility != api.PresenceVisibility.hidden;
+    return _ref.read(effectiveMeProvider) != null;
+  }
 
   bool _wanted(ActivityFeed feed) =>
-      _ref.read(feed.enabled) && _ref.read(feed.available) && !_hidden;
+      _ref.read(feed.enabled) && _ref.read(feed.available) && _visible;
 
   void _refresh() {
     for (final feed in _ref.read(activityFeedsProvider)) {
@@ -91,7 +101,7 @@ class ActivityPublisher {
   }
 
   (ActivityFeed, api.PresenceActivity)? _choose() {
-    if (_hidden) return null;
+    if (!_visible) return null;
     for (final feed in _ref.read(activityFeedsProvider)) {
       final reading = _readings[feed];
       if (reading == null || !_wanted(feed)) continue;

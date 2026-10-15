@@ -76,11 +76,19 @@ class _Rig {
     );
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);
+    await container.read(meProvider.future);
     await settle();
   }
 
   Future<http.Response> _answer(http.Request request) async {
-    if (request.url.path == '/me') return http.Response('{}', 404);
+    if (request.url.path == '/me') {
+      return http.Response(
+        '{"id":"self","username":"self","display_name":"Self",'
+        '"created_at":0,"permissions":0}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     if (request.method != 'PUT') return http.Response('', 204);
     final title = (jsonDecode(request.body) as Map<String, dynamic>)['title'];
     puts.add('$title');
