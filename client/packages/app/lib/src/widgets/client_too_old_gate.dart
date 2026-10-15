@@ -84,6 +84,22 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     );
   }
 
+  Future<void> _openTestFlight() async {
+    var opened = false;
+    try {
+      opened = await launchUrl(
+        Uri.parse('itms-beta://'),
+        mode: LaunchMode.externalApplication,
+      );
+    } on PlatformException {
+      opened = false;
+    }
+    if (!mounted || opened) return;
+    setState(
+      () => _error = 'Could not open TestFlight. Open it from the home screen.',
+    );
+  }
+
   String get _hint => widget.isWeb
       ? 'Reload to load the newest version.'
       : updateActionHint(_format);
@@ -93,6 +109,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     return switch (_format) {
       InstallFormat.rpm => _TooOldAction.dnf,
       InstallFormat.flatpak || InstallFormat.deb => _TooOldAction.none,
+      InstallFormat.testFlight => _TooOldAction.testFlight,
       _ => _TooOldAction.release,
     };
   }
@@ -107,6 +124,9 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
         return;
       case _TooOldAction.release:
         await _openRelease();
+        return;
+      case _TooOldAction.testFlight:
+        await _openTestFlight();
         return;
       case _TooOldAction.none:
         return;
@@ -198,6 +218,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
                           label: switch (_action) {
                             _TooOldAction.dnf => 'Update now',
                             _TooOldAction.reload => 'Reload',
+                            _TooOldAction.testFlight => 'Open TestFlight',
                             _ => 'Open the release',
                           },
                           variant: AppButtonVariant.primary,
@@ -219,4 +240,4 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
   }
 }
 
-enum _TooOldAction { dnf, reload, release, none }
+enum _TooOldAction { dnf, reload, release, testFlight, none }

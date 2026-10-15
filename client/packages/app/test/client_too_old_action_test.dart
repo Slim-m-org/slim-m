@@ -111,6 +111,18 @@ void main() {
     expect(launched, [releasesUrl]);
   });
 
+  testWidgets(
+    'iphone: opens testflight, never the github release (issue 1940)',
+    (tester) async {
+      final launched = _mockLauncher(tester);
+      await _pump(tester, InstallFormat.testFlight);
+      expect(find.text('Update in the TestFlight app.'), findsOneWidget);
+      await tester.tap(find.text('Open TestFlight'));
+      await tester.pump();
+      expect(launched, ['itms-beta://']);
+    },
+  );
+
   testWidgets('a launch that did not happen is shown', (tester) async {
     _mockLauncher(tester, result: false);
     await _pump(tester, InstallFormat.tarball);

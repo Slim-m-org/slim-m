@@ -27,8 +27,9 @@ SlimmApi _client(SessionStore session, Completer<void> release,
       httpClient: MockClient((request) async {
         if (request.url.path == '/auth/refresh') {
           await release.future;
-          if (refreshStatus != 200)
+          if (refreshStatus != 200) {
             return http.Response('{"error":"revoked"}', refreshStatus);
+          }
           return http.Response(
             jsonEncode({
               'user_id': 'user-1',

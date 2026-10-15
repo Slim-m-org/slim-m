@@ -56,18 +56,24 @@ void main() {
     InstallFormat forHost({
       bool web = false,
       bool android = false,
+      bool ios = false,
       bool desktop = false,
       InstallFormat sniffed = InstallFormat.tarball,
     }) =>
         installFormatForHost(
           isWeb: web,
           isAndroid: android,
+          isIOS: ios,
           isDesktop: desktop,
           desktop: () => sniffed,
         );
 
     test('a sideloaded android build is an apk', () {
       expect(forHost(android: true), InstallFormat.apk);
+    });
+
+    test('an iphone build updates through testflight', () {
+      expect(forHost(ios: true), InstallFormat.testFlight);
     });
 
     test('a desktop host answers what its packaging sniffs as', () {

@@ -39,7 +39,11 @@ enum InstallFormat {
   /// is how it gets a new version.
   apk,
 
-  /// Not a desktop or Android build, or the packaging could not be determined.
+  /// An iPhone build, which only ever arrives through TestFlight and is
+  /// updated there.
+  testFlight,
+
+  /// Not a desktop or phone build, or the packaging could not be determined.
   unknown,
 }
 
@@ -51,6 +55,7 @@ const String _bakedFormat = String.fromEnvironment('SLIMM_INSTALL_FORMAT');
 InstallFormat currentInstallFormat() => installFormatForHost(
       isWeb: kIsWeb,
       isAndroid: isAndroidHost,
+      isIOS: isIOSHost,
       isDesktop: isDesktopHost,
       desktop: () => resolveInstallFormat(
         baked: _bakedFormat,
@@ -67,11 +72,13 @@ InstallFormat currentInstallFormat() => installFormatForHost(
 InstallFormat installFormatForHost({
   required bool isWeb,
   required bool isAndroid,
+  bool isIOS = false,
   required bool isDesktop,
   required InstallFormat Function() desktop,
 }) {
   if (isWeb) return InstallFormat.unknown;
   if (isAndroid) return InstallFormat.apk;
+  if (isIOS) return InstallFormat.testFlight;
   if (!isDesktop) return InstallFormat.unknown;
   return desktop();
 }

@@ -99,6 +99,7 @@ String automaticUpdatesDescription(InstallFormat format) => switch (format) {
   InstallFormat.appImage ||
   InstallFormat.tarball ||
   InstallFormat.apk ||
+  InstallFormat.testFlight ||
   InstallFormat.unknown =>
     'Tell me at startup when a new version is available.',
 };
