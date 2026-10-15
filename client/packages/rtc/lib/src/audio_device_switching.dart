@@ -61,18 +61,31 @@ class AudioDeviceSwitching {
         ),
       );
 
+  /// Forgets a remembered microphone or speaker that is no longer plugged in,
+  /// so the next [roomOptions] asks for the system default instead of a device
+  /// the browser would refuse outright.
+  Future<void> forgetUnpluggedPreferences() async {
+    final input = _preferredInputId;
+    if (input != null && resolveAudioDevice(await inputs(), input) == null) {
+      _preferredInputId = null;
+    }
+    final output = _preferredOutputId;
+    if (output != null && resolveAudioDevice(await outputs(), output) == null) {
+      _preferredOutputId = null;
+    }
+  }
+
   /// Applies [device] to [room]'s live input when one exists and this
   /// platform honours it, and remembers it either way for the next
   /// [roomOptions].
   ///
-  /// Null means the system default. Mid-call, that reselects whichever
-  /// device [AudioDevices.inputs] enumerates first - the same convention
-  /// livekit_client's own `Hardware.selectedAudioInput` uses to seed itself
-  /// before any explicit choice has been made.
+  /// Null means the system default. Mid-call, that selects the platform's
+  /// own default entry, and changes nothing live where it lists none: the
+  /// first physical device is not the system default.
   Future<void> selectInput(lk.Room? room, AudioDevice? device) async {
     _preferredInputId = device?.id;
     if (room == null || !supportsInputSelection) return;
-    final target = device ?? await _firstOf(_devices.inputs);
+    final target = device ?? await _devices.systemDefaultInput();
     if (target == null) return;
     await _liveInput(room, _asMediaDevice(target, 'audioinput'));
   }
@@ -97,16 +110,9 @@ class AudioDeviceSwitching {
   Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {
     _preferredOutputId = device?.id;
     if (room == null || !supportsOutputSelection) return;
-    final target = device ?? await _firstOf(_devices.outputs);
+    final target = device ?? await _devices.systemDefaultOutput();
     if (target == null) return;
     await room.setAudioOutputDevice(_asMediaDevice(target, 'audiooutput'));
-  }
-
-  Future<AudioDevice?> _firstOf(
-    Future<List<AudioDevice>> Function() list,
-  ) async {
-    final devices = await list();
-    return devices.isEmpty ? null : devices.first;
   }
 
   lk.MediaDevice _asMediaDevice(AudioDevice device, String kind) =>

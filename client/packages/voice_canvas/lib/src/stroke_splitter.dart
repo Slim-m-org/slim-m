@@ -44,10 +44,11 @@ class StrokeSegment {
 /// nine characters given [maxObjectExtent], and each segment repeats the
 /// previous one's last point so a split leaves no visible seam.
 List<StrokeSegment> splitStroke(
-  List<Offset> worldPoints, {
+  List<Offset> rawPoints, {
   int maxPropsBytes = 3500,
 }) {
-  if (worldPoints.isEmpty) return const <StrokeSegment>[];
+  if (rawPoints.isEmpty) return const <StrokeSegment>[];
+  final worldPoints = _withinExtentSteps(rawPoints);
   final segments = <StrokeSegment>[];
   var start = 0;
   while (start < worldPoints.length) {
@@ -59,6 +60,31 @@ List<StrokeSegment> splitStroke(
     start = stop - 1;
   }
   return segments;
+}
+
+/// Inserts points into any step wider than [maxObjectExtent], because the
+/// forced two-point segment below skips the extent check and one such step
+/// would otherwise be a segment the server refuses.
+List<Offset> _withinExtentSteps(List<Offset> points) {
+  var needsWork = false;
+  for (var i = 1; i < points.length; i++) {
+    if (_stepParts(points[i - 1], points[i]) > 1) needsWork = true;
+  }
+  if (!needsWork) return points;
+  final out = <Offset>[points.first];
+  for (var i = 1; i < points.length; i++) {
+    final parts = _stepParts(points[i - 1], points[i]);
+    for (var k = 1; k < parts; k++) {
+      out.add(Offset.lerp(points[i - 1], points[i], k / parts)!);
+    }
+    out.add(points[i]);
+  }
+  return out;
+}
+
+int _stepParts(Offset a, Offset b) {
+  final longest = math.max((b.dx - a.dx).abs(), (b.dy - a.dy).abs());
+  return (longest / maxObjectExtent).ceil();
 }
 
 /// The largest `candidate` for which the segment `[start, candidate)` still

@@ -192,4 +192,17 @@ void main() {
       );
     }
   });
+
+  test('a single step wider than the extent limit is subdivided', () {
+    final segments = splitStroke(const [Offset(0, 0), Offset(9000, 0)]);
+
+    expect(segments.length, greaterThan(1));
+    for (final segment in segments) {
+      expect(segment.w, lessThanOrEqualTo(maxObjectExtent));
+      expect(segment.h, lessThanOrEqualTo(maxObjectExtent));
+    }
+    expect(
+        segments.last.x + segments.last.points[segments.last.points.length - 2],
+        closeTo(9000, 0.01));
+  });
 }

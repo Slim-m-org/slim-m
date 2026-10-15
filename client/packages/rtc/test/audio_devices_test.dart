@@ -26,6 +26,14 @@ class _FakeAudioDevices implements AudioDevices {
   Future<List<AudioDevice>> outputs() async => outputDevices;
 
   @override
+  Future<AudioDevice?> systemDefaultInput() async =>
+      inputDevices.where((d) => d.id == 'default').firstOrNull;
+
+  @override
+  Future<AudioDevice?> systemDefaultOutput() async =>
+      outputDevices.where((d) => d.id == 'default').firstOrNull;
+
+  @override
   Stream<void> get onChange => _changes.stream;
 
   void fireChange() => _changes.add(null);

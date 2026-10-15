@@ -64,6 +64,28 @@ void main() {
   });
 
   group('FirstFrameReveal', () {
+    testWidgets('the child keeps its state across the first frame', (
+      tester,
+    ) async {
+      final tracker = FirstFrameTracker();
+      final probe = _LifecycleProbe();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FirstFrameReveal(
+            tracker: tracker,
+            placeholder: const Text('PLACEHOLDER'),
+            child: probe,
+          ),
+        ),
+      );
+
+      tracker.markFirstFrame();
+      await tester.pump();
+
+      expect(probe.inits, 1);
+      expect(probe.disposes, 0);
+    });
+
     testWidgets('covers the child with the placeholder before the first frame',
         (
       tester,
@@ -163,4 +185,32 @@ class _ProbeState extends State<_Probe> {
 
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Counts how often its state is created and disposed, to show a remount.
+class _LifecycleProbe extends StatefulWidget {
+  _LifecycleProbe();
+
+  int inits = 0;
+  int disposes = 0;
+
+  @override
+  State<_LifecycleProbe> createState() => _LifecycleProbeState();
+}
+
+class _LifecycleProbeState extends State<_LifecycleProbe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.inits++;
+  }
+
+  @override
+  void dispose() {
+    widget.disposes++;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('TEXTURE');
 }

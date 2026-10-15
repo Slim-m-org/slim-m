@@ -208,6 +208,7 @@ class UniformGrid {
     _count = 0;
     _removed = 0;
     _queryId = 0;
+    _stamp.fillRange(0, _stamp.length, 0);
   }
 
   /// Swap-remove: order is irrelevant because `CanvasDocument.paintOrder`

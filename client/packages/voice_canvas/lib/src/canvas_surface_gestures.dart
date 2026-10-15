@@ -180,6 +180,34 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
   }
 
+  /// The system took the touch (a back gesture, palm rejection): not a lift,
+  /// so nothing is committed. Live gestures still close, since they have
+  /// already acted and would otherwise never learn they ended.
+  void _cancel(PointerEvent event) {
+    _pointers = (_pointers - 1).clamp(0, 10);
+    if (_panning.value) {
+      if (event.pointer == _panPointer) _endPan();
+      return;
+    }
+    _pendingPlacementTool = null;
+    _pendingPlacementWorld = null;
+    _shapeDraft.cancel();
+    _pendingErasePoint = null;
+    switch (widget.tool) {
+      case CanvasTool.eraser:
+        if (_totalPointers == 0) widget.onEraseEnd?.call();
+      case CanvasTool.pan:
+        if (_totalPointers == 0) widget.onSelectEnd?.call();
+      case CanvasTool.note:
+      case CanvasTool.shape:
+        break;
+      case CanvasTool.pen:
+        if (_draft.isEmpty) return;
+        _draft.cancel();
+        widget.onDraftEnded?.call();
+    }
+  }
+
   /// Fires whichever placement [_down] armed, at the point it was armed
   /// with, only on the [_up] that drops [_pointers] to zero. Runs once per
   /// lifted pointer and consumes pending state on its first call regardless
