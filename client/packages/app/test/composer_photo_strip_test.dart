@@ -266,7 +266,10 @@ void main() {
     await pump(tester, _FakeLibrary(PhotoAccess.full));
     await _openStrip(tester);
 
-    await tester.drag(find.bySemanticsLabel('Close photo strip'), const Offset(0, 160));
+    await tester.drag(
+      find.bySemanticsLabel('Close photo strip'),
+      const Offset(0, 160),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(ComposerPhotoStrip), findsNothing);

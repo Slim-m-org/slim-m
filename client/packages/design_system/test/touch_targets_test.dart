@@ -47,7 +47,10 @@ void main() {
           AppSizes.rowTouch);
       expect(tester.getSize(find.byType(AppListRow)).height, AppSizes.rowTouch);
       expect(tester.getSize(find.byType(AppButton)).height, AppSizes.rowTouch);
-      expect(tester.getSize(find.byType(AppMenuItem)).height, 48);
+      expect(
+        tester.getSize(find.byType(AppMenuItem)).height,
+        AppSizes.rowTouchMenu,
+      );
     });
 
     testWidgets('a desktop window leaves every control at pointer size',
