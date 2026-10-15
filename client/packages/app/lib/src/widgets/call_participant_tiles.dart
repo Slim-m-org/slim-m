@@ -184,7 +184,7 @@ class CallParticipantTile extends StatelessWidget {
             child: GestureDetector(
               onTap: onTapHere,
               child: AnimatedSize(
-                duration: AppMotion.reduced(context, AppMotion.base),
+                duration: AppMotion.reducedSize(context, AppMotion.base),
                 curve: AppMotion.entrance,
                 alignment: Alignment.topCenter,
                 child: ClipRRect(
