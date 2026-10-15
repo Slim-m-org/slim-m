@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.106.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.105.0...client-v0.106.0) (2026-10-15)
+
+
+### Features
+
+* real lounge music, mic switching that sticks, retention counts, 4K screen share and settings cleanup ([#2197](https://github.com/Slim-m-org/slim-m/issues/2197)) ([1175e0e](https://github.com/Slim-m-org/slim-m/commit/1175e0e9c9585980fe077c50b0cad3e5a2b6bc34))
+
+
+### Bug Fixes
+
+* alone in a call no longer lists who is online, and the music menu shows plain style names ([#2201](https://github.com/Slim-m-org/slim-m/issues/2201)) ([9d09bb7](https://github.com/Slim-m-org/slim-m/commit/9d09bb7e86d7ed1c4f1b966cd8cd8ddddd56cb88))
+* live photos send as pictures, a swipeable photo grid, compact phone sheets, and no redundant paste row on iOS ([#2202](https://github.com/Slim-m-org/slim-m/issues/2202)) ([c2d6f5b](https://github.com/Slim-m-org/slim-m/commit/c2d6f5bc092fc86b75be3f540ec08d6c7f227c37))
+* phone settings show the same call strip as the rest of the app, without the yellow underlines ([#2203](https://github.com/Slim-m-org/slim-m/issues/2203)) ([0eb1de1](https://github.com/Slim-m-org/slim-m/commit/0eb1de17dad2e2b4b1faf6949bbd2b560b10e203))
+* read-only channels stop notifying everyone, a private toggle in channel settings, and a quieter failed message ([#2198](https://github.com/Slim-m-org/slim-m/issues/2198)) ([3ab285e](https://github.com/Slim-m-org/slim-m/commit/3ab285ec5ee230886f039657e8cbd88d5e893437))
+
 ## [0.105.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.104.0...client-v0.105.0) (2026-10-14)
 
 
