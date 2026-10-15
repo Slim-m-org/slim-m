@@ -266,6 +266,7 @@ pub async fn run(c: &mut Contract) {
     let message = message_calls(c, root, &channel).await;
     bulk_delete_by_author_call(c, root, bob_token, &bob_id, &channel).await;
     thread_calls(c, root, &channel, &message).await;
+    channel_retention_calls(c, root, &channel).await;
     emoji_calls(c, root).await;
     moderation_calls(c, root, bob_token, &message).await;
 
@@ -457,4 +458,26 @@ async fn invite_calls(c: &mut Contract, root: &str, bob_token: &str) {
     .await;
     c.bare("revokeInvite", "DELETE", &format!("/invites/{spare}"), root)
         .await;
+}
+
+/// A channel's own retention, set and cleared again so the rest of the pass keeps following the Space.
+async fn channel_retention_calls(c: &mut Contract, root: &str, channel: &str) {
+    let path = format!("/channels/{channel}/retention");
+    c.get("getChannelRetention", &path, root).await;
+    c.get(
+        "previewChannelRetention",
+        &format!("{path}/preview?days=30"),
+        root,
+    )
+    .await;
+    for days in [json!(30), json!(null)] {
+        c.json(
+            "updateChannelRetention",
+            "PUT",
+            &path,
+            root,
+            json!({ "retention_days": days }),
+        )
+        .await;
+    }
 }

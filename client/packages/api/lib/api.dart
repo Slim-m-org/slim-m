@@ -21,6 +21,7 @@ export 'src/client.dart'
         AnalyticsMemorySample,
         AnalyticsStats,
         Bot,
+        ChannelRetention,
         ChannelStorage,
         DbPoolStats,
         MemberAttachmentUsage,

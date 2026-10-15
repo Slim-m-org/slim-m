@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT retention_days AS \"d!: i64\" FROM channel_retention WHERE channel_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "d!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a9f427286fe217f025af9b53f6dc7168d2edf1f3aaa12f6254430d1035bb4b1d"
+}

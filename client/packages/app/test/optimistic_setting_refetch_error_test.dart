@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/performance_screen.dart';
+import 'package:slimm_app/src/screens/admin/space_voice_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -32,7 +33,7 @@ http.Response _json(Map<String, dynamic> body) => http.Response(
 
 /// Serves the three settings at their defaults, takes every PATCH, and fails
 /// every GET of [brokenPath] once a PATCH has gone through.
-Widget _app(String brokenPath) {
+Widget _app(String brokenPath, {Widget screen = const PerformanceScreen()}) {
   var saved = false;
   final client = MockClient((request) async {
     if (request.method == 'PATCH') {
@@ -77,7 +78,7 @@ Widget _app(String brokenPath) {
     container: container,
     child: MaterialApp(
       theme: buildTheme(Brightness.dark, AppTokens.dark),
-      home: const Scaffold(body: PerformanceScreen()),
+      home: Scaffold(body: screen),
     ),
   );
 }
@@ -101,7 +102,9 @@ void main() {
 
   testWidgets('the screen share cap keeps the saved value when the refetch '
       'fails', (tester) async {
-    await tester.pumpWidget(_app('/space/screen-share'));
+    await tester.pumpWidget(
+      _app('/space/screen-share', screen: const SpaceVoiceScreen()),
+    );
     await tester.pumpAndSettle();
     await _tapOption(tester, '720p');
     expect(find.textContaining('Shares are capped at'), findsOneWidget);

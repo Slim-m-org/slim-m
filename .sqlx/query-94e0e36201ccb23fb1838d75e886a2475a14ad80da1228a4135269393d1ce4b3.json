@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"n!: i64\" FROM messages m\n               JOIN channels c ON c.id = m.channel_id\n               LEFT JOIN messages pm ON pm.id = c.parent_message_id\n               WHERE m.deleted_at IS NULL AND m.created_at < ?\n                 AND COALESCE(pm.channel_id, c.id) = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "n!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "94e0e36201ccb23fb1838d75e886a2475a14ad80da1228a4135269393d1ce4b3"
+}

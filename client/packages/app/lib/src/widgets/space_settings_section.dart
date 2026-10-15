@@ -35,6 +35,7 @@ import '../screens/admin/dock_screen.dart';
 import '../screens/admin/emoji_screen.dart';
 import '../screens/admin/invites_screen.dart';
 import '../screens/admin/performance_screen.dart';
+import '../screens/admin/space_voice_screen.dart';
 import '../screens/admin/removed_members_screen.dart';
 import '../screens/admin/reports_screen.dart';
 import '../screens/admin/roles_screen.dart';
@@ -172,6 +173,14 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
     SettingsPaneGroup(
       label: ActionLabels.operationsGroup,
       panes: [
+        if (canManageServer)
+          SettingsPane(
+            id: 'space-voice',
+            label: ActionLabels.spaceVoice,
+            icon: AppIcons.voice,
+            compactRoute: Routes.adminSpaceVoice,
+            builder: (_) => const SpaceVoicePane(),
+          ),
         if (canManageServer)
           SettingsPane(
             id: 'performance',

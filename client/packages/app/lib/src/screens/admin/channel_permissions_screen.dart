@@ -15,7 +15,7 @@ import '../../providers/providers.dart';
 import '../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
 import 'channel_permissions_grid.dart';
-import 'overwrite_target_picker_sheets.dart';
+import '../../providers/dms.dart' show dmChannelKind;
 
 class ChannelPermissionsScreen extends StatelessWidget {
   const ChannelPermissionsScreen({super.key, this.initialChannel});
@@ -68,37 +68,12 @@ class _ChannelPermissionsPaneState
     _channel = widget.initialChannel;
   }
 
-  Future<void> _pickChannel() async {
-    final store = await ref.read(storeProvider.future);
-    final channels = await store.watchChannels().first;
-    if (!mounted) return;
-    final picked = await showAppSheet<Channel>(
-      context,
-      builder: (context) => ChannelPickerSheet(channels: channels),
-    );
-    if (picked == null || !mounted) return;
-    setState(() => _channel = picked);
-  }
-
   @override
   Widget build(BuildContext context) {
     final channel = _channel;
     if (channel == null) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppListRow(
-              label: 'Choose a channel',
-              trailing: const Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
-              ),
-              onTap: _pickChannel,
-            ),
-          ],
-        ),
+      return _ChannelList(
+        onPick: (picked) => setState(() => _channel = picked),
       );
     }
 
@@ -125,8 +100,8 @@ class _ChannelPermissionsPaneState
                   ),
                 ),
                 TextButton(
-                  onPressed: _pickChannel,
-                  child: const Text('Change'),
+                  onPressed: () => setState(() => _channel = null),
+                  child: const Text('All channels'),
                 ),
               ],
             ),
@@ -145,6 +120,46 @@ class _ChannelPermissionsPaneState
           constraints.hasBoundedHeight ? Expanded(child: grid) : grid,
         ],
       ),
+    );
+  }
+}
+
+/// Every channel at once, in rail order, so picking one is a single tap
+/// rather than a row that opens a sheet. A DM carries no overwrites.
+class _ChannelList extends ConsumerWidget {
+  const _ChannelList({required this.onPick});
+
+  final ValueChanged<Channel> onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(storeProvider).valueOrNull;
+    if (store == null) return const SizedBox.shrink();
+    return StreamBuilder<List<Channel>>(
+      stream: store.watchChannels(),
+      builder: (context, snapshot) {
+        final channels = [
+          for (final c in snapshot.data ?? const <Channel>[])
+            if (c.kind != dmChannelKind) c,
+        ];
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.s8),
+          children: [
+            for (final c in channels)
+              AppListRow(
+                leading: Icon(
+                  c.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+                  size: AppSizes.icon16,
+                ),
+                label: c.name,
+                trailing: (c.restricted ?? false)
+                    ? const Icon(AppIcons.restrictedChannel, size: AppSizes.icon16)
+                    : null,
+                onTap: () => onPick(c),
+              ),
+          ],
+        );
+      },
     );
   }
 }

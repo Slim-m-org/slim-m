@@ -29,6 +29,7 @@ import '../screens/admin/dock_screen.dart';
 import '../screens/admin/emoji_screen.dart';
 import '../screens/admin/invites_screen.dart';
 import '../screens/admin/performance_screen.dart';
+import '../screens/admin/space_voice_screen.dart';
 import '../screens/admin/reports_screen.dart';
 import '../screens/admin/removed_members_screen.dart';
 import '../screens/admin/role_detail_screen.dart';
@@ -187,6 +188,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminPerformance,
         pageBuilder: (context, state) =>
             modalPage(context, const PerformanceScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminSpaceVoice,
+        pageBuilder: (context, state) =>
+            modalPage(context, const SpaceVoiceScreen()),
       ),
       GoRoute(
         path: Routes.adminStorage,

@@ -186,7 +186,7 @@ void main() {
     expect(upstream.count('GET /space/dock/sources'), greaterThan(readsBefore));
   });
 
-  testWidgets('picking a channel after the pane is gone does not throw', (
+  testWidgets('every channel is listed, and a tap opens its grid', (
     tester,
   ) async {
     await _size(tester);
@@ -204,33 +204,23 @@ void main() {
       isPersonalSpace: false,
     );
     final container = _container(_Upstream(), store: _FakeStore([channel]));
-    final show = ValueNotifier(true);
-    addTearDown(show.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
-            body: ValueListenableBuilder<bool>(
-              valueListenable: show,
-              builder: (context, on, _) =>
-                  on ? const ChannelPermissionsPane() : const SizedBox(),
-            ),
-          ),
+          home: const Scaffold(body: ChannelPermissionsPane()),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose a channel'));
-    await tester.pumpAndSettle();
-    expect(find.text('general'), findsOneWidget);
+    expect(find.text('general'), findsOneWidget, reason: 'no picker first');
 
-    show.value = false;
-    await tester.pump();
     await tester.tap(find.text('general'));
     await tester.pumpAndSettle();
 
+    expect(find.text('general · Permissions'), findsOneWidget);
+    expect(find.text('All channels'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
