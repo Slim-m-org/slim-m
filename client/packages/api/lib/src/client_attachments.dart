@@ -32,17 +32,41 @@ extension SlimmApiAttachments on SlimmApi {
     required int length,
     String? filename,
     void Function(int sent)? onProgress,
+  }) async {
+    final response = await _sendStreamed(
+      'POST',
+      '/attachments',
+      open: open,
+      length: length,
+      query: filename == null ? null : {'filename': filename},
+      onProgress: onProgress,
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Attachment.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+    }
+    throw _errorFor(response);
+  }
+
+  /// Sends a raw body read from [open] and answers the response unmapped, so
+  /// the caller decides what a status means. Replays once after a 401.
+  ///
+  /// [sendDeadline] bounds the send itself, which a plain upload leaves open
+  /// but a part of a resumable one cannot: a stalled part has to fail so the
+  /// uploader can resume from the server's offset.
+  Future<http.Response> _sendStreamed(
+    String method,
+    String path, {
+    required Stream<List<int>> Function() open,
+    required int length,
+    Map<String, String>? query,
+    void Function(int sent)? onProgress,
+    Duration? sendDeadline,
     bool isRetry = false,
   }) async {
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final request = http.StreamedRequest(
-      'POST',
-      _requestUri(
-        '/attachments',
-        filename == null ? null : {'filename': filename},
-      ),
-    )
+    final request = http.StreamedRequest(method, _requestUri(path, query))
       ..contentLength = length
       ..headers['content-type'] = 'application/octet-stream'
       ..headers['authorization'] = 'Bearer $token';
@@ -63,30 +87,30 @@ extension SlimmApiAttachments on SlimmApi {
     );
     final http.Response response;
     try {
-      final streamed = await _http.send(request);
+      var sending = _http.send(request);
+      if (sendDeadline != null) sending = sending.timeout(sendDeadline);
       response = await http.Response.fromStream(
-        streamed,
+        await sending,
       ).timeout(_transferDeadline);
     } on TimeoutException {
-      throw const TransportException('POST /attachments got no answer');
+      throw TransportException('$method $path got no answer');
     } catch (e) {
-      throw TransportException('POST /attachments failed: $e');
+      throw TransportException('$method $path failed: $e');
     }
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await refresh();
-      return uploadAttachmentStream(
-        open,
+      return _sendStreamed(
+        method,
+        path,
+        open: open,
         length: length,
-        filename: filename,
+        query: query,
         onProgress: onProgress,
+        sendDeadline: sendDeadline,
         isRetry: true,
       );
     }
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return Attachment.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>);
-    }
-    throw _errorFor(response);
+    return response;
   }
 
   /// Fetches an attachment's raw bytes. Requires viewing a channel that has a

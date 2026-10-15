@@ -30,9 +30,10 @@ import 'attachment_format.dart';
 class AttachmentBody {
   AttachmentBody.memory(Uint8List this.bytes)
     : length = bytes.length,
-      open = (() => Stream.value(bytes));
+      open = (() => Stream.value(bytes)),
+      openAt = null;
 
-  const AttachmentBody.stream({required this.length, required this.open})
+  AttachmentBody.stream({required this.length, required this.open, this.openAt})
     : bytes = null;
 
   final int length;
@@ -40,6 +41,15 @@ class AttachmentBody {
   /// Null for a streamed body, which has no preview to draw.
   final Uint8List? bytes;
   final Stream<List<int>> Function() open;
+
+  /// Reads from a byte offset, where the source can seek; otherwise a resumed
+  /// upload re-reads [open] up to the offset.
+  final Stream<List<int>> Function(int offset)? openAt;
+
+  /// Stops a resumable upload of this body when its tile goes away.
+  final api.UploadCancelToken cancel = api.UploadCancelToken();
+
+  api.UploadSource get source => api.UploadSource(open: open, openAt: openAt);
 }
 
 /// A picked or dropped file, read only when it is staged: its size is known
@@ -50,12 +60,14 @@ class FileSource {
     required this.length,
     required this.readAll,
     required this.openRead,
+    this.openReadAt,
   });
 
   final String name;
   final Future<int> Function() length;
   final Future<Uint8List> Function() readAll;
   final Stream<List<int>> Function() openRead;
+  final Stream<List<int>> Function(int offset)? openReadAt;
 }
 
 /// Files up to this size are read whole, which also gives them a preview;
@@ -257,7 +269,11 @@ class AttachmentStagingController extends ChangeNotifier {
       await stage(await file.readAll(), file.name);
     } else {
       await stageBody(
-        AttachmentBody.stream(length: length, open: file.openRead),
+        AttachmentBody.stream(
+          length: length,
+          open: file.openRead,
+          openAt: file.openReadAt,
+        ),
         file.name,
       );
     }
@@ -318,12 +334,26 @@ class AttachmentStagingController extends ChangeNotifier {
   }
 
   void remove(String localId) {
+    for (final a in _items.where((a) => a.localId == localId)) {
+      _cancelIfUploading(a);
+    }
     _items.removeWhere((a) => a.localId == localId);
     _spoilers.remove(localId);
     notifyListeners();
   }
 
+  void _cancelIfUploading(StagedAttachment a) {
+    if (a is UploadingAttachment) a.body.cancel.cancel();
+  }
+
+  @override
+  void dispose() {
+    _items.forEach(_cancelIfUploading);
+    super.dispose();
+  }
+
   void clear() {
+    _items.forEach(_cancelIfUploading);
     _items.clear();
     _spoilers.clear();
     notifyListeners();
@@ -359,6 +389,8 @@ class AttachmentStagingController extends ChangeNotifier {
           attachment: attachment,
         ),
       );
+    } on api.UploadCancelled {
+      return;
     } on Object catch (e) {
       onFailure?.call(filename, e);
       _replace(
@@ -399,14 +431,17 @@ class AttachmentStagingController extends ChangeNotifier {
 final attachmentStagingProvider =
     Provider.family<AttachmentStagingController, String>((ref, channelId) {
       final controller = AttachmentStagingController(
-        upload: (body, filename, onProgress) => ref
-            .read(apiProvider)
-            .uploadAttachmentStream(
-              body.open,
-              length: body.length,
-              filename: filename,
-              onProgress: onProgress,
-            ),
+        upload: (body, filename, onProgress) async {
+          final client = ref.read(apiProvider);
+          return client.uploadAttachmentAuto(
+            body.source,
+            length: body.length,
+            capabilities: await _serverCapabilities(ref, body.length),
+            filename: filename,
+            onProgress: onProgress,
+            cancel: body.cancel,
+          );
+        },
         maxBytes: () => _attachmentLimit(ref),
         onFailure: (filename, error) => ref
             .read(debugLogProvider.notifier)
@@ -423,6 +458,21 @@ final attachmentStagingProvider =
       });
       return controller;
     });
+
+/// What the server advertises, asked only for a file big enough to need it,
+/// and null when it cannot be learned quickly so the plain upload is used.
+Future<List<String>?> _serverCapabilities(Ref ref, int length) async {
+  if (length <= api.kUploadSessionThreshold) return null;
+  try {
+    final version = await ref
+        .read(apiProvider)
+        .version()
+        .timeout(const Duration(seconds: 3));
+    return version.capabilities;
+  } on Object {
+    return null;
+  }
+}
 
 /// The server's per-file ceiling from `/version`, or null when it cannot be
 /// learned quickly, so a flaky link never holds a pick up.

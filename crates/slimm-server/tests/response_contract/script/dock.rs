@@ -31,6 +31,23 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
 
     c.get("listInstalledDockModules", "/space/dock/installed", root)
         .await;
+    // Approving schedule gives the module its principal, so a channel can be chosen for it.
+    c.json(
+        "installDockModule",
+        "POST",
+        &format!("/space/dock/modules/{id}/install"),
+        root,
+        json!({ "version": version, "approved_host_capabilities": ["schedule"] }),
+    )
+    .await;
+    c.json(
+        "setDockModuleScheduleChannel",
+        "PUT",
+        &format!("/space/dock/modules/{id}/schedule-channel"),
+        root,
+        json!({ "channel_id": channel }),
+    )
+    .await;
     c.bare(
         "enableDockModule",
         "POST",

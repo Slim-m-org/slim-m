@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_schedule_runs (module_id, command, last_run_at) VALUES (?, ?, ?)\n             ON CONFLICT (module_id, command) DO UPDATE SET last_run_at = excluded.last_run_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "d3e71539ddda12b53d03415dbd5999fc6aae26903befbc472041fc04f8ef1dd8"
+}

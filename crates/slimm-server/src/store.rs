@@ -72,6 +72,7 @@ mod moderation_history;
 mod module_artifacts;
 mod module_kv;
 mod module_permissions;
+mod module_schedule;
 mod modules;
 mod nicknames;
 mod notification_schedule;
@@ -176,7 +177,7 @@ pub use module_permissions::{
 };
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
-    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
+    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits, ModuleSchedule,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

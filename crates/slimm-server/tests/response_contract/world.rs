@@ -321,7 +321,9 @@ async fn spawn_fake_dock_registry() -> String {
             "permissions": [
                 {"key": "run", "name": "Execute code blocks", "description": "run a snippet"}
             ],
-            "capabilities": ["command.register", "message.post"],
+            "capabilities": ["command.register", "message.post", "net.fetch", "schedule"],
+            "network": {"hosts": ["api.example.com"], "local": false},
+            "schedules": [{"command": "run", "every_minutes": 60}],
             "extension_points": [
                 {"kind": "command", "name": "run", "description": "runs it", "permission": "run"},
                 {"kind": "code-block-runner", "name": "Run in chat", "description": "offers Run on a fenced code block", "permission": "run", "command": "run", "language": "javascript"},

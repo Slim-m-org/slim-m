@@ -14,7 +14,9 @@ import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 import 'dock_command_panel_group.dart';
 import 'dock_host_access_card.dart';
+import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
+import 'dock_schedule_card.dart';
 import 'dock_what_it_adds.dart';
 
 /// A module's manifest, plus the lifecycle action appropriate to
@@ -45,8 +47,13 @@ class DockManifestView extends StatelessWidget {
     required this.onChooseAccess,
     required this.approvedHostCapabilities,
     required this.onToggleHostCapability,
-    this.reapprovePosting = false,
+    this.reapprove = const [],
+    this.localNetworkApproved = false,
+    this.onLocalNetworkChanged,
+    this.scheduleChannels = const [],
+    this.onScheduleChannel,
     this.sourceRepo,
+    this.verified = false,
   });
 
   final api.DockManifest manifest;
@@ -54,15 +61,26 @@ class DockManifestView extends StatelessWidget {
   /// The community source's `owner/repo` this module comes from, or null for
   /// the official source. Shown before anything is installed.
   final String? sourceRepo;
+
+  /// Listed in the official registry, which slim-m reviews.
+  final bool verified;
   final api.InstalledDockModule? installed;
 
   /// The host capabilities currently switched on, applied on the next install
   /// or save.
   final Set<String> approvedHostCapabilities;
 
-  /// True when this update is a new build of a module that could post: the
-  /// switch is off until the admin turns it on again.
-  final bool reapprovePosting;
+  /// Capabilities this update is a new build of: each switch is off until the
+  /// admin turns it on again.
+  final List<String> reapprove;
+
+  /// The second, separate yes for net.fetch to reach the local network.
+  final bool localNetworkApproved;
+  final ValueChanged<bool>? onLocalNetworkChanged;
+
+  /// Text channels a schedule can post in, and the callback for choosing one.
+  final List<api.Channel> scheduleChannels;
+  final ValueChanged<String?>? onScheduleChannel;
   final void Function(String capability, bool approved) onToggleHostCapability;
   final bool busy;
   final String? error;
@@ -89,6 +107,13 @@ class DockManifestView extends StatelessWidget {
               : 'v${manifest.version} · ${manifest.author}',
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
+        if (verified) ...[
+          const SizedBox(height: AppSpacing.s8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: DockVerifiedBadge(),
+          ),
+        ],
         if (sourceRepo != null) ...[
           const SizedBox(height: AppSpacing.s8),
           AppBadge(
@@ -112,11 +137,25 @@ class DockManifestView extends StatelessWidget {
         if (grantableHostCapabilities(manifest.capabilities).isNotEmpty) ...[
           const SizedBox(height: AppSpacing.s16),
           DockHostAccessCard(
-            declared: manifest.capabilities,
+            manifest: manifest,
             approved: approvedHostCapabilities,
             onChanged: onToggleHostCapability,
             moduleName: manifest.name,
-            reapprovePosting: reapprovePosting,
+            localNetworkApproved: localNetworkApproved,
+            onLocalNetworkChanged: onLocalNetworkChanged,
+            reapprove: reapprove,
+            enabled: !busy,
+          ),
+        ],
+        if (installed != null &&
+            installed!.approvedHostCapabilities.contains('schedule') &&
+            onScheduleChannel != null) ...[
+          const SizedBox(height: AppSpacing.s16),
+          DockScheduleCard(
+            schedules: installed!.schedules,
+            channels: scheduleChannels,
+            channelId: installed!.scheduleChannelId,
+            onChannel: onScheduleChannel!,
             enabled: !busy,
           ),
         ],
@@ -153,7 +192,8 @@ class DockManifestView extends StatelessWidget {
     final current = installed?.approvedHostCapabilities.toSet() ?? const {};
     return installed != null &&
         (current.length != approvedHostCapabilities.length ||
-            !current.containsAll(approvedHostCapabilities));
+            !current.containsAll(approvedHostCapabilities) ||
+            installed!.localNetworkApproved != localNetworkApproved);
   }
 
   /// Every `command` extension point [installed] declares, or none at all

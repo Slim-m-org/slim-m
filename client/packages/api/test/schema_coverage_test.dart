@@ -54,6 +54,9 @@ const Map<String, String> _allowlist = {
   'GET /attachments/{}': 'reads raw bytes through SlimmApi._fetchBytes, not '
       '_send: a response that is never JSON needs no JSON decode attempt to '
       'fail on',
+  'PUT /attachments/uploads/{}': 'sends a raw body through '
+      'SlimmApi._sendStreamed, the same as POST /attachments does for '
+      'uploadAttachmentStream, so there is no _send call to match',
   'GET /users/{}/avatar': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
   'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '

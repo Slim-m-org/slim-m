@@ -27,6 +27,7 @@ import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/success_flash.dart';
 import '../settings_screen_scaffold.dart';
+import 'attachment_limit_section.dart';
 import 'canvas_cap_section.dart';
 import 'noise_suppression_default_section.dart';
 import 'screen_share_cap_section.dart';
@@ -58,6 +59,8 @@ class PerformancePane extends StatelessWidget {
       CanvasCapSection(),
       SizedBox(height: AppSpacing.s16),
       ScreenShareCapSection(),
+      SizedBox(height: AppSpacing.s16),
+      AttachmentLimitSection(),
       SizedBox(height: AppSpacing.s16),
       NoiseSuppressionDefaultSection(),
     ],

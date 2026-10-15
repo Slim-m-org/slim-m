@@ -6,6 +6,8 @@
 /// on LiveKit, and both are read by the UI far from any call.
 library;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 /// The capture resolution of a screen share.
 enum ScreenShareResolution {
   p720(width: 1280, height: 720),
@@ -55,13 +57,20 @@ class ScreenShareQuality {
       for (final f in ScreenShareFps.values) ScreenShareQuality(r, f),
   ];
 
-  // Bits per second by [resolution.index][frameRate.index].
-  static const _maxBitrates = [
-    [1000000, 1500000, 2500000],
-    [1600000, 2400000, 4000000],
-    [3000000, 3600000, 5000000],
-    [4500000, 5000000, 5000000],
+  /// Bits per second by [resolution.index][frameRate.index].
+  ///
+  /// Anchored on LiveKit's own 720p30 = 2 Mbps and 1080p30 = 5 Mbps; see
+  /// docs/video-quality.md for how the other cells scale from them.
+  @visibleForTesting
+  static const bitrateTable = [
+    [1500000, 2000000, 3200000],
+    [2500000, 5000000, 8000000],
+    [4000000, 7500000, 12000000],
+    [6000000, 10000000, 12000000],
   ];
+
+  /// The most any tier may publish, so a 4K share cannot starve call audio.
+  static const bitrateCeiling = 12000000;
 
   final ScreenShareResolution resolution;
   final ScreenShareFps frameRate;
@@ -69,7 +78,7 @@ class ScreenShareQuality {
   int get width => resolution.width;
   int get height => resolution.height;
   int get fps => frameRate.value;
-  int get maxBitrate => _maxBitrates[resolution.index][frameRate.index];
+  int get maxBitrate => bitrateTable[resolution.index][frameRate.index];
 
   /// The stored form, such as `1080p30`.
   String get id => '${resolution.height}p${frameRate.value}';

@@ -55,6 +55,8 @@ class AudioDeviceSwitching {
   lk.RoomOptions roomOptions(lk.RoomOptions base) => base.copyWith(
         defaultAudioCaptureOptions: lk.AudioCaptureOptions(
           deviceId: _preferredInputId,
+          // Reopening on unmute flips Bluetooth profiles and clips the first syllable.
+          stopAudioCaptureOnMute: false,
         ),
         defaultAudioOutputOptions: lk.AudioOutputOptions(
           deviceId: _preferredOutputId,

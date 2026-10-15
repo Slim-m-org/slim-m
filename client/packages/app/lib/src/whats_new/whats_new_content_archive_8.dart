@@ -36,4 +36,33 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.107.0',
+    headline: 'Big files upload, and modules can do more',
+    points: [
+      WhatsNewPoint(
+        'Large files upload in parts and pick up where they left off if the '
+        'connection drops, so a multi-gigabyte file gets through.',
+      ),
+      WhatsNewPoint(
+        'Admins can set an attachment size limit under Retention and limits.',
+      ),
+      WhatsNewPoint(
+        'Screen share now really sends the frame rate and quality you pick, '
+        'and Voice settings has a Call stats page showing what a call sends.',
+      ),
+      WhatsNewPoint(
+        'Your mic stays open while muted in a call, so unmuting and '
+        'push-to-talk start instantly.',
+      ),
+      WhatsNewPoint(
+        'Installing a module shows what it can do first, and modules from the '
+        'official registry carry a Verified badge.',
+      ),
+      WhatsNewPoint(
+        'Modules can reach web services you approve and run on a schedule, '
+        'posting as themselves in a channel you pick.',
+      ),
+    ],
+  ),
 ];

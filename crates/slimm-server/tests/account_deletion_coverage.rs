@@ -96,6 +96,13 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("dm_hides", "user_id", OnDelete::Purge),
     ("invite_redemptions", "user_id", OnDelete::Purge),
+    (
+        "installed_modules",
+        "bot_user_id",
+        OnDelete::Keep(
+            "a module's own principal, not a person; scheduled runs skip a deleted principal, and its past posts stay attributed",
+        ),
+    ),
     ("invites", "created_by", OnDelete::Anonymize),
     ("member_roles", "user_id", OnDelete::Purge),
     ("member_nicknames", "set_by", OnDelete::Anonymize),

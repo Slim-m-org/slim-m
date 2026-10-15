@@ -133,7 +133,7 @@ pub async fn run() -> anyhow::Result<()> {
         http::link_preview::LinkPreviews::new(&config, store.link_preview_image_key().await?);
     let dock = http::dock::Dock::new(&config);
     let code_runner = code_runner::CodeRunner::new(&config)?;
-    let app = cors.apply(http::router(http::AppState {
+    let state = http::AppState {
         store,
         auth,
         hub,
@@ -145,7 +145,9 @@ pub async fn run() -> anyhow::Result<()> {
         link_previews,
         dock,
         code_runner,
-    }));
+    };
+    sweeps::spawn_module_schedule_sweep(state.clone());
+    let app = cors.apply(http::router(state));
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     let listener = TcpListener::bind(addr)
         .await

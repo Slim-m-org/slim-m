@@ -38,11 +38,14 @@ extension SlimmApiDock on SlimmApi {
   ///
   /// [approvedHostCapabilities] is what the admin approved for `slim.host_call`
   /// after seeing it listed; an empty list withdraws every approval, and null
-  /// keeps what was approved before (never adding to it).
+  /// keeps what was approved before (never adding to it). [approveLocalNetwork]
+  /// is the separate yes to reach home-network addresses, only valid with
+  /// `net.fetch` approved.
   Future<InstalledDockModule> installDockModule({
     required String moduleId,
     required String version,
     List<String>? approvedHostCapabilities,
+    bool? approveLocalNetwork,
     String? source,
   }) async {
     final json = await _send(
@@ -53,7 +56,23 @@ extension SlimmApiDock on SlimmApi {
         'version': version,
         if (approvedHostCapabilities != null)
           'approved_host_capabilities': approvedHostCapabilities,
+        if (approveLocalNetwork != null)
+          'approve_local_network': approveLocalNetwork,
       },
+    );
+    return InstalledDockModule.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Chooses the text channel a module's scheduled runs post in; null stops
+  /// them. Refused with 409 while `schedule` is not approved.
+  Future<InstalledDockModule> setDockModuleScheduleChannel(
+    String moduleId,
+    String? channelId,
+  ) async {
+    final json = await _send(
+      'PUT',
+      '/space/dock/modules/$moduleId/schedule-channel',
+      body: {'channel_id': channelId},
     );
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
   }

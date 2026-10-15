@@ -14,6 +14,7 @@
 
 use super::module_artifacts::store_module_artifact_tx;
 use super::{Store, now_ms};
+use crate::ids::{ChannelId, UserId};
 
 /// One installed module, as recorded at its last install.
 #[derive(Debug, Clone)]
@@ -34,6 +35,24 @@ pub struct InstalledModule {
     /// The `owner/repo` of the community source it was installed from, or
     /// `None` for the official one (decision 0046).
     pub source_repo: Option<String>,
+    /// The hosts `net.fetch` may reach, as the manifest listed them when an
+    /// admin approved it.
+    pub network_hosts: Vec<String>,
+    /// The admin's separate second approval for local network addresses.
+    pub local_network_approved: bool,
+    /// The commands the host runs on a timer once `schedule` is approved.
+    pub schedules: Vec<ModuleSchedule>,
+    /// The module's own principal, which its scheduled runs post as.
+    pub bot_user_id: Option<UserId>,
+    /// Where the admin lets its scheduled runs post.
+    pub schedule_channel_id: Option<ChannelId>,
+}
+
+/// A manifest schedule as recorded at install.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ModuleSchedule {
+    pub command: String,
+    pub every_minutes: u32,
 }
 
 /// The manifest's `runtime.limits`, persisted verbatim so the module host can
@@ -106,6 +125,9 @@ pub struct DockProvenance<'a> {
     pub host_capabilities: &'a [String],
     /// The community source's slug; `None` is the official one.
     pub source_repo: Option<&'a str>,
+    pub network_hosts: &'a [String],
+    pub local_network_approved: bool,
+    pub schedules: &'a [ModuleSchedule],
 }
 
 struct ModuleRow {
@@ -120,6 +142,11 @@ struct ModuleRow {
     enabled: bool,
     installed_at: i64,
     source_repo: Option<String>,
+    network_hosts: String,
+    local_network_approved: bool,
+    schedules: String,
+    bot_user_id: Option<UserId>,
+    schedule_channel_id: Option<ChannelId>,
 }
 
 impl From<ModuleRow> for InstalledModule {
@@ -143,6 +170,11 @@ impl From<ModuleRow> for InstalledModule {
             enabled: row.enabled,
             installed_at: row.installed_at,
             source_repo: row.source_repo,
+            network_hosts: serde_json::from_str(&row.network_hosts).unwrap_or_default(),
+            local_network_approved: row.local_network_approved,
+            schedules: serde_json::from_str(&row.schedules).unwrap_or_default(),
+            bot_user_id: row.bot_user_id,
+            schedule_channel_id: row.schedule_channel_id,
         }
     }
 }
@@ -217,6 +249,19 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        let hosts_json = serde_json::to_string(provenance.network_hosts)?;
+        let schedules_json = serde_json::to_string(provenance.schedules)?;
+        sqlx::query!(
+            "UPDATE installed_modules
+             SET network_hosts = ?, local_network_approved = ?, schedules = ?
+             WHERE id = ?",
+            hosts_json,
+            provenance.local_network_approved,
+            schedules_json,
+            req.id
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         self.installed_module(req.id)
             .await?
@@ -234,7 +279,12 @@ impl Store {
                       runtime_limits AS "runtime_limits!",
                       extension_points AS "extension_points!",
                       enabled AS "enabled!: bool", installed_at AS "installed_at!",
-                      source_repo
+                      source_repo,
+                      network_hosts AS "network_hosts!",
+                      local_network_approved AS "local_network_approved!: bool",
+                      schedules AS "schedules!",
+                      bot_user_id AS "bot_user_id: UserId",
+                      schedule_channel_id AS "schedule_channel_id: ChannelId"
                FROM installed_modules WHERE id = ?"#,
             id
         )
@@ -254,7 +304,12 @@ impl Store {
                       runtime_limits AS "runtime_limits!",
                       extension_points AS "extension_points!",
                       enabled AS "enabled!: bool", installed_at AS "installed_at!",
-                      source_repo
+                      source_repo,
+                      network_hosts AS "network_hosts!",
+                      local_network_approved AS "local_network_approved!: bool",
+                      schedules AS "schedules!",
+                      bot_user_id AS "bot_user_id: UserId",
+                      schedule_channel_id AS "schedule_channel_id: ChannelId"
                FROM installed_modules ORDER BY installed_at DESC"#
         )
         .fetch_all(&self.pool)
@@ -290,6 +345,27 @@ impl Store {
         let affected = sqlx::query!(
             "UPDATE installed_modules SET approved_host_capabilities = ? WHERE id = ?",
             json,
+            id
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        Ok(affected > 0)
+    }
+
+    /// Records the hosts approved with `net.fetch` and the local network
+    /// approval, outside an install. `Ok(false)` if it is not installed.
+    pub async fn set_module_network(
+        &self,
+        id: &str,
+        hosts: &[String],
+        local_approved: bool,
+    ) -> anyhow::Result<bool> {
+        let json = serde_json::to_string(hosts)?;
+        let affected = sqlx::query!(
+            "UPDATE installed_modules SET network_hosts = ?, local_network_approved = ? WHERE id = ?",
+            json,
+            local_approved,
             id
         )
         .execute(&self.pool)

@@ -6,6 +6,8 @@ library;
 import 'package:slimm_rtc/rtc.dart';
 
 mixin VideoQualityRecorder {
+  CallStatsSampler callStats = CallStatsSampler(targets: () => const []);
+
   ReceiveVideoQuality? lastReceiveVideoQuality;
   CameraQuality? lastCameraQuality;
 

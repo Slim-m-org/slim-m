@@ -179,6 +179,43 @@ class DockExtensionPoint {
       );
 }
 
+/// Where a module's `net.fetch` may reach: the hosts it names, and whether it
+/// also asks for local network addresses.
+class DockNetwork {
+  const DockNetwork({required this.hosts, required this.local});
+
+  /// Lowercase `name` or `name:port` entries, as the admin sees them.
+  final List<String> hosts;
+
+  /// Needs the separate `approve_local_network` approval.
+  final bool local;
+
+  factory DockNetwork.fromJson(Map<String, dynamic> json) => DockNetwork(
+        hosts: (json['hosts'] as List<dynamic>)
+            .map((h) => h as String)
+            .toList(growable: false),
+        local: json['local'] as bool,
+      );
+}
+
+/// A command the host runs on a timer once `schedule` is approved.
+class DockSchedule {
+  const DockSchedule({required this.command, required this.everyMinutes});
+
+  final String command;
+  final int everyMinutes;
+
+  factory DockSchedule.fromJson(Map<String, dynamic> json) => DockSchedule(
+        command: json['command'] as String,
+        everyMinutes: json['every_minutes'] as int,
+      );
+}
+
+List<DockSchedule> _schedules(Object? json) =>
+    ((json as List<dynamic>?) ?? const [])
+        .map((s) => DockSchedule.fromJson(s as Map<String, dynamic>))
+        .toList(growable: false);
+
 /// A module's full manifest, as `GET /space/dock/modules/{id}` returns it: the
 /// permissions it will add and the capabilities it asks for, shown before an
 /// admin ever installs it.
@@ -194,6 +231,8 @@ class DockManifest {
     required this.permissions,
     required this.capabilities,
     required this.extensionPoints,
+    this.network,
+    this.schedules = const [],
   });
 
   final String id;
@@ -201,6 +240,10 @@ class DockManifest {
   final String version;
   final String summary;
   final String? author;
+
+  /// Absent when the module does not declare `net.fetch`.
+  final DockNetwork? network;
+  final List<DockSchedule> schedules;
   final DockArtifact artifact;
   final DockRuntime runtime;
 
@@ -231,6 +274,10 @@ class DockManifest {
         extensionPoints: (json['extension_points'] as List<dynamic>)
             .map((e) => DockExtensionPoint.fromJson(e as Map<String, dynamic>))
             .toList(growable: false),
+        network: json['network'] == null
+            ? null
+            : DockNetwork.fromJson(json['network'] as Map<String, dynamic>),
+        schedules: _schedules(json['schedules']),
       );
 }
 
@@ -248,11 +295,27 @@ class InstalledDockModule {
     required this.enabled,
     required this.installedAt,
     this.sourceRepo,
+    this.networkHosts = const [],
+    this.localNetworkApproved = false,
+    this.schedules = const [],
+    this.botUserId,
+    this.scheduleChannelId,
   });
 
   final String id;
   final String name;
   final String version;
+
+  /// The hosts the admin approved with `net.fetch`; empty without it.
+  final List<String> networkHosts;
+  final bool localNetworkApproved;
+  final List<DockSchedule> schedules;
+
+  /// The module's own principal, present once `schedule` is approved.
+  final String? botUserId;
+
+  /// Where its scheduled runs post; null until an admin chooses.
+  final String? scheduleChannelId;
 
   /// The community source's `owner/repo` it was installed from, or null for
   /// the official source.
@@ -297,5 +360,12 @@ class InstalledDockModule {
         enabled: json['enabled'] as bool,
         installedAt: json['installed_at'] as int,
         sourceRepo: json['source_repo'] as String?,
+        networkHosts: ((json['network_hosts'] as List<dynamic>?) ?? const [])
+            .map((h) => h as String)
+            .toList(growable: false),
+        localNetworkApproved: json['local_network_approved'] as bool? ?? false,
+        schedules: _schedules(json['schedules']),
+        botUserId: json['bot_user_id'] as String?,
+        scheduleChannelId: json['schedule_channel_id'] as String?,
       );
 }

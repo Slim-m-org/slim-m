@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE installed_modules SET schedules = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b537b098b2290ba2510fa899dc55c68e98ff2037fec7a5a0b4956e8eaa61e286"
+}

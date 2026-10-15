@@ -84,6 +84,17 @@ class DockLimitsCard extends StatelessWidget {
     ];
   }
 
+  /// One sentence for the consent step, from the same wording as the rows.
+  static String summary(api.DockLimits limits) {
+    final parts = [
+      if (limits.memoryMb case final mb?) '$mb MB of memory',
+      if (limits.wallMs case final ms?) _duration(ms),
+      if (limits.fuel case final fuel?) _instructions(fuel),
+    ];
+    if (parts.isEmpty) return 'Each run is limited by this server\'s defaults.';
+    return 'Each run is limited to ${parts.join(', ')}.';
+  }
+
   static String _describe(int? value, String Function(int value) format) =>
       value == null ? 'host default' : format(value);
 

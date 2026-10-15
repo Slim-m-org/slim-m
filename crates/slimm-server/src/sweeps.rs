@@ -126,6 +126,11 @@ pub(crate) fn spawn_attachment_sweep(store: store::Store, media: media::Media) {
                 }
                 Err(err) => tracing::warn!(error = %err, "attachment sweep failed"),
             }
+            match media.uploads().sweep_expired(store::now_ms()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::info!(count, "swept expired upload sessions"),
+                Err(err) => tracing::warn!(error = %err, "upload session sweep failed"),
+            }
         }
     });
 }
@@ -420,6 +425,24 @@ pub(crate) fn spawn_message_retention_sweep(
                     }
                 }
                 Err(err) => tracing::warn!(error = %err, "message retention sweep failed"),
+            }
+        }
+    });
+}
+
+/// How often due module schedules are checked; the shortest interval a
+/// manifest may declare is five minutes, so this is precise enough.
+const MODULE_SCHEDULE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Runs modules' scheduled commands; see `http::module_schedule`.
+pub(crate) fn spawn_module_schedule_sweep(state: crate::http::AppState) {
+    spawn_sweep(MODULE_SCHEDULE_INTERVAL, move || {
+        let state = state.clone();
+        async move {
+            match crate::http::run_scheduled_modules(&state, store::now_ms()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::debug!(count, "ran scheduled module commands"),
+                Err(err) => tracing::warn!(error = %err, "module schedule sweep failed"),
             }
         }
     });

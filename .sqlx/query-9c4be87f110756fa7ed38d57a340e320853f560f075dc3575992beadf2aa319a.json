@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT attachment_max_bytes AS \"b!: i64\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "b!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9c4be87f110756fa7ed38d57a340e320853f560f075dc3575992beadf2aa319a"
+}

@@ -4,11 +4,13 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
 import 'exceptions.dart';
 import 'models.dart';
+import 'upload_source.dart';
 
 // One tag per file. `part`, not separate libraries: they all reach the
 // private transport, and Dart privacy is library-scoped, not file-scoped.
@@ -43,6 +45,7 @@ part 'client_space.dart';
 part 'client_threads.dart';
 part 'client_totp.dart';
 part 'client_transport.dart';
+part 'client_upload_sessions.dart';
 part 'client_users.dart';
 part 'client_voice.dart';
 part 'client_voice_calls.dart';

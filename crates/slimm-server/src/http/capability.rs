@@ -26,11 +26,19 @@ pub enum Capability {
     /// surface is worth showing - `docs/decisions/0030-incoming-webhooks.md`
     /// names this exact use before that surface exists.
     Webhook,
+    /// Whether large files can be sent as resumable parts; a client falls
+    /// back to one request when this is absent.
+    UploadSessions,
 }
 
 impl Capability {
     /// Every capability `/version` speaks about, in the order it reports them.
-    pub const ALL: [Capability; 3] = [Capability::Block, Capability::Report, Capability::Webhook];
+    pub const ALL: [Capability; 4] = [
+        Capability::Block,
+        Capability::Report,
+        Capability::Webhook,
+        Capability::UploadSessions,
+    ];
 
     /// The name this goes over the wire under.
     pub fn wire_name(self) -> &'static str {
@@ -38,6 +46,7 @@ impl Capability {
             Capability::Block => "block",
             Capability::Report => "report",
             Capability::Webhook => "webhooks",
+            Capability::UploadSessions => "upload_sessions",
         }
     }
 
@@ -56,6 +65,7 @@ impl Capability {
                 Method::POST,
                 "/webhooks/00000000-0000-0000-0000-000000000000/probe",
             ),
+            Capability::UploadSessions => (Method::POST, "/attachments/uploads"),
         }
     }
 }
