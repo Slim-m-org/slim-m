@@ -207,7 +207,10 @@ fn direct_addresses(raw: Option<String>) -> Vec<String> {
         .filter(|entry| {
             let valid = is_host_port(entry);
             if !valid {
-                tracing::warn!(entry, "SLIMM_DIRECT_ADDRESSES entry is not host:port; ignoring it");
+                tracing::warn!(
+                    entry,
+                    "SLIMM_DIRECT_ADDRESSES entry is not host:port; ignoring it"
+                );
             }
             valid
         })
