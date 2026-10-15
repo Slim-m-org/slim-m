@@ -329,6 +329,9 @@ abstract final class AppIcons {
   static const IconData invite = LucideIcons.mailPlus300;
   static const IconData shield = LucideIcons.shield300;
 
+  /// A module from the official registry, which slim-m has reviewed.
+  static const IconData verified = LucideIcons.shieldCheck300;
+
   /// A server that offers no reporting or blocking. Struck through, so "no
   /// recourse here" reads without colour, the same rule the severity icons
   /// above follow.

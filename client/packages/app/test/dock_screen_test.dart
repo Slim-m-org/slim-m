@@ -211,6 +211,9 @@ void main() {
 
     await tester.tap(find.text('Install v1.2.0'));
     await tester.pumpAndSettle();
+    // It asks the host for access, so the consent step comes first.
+    await tester.tap(find.text('Install'));
+    await tester.pumpAndSettle();
 
     expect(installedPath, '/space/dock/modules/code-exec/install');
     // A module declaring a permission lands on the access screen; see its doc.

@@ -196,6 +196,8 @@ void main() {
 
     await tester.tap(find.text('Install v0.1.0'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Install'));
+    await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['message.post']);
   });
 
