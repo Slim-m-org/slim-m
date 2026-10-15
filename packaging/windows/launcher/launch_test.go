@@ -124,3 +124,43 @@ func TestPointerWriteReplacesAtomically(t *testing.T) {
 		t.Fatal("temp file left behind")
 	}
 }
+
+func TestStartsBesideARunningInstanceAreNotCounted(t *testing.T) {
+	root := layout(t, "0.88.0", "0.89.0")
+	put(t, root, "current", "0.89.0")
+	put(t, root, "previous", "0.88.0")
+	put(t, root, "pending", "0.89.0")
+	put(t, root, "running.pid", "4242")
+	processAlive = func(pid int) bool { return pid == 4242 }
+	t.Cleanup(func() { processAlive = osProcessAlive })
+
+	for i := 0; i < 5; i++ {
+		dir, err := choose(root)
+		if err != nil || dir != versionDir(root, "0.89.0") {
+			t.Fatalf("start %d: %q, %v", i+1, dir, err)
+		}
+	}
+	if got := read(root, "pending.tries"); got != "" {
+		t.Fatalf("counted %q starts while the app was up", got)
+	}
+	if read(root, "current") != "0.89.0" {
+		t.Fatal("a healthy running version was rolled back")
+	}
+}
+
+func TestAStartAfterTheInstanceIsGoneIsCountedAgain(t *testing.T) {
+	root := layout(t, "0.88.0", "0.89.0")
+	put(t, root, "current", "0.89.0")
+	put(t, root, "previous", "0.88.0")
+	put(t, root, "pending", "0.89.0")
+	put(t, root, "running.pid", "4242")
+	processAlive = func(int) bool { return false }
+	t.Cleanup(func() { processAlive = osProcessAlive })
+
+	if _, err := choose(root); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(root, "pending.tries"); got != "1" {
+		t.Fatalf("counted %q", got)
+	}
+}
