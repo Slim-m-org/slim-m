@@ -10062,6 +10062,23 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DockExtensionPoint"
+        network:
+          type: object
+          description: >
+            Where the net.fetch capability may reach; absent when the module
+            declares no net.fetch.
+          required: [hosts, local]
+          properties:
+            hosts:
+              type: array
+              description: Host names or host:port entries, lowercase.
+              items:
+                type: string
+            local:
+              type: boolean
+              description: >
+                Whether the module asks to reach local network addresses,
+                which needs the separate approve_local_network approval.
     InstallDockModuleRequest:
       type: object
       required: [version]
@@ -10077,11 +10094,20 @@ components:
             type: string
           description: >
             The host capabilities the admin approved after seeing them listed
-            (kv.store, message.post; decision 0023). Each must be declared in
+            (kv.store, message.post, net.fetch; decision 0023). Each must be declared in
             the manifest and implemented by the host, or the install is refused
             with 400. An empty list withdraws every approval. Omitted keeps
             what was approved before, minus anything the new manifest no
-            longer declares, and never adds one.
+            longer declares (and net.fetch when its hosts changed), and never
+            adds one.
+        approve_local_network:
+          type: boolean
+          description: >
+            The second, separate approval for net.fetch to reach local network
+            addresses (private, loopback and link-local ranges). Only valid
+            when net.fetch is approved and the manifest's network.local is
+            true; true otherwise is refused with 400. Omitted keeps an earlier
+            approval for the same hosts.
     InstalledDockModule:
       type: object
       required:
@@ -10095,6 +10121,8 @@ components:
           extension_points,
           enabled,
           installed_at,
+          network_hosts,
+          local_network_approved,
         ]
       properties:
         id:
@@ -10105,6 +10133,14 @@ components:
           type: string
         artifact_sha256:
           type: string
+        network_hosts:
+          type: array
+          description: The hosts approved with net.fetch; empty without it.
+          items:
+            type: string
+        local_network_approved:
+          type: boolean
+          description: Whether net.fetch may reach local network addresses.
         approved_capabilities:
           type: array
           items:

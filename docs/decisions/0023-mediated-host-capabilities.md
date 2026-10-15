@@ -202,3 +202,19 @@ The per-module approval below is the switch, and a module with none stays on the
 
 Reactive events (phase E) and the `on_event` export.
 The `via` footer is an embed, not a dedicated badge field on the message.
+
+## Amendment, 2026-10-15: `net.fetch`
+
+The owner's 2026-10-14 module powers decision added outbound HTTP as the next capability, after the install consent flow.
+
+- The manifest declares `net.fetch` and a `network` section: `hosts` (lowercase `name` or `name:port`, at most 16, no scheme, path, wildcard or credentials) and `local` (whether it wants local network addresses).
+  `net.fetch` without hosts, or hosts without `net.fetch`, is a malformed manifest.
+- The admin approves `net.fetch` like any other host capability, and the install records the hosts the admin saw.
+  An update whose host list changed drops the approval until the admin approves again.
+- Local addresses (private, loopback, link-local) need a second, separate approval, `approve_local_network`, which is valid only when the manifest asked for `local`.
+  Without it the shared address guard (decision 0019) refuses them, for names and literal addresses alike.
+- A request goes only to an approved host, over http or https, with no redirects followed: a 3xx comes back with its `Location` for the module to decide.
+- Limits: four requests per run, a 64 KiB request body, a 256 KiB response body (cut and flagged `truncated` past that), 16 headers with the transport ones reserved, and a 5 second timeout inside the run's wall clock.
+- The module sees the status, `Content-Type`, `Location` and body, never anything about the address it resolved to.
+
+The Dock install screen shows the hosts and the second approval; that client work follows the consent flow.

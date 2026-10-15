@@ -29,7 +29,7 @@ use crate::store::{InstalledModule, KvSetError, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 2] = ["kv.store", "message.post"];
+pub(crate) const HOST_CAPABILITIES: [&str; 3] = ["kv.store", "message.post", "net.fetch"];
 
 /// Most keys a `list` returns; equal to the entry cap, so it is never truncated.
 const LIST_LIMIT: i64 = MAX_ENTRIES as i64;
@@ -70,7 +70,17 @@ pub(crate) fn surface_for(
         store: state.store.clone(),
         handle: handle.clone(),
     });
-    let surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
+    let fetches = approved.iter().any(|c| c == "net.fetch");
+    let mut surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
+    if fetches {
+        surface = surface.with_fetcher(
+            Arc::new(super::module_net::ReqwestFetcher::new(
+                handle.clone(),
+                module.local_network_approved,
+            )),
+            module.network_hosts.clone(),
+        );
+    }
     let Some(channel) = channel else {
         return surface;
     };

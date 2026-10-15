@@ -2,8 +2,8 @@
 //! The mediated-capability surface, per decision 0023 - the gate a module's
 //! `slim.host_call` requests pass through.
 //!
-//! The gate, and the capabilities behind it: [`super::kv`]'s `kv.store` and
-//! [`super::post`]'s `message.post`. A run gets [`CapabilitySurface::Enabled`]
+//! The gate, and the capabilities behind it: [`super::kv`]'s `kv.store`,
+//! [`super::post`]'s `message.post` and [`super::net`]'s `net.fetch`. A run gets [`CapabilitySurface::Enabled`]
 //! only when an admin approved at least one host capability for the module at
 //! install (`http::module_host`); every other run is [`CapabilitySurface::Disabled`],
 //! so a module may import nothing and every `host_call` is refused. A capability
@@ -22,6 +22,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::kv::{self, KvBackend};
+use super::net::{self, HttpFetcher};
 use super::post::{self, MessagePoster};
 
 /// Whether the capability surface is available to a module run, and - when it
@@ -50,6 +51,12 @@ pub enum CapabilitySurface {
         poster: Option<Arc<dyn MessagePoster>>,
         /// Remaining `message.post` attempts this run may make.
         posts_remaining: u32,
+        /// Dials approved hosts; `None` leaves `net.fetch` unavailable.
+        fetcher: Option<Arc<dyn HttpFetcher>>,
+        /// The hosts the admin approved with `net.fetch`.
+        network_hosts: Vec<String>,
+        /// Remaining `net.fetch` attempts this run may make.
+        fetches_remaining: u32,
     },
 }
 
@@ -68,7 +75,25 @@ impl CapabilitySurface {
             kv_calls_remaining: kv::MAX_CALLS_PER_RUN,
             poster: None,
             posts_remaining: post::MAX_POSTS_PER_RUN,
+            fetcher: None,
+            network_hosts: Vec::new(),
+            fetches_remaining: net::MAX_FETCHES_PER_RUN,
         }
+    }
+
+    /// Makes `net.fetch` available through `fetcher`, to `hosts` only. A
+    /// no-op on a disabled surface.
+    pub fn with_fetcher(mut self, new_fetcher: Arc<dyn HttpFetcher>, hosts: Vec<String>) -> Self {
+        if let CapabilitySurface::Enabled {
+            fetcher,
+            network_hosts,
+            ..
+        } = &mut self
+        {
+            *fetcher = Some(new_fetcher);
+            *network_hosts = hosts;
+        }
+        self
     }
 
     /// Makes `message.post` available through `poster`. A no-op on a disabled
@@ -100,6 +125,9 @@ impl CapabilitySurface {
             kv_calls_remaining,
             poster,
             posts_remaining,
+            fetcher,
+            network_hosts,
+            fetches_remaining,
         } = self
         else {
             return refusal("the capability surface is off");
@@ -116,6 +144,12 @@ impl CapabilitySurface {
             "message.post" => match poster {
                 Some(poster) => post::handle(poster.as_ref(), posts_remaining, request),
                 None => refusal("message.post needs a channel"),
+            },
+            "net.fetch" => match fetcher {
+                Some(fetcher) => {
+                    net::handle(fetcher.as_ref(), network_hosts, fetches_remaining, request)
+                }
+                None => refusal("net.fetch is not available to this run"),
             },
             // Approved, but the host implements no such capability; it fails closed.
             other => refusal(&format!("capability not available: {other}")),

@@ -14,6 +14,7 @@ use serde::Deserialize;
 
 use super::super::hidden_chars::is_hidden_char;
 use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
+pub(in crate::http) use network::{ManifestNetwork, NET_FETCH};
 
 /// The one schema version this server understands. A registry that bumps it
 /// is a breaking change to the wire contract, not something to guess at.
@@ -104,6 +105,7 @@ struct RawManifest {
     capabilities: Vec<String>,
     #[serde(default)]
     extension_points: Vec<RawExtensionPoint>,
+    network: Option<network::RawNetwork>,
 }
 
 #[derive(Deserialize)]
@@ -218,6 +220,7 @@ pub(super) struct Manifest {
     pub(super) permissions: Vec<ManifestPermission>,
     pub(super) capabilities: Vec<String>,
     pub(super) extension_points: Vec<ManifestExtensionPoint>,
+    pub(super) network: ManifestNetwork,
 }
 
 pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
@@ -292,6 +295,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         artifact,
         runtime,
         permissions,
+        network: network::validate_network(raw.network, &capabilities)?,
         capabilities,
         extension_points,
     })
@@ -486,6 +490,7 @@ fn is_sha256_hex(value: &str) -> bool {
 
 mod artifact_path;
 mod names;
+mod network;
 mod supported;
 
 #[cfg(test)]

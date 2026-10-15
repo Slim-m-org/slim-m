@@ -86,6 +86,7 @@ mod metrics;
 mod module_caller;
 mod module_commands;
 mod module_host;
+mod module_net;
 mod module_permissions;
 mod notification_schedule;
 mod overwrites;

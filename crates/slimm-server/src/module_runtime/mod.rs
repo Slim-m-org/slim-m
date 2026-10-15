@@ -51,6 +51,7 @@ mod compiled;
 mod host;
 mod kv;
 mod limits;
+mod net;
 mod post;
 mod sliced;
 
@@ -58,6 +59,9 @@ pub use capabilities::CapabilitySurface;
 pub use host::{ModuleHost, RunError};
 pub use kv::{InMemoryKv, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES};
 pub use limits::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS, RunLimits};
+pub use net::{
+    FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_RESPONSE_BODY_BYTES, host_allowed,
+};
 pub use post::{MessagePoster, PostRefused};
 
 #[cfg(test)]

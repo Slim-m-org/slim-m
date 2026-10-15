@@ -44,7 +44,9 @@ use crate::store::{
     ModuleRuntimeLimits,
 };
 
-use capabilities::{approvable_host_capabilities, carried_host_capabilities};
+use capabilities::{
+    approvable_host_capabilities, carried_host_capabilities, local_network_approval,
+};
 use fetch::{FetchError, fetch_first};
 use keywords::ensure_slash_keywords_free;
 use manifest::{IndexEntry, Manifest, ManifestError, parse_index, parse_manifest, validate_slug};
@@ -307,6 +309,10 @@ struct InstallRequest {
     /// withdraws every approval.
     #[serde(default)]
     approved_host_capabilities: Option<Vec<String>>,
+    /// The second, separate approval for `net.fetch` to reach local network
+    /// addresses. Omitted keeps an earlier approval for the same hosts.
+    #[serde(default)]
+    approve_local_network: Option<bool>,
 }
 
 async fn install(
@@ -332,6 +338,14 @@ async fn install(
     let approved_host = match &req.approved_host_capabilities {
         Some(requested) => approvable_host_capabilities(&manifest, requested)?,
         None => carried_host_capabilities(&state, &manifest).await?,
+    };
+    let local_network =
+        local_network_approval(&state, &manifest, &approved_host, req.approve_local_network)
+            .await?;
+    let network_hosts: &[String] = if approved_host.iter().any(|c| c == manifest::NET_FETCH) {
+        &manifest.network.hosts
+    } else {
+        &[]
     };
     if state
         .store
@@ -381,6 +395,8 @@ async fn install(
             &DockProvenance {
                 host_capabilities: &approved_host,
                 source_repo: resolved.repo.as_deref(),
+                network_hosts,
+                local_network_approved: local_network,
             },
         )
         .await?;
