@@ -187,6 +187,10 @@ class SlimmApi {
   final SessionStore session;
   final http.Client _http;
 
+  /// Upload sessions a caller gave up on while they were still resumable,
+  /// keyed by the caller's own resume key, so a retry carries on from there.
+  final Map<String, String> _resumableUploads = {};
+
   Future<TokenPair>? _refreshInFlight;
 
   /// The WebSocket URL for this server, with the scheme mapped from http(s).

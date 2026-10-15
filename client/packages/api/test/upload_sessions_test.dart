@@ -25,6 +25,14 @@ class _FakeServer {
   bool open = false;
   bool discarded = false;
   bool completed = false;
+  var creates = 0;
+
+  /// While above zero, each request gets the plain 404 a proxy gives for a
+  /// backend that is restarting, and counts it down.
+  int downFor = 0;
+
+  /// The session is gone, as after the server's sweep: a JSON 404.
+  bool gone = false;
 
   /// Called with the 1-based PUT number; may return an action for that PUT.
   _Fault? Function(int put)? fault;
@@ -47,10 +55,28 @@ class _FakeServer {
   Future<http.Response> handle(http.Request request) async {
     final path = request.url.path;
     calls.add('${request.method} $path');
+    if (downFor > 0) {
+      downFor--;
+      return http.Response('404 page not found', 404);
+    }
+    if (request.method == 'GET' && path == '/version') {
+      return _json({
+        'name': 'slimm',
+        'version': '1.0.0',
+        'protocol': 1,
+        'capabilities': ['upload_sessions'],
+      });
+    }
     if (request.method == 'POST' && path == '/attachments/uploads') {
       size = (jsonDecode(request.body) as Map<String, dynamic>)['size'] as int;
       open = true;
+      gone = false;
+      creates++;
+      received.clear();
       return _json(_session(), 201);
+    }
+    if (gone && path.startsWith('/attachments/uploads/')) {
+      return _json({'error': 'upload session not found'}, 404);
     }
     if (request.method == 'GET' && path == '/attachments/uploads/up1') {
       return _json(_session());
@@ -135,25 +161,31 @@ UploadSource _source(Uint8List data, {bool seekable = false}) => UploadSource(
 
 int _min(int a, int b) => a < b ? a : b;
 
-Duration _instant(int _) => Duration.zero;
-
 Future<Attachment> _run(
   _FakeServer server,
   Uint8List data, {
   void Function(int)? onProgress,
+  void Function(bool)? onRetrying,
   UploadCancelToken? cancel,
   bool seekable = false,
   int partBytes = 30,
+  SlimmApi? api,
+  String? resumeKey,
+  List<String>? capabilities = const ['upload_sessions'],
+  Duration stallLimit = const Duration(milliseconds: 200),
 }) =>
-    _api(server).uploadAttachmentAuto(
+    (api ?? _api(server)).uploadAttachmentAuto(
       _source(data, seekable: seekable),
       length: data.length,
-      capabilities: const ['upload_sessions'],
+      capabilities: capabilities,
       sessionThreshold: 0,
       filename: 'big.iso',
       onProgress: onProgress,
+      onRetrying: onRetrying,
       cancel: cancel,
-      backoff: _instant,
+      resumeKey: resumeKey,
+      backoff: (_) => const Duration(milliseconds: 5),
+      stallLimit: stallLimit,
       partBytes: partBytes,
     );
 
@@ -223,17 +255,76 @@ void main() {
     });
   }
 
-  test('gives up after five retries without progress and discards', () async {
+  test(
+      'keeps retrying until the stall limit, then gives up without throwing '
+      'the session away', () async {
     final server = _FakeServer()..fault = (_) => const _Fault.status(502);
-    final data = _bytes(100);
+    final watch = Stopwatch()..start();
     await expectLater(
-      _run(server, data),
+      _run(server, _bytes(100), resumeKey: 'tile-1'),
       throwsA(isA<ServerException>()),
     );
     await pumpEventQueue();
-    expect(server.putOffsets.length, 6);
-    expect(server.discarded, isTrue);
-    expect(server.completed, isFalse);
+    expect(watch.elapsedMilliseconds, greaterThanOrEqualTo(200));
+    expect(server.putOffsets.length, greaterThan(6));
+    expect(server.discarded, isFalse, reason: 'a retry can still resume it');
+  });
+
+  test('rides out a server restart behind a proxy (issue: deploy mid-upload)',
+      () async {
+    final server = _FakeServer();
+    final data = _bytes(100);
+    final retrying = <bool>[];
+    server.fault = (put) {
+      if (put == 2) server.downFor = 6;
+      return null;
+    };
+    final attachment = await _run(server, data, onRetrying: retrying.add);
+    expect(attachment.id, 'att1');
+    expect(server.received, data);
+    expect(retrying, [true, false]);
+    expect(server.creates, 1);
+  });
+
+  test('a session the server lost is started over once, not failed', () async {
+    final server = _FakeServer();
+    final data = _bytes(100);
+    server.fault = (put) {
+      if (put == 2) server.gone = true;
+      return null;
+    };
+    final attachment = await _run(server, data);
+    expect(attachment.id, 'att1');
+    expect(server.creates, 2);
+    expect(server.received, data);
+  });
+
+  test(
+      'a retry with the same resume key carries on where the last one '
+      'stopped', () async {
+    final server = _FakeServer();
+    final data = _bytes(100);
+    final api = _api(server);
+    server.fault = (put) => put >= 3 ? const _Fault.status(503) : null;
+    await expectLater(
+      _run(server, data, api: api, resumeKey: 'tile-1'),
+      throwsA(isA<UnavailableException>()),
+    );
+    expect(server.received.length, 60);
+
+    server.fault = null;
+    final attachment = await _run(server, data, api: api, resumeKey: 'tile-1');
+    expect(attachment.id, 'att1');
+    expect(server.creates, 1, reason: 'resumed, not restarted');
+    expect(server.received, data);
+  });
+
+  test('unknown capabilities are asked for rather than read as none', () async {
+    final server = _FakeServer();
+    final attachment = await _run(server, _bytes(100), capabilities: null);
+    expect(attachment.id, 'att1');
+    expect(server.calls, contains('GET /version'));
+    expect(server.creates, 1);
   });
 
   test('a refusal that no retry can fix fails at once', () async {

@@ -150,6 +150,7 @@ class _UploadProgressState extends State<_UploadProgress> {
 
   String _line(int percent, bool compact) {
     final upload = widget.upload;
+    if (upload.reconnecting) return 'Reconnecting at $percent%…';
     final size = formatByteSize(upload.body.length);
     final meter = upload.meter;
     final left = meter?.remaining(upload.sent, upload.body.length);
