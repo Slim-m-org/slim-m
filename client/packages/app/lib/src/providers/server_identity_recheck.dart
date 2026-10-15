@@ -22,13 +22,30 @@ import 'sync_controller.dart';
 /// A mismatch already proven is the exception: a failed re-probe keeps it,
 /// because an unreadable answer is no verdict and must not retract one.
 final serverIdentityChangeProvider =
-    AsyncNotifierProvider<ServerIdentityChange, api.ServerIdentity?>(
+    AsyncNotifierProvider<ServerIdentityChange, IdentityChange?>(
       ServerIdentityChange.new,
     );
 
-class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
+/// A pinned server that no longer matches: [presented] is the key it shows
+/// now, or null when it showed none, which a pinned server never does
+/// honestly (issue 1982).
+class IdentityChange {
+  const IdentityChange(this.presented);
+
+  final api.ServerIdentity? presented;
+
   @override
-  Future<api.ServerIdentity?> build() async {
+  bool operator ==(Object other) =>
+      other is IdentityChange &&
+      other.presented?.publicKey == presented?.publicKey;
+
+  @override
+  int get hashCode => presented?.publicKey.hashCode ?? 0;
+}
+
+class ServerIdentityChange extends AsyncNotifier<IdentityChange?> {
+  @override
+  Future<IdentityChange?> build() async {
     final proven = state.valueOrNull;
     ref.watch(syncControllerProvider);
     if (!ref.watch(sessionProvider).isSignedIn) return null;
@@ -41,10 +58,10 @@ class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
 
     try {
       final identity = (await ref.watch(apiProvider).version()).identity;
-      if (identity == null || identity.publicKey == pinned) return null;
-      return identity;
+      if (identity?.publicKey == pinned) return null;
+      return IdentityChange(identity);
     } catch (_) {
-      return proven?.publicKey == pinned ? null : proven;
+      return proven?.presented?.publicKey == pinned ? null : proven;
     }
   }
 }

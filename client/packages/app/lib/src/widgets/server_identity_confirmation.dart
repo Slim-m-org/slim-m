@@ -57,12 +57,23 @@ Future<bool> confirmServerIdentity(
   } finally {
     client.close();
   }
-  if (identity == null) return true;
   if (!context.mounted) return false;
 
   final keyStore = ref.read(keyStoreProvider);
   final handle = identityHandleFor(server);
   final pinned = await keyStore.read(handle);
+  // No key from an address with none pinned is an old server; with one pinned it is a change.
+  if (identity == null) {
+    if (pinned == null) return true;
+    if (!context.mounted) return false;
+    await Navigator.of(context).push<bool>(
+      fadeThroughRoute<bool>(
+        context,
+        (context) => ServerIdentityChangedStep(address: server, identity: null),
+      ),
+    );
+    return false;
+  }
 
   if (pinned == identity.publicKey) return true;
   if (!context.mounted) return false;

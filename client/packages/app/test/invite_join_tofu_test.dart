@@ -43,7 +43,7 @@ Map<String, Object?> _identity(String key) => {
 Future<void> _startInvite(
   WidgetTester tester, {
   required KeyStore keyStore,
-  required String servedKey,
+  required String? servedKey,
   required void Function(Uri, String?) onChosen,
 }) async {
   final httpClient = MockClient((request) async {
@@ -52,7 +52,7 @@ Future<void> _startInvite(
             'name': 'slim-m',
             'version': '0.10.0',
             'protocol': 1,
-            'identity': _identity(servedKey),
+            if (servedKey != null) 'identity': _identity(servedKey),
           }
         : {
             'usable': true,
@@ -168,5 +168,46 @@ void main() {
 
     expect(chosen, Uri.parse(_server));
     expect(await keyStore.read(_handle), _keyB);
+  });
+
+  testWidgets('a pinned server that answers with no identity is a change, not '
+      'an old server', (tester) async {
+    Uri? chosen;
+    final keyStore = InMemoryKeyStore();
+    await keyStore.put(_handle, _keyA);
+
+    await _startInvite(
+      tester,
+      keyStore: keyStore,
+      servedKey: null,
+      onChosen: (s, c) => chosen = s,
+    );
+
+    expect(
+      find.text('This server stopped proving its identity'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Trust the new identity'),
+      findsNothing,
+      reason: 'nothing to trust',
+    );
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(chosen, isNull, reason: 'the join does not continue');
+    expect(await keyStore.read(_handle), _keyA);
+  });
+
+  testWidgets('with no pin, a server too old to send an identity still joins', (
+    tester,
+  ) async {
+    Uri? chosen;
+    await _startInvite(
+      tester,
+      keyStore: InMemoryKeyStore(),
+      servedKey: null,
+      onChosen: (s, c) => chosen = s,
+    );
+    expect(chosen, Uri.parse(_server));
   });
 }

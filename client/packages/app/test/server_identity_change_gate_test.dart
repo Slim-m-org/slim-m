@@ -59,7 +59,7 @@ bool probeFails = false;
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required KeyStore keyStore,
-  required String presentedKey,
+  required String? presentedKey,
   bool signedIn = true,
 }) async {
   final client = MockClient((request) async {
@@ -70,7 +70,7 @@ Future<ProviderContainer> _pump(
           'name': 'slim-m',
           'version': '1.0.0',
           'protocol': 1,
-          'identity': _identity(presentedKey),
+          if (presentedKey != null) 'identity': _identity(presentedKey),
         }),
         200,
         headers: {'content-type': 'application/json'},
@@ -114,6 +114,25 @@ Future<ProviderContainer> _pump(
 }
 
 void main() {
+  testWidgets('a pinned server that stops sending a key stops the app too', (
+    tester,
+  ) async {
+    final store = InMemoryKeyStore();
+    await store.put(_handle, _keyA);
+    final container = await _pump(tester, keyStore: store, presentedKey: null);
+
+    expect(find.text('the app'), findsNothing);
+    expect(
+      find.text('This server stopped proving its identity'),
+      findsOneWidget,
+    );
+    expect(find.text('Trust the new identity'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(container.read(sessionProvider).isSignedIn, isFalse);
+    expect(await store.read(_handle), _keyA);
+  });
+
   testWidgets('a key that contradicts the pin stops the app', (tester) async {
     final store = InMemoryKeyStore();
     await store.put(_handle, _keyA);
