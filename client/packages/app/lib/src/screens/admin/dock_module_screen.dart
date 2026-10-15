@@ -22,6 +22,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
+import '../../providers/channel_permissions.dart'
+    show myVisibleChannelsProvider;
 import '../../providers/app_launch.dart';
 import '../../providers/code_block_runner.dart';
 import '../../providers/slash_command.dart';
@@ -73,16 +75,54 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     };
   }
 
-  /// A new build never inherits the power to post: it has to be switched on
-  /// again for the version the admin is looking at.
+  /// The second yes for the local network, null until the admin flips it.
+  bool? _localNetwork;
+
+  /// Whether the local network switch is on: only under an approved
+  /// `net.fetch` on a manifest that asks, and never inherited by new hosts.
+  bool _localFor(
+    api.DockManifest manifest,
+    api.InstalledDockModule? installed,
+    Set<String> approved,
+  ) {
+    if (!(manifest.network?.local ?? false) ||
+        !approved.contains('net.fetch')) {
+      return false;
+    }
+    final carried =
+        installed != null &&
+        installed.localNetworkApproved &&
+        dockSameHosts(installed.networkHosts, manifest.network!.hosts);
+    return _localNetwork ?? carried;
+  }
+
+  /// A new build never inherits the power to post, and new hosts never inherit
+  /// net.fetch: each has to be switched on again for what the admin is
+  /// looking at.
   static bool _needsReapproval(
     String capability,
     api.DockManifest manifest,
     api.InstalledDockModule? installed,
-  ) =>
-      capability == 'message.post' &&
-      installed != null &&
-      installed.artifactSha256 != manifest.artifact.sha256;
+  ) {
+    if (installed == null) return false;
+    return switch (capability) {
+      'message.post' => installed.artifactSha256 != manifest.artifact.sha256,
+      'net.fetch' => !dockSameHosts(
+        installed.networkHosts,
+        manifest.network?.hosts ?? const [],
+      ),
+      _ => false,
+    };
+  }
+
+  List<String> _reapprovalsFor(
+    api.DockManifest manifest,
+    api.InstalledDockModule? installed,
+  ) => [
+    if (_hostApproved == null && installed != null)
+      for (final c in installed.approvedHostCapabilities)
+        if (_needsReapproval(c, manifest, installed)) c,
+  ];
 
   void _toggleHostCapability(String capability, bool approved) {
     final installed = ref
@@ -96,6 +136,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     setState(() {
       final next = {..._approvedFor(manifest, installed)};
       approved ? next.add(capability) : next.remove(capability);
+      if (capability == 'net.fetch') _localNetwork = false;
       _hostApproved = next;
     });
   }
@@ -133,6 +174,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
         capabilities: asked,
         verified: verified,
         isUpdate: wasInstalled,
+        localNetwork: _localFor(manifest, current, approved),
       );
       if (!agreed || !mounted) return;
     }
@@ -147,13 +189,19 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
             moduleId: manifest.id,
             version: manifest.version,
             approvedHostCapabilities: approved.toList()..sort(),
+            approveLocalNetwork: manifest.network == null
+                ? null
+                : _localFor(manifest, current, approved),
             source: widget.source,
           ),
     );
     if (!mounted) return;
     setState(() {
       _busy = false;
-      if (ok) _hostApproved = null;
+      if (ok) {
+        _hostApproved = null;
+        _localNetwork = null;
+      }
     });
     if (!ok) return;
     showAppSnackbar(
@@ -199,6 +247,19 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     }
   }
 
+  Future<void> _setScheduleChannel(String? channelId) async {
+    setState(() => _busy = true);
+    final ok = await guard(
+      whatFailed: 'choose where ${widget.moduleId} posts',
+      action: () => ref
+          .read(apiProvider)
+          .setDockModuleScheduleChannel(widget.moduleId, channelId),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (ok) ref.invalidate(dockCatalogProvider);
+  }
+
   Future<void> _uninstall(String name) async {
     final confirmed = await confirmDangerousAction(
       context,
@@ -233,6 +294,12 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     final manifest = ref.watch(dockManifestFor(widget.moduleId, widget.source));
     final catalog = ref.watch(dockCatalogProvider).valueOrNull;
     final installed = catalog?.installedFor(widget.moduleId);
+    final textChannels = [
+      for (final c
+          in ref.watch(myVisibleChannelsProvider).valueOrNull ??
+              const <api.Channel>[])
+        if (c.kind == 'text') c,
+    ];
     final sourceRepo = widget.source == null
         ? null
         : catalog?.sections
@@ -258,11 +325,15 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           verified: dockIsVerified(widget.source),
           installed: installed,
           approvedHostCapabilities: _approvedFor(m, installed),
-          reapprovePosting:
-              _hostApproved == null &&
-              installed != null &&
-              installed.approvedHostCapabilities.contains('message.post') &&
-              _needsReapproval('message.post', m, installed),
+          reapprove: _reapprovalsFor(m, installed),
+          localNetworkApproved: _localFor(
+            m,
+            installed,
+            _approvedFor(m, installed),
+          ),
+          onLocalNetworkChanged: (v) => setState(() => _localNetwork = v),
+          scheduleChannels: textChannels,
+          onScheduleChannel: _setScheduleChannel,
           onToggleHostCapability: _toggleHostCapability,
           busy: _busy,
           error: actionError,

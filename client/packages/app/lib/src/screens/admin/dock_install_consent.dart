@@ -25,9 +25,26 @@ List<String> newConsentCapabilities(
   final had = installed?.approvedCapabilities ?? const <String>[];
   return [
     for (final capability in grantableHostCapabilities(manifest.capabilities))
-      if (!had.contains(capability)) capability,
+      if (!had.contains(capability) ||
+          _hostsChanged(capability, manifest, installed))
+        capability,
   ];
 }
+
+/// An update that names different hosts drops the old `net.fetch` approval.
+bool _hostsChanged(
+  String capability,
+  api.DockManifest manifest,
+  api.InstalledDockModule? installed,
+) =>
+    capability == 'net.fetch' &&
+    installed != null &&
+    installed.approvedHostCapabilities.contains(capability) &&
+    !dockSameHosts(installed.networkHosts, manifest.network?.hosts ?? const []);
+
+/// Whether two host lists name the same hosts, in any order.
+bool dockSameHosts(List<String> a, List<String> b) =>
+    a.length == b.length && a.toSet().containsAll(b);
 
 /// Whether pressing Install should stop at the consent step first.
 bool dockNeedsConsent({
@@ -55,6 +72,7 @@ Future<bool> showDockInstallConsent(
   required List<String> capabilities,
   required bool verified,
   required bool isUpdate,
+  bool localNetwork = false,
 }) async {
   final agreed = await showAppSheet<bool>(
     context,
@@ -64,6 +82,7 @@ Future<bool> showDockInstallConsent(
       capabilities: capabilities,
       verified: verified,
       isUpdate: isUpdate,
+      localNetwork: localNetwork,
     ),
   );
   return agreed ?? false;
@@ -75,9 +94,11 @@ class _ConsentSheet extends StatefulWidget {
     required this.capabilities,
     required this.verified,
     required this.isUpdate,
+    required this.localNetwork,
   });
 
   final api.DockManifest manifest;
+  final bool localNetwork;
   final List<String> capabilities;
   final bool verified;
   final bool isUpdate;
@@ -160,7 +181,15 @@ class _ConsentSheetState extends State<_ConsentSheet> {
         const SizedBox(height: AppSpacing.s8),
         for (final capability in widget.capabilities)
           _CapabilityLine(
-            text: dockCapabilityWarning(capability)!,
+            text: dockCapabilityWarning(
+              capability,
+              details: dockCapabilityDetails(widget.manifest, capability),
+            )!,
+            verified: widget.verified,
+          ),
+        if (widget.localNetwork && widget.capabilities.contains('net.fetch'))
+          _CapabilityLine(
+            text: dockLocalNetworkWarning,
             verified: widget.verified,
           ),
       ] else
