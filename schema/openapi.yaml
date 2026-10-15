@@ -3796,6 +3796,18 @@ paths:
               schema:
                 type: string
                 format: binary
+            image/heic:
+              schema:
+                type: string
+                format: binary
+            image/heif:
+              schema:
+                type: string
+                format: binary
+            image/avif:
+              schema:
+                type: string
+                format: binary
             video/mp4:
               schema:
                 type: string

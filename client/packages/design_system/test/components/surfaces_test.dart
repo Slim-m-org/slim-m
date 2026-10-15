@@ -464,7 +464,10 @@ void main() {
           AppMenuItem(label: 'Share', submenu: true, touch: true, onTap: () {})
         ]),
       );
-      expect(tester.getSize(find.byType(AppMenuItem)).height, 48);
+      expect(
+        tester.getSize(find.byType(AppMenuItem)).height,
+        AppSizes.rowTouchMenu,
+      );
       expect(find.byIcon(AppIcons.chevronRight), findsOneWidget);
     });
 

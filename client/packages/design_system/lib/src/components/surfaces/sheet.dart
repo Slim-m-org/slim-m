@@ -86,12 +86,24 @@ Future<T?> showAppSheet<T>(
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      // Material's handle reserves a 48dp box above every sheet; this one is a slim bar.
+      showDragHandle: false,
       sheetAnimationStyle: noAnimation,
       builder: (context) => SafeArea(
         top: false,
-        child:
-            _KeyboardInset(scrolls: scrolls, child: Builder(builder: builder)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SheetHandle(),
+            Flexible(
+              child: _KeyboardInset(
+                scrolls: scrolls,
+                child: Builder(builder: builder),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -105,6 +117,43 @@ Future<T?> showAppSheet<T>(
       child: Builder(builder: builder),
     ),
   );
+}
+
+/// The compact drag handle every phone sheet opens with. The whole sheet
+/// drags to dismiss; tapping the handle closes it too, which is what a screen
+/// reader is offered.
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      button: true,
+      label: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      onTap: () => Navigator.of(context).maybePop(),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).maybePop(),
+        child: Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.s8,
+            bottom: AppSpacing.s8,
+          ),
+          child: Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: tokens.borderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _KeyboardInset extends StatelessWidget {

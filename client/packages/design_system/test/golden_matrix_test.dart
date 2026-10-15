@@ -234,7 +234,7 @@ void main() {
           );
           expect(
             tester.getSize(find.byType(AppMenuItem)).height,
-            touch ? 48.0 : AppSizes.controlMd,
+            touch ? AppSizes.rowTouchMenu : AppSizes.controlMd,
           );
 
           // Pixel comparison only where the reference images were produced.

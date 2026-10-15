@@ -70,7 +70,15 @@ Future<void> pasteClipboardImageFromKeystroke(
 /// image clipboard (confirmed working 2026-08-02, PR #327). So this row is
 /// never hidden on that signal; only proof a paste completed through the
 /// native menu would justify it, and nothing tracks that yet.
-Future<bool> composerClipboardPasteAvailable() => hasClipboardImage();
+///
+/// Never on iOS any more: the long-press menu's own Paste takes an image there
+/// (`composer_context_menu.dart`, PR #327), and the owner confirmed it on a
+/// device on 2026-10-14, so the row only repeated it. Android keeps the row,
+/// because its long-press Paste is text only.
+Future<bool> composerClipboardPasteAvailable({
+  required TargetPlatform platform,
+}) =>
+    platform == TargetPlatform.iOS ? Future.value(false) : hasClipboardImage();
 
 /// Runs the whole "Paste image" action: clears [setError] up front, so a
 /// retry that succeeds does not leave a stale failure on screen, then reads

@@ -180,8 +180,8 @@ enum AppMenuItemTone { normal, warn, danger }
 /// One row inside an [AppMenu]: an optional leading icon, a label, and
 /// optional trailing content (a shortcut hint, a chevron for [submenu]).
 ///
-/// [touch] raises the row to [AppSizes.rowTouchMenu] (48, a step above the 44
-/// touch minimum for a gapless menu column) and widens the leading gap to
+/// [touch] raises the row to [AppSizes.rowTouchMenu] (44, the touch minimum)
+/// and widens the leading gap to
 /// `space-12`; the pointer row is 34px, which matches [AppSizes.controlMd]
 /// exactly. Left unset it follows [AppTouchTargets.of].
 class AppMenuItem extends StatefulWidget {

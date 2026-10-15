@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The phone composer's recent-photos strip, shown where the keyboard sits.
+/// The phone composer's recent-photos panel, shown where the keyboard sits: a
+/// vertical grid of the camera roll that swipes down to close.
 ///
 /// Rule 4 of `docs/design/desktop-vs-mobile.md` is the nearest surface (a short
 /// task under 600dp lives at the bottom of the screen), but it is docked in the
@@ -11,6 +12,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -65,10 +67,15 @@ class ComposerPhotoStripSlot extends ConsumerWidget {
   }
 }
 
-/// How many recent photos the strip loads before its closing tile.
-const int _recentCount = 24;
+/// How many recent photos each page of the grid loads.
+const int _pageSize = 60;
 
-const double _tileSize = 88;
+/// The widest a tile gets, so a phone shows three columns and a narrow one two.
+const double _maxTileExtent = 140;
+
+/// How far, or how fast, a downward drag must go to close the panel.
+const double _closeDistance = 80;
+const double _closeVelocity = 700;
 
 class ComposerPhotoStrip extends ConsumerStatefulWidget {
   const ComposerPhotoStrip({
@@ -89,10 +96,32 @@ class ComposerPhotoStrip extends ConsumerStatefulWidget {
   ConsumerState<ComposerPhotoStrip> createState() => _ComposerPhotoStripState();
 }
 
-class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip> {
+class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
+    with SingleTickerProviderStateMixin {
   PhotoAccess? _access;
   List<RecentPhoto> _photos = const [];
   bool _readFailed = false;
+
+  /// How many photos have been asked for; grows a page at a time near the end.
+  int _requested = _pageSize;
+  bool _exhausted = false;
+  bool _loadingMore = false;
+
+  /// How far a swipe-down has pulled the panel.
+  double _drag = 0;
+
+  /// Springs a short pull back to rest.
+  late final AnimationController _settle =
+      AnimationController(vsync: this, duration: AppMotion.base)..addListener(
+        () => setState(() => _drag = _settleFrom * (1 - _settle.value)),
+      );
+  double _settleFrom = 0;
+
+  @override
+  void dispose() {
+    _settle.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -108,7 +137,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip> {
     try {
       access = await library.requestAccess();
       if (access != PhotoAccess.denied) {
-        photos = await library.recent(_recentCount);
+        photos = await library.recent(_requested);
       }
     } catch (_) {
       // A plugin that cannot read the library lands on the same way out as a refusal.
@@ -118,6 +147,73 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip> {
     setState(() {
       _access = access;
       _photos = photos;
+      _exhausted = photos.length < _requested;
+    });
+  }
+
+  Future<void> _loadMore() async {
+    final library = ref.read(photoLibraryProvider);
+    if (library == null || _exhausted || _loadingMore) return;
+    _loadingMore = true;
+    _requested += _pageSize;
+    try {
+      final photos = await library.recent(_requested);
+      if (!mounted) return;
+      setState(() {
+        _photos = photos;
+        _exhausted = photos.length < _requested;
+      });
+    } catch (_) {
+      // The page already shown stays; scrolling to the end again retries.
+      _requested -= _pageSize;
+    } finally {
+      _loadingMore = false;
+    }
+  }
+
+  void _dragBy(double dy) {
+    _settle.stop();
+    setState(() => _drag = (_drag + dy).clamp(0, double.infinity));
+  }
+
+  void _dragEnd(double velocity) {
+    if (_drag >= _closeDistance || velocity >= _closeVelocity) {
+      AppHaptics.selection();
+      widget.onClose();
+      return;
+    }
+    _settleFrom = _drag;
+    unawaited(_settle.forward(from: 0));
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    final atTop = n.metrics.pixels <= n.metrics.minScrollExtent;
+    if (n is OverscrollNotification && n.dragDetails != null && atTop) {
+      if (n.overscroll < 0) _afterLayout(() => _dragBy(-n.overscroll));
+    } else if (n is ScrollUpdateNotification &&
+        n.dragDetails != null &&
+        _drag > 0 &&
+        (n.scrollDelta ?? 0) > 0) {
+      _afterLayout(() => _dragBy(-(n.scrollDelta ?? 0)));
+    } else if (n is ScrollEndNotification && _drag > 0) {
+      final velocity = n.dragDetails?.primaryVelocity ?? 0;
+      _afterLayout(() => _dragEnd(velocity));
+    }
+    if (n.metrics.extentAfter < _maxTileExtent * 3) {
+      _afterLayout(() => unawaited(_loadMore()));
+    }
+    return false;
+  }
+
+  /// Runs [change] now, or after this frame when a notification arrives mid-layout.
+  void _afterLayout(VoidCallback change) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      change();
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) change();
     });
   }
 
@@ -139,39 +235,65 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip> {
 
   @override
   Widget build(BuildContext context) {
-    if (MediaQuery.sizeOf(context).width >= kCompactWidth) {
-      return const SizedBox.shrink();
-    }
+    final size = MediaQuery.sizeOf(context);
+    if (size.width >= kCompactWidth) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final access = _access;
+    final height = (size.height * 0.42).clamp(240.0, 400.0);
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: tokens.surfaceSunken,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s8),
+      child: Transform.translate(
+        offset: Offset(0, _drag),
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: tokens.surfaceSunken,
+            borderRadius: BorderRadius.circular(AppRadii.card),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _header(tokens, access),
-              if (_readFailed)
-                AppErrorState(
-                  message: 'Could not read that photo.',
-                  onDismiss: () => setState(() => _readFailed = false),
+              Semantics(
+                button: true,
+                label: 'Close photo strip',
+                onTap: widget.onClose,
+                excludeSemantics: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onClose,
+                  onVerticalDragUpdate: (d) => _dragBy(d.delta.dy),
+                  onVerticalDragEnd: (d) => _dragEnd(d.primaryVelocity ?? 0),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.s8,
+                    ),
+                    child: Center(
+                      child: _GrabHandle(color: tokens.borderStrong),
+                    ),
+                  ),
                 ),
-              if (access == null)
-                const SizedBox(
-                  height: _tileSize,
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (access == PhotoAccess.denied)
-                _denied(tokens)
-              else
-                _strip(),
+              ),
+              if (access == PhotoAccess.limited) _limitedNote(tokens),
+              if (_readFailed)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s8,
+                  ),
+                  child: AppErrorState(
+                    message: 'Could not read that photo.',
+                    onDismiss: () => setState(() => _readFailed = false),
+                  ),
+                ),
+              Expanded(
+                child: switch (access) {
+                  null => const Center(child: CircularProgressIndicator()),
+                  PhotoAccess.denied => SingleChildScrollView(
+                    child: _denied(tokens),
+                  ),
+                  _ => _grid(),
+                },
+              ),
             ],
           ),
         ),
@@ -179,28 +301,24 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip> {
     );
   }
 
-  Widget _header(AppTokens tokens, PhotoAccess? access) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          access == PhotoAccess.limited
-              ? 'Showing the photos you allowed'
-              : 'Recent photos',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+  /// Only a limited grant says anything above the grid: which photos these are, and how to widen it.
+  Widget _limitedNote(AppTokens tokens) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Showing the photos you allowed',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
         ),
-      ),
-      if (access == PhotoAccess.limited)
         AppButton(
           label: 'Allow more',
           variant: AppButtonVariant.ghost,
           onPressed: () => unawaited(_manage()),
         ),
-      AppIconButton(
-        icon: AppIcons.dismiss,
-        semanticLabel: 'Close photo strip',
-        onPressed: widget.onClose,
-      ),
-    ],
+      ],
+    ),
   );
 
   Widget _denied(AppTokens tokens) => Padding(
@@ -223,15 +341,39 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip> {
     ),
   );
 
-  Widget _strip() => SizedBox(
-    height: _tileSize,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
+  Widget _grid() => NotificationListener<ScrollNotification>(
+    onNotification: _onScroll,
+    child: GridView.builder(
+      padding: const EdgeInsets.all(AppSpacing.s8),
+      physics: const ClampingScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: _maxTileExtent,
+        mainAxisSpacing: AppSpacing.s4,
+        crossAxisSpacing: AppSpacing.s4,
+      ),
       itemCount: _photos.length + 1,
-      separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.s8),
-      itemBuilder: (context, i) => i == _photos.length
+      itemBuilder: (context, i) => i == 0
           ? _AllPhotosTile(onTap: widget.onBrowse)
-          : _PhotoTile(photo: _photos[i], onTap: () => _attach(_photos[i])),
+          : _PhotoTile(
+              photo: _photos[i - 1],
+              onTap: () => _attach(_photos[i - 1]),
+            ),
+    ),
+  );
+}
+
+/// The sheet-style handle that says the panel can be swiped down.
+class _GrabHandle extends StatelessWidget {
+  const _GrabHandle({required this.color});
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 32,
+    height: 4,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(2),
     ),
   );
 }
@@ -248,7 +390,7 @@ class _PhotoTile extends ConsumerStatefulWidget {
 class _PhotoTileState extends ConsumerState<_PhotoTile> {
   late final Future<Uint8List?>? _thumb = ref
       .read(photoLibraryProvider)
-      ?.thumbnail(widget.photo.id, (_tileSize * 2).round());
+      ?.thumbnail(widget.photo.id, (_maxTileExtent * 2).round());
 
   @override
   Widget build(BuildContext context) {
@@ -263,8 +405,7 @@ class _PhotoTileState extends ConsumerState<_PhotoTile> {
         },
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.control),
-          child: SizedBox.square(
-            dimension: _tileSize,
+          child: SizedBox.expand(
             child: FutureBuilder<Uint8List?>(
               future: _thumb,
               builder: (context, snap) => snap.data == null
@@ -299,8 +440,7 @@ class _AllPhotosTile extends StatelessWidget {
             border: Border.all(color: tokens.borderSubtle),
             borderRadius: BorderRadius.circular(AppRadii.control),
           ),
-          child: SizedBox.square(
-            dimension: _tileSize,
+          child: SizedBox.expand(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

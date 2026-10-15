@@ -30,6 +30,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
         'Screen share has a 2160p option in place of Source, and Settings has '
         'a Troubleshooting page for the device check.',
       ),
+      WhatsNewPoint(
+        'On a phone, live photos send as pictures, the photo panel is a grid '
+        'you swipe down to close, and menus take less room.',
+      ),
     ],
   ),
 ];
