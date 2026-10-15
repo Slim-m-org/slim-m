@@ -17,12 +17,13 @@ void main() {
     });
     expect(profile.inviteCode, 'K7Q2');
     expect(
-      profile == UserProfile.fromJson({
-        'id': 'u1',
-        'username': 'ada',
-        'display_name': 'Ada',
-        'created_at': 0,
-      }),
+      profile ==
+          UserProfile.fromJson({
+            'id': 'u1',
+            'username': 'ada',
+            'display_name': 'Ada',
+            'created_at': 0,
+          }),
       isFalse,
       reason: 'a code arriving later must count as a change',
     );
