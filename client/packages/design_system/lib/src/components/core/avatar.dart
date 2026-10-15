@@ -226,7 +226,12 @@ class AppAvatar extends StatelessWidget {
     // placeholder icon) from merging its own auto-label into this one.
     return Semantics(
       image: true,
-      label: semanticLabel ?? (speaking ? '$name, speaking' : name),
+      label: semanticLabel ??
+          [
+            name,
+            if (speaking) 'speaking',
+            if (status?.word case final word?) word,
+          ].join(', '),
       child: ExcludeSemantics(child: content),
     );
   }

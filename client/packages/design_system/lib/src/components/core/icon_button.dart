@@ -53,6 +53,7 @@ class AppIconButton extends StatefulWidget {
     this.variant = AppIconButtonVariant.ghost,
     this.size = AppIconButtonSize.md,
     this.active = false,
+    this.toggled,
     this.touch,
     this.iconSize = AppSizes.icon20,
     this.tooltip,
@@ -70,6 +71,11 @@ class AppIconButton extends StatefulWidget {
   final AppIconButtonVariant variant;
   final AppIconButtonSize size;
   final bool active;
+
+  /// Whether this is a two-state toggle and, if so, its state. Null for an
+  /// ordinary button, which a screen reader must not call a toggle; an
+  /// [active] button with nothing set here reads as on.
+  final bool? toggled;
 
   /// Null means "whatever this subtree is at", read from [AppTouchTargets].
   final bool? touch;
@@ -179,7 +185,7 @@ class _AppIconButtonState extends State<AppIconButton> {
       label: widget.semanticLabel,
       button: true,
       enabled: enabled,
-      toggled: widget.active,
+      toggled: widget.toggled ?? (widget.active ? true : null),
       child: Opacity(
         opacity: enabled ? 1 : 0.4,
         child: FocusableActionDetector(

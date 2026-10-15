@@ -263,7 +263,7 @@ class _AppMenuItemState extends State<AppMenuItem> {
             : null);
 
     // The tint rides AppListRow's fast hover clock; density is still layout.
-    final content = AnimatedContainer(
+    final row = AnimatedContainer(
       duration: AppMotion.reduced(context, AppMotion.fast),
       curve: AppMotion.entrance,
       height: touch ? AppSizes.rowTouchMenu : AppSizes.controlMd,
@@ -313,6 +313,8 @@ class _AppMenuItemState extends State<AppMenuItem> {
         ],
       ),
     );
+    // A disabled item must read as one, the same dimming AppIconButton uses.
+    final content = active ? row : Opacity(opacity: 0.4, child: row);
 
     return Semantics(
       label: widget.semanticLabel ?? widget.label,

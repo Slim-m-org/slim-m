@@ -451,6 +451,8 @@ class _AppListRowState extends State<AppListRow> {
       button: widget.onTap != null,
       selected: widget.selected,
       child: FocusableActionDetector(
+        // A row nothing happens on is no keyboard stop; its own controls still are.
+        enabled: widget.onTap != null,
         focusNode: widget.focusNode,
         mouseCursor:
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
