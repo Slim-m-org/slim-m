@@ -76,4 +76,22 @@ void main() {
     await _pump(tester, AppCodeBlock(lines: _lines(50)));
     expect(find.textContaining('Show'), findsNothing);
   });
+
+  testWidgets('the toggle meets the touch floor at touch density (issue 2035)',
+      (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AppTouchTargets(
+        enabled: true,
+        child: AppCodeBlock(lines: _lines(20), collapseAfterLines: 12),
+      ),
+    );
+    final toggle = find.ancestor(
+      of: find.text('Show 8 more lines'),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.getSize(toggle).height, greaterThanOrEqualTo(44));
+  });
 }
