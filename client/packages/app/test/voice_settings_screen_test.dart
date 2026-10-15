@@ -197,7 +197,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Data saver is the last segment of watching quality, 1080p the last of camera.
+    await tester.ensureVisible(find.text('Data saver').first);
     await tester.tap(find.text('Data saver').first);
+    await tester.ensureVisible(find.text('1080p').first);
     await tester.tap(find.text('1080p').first);
     await tester.pumpAndSettle();
 

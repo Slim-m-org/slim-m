@@ -5,11 +5,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import '../routing/routes.dart';
 import 'pause_video_section.dart';
 import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';
@@ -74,6 +76,13 @@ class VideoQualitySection extends ConsumerWidget {
           ),
         ],
         const PauseVideoRow(),
+        AppListRow(
+          leading: const Icon(AppIcons.requestLatency),
+          label: 'Call stats',
+          meta: 'Live video numbers for a call',
+          trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
+          onTap: () => context.push(Routes.callStats),
+        ),
       ],
     );
   }
