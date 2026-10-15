@@ -143,6 +143,7 @@ async fn upload(
     let sha256 = media::from_hex(&hex_id).expect("a hex id from sha256 is well-formed hex");
 
     // Bytes before the metadata row; see the ordering note on this function.
+    let placing = state.media.blob_guard().await;
     pending.commit().await.map_err(|err| {
         tracing::error!(error = %err, "failed to store a streamed attachment");
         ApiError::Internal
@@ -151,6 +152,7 @@ async fn upload(
         .store
         .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
         .await?;
+    drop(placing);
 
     Ok((
         StatusCode::CREATED,

@@ -27,9 +27,7 @@ pub(crate) fn spawn_forward_backfill(store: Store, media: Media) {
             .into_iter()
             .flat_map(|c| c.freed_attachments)
         {
-            if let Err(err) = media.delete_attachment(&hex).await {
-                tracing::warn!(error = %err, attachment = %hex, "failed to delete a backfilled copy's attachment file");
-            }
+            crate::blobs::release(&store, &media, &hex).await;
         }
     });
 }

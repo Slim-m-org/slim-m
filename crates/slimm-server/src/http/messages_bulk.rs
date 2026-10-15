@@ -165,9 +165,7 @@ pub(super) async fn delete_and_publish(
         super::threads::notify_reply(state, channel_id).await;
     }
     for hex in &outcome.freed_attachments {
-        if let Err(err) = state.media.delete_attachment(hex).await {
-            tracing::warn!(%hex, error = %err, "failed to remove an orphaned attachment file");
-        }
+        crate::blobs::release(&state.store, &state.media, hex).await;
     }
     Ok(())
 }

@@ -473,6 +473,7 @@ async fn select(
     let hex_id = media::to_hex(&sha256);
     let size = bytes.len() as i64;
 
+    let placing = state.media.blob_guard().await;
     state
         .media
         .write_attachment(&hex_id, bytes)
@@ -485,7 +486,7 @@ async fn select(
         .store
         .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
         .await?;
-
+    drop(placing);
     Ok((
         StatusCode::CREATED,
         Json(AttachmentDto::from(AttachmentSummary {

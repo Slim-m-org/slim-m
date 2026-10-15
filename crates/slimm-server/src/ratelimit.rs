@@ -12,14 +12,16 @@
 //! blocked, while a burst is capped.
 //!
 //! Two bounds keep the limiter itself from becoming the leak it prevents:
-//! idle buckets are swept on a schedule, and the map has a hard ceiling past
-//! which new keys are refused rather than admitted (fail closed, so flooding
-//! with fresh keys cannot grow memory without bound or buy free requests).
+//! idle buckets are swept on a schedule, and the map has a ceiling past which
+//! new anonymous keys are refused rather than admitted (fail closed, so
+//! flooding with fresh keys cannot grow memory without bound or buy free
+//! requests). See [`capacity`] for what happens at the ceiling.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod capacity;
 mod class;
 mod class_label;
 pub use class::Class;
@@ -182,9 +184,13 @@ impl RateLimiter {
                 }
             }
             None => {
-                // Refuse rather than admit once the map is full, so a flood of
-                // fresh keys cannot both grow memory and bypass the limit.
                 if state.buckets.len() >= MAX_BUCKETS {
+                    capacity::reclaim(&mut state.buckets, now, IDLE_TTL);
+                }
+                // Past the ceiling a fresh anonymous key is refused, so a flood cannot grow memory or buy requests.
+                let len = state.buckets.len();
+                let full = len >= MAX_BUCKETS && capacity::is_anonymous(key);
+                if full || len >= MAX_BUCKETS + capacity::MEMBER_HEADROOM {
                     Err(wait_for(cost))
                 } else {
                     state.buckets.insert(

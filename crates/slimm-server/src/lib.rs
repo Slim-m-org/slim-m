@@ -5,6 +5,7 @@
 //! library so it can be exercised by integration tests.
 
 pub mod auth;
+pub mod blobs;
 pub mod bot_ui;
 pub mod call_history;
 pub mod code_runner;

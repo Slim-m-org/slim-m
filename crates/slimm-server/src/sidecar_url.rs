@@ -38,14 +38,24 @@ pub(crate) fn validate(raw: &str, var_name: &str) -> anyhow::Result<()> {
 /// unencrypted, operator-local connection is legitimate rather than a leak.
 /// Matches the boundaries RFC 1918 and RFC 4193 define (so, for example,
 /// 172.16.0.0/12 is private but 172.32.0.0 is not, and `localhost` counts
-/// without a DNS lookup).
+/// without a DNS lookup). A single-label name (`piston`, `push-relay`) is a
+/// compose service or a LAN host, never a public DNS name, so it counts too,
+/// as do the reserved local suffixes.
 fn is_local(host: Option<Host<&str>>) -> bool {
     match host {
-        Some(Host::Domain(domain)) => domain.eq_ignore_ascii_case("localhost"),
+        Some(Host::Domain(domain)) => is_local_name(domain),
         Some(Host::Ipv4(addr)) => addr.is_loopback() || addr.is_private(),
         Some(Host::Ipv6(addr)) => addr.is_loopback() || addr.is_unique_local(),
         None => false,
     }
+}
+
+fn is_local_name(domain: &str) -> bool {
+    let domain = domain.trim_end_matches('.').to_ascii_lowercase();
+    !domain.contains('.')
+        || [".localhost", ".local", ".internal", ".lan", ".home.arpa"]
+            .iter()
+            .any(|suffix| domain.ends_with(suffix))
 }
 
 #[cfg(test)]
@@ -71,6 +81,11 @@ mod tests {
             "http://172.31.255.255",
             "http://192.168.1.1",
             "http://[::1]:9000",
+            "http://piston:2000",
+            "http://push-relay:8080",
+            "http://jellyfin.lan:8096",
+            "http://nas.home.arpa",
+            "http://runner.internal",
         ] {
             assert!(
                 validate(ok, "TEST").is_ok(),
@@ -81,6 +96,10 @@ mod tests {
             validate("http://172.32.0.1", "TEST").is_err(),
             "RFC 1918's 172.16/12 ends at 172.31.255.255, so 172.32.0.0 is a \
              routable public address and must require https"
+        );
+        assert!(
+            validate("http://piston.example.com", "TEST").is_err(),
+            "a dotted public-looking name is not a compose service"
         );
     }
 

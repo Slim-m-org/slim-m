@@ -143,7 +143,11 @@ where
     B: AsRef<[u8]>,
 {
     let temp_path = attachments_dir.join(format!(".tmp-{}", Uuid::now_v7()));
-    match stream_to_temp(body, max_bytes, &temp_path).await {
+    // A cancelled request drops this future mid-stream, skipping the Err arm below.
+    let mut cleanup = TempCleanup(Some(temp_path.clone()));
+    let streamed = stream_to_temp(body, max_bytes, &temp_path).await;
+    cleanup.0 = None;
+    match streamed {
         Ok((hex_id, size, sniff_prefix)) => Ok(PendingAttachment {
             final_path: attachments_dir.join(&hex_id),
             temp_path,
@@ -155,6 +159,17 @@ where
         Err(err) => {
             let _ = remove(temp_path).await;
             Err(err)
+        }
+    }
+}
+
+/// Removes a temp file when dropped while still holding its path.
+struct TempCleanup(Option<PathBuf>);
+
+impl Drop for TempCleanup {
+    fn drop(&mut self) {
+        if let Some(path) = self.0.take() {
+            let _ = std::fs::remove_file(path);
         }
     }
 }

@@ -154,6 +154,16 @@ async fn append(
             AppendError::Body => ApiError::BadRequest("upload stream ended early"),
             AppendError::Io(err) => io_error(err),
         })?;
+    // The type is decided by the leading bytes alone, so refuse as soon as they are in, not after the last part.
+    let sniffable_len = meta.size.min(512);
+    if params.offset < sniffable_len && offset >= sniffable_len {
+        let uploads = state.media.uploads();
+        let prefix = uploads.leading_bytes(id).await.map_err(io_error)?;
+        if media::sniff_content_type(sniffable(&prefix)).is_none() {
+            uploads.discard(id).await.ok();
+            return Err(ApiError::BadRequest("unsupported attachment type"));
+        }
+    }
     Ok(Json(UploadSessionDto::new(id, &meta, offset)))
 }
 
@@ -189,6 +199,7 @@ async fn complete(
         return Err(err);
     }
     // Bytes before the metadata row, the same order `POST /attachments` keeps.
+    let placing = state.media.blob_guard().await;
     uploads
         .place(id, &finished.hex_id)
         .await
@@ -205,6 +216,7 @@ async fn complete(
             Some(ctx.user_id),
         )
         .await?;
+    drop(placing);
     Ok((
         StatusCode::CREATED,
         Json(AttachmentDto::from(AttachmentSummary {

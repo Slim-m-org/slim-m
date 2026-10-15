@@ -154,10 +154,7 @@ impl VoiceService {
                     url,
                     api_key: key,
                     api_secret: secret,
-                    http: reqwest::Client::builder()
-                        .timeout(std::time::Duration::from_secs(5))
-                        .build()
-                        .expect("building the livekit room service client"),
+                    http: room_service_client(),
                     service_url,
                 }))
             }
@@ -466,6 +463,16 @@ impl VoiceService {
 
         Ok(format!("{signing_input}.{signature}"))
     }
+}
+
+/// The room service client. Redirects are off: following one would carry the
+/// admin bearer token to wherever the redirect points (issue 2088).
+fn room_service_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("building the livekit room service client")
 }
 
 #[cfg(test)]
