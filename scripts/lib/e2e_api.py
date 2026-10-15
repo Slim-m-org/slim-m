@@ -50,8 +50,9 @@ class Api:
         """Opts this caller into one fresh login when a call answers 401.
 
         Off by default: the e2e scenarios assert on a revoked session's 401,
-        which a silent re-login would hide. A long seed run opts in because
-        its 15 minute access token expires mid-run.
+        which a silent re-login would hide, so those use their own callers.
+        The run's base admin and member sessions and a long seed run opt in,
+        because their 15 minute access token expires mid-run.
         """
         self.relogin = lambda: self.login(username, password, device=device)
 

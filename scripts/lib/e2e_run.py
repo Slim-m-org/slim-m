@@ -258,6 +258,9 @@ def main():
     admin.login("alice", secret, device="e2e-admin")
     member = Api(server)
     member.login("bob", secret, device="e2e-member")
+    # A full run outlasts the 15 minute access token, and one slow scenario must not fail every later one.
+    admin.keep_signed_in("alice", secret, device="e2e-admin")
+    member.keep_signed_in("bob", secret, device="e2e-member")
 
     print("== sign in ==")
     sign_in(a, server, "alice", secret)

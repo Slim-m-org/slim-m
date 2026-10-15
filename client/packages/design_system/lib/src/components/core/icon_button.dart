@@ -72,9 +72,9 @@ class AppIconButton extends StatefulWidget {
   final AppIconButtonSize size;
   final bool active;
 
-  /// Whether this is a two-state toggle and, if so, its state. Null for an
-  /// ordinary button, which a screen reader must not call a toggle; an
-  /// [active] button with nothing set here reads as on.
+  /// The toggle state announced, overriding [active]. Every icon button
+  /// still carries one: dropping it changed how Flutter web exposes the
+  /// button and stopped a DOM click from reaching the composer's send.
   final bool? toggled;
 
   /// Null means "whatever this subtree is at", read from [AppTouchTargets].
@@ -185,7 +185,7 @@ class _AppIconButtonState extends State<AppIconButton> {
       label: widget.semanticLabel,
       button: true,
       enabled: enabled,
-      toggled: widget.toggled ?? (widget.active ? true : null),
+      toggled: widget.toggled ?? widget.active,
       child: Opacity(
         opacity: enabled ? 1 : 0.4,
         child: FocusableActionDetector(
