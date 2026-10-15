@@ -20,10 +20,13 @@ def apply_migrations(conn, migrations_dir=MIGRATIONS_DIR):
         conn.executescript(migration.read_text())
 
 
-def build_database(path, attachments=(), avatar_users=(), migrations_dir=MIGRATIONS_DIR):
+def build_database(path, attachments=(), avatar_users=(), deleted_avatar_users=(),
+                   migrations_dir=MIGRATIONS_DIR):
     """attachments: (sha256_bytes, size, content_type) tuples.
     avatar_users: (user_id_bytes, username) tuples, each marked as having
-    an avatar (avatar_updated_at set)."""
+    an avatar (avatar_updated_at set).
+    deleted_avatar_users: the same, for tombstoned accounts, whose
+    avatar_updated_at survives deletion while the file does not."""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path))
     try:
@@ -37,6 +40,11 @@ def build_database(path, attachments=(), avatar_users=(), migrations_dir=MIGRATI
             "INSERT INTO users (id, username, display_name, created_at, avatar_updated_at) "
             "VALUES (?, ?, ?, 0, 1)",
             [(user_id, username, username) for user_id, username in avatar_users],
+        )
+        conn.executemany(
+            "INSERT INTO users (id, username, display_name, created_at, avatar_updated_at, deleted_at) "
+            "VALUES (?, ?, ?, 0, 1, 2)",
+            [(user_id, username, username) for user_id, username in deleted_avatar_users],
         )
         conn.commit()
     finally:

@@ -13,7 +13,7 @@
 # .github/workflows/release.yml), so there is no slow QEMU cross-compilation and
 # no cross-linking toolchain to maintain.
 
-FROM rust:1-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088a8c3324d40900 AS builder
+FROM rust:1.97.1-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088a8c3324d40900 AS builder
 # make builds the bundled jemalloc (tikv-jemalloc-sys).
 RUN apk add --no-cache musl-dev make
 # Build against the committed .sqlx query cache; no database at build time.

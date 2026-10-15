@@ -20,6 +20,20 @@ import seed_canvas_ops as ops
 # Chance an action routes through admin_api, to exercise MANAGE_CANVAS.
 _MODERATION_CHANCE = 0.15
 
+# Mirrors the server's MAX_REMOVE_IDS_PER_OP (store/canvas_ops_write.rs).
+_MAX_REMOVE_IDS_PER_OP = 64
+
+
+def _batches_by_author(targets):
+    """Groups `targets` by author and chunks each group to one op's id limit,
+    since the server refuses a whole remove when any id is not the caller's."""
+    by_author = {}
+    for target in targets:
+        by_author.setdefault(target["author_index"], []).append(target["id"])
+    for author_index, ids in by_author.items():
+        for start in range(0, len(ids), _MAX_REMOVE_IDS_PER_OP):
+            yield author_index, ids[start:start + _MAX_REMOVE_IDS_PER_OP]
+
 
 def run_throwaway_batch(admin_api, channel_id, count, place_fn):
     """Places `count` small placeholder strokes, clears them, restores the
@@ -150,7 +164,7 @@ def _try_restore(api, channel_id, target_op, stats):
 def _run_removes_and_restores(api_by_index, admin_api, channel_id,
                                candidates, rng, stats):
     """A third of `candidates` removed one at a time by their own author, a
-    third removed together in one batch op, and - if `admin_api` is
+    third removed together in batch ops (one per author), and - if `admin_api` is
     available - up to three removed by the admin account acting on
     another author's object, left un-restored as a permanent moderation
     act. Every other individually-removed object is then restored, one of
@@ -170,10 +184,9 @@ def _run_removes_and_restores(api_by_index, admin_api, channel_id,
         if op:
             remove_ops.append((op["id"], author_api))
 
-    if batch:
-        author_api = api_by_index[batch[0]["author_index"]]
-        op = _try_remove(author_api, channel_id,
-                          [t["id"] for t in batch], stats)
+    for author_index, ids in _batches_by_author(batch):
+        author_api = api_by_index[author_index]
+        op = _try_remove(author_api, channel_id, ids, stats)
         if op:
             remove_ops.append((op["id"], author_api))
 

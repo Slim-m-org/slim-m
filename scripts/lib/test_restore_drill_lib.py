@@ -29,9 +29,10 @@ class RestoreDrillTestCase(unittest.TestCase):
         self.db_dir = self.backup_root / "db"
         self.db_dir.mkdir(parents=True)
 
-    def _write_snapshot(self, attachments=(), avatar_users=()):
+    def _write_snapshot(self, attachments=(), avatar_users=(), deleted_avatar_users=()):
         snapshot = self.db_dir / "slimm-20260101T000000Z.db"
-        fixtures.build_database(snapshot, attachments=attachments, avatar_users=avatar_users)
+        fixtures.build_database(snapshot, attachments=attachments, avatar_users=avatar_users,
+                                deleted_avatar_users=deleted_avatar_users)
         return snapshot
 
 
@@ -116,6 +117,15 @@ class CheckAvatarsTest(RestoreDrillTestCase):
 
         self.assertEqual(result["verified"], 1)
         self.assertEqual(result["missing"], [])
+
+    def test_a_deleted_account_with_no_avatar_file_is_not_missing(self):
+        snapshot = self._write_snapshot(
+            deleted_avatar_users=[(fixtures.new_user_id(), "gone")])
+
+        result = restore_drill_lib.check_avatars(snapshot, self.backup_root)
+
+        self.assertEqual(result["missing"], [])
+        self.assertEqual(result["total"], 0)
 
     def test_catches_a_missing_avatar(self):
         user_id = fixtures.new_user_id()

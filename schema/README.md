@@ -9,4 +9,4 @@ The schema evolves additive-only; an oasdiff breaking-change gate blocks incompa
 
 The server-to-relay push envelope is a separate versioned contract that lives in the relay repository.
 
-This directory is Apache-2.0 licensed so client code reading it stays permissive.
+This directory is under the same license as the rest of the repository, see `LICENSING.md`.

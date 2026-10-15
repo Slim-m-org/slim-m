@@ -119,7 +119,7 @@ def check_avatars(restored_db, mirror_dir):
     conn = sqlite3.connect(f"file:{restored_db}?mode=ro", uri=True)
     try:
         rows = conn.execute(
-            "SELECT id, username FROM users WHERE avatar_updated_at IS NOT NULL"
+            "SELECT id, username FROM users WHERE avatar_updated_at IS NOT NULL AND deleted_at IS NULL"
         ).fetchall()
     finally:
         conn.close()

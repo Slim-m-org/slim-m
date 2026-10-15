@@ -41,6 +41,8 @@ def obtain_invite_code(base_url, accounts_needed, invite_code, admin_username,
         try:
             admin_api.login(admin_username, admin_password,
                              device=f"{device_prefix}-admin")
+            admin_api.keep_signed_in(admin_username, admin_password,
+                                      f"{device_prefix}-admin")
             minted = admin_api.call("POST", "/invites",
                                      {"max_uses": accounts_needed})
         except urllib.error.HTTPError as exc:
@@ -81,7 +83,7 @@ def register_accounts(base_url, count, password, invite_code, device_prefix,
     own for the rest (see `_mint_invite_if_possible`), the same shape
     `e2e_seed.py` already uses for its two accounts, generalised to N.
 
-    A username already taken (409) is logged into instead of treated as a
+    A username already taken (409, or 400 on a claimed invite-only deployment) is logged into instead of treated as a
     failure, using the same `password` this call was given - which is why
     the caller needs a *stable* default password (see `seed_credentials.py`)
     for this to actually reuse anything across runs rather than just
@@ -102,22 +104,36 @@ def register_accounts(base_url, count, password, invite_code, device_prefix,
             got = seed_backoff.call_with_backoff(
                 lambda b=body: api.call("POST", "/auth/register", b))
         except urllib.error.HTTPError as exc:
-            if exc.code == 409:
-                got, reused = _login_existing(
-                    api, username, password, device_prefix, index)
-            else:
-                hint = ("" if working_code else
-                        "; pass --invite-code, or --admin-username and "
-                        "--admin-password so this can mint one")
-                raise AccountSetupError(
-                    f"could not register seed account {username!r}: "
-                    f"{seed_backoff.describe_error(exc)}{hint}") from exc
+            got, reused = _reuse_or_raise(
+                api, exc, (username, password, device_prefix, index),
+                working_code)
         api.token = got["access_token"]
+        api.keep_signed_in(username, password, f"{device_prefix}-{index}")
         accounts.append({"username": username, "display_name": display,
                           "api": api, "reused": reused})
         if index == 0 and working_code is None and count > 1:
             working_code = _mint_invite_if_possible(api, count - 1)
     return accounts
+
+
+def _reuse_or_raise(api, exc, who, working_code):
+    """Handles a failed registration: 409 means the name exists, and 400 may
+    too, since a claimed invite-only deployment refuses a codeless register
+    before it looks at the username. A 400 whose login also fails is the
+    original refusal, so it reports the invite hint instead."""
+    username, password, device_prefix, index = who
+    if exc.code in (400, 409):
+        try:
+            return _login_existing(api, username, password, device_prefix, index)
+        except AccountSetupError:
+            if exc.code == 409:
+                raise
+    hint = ("" if working_code else
+            "; pass --invite-code, or --admin-username and "
+            "--admin-password so this can mint one")
+    raise AccountSetupError(
+        f"could not register seed account {username!r}: "
+        f"{seed_backoff.describe_error(exc)}{hint}") from exc
 
 
 def _login_existing(api, username, password, device_prefix, index):
