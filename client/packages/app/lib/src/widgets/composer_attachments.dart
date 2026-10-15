@@ -21,6 +21,7 @@ import '../api_failure.dart';
 import '../diagnostics/debug_log.dart';
 import '../providers/providers.dart';
 import 'attachment_format.dart';
+import 'transfer_meter.dart';
 
 /// What an upload reads from: held bytes for a small pick, or a re-openable
 /// stream for a file too big to hold, so a 5 GB pick never lands in memory.
@@ -102,9 +103,13 @@ class UploadingAttachment extends StagedAttachment {
     required super.filename,
     required super.body,
     this.sent = 0,
+    this.meter,
   });
 
   final int sent;
+
+  /// Speed and time left; null where nothing measures it.
+  final TransferMeter? meter;
 
   /// 0 to 1, for a progress bar.
   double get fraction =>
@@ -180,7 +185,10 @@ class AttachmentStagingController extends ChangeNotifier {
     required this.upload,
     this.onFailure,
     this.maxBytes,
-  });
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
 
   /// The server's per-attachment limit, or null when it is unknown, in which
   /// case the server is left to refuse an oversize upload itself.
@@ -364,21 +372,22 @@ class AttachmentStagingController extends ChangeNotifier {
     AttachmentBody body,
     String filename,
   ) async {
+    final meter = TransferMeter(_clock);
     try {
-      final attachment = await upload(
-        body,
-        filename,
-        (sent) => _replace(
+      final attachment = await upload(body, filename, (sent) {
+        meter.record(sent);
+        _replace(
           localId,
           UploadingAttachment(
             localId: localId,
             filename: filename,
             body: body,
             sent: sent,
+            meter: meter,
           ),
           onlyWhileUploading: true,
-        ),
-      );
+        );
+      });
       _replace(
         localId,
         UploadedAttachment(
