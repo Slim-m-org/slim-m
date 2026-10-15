@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE installed_modules SET network_hosts = ?, local_network_approved = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "dbd37423cc36830dfc8d294d4ae0f00c7e98e3d300ea4418a32565dfd71c4a65"
+}

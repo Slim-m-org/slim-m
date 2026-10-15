@@ -1,0 +1,110 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", name AS \"name!\", version AS \"version!\",\n                      artifact_sha256 AS \"artifact_sha256!\",\n                      approved_capabilities AS \"approved_capabilities!\",\n                      approved_host_capabilities AS \"approved_host_capabilities!\",\n                      runtime_limits AS \"runtime_limits!\",\n                      extension_points AS \"extension_points!\",\n                      enabled AS \"enabled!: bool\", installed_at AS \"installed_at!\",\n                      source_repo,\n                      network_hosts AS \"network_hosts!\",\n                      local_network_approved AS \"local_network_approved!: bool\",\n                      schedules AS \"schedules!\",\n                      bot_user_id AS \"bot_user_id: UserId\",\n                      schedule_channel_id AS \"schedule_channel_id: ChannelId\"\n               FROM installed_modules WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "version!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "artifact_sha256!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "approved_capabilities!",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "approved_host_capabilities!",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "runtime_limits!",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "extension_points!",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "enabled!: bool",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "installed_at!",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "source_repo",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "network_hosts!",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "local_network_approved!: bool",
+        "ordinal": 12,
+        "type_info": "Integer"
+      },
+      {
+        "name": "schedules!",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "bot_user_id: UserId",
+        "ordinal": 14,
+        "type_info": "Blob"
+      },
+      {
+        "name": "schedule_channel_id: ChannelId",
+        "ordinal": 15,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "5771124ff54bcaf3b6eaa14de9c05f4f7d9ed46b47a117ba2ff1dae5ae05d1ec"
+}

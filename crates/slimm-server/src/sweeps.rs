@@ -429,3 +429,21 @@ pub(crate) fn spawn_message_retention_sweep(
         }
     });
 }
+
+/// How often due module schedules are checked; the shortest interval a
+/// manifest may declare is five minutes, so this is precise enough.
+const MODULE_SCHEDULE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Runs modules' scheduled commands; see `http::module_schedule`.
+pub(crate) fn spawn_module_schedule_sweep(state: crate::http::AppState) {
+    spawn_sweep(MODULE_SCHEDULE_INTERVAL, move || {
+        let state = state.clone();
+        async move {
+            match crate::http::run_scheduled_modules(&state, store::now_ms()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::debug!(count, "ran scheduled module commands"),
+                Err(err) => tracing::warn!(error = %err, "module schedule sweep failed"),
+            }
+        }
+    });
+}

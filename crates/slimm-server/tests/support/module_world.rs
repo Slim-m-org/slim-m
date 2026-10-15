@@ -26,6 +26,7 @@ use tower::ServiceExt;
 use super::wasm_fixtures::sha256_hex;
 
 pub struct World {
+    pub state: AppState,
     pub store: Store,
     pub router: Router,
     pub hub: Hub,
@@ -57,7 +58,7 @@ pub async fn world(name: &str) -> World {
         .unwrap()
         .access_token;
     let hub = Hub::new();
-    let router = http::router(AppState {
+    let state = AppState {
         store: store.clone(),
         auth: Auth::new(2).unwrap(),
         hub: hub.clone(),
@@ -69,8 +70,10 @@ pub async fn world(name: &str) -> World {
         link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
         dock: slimm_server::http::dock::Dock::disabled(),
         code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    };
+    let router = http::router(state.clone());
     World {
+        state,
         store,
         router,
         hub,

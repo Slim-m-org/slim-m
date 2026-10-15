@@ -5,7 +5,7 @@
 //! literal string.
 //!
 //! Nothing here trusts the wire shape beyond what [`serde`] itself checks;
-//! [`validate_manifest`] and [`validate_index`] then reject anything
+//! [`validate_manifest`] and `index::validate_index_entry` then reject anything
 //! structurally well-formed JSON but not a manifest this server is willing
 //! to install - an unsafe id or permission key, an empty or oversized field,
 //! a `sha256` that is not 64 hex characters.
@@ -14,6 +14,9 @@ use serde::Deserialize;
 
 use super::super::hidden_chars::is_hidden_char;
 use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
+pub(super) use index::{IndexEntry, parse_index};
+pub(in crate::http) use network::{ManifestNetwork, NET_FETCH};
+pub(in crate::http) use schedule::ManifestSchedule;
 
 /// The one schema version this server understands. A registry that bumps it
 /// is a breaking change to the wire contract, not something to guess at.
@@ -35,56 +38,6 @@ fn malformed(reason: &str) -> ManifestError {
     ManifestError::Malformed(reason.to_owned())
 }
 
-// --- index.json ---
-
-#[derive(Deserialize)]
-struct RawIndex {
-    schema: i64,
-    modules: Vec<RawIndexEntry>,
-}
-
-#[derive(Deserialize)]
-struct RawIndexEntry {
-    id: String,
-    name: String,
-    version: String,
-    summary: String,
-}
-
-/// One row of the marketplace listing.
-#[derive(Debug, Clone)]
-pub(super) struct IndexEntry {
-    pub(super) id: String,
-    pub(super) name: String,
-    pub(super) version: String,
-    pub(super) summary: String,
-}
-
-pub(super) fn parse_index(bytes: &[u8]) -> Result<Vec<IndexEntry>, ManifestError> {
-    let raw: RawIndex = serde_json::from_slice(bytes)
-        .map_err(|e| malformed(&format!("invalid index.json: {e}")))?;
-    if raw.schema != SUPPORTED_SCHEMA {
-        return Err(malformed("unsupported index.json schema version"));
-    }
-    if raw.modules.len() > MAX_LIST_ITEMS {
-        return Err(malformed("index.json lists too many modules"));
-    }
-    raw.modules.into_iter().map(validate_index_entry).collect()
-}
-
-fn validate_index_entry(raw: RawIndexEntry) -> Result<IndexEntry, ManifestError> {
-    validate_slug(&raw.id, MAX_SLUG).map_err(|_| malformed("module id must be a safe slug"))?;
-    let name = bounded(&raw.name, MAX_SHORT_FIELD, "name")?;
-    let version = bounded(&raw.version, MAX_SLUG, "version")?;
-    let summary = bounded(&raw.summary, MAX_LONG_FIELD, "summary")?;
-    Ok(IndexEntry {
-        id: raw.id,
-        name,
-        version,
-        summary,
-    })
-}
-
 // --- manifest.json ---
 
 #[derive(Deserialize)]
@@ -104,6 +57,9 @@ struct RawManifest {
     capabilities: Vec<String>,
     #[serde(default)]
     extension_points: Vec<RawExtensionPoint>,
+    network: Option<network::RawNetwork>,
+    #[serde(default)]
+    schedules: Vec<schedule::RawSchedule>,
 }
 
 #[derive(Deserialize)]
@@ -218,6 +174,8 @@ pub(super) struct Manifest {
     pub(super) permissions: Vec<ManifestPermission>,
     pub(super) capabilities: Vec<String>,
     pub(super) extension_points: Vec<ManifestExtensionPoint>,
+    pub(super) network: ManifestNetwork,
+    pub(super) schedules: Vec<ManifestSchedule>,
 }
 
 pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
@@ -292,6 +250,8 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         artifact,
         runtime,
         permissions,
+        network: network::validate_network(raw.network, &capabilities)?,
+        schedules: schedule::validate_schedules(raw.schedules, &capabilities, &command_names)?,
         capabilities,
         extension_points,
     })
@@ -485,7 +445,10 @@ fn is_sha256_hex(value: &str) -> bool {
 }
 
 mod artifact_path;
+mod index;
 mod names;
+mod network;
+mod schedule;
 mod supported;
 
 #[cfg(test)]

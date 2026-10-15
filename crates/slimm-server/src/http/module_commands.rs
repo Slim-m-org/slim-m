@@ -35,7 +35,6 @@
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::routing::{get, post};
-use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -44,7 +43,6 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, MODULE};
 use super::module_host;
 use crate::ids::{ChannelId, UserId};
-use crate::module_runtime::{ModuleHost, RunError, RunLimits};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{InstalledModule, ModuleExtensionPoint};
@@ -97,39 +95,6 @@ impl RunCommandResponse {
             error: Some(error.into()),
         }
     }
-}
-
-#[derive(Serialize)]
-struct ModuleWireRequest<'a> {
-    command: &'a str,
-    input: &'a str,
-    caller: ModuleCaller,
-    entropy: String,
-}
-
-/// 16 fresh random bytes as hex, new for every run. A module has no clock or
-/// random source, so this is the only thing a roll can vary with. See
-/// docs/decisions/0038-module-caller-id.md, "Amended 2026-10-06".
-fn run_entropy() -> String {
-    let mut bytes = [0u8; 16];
-    OsRng.fill_bytes(&mut bytes);
-    crate::media::to_hex(&bytes)
-}
-
-/// Who is asking, and nothing more: an id a module can dedupe against.
-/// See docs/decisions/0038-module-caller-id.md.
-#[derive(Serialize)]
-struct ModuleCaller {
-    id: String,
-}
-
-#[derive(Deserialize)]
-struct ModuleWireResponse {
-    ok: bool,
-    #[serde(default)]
-    output: Option<String>,
-    #[serde(default)]
-    error: Option<String>,
 }
 
 fn validate_command_name(name: &str) -> Result<(), ApiError> {
@@ -209,59 +174,8 @@ pub(crate) async fn execute_command_in(
     {
         return Err(ApiError::Forbidden);
     }
-
-    let Some((stored_sha256, wasm)) = state.store.module_artifact(module_id).await? else {
-        return Err(ApiError::Conflict(
-            "module has no stored artifact; reinstall it from the Dock",
-        ));
-    };
-    if stored_sha256 != module.artifact_sha256 {
-        return Err(ApiError::Conflict(
-            "module's stored artifact does not match its approved version; reinstall it from the Dock",
-        ));
-    }
-    let limits = RunLimits::from(&module.runtime_limits);
-    let caller_key = state.store.module_caller_key().await?;
-    let request_json = serde_json::to_vec(&ModuleWireRequest {
-        command,
-        input,
-        caller: ModuleCaller {
-            id: super::module_caller::module_caller_id(&caller_key, module_id, user_id),
-        },
-        entropy: run_entropy(),
-    })
-    .map_err(|_| ApiError::Internal)?;
-
     let surface = module_host::surface_for(state, &module, user_id, channel);
-    let ran = ModuleHost::run_with_capabilities(
-        wasm,
-        module.artifact_sha256,
-        limits,
-        request_json,
-        surface,
-    )
-    .await;
-    let outcome = match ran {
-        Ok(bytes) => match serde_json::from_slice::<ModuleWireResponse>(&bytes) {
-            Ok(wire) if wire.ok && wire.output.is_some() => CommandOutcome {
-                ok: true,
-                payload: wire.output.unwrap_or_default(),
-            },
-            Ok(wire) if !wire.ok && wire.error.is_some() => CommandOutcome {
-                ok: false,
-                payload: wire.error.unwrap_or_default(),
-            },
-            _ => CommandOutcome {
-                ok: false,
-                payload: "module returned a malformed response".to_string(),
-            },
-        },
-        Err(err) => CommandOutcome {
-            ok: false,
-            payload: describe(&err),
-        },
-    };
-    Ok(outcome)
+    super::module_run::run_installed(state, &module, user_id, command, input, surface).await
 }
 
 /// The reserved `module_id` this deployment's code-runner broker
@@ -345,13 +259,6 @@ async fn run_command(
         RunCommandResponse::failure(outcome.payload)
     };
     Ok(Json(response))
-}
-
-/// A message safe to hand back to the caller: every [`RunError`] variant is
-/// already a clean, non-sensitive description (see its own `Display`), never
-/// a stack trace or an internal type path.
-fn describe(err: &RunError) -> String {
-    err.to_string()
 }
 
 /// One `(module_id, command)` pair a client may `POST` to

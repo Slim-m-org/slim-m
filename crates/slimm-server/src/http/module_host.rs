@@ -29,7 +29,11 @@ use crate::store::{InstalledModule, KvSetError, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 2] = ["kv.store", "message.post"];
+pub(crate) const HOST_CAPABILITIES: [&str; 4] =
+    ["kv.store", "message.post", "net.fetch", "schedule"];
+
+/// Approved like the others, but a permission to be run, not a host call.
+const NOT_HOST_CALLS: [&str; 1] = ["schedule"];
 
 /// Most keys a `list` returns; equal to the entry cap, so it is never truncated.
 const LIST_LIMIT: i64 = MAX_ENTRIES as i64;
@@ -48,6 +52,13 @@ pub(crate) fn effective_capabilities(module: &InstalledModule) -> Vec<String> {
         .collect()
 }
 
+/// Whether an admin approved `module` to run on its own timer.
+pub(crate) fn schedule_approved(module: &InstalledModule) -> bool {
+    effective_capabilities(module)
+        .iter()
+        .any(|c| c == "schedule")
+}
+
 /// The capability surface for one run of `module`, invoked by `user_id`.
 /// Must be called from inside the tokio runtime that will drive the run.
 ///
@@ -61,7 +72,33 @@ pub(crate) fn surface_for(
     user_id: UserId,
     channel: Option<ChannelId>,
 ) -> CapabilitySurface {
-    let approved = effective_capabilities(module);
+    let footer = format!("via {}", module.name);
+    surface_posting_as(state, module, user_id, channel, footer)
+}
+
+/// The surface for a scheduled run: it posts as the module's own principal
+/// into the channel the admin chose, marked as the module's.
+pub(crate) fn scheduled_surface(
+    state: &AppState,
+    module: &InstalledModule,
+    bot: UserId,
+    channel: ChannelId,
+) -> CapabilitySurface {
+    let footer = format!("{} module", module.name);
+    surface_posting_as(state, module, bot, Some(channel), footer)
+}
+
+fn surface_posting_as(
+    state: &AppState,
+    module: &InstalledModule,
+    user_id: UserId,
+    channel: Option<ChannelId>,
+    footer: String,
+) -> CapabilitySurface {
+    let approved: Vec<String> = effective_capabilities(module)
+        .into_iter()
+        .filter(|c| !NOT_HOST_CALLS.contains(&c.as_str()))
+        .collect();
     if approved.is_empty() {
         return CapabilitySurface::Disabled;
     }
@@ -70,7 +107,17 @@ pub(crate) fn surface_for(
         store: state.store.clone(),
         handle: handle.clone(),
     });
-    let surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
+    let fetches = approved.iter().any(|c| c == "net.fetch");
+    let mut surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
+    if fetches {
+        surface = surface.with_fetcher(
+            Arc::new(super::module_net::ReqwestFetcher::new(
+                handle.clone(),
+                module.local_network_approved,
+            )),
+            module.network_hosts.clone(),
+        );
+    }
     let Some(channel) = channel else {
         return surface;
     };
@@ -78,7 +125,7 @@ pub(crate) fn surface_for(
         state: state.clone(),
         handle,
         module_id: module.id.clone(),
-        module_name: module.name.clone(),
+        footer,
         user_id,
         channel,
     }))
@@ -130,7 +177,8 @@ struct ChannelPoster {
     state: AppState,
     handle: Handle,
     module_id: String,
-    module_name: String,
+    /// The attribution line under each post.
+    footer: String,
     user_id: UserId,
     /// The one channel this run may post into: where the command was invoked.
     channel: ChannelId,
@@ -183,13 +231,12 @@ impl ChannelPoster {
             .map_err(|_| PostRefused("slow mode is active in that channel"))?;
 
         let id = MessageId::generate();
-        let footer = format!("via {}", self.module_name);
         let sent = state
             .store
             .send_module_message_with_slow_mode(
                 NewMessage::plain(channel_id, self.user_id, id, content),
                 &self.module_id,
-                &footer,
+                &self.footer,
                 slow_mode_window_ms,
             )
             .await
