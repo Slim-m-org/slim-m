@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// What game this device is running, for rich presence (decision 0044).
 ///
-/// Only programs on [gameAllowlist] are ever reported, and only while the
-/// person has switched game detection on. A source that nobody listens to
+/// Only programs on [gameAllowlist], or the game Steam itself says it is
+/// running, are ever reported, and only while the person has switched game
+/// detection on. A source that nobody listens to
 /// reads nothing, and the process list is matched and thrown away, never
 /// stored or logged.
 library;
@@ -37,6 +38,19 @@ abstract interface class GameProbe {
 
   /// The Steam app id Steam itself says is running, or null.
   Future<int?> runningSteamAppId();
+
+  /// The name Steam's own install manifest gives [appId], or null.
+  Future<String?> steamAppName(int appId);
+}
+
+/// Steam's own runtimes and redistributables run as apps too; they are never
+/// what a person is playing.
+bool isSteamTool(String name) {
+  final lower = name.toLowerCase();
+  return lower.startsWith('proton') ||
+      lower.startsWith('steam linux runtime') ||
+      lower.startsWith('steamworks') ||
+      lower.contains('redistributable');
 }
 
 /// Linux truncates a process name to 15 characters, which would otherwise
@@ -54,16 +68,22 @@ bool _matchesProcess(AllowedGame game, String process) => game.processes.any(
           (process.length == _truncatedProcessName && name.startsWith(process)),
     );
 
-/// The allowlisted game that is running, or null. Steam's own answer wins
-/// over a process match because it names the title exactly.
+/// The game that is running, or null. Steam's own answer wins over a
+/// process match because it names the title exactly, the way other chat
+/// apps name any Steam game; the allowlist covers games outside Steam.
 RunningGame? pickRunningGame({
   required Iterable<String> processes,
   required int? steamAppId,
+  String? steamAppName,
   List<AllowedGame> allowlist = gameAllowlist,
 }) {
   if (steamAppId != null) {
     for (final game in allowlist) {
       if (game.steamAppId == steamAppId) return RunningGame(game.name);
+    }
+    final name = steamAppName?.trim();
+    if (name != null && name.isNotEmpty && !isSteamTool(name)) {
+      return RunningGame(name);
     }
   }
   final names = processes.map(_normalise).toSet();
@@ -92,11 +112,17 @@ class AllowlistGameSource implements GameSource {
   @override
   Stream<RunningGame?> watch() => polledStream<RunningGame>(
         interval: _pollInterval,
-        read: () async => pickRunningGame(
-          processes: await _probe.runningProcessNames(),
-          steamAppId: await _probe.runningSteamAppId(),
-          allowlist: _allowlist,
-        ),
+        read: () async {
+          final steamAppId = await _probe.runningSteamAppId();
+          return pickRunningGame(
+            processes: await _probe.runningProcessNames(),
+            steamAppId: steamAppId,
+            steamAppName: steamAppId == null
+                ? null
+                : await _probe.steamAppName(steamAppId),
+            allowlist: _allowlist,
+          );
+        },
       );
 }
 
