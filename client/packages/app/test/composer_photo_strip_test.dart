@@ -180,7 +180,7 @@ void main() {
     expect(library.manageCalls, 1);
   });
 
-  testWidgets('the close button removes the strip', (tester) async {
+  testWidgets('tapping the handle removes the strip', (tester) async {
     await pump(tester, _FakeLibrary(PhotoAccess.full));
     await _openStrip(tester);
 
@@ -266,7 +266,7 @@ void main() {
     await pump(tester, _FakeLibrary(PhotoAccess.full));
     await _openStrip(tester);
 
-    await tester.drag(find.text('Recent photos'), const Offset(0, 160));
+    await tester.drag(find.bySemanticsLabel('Close photo strip'), const Offset(0, 160));
     await tester.pumpAndSettle();
 
     expect(find.byType(ComposerPhotoStrip), findsNothing);
@@ -275,17 +275,17 @@ void main() {
   testWidgets('a short pull springs back instead of closing', (tester) async {
     await pump(tester, _FakeLibrary(PhotoAccess.full));
     await _openStrip(tester);
-    final before = tester.getRect(find.text('Recent photos'));
+    final before = tester.getRect(find.bySemanticsLabel('Close photo strip'));
 
     await tester.timedDrag(
-      find.text('Recent photos'),
+      find.bySemanticsLabel('Close photo strip'),
       const Offset(0, 30),
       const Duration(milliseconds: 600),
     );
     await tester.pumpAndSettle();
 
     expect(find.byType(ComposerPhotoStrip), findsOneWidget);
-    expect(tester.getRect(find.text('Recent photos')), before);
+    expect(tester.getRect(find.bySemanticsLabel('Close photo strip')), before);
   });
 
   testWidgets('pulling down from the top of the grid closes the panel', (

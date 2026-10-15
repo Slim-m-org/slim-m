@@ -254,28 +254,27 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                // The close button is the accessible way out; the swipe is a shortcut on top of it.
-                excludeFromSemantics: true,
-                onVerticalDragUpdate: (d) => _dragBy(d.delta.dy),
-                onVerticalDragEnd: (d) => _dragEnd(d.primaryVelocity ?? 0),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s8,
-                    AppSpacing.s8,
-                    AppSpacing.s8,
-                    0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(child: _GrabHandle(color: tokens.borderStrong)),
-                      _header(tokens, access),
-                    ],
+              Semantics(
+                button: true,
+                label: 'Close photo strip',
+                onTap: widget.onClose,
+                excludeSemantics: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onClose,
+                  onVerticalDragUpdate: (d) => _dragBy(d.delta.dy),
+                  onVerticalDragEnd: (d) => _dragEnd(d.primaryVelocity ?? 0),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.s8,
+                    ),
+                    child: Center(
+                      child: _GrabHandle(color: tokens.borderStrong),
+                    ),
                   ),
                 ),
               ),
+              if (access == PhotoAccess.limited) _limitedNote(tokens),
               if (_readFailed)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -302,28 +301,24 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
     );
   }
 
-  Widget _header(AppTokens tokens, PhotoAccess? access) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          access == PhotoAccess.limited
-              ? 'Showing the photos you allowed'
-              : 'Recent photos',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+  /// Only a limited grant says anything above the grid: which photos these are, and how to widen it.
+  Widget _limitedNote(AppTokens tokens) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Showing the photos you allowed',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
         ),
-      ),
-      if (access == PhotoAccess.limited)
         AppButton(
           label: 'Allow more',
           variant: AppButtonVariant.ghost,
           onPressed: () => unawaited(_manage()),
         ),
-      AppIconButton(
-        icon: AppIcons.dismiss,
-        semanticLabel: 'Close photo strip',
-        onPressed: widget.onClose,
-      ),
-    ],
+      ],
+    ),
   );
 
   Widget _denied(AppTokens tokens) => Padding(
@@ -374,9 +369,8 @@ class _GrabHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 36,
+    width: 32,
     height: 4,
-    margin: const EdgeInsets.only(bottom: AppSpacing.s4),
     decoration: BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(2),
