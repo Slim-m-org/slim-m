@@ -106,7 +106,7 @@ final _listeningFeed = ActivityFeed(
 
 final _gameFeed = ActivityFeed(
   label: 'Show my current game',
-  description: 'Only games on the list below are ever shown.',
+  description: 'Your running Steam game, or one on the list below.',
   enabled: shareGameProvider,
   via: 'the game list',
   available: gameSourceProvider.select((source) => source != null),

@@ -199,3 +199,14 @@ What the owner has to do:
 4. Pass the client id as `SLIMM_SPOTIFY_CLIENT_ID` when building the client (CI build steps and release workflows).
    It is an identifier, not a secret, but it is not committed.
 5. Decide whether Windows needs linking, which means registering the `slimm` scheme in the installer.
+
+## Amendment 2026-10-15: any Steam game, named by Steam
+
+The owner, 2026-10-15: "properly handle game detection, look how other software handles it".
+Discord and Steam's own friends list name whatever Steam game is running, not only titles on a list.
+
+- When Steam says a game is running (`RunningAppID`), its name is read from that game's own install manifest, `steamapps/appmanifest_<id>.acf`, in the library folders `libraryfolders.vdf` lists.
+  So any installed Steam game is named, not only the allowlisted ones.
+- Steam's own runtimes and redistributables run as apps too (Proton, the Steam Linux Runtime, Steamworks redistributables) and are never reported.
+- The allowlist still covers games outside Steam, matched by process name as before.
+- Nothing else about the privacy model changes: it is still opt-in behind its own switch, still read fresh and thrown away, and the switch's description now says Steam games count.

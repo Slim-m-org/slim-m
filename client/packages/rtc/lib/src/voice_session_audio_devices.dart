@@ -42,6 +42,15 @@ mixin VoiceSessionAudioDevices {
   /// refresh without polling.
   Stream<void> get audioDeviceChanges => _audioSwitching.onChange;
 
+  /// A new stream starts on the sound server's default; this moves it onto
+  /// the pick, now and again once playback has had a moment to open.
+  void _followPreferredDevices() {
+    Future<void> apply() =>
+        _audioSwitching.applyServerRouting().catchError((Object _) {});
+    unawaited(apply());
+    unawaited(Future<void>.delayed(const Duration(seconds: 3), apply));
+  }
+
   /// The microphones this platform offers, for the picker.
   Future<List<AudioDevice>> audioInputDevices() =>
       _listAudioDevices(_audioSwitching.inputs);

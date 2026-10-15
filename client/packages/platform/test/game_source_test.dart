@@ -9,10 +9,12 @@ import 'package:slimm_platform/src/game_source.dart';
 import 'package:slimm_platform/src/game_source_io.dart' as io;
 
 class _FakeProbe implements GameProbe {
-  _FakeProbe({this.processes = const [], this.steamAppId});
+  _FakeProbe(
+      {this.processes = const [], this.steamAppId, this.steamNames = const {}});
 
   Iterable<String> processes;
   int? steamAppId;
+  Map<int, String> steamNames;
   int reads = 0;
 
   @override
@@ -23,6 +25,9 @@ class _FakeProbe implements GameProbe {
 
   @override
   Future<int?> runningSteamAppId() async => steamAppId;
+
+  @override
+  Future<String?> steamAppName(int appId) async => steamNames[appId];
 }
 
 void main() {
@@ -55,8 +60,29 @@ void main() {
           isNull);
     });
 
-    test('a steam app id not on the list is never reported', () {
+    test('a steam app id Steam cannot name is not reported', () {
       expect(pickRunningGame(processes: [], steamAppId: 999999999), isNull);
+    });
+
+    test('any steam game is named from Steam own manifest', () {
+      expect(
+        pickRunningGame(
+            processes: [], steamAppId: 1145360, steamAppName: 'Hades'),
+        const RunningGame('Hades'),
+      );
+    });
+
+    test('steam runtimes and redistributables are never a game', () {
+      for (final tool in [
+        'Proton 9.0',
+        'Steam Linux Runtime 3.0 (sniper)',
+        'Steamworks Common Redistributables',
+      ]) {
+        expect(
+            pickRunningGame(processes: [], steamAppId: 1, steamAppName: tool),
+            isNull,
+            reason: tool);
+      }
     });
 
     test('steam wins over a process match and names the title', () {
@@ -129,6 +155,13 @@ void main() {
       expect(await source.watch().first, const RunningGame('Counter-Strike 2'));
     });
 
+    test('a steam game off the list is named through the probe', () async {
+      final source = AllowlistGameSource(
+        _FakeProbe(steamAppId: 1145360, steamNames: {1145360: 'Hades'}),
+      );
+      expect(await source.watch().first, const RunningGame('Hades'));
+    });
+
     test('a probe that throws reads as no game', () async {
       final source = AllowlistGameSource(_ThrowingProbe());
       expect(await source.watch().first, isNull);
@@ -136,6 +169,31 @@ void main() {
   });
 
   group('host output parsing', () {
+    test('steam library folders and app manifests', () {
+      const folders = '''
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"/home/npc/.local/share/Steam"
+	}
+	"1"
+	{
+		"path"		"D:\\\\SteamLibrary"
+	}
+}''';
+      expect(io.parseSteamLibraryPaths(folders),
+          ['/home/npc/.local/share/Steam', r'D:\SteamLibrary']);
+      const acf = '''
+"AppState"
+{
+	"appid"		"1145360"
+	"name"		"Hades"
+}''';
+      expect(io.parseAppManifestName(acf), 'Hades');
+      expect(io.parseAppManifestName('{}'), isNull);
+    });
+
     test('steam vdf', () {
       const vdf = '''
 "Registry"
@@ -194,4 +252,7 @@ class _ThrowingProbe implements GameProbe {
 
   @override
   Future<int?> runningSteamAppId() async => null;
+
+  @override
+  Future<String?> steamAppName(int appId) async => null;
 }
