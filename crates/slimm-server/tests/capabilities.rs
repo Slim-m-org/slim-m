@@ -55,7 +55,12 @@ async fn the_real_router_serves_every_capability() {
     let (router, _guard) = app().await;
     assert_eq!(
         served_by(router).await,
-        vec![Capability::Block, Capability::Report, Capability::Webhook],
+        vec![
+            Capability::Block,
+            Capability::Report,
+            Capability::Webhook,
+            Capability::UploadSessions,
+        ],
     );
 }
 
@@ -79,7 +84,7 @@ async fn version_advertises_what_the_router_serves() {
     let body: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(
         body["capabilities"],
-        serde_json::json!(["block", "report", "webhooks"])
+        serde_json::json!(["block", "report", "webhooks", "upload_sessions"])
     );
 }
 

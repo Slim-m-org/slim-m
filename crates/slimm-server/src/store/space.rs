@@ -221,6 +221,34 @@ impl Store {
         Ok(())
     }
 
+    /// The admin's per-attachment ceiling in bytes, or 0 when none is set and
+    /// the operator's `SLIMM_ATTACHMENT_MAX_BYTES` alone applies.
+    pub async fn attachment_max_bytes(&self) -> anyhow::Result<u64> {
+        let bytes = sqlx::query_scalar!(
+            r#"SELECT attachment_max_bytes AS "b!: i64" FROM space_settings WHERE id = 1"#
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("read attachment max bytes")?;
+        Ok(bytes.unwrap_or(0).max(0) as u64)
+    }
+
+    /// The caller range-checks against the operator's ceiling; the DB CHECK
+    /// only guards `>= 0`.
+    pub async fn set_attachment_max_bytes(&self, bytes: u64) -> anyhow::Result<()> {
+        let now = now_ms();
+        let bytes = i64::try_from(bytes).context("attachment max bytes overflows i64")?;
+        sqlx::query!(
+            "UPDATE space_settings SET attachment_max_bytes = ?, updated_at = ? WHERE id = 1",
+            bytes,
+            now
+        )
+        .execute(&self.pool)
+        .await
+        .context("set attachment max bytes")?;
+        Ok(())
+    }
+
     pub async fn set_join_policy(&self, policy: JoinPolicy) -> anyhow::Result<()> {
         let now = now_ms();
         let value = policy.as_str();

@@ -50,7 +50,9 @@ pub fn routes() -> Router<AppState> {
 /// The upload route on its own so the router can keep it out of the total-time
 /// request timeout; see `http::router`.
 pub fn upload_routes() -> Router<AppState> {
-    Router::new().route("/attachments", post(upload))
+    Router::new()
+        .route("/attachments", post(upload))
+        .merge(super::attachment_uploads::routes())
 }
 
 // --- Wire types ---
@@ -105,7 +107,7 @@ async fn upload(
         return Err(ApiError::Forbidden);
     }
 
-    let max_bytes = state.media.max_attachment_bytes();
+    let max_bytes = effective_attachment_max(&state).await?;
     // A fast-fail on a declared oversize; the true size is re-checked below.
     if let Some(declared) = content_length(&headers) {
         if declared > max_bytes {
@@ -183,7 +185,7 @@ fn content_length(headers: &HeaderMap) -> Option<u64> {
 /// spuriously. Only a trailing incomplete sequence is trimmed - a genuinely
 /// invalid byte earlier leaves the slice intact so the text check still
 /// (correctly) refuses it.
-fn sniffable(prefix: &[u8]) -> &[u8] {
+pub(super) fn sniffable(prefix: &[u8]) -> &[u8] {
     match std::str::from_utf8(prefix) {
         Ok(_) => prefix,
         Err(err) if err.error_len().is_none() => &prefix[..err.valid_up_to()],
@@ -331,6 +333,15 @@ pub(super) fn apply_asset_headers(headers: &mut HeaderMap, content_type: &str, f
 /// every upload behind a write lock. And it is not a quota per account, which
 /// would need a policy answer about who gets how much that nobody has asked
 /// for; this is the disk, and the disk is shared.
+/// The operator's ceiling, lowered by the admin's Space setting when one is set.
+pub(super) async fn effective_attachment_max(state: &AppState) -> Result<u64, ApiError> {
+    let ceiling = state.media.max_attachment_bytes();
+    Ok(match state.store.attachment_max_bytes().await? {
+        0 => ceiling,
+        admin => admin.min(ceiling),
+    })
+}
+
 pub(super) async fn room_for(state: &AppState, incoming: i64) -> Result<(), ApiError> {
     let Some(ceiling) = state.media.max_total_attachment_bytes() else {
         return Ok(());

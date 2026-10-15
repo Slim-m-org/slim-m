@@ -37,6 +37,7 @@ mod space_banner;
 mod space_icon;
 mod threads;
 mod totp_calls;
+mod upload_sessions;
 mod webhooks;
 
 use content::{channel_calls, message_calls};
@@ -53,6 +54,7 @@ use people::{moderation_calls, profile_calls, safety_calls};
 use space_banner::banner_calls;
 use space_icon::icon_calls;
 use threads::thread_calls;
+use upload_sessions::upload_session_calls;
 
 const PASSWORD: &str = "a-long-enough-password";
 /// A 16x16 PNG's signature and header chunks, which is all the server reads of an upload.
@@ -159,6 +161,7 @@ pub async fn run(c: &mut Contract) {
 
     banner_calls(c, root, &code).await;
     icon_calls(c, root, &code).await;
+    upload_session_calls(c, root).await;
     c.bare("getSpaceSettings", "GET", "/space/settings", root)
         .await;
     // Set back to what it already is, so the rest of the pass still runs
