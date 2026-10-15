@@ -13,7 +13,7 @@ import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 
 import 'support/fake_desktop_window_port.dart';
 
-const _channel = MethodChannel('top.npcserver.slimm/linux_second_instance');
+const _channel = MethodChannel('top.npcserver.slimm/second_instance');
 
 Future<void> _send(MethodCall call) async {
   final completer = Completer<ByteData?>();

@@ -7,8 +7,9 @@
 /// second launch while the first still holds the bus name only activates the
 /// first, which is about to exit, and nothing comes back. So on Linux and
 /// macOS the child is a shell that waits for this pid to disappear and then
-/// execs the app; Windows has no such activation and launches the executable
-/// directly. Detached either way, or this process's exit would take the
+/// execs the app. The Windows runner is single-instance too, by a named
+/// mutex (`single_instance.cpp`), and [windowsRelaunchArgument] makes the new
+/// copy wait on it rather than hand focus to this one. Detached either way, or this process's exit would take the
 /// child with it.
 ///
 /// Not offered under flatpak: the sandbox ends with its main process, and
@@ -18,6 +19,9 @@ library;
 import 'dart:io';
 
 import 'self_update/self_update_target.dart';
+
+/// Matches `kRelaunchArgument` in the Windows runner's `single_instance.h`.
+const windowsRelaunchArgument = '--relaunch';
 
 /// The program and arguments that start a fresh copy once process [pid] has
 /// exited, or null where no honest relaunch exists on this platform.
@@ -32,7 +36,10 @@ import 'self_update/self_update_target.dart';
   // An AppImage's mounted executable path dies with the process; the image itself is what to run again.
   final program = environment['APPIMAGE'] ?? executable;
   return switch (os) {
-    'windows' => (program: program, arguments: executableArguments),
+    'windows' => (
+      program: program,
+      arguments: [windowsRelaunchArgument, ...executableArguments],
+    ),
     'linux' || 'macos' => (
       program: '/bin/sh',
       arguments: [
