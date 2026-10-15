@@ -196,7 +196,7 @@ class _AppInputState extends State<AppInput> {
                 ? tokens.accentFill
                 : tokens.borderStrong;
 
-    final field = Container(
+    final box = Container(
       // A floor, not a fixed height: at a large text scale the line outgrows 38.
       constraints: _multiline ? null : BoxConstraints(minHeight: _height),
       padding: EdgeInsets.symmetric(
@@ -257,6 +257,13 @@ class _AppInputState extends State<AppInput> {
           ],
         ],
       ),
+    );
+    // The whole padded box is the field, not only the text line inside it.
+    final field = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      excludeFromSemantics: true,
+      onTap: widget.enabled ? _focusNode.requestFocus : null,
+      child: box,
     );
 
     // The 2px ring is reserved space regardless of focus, coloured only when

@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../touch_targets.dart';
 import 'focusable_tap_target.dart';
 import 'slider_shapes.dart';
 
@@ -133,8 +134,12 @@ class _AppSliderState extends State<AppSlider> {
         // The token doc for accentRing names this exact use: "the ring
         // around a pressed or dragged control".
         overlayColor: tokens.accentRing,
-        overlayShape:
-            RoundSliderOverlayShape(overlayRadius: widget.tall ? 14 : 12),
+        // Touch needs a 44px grab height; the overlay radius sets the slider's.
+        overlayShape: RoundSliderOverlayShape(
+          overlayRadius: AppTouchTargets.of(context)
+              ? AppSizes.rowTouch / 2
+              : (widget.tall ? 14 : 12),
+        ),
         trackShape: track,
         thumbShape: thumb,
       ),

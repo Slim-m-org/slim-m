@@ -127,4 +127,33 @@ void main() {
     final idle = await widthWhen(busy: false);
     expect(await widthWhen(busy: true), idle);
   });
+
+  testWidgets('a slider is a full touch target at touch density (issue 2033)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        AppTouchTargets(
+          enabled: true,
+          child: SizedBox(
+              width: 240, child: AppSlider(value: 40, onChanged: (_) {})),
+        ),
+      ),
+    );
+    expect(
+        tester.getSize(find.byType(Slider)).height, greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('a tap in the input padding focuses it (issue 2029)',
+      (tester) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    await tester.pumpWidget(
+      _harness(SizedBox(width: 240, child: AppInput(focusNode: focus))),
+    );
+    final box = tester.getRect(find.byType(AppInput));
+    await tester.tapAt(box.topLeft + const Offset(4, 4));
+    await tester.pump();
+    expect(focus.hasFocus, isTrue);
+  });
 }

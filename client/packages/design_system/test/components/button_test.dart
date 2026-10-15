@@ -110,9 +110,10 @@ void main() {
           find.descendant(
               of: button, matching: find.byType(CircularProgressIndicator)),
           findsOneWidget);
-      expect(find.descendant(of: button, matching: find.text('Save')),
-          findsNothing,
-          reason: 'the label has faded out by now');
+      final label = tester.widget<AnimatedOpacity>(find.ancestor(
+          of: find.text('Save'), matching: find.byType(AnimatedOpacity)));
+      expect(label.opacity, 0,
+          reason: 'the label has faded out, keeping its space for the spinner');
       await tester.tap(button);
       await tester.pump();
       expect(pressed, isFalse);
