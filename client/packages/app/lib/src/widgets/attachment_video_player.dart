@@ -73,6 +73,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     super.initState();
     // A decode failure mid-playback surfaces here rather than a thrown Future, since it can fire after open() already succeeded.
     _errorSub = _player.stream.error.listen((_) {
+      if (_reopener.reopenIfStale()) return;
       if (mounted) setActionError('Could not play ${attachment.filename}.');
     });
     _reopener = StaleTokenReopener(
