@@ -48,11 +48,12 @@ Color _tintFor(String source) =>
 /// to carry its own copy without the symbol-stripping, so the same name
 /// rendered different initials in the server chip than everywhere else (the
 /// 2026-08-11 review's second-initials finding).
-String initialsFor(String name) {
-  final stripped = name.replaceAll(RegExp('[^a-zA-Z0-9]'), '');
-  final take = stripped.length < 2 ? stripped.length : 2;
-  return stripped.substring(0, take).toUpperCase();
-}
+String initialsFor(String name) =>
+    name.characters.where(_letterOrDigit.hasMatch).take(2).join().toUpperCase();
+
+/// Any script's letters and digits, so a name in Cyrillic or Han still gets
+/// initials; matched per grapheme so an accent stays on its letter.
+final _letterOrDigit = RegExp(r'^[\p{L}\p{N}]', unicode: true);
 
 /// Light ink for the fixed tints above; every themed text colour inverts and
 /// would go illegible on them in dark.

@@ -15,6 +15,14 @@ void main() {
     expect(initialsFor('#general'), 'GE');
   });
 
+  test('letters in any script count, and an accent stays on its letter', () {
+    expect(initialsFor('Дмитрий'), 'ДМ');
+    expect(initialsFor('王小明'), '王小');
+    expect(initialsFor('éloïse'), 'ÉL');
+    expect(initialsFor('e\u0301va'), 'E\u0301V');
+    expect(initialsFor('\u{1F600} sam'), 'SA');
+  });
+
   test('short and empty names degrade rather than throw', () {
     expect(initialsFor('a'), 'A');
     expect(initialsFor('!!!'), '');
