@@ -206,6 +206,20 @@ void main() {
           reason: 'a failed publish must not leave the flag disarmed');
     });
 
+    test('a throwing unpublish still asks the platform to stop', () async {
+      final outcome = await control.setEnabled(
+        false,
+        quality: ScreenShareQuality.standard,
+        publish: (enabled, o, audio) async => throw StateError('unpublish'),
+        isSharing: () => true,
+        onSettled: settled.add,
+      );
+
+      expect(outcome, ScreenShareOutcome.failed);
+      expect(bridge.stopRequests, 1);
+      expect(settled.single, isA<StateError>());
+    });
+
     test('already broadcasting publishes directly with nothing to hand off',
         () async {
       // A resumed session: LiveKit never took the requestActivation branch at all.

@@ -303,15 +303,22 @@ const timeoutDurationOptions = <(String, Duration)>[
 /// `timeout_chips_width_test.dart` pins both: nothing overflows, and a
 /// three-character label stays wider than a two-character one.
 class TimeoutDurationChips extends StatelessWidget {
-  const TimeoutDurationChips({super.key, required this.onChosen});
+  const TimeoutDurationChips({
+    super.key,
+    required this.onChosen,
+    this.padding = const EdgeInsets.fromLTRB(10, 4, 10, 10),
+  });
 
   final void Function(Duration) onChosen;
+
+  /// The member menu insets it to sit with its rows; a card that aligns it to its buttons passes zero.
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+      padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

@@ -159,8 +159,13 @@ class _FirstFrameRevealState extends State<FirstFrameReveal> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.tracker.hasFrame) return widget.child;
+    // One Stack throughout, so the child's element survives the flip instead of remounting.
     return Stack(
-        fit: StackFit.expand, children: [widget.child, widget.placeholder]);
+      fit: StackFit.expand,
+      children: [
+        widget.child,
+        if (!widget.tracker.hasFrame) widget.placeholder,
+      ],
+    );
   }
 }

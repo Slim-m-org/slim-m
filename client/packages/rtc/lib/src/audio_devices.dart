@@ -13,6 +13,11 @@ abstract class AudioDevices {
   Future<List<AudioDevice>> inputs();
   Future<List<AudioDevice>> outputs();
 
+  /// The entry the platform itself lists as "whatever the system default is",
+  /// or null where it lists none. [inputs] strips it from the picker.
+  Future<AudioDevice?> systemDefaultInput();
+  Future<AudioDevice?> systemDefaultOutput();
+
   /// Fires whenever the platform's own device list changes - a headset
   /// plugged in or removed - so a picker can refresh without polling.
   Stream<void> get onChange;
@@ -32,9 +37,21 @@ class HardwareAudioDevices implements AudioDevices {
       );
 
   @override
+  Future<AudioDevice?> systemDefaultInput() async => _systemDefaultOf(
+      _toAudioDevices(await lk.Hardware.instance.audioInputs()));
+
+  @override
+  Future<AudioDevice?> systemDefaultOutput() async => _systemDefaultOf(
+        _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
+      );
+
+  @override
   Stream<void> get onChange =>
       lk.Hardware.instance.onDeviceChange.stream.map((_) {});
 }
+
+AudioDevice? _systemDefaultOf(List<AudioDevice> devices) =>
+    devices.where((d) => d.id == 'default').firstOrNull;
 
 List<AudioDevice> _toAudioDevices(List<lk.MediaDevice> devices) => [
       for (final device in devices)

@@ -16,6 +16,8 @@
 /// variant's `id` is the one line that changes.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -172,7 +174,9 @@ class LocalNotifications {
     bool? isAndroid,
     bool? isLinux,
     AndroidPermissionRequester? permissionRequester,
-  })  : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+    Future<void> Function()? onActivated,
+  })  : _onActivated = onActivated,
+        _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
         _isAndroid = isAndroid ?? isAndroidHost,
         _isLinux = isLinux ?? isLinuxHost,
         _permissionRequester = permissionRequester;
@@ -180,6 +184,9 @@ class LocalNotifications {
   final FlutterLocalNotificationsPlugin _plugin;
   final bool _isAndroid;
   final bool _isLinux;
+
+  /// Called when the person clicks a notification; the payload is an opaque envelope, so raising the app is all there is to do.
+  final Future<void> Function()? _onActivated;
 
   /// The platforms this actually displays on today. iOS/web render (or do
   /// not) without this class; macOS/Windows are not wired yet.
@@ -227,6 +234,9 @@ class LocalNotifications {
       const InitializationSettings(
         android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
         linux: LinuxInitializationSettings(defaultActionName: 'Open slim-m'),
+      ),
+      onDidReceiveNotificationResponse: (_) => unawaited(
+        _onActivated?.call() ?? Future<void>.value(),
       ),
     );
     _ready = true;

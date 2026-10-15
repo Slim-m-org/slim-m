@@ -147,6 +147,9 @@ abstract final class AppIcons {
   /// opens a device's own photo library rather than a search.
   static const IconData gif = LucideIcons.clapperboard300;
 
+  /// The "Automatic updates" switch in Settings > About.
+  static const IconData autoUpdate = LucideIcons.packageCheck300;
+
   /// Saving an attachment this app cannot render inline - a PDF, an archive,
   /// or a video before it finishes buffering. See `attachment_save.dart`.
   static const IconData download = LucideIcons.download300;

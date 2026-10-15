@@ -50,6 +50,15 @@ mixin VoiceSessionAudioDevices {
   Future<List<AudioDevice>> audioOutputDevices() =>
       _listAudioDevices(_audioSwitching.outputs);
 
+  /// A device list that cannot be read must not stop a join.
+  Future<void> _forgetUnpluggedDevices() async {
+    try {
+      await _audioSwitching.forgetUnpluggedPreferences();
+    } catch (_) {
+      // Keep the remembered devices as they are and let the join go on.
+    }
+  }
+
   Future<List<AudioDevice>> _listAudioDevices(
     Future<List<AudioDevice>> Function() list,
   ) async {

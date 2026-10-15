@@ -107,19 +107,23 @@ class ScreenShareControl {
           onSettled: onSettled,
         );
       }
-      await publish(
-        enabled,
-        enabled
-            ? captureOptionsFor(
-                quality,
-                sourceId,
-                isIOS: onIOS,
-                maxHeight: maxHeight,
-              )
-            : null,
-        includeAudio,
-      );
-      if (!enabled) await _broadcast.requestStop();
+      try {
+        await publish(
+          enabled,
+          enabled
+              ? captureOptionsFor(
+                  quality,
+                  sourceId,
+                  isIOS: onIOS,
+                  maxHeight: maxHeight,
+                )
+              : null,
+          includeAudio,
+        );
+      } finally {
+        // The platform recorder must end even when dropping the track threw.
+        if (!enabled) await _broadcast.requestStop();
+      }
       if (!enabled) return ScreenShareOutcome.stopped;
       return isSharing()
           ? ScreenShareOutcome.started

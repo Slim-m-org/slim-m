@@ -219,4 +219,44 @@ void main() {
       isFalse,
     );
   });
+
+  group('a cancelled pointer', () {
+    Future<List<List<Offset>>> draw(
+      WidgetTester tester, {
+      required bool cancel,
+    }) async {
+      final document = CanvasDocument();
+      addTearDown(document.dispose);
+      final strokes = <List<Offset>>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CanvasSurface(
+            document: document,
+            ink: const Color(0xFFE86A5C),
+            onStroke: strokes.add,
+          ),
+        ),
+      );
+      await tester.pump();
+      final gesture = await tester.startGesture(const Offset(20, 20));
+      await gesture.moveTo(const Offset(80, 80));
+      if (cancel) {
+        await gesture.cancel();
+      } else {
+        await gesture.up();
+      }
+      await tester.pump();
+      return strokes;
+    }
+
+    testWidgets('a pointer that lifts normally still commits (control)', (
+      tester,
+    ) async {
+      expect(await draw(tester, cancel: false), hasLength(1));
+    });
+
+    testWidgets('does not commit a pen stroke', (tester) async {
+      expect(await draw(tester, cancel: true), isEmpty);
+    });
+  });
 }

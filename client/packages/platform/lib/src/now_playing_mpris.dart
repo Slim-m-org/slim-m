@@ -38,19 +38,29 @@ class MprisPlayerState {
 NowPlaying? pickNowPlaying(Iterable<MprisPlayerState> players) {
   for (final player in players) {
     if (player.status != 'Playing') continue;
-    final title = player.metadata['xesam:title']?.asString().trim() ?? '';
-    if (title.isEmpty) continue;
-    final artists = player.metadata['xesam:artist']?.asStringArray().toList();
-    final artist = artists?.where((a) => a.trim().isNotEmpty).join(', ');
-    final identity = player.identity?.trim();
-    return NowPlaying(
-      title: title,
-      artist: artist == null || artist.isEmpty ? null : artist,
-      source: identity == null || identity.isEmpty ? null : identity,
-      artUrl: _coverArt(player.metadata['mpris:artUrl']),
-    );
+    // A player that breaks the spec is skipped, not allowed to hide the others.
+    try {
+      final picked = _nowPlayingOf(player);
+      if (picked != null) return picked;
+    } on Object {
+      continue;
+    }
   }
   return null;
+}
+
+NowPlaying? _nowPlayingOf(MprisPlayerState player) {
+  final title = player.metadata['xesam:title']?.asString().trim() ?? '';
+  if (title.isEmpty) return null;
+  final artists = player.metadata['xesam:artist']?.asStringArray().toList();
+  final artist = artists?.where((a) => a.trim().isNotEmpty).join(', ');
+  final identity = player.identity?.trim();
+  return NowPlaying(
+    title: title,
+    artist: artist == null || artist.isEmpty ? null : artist,
+    source: identity == null || identity.isEmpty ? null : identity,
+    artUrl: _coverArt(player.metadata['mpris:artUrl']),
+  );
 }
 
 /// Spotify's desktop app reports its covers on open.spotify.com, which serves

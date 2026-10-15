@@ -37,6 +37,16 @@ sealed class ServerEvent {
       return null;
     }
     if (decoded is! Map<String, dynamic>) return null;
+    try {
+      return _fromFrame(decoded);
+    } on TypeError {
+      return null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static ServerEvent? _fromFrame(Map<String, dynamic> decoded) {
     final message = decoded['message'];
     return switch (decoded['type']) {
       'hello' => HelloEvent(protocol: decoded['protocol'] as int? ?? 0),
@@ -341,7 +351,7 @@ sealed class ServerEvent {
           channelId: decoded['channel_id'] as String,
           seq: decoded['seq'] as int,
           opId: decoded['op_id'] as String,
-          objectIds: (decoded['object_ids'] as List<dynamic>).cast<String>(),
+          objectIds: List<String>.from(decoded['object_ids'] as List<dynamic>),
         ),
       'canvas.cleared'
           when decoded['channel_id'] is String &&
@@ -363,7 +373,7 @@ sealed class ServerEvent {
           channelId: decoded['channel_id'] as String,
           seq: decoded['seq'] as int,
           opId: decoded['op_id'] as String,
-          objectIds: (decoded['object_ids'] as List<dynamic>).cast<String>(),
+          objectIds: List<String>.from(decoded['object_ids'] as List<dynamic>),
         ),
       'canvas.cursor.moved'
           when decoded['channel_id'] is String &&

@@ -275,6 +275,33 @@ void main() {
       },
     );
 
+    test(
+      'starts beside a running instance are not counted as failures',
+      () async {
+        _makeVersion(root, '0.89.0', app: 'sleep 5');
+        final first = await Process.start('sh', ['${root.path}/0.89.0/slim-m']);
+        addTearDown(first.kill);
+        for (var i = 0; i < 40; i++) {
+          if (File('${root.path}/running.pid').existsSync()) break;
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+
+        final beside = <Process>[];
+        for (var i = 0; i < 3; i++) {
+          beside.add(await Process.start('sh', ['${root.path}/0.89.0/slim-m']));
+        }
+        addTearDown(() {
+          for (final p in beside) {
+            p.kill();
+          }
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        expect(_target(root, 'current'), '0.89.0');
+        expect(File('${root.path}/rolled-back').existsSync(), isFalse);
+      },
+    );
+
     test('a start the app confirmed is never rolled back', () {
       expect(run('0.89.0'), 3);
       confirmCleanStart(layout);

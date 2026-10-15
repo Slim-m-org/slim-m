@@ -275,6 +275,9 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
 
     _lastDisconnect = null;
     _setState(VoiceSessionState.connecting);
+    final generation = _generation;
+    await _forgetUnpluggedDevices();
+    if (_disposed || generation != _generation) return;
     final room = _roomFactory();
     _room = room;
     _listen(room);

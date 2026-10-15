@@ -62,14 +62,13 @@ class AppSegmentedControl extends StatelessWidget {
           border: Border.all(color: tokens.borderSubtle),
           borderRadius: BorderRadius.circular(AppRadii.control),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        // Wrap, not Row: a segment keeps its natural width and the whole segment drops to the next line when short of room, so no label breaks mid-word.
+        child: Wrap(
+          spacing: AppSpacing.s4,
+          runSpacing: AppSpacing.s4,
           children: [
-            for (var i = 0; i < options.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.s4),
-              // Flexible so a segment can shrink and wrap its label rather than overflow the row.
-              Flexible(child: _inlineSegment(context, tokens, i)),
-            ],
+            for (var i = 0; i < options.length; i++)
+              IntrinsicWidth(child: _inlineSegment(context, tokens, i)),
           ],
         ),
       ),

@@ -2,7 +2,7 @@
 /// The sheet for making a channel category: a name, sent through
 /// `POST /categories` (`SlimmApi.createCategory`).
 ///
-/// Opened from the rail's own right-click menu, beside "Create channel...".
+/// Opened from the rail's own right-click menu, beside "Create channel".
 /// Until this existed a category could only be made from Space settings ->
 /// Channel categories, which the owner reported as right-clicking the rail
 /// and finding only a channel on offer. `create_channel_sheet.dart` is the
