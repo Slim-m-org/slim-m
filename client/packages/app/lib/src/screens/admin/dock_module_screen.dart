@@ -33,6 +33,7 @@ import '../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
 import 'dock_module_view.dart';
 import 'dock_host_access_card.dart';
+import 'dock_install_consent.dart';
 
 class DockModuleScreen extends ConsumerStatefulWidget {
   const DockModuleScreen({super.key, required this.moduleId, this.source});
@@ -114,10 +115,27 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     api.DockManifest manifest, {
     bool wasInstalled = false,
   }) async {
-    final approved = _approvedFor(
-      manifest,
-      ref.read(dockCatalogProvider).valueOrNull?.installedFor(manifest.id),
-    );
+    final current = ref
+        .read(dockCatalogProvider)
+        .valueOrNull
+        ?.installedFor(manifest.id);
+    final approved = _approvedFor(manifest, current);
+    final asked = newConsentCapabilities(manifest, current);
+    final verified = dockIsVerified(widget.source);
+    if (dockNeedsConsent(
+      newCapabilities: asked,
+      verified: verified,
+      firstInstall: !wasInstalled,
+    )) {
+      final agreed = await showDockInstallConsent(
+        context,
+        manifest: manifest,
+        capabilities: asked,
+        verified: verified,
+        isUpdate: wasInstalled,
+      );
+      if (!agreed || !mounted) return;
+    }
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: wasInstalled
@@ -237,6 +255,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
         data: (context, m) => DockManifestView(
           manifest: m,
           sourceRepo: sourceRepo,
+          verified: dockIsVerified(widget.source),
           installed: installed,
           approvedHostCapabilities: _approvedFor(m, installed),
           reapprovePosting:

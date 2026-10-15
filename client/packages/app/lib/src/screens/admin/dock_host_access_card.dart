@@ -14,17 +14,37 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 
+/// One grantable capability: its switch copy and the consent sentence. The
+/// sentence takes the manifest's details for it (a host list), so a capability
+/// that names targets states them.
+typedef DockCapability = ({
+  String label,
+  String description,
+  String Function(List<String> details) warning,
+});
+
 /// The host capabilities the server can grant, in the order they are listed.
-const dockHostCapabilities = <String, ({String label, String description})>{
+/// Adding one is one entry here.
+final dockHostCapabilities = <String, DockCapability>{
   'kv.store': (
     label: 'Remember data',
     description: 'A small private store for this module.',
+    warning: (_) => 'Can keep its own private data on your server.',
   ),
   'message.post': (
     label: 'Post messages',
     description: 'Posts as whoever runs it, marked "via" this module.',
+    warning: (_) =>
+        'Can post messages in your space as whoever runs it, marked as '
+        'this module.',
   ),
 };
+
+/// The consent sentence for [capability], or null when this client has none.
+String? dockCapabilityWarning(
+  String capability, {
+  List<String> details = const [],
+}) => dockHostCapabilities[capability]?.warning(details);
 
 /// The capabilities among [declared] the host can grant, in listed order.
 List<String> grantableHostCapabilities(Iterable<String> declared) => [

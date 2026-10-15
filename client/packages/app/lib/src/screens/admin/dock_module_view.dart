@@ -14,6 +14,7 @@ import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 import 'dock_command_panel_group.dart';
 import 'dock_host_access_card.dart';
+import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
 import 'dock_what_it_adds.dart';
 
@@ -47,6 +48,7 @@ class DockManifestView extends StatelessWidget {
     required this.onToggleHostCapability,
     this.reapprovePosting = false,
     this.sourceRepo,
+    this.verified = false,
   });
 
   final api.DockManifest manifest;
@@ -54,6 +56,9 @@ class DockManifestView extends StatelessWidget {
   /// The community source's `owner/repo` this module comes from, or null for
   /// the official source. Shown before anything is installed.
   final String? sourceRepo;
+
+  /// Listed in the official registry, which slim-m reviews.
+  final bool verified;
   final api.InstalledDockModule? installed;
 
   /// The host capabilities currently switched on, applied on the next install
@@ -89,6 +94,13 @@ class DockManifestView extends StatelessWidget {
               : 'v${manifest.version} · ${manifest.author}',
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
+        if (verified) ...[
+          const SizedBox(height: AppSpacing.s8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: DockVerifiedBadge(),
+          ),
+        ],
         if (sourceRepo != null) ...[
           const SizedBox(height: AppSpacing.s8),
           AppBadge(
