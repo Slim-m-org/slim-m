@@ -54,6 +54,7 @@
 		7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000002 /* callkit_ringtone.wav */; };
 		7A11C0DE0008000000000006 /* direct_message.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000003 /* direct_message.wav */; };
 		7A11C0DE0008000000000007 /* group_message.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000004 /* group_message.wav */; };
+		7A11C0DE0008000000000009 /* mention.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000008 /* mention.wav */; };
 		7A11C0DE000A000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000A000000000001 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
@@ -161,6 +162,7 @@
 		7A11C0DE0008000000000002 /* callkit_ringtone.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/callkit_ringtone.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000003 /* direct_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/direct_message.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000004 /* group_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/group_message.wav"; sourceTree = "<group>"; };
+		7A11C0DE0008000000000008 /* mention.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/mention.wav"; sourceTree = "<group>"; };
 		7A11C0DE000A000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -209,6 +211,7 @@
 				7A11C0DE0008000000000002 /* callkit_ringtone.wav */,
 				7A11C0DE0008000000000003 /* direct_message.wav */,
 				7A11C0DE0008000000000004 /* group_message.wav */,
+				7A11C0DE0008000000000008 /* mention.wav */,
 			);
 			name = Audio;
 			sourceTree = "<group>";
@@ -457,6 +460,7 @@
 				7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */,
 				7A11C0DE0008000000000006 /* direct_message.wav in Resources */,
 				7A11C0DE0008000000000007 /* group_message.wav in Resources */,
+				7A11C0DE0008000000000009 /* mention.wav in Resources */,
 				7A11C0DE000A000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

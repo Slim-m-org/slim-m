@@ -46,6 +46,14 @@ struct PushEnvelope: Decodable {
   let sender: String?
   let channel: String?
   let body: String?
+  /// Defaulted so a test can build a message envelope without naming them.
+  var kind: String? = nil
+  var event: String? = nil
+  var deviceName: String? = nil
+
+  static let mentionKind = "mention"
+  static let securityKind = "security"
+  static let newDeviceSignInEvent = "new_device_sign_in"
 
   /// Spelled out because two of these are snake_case on the wire. The
   /// authority is the `PushEnvelope` struct in
@@ -59,6 +67,9 @@ struct PushEnvelope: Decodable {
     case sender
     case channel
     case body
+    case kind
+    case event
+    case deviceName = "device_name"
   }
 
   /// Decodes, or nil for anything this build should not act on. An unknown
@@ -128,6 +139,14 @@ struct PushEnvelope: Decodable {
     now: Date = Date()
   ) -> UNMutableNotificationContent {
     attachRouting(to: content)
+    if kind == Self.securityKind, event == Self.newDeviceSignInEvent,
+      let deviceName, !deviceName.isEmpty
+    {
+      // Matches the in-app banner's wording.
+      content.title = "New sign-in"
+      content.body = "\(deviceName) signed in to your account."
+      return content
+    }
     guard hasPreview, !isStale(now: now), let sender = sender, let body = body else {
       return content
     }
