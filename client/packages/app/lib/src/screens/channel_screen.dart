@@ -357,6 +357,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                 channelTopic: channel?.topic,
                 isThread: isThread,
                 lastReadSeq: lastReadSeq,
+                syncedSeq: channel?.cursor ?? 0,
                 manuallyUnread: manuallyUnread,
                 onMarkRead: _markReadUpToLatest,
                 onReply: _startReply,

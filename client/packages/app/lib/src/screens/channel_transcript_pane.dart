@@ -15,6 +15,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +62,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.isThread,
     this.isVoice = false,
     required this.lastReadSeq,
+    required this.syncedSeq,
     required this.manuallyUnread,
     required this.onMarkRead,
     required this.onReply,
@@ -82,6 +84,10 @@ class ChannelTranscriptPane extends ConsumerWidget {
   /// A voice channel's chat, whose empty state is not the text channel's.
   final bool isVoice;
   final int lastReadSeq;
+
+  /// The highest seq synced into this channel, deleted messages included; a
+  /// reader at the bottom has seen everything up to it.
+  final int syncedSeq;
 
   /// Mirrored from the server's own hand-mark flag; see `Channel.
   /// manuallyUnread`'s doc comment in `database.dart`. Threaded down to
@@ -190,18 +196,19 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           ref,
                           transcript.messages.map((m) => m.authorId),
                         );
+                        // A deleted newest message leaves nothing to show, but must not leave the channel unread.
+                        final readUpTo = math.max(
+                          transcript.newestSeq,
+                          syncedSeq,
+                        );
                         scrollTracker.updateKnownSeqs(
-                          latestSeq: transcript.newestSeq,
+                          latestSeq: readUpTo,
                           lastReadSeq: lastReadSeq,
                           manuallyUnread: manuallyUnread,
                         );
                         // Gated on the viewport: scrolled into history, this rebuild is a message arriving somewhere unread.
                         if (scrollTracker.atLatest) {
-                          onMarkRead(
-                            transcript.newestSeq,
-                            lastReadSeq,
-                            manuallyUnread,
-                          );
+                          onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
                         }
                         return MessageTranscript(
                           channelId: channelId,
