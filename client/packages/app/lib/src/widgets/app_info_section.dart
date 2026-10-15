@@ -59,6 +59,7 @@ class AppInfoSection extends ConsumerWidget {
         // Desktop only: a store build and the web page are updated by the store and the browser (decision 0025).
         if (isDesktopHost)
           SettingsToggleRow(
+            leading: const Icon(AppIcons.autoUpdate),
             label: 'Automatic updates',
             description: automaticUpdatesDescription(currentInstallFormat()),
             value: ref.watch(autoUpdateProvider),
