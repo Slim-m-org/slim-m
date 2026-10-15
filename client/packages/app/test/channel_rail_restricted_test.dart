@@ -87,7 +87,7 @@ void main() {
   });
 
   testWidgets(
-    'a restricted voice channel leads with the private hash and trails the speaker',
+    'a restricted voice channel leads with a locked speaker and no hash',
     (tester) async {
       await _pumpSections(
         tester,
@@ -95,7 +95,7 @@ void main() {
       );
 
       expect(find.byIcon(AppIcons.restrictedChannel), findsOneWidget);
-      expect(find.byIcon(AppIcons.hash), findsOneWidget);
+      expect(find.byIcon(AppIcons.hash), findsNothing);
       expect(find.byIcon(AppIcons.voice), findsOneWidget);
     },
   );

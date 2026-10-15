@@ -201,6 +201,7 @@ pub async fn add_emoji(
 
     // Bytes before the metadata row, the same ordering attachments uses: a
     // row pointing at bytes that are not there yet is the worse failure.
+    let placing = media.blob_guard().await;
     media
         .write_attachment(&hex_id, image.bytes)
         .await
@@ -215,6 +216,7 @@ pub async fn add_emoji(
         )
         .await
         .map_err(AddError::Storage)?;
+    drop(placing);
 
     let created = store
         .create_custom_emoji(EmojiId::generate(), &image.name, &image.sha256, uploader)

@@ -12,13 +12,17 @@ use super::{Enabled, RunOutcome};
 use crate::net_guard::read_capped;
 
 /// This server's own wall-clock ceiling on the *run* stage, passed to Piston
-/// explicitly rather than trusted to its default (3000ms) or however an
-/// operator's instance happens to be configured - see the parent module's
-/// doc on ceilings being the server's, not the runner's.
-const RUN_TIMEOUT_MS: u64 = 5_000;
+/// explicitly rather than trusted to however an operator's instance happens
+/// to be configured - see the parent module's doc on ceilings being the
+/// server's, not the runner's. No higher than stock Piston's own maximum
+/// (`PISTON_MAX_RUN_TIMEOUT`, 3000ms), which refuses any request above it.
+const RUN_TIMEOUT_MS: u64 = 3_000;
+
 /// Same, for the *compile* stage Piston's protocol always carries even for
 /// an interpreted language like Python.
 const COMPILE_TIMEOUT_MS: u64 = 10_000;
+// Stock Piston refuses anything above its PISTON_MAX_RUN_TIMEOUT and PISTON_MAX_COMPILE_TIMEOUT defaults.
+const _: () = assert!(RUN_TIMEOUT_MS <= 3_000 && COMPILE_TIMEOUT_MS <= 10_000);
 /// Memory ceiling for each stage, in bytes. Piston's own default is `-1`
 /// (unbounded) unless an operator has set `PISTON_LIMIT_*` themselves; this
 /// server asks for a concrete ceiling regardless, for the same reason it

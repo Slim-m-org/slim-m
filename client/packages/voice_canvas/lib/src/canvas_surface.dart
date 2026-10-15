@@ -429,7 +429,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
           onPointerMove: _move,
           onPointerHover: _hover,
           onPointerUp: _up,
-          onPointerCancel: _up,
+          onPointerCancel: _cancel,
           onPointerSignal: _signal,
           child: GestureDetector(
             onScaleStart: _scaleBegin,

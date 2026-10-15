@@ -334,7 +334,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.text('Create channel...'), findsOneWidget);
+    expect(find.text('Create channel'), findsOneWidget);
     await expectSettled(tester, 'rail-blank-space-menu');
     await writeSnapshot(tester, 'rail-blank-space-menu');
     expect(tester.takeException(), isNull);
@@ -373,7 +373,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.text('Open channel'), findsOneWidget);
-    expect(find.text('Create channel...'), findsNothing);
+    expect(find.text('Create channel'), findsNothing);
     expect(tester.takeException(), isNull);
     await teardownFixture(tester, fixture.container, fixture.db);
   });

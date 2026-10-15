@@ -5,6 +5,7 @@ library;
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'pulse_audio.dart';
 import 'voice_models.dart';
 
 /// The seam. The default implementation asks the platform's own device
@@ -12,6 +13,11 @@ import 'voice_models.dart';
 abstract class AudioDevices {
   Future<List<AudioDevice>> inputs();
   Future<List<AudioDevice>> outputs();
+
+  /// The entry the platform itself lists as "whatever the system default is",
+  /// or null where it lists none. [inputs] strips it from the picker.
+  Future<AudioDevice?> systemDefaultInput();
+  Future<AudioDevice?> systemDefaultOutput();
 
   /// Fires whenever the platform's own device list changes - a headset
   /// plugged in or removed - so a picker can refresh without polling.
@@ -21,13 +27,32 @@ abstract class AudioDevices {
 class HardwareAudioDevices implements AudioDevices {
   const HardwareAudioDevices();
 
+  /// libwebrtc's list, unless it is empty on Linux, where the sound server's
+  /// own list stands in; see `pulse_audio_io.dart`.
   @override
-  Future<List<AudioDevice>> inputs() async => withoutPseudoDefaults(
-        _toAudioDevices(await lk.Hardware.instance.audioInputs()),
-      );
+  Future<List<AudioDevice>> inputs() async {
+    final listed = withoutPseudoDefaults(
+      _toAudioDevices(await lk.Hardware.instance.audioInputs()),
+    );
+    if (listed.isNotEmpty || !PulseAudio.supported) return listed;
+    return await PulseAudio().sources() ?? listed;
+  }
 
   @override
-  Future<List<AudioDevice>> outputs() async => withoutPseudoDefaults(
+  Future<List<AudioDevice>> outputs() async {
+    final listed = withoutPseudoDefaults(
+      _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
+    );
+    if (listed.isNotEmpty || !PulseAudio.supported) return listed;
+    return await PulseAudio().sinks() ?? listed;
+  }
+
+  @override
+  Future<AudioDevice?> systemDefaultInput() async => _systemDefaultOf(
+      _toAudioDevices(await lk.Hardware.instance.audioInputs()));
+
+  @override
+  Future<AudioDevice?> systemDefaultOutput() async => _systemDefaultOf(
         _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
       );
 
@@ -35,6 +60,9 @@ class HardwareAudioDevices implements AudioDevices {
   Stream<void> get onChange =>
       lk.Hardware.instance.onDeviceChange.stream.map((_) {});
 }
+
+AudioDevice? _systemDefaultOf(List<AudioDevice> devices) =>
+    devices.where((d) => d.id == 'default').firstOrNull;
 
 List<AudioDevice> _toAudioDevices(List<lk.MediaDevice> devices) => [
       for (final device in devices)

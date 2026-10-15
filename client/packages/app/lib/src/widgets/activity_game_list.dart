@@ -27,8 +27,8 @@ class _ActivityGameListState extends State<ActivityGameList> {
         children: [
           AppButton(
             label: _open
-                ? 'Hide the ${gameAllowlist.length} games it can name'
-                : 'Show the ${gameAllowlist.length} games it can name',
+                ? 'Hide the ${gameAllowlist.length} listed games'
+                : 'Show the ${gameAllowlist.length} listed games',
             variant: AppButtonVariant.ghost,
             size: AppButtonSize.sm,
             onPressed: () => setState(() => _open = !_open),

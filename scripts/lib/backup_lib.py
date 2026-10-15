@@ -143,7 +143,7 @@ def sync_avatars(snapshot_db, source_media_dir, mirror_dir):
 
     conn = sqlite3.connect(str(snapshot_db))
     rows = conn.execute(
-        "SELECT id FROM users WHERE avatar_updated_at IS NOT NULL"
+        "SELECT id FROM users WHERE avatar_updated_at IS NOT NULL AND deleted_at IS NULL"
     ).fetchall()
     conn.close()
 

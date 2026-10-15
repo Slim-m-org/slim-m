@@ -179,16 +179,14 @@ async fn complete(
             _ => ApiError::Internal,
         })?
         .ok_or(ApiError::Conflict("upload is not complete"))?;
-    let Some(content_type) = media::sniff_content_type(sniffable(&finished.sniff_prefix)) else {
-        uploads.discard(id).await.ok();
-        return Err(ApiError::BadRequest("unsupported attachment type"));
-    };
+    let content_type = media::attachment_content_type(sniffable(&finished.sniff_prefix));
     let size = i64::try_from(finished.size).unwrap_or(i64::MAX);
     if let Err(err) = room_for(&state, size).await {
         uploads.discard(id).await.ok();
         return Err(err);
     }
     // Bytes before the metadata row, the same order `POST /attachments` keeps.
+    let placing = state.media.blob_guard().await;
     uploads
         .place(id, &finished.hex_id)
         .await
@@ -205,6 +203,7 @@ async fn complete(
             Some(ctx.user_id),
         )
         .await?;
+    drop(placing);
     Ok((
         StatusCode::CREATED,
         Json(AttachmentDto::from(AttachmentSummary {

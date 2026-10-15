@@ -60,6 +60,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('every row in the card starts its text in one column', (
+    tester,
+  ) async {
+    await pumpAbout(tester, '');
+
+    final xs = {
+      for (final label in [
+        'Version',
+        'Automatic updates',
+        'Check for updates',
+        'Release notes',
+        'Debug log',
+      ])
+        label: tester.getTopLeft(find.text(label)).dx,
+    };
+    expect(xs.values.toSet(), hasLength(1), reason: '$xs');
+  });
+
   testWidgets('the Release notes row opens the full history', (tester) async {
     await pumpAbout(tester, '');
 

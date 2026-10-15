@@ -21,6 +21,7 @@ import '../api_failure.dart';
 import '../diagnostics/debug_log.dart';
 import '../providers/providers.dart';
 import 'attachment_format.dart';
+import 'transfer_meter.dart';
 
 /// What an upload reads from: held bytes for a small pick, or a re-openable
 /// stream for a file too big to hold, so a 5 GB pick never lands in memory.
@@ -102,13 +103,38 @@ class UploadingAttachment extends StagedAttachment {
     required super.filename,
     required super.body,
     this.sent = 0,
+    this.meter,
+    this.reconnecting = false,
   });
 
   final int sent;
 
+  /// The connection dropped and the upload is retrying from where it got to.
+  final bool reconnecting;
+
+  /// Speed and time left; null where nothing measures it.
+  final TransferMeter? meter;
+
   /// 0 to 1, for a progress bar.
   double get fraction =>
       body.length == 0 ? 0 : (sent / body.length).clamp(0.0, 1.0);
+}
+
+/// What an upload reports back while it runs. Callable as the progress
+/// callback itself; [resumeKey] names this staged file across retries, so a
+/// retry carries on from where a failed upload stopped.
+class UploadReport {
+  const UploadReport({
+    required this.resumeKey,
+    required void Function(int sent) onProgress,
+    required this.onRetrying,
+  }) : _onProgress = onProgress;
+
+  final String resumeKey;
+  final void Function(int sent) _onProgress;
+  final void Function(bool retrying) onRetrying;
+
+  void call(int sent) => _onProgress(sent);
 }
 
 /// Uploaded: [attachment] is what a send may reference.
@@ -179,8 +205,21 @@ class AttachmentStagingController extends ChangeNotifier {
   AttachmentStagingController({
     required this.upload,
     this.onFailure,
+    this.onAbandon,
     this.maxBytes,
-  });
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
+
+  /// Told the resume key of a failed upload that was removed, not retried.
+  final void Function(String resumeKey)? onAbandon;
+
+  String _resumeKey(String localId) => '$_instance/$localId';
+
+  final DateTime Function() _clock;
+
+  /// Keeps resume keys from two controllers' `staged-1` apart.
+  final int _instance = _nextInstance++;
+  static int _nextInstance = 0;
 
   /// The server's per-attachment limit, or null when it is unknown, in which
   /// case the server is left to refuse an oversize upload itself.
@@ -191,7 +230,7 @@ class AttachmentStagingController extends ChangeNotifier {
   final Future<api.Attachment> Function(
     AttachmentBody body,
     String filename,
-    void Function(int sent) onProgress,
+    UploadReport report,
   )
   upload;
 
@@ -335,7 +374,7 @@ class AttachmentStagingController extends ChangeNotifier {
 
   void remove(String localId) {
     for (final a in _items.where((a) => a.localId == localId)) {
-      _cancelIfUploading(a);
+      _drop(a);
     }
     _items.removeWhere((a) => a.localId == localId);
     _spoilers.remove(localId);
@@ -346,6 +385,12 @@ class AttachmentStagingController extends ChangeNotifier {
     if (a is UploadingAttachment) a.body.cancel.cancel();
   }
 
+  /// For an explicit remove, never teardown: a failed file's kept session goes.
+  void _drop(StagedAttachment a) {
+    _cancelIfUploading(a);
+    if (a is FailedAttachment) onAbandon?.call(_resumeKey(a.localId));
+  }
+
   @override
   void dispose() {
     _items.forEach(_cancelIfUploading);
@@ -353,7 +398,7 @@ class AttachmentStagingController extends ChangeNotifier {
   }
 
   void clear() {
-    _items.forEach(_cancelIfUploading);
+    _items.forEach(_drop);
     _items.clear();
     _spoilers.clear();
     notifyListeners();
@@ -364,19 +409,36 @@ class AttachmentStagingController extends ChangeNotifier {
     AttachmentBody body,
     String filename,
   ) async {
+    final meter = TransferMeter(_clock);
+    var sent = 0;
+    var reconnecting = false;
+    void show() => _replace(
+      localId,
+      UploadingAttachment(
+        localId: localId,
+        filename: filename,
+        body: body,
+        sent: sent,
+        meter: meter,
+        reconnecting: reconnecting,
+      ),
+      onlyWhileUploading: true,
+    );
     try {
       final attachment = await upload(
         body,
         filename,
-        (sent) => _replace(
-          localId,
-          UploadingAttachment(
-            localId: localId,
-            filename: filename,
-            body: body,
-            sent: sent,
-          ),
-          onlyWhileUploading: true,
+        UploadReport(
+          resumeKey: _resumeKey(localId),
+          onProgress: (bytes) {
+            sent = bytes;
+            meter.record(bytes);
+            show();
+          },
+          onRetrying: (retrying) {
+            reconnecting = retrying;
+            show();
+          },
         ),
       );
       _replace(
@@ -431,17 +493,20 @@ class AttachmentStagingController extends ChangeNotifier {
 final attachmentStagingProvider =
     Provider.family<AttachmentStagingController, String>((ref, channelId) {
       final controller = AttachmentStagingController(
-        upload: (body, filename, onProgress) async {
+        upload: (body, filename, report) async {
           final client = ref.read(apiProvider);
           return client.uploadAttachmentAuto(
             body.source,
             length: body.length,
             capabilities: await _serverCapabilities(ref, body.length),
             filename: filename,
-            onProgress: onProgress,
+            onProgress: report.call,
+            onRetrying: report.onRetrying,
+            resumeKey: report.resumeKey,
             cancel: body.cancel,
           );
         },
+        onAbandon: (key) => ref.read(apiProvider).abandonUpload(key),
         maxBytes: () => _attachmentLimit(ref),
         onFailure: (filename, error) => ref
             .read(debugLogProvider.notifier)

@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -21,6 +22,24 @@ void _mockPlugin(Future<Object?> Function(MethodCall call)? handler) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
           const MethodChannel(_pluginChannelName), handler);
+}
+
+class _SpyPlugin implements FlutterLocalNotificationsPlugin {
+  DidReceiveNotificationResponseCallback? onResponse;
+
+  @override
+  Future<bool?> initialize(
+    InitializationSettings initializationSettings, {
+    DidReceiveNotificationResponseCallback? onDidReceiveNotificationResponse,
+    DidReceiveBackgroundNotificationResponseCallback?
+        onDidReceiveBackgroundNotificationResponse,
+  }) async {
+    onResponse = onDidReceiveNotificationResponse;
+    return true;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }
 
 void main() {
@@ -60,6 +79,31 @@ void main() {
         others.map((c) => c.notificationId),
         isNot(contains(LocalAlertChannel.security.notificationId)),
       );
+    });
+  });
+
+  group('clicking a notification', () {
+    test('Linux registers a response callback that reports the activation',
+        () async {
+      final spy = _SpyPlugin();
+      var activations = 0;
+      final notifications = LocalNotifications(
+        plugin: spy,
+        isAndroid: false,
+        isLinux: true,
+        onActivated: () async => activations++,
+      );
+      await notifications.show('New message',
+          channel: LocalAlertChannel.messages);
+
+      expect(spy.onResponse, isNotNull);
+      spy.onResponse!(
+        const NotificationResponse(
+          notificationResponseType:
+              NotificationResponseType.selectedNotification,
+        ),
+      );
+      expect(activations, 1);
     });
   });
 

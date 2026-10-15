@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A private voice row leads with the private-channel hash and moves the
-/// speaker to its trailing end beside the join-muted mic-off, without that
-/// pair ever overlapping the user-limit count or the hover kebab at the
+/// A private voice row leads with the speaker carrying the private lock, so
+/// it reads as voice at a glance, and keeps only the join-muted mic-off at
+/// its trailing end, clear of the user-limit count and the hover kebab at the
 /// narrowest rail width. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
 library;
 
@@ -84,13 +84,12 @@ Future<void> _pump(WidgetTester tester, List<Widget> rows, Size size) async {
 }
 
 void main() {
-  testWidgets('a private voice row leads with the private hash', (
+  testWidgets('a private voice row leads with the locked speaker, not a hash', (
     tester,
   ) async {
     final c = _voice('staff', restricted: true);
     await _pump(tester, [_row(c)], const Size(railMinWidth, 200));
     final row = find.byType(AppListRow);
-    final hash = find.descendant(of: row, matching: find.byIcon(AppIcons.hash));
     final lock = find.descendant(
       of: row,
       matching: find.byIcon(AppIcons.restrictedChannel),
@@ -99,12 +98,12 @@ void main() {
       of: row,
       matching: find.byIcon(AppIcons.voice),
     );
-    expect(hash, findsOneWidget);
+    expect(find.byIcon(AppIcons.hash), findsNothing);
     expect(lock, findsOneWidget);
-    expect(speaker, findsOneWidget);
+    expect(speaker, findsOneWidget, reason: 'one speaker, leading');
     final rect = tester.getRect(row);
-    expect(tester.getRect(hash).left, lessThan(rect.center.dx));
-    expect(tester.getRect(speaker).left, greaterThan(rect.center.dx));
+    expect(tester.getRect(speaker).left, lessThan(rect.center.dx));
+    expect(tester.getRect(lock).left, lessThan(rect.center.dx));
   });
 
   testWidgets('a public voice row keeps the speaker leading', (tester) async {
@@ -132,22 +131,20 @@ void main() {
         limit: 12,
       );
       await _pump(tester, [_row(c)], const Size(railMinWidth, 200));
-      final speaker = tester.getRect(find.byIcon(AppIcons.voice));
       final mic = tester.getRect(find.byIcon(AppIcons.micOff));
       final lock = tester.getRect(find.byIcon(AppIcons.roomLocked));
       final count = tester.getRect(find.text('0/12'));
       final kebab = tester.getRect(find.byIcon(AppIcons.moreVertical));
       final row = tester.getRect(find.byType(AppListRow));
       final label = tester.getRect(find.text('a-rather-long-private-room'));
-      expect(speaker.right, lessThanOrEqualTo(mic.left));
       expect(lock.right, lessThanOrEqualTo(count.left));
-      expect(count.right, lessThanOrEqualTo(speaker.left));
+      expect(count.right, lessThanOrEqualTo(mic.left));
       expect(mic.right, lessThanOrEqualTo(kebab.left));
       expect(kebab.right, lessThanOrEqualTo(row.right));
       expect(label.right, lessThanOrEqualTo(lock.left));
       expect(
         tester.getSemantics(find.byType(AppListRow)).label,
-        contains('Private voice channel, joins muted'),
+        allOf(contains('Private voice channel'), contains('Joins muted')),
       );
       expect(tester.takeException(), isNull);
       semantics.dispose();
@@ -164,7 +161,7 @@ void main() {
       expect(find.byIcon(AppIcons.micOff), findsNothing);
       final label = tester.getSemantics(find.byType(AppListRow)).label;
       expect(label, contains('Private voice channel'));
-      expect(label, isNot(contains('joins muted')));
+      expect(label, isNot(contains('Joins muted')));
       semantics.dispose();
     },
   );

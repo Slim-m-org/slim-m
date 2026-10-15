@@ -24,7 +24,8 @@ pub struct Config {
     pub hash_concurrency: usize,
 
     /// Base URL of the push relay (for example `https://relay.example.com`);
-    /// `/v1/send` is appended when calling it.
+    /// `/v1/send` is appended when calling it. Blank reads as unset.
+    #[serde(default, deserialize_with = "blank_as_none")]
     pub push_relay_url: Option<String>,
     /// Bearer key this deployment authenticates to the relay with.
     ///
@@ -159,7 +160,9 @@ pub struct Config {
     /// above already has. slim-m runs no runner of its own and executes
     /// nothing itself; this only ever points at a Piston instance the
     /// operator stood up and trusts, the same relationship this project
-    /// already has with the push relay and a self-hosted LiveKit.
+    /// already has with the push relay and a self-hosted LiveKit. Blank reads
+    /// as unset.
+    #[serde(default, deserialize_with = "blank_as_none")]
     pub code_runner_url: Option<String>,
 }
 
@@ -244,6 +247,19 @@ where
         None | Some("") => Ok(None),
         Some(value) => value.parse().map(Some).map_err(serde::de::Error::custom),
     }
+}
+
+/// Reads an optional string, treating blank as absent, for the same compose
+/// `${VAR:-}` reason as [`empty_as_none`]: a blank sidecar URL must mean "off",
+/// not a startup error about a URL with no scheme.
+fn blank_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+    Ok(raw
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty()))
 }
 
 impl Config {
@@ -355,6 +371,28 @@ mod tests {
         )]);
         let config: Config = envy::from_iter(env).expect("a blank ceiling must not fail to parse");
         assert_eq!(config.max_total_attachment_bytes, None);
+    }
+
+    /// A compose file's `${VAR:-}` hands a blank sidecar URL through, which must mean off.
+    #[test]
+    fn blank_sidecar_urls_read_as_unset_and_real_ones_survive() {
+        let env = std::collections::HashMap::from([
+            ("PUSH_RELAY_URL".to_owned(), String::new()),
+            ("CODE_RUNNER_URL".to_owned(), "  ".to_owned()),
+        ]);
+        let config: Config = envy::from_iter(env).expect("blank sidecar URLs parse");
+        assert_eq!(config.push_relay_url, None);
+        assert_eq!(config.code_runner_url, None);
+
+        let env = std::collections::HashMap::from([(
+            "CODE_RUNNER_URL".to_owned(),
+            "http://piston:2000".to_owned(),
+        )]);
+        let config: Config = envy::from_iter(env).expect("a real URL parses");
+        assert_eq!(
+            config.code_runner_url.as_deref(),
+            Some("http://piston:2000")
+        );
     }
 
     /// The blank-is-none reading must not have swallowed real values.

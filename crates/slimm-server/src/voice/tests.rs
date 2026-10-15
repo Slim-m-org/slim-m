@@ -220,3 +220,44 @@ async fn a_closed_port_reads_as_unreachable() {
     let service = VoiceService::for_test(&format!("http://{addr}"), "k", "s");
     assert_eq!(service.probe_reachable().await, Some(false));
 }
+
+/// A redirect from the room service must not take the admin token with it.
+#[tokio::test]
+async fn the_room_service_client_does_not_follow_a_redirect() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let reached = Arc::new(AtomicBool::new(false));
+    let seen = reached.clone();
+    let elsewhere = axum::Router::new().fallback(move || {
+        seen.store(true, Ordering::SeqCst);
+        async { "leaked" }
+    });
+    let other = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target = format!("http://{}/steal", other.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(other, elsewhere).await.unwrap() });
+    let redirecting = axum::Router::new().route(
+        "/twirp",
+        axum::routing::post(move || async move {
+            (
+                axum::http::StatusCode::TEMPORARY_REDIRECT,
+                [(axum::http::header::LOCATION, target)],
+            )
+        }),
+    );
+    let first = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/twirp", first.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(first, redirecting).await.unwrap() });
+
+    let response = room_service_client()
+        .post(url)
+        .bearer_auth("admin-token")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::TEMPORARY_REDIRECT);
+    assert!(
+        !reached.load(Ordering::SeqCst),
+        "the token never left for the redirect target"
+    );
+}

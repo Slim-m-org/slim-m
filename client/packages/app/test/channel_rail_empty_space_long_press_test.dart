@@ -76,12 +76,12 @@ void main() {
     tester,
   ) async {
     final fixture = await _pump(tester);
-    expect(find.text('Create channel...'), findsNothing);
+    expect(find.text('Create channel'), findsNothing);
 
     await _hold(tester, _belowLastRow(tester));
 
-    expect(find.text('Create channel...'), findsOneWidget);
-    expect(find.text('Create category...'), findsOneWidget);
+    expect(find.text('Create channel'), findsOneWidget);
+    expect(find.text('Create category'), findsOneWidget);
     expect(find.text('Move up'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
@@ -92,8 +92,8 @@ void main() {
     await _hold(tester, tester.getCenter(find.text('general')));
 
     expect(find.text('Move up'), findsOneWidget);
-    expect(find.text('Create channel...'), findsNothing);
-    expect(find.text('Create category...'), findsNothing);
+    expect(find.text('Create channel'), findsNothing);
+    expect(find.text('Create category'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
 
@@ -113,7 +113,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(find.text('Create channel...'), findsNothing);
+    expect(find.text('Create channel'), findsNothing);
     expect(find.text('Move up'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
@@ -140,7 +140,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(scrollable.position.pixels, greaterThan(100));
-    expect(find.text('Create channel...'), findsNothing);
+    expect(find.text('Create channel'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
 
@@ -160,7 +160,7 @@ void main() {
       final viewport = tester.getRect(find.byType(CustomScrollView));
       await _hold(tester, Offset(195, viewport.bottom - 20));
 
-      expect(find.text('Create channel...'), findsOneWidget);
+      expect(find.text('Create channel'), findsOneWidget);
       await teardownFixture(tester, fixture.container, fixture.db);
     },
   );

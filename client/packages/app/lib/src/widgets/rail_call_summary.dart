@@ -44,13 +44,17 @@ class _RailCallSummaryState extends ConsumerState<RailCallSummary> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final name =
-        ref.watch(channelByIdProvider(widget.channelId)).valueOrNull?.name ??
-        'a call';
+    final channelName = ref
+        .watch(channelByIdProvider(widget.channelId))
+        .valueOrNull
+        ?.name;
+    final name = channelName ?? 'In a call';
 
     return Semantics(
       button: true,
-      label: 'Back to the call in $name',
+      label: channelName == null
+          ? 'Back to the call'
+          : 'Back to the call in $channelName',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => setState(() => _pressed = true),

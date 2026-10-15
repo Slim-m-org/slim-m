@@ -185,7 +185,7 @@ void main() {
     final reports = <void Function(int)>[];
     final staging = AttachmentStagingController(
       upload: (body, filename, onProgress) {
-        reports.add(onProgress);
+        reports.add(onProgress.call);
         return Completer<api.Attachment>().future;
       },
     );
@@ -212,6 +212,35 @@ void main() {
     reports.single(900);
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('90% of 1000 B'), findsOneWidget);
+  });
+
+  testWidgets('a dropped connection reads as reconnecting, then carries on', (
+    tester,
+  ) async {
+    final reports = <UploadReport>[];
+    final staging = AttachmentStagingController(
+      upload: (body, filename, report) {
+        reports.add(report);
+        return Completer<api.Attachment>().future;
+      },
+    );
+    addTearDown(staging.dispose);
+    await pumpComposer(
+      tester,
+      overrides: [attachmentStagingProvider.overrideWith((ref, id) => staging)],
+    );
+
+    await staging.stage(Uint8List(1000), _iso);
+    await tester.pump(const Duration(milliseconds: 100));
+    reports.single(250);
+    reports.single.onRetrying(true);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Reconnecting at 25%…'), findsOneWidget);
+
+    reports.single.onRetrying(false);
+    reports.single(400);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('40% of 1000 B'), findsOneWidget);
   });
 
   testWidgets('a large pick shows at once and is never read into memory', (
@@ -320,7 +349,7 @@ void main() {
         final reports = <void Function(int)>[];
         final staging = AttachmentStagingController(
           upload: (body, filename, onProgress) {
-            reports.add(onProgress);
+            reports.add(onProgress.call);
             return Completer<api.Attachment>().future;
           },
         );

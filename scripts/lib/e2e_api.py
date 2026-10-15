@@ -44,8 +44,27 @@ class Api:
     def __init__(self, base, token=None):
         self.base = base.rstrip("/")
         self.token = token
+        self.relogin = None
+
+    def keep_signed_in(self, username, password, device):
+        """Opts this caller into one fresh login when a call answers 401.
+
+        Off by default: the e2e scenarios assert on a revoked session's 401,
+        which a silent re-login would hide. A long seed run opts in because
+        its 15 minute access token expires mid-run.
+        """
+        self.relogin = lambda: self.login(username, password, device=device)
 
     def call(self, method, path, body=None, raw=None, content_type=None):
+        try:
+            return self._send(method, path, body, raw, content_type)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 401 or not self.relogin or path.startswith("/auth/"):
+                raise
+        self.relogin()
+        return self._send(method, path, body, raw, content_type)
+
+    def _send(self, method, path, body, raw, content_type):
         headers = {"User-Agent": USER_AGENT}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"

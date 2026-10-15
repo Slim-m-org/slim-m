@@ -40,6 +40,7 @@ class SettingsToggleRow extends StatelessWidget {
     required this.onChanged,
     required this.semanticLabel,
     this.description,
+    this.leading,
   });
 
   final String label;
@@ -47,6 +48,10 @@ class SettingsToggleRow extends StatelessWidget {
   /// A second line qualifying the setting, for a switch whose effect is not
   /// obvious from its own name.
   final String? description;
+
+  /// An icon in the same column an [AppListRow]'s leading uses, for a toggle
+  /// that sits among such rows in one card.
+  final Widget? leading;
 
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -69,7 +74,9 @@ class SettingsToggleRow extends StatelessWidget {
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
+          spacing: AppSpacing.s8,
           children: [
+            if (leading != null) ExcludeSemantics(child: leading!),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

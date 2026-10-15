@@ -145,9 +145,7 @@ pub(super) async fn publish_cascaded(state: &AppState, cascade: ForwardCascade) 
             channels.push(copy.channel_id);
         }
         for hex in copy.freed_attachments {
-            if let Err(err) = state.media.delete_attachment(&hex).await {
-                tracing::warn!(%hex, error = %err, "failed to remove a forwarded copy's attachment file");
-            }
+            crate::blobs::release(&state.store, &state.media, &hex).await;
         }
     }
     for channel_id in channels {

@@ -38,7 +38,11 @@ class ForbiddenException extends ApiException {
 
 /// The target does not exist within a scope the caller can see.
 class NotFoundException extends ApiException {
-  const NotFoundException(super.message);
+  const NotFoundException(super.message, {this.unexplained = false});
+
+  /// No slim-m error body came with it, so it may be a proxy in front of a
+  /// server that is restarting rather than the server saying it is gone.
+  final bool unexplained;
 }
 
 /// The request collided with existing state, for example reusing a message id

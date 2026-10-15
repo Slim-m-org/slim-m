@@ -298,6 +298,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     final connection = await EventConnection.connect(
       url: api.webSocketUrl,
       ticket: ticket.ticket,
+      open: api.openWebSocket,
     );
     if (generation != _generation) {
       await connection.close();

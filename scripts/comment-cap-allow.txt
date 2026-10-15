@@ -191,7 +191,7 @@ crates/slimm-server/src/main.rs 2
 crates/slimm-server/src/permissions.rs 1
 crates/slimm-server/src/push.rs 2
 crates/slimm-server/src/push/envelope.rs 1
-crates/slimm-server/src/ratelimit.rs 2
+crates/slimm-server/src/ratelimit.rs 1
 crates/slimm-server/src/store/attachments.rs 1
 crates/slimm-server/src/store/canvas.rs 2
 crates/slimm-server/src/store/channels.rs 1

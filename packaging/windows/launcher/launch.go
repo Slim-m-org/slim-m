@@ -69,6 +69,10 @@ func choose(root string) (string, error) {
 	if read(root, "pending") != current {
 		return versionDir(root, current), nil
 	}
+	// A start beside an instance that is still up proves nothing about this version.
+	if instanceRunning(root) {
+		return versionDir(root, current), nil
+	}
 	tries, _ := strconv.Atoi(read(root, "pending.tries"))
 	if tries >= maxFailedStarts && isComplete(root, read(root, "previous")) {
 		return rollBack(root, current)
@@ -92,4 +96,14 @@ func rollBack(root, failed string) (string, error) {
 	_ = write(root, "rolled-back", failed)
 	remove(root, "pending", "pending.tries", "previous")
 	return versionDir(root, previous), nil
+}
+
+// processAlive is replaced in tests; the real one asks the OS.
+var processAlive = osProcessAlive
+
+// instanceRunning reports whether the app this launcher started last is
+// still alive, going by the pid it left in running.pid.
+func instanceRunning(root string) bool {
+	pid, err := strconv.Atoi(read(root, "running.pid"))
+	return err == nil && pid > 0 && processAlive(pid)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 	}
 	root := locate(self)
 	restoreLauncher(root, self)
+	running := instanceRunning(root)
 	dir, err := choose(root)
 	if err != nil {
 		fail(err.Error())
@@ -26,7 +28,12 @@ func main() {
 	if settled(root) {
 		_ = realSwapper().swapLauncher(root, filepath.Join(root, launcherName))
 	}
-	if err := start(filepath.Join(dir, appExecutable), dir, os.Args[1:]); err != nil {
+	pid, err := start(filepath.Join(dir, appExecutable), dir, os.Args[1:])
+	if err != nil {
 		fail(err.Error())
+	}
+	// Only the first instance is recorded: a second one exits at once and must not hide it.
+	if !running {
+		_ = write(root, "running.pid", strconv.Itoa(pid))
 	}
 }

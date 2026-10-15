@@ -34,7 +34,7 @@ mod content_type;
 mod image_header;
 mod stream;
 mod upload_session;
-pub use content_type::{is_inline, sniff_content_type};
+pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
 pub use image_header::{
     ImageHeader, ImageProblem, MAX_EMOJI_SIDE, MAX_IMAGE_PIXELS, MAX_PROFILE_IMAGE_SIDE, Motion,
     check_image,
@@ -131,6 +131,9 @@ pub struct Media {
     max_total_attachment_bytes: Option<u64>,
     upload_timeout: Duration,
     uploads: Uploads,
+    /// Held while bytes are placed with their row, or a row's absence is
+    /// checked and its bytes unlinked; see `crate::blobs`.
+    blobs: Arc<tokio::sync::Mutex<()>>,
     /// Set only by [`Media::for_tests`]; always `None` in a real deployment,
     /// whose media root outlives the process on purpose.
     temp_root: Option<Arc<TempRoot>>,
@@ -165,6 +168,7 @@ impl Media {
         std::fs::create_dir_all(&uploads_dir)?;
         Ok(Self {
             uploads: Uploads::new(uploads_dir, attachments_dir.clone()),
+            blobs: Arc::default(),
             attachments_dir,
             avatars_dir,
             max_attachment_bytes,
@@ -226,6 +230,41 @@ impl Media {
     /// Resumable upload sessions; see [`upload_session`].
     pub fn uploads(&self) -> &Uploads {
         &self.uploads
+    }
+
+    /// Serializes placing bytes with their row against releasing them; see
+    /// `crate::blobs` for why both sides must hold it.
+    pub async fn blob_guard(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.blobs.clone().lock_owned().await
+    }
+
+    /// Every file in the attachments directory with when it was last
+    /// written, for the leak scan in `crate::blobs`.
+    pub async fn attachment_files(&self) -> io::Result<Vec<(String, std::time::SystemTime)>> {
+        let dir = self.attachments_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut files = Vec::new();
+            for entry in std::fs::read_dir(dir)? {
+                let entry = entry?;
+                let meta = entry.metadata()?;
+                if meta.is_file()
+                    && let Some(name) = entry.file_name().to_str()
+                {
+                    files.push((name.to_owned(), meta.modified()?));
+                }
+            }
+            Ok(files)
+        })
+        .await
+        .unwrap_or_else(|e| Err(io::Error::other(e)))
+    }
+
+    /// Removes a leftover temp file by name; anything else is refused.
+    pub async fn remove_temp_file(&self, name: &str) -> io::Result<()> {
+        if !name.starts_with(".tmp-") || name.contains('/') {
+            return Err(io::Error::other("not a temp file name"));
+        }
+        remove(self.attachments_dir.join(name)).await
     }
 
     fn attachment_path(&self, sha256_hex: &str) -> PathBuf {
@@ -340,8 +379,12 @@ async fn write_atomic(path: PathBuf, bytes: Vec<u8>) -> io::Result<()> {
             .parent()
             .expect("attachment and avatar paths always have a parent directory");
         let tmp_path = dir.join(format!(".tmp-{}", Uuid::now_v7()));
-        std::fs::write(&tmp_path, &bytes)?;
-        std::fs::rename(&tmp_path, &path)
+        let placed =
+            std::fs::write(&tmp_path, &bytes).and_then(|()| std::fs::rename(&tmp_path, &path));
+        if placed.is_err() {
+            let _ = std::fs::remove_file(&tmp_path);
+        }
+        placed
     })
     .await
     .unwrap_or_else(|e| Err(io::Error::other(e)))

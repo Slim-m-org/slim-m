@@ -131,6 +131,30 @@ void main() {
     });
   });
 
+  group('ApnsTokenChannel live registration error', () {
+    test('an error delivered while waiting is a failure with its reason',
+        () async {
+      _mock((call) async => null);
+      addTearDown(() => _mock(null));
+
+      final channel = ApnsTokenChannel(isIOS: true);
+      final result = channel.fetch(timeout: const Duration(seconds: 5));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+        _channelName,
+        const StandardMethodCodec().encodeMethodCall(
+          const MethodCall('onRegistrationError', 'denied'),
+        ),
+        (_) {},
+      );
+
+      final outcome = await result;
+      expect(outcome, isA<ApnsRegistrationFailed>());
+      expect((outcome as ApnsRegistrationFailed).reason, 'denied');
+    });
+  });
+
   group('ApnsTokenChannel VoIP token', () {
     test('not iOS has none and never touches the channel', () async {
       var touched = false;

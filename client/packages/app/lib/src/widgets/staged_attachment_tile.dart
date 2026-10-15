@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'attachment_format.dart';
 import 'composer_attachments.dart';
 import 'image_decode.dart';
+import 'transfer_meter.dart';
 
 /// The square a thumbnail or a generic-file glyph draws into.
 const double _thumbnailSize = AppSpacing.s40;
@@ -130,32 +131,68 @@ class StagedAttachmentTile extends StatelessWidget {
 }
 
 /// The byte count and a bar for an upload in flight, so a large file shows it
-/// is moving rather than a spinner that could mean anything.
-class _UploadProgress extends StatelessWidget {
+/// is moving rather than a spinner that could mean anything. Past ten seconds
+/// the line gives speed and time left: on hover where there is a pointer to
+/// hover with, in place of the count so the composer does not shift; and
+/// always on a narrow layout, which has none (width, not platform: the one
+/// rule in docs/design/desktop-vs-mobile.md).
+class _UploadProgress extends StatefulWidget {
   const _UploadProgress({required this.upload});
 
   final UploadingAttachment upload;
 
   @override
+  State<_UploadProgress> createState() => _UploadProgressState();
+}
+
+class _UploadProgressState extends State<_UploadProgress> {
+  bool _hovered = false;
+
+  String _line(int percent, bool compact) {
+    final upload = widget.upload;
+    if (upload.reconnecting) return 'Reconnecting at $percent%…';
+    final size = formatByteSize(upload.body.length);
+    final meter = upload.meter;
+    final left = meter?.remaining(upload.sent, upload.body.length);
+    final rate = meter?.bytesPerSecond;
+    if (meter == null || !meter.showsDetail || left == null || rate == null) {
+      return '$percent% of $size';
+    }
+    if (compact) return '$percent% · ${formatTimeLeft(left)}';
+    if (_hovered) {
+      return '${formatByteSize(rate.round())}/s · ${formatTimeLeft(left)}';
+    }
+    return '$percent% of $size';
+  }
+
+  @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final upload = widget.upload;
     final percent = (upload.fraction * 100).floor();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          '$percent% of ${formatByteSize(upload.body.length)}',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        LinearProgressIndicator(
-          value: upload.fraction,
-          minHeight: 3,
-          semanticsLabel: 'Uploading ${upload.filename}',
-          semanticsValue: '$percent%',
-        ),
-      ],
+    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _line(percent, compact),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.s4),
+          LinearProgressIndicator(
+            value: upload.fraction,
+            minHeight: 3,
+            semanticsLabel: 'Uploading ${upload.filename}',
+            semanticsValue: '$percent%',
+          ),
+        ],
+      ),
     );
   }
 }

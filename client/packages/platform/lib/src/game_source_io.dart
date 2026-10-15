@@ -23,6 +23,16 @@ int? parseSteamVdfAppId(String vdf) {
   return id == null || id == 0 ? null : id;
 }
 
+/// The library folders listed in Steam's `libraryfolders.vdf`.
+List<String> parseSteamLibraryPaths(String vdf) => [
+      for (final match in RegExp(r'"path"\s+"([^"]+)"').allMatches(vdf))
+        match.group(1)!.replaceAll(r'\\', r'\'),
+    ];
+
+/// The `name` in an `appmanifest_<id>.acf`, or null.
+String? parseAppManifestName(String acf) =>
+    RegExp(r'"name"\s+"([^"]*)"').firstMatch(acf)?.group(1);
+
 /// The DWORD in `reg query ... /v RunningAppID` output, or null.
 int? parseSteamRegQuery(String output) {
   final match = RegExp(
@@ -64,6 +74,56 @@ class SystemGameProbe implements GameProbe {
       }
     }
     return names;
+  }
+
+  /// Steam's install root, where `steamapps/libraryfolders.vdf` lives.
+  Future<String?> _steamRoot() async {
+    if (Platform.isWindows) {
+      final result = await Process.run('reg', [
+        'query',
+        r'HKCU\Software\Valve\Steam',
+        '/v',
+        'SteamPath',
+      ]);
+      final match = RegExp(r'SteamPath\s+REG_SZ\s+(.+)')
+          .firstMatch(result.stdout as String);
+      return match?.group(1)?.trim();
+    }
+    final home = Platform.environment['HOME'];
+    if (home == null) return null;
+    final candidates = Platform.isMacOS
+        ? ['$home/Library/Application Support/Steam']
+        : [
+            '$home/.steam/steam',
+            '$home/.local/share/Steam',
+            '$home/.var/app/com.valvesoftware.Steam/.local/share/Steam',
+          ];
+    for (final path in candidates) {
+      if (await File('$path/steamapps/libraryfolders.vdf').exists()) {
+        return path;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<String?> steamAppName(int appId) async {
+    try {
+      final root = await _steamRoot();
+      if (root == null) return null;
+      final libraries = parseSteamLibraryPaths(
+        await File('$root/steamapps/libraryfolders.vdf').readAsString(),
+      );
+      for (final library in {root, ...libraries}) {
+        final manifest = File('$library/steamapps/appmanifest_$appId.acf');
+        if (await manifest.exists()) {
+          return parseAppManifestName(await manifest.readAsString());
+        }
+      }
+    } on Object {
+      return null;
+    }
+    return null;
   }
 
   @override

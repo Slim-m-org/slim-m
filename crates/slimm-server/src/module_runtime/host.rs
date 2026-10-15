@@ -234,6 +234,10 @@ fn read_guest<'a, T: 'a>(
 /// as "no bytes" and treats as an error; a misbehaving module can make this
 /// return nothing but can never make it read or write outside its own memory,
 /// nor turn a bad request into a host error.
+/// Largest request a module may hand `host_call`: above the biggest real one
+/// (a `net.fetch` with its 64 KiB body), checked before anything is copied.
+const MAX_HOST_CALL_REQUEST_BYTES: usize = 128 * 1024;
+
 fn host_call(mut caller: Caller<'_, HostState>, req_ptr: i32, req_len: i32) -> i64 {
     if Instant::now() > caller.data().deadline {
         return 0;
@@ -244,6 +248,9 @@ fn host_call(mut caller: Caller<'_, HostState>, req_ptr: i32, req_len: i32) -> i
     let Ok(req_len) = usize::try_from(req_len) else {
         return 0;
     };
+    if req_len > MAX_HOST_CALL_REQUEST_BYTES {
+        return 0;
+    }
     let Ok(req_ptr) = usize::try_from(req_ptr) else {
         return 0;
     };

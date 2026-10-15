@@ -41,6 +41,8 @@ fn client(allow_local: bool) -> &'static reqwest::Client {
     cell.get_or_init(|| {
         reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
+            // A proxy would do the DNS lookup the guard exists to check.
+            .no_proxy()
             .timeout(FETCH_TIMEOUT)
             .connect_timeout(CONNECT_TIMEOUT)
             .dns_resolver(Arc::new(GuardResolver {

@@ -334,4 +334,22 @@ void main() {
     expect(out.slots, hasLength(1));
     expect(out.candidates, 1);
   });
+
+  test('a reset grid does not skip a re-used slot on a stale stamp', () {
+    final grid = UniformGrid(cellSize: 100);
+    grid.insert(0, 0, 10, 10);
+    final out = CullResult();
+    for (var i = 0; i < 3; i++) {
+      grid.queryGrid(0, 0, 10, 10, out);
+    }
+
+    grid.reset();
+    grid.insert(0, 0, 10, 10);
+    for (var i = 0; i < 2; i++) {
+      grid.queryGrid(5000, 5000, 5010, 5010, out);
+    }
+    grid.queryGrid(0, 0, 10, 10, out);
+
+    expect(out.slots.toList(), [0]);
+  });
 }

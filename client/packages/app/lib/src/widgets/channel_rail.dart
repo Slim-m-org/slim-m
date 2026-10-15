@@ -12,6 +12,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../action_labels.dart';
 import '../permissions.dart';
 import '../providers/channel_order_controller.dart';
 import '../providers/dms.dart';
@@ -146,7 +147,10 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                     // Keycaps only where a keyboard is and the field has room; at compact width the hint crushed the word Search.
                     trailing:
                         AppTouchTargets.of(context) ||
-                            constraints.maxWidth < _searchHintMinWidth
+                            constraints.maxWidth <
+                                MediaQuery.textScalerOf(
+                                  context,
+                                ).scale(_searchHintMinWidth)
                         ? null
                         : Row(
                             mainAxisSize: MainAxisSize.min,
@@ -349,13 +353,13 @@ List<Channel> _withPendingOrder(
   ];
 }
 
-/// The "Create channel... / Create category..." menu of the rail's blank space.
+/// The "Create channel / Create category" menu of the rail's blank space.
 List<Widget> railBackgroundMenuItems(
   BuildContext context,
   VoidCallback close,
 ) => [
   AppMenuItem(
-    label: 'Create channel...',
+    label: ActionLabels.createChannel,
     leading: AppIcons.add,
     onTap: () {
       close();
@@ -363,7 +367,7 @@ List<Widget> railBackgroundMenuItems(
     },
   ),
   AppMenuItem(
-    label: 'Create category...',
+    label: ActionLabels.createCategory,
     leading: AppIcons.addCategory,
     onTap: () {
       close();

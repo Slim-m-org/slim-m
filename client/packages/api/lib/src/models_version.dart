@@ -36,6 +36,7 @@ class Version {
     this.capabilities,
     this.identity,
     this.minClientVersion,
+    this.directAddresses = const [],
     this.buildId,
   });
 
@@ -114,6 +115,10 @@ class Version {
   /// see decision 0025.
   final String? minClientVersion;
 
+  /// `host:port` addresses on the deployment's own network, for the native
+  /// shortcut in `direct_route.dart`. Empty when the operator set none.
+  final List<String> directAddresses;
+
   /// Short git SHA the server was built from. Null for a build without one or
   /// a server older than this field.
   final String? buildId;
@@ -163,6 +168,10 @@ class Version {
             ? null
             : ServerIdentity.fromJson(json['identity'] as Map<String, dynamic>),
         minClientVersion: json['min_client_version'] as String?,
+        directAddresses: [
+          for (final entry in json['direct_addresses'] as List<dynamic>? ?? [])
+            if (entry is String) entry,
+        ],
         buildId: json['build_id'] as String?,
       );
 }

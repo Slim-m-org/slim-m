@@ -439,3 +439,51 @@ async fn a_fuel_exhausting_module_still_returns_promptly_under_a_short_wall_cloc
         RunError::ResourceLimited(_) | RunError::Timeout
     ));
 }
+
+/// A valid `kv.store` set padded past the request cap with JSON whitespace:
+/// without the cap it would be copied, parsed and honoured.
+#[tokio::test]
+async fn a_host_call_request_past_the_cap_is_not_honoured() {
+    let request = r#"{"capability":"kv.store","op":"set","key":"k","value":"v"}"#;
+    let padded = 200_000;
+    let wasm = wat(&format!(
+        r#"
+        (module
+            (import "slim" "host_call" (func $host_call (param i32 i32) (result i64)))
+            (memory (export "memory") 8)
+            (global $bump (mut i32) (i32.const 262144))
+            (data (i32.const 1024) "{escaped}")
+            (func (export "alloc") (param $len i32) (result i32)
+                (local $ptr i32)
+                (local.set $ptr (global.get $bump))
+                (global.set $bump (i32.add (global.get $bump) (local.get $len)))
+                (local.get $ptr))
+            (func (export "run") (param $in_ptr i32) (param $in_len i32) (result i64)
+                (memory.fill (i32.const {pad_at}) (i32.const 32) (i32.const {pad_len}))
+                (call $host_call (i32.const 1024) (i32.const {padded}))))
+        "#,
+        escaped = request.replace('"', "\\\""),
+        pad_at = 1024 + request.len(),
+        pad_len = padded - request.len(),
+    ));
+    let kv = Arc::new(InMemoryKv::default());
+    let surface = CapabilitySurface::enabled(vec!["kv.store".to_owned()], "m", kv.clone());
+    let output = ModuleHost::run_with_capabilities(
+        wasm.clone(),
+        sha256_hex(&wasm),
+        GENEROUS,
+        b"hi".to_vec(),
+        surface,
+    )
+    .await
+    .expect("the module itself runs to completion");
+    assert!(
+        output.is_empty(),
+        "the oversized request got the empty response"
+    );
+    assert_eq!(
+        super::kv::KvBackend::get(kv.as_ref(), "m", "k").unwrap(),
+        None,
+        "and was never honoured"
+    );
+}

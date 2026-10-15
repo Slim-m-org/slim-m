@@ -134,8 +134,8 @@ class ExemptTags(unittest.TestCase):
         self.assertEqual(mod.exempt_tags(f.name), {"client-v1.0.0", "server-v2.0.0"})
         self.assertEqual(mod.exempt_tags(f.name + ".missing"), set())
 
-    def test_the_repo_file_exempts_only_the_known_incident(self):
-        self.assertEqual(mod.exempt_tags(), {"client-v0.91.0"})
+    def test_the_repo_file_exempts_only_the_known_incidents(self):
+        self.assertEqual(mod.exempt_tags(), {"client-v0.91.0", "client-v0.101.1"})
 
 
 if __name__ == "__main__":

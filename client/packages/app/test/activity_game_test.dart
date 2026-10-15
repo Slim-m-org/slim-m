@@ -213,7 +213,7 @@ void main() {
     expect(find.text('Sharing right now: nothing'), findsOneWidget);
     expect(find.textContaining('Counter-Strike 2'), findsNothing);
 
-    await tester.tap(find.textContaining('games it can name'));
+    await tester.tap(find.textContaining('listed games'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Counter-Strike 2'), findsOneWidget);
   });

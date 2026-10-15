@@ -34,6 +34,7 @@ class RegisterAccountsTest(unittest.TestCase):
                 "http://x", 1, "pw", "code", "seed", username_tag="")
         self.assertEqual(accounts[0]["reused"], False)
         self.assertEqual(accounts[0]["api"].token, "tok")
+        self.assertIsNotNone(accounts[0]["api"].relogin)
 
     def test_an_already_registered_username_logs_in_instead(self):
         calls = []
@@ -52,6 +53,31 @@ class RegisterAccountsTest(unittest.TestCase):
         self.assertEqual(calls, ["/auth/register", "/auth/login"])
         self.assertEqual(accounts[0]["reused"], True)
         self.assertEqual(accounts[0]["api"].token, "tok2")
+
+    def test_a_400_from_a_claimed_invite_only_deployment_still_reuses_the_persona(self):
+        def fake_call(self, method, path, body=None, **kwargs):
+            if path == "/auth/register":
+                raise _http_error(400)
+            if path == "/auth/login":
+                return {"access_token": "tok3", "refresh_token": "r"}
+            raise AssertionError(f"unexpected call to {path}")
+
+        with patch.object(e2e_api.Api, "call", fake_call):
+            accounts = seed_accounts.register_accounts(
+                "http://x", 1, "pw", None, "seed", username_tag="")
+        self.assertEqual(accounts[0]["reused"], True)
+
+    def test_a_400_whose_login_also_fails_keeps_the_invite_hint(self):
+        def fake_call(self, method, path, body=None, **kwargs):
+            if path == "/auth/register":
+                raise _http_error(400)
+            raise _http_error(401)
+
+        with patch.object(e2e_api.Api, "call", fake_call):
+            with self.assertRaises(seed_accounts.AccountSetupError) as ctx:
+                seed_accounts.register_accounts(
+                    "http://x", 1, "pw", None, "seed", username_tag="")
+        self.assertIn("--invite-code", str(ctx.exception))
 
     def test_a_conflict_with_the_wrong_password_raises_a_clear_error(self):
         def fake_call(self, method, path, body=None, **kwargs):

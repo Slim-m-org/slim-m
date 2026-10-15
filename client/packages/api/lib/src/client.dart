@@ -7,7 +7,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'direct_route.dart';
 import 'exceptions.dart';
 import 'models.dart';
 import 'upload_source.dart';
@@ -177,15 +179,37 @@ class SessionStore {
 /// than once (which the server would read as reuse and revoke the session).
 class SlimmApi {
   SlimmApi({
-    required this.baseUrl,
+    required Uri baseUrl,
     SessionStore? session,
     http.Client? httpClient,
-  })  : session = session ?? SessionStore(),
-        _http = httpClient ?? http.Client();
+    DirectRoute? directRoute,
+  }) : this._(
+          baseUrl: baseUrl,
+          session: session ?? SessionStore(),
+          httpClient: httpClient,
+          route:
+              directRoute ?? (httpClient == null ? DirectRoute(baseUrl) : null),
+        );
+
+  SlimmApi._({
+    required this.baseUrl,
+    required this.session,
+    required http.Client? httpClient,
+    required DirectRoute? route,
+  })  : _route = route,
+        _http = httpClient ?? route?.httpClient ?? http.Client();
+
+  /// The shortcut over the server's own network, when this client owns its
+  /// transport; null when a caller handed in an [http.Client].
+  final DirectRoute? _route;
 
   final Uri baseUrl;
   final SessionStore session;
   final http.Client _http;
+
+  /// Upload sessions a caller gave up on while they were still resumable,
+  /// keyed by the caller's own resume key, so a retry carries on from there.
+  final Map<String, String> _resumableUploads = {};
 
   Future<TokenPair>? _refreshInFlight;
 
@@ -197,11 +221,20 @@ class SlimmApi {
 
   void close() => _http.close();
 
+  /// Whether requests are currently going over the server's own network.
+  bool get usesDirectRoute => _route?.active ?? false;
+
+  /// Opens the event socket over the same route requests take.
+  WebSocketChannel openWebSocket(Uri url) =>
+      _route?.connectWebSocket(url) ?? WebSocketChannel.connect(url);
+
   // --- System ---
 
   Future<Version> version() async {
     final json = await _send('GET', '/version', authenticated: false);
-    return Version.fromJson(json as Map<String, dynamic>);
+    final version = Version.fromJson(json as Map<String, dynamic>);
+    _route?.advertise(version.directAddresses);
+    return version;
   }
 
   // --- Channels ---

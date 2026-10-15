@@ -25,9 +25,17 @@ class EventConnection {
     required String ticket,
     Duration timeout = const Duration(seconds: 15),
     Duration keepaliveInterval = const Duration(seconds: 20),
+    WebSocketChannel Function(Uri url)? open,
   }) async {
-    final channel = WebSocketChannel.connect(url);
-    await channel.ready.timeout(timeout);
+    final channel = (open ?? WebSocketChannel.connect)(url);
+    // A connect that lands after the timeout would otherwise leave a socket nobody listens to.
+    final ready = channel.ready;
+    try {
+      await ready.timeout(timeout);
+    } catch (error) {
+      unawaited(ready.then((_) => channel.sink.close(), onError: (_) {}));
+      throw EventConnectionRefused('could not open the socket: $error');
+    }
 
     // Owned here so a silent socket can be ended without waiting on a close that never comes.
     final events = StreamController<ServerEvent>.broadcast();
@@ -35,9 +43,14 @@ class EventConnection {
     final subscription = channel.stream.listen(
       (raw) {
         liveness?.heard();
-        final event = ServerEvent.parse(
-          raw is String ? raw : utf8.decode(raw as List<int>),
-        );
+        final ServerEvent? event;
+        try {
+          event = ServerEvent.parse(
+            raw is String ? raw : utf8.decode(raw as List<int>),
+          );
+        } on Object {
+          return;
+        }
         if (event != null && event is! PongEvent) events.add(event);
       },
       onError: events.addError,
@@ -64,6 +77,10 @@ class EventConnection {
       await channel.sink.close();
       throw const EventConnectionRefused(
         'the server did not answer the handshake',
+      );
+    } on StateError {
+      throw const EventConnectionRefused(
+        'the socket closed before the server answered',
       );
     }
 

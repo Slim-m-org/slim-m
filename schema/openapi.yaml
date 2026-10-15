@@ -54,8 +54,8 @@ info:
     WebSocket uses a single-use ticket from `/auth/ws-ticket`, because an
     upgrade request cannot reliably carry an Authorization header.
   license:
-    name: Apache-2.0
-    identifier: Apache-2.0
+    name: PolyForm Noncommercial 1.0.0
+    identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 servers:
   - url: https://{host}
     variables:
@@ -3684,7 +3684,8 @@ paths:
         in `attachment_ids` on `sendMessage`. Content type is decided by
         sniffing the uploaded bytes against a fixed server-side allowlist,
         never from a client-declared Content-Type header or a filename
-        extension - an unrecognized type is refused outright. The allowlist
+        extension. Any file is accepted: one the allowlist does not
+        recognize is stored as `application/octet-stream`. The allowlist
         covers images, PDF, mp4 and webm video, mpeg/ogg/wav audio, zip and
         gzip archives, and a last-resort `text/plain` match for bytes that
         are plausibly readable text (valid UTF-8, no control characters
@@ -3873,8 +3874,8 @@ paths:
         Answers what `uploadAttachment` answers for the same bytes: the type
         is sniffed from the assembled file, identical bytes reuse the stored
         copy, and the id is referenced the same way on `sendMessage`. A
-        session still short of its declared size answers 409. An unsupported
-        type or a full deployment drops the session.
+        session still short of its declared size answers 409. A full
+        deployment drops the session.
       responses:
         "201":
           description: The stored attachment's metadata.
@@ -9228,6 +9229,16 @@ components:
             The oldest client version this deployment serves, as `X.Y.Z`.
             Absent means no floor, the default. Below it a client stops and
             offers to update. Set with SLIMM_MIN_CLIENT_VERSION.
+        direct_addresses:
+          type: array
+          items:
+            type: string
+          description: >
+            `host:port` addresses where a native client on the deployment's
+            own network can reach the same TLS endpoint directly, skipping a
+            proxy. The client verifies the certificate against the public
+            hostname and falls back when an address fails. Absent unless set
+            with SLIMM_DIRECT_ADDRESSES.
         capabilities:
           type: array
           items:

@@ -85,6 +85,9 @@ class ApnsTokenChannel {
   final MethodChannel _channel;
   final bool _isIOS;
   Completer<String?>? _pending;
+
+  /// Why registration failed, when that arrived live and not from the native cache.
+  String? _liveError;
   final _voipTokens = StreamController<String>.broadcast();
 
   /// Fires when PushKit issues or rotates this device's VoIP token, which can
@@ -99,6 +102,9 @@ class ApnsTokenChannel {
       case 'onToken':
         _complete(call.arguments as String?);
       case 'onRegistrationError':
+        if (_pending != null) {
+          _liveError = call.arguments as String? ?? 'unknown';
+        }
         _complete(null);
     }
   }
@@ -124,6 +130,7 @@ class ApnsTokenChannel {
 
     // Installed before the first probe so a token landing between probes is
     // not dropped. See the doc comment above.
+    _liveError = null;
     final pending = _pending ??= Completer<String?>();
     try {
       final cached = await _channel.invokeMethod<String>('getToken');
@@ -171,6 +178,12 @@ class ApnsTokenChannel {
     }
   }
 
-  ApnsTokenResult _resultOf(String? token) =>
-      token == null ? const ApnsTokenPending() : ApnsTokenReady(token);
+  ApnsTokenResult _resultOf(String? token) {
+    if (token != null) return ApnsTokenReady(token);
+    final error = _liveError;
+    _liveError = null;
+    return error == null
+        ? const ApnsTokenPending()
+        : ApnsRegistrationFailed(error);
+  }
 }

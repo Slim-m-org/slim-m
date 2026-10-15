@@ -74,4 +74,19 @@ void main() {
       'https://i.scdn.co/image/$id',
     );
   });
+
+  test('one player that breaks the spec does not hide the others', () {
+    final broken = MprisPlayerState(
+      status: 'Playing',
+      metadata: {
+        'xesam:title': DBusString('Odd'),
+        'xesam:artist': DBusString('not an array'),
+      },
+    );
+    final picked = pickNowPlaying([
+      broken,
+      _player('Playing', title: 'Good', artists: ['A']),
+    ]);
+    expect(picked?.title, 'Good');
+  });
 }

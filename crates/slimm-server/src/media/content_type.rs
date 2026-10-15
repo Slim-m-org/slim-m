@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The upload content-type allowlist: what an attachment may be stored as,
-//! decided from the bytes alone, and whether that type is safe to render
-//! inline in a browser.
+//! The upload content-type allowlist: which label an attachment is stored
+//! under, decided from the bytes alone, and whether that type is safe to
+//! render inline in a browser.
+//!
+//! An attachment matching none of it is still accepted, as
+//! [`GENERIC_BINARY`]: a forced download that no browser is ever asked to
+//! render, exactly as inert as the zip and `text/plain` entries below. Only
+//! avatars, icons, emoji and other pictures require a match.
 //!
 //! Never derived from a filename extension or a client-declared Content-Type
 //! header: both are attacker-controlled input, and trusting either is what
@@ -257,6 +262,14 @@ fn is_plain_text(bytes: &[u8]) -> bool {
 
 /// Sniffs `bytes` against the allowlist, returning the content type to store
 /// and serve it as. `None` means refuse the upload outright.
+/// The label for an attachment the allowlist does not recognize.
+pub const GENERIC_BINARY: &str = "application/octet-stream";
+
+/// The stored type of an attachment: the allowlist's match, else [`GENERIC_BINARY`].
+pub fn attachment_content_type(bytes: &[u8]) -> &'static str {
+    sniff_content_type(bytes).unwrap_or(GENERIC_BINARY)
+}
+
 pub fn sniff_content_type(bytes: &[u8]) -> Option<&'static str> {
     ALLOWED_TYPES
         .iter()

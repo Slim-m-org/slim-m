@@ -135,6 +135,9 @@ class CellChip extends StatelessWidget {
   }
 }
 
+/// One spelling for the inherit state you may not change, in the legend and on the cell.
+const inheritBlockedLabel = "Inherit (you can't grant this)";
+
 /// A focusable cell that fills whatever slot the grid gives it, so the touch
 /// target is the whole column-by-row area rather than just the chip. [label]
 /// names the permission and the column, so a screen reader never hears a bare
@@ -172,7 +175,7 @@ class _CellState extends State<Cell> {
     CellState.allow => 'Allow',
     CellState.deny => 'Deny',
     CellState.inherit =>
-      widget.disabled ? "Inherit; you can't grant this" : 'Inherit from role',
+      widget.disabled ? inheritBlockedLabel : 'Inherit from role',
   };
 
   @override

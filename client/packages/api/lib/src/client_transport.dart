@@ -204,12 +204,14 @@ extension SlimmApiTransport on SlimmApi {
 
   ApiException _errorFor(http.Response response) {
     var reason = 'request failed';
+    var explained = false;
     int? missingPermissions;
     Duration? bodyRetryAfter;
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic> && decoded['error'] is String) {
         reason = decoded['error'] as String;
+        explained = true;
       }
       if (decoded is Map<String, dynamic> &&
           decoded['missing_permissions'] is int) {
@@ -232,7 +234,7 @@ extension SlimmApiTransport on SlimmApi {
           reason,
           missingPermissions: missingPermissions,
         ),
-      404 => NotFoundException(reason),
+      404 => NotFoundException(reason, unexplained: !explained),
       409 => ConflictException(reason),
       429 => RateLimitedException(
           reason,

@@ -25,6 +25,10 @@ use super::kv::{self, KvBackend};
 use super::net::{self, HttpFetcher};
 use super::post::{self, MessagePoster};
 
+/// Most host calls one run may make, of any kind: room for every per-capability
+/// budget at once, plus some refusals.
+pub const MAX_HOST_CALLS_PER_RUN: u32 = 128;
+
 /// Whether the capability surface is available to a module run, and - when it
 /// is - the space-approved capability set, the module's identity and storage
 /// backend, and this run's `kv.store` call budget.
@@ -57,6 +61,9 @@ pub enum CapabilitySurface {
         network_hosts: Vec<String>,
         /// Remaining `net.fetch` attempts this run may make.
         fetches_remaining: u32,
+        /// Remaining host calls of any kind, refused ones included, so a loop
+        /// of bad requests is bounded by more than the wall clock.
+        calls_remaining: u32,
     },
 }
 
@@ -78,6 +85,7 @@ impl CapabilitySurface {
             fetcher: None,
             network_hosts: Vec::new(),
             fetches_remaining: net::MAX_FETCHES_PER_RUN,
+            calls_remaining: MAX_HOST_CALLS_PER_RUN,
         }
     }
 
@@ -128,10 +136,15 @@ impl CapabilitySurface {
             fetcher,
             network_hosts,
             fetches_remaining,
+            calls_remaining,
         } = self
         else {
             return refusal("the capability surface is off");
         };
+        if *calls_remaining == 0 {
+            return refusal("host_call budget for this run is exhausted");
+        }
+        *calls_remaining -= 1;
         let parsed: HostCallRequest = match serde_json::from_slice(request) {
             Ok(parsed) => parsed,
             Err(_) => return refusal("malformed host_call request"),
@@ -219,6 +232,19 @@ mod tests {
         let out = text(&surface.dispatch(br#"{"capability":"message.post"}"#));
         assert!(out.contains("message.post needs a channel"), "{out}");
         assert!(out.contains(r#""ok":false"#), "{out}");
+    }
+
+    #[test]
+    fn refused_calls_spend_the_run_budget_too() {
+        let mut surface = enabled(&["kv.store"]);
+        for _ in 0..MAX_HOST_CALLS_PER_RUN {
+            surface.dispatch(b"not json");
+        }
+        let out = text(&surface.dispatch(br#"{"capability":"kv.store","op":"list"}"#));
+        assert!(
+            out.contains("host_call budget for this run is exhausted"),
+            "{out}"
+        );
     }
 
     #[test]

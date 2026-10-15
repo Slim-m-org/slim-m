@@ -13,24 +13,39 @@ class PollSkip implements Exception {
 
 /// Reads now and then every [interval], emitting only when the answer
 /// changes. Any other failure reads as "nothing", never as an error.
+///
+/// A tick that finds the previous read still running is skipped, and a read
+/// past [readTimeout] counts as a failure, so a hung source cannot pile up reads.
+/// Cancelling waits out a read already running, up to [cancelGrace], so a
+/// read part way through a sequence of requests finishes before cancel
+/// resolves, without a hung one holding cancel hostage.
 Stream<T?> polledStream<T>({
   required Duration interval,
   required Future<T?> Function() read,
   Future<void> Function()? onCancel,
+  Duration readTimeout = const Duration(seconds: 30),
+  Duration cancelGrace = const Duration(seconds: 1),
 }) {
   Timer? timer;
   T? last;
   var first = true;
   late final StreamController<T?> controller;
 
+  Future<T?>? inFlight;
+
   Future<void> poll() async {
+    if (inFlight != null || controller.isClosed) return;
+    final reading = read().timeout(readTimeout);
+    inFlight = reading;
     T? current;
     try {
-      current = await read();
+      current = await reading;
     } on PollSkip {
       return;
     } on Object {
       current = null;
+    } finally {
+      inFlight = null;
     }
     if (controller.isClosed || (!first && current == last)) return;
     first = false;
@@ -45,6 +60,11 @@ Stream<T?> polledStream<T>({
     },
     onCancel: () async {
       timer?.cancel();
+      try {
+        await inFlight?.timeout(cancelGrace);
+      } on Object {
+        // The read's outcome no longer matters to anyone.
+      }
       await onCancel?.call();
     },
   );

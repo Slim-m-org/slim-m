@@ -25,10 +25,85 @@ class _FixedAudioDevices implements AudioDevices {
   Future<List<AudioDevice>> outputs() async => outputDevices;
 
   @override
+  Future<AudioDevice?> systemDefaultInput() async =>
+      inputDevices.where((d) => d.id == 'default').firstOrNull;
+
+  @override
+  Future<AudioDevice?> systemDefaultOutput() async =>
+      outputDevices.where((d) => d.id == 'default').firstOrNull;
+
+  @override
   Stream<void> get onChange => const Stream.empty();
 }
 
+AudioDevice _mic(String id) => AudioDevice(id: id, label: id);
+
 void main() {
+  group('AudioDeviceSwitching system default and unplugged devices', () {
+    test('system default mid-call does not pick the first physical device',
+        () async {
+      final switched = <String>[];
+      final switching = AudioDeviceSwitching(
+        _FixedAudioDevices(inputDevices: [_mic('micA'), _mic('micB')]),
+        liveInput: (room, device) async => switched.add(device.deviceId),
+      );
+
+      await switching.selectInput(lk.Room(), null);
+
+      expect(switched, isEmpty);
+    });
+
+    test('system default mid-call selects the platform default entry',
+        () async {
+      final switched = <String>[];
+      final switching = AudioDeviceSwitching(
+        _FixedAudioDevices(
+          inputDevices: [_mic('default'), _mic('micA')],
+        ),
+        liveInput: (room, device) async => switched.add(device.deviceId),
+      );
+
+      await switching.selectInput(lk.Room(), null);
+
+      expect(switched, ['default']);
+    });
+
+    test('a remembered device that is gone is dropped before the next join',
+        () async {
+      final switching = AudioDeviceSwitching(
+        _FixedAudioDevices(
+          inputDevices: [_mic('micA'), _mic('micB')],
+          outputDevices: [_mic('spkA')],
+        ),
+      );
+      await switching.selectInput(null, _mic('gone'));
+      await switching.selectOutput(null, _mic('spkA'));
+
+      await switching.forgetUnpluggedPreferences();
+
+      final options = switching.roomOptions(const lk.RoomOptions());
+      expect(options.defaultAudioCaptureOptions.deviceId, isNull);
+      expect(options.defaultAudioOutputOptions.deviceId, 'spkA');
+    });
+
+    test('a remembered device that is still plugged in is kept', () async {
+      final switching = AudioDeviceSwitching(
+        _FixedAudioDevices(inputDevices: [_mic('micA'), _mic('micB')]),
+      );
+      await switching.selectInput(null, _mic('micB'));
+
+      await switching.forgetUnpluggedPreferences();
+
+      expect(
+        switching
+            .roomOptions(const lk.RoomOptions())
+            .defaultAudioCaptureOptions
+            .deviceId,
+        'micB',
+      );
+    });
+  });
+
   group('AudioDeviceSwitching.roomOptions', () {
     const base = lk.RoomOptions(adaptiveStream: true, dynacast: true);
 
@@ -124,17 +199,6 @@ void main() {
             .deviceId,
         'clean-mic',
       );
-    });
-
-    test('the system default reselects the first enumerated microphone',
-        () async {
-      final applied = <String>[];
-      final switching = AudioDeviceSwitching(
-        mics,
-        liveInput: (room, device) async => applied.add(device.deviceId),
-      );
-      await switching.selectInput(lk.Room(), null);
-      expect(applied, ['raw-mic']);
     });
 
     test('a pick made before the call reaches the next room, not a live one',

@@ -7,6 +7,7 @@ library;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_devices.dart';
+import 'pulse_audio.dart';
 import 'voice_models.dart';
 
 /// Points a live [lk.Room]'s capture at [device]. A seam so tests can see
@@ -17,11 +18,19 @@ typedef LiveInputSwitch = Future<void> Function(
 );
 
 class AudioDeviceSwitching {
-  AudioDeviceSwitching(this._devices, {LiveInputSwitch? liveInput})
-      : _liveInput = liveInput ?? switchLiveInput;
+  AudioDeviceSwitching(
+    this._devices, {
+    LiveInputSwitch? liveInput,
+    PulseAudio? pulse,
+  })  : _liveInput = liveInput ?? switchLiveInput,
+        _pulse = pulse ?? PulseAudio();
 
   final AudioDevices _devices;
   final LiveInputSwitch _liveInput;
+
+  /// Applies a pick that came from the sound server's list rather than
+  /// libwebrtc's; see `pulse_audio_io.dart`.
+  final PulseAudio _pulse;
 
   String? _preferredInputId;
   String? _preferredOutputId;
@@ -54,29 +63,69 @@ class AudioDeviceSwitching {
   /// path.
   lk.RoomOptions roomOptions(lk.RoomOptions base) => base.copyWith(
         defaultAudioCaptureOptions: lk.AudioCaptureOptions(
-          deviceId: _preferredInputId,
+          // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
+          deviceId:
+              isPulseDeviceId(_preferredInputId) ? null : _preferredInputId,
           // Reopening on unmute flips Bluetooth profiles and clips the first syllable.
           stopAudioCaptureOnMute: false,
         ),
         defaultAudioOutputOptions: lk.AudioOutputOptions(
-          deviceId: _preferredOutputId,
+          deviceId:
+              isPulseDeviceId(_preferredOutputId) ? null : _preferredOutputId,
         ),
       );
+
+  /// Forgets a remembered microphone or speaker that is no longer plugged in,
+  /// so the next [roomOptions] asks for the system default instead of a device
+  /// the browser would refuse outright.
+  Future<void> forgetUnpluggedPreferences() async {
+    final input = _preferredInputId;
+    if (input != null && resolveAudioDevice(await inputs(), input) == null) {
+      _preferredInputId = null;
+    }
+    final output = _preferredOutputId;
+    if (output != null && resolveAudioDevice(await outputs(), output) == null) {
+      _preferredOutputId = null;
+    }
+  }
 
   /// Applies [device] to [room]'s live input when one exists and this
   /// platform honours it, and remembers it either way for the next
   /// [roomOptions].
   ///
-  /// Null means the system default. Mid-call, that reselects whichever
-  /// device [AudioDevices.inputs] enumerates first - the same convention
-  /// livekit_client's own `Hardware.selectedAudioInput` uses to seed itself
-  /// before any explicit choice has been made.
+  /// Null means the system default. Mid-call, that selects the platform's
+  /// own default entry, and changes nothing live where it lists none: the
+  /// first physical device is not the system default.
   Future<void> selectInput(lk.Room? room, AudioDevice? device) async {
     _preferredInputId = device?.id;
     if (room == null || !supportsInputSelection) return;
-    final target = device ?? await _firstOf(_devices.inputs);
-    if (target == null) return;
+    final target = device ?? await _devices.systemDefaultInput();
+    if (target == null) {
+      // libwebrtc knows no default here; the sound server's own one is the system default.
+      final serverDefault = await _pulse.defaultNode(capture: true);
+      if (serverDefault != null) {
+        await _pulse.moveOwnStreams(capture: true, deviceId: serverDefault);
+      }
+      return;
+    }
+    if (isPulseDeviceId(target.id)) {
+      await _pulse.moveOwnStreams(capture: true, deviceId: target.id);
+      return;
+    }
     await _liveInput(room, _asMediaDevice(target, 'audioinput'));
+  }
+
+  /// Re-points this process's streams at the preferred sound server nodes;
+  /// a new stream (a join, a restarted capture) starts on the server default.
+  Future<void> applyServerRouting() async {
+    final input = _preferredInputId;
+    final output = _preferredOutputId;
+    if (isPulseDeviceId(input)) {
+      await _pulse.moveOwnStreams(capture: true, deviceId: input!);
+    }
+    if (isPulseDeviceId(output)) {
+      await _pulse.moveOwnStreams(capture: false, deviceId: output!);
+    }
   }
 
   /// `Room.setAudioInputDevice` only sets the native recording device and the
@@ -99,16 +148,20 @@ class AudioDeviceSwitching {
   Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {
     _preferredOutputId = device?.id;
     if (room == null || !supportsOutputSelection) return;
-    final target = device ?? await _firstOf(_devices.outputs);
-    if (target == null) return;
+    final target = device ?? await _devices.systemDefaultOutput();
+    if (target == null) {
+      // libwebrtc knows no default here; the sound server's own one is the system default.
+      final serverDefault = await _pulse.defaultNode(capture: false);
+      if (serverDefault != null) {
+        await _pulse.moveOwnStreams(capture: false, deviceId: serverDefault);
+      }
+      return;
+    }
+    if (isPulseDeviceId(target.id)) {
+      await _pulse.moveOwnStreams(capture: false, deviceId: target.id);
+      return;
+    }
     await room.setAudioOutputDevice(_asMediaDevice(target, 'audiooutput'));
-  }
-
-  Future<AudioDevice?> _firstOf(
-    Future<List<AudioDevice>> Function() list,
-  ) async {
-    final devices = await list();
-    return devices.isEmpty ? null : devices.first;
   }
 
   lk.MediaDevice _asMediaDevice(AudioDevice device, String kind) =>

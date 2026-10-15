@@ -27,7 +27,7 @@ def strip_block_comments(text: str) -> str:
     i, n = 0, len(text)
     while i < n:
         if text[i] in "'\"":
-            i = _copy_string(text, i, out)
+            i = _copy_string(text, i, out, raw=_is_raw_prefix(text, i))
         elif text.startswith("//", i):
             i = _blank_line_comment(text, i, out)
         elif text.startswith("/*", i):
@@ -38,13 +38,25 @@ def strip_block_comments(text: str) -> str:
     return "".join(out)
 
 
-def _copy_string(text: str, start: int, out: list[str]) -> int:
-    """Copies the literal opening at [start] through its closing quote, escapes included."""
+def _is_raw_prefix(text: str, quote_at: int) -> bool:
+    """True when the quote at [quote_at] opens a Dart raw string, `r'...'`."""
+    if quote_at == 0 or text[quote_at - 1] != "r":
+        return False
+    before = text[quote_at - 2] if quote_at >= 2 else " "
+    return not (before.isalnum() or before in "_$")
+
+
+def _copy_string(text: str, start: int, out: list[str], raw: bool = False) -> int:
+    """Copies the literal opening at [start] through its closing quote.
+
+    A backslash escapes the next character except in a raw string, where it
+    is literal and `r'\\'` closes at its second quote.
+    """
     quote, i, n = text[start], start + 1, len(text)
     out.append(quote)
     while i < n:
         c = text[i]
-        if c == "\\" and i + 1 < n:
+        if c == "\\" and not raw and i + 1 < n:
             out.append(text[i : i + 2])
             i += 2
             continue

@@ -62,6 +62,8 @@ pub(super) fn validate(raw: &Url, allowed_host: &str) -> Result<(), UrlError> {
 pub(super) fn build_client(allow_private: bool) -> Client {
     Client::builder()
         .dns_resolver(Arc::new(GuardResolver { allow_private }))
+        // A proxy would do the DNS lookup the guard exists to check (issue 2111).
+        .no_proxy()
         .redirect(Policy::none())
         .read_timeout(STALL_TIMEOUT)
         .connect_timeout(CONNECT_TIMEOUT)
