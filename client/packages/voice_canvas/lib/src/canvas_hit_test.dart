@@ -54,8 +54,7 @@ String? hitTestStroke(
     if (document.strokeIfAlive(slot) != null) candidates.add(slot);
   }
   candidates.sort(
-    (a, b) =>
-        document.strokeAt(b).zIndex.compareTo(document.strokeAt(a).zIndex),
+    (a, b) => paintOrderCompare(document.strokeAt(b), document.strokeAt(a)),
   );
 
   for (final slot in candidates) {
@@ -92,8 +91,7 @@ String? hitTestBoxAt(
     }
   }
   candidates.sort(
-    (a, b) =>
-        document.strokeAt(b).zIndex.compareTo(document.strokeAt(a).zIndex),
+    (a, b) => paintOrderCompare(document.strokeAt(b), document.strokeAt(a)),
   );
 
   for (final slot in candidates) {

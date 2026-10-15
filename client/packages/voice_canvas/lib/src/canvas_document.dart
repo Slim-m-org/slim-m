@@ -136,9 +136,7 @@ class CanvasDocument extends ChangeNotifier {
         for (var slot = 0; slot < _strokes.length; slot++)
           if (_strokes[slot]?.alive ?? false) slot,
       ]);
-    _sortedAlive.sort(
-      (a, b) => _strokes[a]!.zIndex.compareTo(_strokes[b]!.zIndex),
-    );
+    _sortedAlive.sort((a, b) => paintOrderCompare(_strokes[a]!, _strokes[b]!));
     _orderDirty = false;
   }
 
@@ -176,6 +174,11 @@ class CanvasDocument extends ChangeNotifier {
       existing
         ..zIndex = input.zIndex
         ..seq = input.seq;
+      // A stroke killed as failed whose commit did land is real after all.
+      if (!existing.alive) {
+        existing.alive = true;
+        objectCount.value = objectCount.value + 1;
+      }
       _orderDirty = true;
       return known;
     }

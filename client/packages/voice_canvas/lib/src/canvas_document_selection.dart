@@ -76,7 +76,12 @@ extension CanvasDocumentSelection on CanvasDocument {
     int? lo;
     int? hi;
     for (final stroke in _strokes) {
-      if (stroke == null || !stroke.alive) continue;
+      // A pending local stroke's placeholder z is not a real layer to stack against.
+      if (stroke == null ||
+          !stroke.alive ||
+          stroke.zIndex >= provisionalLocalZIndex) {
+        continue;
+      }
       lo = lo == null ? stroke.zIndex : math.min(lo, stroke.zIndex);
       hi = hi == null ? stroke.zIndex : math.max(hi, stroke.zIndex);
     }

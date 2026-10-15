@@ -276,3 +276,10 @@ class CanvasStroke {
   /// commit never landed" and is a different thing from a real removal.
   bool alive = true;
 }
+
+/// The server's paint order, `(z_index, seq)`: equal z-indexes stack by when
+/// they were placed, so every client draws ties the same way.
+int paintOrderCompare(CanvasStroke a, CanvasStroke b) {
+  final byZ = a.zIndex.compareTo(b.zIndex);
+  return byZ != 0 ? byZ : a.seq.compareTo(b.seq);
+}
