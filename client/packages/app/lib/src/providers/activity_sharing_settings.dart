@@ -22,12 +22,16 @@ class ActivitySwitchController extends StateNotifier<bool> {
   final Ref _ref;
   final String _key;
 
+  /// A choice made before the stored value loaded is newer than it.
+  bool _chosen = false;
+
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
-    if (mounted) state = prefs.getBool(_key) ?? false;
+    if (mounted && !_chosen) state = prefs.getBool(_key) ?? false;
   }
 
   Future<void> setEnabled(bool enabled) async {
+    _chosen = true;
     state = enabled;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_key, enabled);

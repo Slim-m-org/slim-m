@@ -75,7 +75,14 @@ class SpotifyRig {
             baseUrl: Uri.parse('http://localhost:8080'),
             session: ref.watch(sessionProvider),
             httpClient: MockClient((request) async {
-              if (request.url.path == '/me') return http.Response('{}', 404);
+              if (request.url.path == '/me') {
+                return http.Response(
+                  '{"id":"self","username":"self","display_name":"Self",'
+                  '"created_at":0,"permissions":0}',
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
               calls.add('${request.method} ${request.url.path}');
               return http.Response('', 204);
             }),
@@ -108,6 +115,7 @@ class SpotifyRig {
     });
     await container.read(preferencesProvider.future);
     container.read(activityPublisherProvider);
+    await container.read(meProvider.future);
     await settle();
   }
 

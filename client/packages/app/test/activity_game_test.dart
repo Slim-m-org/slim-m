@@ -64,7 +64,14 @@ class _Harness {
             session: ref.watch(sessionProvider),
             httpClient: MockClient((request) async {
               // The stored visibility is read from /me; it is not an activity call.
-              if (request.url.path == '/me') return http.Response('{}', 404);
+              if (request.url.path == '/me') {
+                return http.Response(
+                  '{"id":"self","username":"self","display_name":"Self",'
+                  '"created_at":0,"permissions":0}',
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
               calls.add(
                 '${request.method} ${request.url.path}'
                 '${request.body.isEmpty ? '' : ' ${request.body}'}',
@@ -87,6 +94,7 @@ class _Harness {
     SharedPreferences.setMockInitialValues(prefs);
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);
+    await container.read(meProvider.future);
     await settle();
   }
 
