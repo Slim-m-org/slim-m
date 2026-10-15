@@ -77,6 +77,8 @@ Widget _harness(
   Brightness brightness = Brightness.light,
   double width = 320,
   bool sheet = false,
+  int permissions = 0,
+  List<api.UserProfile> members = const [_other],
 }) {
   final tokens = brightness == Brightness.dark
       ? AppTokens.dark
@@ -89,8 +91,8 @@ Widget _harness(
           _other.id: self ? api.PresenceState.online : api.PresenceState.away,
         }),
       ),
-      myPermissionsProvider.overrideWithValue(0),
-      membersProvider.overrideWith((ref) async => [_other]),
+      myPermissionsProvider.overrideWithValue(permissions),
+      membersProvider.overrideWith((ref) async => members),
       rolesProvider.overrideWith((ref) async => const <api.Role>[]),
       userNoteProvider.overrideWith(
         (ref, id) async => api.UserNote(body: note, updatedAt: null),
@@ -355,5 +357,40 @@ void main() {
         });
       }
     }
+  });
+
+  group('the invite a member joined with (issue 1774)', () {
+    const listed = api.UserProfile(
+      id: 'user-maya',
+      username: 'maya',
+      displayName: 'Maya Chen',
+      createdAt: 1788000000000,
+      inviteCode: 'K7Q2',
+    );
+
+    testWidgets(
+      'a moderator who can manage roles sees it from the member list',
+      (tester) async {
+        await tester.pumpWidget(
+          _harness(
+            (_) => _card(),
+            permissions: Perm.manageRoles,
+            members: const [listed],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('with invite K7Q2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a member with no code, or a viewer the server sent none, shows '
+      'no invite line',
+      (tester) async {
+        await tester.pumpWidget(_harness((_) => _card()));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('with invite'), findsNothing);
+      },
+    );
   });
 }
