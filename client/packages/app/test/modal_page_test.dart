@@ -16,7 +16,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
+import 'package:slimm_app/src/widgets/voice_strip_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import 'voice_controller_harness.dart';
 
@@ -36,7 +38,11 @@ class _StubVoiceController extends VoiceController {
 }
 
 const _noCall = VoiceState();
-final _inCall = VoiceState(channelId: 'c1', connectedAt: DateTime(2024, 1, 1));
+final _inCall = VoiceState(
+  state: VoiceSessionState.connected,
+  channelId: 'c1',
+  connectedAt: DateTime(2024, 1, 1),
+);
 
 Future<void> _open(
   WidgetTester tester,
@@ -166,20 +172,27 @@ void main() {
     expect(route.barrierDismissible, isTrue);
   });
 
-  group('the compact active-call reminder', () {
+  group('the compact call strip', () {
     testWidgets('is absent with no call to reach', (tester) async {
       await _open(tester, _phone, voiceState: _noCall);
 
-      expect(find.text('Voice call in progress.'), findsNothing);
+      expect(find.byType(VoiceStripIndicator).hitTestable(), findsNothing);
+      expect(find.bySemanticsLabel('Leave call'), findsNothing);
     });
 
-    testWidgets('lets a phone reach mute and leave while the screen is open', (
+    testWidgets('is the same strip the shell shows, with mute and leave', (
       tester,
     ) async {
       // The gap: a full-window phone screen left a call nowhere to be muted or left from.
       await _open(tester, _phone, voiceState: _inCall);
 
-      expect(find.text('Voice call in progress.'), findsOneWidget);
+      expect(find.byType(VoiceStripIndicator), findsOneWidget);
+      final strip = tester.getRect(find.byType(VoiceStripIndicator));
+      expect(
+        strip.bottom,
+        _phone.height,
+        reason: 'at the bottom, like every other phone screen',
+      );
 
       await tester.tap(find.bySemanticsLabel('Mute'));
       await tester.pumpAndSettle();
@@ -187,15 +200,16 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Leave call'));
       await tester.pumpAndSettle();
-      // Leaving clears channelId, which is this reminder's own condition.
-      expect(find.text('Voice call in progress.'), findsNothing);
+      expect(find.byType(VoiceStripIndicator).hitTestable(), findsNothing);
+      expect(find.bySemanticsLabel('Leave call'), findsNothing);
     });
 
     testWidgets('does not show on the floating desktop panel', (tester) async {
       // Compact-only: the desktop panel already leaves the app visible-and-dimmed.
       await _open(tester, _desktop, voiceState: _inCall);
 
-      expect(find.text('Voice call in progress.'), findsNothing);
+      expect(find.byType(VoiceStripIndicator).hitTestable(), findsNothing);
+      expect(find.bySemanticsLabel('Leave call'), findsNothing);
     });
   });
 
