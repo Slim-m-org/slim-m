@@ -23,6 +23,8 @@ GUARDED = {
         "hostAutostart builds the reg.exe backend on windows only, and returns null on a phone",
     "client/packages/platform/lib/src/game_source_io.dart":
         "createGameSource returns null off linux, windows and macos",
+    "client/packages/rtc/lib/src/pulse_audio_io.dart":
+        "PulseAudio spawns pactl on linux only; every method returns empty elsewhere",
     "client/packages/platform/lib/src/persistent_key_store.dart":
         "FileKeyStore is the linux backend; every other host uses SecureKeyStore",
 }

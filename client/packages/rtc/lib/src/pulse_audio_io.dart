@@ -25,10 +25,14 @@ class PulseAudio {
 
   PulseAudio({PactlRunner? run, int? processId})
       : _run = run ?? _runPactl,
-        _pid = processId ?? pid;
+        _pid = processId ?? pid,
+        _enabled = run != null || supported;
 
   final PactlRunner _run;
   final int _pid;
+
+  /// Off Linux nothing is ever spawned, so a phone never tries to start a process.
+  final bool _enabled;
 
   /// Recording sources, or null when `pactl` is missing or fails.
   Future<List<AudioDevice>?> sources() async => _list('sources', parseSources);
@@ -40,6 +44,7 @@ class PulseAudio {
     String kind,
     List<AudioDevice> Function(String) parse,
   ) async {
+    if (!_enabled) return null;
     try {
       final result = await _run(['-f', 'json', 'list', kind]);
       if (result.exitCode != 0) return null;
@@ -51,6 +56,7 @@ class PulseAudio {
 
   /// The server's current default source or sink, as a device id.
   Future<String?> defaultNode({required bool capture}) async {
+    if (!_enabled) return null;
     try {
       final result =
           await _run([capture ? 'get-default-source' : 'get-default-sink']);
@@ -69,6 +75,7 @@ class PulseAudio {
     required bool capture,
     required String deviceId,
   }) async {
+    if (!_enabled) return false;
     final node = deviceId.substring(pulseDevicePrefix.length);
     final kind = capture ? 'source-outputs' : 'sink-inputs';
     final listed = await _run(['-f', 'json', 'list', kind]);
