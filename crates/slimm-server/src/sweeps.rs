@@ -119,12 +119,16 @@ pub(crate) fn spawn_attachment_sweep(store: store::Store, media: media::Media) {
                     }
                     record_sweep_run(&store, "attachments", freed.len() as i64).await;
                     for hex in freed {
-                        if let Err(err) = media.delete_attachment(&hex).await {
-                            tracing::warn!(error = %err, attachment = %hex, "failed to delete a swept attachment file");
-                        }
+                        crate::blobs::release(&store, &media, &hex).await;
                     }
                 }
                 Err(err) => tracing::warn!(error = %err, "attachment sweep failed"),
+            }
+            match crate::blobs::collect_garbage(&store, &media, std::time::SystemTime::now()).await
+            {
+                Ok(0) => {}
+                Ok(count) => tracing::info!(count, "removed leaked attachment files"),
+                Err(err) => tracing::warn!(error = %err, "attachment file scan failed"),
             }
             match media.uploads().sweep_expired(store::now_ms()).await {
                 Ok(0) => {}
@@ -418,9 +422,7 @@ pub(crate) fn spawn_message_retention_sweep(
                             op_seq: message.op_seq,
                         });
                         for hex in message.freed_attachments {
-                            if let Err(err) = media.delete_attachment(&hex).await {
-                                tracing::warn!(error = %err, attachment = %hex, "failed to delete a retention-freed attachment file");
-                            }
+                            crate::blobs::release(&store, &media, &hex).await;
                         }
                     }
                 }

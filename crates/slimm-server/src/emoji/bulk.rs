@@ -115,6 +115,7 @@ pub async fn add_emoji_bulk(
 
     for image in &validated {
         let hex_id = media::to_hex(&image.sha256);
+        let _placing = media.blob_guard().await;
         media
             .write_attachment(&hex_id, image.bytes.clone())
             .await

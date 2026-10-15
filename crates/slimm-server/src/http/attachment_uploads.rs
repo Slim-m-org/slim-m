@@ -189,6 +189,7 @@ async fn complete(
         return Err(err);
     }
     // Bytes before the metadata row, the same order `POST /attachments` keeps.
+    let placing = state.media.blob_guard().await;
     uploads
         .place(id, &finished.hex_id)
         .await
@@ -205,6 +206,7 @@ async fn complete(
             Some(ctx.user_id),
         )
         .await?;
+    drop(placing);
     Ok((
         StatusCode::CREATED,
         Json(AttachmentDto::from(AttachmentSummary {
