@@ -36,6 +36,7 @@ import 'whats_new_content_archive_4.dart';
 import 'whats_new_content_archive_5.dart';
 import 'whats_new_content_archive_6.dart';
 import 'whats_new_content_archive_7.dart';
+import 'whats_new_content_archive_8.dart';
 
 /// One line of an entry. [warn] renders it in the same tone a data-affecting
 /// or otherwise surprising change gets elsewhere in this app (`AppCallout`'s
@@ -416,6 +417,7 @@ const List<WhatsNewEntry> whatsNewEntries = [
   ),
   ...whatsNewArchiveEntries6,
   ...whatsNewArchiveEntries7,
+  ...whatsNewArchiveEntries8,
 ];
 
 /// Parses a dot-separated version like `0.17.2` into its numeric segments,
