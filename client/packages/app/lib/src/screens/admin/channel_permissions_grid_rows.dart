@@ -116,9 +116,11 @@ class Legend extends StatelessWidget {
       children: [
         CellChip(state: state, disabled: disabled, width: 24, height: 20),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        Flexible(
+          child: Text(
+            label,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
         ),
       ],
     );
