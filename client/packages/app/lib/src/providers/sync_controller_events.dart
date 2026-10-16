@@ -71,9 +71,13 @@ extension SyncControllerEvents on SyncController {
       case ChannelUpdated(:final channel):
         await store.upsertChannels([channel]);
       case ChannelDeleted(:final channelId):
-        if ((await store.channelRow(channelId))?.roomOwnerId != null) {
+        final row = await store.channelRow(channelId);
+        if (row?.roomOwnerId != null) {
           final removed = _ref.read(removedRoomsProvider.notifier);
           removed.state = {...removed.state, channelId};
+        } else if (row != null) {
+          final deleted = _ref.read(deletedChannelsProvider.notifier);
+          deleted.state = {...deleted.state, channelId: row.name};
         }
         // A channel already known to be gone; no round trip needed for that.
         await store.removeChannel(channelId);
