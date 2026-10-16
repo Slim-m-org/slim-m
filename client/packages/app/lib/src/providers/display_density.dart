@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The three per-device display preferences: message density, the extra gap
-/// above a new message group, and the whole-interface scale.
+/// The per-device display preferences: message density, the extra gap above a
+/// new message group, the continuation marker, and the whole-interface scale.
 ///
 /// Decision 0062. Each follows the theme's shape: restored before the first
 /// frame, persisted on every change.
@@ -15,6 +15,11 @@ import 'preference_controller.dart';
 const messageDensityKey = 'slimm.appearance.message_density';
 const groupSpacingKey = 'slimm.appearance.group_spacing';
 const uiScaleKey = 'slimm.appearance.ui_scale';
+const continuationMarkerKey = 'slimm.appearance.continuation_marker';
+
+/// What marks a run of same-author follow-up messages: nothing, a single rail
+/// beside the avatar column, or the rail with an elbow into each message.
+enum ContinuationMarker { none, clean, tree }
 
 /// Extra dp above a new group: 0 to 16 in steps of 4, so every value is a
 /// spacing token.
@@ -83,6 +88,21 @@ class GroupSpacingController extends IntPreferenceController {
 final groupSpacingControllerProvider =
     StateNotifierProvider<GroupSpacingController, int>(
       GroupSpacingController.new,
+    );
+
+class ContinuationMarkerController
+    extends EnumPreferenceController<ContinuationMarker> {
+  ContinuationMarkerController(super.ref)
+    : super(
+        storageKey: continuationMarkerKey,
+        choices: ContinuationMarker.values,
+        fallback: ContinuationMarker.none,
+      );
+}
+
+final continuationMarkerControllerProvider =
+    StateNotifierProvider<ContinuationMarkerController, ContinuationMarker>(
+      ContinuationMarkerController.new,
     );
 
 class UiScaleController extends IntPreferenceController {

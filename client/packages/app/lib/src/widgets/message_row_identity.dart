@@ -160,10 +160,21 @@ class MessageTimeMark extends ConsumerWidget {
 /// parent height has no way to size itself and asserts, so this gives it
 /// one non-positioned child to size against instead.
 class _ContinuationGutterMark extends StatelessWidget {
-  const _ContinuationGutterMark({required this.message, required this.show});
+  const _ContinuationGutterMark({
+    required this.message,
+    required this.show,
+    required this.avatarSize,
+    this.railBacking,
+  });
 
   final Message message;
   final bool show;
+  final double avatarSize;
+
+  /// Set when a continuation rail runs down this gutter: the mark then sits on
+  /// the rail's centre with this colour behind it, so the rail does not strike
+  /// through the icon.
+  final Color? railBacking;
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +182,22 @@ class _ContinuationGutterMark extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         const SizedBox.shrink(),
-        if (show)
+        if (show && railBacking != null)
+          Positioned(
+            top: 3,
+            left: 0,
+            width: avatarSize,
+            child: Center(
+              child: ColoredBox(
+                color: railBacking!,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: MessageTimeMark(message: message, compact: true),
+                ),
+              ),
+            ),
+          )
+        else if (show)
           Positioned(
             top: 3,
             left: 0,
@@ -188,6 +214,7 @@ class MessageRowLeading extends ConsumerWidget {
     required this.grouped,
     required this.message,
     required this.hovered,
+    this.railBacking,
   });
 
   final bool grouped;
@@ -200,6 +227,9 @@ class MessageRowLeading extends ConsumerWidget {
   /// header time's job on the group's first message.
   final bool hovered;
 
+  /// See [_ContinuationGutterMark.railBacking].
+  final Color? railBacking;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -211,7 +241,12 @@ class MessageRowLeading extends ConsumerWidget {
       final showMark = message.pending || message.failed || hovered;
       return SizedBox(
         width: avatarSize,
-        child: _ContinuationGutterMark(message: message, show: showMark),
+        child: _ContinuationGutterMark(
+          message: message,
+          show: showMark,
+          avatarSize: avatarSize,
+          railBacking: railBacking,
+        ),
       );
     }
 

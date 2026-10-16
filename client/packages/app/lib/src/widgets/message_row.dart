@@ -31,6 +31,7 @@ import '../providers/display_density.dart';
 import '../providers/message_extras.dart' show MessageExtras;
 import '../routing/breakpoints.dart';
 
+import 'continuation_marker.dart';
 import 'emoji_picker.dart';
 import 'message_hover_toolbar.dart';
 import 'hover_reveal.dart';
@@ -64,6 +65,7 @@ class MessageRow extends ConsumerWidget {
     this.viewerIsCaller = false,
     this.replyTo,
     this.replyParentAdjacent = false,
+    this.groupContinues = false,
   });
 
   final Message message;
@@ -124,6 +126,10 @@ class MessageRow extends ConsumerWidget {
   /// True when the quoted parent is the row directly above this one.
   final bool replyParentAdjacent;
 
+  /// True when the next message continues this one's group, so a continuation
+  /// marker runs on to it instead of ending here.
+  final bool groupContinues;
+
   bool get _unsent => message.pending || message.failed;
 
   /// Exposed so a test can find the hover/menu-open background fill without
@@ -137,6 +143,13 @@ class MessageRow extends ConsumerWidget {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
     final gutter = paneGutterOf(context);
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final marker = grouped
+        ? ref.watch(continuationMarkerControllerProvider)
+        : ContinuationMarker.none;
+    final marked = marker != ContinuationMarker.none;
+    // Without a body there is no line to end on, so the gutter keeps the time.
+    final inlineTime =
+        marked && !_unsent && !editing && message.content.isNotEmpty;
     return HoverReveal(
       builder: (context, hovered, menuOpen, focusWithin) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -175,6 +188,16 @@ class MessageRow extends ConsumerWidget {
                         : Colors.transparent,
                   ),
                 ),
+                if (marked)
+                  ContinuationRail(
+                    marker: marker,
+                    geometry: ContinuationGeometry.of(
+                      context,
+                      gutter: gutter,
+                      density: density,
+                    ),
+                    lastInGroup: !groupContinues,
+                  ),
                 ConstrainedBox(
                   // A row shorter than the toolbar would leave part of it painted but unhittable.
                   constraints: BoxConstraints(
@@ -211,7 +234,12 @@ class MessageRow extends ConsumerWidget {
                           MessageRowLeading(
                             grouped: grouped,
                             message: message,
-                            hovered: hovered,
+                            hovered: hovered && !inlineTime,
+                            railBacking: marked
+                                ? hovered || menuOpen || editing
+                                      ? tokens.surfaceRaised
+                                      : tokens.surfaceBase
+                                : null,
                           ),
                           const SizedBox(width: AppSpacing.s12),
                           Expanded(
@@ -238,6 +266,12 @@ class MessageRow extends ConsumerWidget {
                                   replyTo: replyTo,
                                   replyParentAdjacent: replyParentAdjacent,
                                   viewerIsCaller: viewerIsCaller,
+                                  hoverTime: inlineTime
+                                      ? _InlineHoverTime(
+                                          shown: hovered || menuOpen,
+                                          message: message,
+                                        )
+                                      : null,
                                 ),
                               ),
                             ),
@@ -267,4 +301,22 @@ class MessageRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The sent time at the end of a continuation's text. Laid out whether shown
+/// or not, so hovering never rewraps the line.
+class _InlineHoverTime extends StatelessWidget {
+  const _InlineHoverTime({required this.shown, required this.message});
+
+  final bool shown;
+  final Message message;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    excluding: !shown,
+    child: Opacity(
+      opacity: shown ? 1 : 0,
+      child: MessageTimeMark(message: message),
+    ),
+  );
 }

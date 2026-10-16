@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'continuation_marker.dart';
 import 'user_avatar.dart';
 
 import '../providers/display_density.dart';
@@ -15,13 +16,16 @@ class DisplayDensityPreview extends StatelessWidget {
     super.key,
     required this.density,
     required this.groupSpacing,
+    this.marker = ContinuationMarker.none,
   });
 
   final AppDensity density;
   final int groupSpacing;
+  final ContinuationMarker marker;
 
   static const Key firstRowKey = Key('density_preview_first');
   static const Key secondRowKey = Key('density_preview_second');
+  static const Key continuationRowKey = Key('density_preview_continuation');
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +41,12 @@ class DisplayDensityPreview extends StatelessWidget {
             top: density.rowGap,
             name: 'Ada',
             line: 'Does the new spacing read better?',
+          ),
+          _SampleContinuation(
+            key: continuationRowKey,
+            density: density,
+            marker: marker,
+            line: 'Same author, a follow-up line.',
           ),
           _Sample(
             key: secondRowKey,
@@ -101,6 +111,48 @@ class _Sample extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SampleContinuation extends StatelessWidget {
+  const _SampleContinuation({
+    super.key,
+    required this.density,
+    required this.marker,
+    required this.line,
+  });
+
+  final AppDensity density;
+  final ContinuationMarker marker;
+  final String line;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Stack(
+      children: [
+        if (marker != ContinuationMarker.none)
+          ContinuationRail(
+            marker: marker,
+            geometry: ContinuationGeometry.of(
+              context,
+              gutter: 0,
+              density: density,
+            ),
+            lastInGroup: true,
+          ),
+        Padding(
+          padding: EdgeInsets.only(
+            top: density.groupedRowGap,
+            left: density.avatarSize + AppSpacing.s12,
+          ),
+          child: Text(
+            line,
+            style: AppText.body.copyWith(color: tokens.textPrimary),
+          ),
+        ),
+      ],
     );
   }
 }

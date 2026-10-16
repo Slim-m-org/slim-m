@@ -23,6 +23,7 @@ class DisplaySettingsSection extends ConsumerWidget {
     final density = ref.watch(messageDensityControllerProvider);
     final spacing = ref.watch(groupSpacingControllerProvider);
     final scale = ref.watch(uiScaleControllerProvider);
+    final marker = ref.watch(continuationMarkerControllerProvider);
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
     return Column(
@@ -30,7 +31,7 @@ class DisplaySettingsSection extends ConsumerWidget {
       children: [
         SettingsSectionCard(
           title: 'Messages',
-          description: 'How tight messages sit, and how far apart groups are.',
+          description: 'How tight messages sit, and how groups look.',
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SettingsSelectRow<AppDensity>(
@@ -45,7 +46,23 @@ class DisplaySettingsSection extends ConsumerWidget {
                   .select(next),
             ),
             const SizedBox(height: AppSpacing.s8),
-            DisplayDensityPreview(density: density, groupSpacing: spacing),
+            SettingsSelectRow<ContinuationMarker>(
+              label: 'Continuation marker',
+              value: marker,
+              choices: [
+                for (final option in ContinuationMarker.values)
+                  SettingsChoice(value: option, label: _markerLabel(option)),
+              ],
+              onChanged: (next) => ref
+                  .read(continuationMarkerControllerProvider.notifier)
+                  .select(next),
+            ),
+            const SizedBox(height: AppSpacing.s8),
+            DisplayDensityPreview(
+              density: density,
+              groupSpacing: spacing,
+              marker: marker,
+            ),
             const SizedBox(height: AppSpacing.s16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
@@ -91,6 +108,12 @@ class DisplaySettingsSection extends ConsumerWidget {
       ],
     );
   }
+
+  String _markerLabel(ContinuationMarker m) => switch (m) {
+    ContinuationMarker.none => 'None',
+    ContinuationMarker.clean => 'Clean',
+    ContinuationMarker.tree => 'Tree',
+  };
 
   String _label(AppDensity d) => switch (d) {
     AppDensity.compact => 'Compact',

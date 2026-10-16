@@ -396,6 +396,9 @@ class _MessageTranscriptState extends State<MessageTranscript> {
             final index = messages.length - 1 - i;
             final message = messages[index];
             final previous = index == 0 ? null : messages[index - 1];
+            final next = index == messages.length - 1
+                ? null
+                : messages[index + 1];
             final newDay = isNewDay(
               message,
               previous,
@@ -407,72 +410,94 @@ class _MessageTranscriptState extends State<MessageTranscript> {
               messageId: message.id,
               channelId: widget.channelId,
               previousMessageId: previous?.id,
-              builder: (extras, editing, previousWebhookUsername) => MessageSelectable(
-                channelId: widget.channelId,
-                messageId: message.id,
-                order: order,
-                child: MessageRow(
-                  message: message,
-                  // A new day breaks a group so a continuation across midnight regains its avatar and header.
-                  grouped:
-                      isGrouped(
+              nextMessageId: next?.id,
+              builder:
+                  (
+                    extras,
+                    editing,
+                    previousWebhookUsername,
+                    nextWebhookUsername,
+                  ) => MessageSelectable(
+                    channelId: widget.channelId,
+                    messageId: message.id,
+                    order: order,
+                    child: MessageRow(
+                      message: message,
+                      // A new day breaks a group so a continuation across midnight regains its avatar and header.
+                      grouped:
+                          isGrouped(
+                            message,
+                            previous,
+                            webhookUsername: extras.webhookUsername,
+                            previousWebhookUsername: previousWebhookUsername,
+                          ) &&
+                          !newDay,
+                      showNewDivider: startsUnread(
                         message,
                         previous,
-                        webhookUsername: extras.webhookUsername,
-                        previousWebhookUsername: previousWebhookUsername,
-                      ) &&
-                      !newDay,
-                  showNewDivider: startsUnread(
-                    message,
-                    previous,
-                    widget.lastReadSeq,
-                    widget.selfId,
-                  ),
-                  dayLabel: newDay ? formatMessageDay(message.createdAt) : null,
-                  knownUsernames: widget.knownUsernames,
-                  knownRoleNames: widget.knownRoleNames,
-                  customEmoji: widget.customEmoji,
-                  callbacks: MessageRowCallbacks(
-                    onRetry: () => widget.onRetry(message),
-                    onDiscard: () => widget.onDiscard(message),
-                    onEditFailed: widget.onEditFailed == null
-                        ? null
-                        : () => widget.onEditFailed!(message),
-                    onPickReaction: (emoji) =>
-                        widget.onPickReaction(message, emoji),
-                    onReactionTap: (reaction) =>
-                        widget.onReactionTap(message, reaction),
-                    onVote: (option) => widget.onVote(message, option),
-                    onRank: widget.onRank == null
-                        ? null
-                        : (ranking) => widget.onRank!(message, ranking),
-                    onSubmitEdit: (content) =>
-                        widget.onSubmitEdit(message, content),
-                    onCancelEdit: widget.onCancelEdit,
-                    onViewEditHistory: () => showMessageEditHistorySheet(
-                      context,
-                      widget.channelId,
-                      message.id,
+                        widget.lastReadSeq,
+                        widget.selfId,
+                      ),
+                      groupContinues:
+                          next != null &&
+                          isGrouped(
+                            next,
+                            message,
+                            webhookUsername: nextWebhookUsername,
+                            previousWebhookUsername: extras.webhookUsername,
+                          ) &&
+                          !isNewDay(
+                            next,
+                            message,
+                            historyKnown: widget.historyKnown,
+                          ),
+                      dayLabel: newDay
+                          ? formatMessageDay(message.createdAt)
+                          : null,
+                      knownUsernames: widget.knownUsernames,
+                      knownRoleNames: widget.knownRoleNames,
+                      customEmoji: widget.customEmoji,
+                      callbacks: MessageRowCallbacks(
+                        onRetry: () => widget.onRetry(message),
+                        onDiscard: () => widget.onDiscard(message),
+                        onEditFailed: widget.onEditFailed == null
+                            ? null
+                            : () => widget.onEditFailed!(message),
+                        onPickReaction: (emoji) =>
+                            widget.onPickReaction(message, emoji),
+                        onReactionTap: (reaction) =>
+                            widget.onReactionTap(message, reaction),
+                        onVote: (option) => widget.onVote(message, option),
+                        onRank: widget.onRank == null
+                            ? null
+                            : (ranking) => widget.onRank!(message, ranking),
+                        onSubmitEdit: (content) =>
+                            widget.onSubmitEdit(message, content),
+                        onCancelEdit: widget.onCancelEdit,
+                        onViewEditHistory: () => showMessageEditHistorySheet(
+                          context,
+                          widget.channelId,
+                          message.id,
+                        ),
+                        onReplyTap: switch (message.replyToId) {
+                          final String id => () => widget.onJumpToReply(id),
+                          null => null,
+                        },
+                      ),
+                      extras: extras,
+                      viewerIsCaller:
+                          extras.call?.callerId != null &&
+                          extras.call?.callerId == widget.selfId,
+                      // A null replyToId is a null map key here, which is a null lookup - the same "no parent" the row renders as nothing.
+                      replyTo: byId[message.replyToId],
+                      replyParentAdjacent: message.replyToId == previous?.id,
+                      editing: editing,
+                      actions: widget.actionsFor(
+                        message,
+                        extras.threadChannelId != null,
+                      ),
                     ),
-                    onReplyTap: switch (message.replyToId) {
-                      final String id => () => widget.onJumpToReply(id),
-                      null => null,
-                    },
                   ),
-                  extras: extras,
-                  viewerIsCaller:
-                      extras.call?.callerId != null &&
-                      extras.call?.callerId == widget.selfId,
-                  // A null replyToId is a null map key here, which is a null lookup - the same "no parent" the row renders as nothing.
-                  replyTo: byId[message.replyToId],
-                  replyParentAdjacent: message.replyToId == previous?.id,
-                  editing: editing,
-                  actions: widget.actionsFor(
-                    message,
-                    extras.threadChannelId != null,
-                  ),
-                ),
-              ),
             );
             final content = message.id == widget.jumpTargetId
                 ? MessageJumpHighlight(

@@ -323,6 +323,7 @@ class MessageRowExtras extends ConsumerWidget {
     required this.channelId,
     required this.builder,
     this.previousMessageId,
+    this.nextMessageId,
   });
 
   final String messageId;
@@ -330,10 +331,14 @@ class MessageRowExtras extends ConsumerWidget {
 
   /// The row visually above, so [builder] can tell a username change from a continuation.
   final String? previousMessageId;
+
+  /// The row visually below, so [builder] can tell whether the group goes on.
+  final String? nextMessageId;
   final Widget Function(
     MessageExtras extras,
     bool editing,
     String? previousWebhookUsername,
+    String? nextWebhookUsername,
   )
   builder;
 
@@ -350,6 +355,11 @@ class MessageRowExtras extends ConsumerWidget {
     ref.watch(
       messageExtrasProvider.select(
         (extras) => extras[previousMessageId]?.webhookUsername,
+      ),
+    ),
+    ref.watch(
+      messageExtrasProvider.select(
+        (extras) => extras[nextMessageId]?.webhookUsername,
       ),
     ),
   );

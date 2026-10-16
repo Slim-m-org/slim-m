@@ -65,6 +65,8 @@ restorablePreferences = {
       c.read(messagePageSizeControllerProvider.notifier),
   'message density': (c) => c.read(messageDensityControllerProvider.notifier),
   'group spacing': (c) => c.read(groupSpacingControllerProvider.notifier),
+  'continuation marker': (c) =>
+      c.read(continuationMarkerControllerProvider.notifier),
   'ui scale': (c) => c.read(uiScaleControllerProvider.notifier),
   'app lock': (c) => c.read(appLockPreferenceProvider.notifier),
   'rail width': (c) => c.read(railWidthControllerProvider.notifier),
