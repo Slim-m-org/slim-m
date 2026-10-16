@@ -403,7 +403,9 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final aspect = _scene.height == 0 ? 1.0 : _scene.width / _scene.height;
+    final aspect = _scene.viewHeight == 0
+        ? 1.0
+        : _scene.viewWidth / _scene.viewHeight;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -454,7 +456,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   /// an [Expanded] and inline does not, and a widget cannot be both.
   Widget _frame(double aspect, AppTokens tokens) => ModuleSceneFrame(
     aspect: aspect,
-    sceneHeight: _scene.height,
+    sceneHeight: _scene.viewHeight,
     fillAvailable: widget.fillAvailable,
     child: LayoutBuilder(
       builder: (context, constraints) {

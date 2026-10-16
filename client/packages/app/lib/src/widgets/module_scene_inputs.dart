@@ -61,10 +61,26 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
     _sync();
   }
 
+  /// Fields whose entry was just sent and whose next scene has not arrived.
+  final _awaitingReply = <String>{};
+
   @override
   void didUpdateWidget(SceneInputOverlay old) {
     super.didUpdateWidget(old);
-    _sync();
+    _sync(newScene: !identical(old.scene, widget.scene));
+  }
+
+  /// Sends the entry, empties the field and keeps the caret in it, so the next
+  /// entry can be typed at once. The module's reply still decides the value.
+  void _submit(InputOp op, String text) {
+    final trimmed = text.trim();
+    widget.onSubmit('${op.submit}:$trimmed');
+    _controllers[op.submit]?.clear();
+    _awaitingReply.add(op.submit);
+    // Done unfocuses a field after onSubmitted runs, so ask once that has happened.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus[op.submit]?.requestFocus();
+    });
   }
 
   @override
@@ -81,7 +97,7 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
   /// Brings the controllers in line with the current scene: a field per input
   /// op, seeded from the module's value, and nothing left over for an op that
   /// has gone.
-  void _sync() {
+  void _sync({bool newScene = false}) {
     final ops = _inputs();
     final names = ops.map((op) => op.submit).toSet();
 
@@ -90,6 +106,7 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
       _controllers.remove(name)?.dispose();
       _focus.remove(name)?.dispose();
       _lastFromModule.remove(name);
+      _awaitingReply.remove(name);
     }
 
     for (final op in ops) {
@@ -101,8 +118,13 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
 
       final changedByModule = _lastFromModule[op.submit] != op.value;
       _lastFromModule[op.submit] = op.value;
-      final beingTyped = _focus[op.submit]?.hasFocus ?? false;
-      if (changedByModule && !beingTyped && controller.text != op.value) {
+      final answered = newScene && _awaitingReply.remove(op.submit);
+      final hasFocus = _focus[op.submit]?.hasFocus ?? false;
+      // An answered field is empty unless a next entry was typed before the reply.
+      final beingTyped = hasFocus && (!answered || controller.text.isNotEmpty);
+      if ((changedByModule || answered) &&
+          !beingTyped &&
+          controller.text != op.value) {
         controller.text = op.value;
       }
     }
@@ -115,19 +137,18 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
     final ops = _inputs();
     if (ops.isEmpty) return const SizedBox.shrink();
 
-    final sx = widget.scene.width == 0
+    final scene = widget.scene;
+    final sx = scene.viewWidth == 0 ? 1.0 : widget.size.width / scene.viewWidth;
+    final sy = scene.viewHeight == 0
         ? 1.0
-        : widget.size.width / widget.scene.width;
-    final sy = widget.scene.height == 0
-        ? 1.0
-        : widget.size.height / widget.scene.height;
+        : widget.size.height / scene.viewHeight;
 
     return Stack(
       children: [
         for (final op in ops)
           Positioned(
-            left: op.x * sx,
-            top: op.y * sy,
+            left: (op.x - scene.viewLeft) * sx,
+            top: (op.y - scene.viewTop) * sy,
             width: op.w * sx,
             child: AppInput(
               controller: _controllers[op.submit],
@@ -137,8 +158,7 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
               inputFormatters: [LengthLimitingTextInputFormatter(op.maxLength)],
               semanticLabel: op.placeholder ?? 'Scene input',
               textInputAction: TextInputAction.done,
-              onSubmitted: (text) =>
-                  widget.onSubmit('${op.submit}:${text.trim()}'),
+              onSubmitted: (text) => _submit(op, text),
             ),
           ),
       ],

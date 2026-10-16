@@ -18,6 +18,7 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 
 export 'module_scene_parse.dart' show parseModuleScene;
 export 'module_scene_sweep.dart' show SceneSweep;
@@ -466,7 +467,17 @@ class ModuleScene {
     this.controls = const [],
     this.status,
     this.live = false,
+    this.crop,
   });
+
+  /// The part of the canvas worth showing, in scene units, or null for all of
+  /// it. See `module_scene_bounds.dart`.
+  final Rect? crop;
+
+  double get viewLeft => crop?.left ?? 0;
+  double get viewTop => crop?.top ?? 0;
+  double get viewWidth => crop?.width ?? width;
+  double get viewHeight => crop?.height ?? height;
 
   /// The widest ratio between a scene's long and short axis, clamped at parse.
   ///
