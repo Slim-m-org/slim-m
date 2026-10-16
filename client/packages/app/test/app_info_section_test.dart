@@ -26,6 +26,12 @@ void main() {
   ) async {
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
 
+    // The last nav row; the nav list only builds what is on screen.
+    await tester.scrollUntilVisible(
+      find.text('About slim-m'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('About slim-m'));
     await tester.pumpAndSettle();
 
@@ -107,6 +113,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
 
+    // The last nav row; the nav list only builds what is on screen.
+    await tester.scrollUntilVisible(
+      find.text('About slim-m'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('About slim-m'));
     await tester.pumpAndSettle();
 

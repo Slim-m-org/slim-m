@@ -124,17 +124,16 @@ class PersonalSettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+        SettingsPaneGroup(
+          label: 'App',
+          panes: [
             SettingsPane(
               id: 'appearance',
               label: 'Appearance',
               icon: AppIcons.appearance,
               builder: (context) => const AppearanceSettingsSection(),
-            ),
-            SettingsPane(
-              id: 'performance',
-              label: ActionLabels.mediaAndCache,
-              icon: AppIcons.performance,
-              builder: (context) => const PerformanceSettingsSection(),
             ),
             SettingsPane(
               id: 'notifications',
@@ -147,6 +146,18 @@ class PersonalSettingsScreen extends StatelessWidget {
               label: 'Voice & screen share',
               icon: AppIcons.voice,
               builder: (context) => const VoiceSettingsBody(),
+            ),
+            SettingsPane(
+              id: 'performance',
+              label: ActionLabels.mediaAndCache,
+              icon: AppIcons.performance,
+              builder: (context) => const PerformanceSettingsSection(),
+            ),
+            SettingsPane(
+              id: 'general',
+              label: ActionLabels.general,
+              icon: AppIcons.settings,
+              builder: (context) => const GeneralSettingsSection(),
             ),
           ],
         ),
@@ -168,14 +179,8 @@ class PersonalSettingsScreen extends StatelessWidget {
           ],
         ),
         SettingsPaneGroup(
-          label: 'App',
+          label: 'Help',
           panes: [
-            SettingsPane(
-              id: 'general',
-              label: ActionLabels.general,
-              icon: AppIcons.settings,
-              builder: (context) => const GeneralSettingsSection(),
-            ),
             SettingsPane(
               id: 'troubleshooting',
               label: 'Troubleshooting',

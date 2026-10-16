@@ -166,3 +166,5 @@ It keeps this record's vocabulary, a stack of titled section cards holding rows,
 - Section headers sit 28 below the previous card, with 2 between title and description and 10 to the card.
 - `SettingsPanesScaffold` drops the app bar across both columns at two-pane width: the nav carries the way back and the title on `surface-sunken`, its group labels are uppercase mono (spoken in their written case), and the pane has its own heading row with a close button and a 32/24/40 inset.
 - The design's 13px and 16px text map to the scale's 12 (caption) and 15 (body) steps; no off-scale size was added.
+- Personal settings are grouped by what a setting follows, not by the design frames' grouping (owner, 2026-10-16): **You** holds what follows the account to every device (Profile, Account & devices), **App** holds what this install does (Appearance, Notifications, Voice & screen share, Media and cache, General), then **Safety**, then **Help** (Troubleshooting, About).
+  Every App pane is saved per device, which is the line the grouping draws.

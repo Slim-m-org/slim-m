@@ -26,13 +26,14 @@ import 'settings_harness.dart';
 const List<(String?, String)> _panes = [
   ('You', 'Profile'),
   ('You', 'Account & devices'),
-  ('You', 'Appearance'),
-  ('You', 'Notifications'),
-  ('You', 'Voice & screen share'),
+  ('App', 'Appearance'),
+  ('App', 'Notifications'),
+  ('App', 'Voice & screen share'),
+  ('App', 'General'),
   ('Safety', 'Blocked'),
   ('Safety', 'Report status'),
-  ('App', 'General'),
-  ('App', 'About slim-m'),
+  ('Help', 'Troubleshooting'),
+  ('Help', 'About slim-m'),
 ];
 
 const _spaceRows = [
