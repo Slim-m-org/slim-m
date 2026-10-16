@@ -16,7 +16,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart' show Channel;
-import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
@@ -116,21 +115,17 @@ class ChannelSettingsPane extends ConsumerWidget {
             channel: channel,
             rows: [
               if (canManageRoles) ChannelPrivateRow(channel: channel),
-              ChannelSlowModeSection(channel: channel, embedded: true),
+              ChannelSlowModeSection(channel: channel),
               if (channel.kind == 'voice')
-                ChannelJoinMutedSection(channel: channel, embedded: true),
+                ChannelJoinMutedSection(channel: channel),
               if (channel.kind == 'voice')
                 ChannelRoomsSection(channel: channel),
             ],
           ),
-        if (canManageChannels && canManageRoles)
-          const SizedBox(height: AppSpacing.s16),
         if (canManageRoles)
           ChannelPermissionsPane(initialChannel: channel, lockChannel: true),
-        if (canManageChannels) ...[
-          const SizedBox(height: AppSpacing.s20),
+        if (canManageChannels)
           ChannelDangerZoneSection(channel: channel, wasOpen: wasOpen),
-        ],
       ],
     );
   }

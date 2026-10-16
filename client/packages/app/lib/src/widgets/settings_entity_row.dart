@@ -217,7 +217,7 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
         curve: AppMotion.entrance,
         decoration: BoxDecoration(
           color: _hovered ? tokens.surfaceSunken : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.control),
+          borderRadius: carded ? null : BorderRadius.circular(AppRadii.control),
         ),
         child: onTap == null
             ? body

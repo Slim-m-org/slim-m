@@ -9,15 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Unaliased for the `updateChannel` extension; `Channel` hidden to avoid `slimm_data`'s.
 import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../preset_options.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
+import '../widgets/settings_hairline.dart';
 import '../widgets/settings_select_row.dart';
 import '../widgets/settings_toggle_row.dart';
-import '../widgets/success_flash.dart';
+import '../widgets/settings_row_feedback.dart';
 
 /// The user limits offered, 0 for none; the server takes 0 to 99.
 const List<(String, int)> userLimitOptions = [
@@ -91,7 +91,7 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!isRoom)
+        if (!isRoom) ...[
           SettingsToggleRow(
             label: 'Room per person',
             description: 'Joining makes a voice room of your own.',
@@ -99,6 +99,8 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
             onChanged: _saving ? null : (v) => _save(createsRooms: v),
             semanticLabel: 'Joining makes each person a room of their own',
           ),
+          const SettingsHairline(),
+        ],
         SettingsSelectRow<int>(
           label: 'User limit',
           sheetTitle: 'User limit',
@@ -110,11 +112,11 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
           sheetFootnote: 'The most people in the call at once.',
           onChanged: (value) => _saving ? null : _save(userLimit: value),
         ),
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsRowFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismiss: clearActionError,
+        ),
       ],
     );
   }

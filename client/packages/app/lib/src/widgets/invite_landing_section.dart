@@ -23,8 +23,9 @@ import 'image_drop_zone.dart';
 import 'invite_landing_card.dart';
 import 'invite_landing_view.dart';
 import 'join_policy_row.dart';
-import 'labeled_field.dart';
 import 'run_guarded.dart';
+import 'settings_detail_row.dart';
+import 'settings_field.dart';
 import 'settings_section_header.dart';
 import 'space_icon.dart';
 import 'space_name_field.dart';
@@ -38,13 +39,6 @@ const int _bannerMaxEdge = 1280;
 
 /// The edge a cropped icon is reduced to; it is never drawn above 40 points.
 const int _iconEdge = 192;
-
-/// An input draws a 2px focus ring around its 2px border, so the controls
-/// below line up with its visible edge by sharing this inset.
-const double _fieldInset = 4;
-
-/// Wide enough for either row label so both rows' buttons share one left edge.
-const double _pictureLabelWidth = 56;
 
 /// Matches the server's cap on a description.
 const int kInviteDescriptionMaxChars = api.InputLimits.spaceDescription;
@@ -172,22 +166,26 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   Widget build(BuildContext context) {
     final settings = ref.watch(spaceSettingsProvider);
     return SettingsSectionCard(
+      flush: true,
       title: 'Landing page',
       description: 'What an invite link shows before sign-in.',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        settings.when(
-          loading: () => const SizedBox(height: AppSpacing.s48),
-          error: (_, _) => AppErrorState(
-            message: 'Could not load the landing page.',
-            onRetry: () => ref.invalidate(spaceSettingsProvider),
+      children: settings.when(
+        loading: () => const [SizedBox(height: AppSpacing.s48)],
+        error: (_, _) => [
+          SettingsCardBlock(
+            children: [
+              AppErrorState(
+                message: 'Could not load the landing page.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
+              ),
+            ],
           ),
-          data: (loaded) {
-            _seed(loaded);
-            return _body(loaded);
-          },
-        ),
-      ],
+        ],
+        data: (loaded) {
+          _seed(loaded);
+          return _rows(loaded);
+        },
+      ),
     );
   }
 
@@ -208,45 +206,35 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     required bool isSet,
     required VoidCallback onChoose,
     required VoidCallback onRemove,
-  }) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _pictureLabelWidth,
-            child: Text(
-              label,
-              style: AppText.label.copyWith(color: tokens.textSecondary),
-            ),
-          ),
+  }) => SettingsDetailRow(
+    icon: AppIcons.image,
+    title: label,
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s8,
+      children: [
+        AppButton(
+          label: isSet ? 'Replace' : 'Choose',
+          variant: AppButtonVariant.secondary,
+          size: AppButtonSize.sm,
+          disabled: _busy,
+          semanticLabel:
+              '${isSet ? 'Replace' : 'Choose'} ${label.toLowerCase()}',
+          onPressed: onChoose,
+        ),
+        if (isSet)
           AppButton(
-            label: isSet ? 'Replace' : 'Choose',
-            variant: AppButtonVariant.secondary,
+            label: 'Remove',
+            variant: AppButtonVariant.ghost,
             size: AppButtonSize.sm,
             disabled: _busy,
-            semanticLabel:
-                '${isSet ? 'Replace' : 'Choose'} ${label.toLowerCase()}',
-            onPressed: onChoose,
+            semanticLabel: 'Remove ${label.toLowerCase()}',
+            onPressed: onRemove,
           ),
-          if (isSet) ...[
-            const SizedBox(width: AppSpacing.s8),
-            AppButton(
-              label: 'Remove',
-              variant: AppButtonVariant.ghost,
-              size: AppButtonSize.sm,
-              disabled: _busy,
-              semanticLabel: 'Remove ${label.toLowerCase()}',
-              onPressed: onRemove,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
 
-  /// The landing card as the settings show it now, unsaved description included.
   InviteLandingCard _card(api.SpaceSettings loaded, {String? invitedBy}) =>
       InviteLandingCard(
         name: loaded.name,
@@ -272,21 +260,18 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
   }
 
-  Widget _body(api.SpaceSettings loaded) {
+  List<Widget> _rows(api.SpaceSettings loaded) {
     final changed = _description.text.trim() != _saved;
     final bannerSet = loaded.bannerUpdatedAt != null;
     final iconSet = loaded.iconUpdatedAt != null;
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.s8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return [
+      SettingsCardBlock(
         children: [
-          LabeledField(
+          SettingsField(
             label: 'Name',
             child: SpaceNameField(saved: loaded.name),
           ),
-          const SizedBox(height: AppSpacing.s16),
-          LabeledField(
+          SettingsField(
             label: 'Description',
             child: AppInput(
               controller: _description,
@@ -302,88 +287,69 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
               onChanged: (_) => setState(() {}),
             ),
           ),
-          const SizedBox(height: AppSpacing.s8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: AppButton(
-                label: 'Save description',
-                variant: AppButtonVariant.primary,
-                size: AppButtonSize.sm,
-                disabled: _busy || !changed,
-                onPressed: _saveDescription,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s16),
-          _droppable(
-            label: 'Drop to set the banner',
-            onImage: _setBanner,
-            child: _pictureRow(
-              label: 'Banner',
-              isSet: bannerSet,
-              onChoose: _chooseBanner,
-              onRemove: () => _run(
-                'remove the banner',
-                () => ref.read(apiProvider).deleteSpaceBanner(),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          _droppable(
-            label: 'Drop to set the icon',
-            onImage: _setIcon,
-            child: _pictureRow(
-              label: 'Icon',
-              isSet: iconSet,
-              onChoose: _chooseIcon,
-              onRemove: _removeIcon,
-            ),
-          ),
-          if (actionError != null) ...[
-            const SizedBox(height: AppSpacing.s12),
-            AppErrorState(message: actionError!, onDismiss: clearActionError),
-          ],
-          const SizedBox(height: AppSpacing.s16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Preview',
-                    style: AppText.label.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).extension<AppTokens>()!.textSecondary,
-                    ),
-                  ),
-                ),
-                AppButton(
-                  label: 'Preview as a visitor',
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  icon: AppIcons.preview,
-                  onPressed: () => unawaited(_previewAsVisitor(loaded)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          // The width the join sheet gives it, so the preview is not larger than the real thing.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: _fieldInset),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: _card(loaded),
-              ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: AppButton(
+              label: 'Save description',
+              variant: AppButtonVariant.primary,
+              size: AppButtonSize.sm,
+              disabled: _busy || !changed,
+              onPressed: _saveDescription,
             ),
           ),
         ],
       ),
-    );
+      _droppable(
+        label: 'Drop to set the banner',
+        onImage: _setBanner,
+        child: _pictureRow(
+          label: 'Banner',
+          isSet: bannerSet,
+          onChoose: _chooseBanner,
+          onRemove: () => _run(
+            'remove the banner',
+            () => ref.read(apiProvider).deleteSpaceBanner(),
+          ),
+        ),
+      ),
+      _droppable(
+        label: 'Drop to set the icon',
+        onImage: _setIcon,
+        child: _pictureRow(
+          label: 'Icon',
+          isSet: iconSet,
+          onChoose: _chooseIcon,
+          onRemove: _removeIcon,
+        ),
+      ),
+      if (actionError != null)
+        SettingsCardBlock(
+          children: [
+            AppErrorState(message: actionError!, onDismiss: clearActionError),
+          ],
+        ),
+      SettingsDetailRow(
+        icon: AppIcons.preview,
+        title: 'Preview',
+        trailing: AppButton(
+          label: 'Preview as a visitor',
+          variant: AppButtonVariant.secondary,
+          size: AppButtonSize.sm,
+          onPressed: () => unawaited(_previewAsVisitor(loaded)),
+        ),
+      ),
+      SettingsCardBlock(
+        children: [
+          // The width the join sheet gives it, so the preview is not larger than the real thing.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: _card(loaded),
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 }

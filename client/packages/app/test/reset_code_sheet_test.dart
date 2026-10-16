@@ -11,6 +11,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -112,6 +113,37 @@ Future<void> _open(WidgetTester tester, {int status = 200}) async {
 }
 
 void main() {
+  testWidgets('Copy code puts the issued code on the clipboard', (
+    tester,
+  ) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _open(tester);
+    await tester.enterText(find.byType(EditableText), 'my-password');
+    await tester.pump();
+    await tester.tap(find.text('Generate code'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Copy code'));
+    await tester.pump(const Duration(seconds: 10));
+
+    expect(copied, _code);
+  });
+
   testWidgets('opening the sheet issues nothing until asked', (tester) async {
     await _open(tester);
 

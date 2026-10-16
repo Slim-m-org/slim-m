@@ -16,7 +16,7 @@ import '../providers/providers.dart';
 import '../routing/close_screen.dart';
 import '../routing/routes.dart';
 import '../widgets/confirm_dialog.dart';
-import '../widgets/settings_section_header.dart';
+import '../widgets/settings_danger_card.dart';
 
 class ChannelDangerZoneSection extends ConsumerStatefulWidget {
   const ChannelDangerZoneSection({
@@ -89,21 +89,21 @@ class _ChannelDangerZoneSectionState
   }
 
   @override
-  Widget build(BuildContext context) => SettingsSectionCard(
+  Widget build(BuildContext context) => SettingsDangerCard(
     title: 'Danger zone',
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      AppButton(
-        label: _deleting ? 'Deleting...' : 'Delete channel',
-        variant: AppButtonVariant.danger,
-        full: true,
-        disabled: _deleting,
-        onPressed: _confirmDelete,
-      ),
-      if (_error != null) ...[
-        const SizedBox(height: AppSpacing.s8),
-        AppErrorState(message: _error!),
-      ],
-    ],
+    message: 'Deletes the channel and its message history for everyone.',
+    action: AppButton(
+      label: _deleting ? 'Deleting...' : 'Delete channel...',
+      variant: AppButtonVariant.danger,
+      size: AppButtonSize.sm,
+      disabled: _deleting,
+      onPressed: _confirmDelete,
+    ),
+    error: _error == null
+        ? null
+        : AppErrorState(
+            message: _error!,
+            onDismiss: () => setState(() => _error = null),
+          ),
   );
 }

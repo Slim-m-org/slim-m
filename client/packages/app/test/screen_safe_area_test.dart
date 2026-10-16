@@ -370,7 +370,7 @@ void main() {
       tester,
       find
           .ancestor(
-            of: find.text('The queue is empty.'),
+            of: find.text('The queue is empty'),
             matching: find.byType(ListView),
           )
           .first,

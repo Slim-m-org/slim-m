@@ -94,7 +94,6 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
             compactRoute: Routes.adminReports,
             // The queue pages its own list; see ReportsScreen's same pair.
             scrollable: false,
-            padding: EdgeInsets.zero,
             builder: (_) =>
                 ReportsPane(historyOnly: reportsHistoryOnly(permissions)),
           ),

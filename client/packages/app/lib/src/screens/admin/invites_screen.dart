@@ -23,7 +23,11 @@ import '../../widgets/join_gate_section.dart';
 import '../../widgets/join_policy_row.dart';
 import '../../widgets/totp_policy_row.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
+import '../../widgets/settings_field.dart';
+import '../../widgets/settings_segmented_row.dart';
+import '../../widgets/settings_select_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -64,22 +68,16 @@ class InvitesPane extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Who may join sits above the codes that let them in; see JoinPolicyRow.
-        if (canManageServer) ...[
-          const SettingsSectionCard(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        if (canManageServer) ...const [
+          SettingsSectionCard(
+            flush: true,
+            title: 'Joining',
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
-          const SizedBox(height: AppSpacing.s16),
-          const JoinGateSection(),
-          const SizedBox(height: AppSpacing.s16),
-          const InviteLandingSection(),
-          if (canInvite) const SizedBox(height: AppSpacing.s16),
+          JoinGateSection(),
+          InviteLandingSection(),
         ],
-        if (canInvite) ...[
-          const _CreateInviteCard(),
-          const SizedBox(height: AppSpacing.s16),
-          const _InviteList(),
-        ],
+        if (canInvite) ...const [_CreateInviteCard(), _InviteList()],
       ],
     );
   }
@@ -97,13 +95,19 @@ class _InviteList extends ConsumerWidget {
       center: false,
       errorMessage: 'Could not load invites.',
       onRetry: () => ref.invalidate(invitesProvider),
-      isEmpty: (list) => list.isEmpty,
-      emptyMessage: 'No invites yet.',
       data: (context, list) => SettingsSectionCard(
+        flush: true,
         title: 'Invites',
         children: [
-          for (final invite in list)
-            _InviteRow(key: ValueKey(invite.code), invite: invite),
+          if (list.isEmpty)
+            const SettingsEmptyState(
+              icon: AppIcons.invite,
+              title: 'No invites yet',
+              detail: 'Invites you create are listed here, to copy or revoke.',
+            )
+          else
+            for (final invite in list)
+              _InviteRow(key: ValueKey(invite.code), invite: invite),
         ],
       ),
     );
@@ -185,50 +189,61 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
+      flush: true,
       title: 'New invite',
       children: [
-        if (_created != null) ...[
-          _CreatedInviteCallout(
-            invite: _created!,
-            onDismiss: () => setState(() => _created = null),
-          ),
-          const SizedBox(height: AppSpacing.s12),
-        ],
-        AppInput(
-          controller: _maxUses,
-          placeholder: 'Uses allowed (blank for unlimited)',
-          semanticLabel: 'Uses allowed',
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          errorText: _maxUsesError,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        AppSegmentedControl.inline(
-          semanticLabel: 'Invite expiry',
-          options: [
-            for (final option in _expiryOptions)
-              AppSegmentedOption(label: option.$1),
+        SettingsCardBlock(
+          children: [
+            if (_created != null)
+              _CreatedInviteCallout(
+                invite: _created!,
+                onDismiss: () => setState(() => _created = null),
+              ),
+            SettingsField(
+              label: 'Uses allowed',
+              child: AppInput(
+                controller: _maxUses,
+                placeholder: 'Blank for unlimited',
+                semanticLabel: 'Uses allowed',
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                errorText: _maxUsesError,
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
           ],
-          selectedIndex: _expiryIndex,
-          onSegmentSelected: (i) => setState(() => _expiryIndex = i),
         ),
-        InviteRoleGrantPicker(
-          selected: _roleGrant,
-          onChanged: (id) => setState(() => _roleGrant = id),
+        Column(
+          children: [
+            SettingsSegmentedRow<int>(
+              label: 'Expires',
+              value: _expiryIndex,
+              choices: [
+                for (final (i, option) in _expiryOptions.indexed)
+                  SettingsChoice(value: i, label: option.$1),
+              ],
+              onChanged: (i) => setState(() => _expiryIndex = i),
+            ),
+            InviteRoleGrantPicker(
+              selected: _roleGrant,
+              onChanged: (id) => setState(() => _roleGrant = id),
+            ),
+          ],
         ),
-        if (_error != null) ...[
-          const SizedBox(height: AppSpacing.s12),
-          AppErrorState(message: _error!),
-        ],
-        const SizedBox(height: AppSpacing.s12),
-        AppButton(
-          label: _submitting ? 'Creating...' : ActionLabels.createInvite,
-          icon: AppIcons.invite,
-          variant: AppButtonVariant.primary,
-          full: true,
-          disabled: _submitting,
-          onPressed: _create,
+        SettingsCardBlock(
+          children: [
+            if (_error != null) AppErrorState(message: _error!),
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppButton(
+                label: _submitting ? 'Creating...' : ActionLabels.createInvite,
+                icon: AppIcons.invite,
+                variant: AppButtonVariant.primary,
+                disabled: _submitting,
+                onPressed: _create,
+              ),
+            ),
+          ],
         ),
       ],
     );
