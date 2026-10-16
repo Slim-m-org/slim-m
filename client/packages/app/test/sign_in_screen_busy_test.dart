@@ -70,6 +70,20 @@ Future<void> _pump(
   await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
 }
 
+/// What the busy button's label is drawn at: it stays laid out so the button
+/// keeps its width, and fades to nothing under the spinner.
+double _labelOpacity(WidgetTester tester) => tester
+    .widget<FadeTransition>(
+      find
+          .ancestor(
+            of: find.text('Sign in'),
+            matching: find.byType(FadeTransition),
+          )
+          .first,
+    )
+    .opacity
+    .value;
+
 void main() {
   setUpAll(mockAppVersion);
 
@@ -111,10 +125,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       final button = find.byType(AppButton);
-      expect(
-        find.descendant(of: button, matching: find.text('Sign in')),
-        findsNothing,
-      );
+      expect(_labelOpacity(tester), 0);
       expect(
         find.descendant(
           of: button,
@@ -144,8 +155,8 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(of: button, matching: find.text('Sign in')),
-        findsNothing,
+        _labelOpacity(tester),
+        0,
         reason:
             'reduce motion must land in one frame, never carrying the '
             'outgoing label along for a beat',

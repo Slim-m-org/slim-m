@@ -261,6 +261,8 @@ class _ActivityRow extends ConsumerWidget {
     return AppListRow(
       label: text,
       meta: formatRelativeAge(clock.now().difference(entry.at), seconds: true),
+      // Read-only, but a keyboard user still has to be able to read the log.
+      tabStop: true,
     );
   }
 }

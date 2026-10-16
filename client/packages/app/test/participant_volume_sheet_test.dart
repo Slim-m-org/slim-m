@@ -55,7 +55,11 @@ void main() {
       );
       final row = tester.getRect(find.byType(ParticipantVolumeControl));
       expect(row.width, closeTo(390 - 2 * AppSpacing.s16, 1));
-      expect(row.height, lessThan(40), reason: 'one row, not stacked');
+      expect(
+        row.height,
+        lessThan(AppSizes.rowTouch * 1.5),
+        reason: 'one row at the touch floor, not stacked',
+      );
       final bordered = find.ancestor(
         of: find.byType(AppSlider),
         matching: find.byWidgetPredicate(

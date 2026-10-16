@@ -277,6 +277,8 @@ class _AppInputState extends State<AppInput> {
         cursor: widget.enabled ? SystemMouseCursors.text : MouseCursor.defer,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          // The field inside already says everything a screen reader needs.
+          excludeFromSemantics: true,
           onTap: widget.enabled ? _focusNode.requestFocus : null,
           child: field,
         ),

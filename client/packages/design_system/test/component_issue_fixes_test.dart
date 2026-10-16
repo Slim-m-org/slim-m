@@ -116,6 +116,27 @@ void main() {
     expect(focused?.label, 'Tappable');
   });
 
+  testWidgets('#2031 a read-only row can still opt in as a Tab stop', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppListRow(label: 'Skipped'),
+            AppListRow(label: 'Log entry', tabStop: true),
+          ],
+        ),
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final focused = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<AppListRow>();
+    expect(focused?.label, 'Log entry');
+  });
+
   testWidgets('#2032 a disabled menu item is dimmed', (tester) async {
     await tester.pumpWidget(
       _app(
