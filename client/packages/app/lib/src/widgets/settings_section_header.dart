@@ -217,29 +217,36 @@ class SettingsSectionCard extends StatelessWidget {
         DecoratedBox(
           decoration: BoxDecoration(
             color: tokens.surfaceRaised,
-            border: Border.all(color: tokens.borderSubtle),
             borderRadius: BorderRadius.circular(AppRadii.card),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.card - 1),
-            child: Material(
-              type: MaterialType.transparency,
-              child: AppStrongLabelScope(
-                child: AppCardRowScope(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < children.length; i++) ...[
-                        if (i > 0)
-                          Divider(
-                            height: 1,
-                            thickness: 1,
-                            color: tokens.borderSubtle,
-                          ),
-                        children[i],
+          child: DecoratedBox(
+            // In front, so a child that fills its own background (a banner) cannot cover it.
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              border: Border.all(color: tokens.borderSubtle),
+              borderRadius: BorderRadius.circular(AppRadii.card),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.card - 1),
+              child: Material(
+                type: MaterialType.transparency,
+                child: AppStrongLabelScope(
+                  child: AppCardRowScope(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 0; i < children.length; i++) ...[
+                          if (i > 0)
+                            Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: tokens.borderSubtle,
+                            ),
+                          children[i],
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),

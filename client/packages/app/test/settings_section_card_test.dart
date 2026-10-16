@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -172,5 +173,67 @@ void main() {
     final titled = await cardTop('Display');
     expect(untitled, AppSpacing.s24);
     expect(titled, greaterThan(untitled));
+  });
+
+  testWidgets('a flush card keeps its border over a child that fills its '
+      'own background', (tester) async {
+    final boundary = GlobalKey();
+    const fill = Color(0xFFFF0000);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: Center(
+            child: RepaintBoundary(
+              key: boundary,
+              child: const SizedBox(
+                width: 200,
+                child: SettingsSectionCard(
+                  flush: true,
+                  children: [
+                    SizedBox(height: 80, child: ColoredBox(color: fill)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final render =
+        boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final bytes = await tester.runAsync(() async {
+      final image = await render.toImage();
+      final data = await image.toByteData();
+      return (data!, image.width, image.height);
+    });
+    final (data, width, height) = bytes!;
+    Color at(int x, int y) {
+      final i = (y * width + x) * 4;
+      return Color.fromARGB(
+        data.getUint8(i + 3),
+        data.getUint8(i),
+        data.getUint8(i + 1),
+        data.getUint8(i + 2),
+      );
+    }
+
+    final origin = tester.getTopLeft(find.byKey(boundary));
+    final child = tester
+        .getRect(
+          find.byWidgetPredicate((w) => w is ColoredBox && w.color == fill),
+        )
+        .shift(-origin);
+    final midY = child.center.dy.round();
+    final midX = child.center.dx.round();
+    expect(at(0, midY), AppTokens.dark.borderSubtle, reason: 'left edge');
+    expect(at(width - 1, midY), AppTokens.dark.borderSubtle, reason: 'right');
+    expect(
+      at(midX, child.bottom.round() - 1),
+      AppTokens.dark.borderSubtle,
+      reason: 'bottom edge, painted over the child',
+    );
+    expect(at(midX, midY), fill, reason: 'the child still fills inside');
   });
 }
