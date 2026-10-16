@@ -13699,8 +13699,10 @@ components:
           description: >-
             On a reply, ping the replied-to author: they are added to this
             message's mentions (mentions_me, an unread mention and a mention
-            push), unless they are the sender, a webhook, or cannot see the
-            channel. Defaults to false. An edit keeps the ping.
+            push), unless they are the sender, a webhook, a deleted account,
+            or cannot see the channel. Ignored without reply_to_id. Defaults
+            to false. An edit keeps the ping while they can still see the
+            channel.
         forwarded_from_id:
           type: [string, "null"]
           format: uuid

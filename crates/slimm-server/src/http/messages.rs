@@ -496,21 +496,16 @@ async fn edit(
             op_seq,
             code_runs_cleared,
         } => {
+            let author = message.author_id.unwrap_or(ctx.user_id);
             // A reply's ping is not in its text, so an edit keeps it only if the send stored one.
-            let reply_ping = match message.reply_to_id {
-                Some(parent) => match state.store.reply_ping_candidate(parent).await? {
-                    Some(author) if state.store.is_mentioned(message.id, author).await? => {
-                        Some(author)
-                    }
-                    _ => None,
-                },
-                None => None,
-            };
+            let reply_ping =
+                super::message_mentions::kept_reply_ping(&state, channel_id, author, message.id)
+                    .await?;
             // Content changed, so the mention set may have too; see resolve_and_store's own doc for the author-vs-editor choice below.
             super::message_mentions::resolve_and_store(
                 &state,
                 channel_id,
-                message.author_id.unwrap_or(ctx.user_id),
+                author,
                 message.id,
                 &message.content,
                 reply_ping,
