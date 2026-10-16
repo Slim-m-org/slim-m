@@ -60,14 +60,14 @@ void main() {
     expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stopped});
   });
 
-  test('frames coming back clear the stall, including a fresh receiver', () {
+  test('frames coming back clear the stall', () {
     watchdog.observe([_playing(50)]);
     clock.advance(const Duration(seconds: 4));
     watchdog.observe([_playing(50)]);
     expect(watchdog.health.value, isNotEmpty);
 
     clock.advance(const Duration(seconds: 2));
-    watchdog.observe([_playing(3)]);
+    watchdog.observe([_playing(80)]);
     expect(watchdog.health.value, isEmpty);
   });
 
@@ -98,6 +98,44 @@ void main() {
     watchdog.observe([paused]);
     expect(steps, isEmpty);
     expect(watchdog.health.value, {'screen:bob': VideoTileHealth.paused});
+  });
+
+  test('a resubscribe that brings no frames back ends in stopped, once', () {
+    watchdog.observe([_playing(500)]);
+    clock.advance(const Duration(seconds: 4));
+    watchdog.observe([_playing(500)]);
+    clock.advance(const Duration(seconds: 4));
+    watchdog.observe([_playing(500)]);
+    expect(steps.last.$2, VideoStallStep.resubscribe);
+
+    // The old receiver goes away, then a fresh one sits at zero.
+    clock.advance(const Duration(seconds: 1));
+    watchdog.observe([
+      const VideoStallReading(
+        key: 'camera:bob',
+        framesDecoded: null,
+        expectPlaying: false,
+      ),
+    ]);
+    for (var i = 0; i < 8; i++) {
+      clock.advance(const Duration(seconds: 2));
+      watchdog.observe([_playing(0)]);
+    }
+    expect(steps.length, 2, reason: 'recovery must not start over');
+    expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stopped});
+  });
+
+  test('a fresh receiver that starts decoding clears the stall', () {
+    watchdog.observe([_playing(500)]);
+    for (var i = 0; i < 4; i++) {
+      clock.advance(const Duration(seconds: 2));
+      watchdog.observe([_playing(500)]);
+    }
+    watchdog.observe([_playing(0)]);
+    expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stalled});
+    clock.advance(const Duration(seconds: 2));
+    watchdog.observe([_playing(60)]);
+    expect(watchdog.health.value, isEmpty);
   });
 
   test('a tile that disappears is forgotten', () {

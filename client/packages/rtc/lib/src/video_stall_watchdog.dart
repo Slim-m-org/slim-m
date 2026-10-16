@@ -84,10 +84,18 @@ class _Track {
   DateTime? lastStepAt;
 
   void progressed(DateTime now, int? framesDecoded) {
-    frames = framesDecoded;
-    since = now;
+    rebaseline(now, framesDecoded);
     nextStep = 0;
     lastStepAt = null;
+  }
+
+  /// A new starting count that is not progress (hidden, muted, or a fresh
+  /// receiver after a resubscribe); recovery keeps its place and gets a new
+  /// grace period.
+  void rebaseline(DateTime now, int? framesDecoded) {
+    frames = framesDecoded;
+    since = now;
+    if (lastStepAt != null) lastStepAt = now;
   }
 }
 
@@ -126,11 +134,17 @@ class VideoStallWatchdog {
         next[reading.key] = VideoTileHealth.paused;
         continue;
       }
-      // A different count either way means progress or a fresh receiver after a resubscribe.
-      if (!reading.expectPlaying ||
-          reading.framesDecoded == null ||
-          reading.framesDecoded != track.frames) {
-        track.progressed(now, reading.framesDecoded);
+      final frames = reading.framesDecoded;
+      final last = track.frames;
+      if (frames != null && last != null && frames > last) {
+        track.progressed(now, frames);
+        continue;
+      }
+      if (!reading.expectPlaying || frames == null || frames != last) {
+        track.rebaseline(now, frames);
+        if (track.nextStep > 0 && reading.expectPlaying) {
+          next[reading.key] = VideoTileHealth.stalled;
+        }
         continue;
       }
       next[reading.key] = _advance(reading.key, track, now);

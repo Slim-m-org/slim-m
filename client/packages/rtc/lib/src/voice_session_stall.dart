@@ -100,14 +100,19 @@ extension VoiceSessionStall on VoiceSession {
     try {
       switch (step) {
         case VideoStallStep.switchLayer:
-          // A different layer makes the SFU send a fresh keyframe; the chosen quality comes straight back.
-          await pub.setVideoQuality(lk.VideoQuality.LOW);
-          await Future<void>.delayed(const Duration(seconds: 1));
-          await applyReceiveVideoQuality(
-            remoteVideoQualityRefs(room),
-            _receiveQuality,
-            _loweredVideoSids,
+          // A different layer makes the SFU send a fresh keyframe; best effort, adaptive stream may absorb it.
+          final chosen = _receiveQuality.layerFor(
+            screenShare: pub.source == lk.TrackSource.screenShareVideo,
           );
+          await pub.setVideoQuality(
+            chosen == lk.VideoQuality.LOW
+                ? lk.VideoQuality.MEDIUM
+                : lk.VideoQuality.LOW,
+          );
+          await Future<void>.delayed(const Duration(seconds: 1));
+          if (!_disposed && identical(room, _room)) {
+            await pub.setVideoQuality(chosen);
+          }
         case VideoStallStep.resubscribe:
           await pub.unsubscribe();
           await Future<void>.delayed(const Duration(milliseconds: 500));
