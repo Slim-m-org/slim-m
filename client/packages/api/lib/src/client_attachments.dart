@@ -31,6 +31,7 @@ extension SlimmApiAttachments on SlimmApi {
     Stream<List<int>> Function() open, {
     required int length,
     String? filename,
+    String? channelId,
     void Function(int sent)? onProgress,
   }) async {
     final response = await _sendStreamed(
@@ -38,7 +39,10 @@ extension SlimmApiAttachments on SlimmApi {
       '/attachments',
       open: open,
       length: length,
-      query: filename == null ? null : {'filename': filename},
+      query: {
+        if (filename != null) 'filename': filename,
+        if (channelId != null) 'channel_id': channelId,
+      },
       onProgress: onProgress,
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -119,6 +123,43 @@ extension SlimmApiAttachments on SlimmApi {
   /// same bytes.
   Future<FetchedBytes> fetchAttachment(String attachmentId) =>
       _fetchBytes('/attachments/$attachmentId');
+
+  /// Opens an attachment as a stream, with no deadline on the body itself: a
+  /// multi-gigabyte file legitimately takes longer than any whole-transfer
+  /// deadline. Only the wait for the response headers is bounded here; the
+  /// caller bounds the gap between chunks.
+  Future<AttachmentDownload> openAttachmentDownload(
+    String attachmentId, {
+    bool isRetry = false,
+  }) async {
+    final token = session.tokens?.accessToken;
+    if (token == null) throw const UnauthorizedException('not signed in');
+    final path = '/attachments/$attachmentId';
+    final request = http.Request('GET', _requestUri(path, null))
+      ..headers['authorization'] = 'Bearer $token';
+    final http.StreamedResponse response;
+    try {
+      response = await _http.send(request).timeout(_requestDeadline);
+    } on TimeoutException {
+      throw TransportException('GET $path got no answer');
+    } catch (e) {
+      throw TransportException('GET $path failed: $e');
+    }
+    if (response.statusCode == 401 && !isRetry && session.tokens != null) {
+      await response.stream.drain<void>();
+      await refresh();
+      return openAttachmentDownload(attachmentId, isRetry: true);
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _errorFor(await http.Response.fromStream(response));
+    }
+    return AttachmentDownload(
+      body: response.stream,
+      contentType:
+          response.headers['content-type'] ?? 'application/octet-stream',
+      contentLength: response.contentLength,
+    );
+  }
 
   /// The same endpoint [fetchAttachment] reads, for a caller that streams the
   /// bytes itself rather than loading them into memory - a native video

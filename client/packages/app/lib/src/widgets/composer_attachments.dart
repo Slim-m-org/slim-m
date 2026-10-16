@@ -436,6 +436,8 @@ class AttachmentStagingController extends ChangeNotifier {
             show();
           },
           onRetrying: (retrying) {
+            // The old link's speed says nothing about the one after a reconnect.
+            if (retrying) meter.reset();
             reconnecting = retrying;
             show();
           },
@@ -500,6 +502,7 @@ final attachmentStagingProvider =
             length: body.length,
             capabilities: await _serverCapabilities(ref, body.length),
             filename: filename,
+            channelId: channelId,
             onProgress: report.call,
             onRetrying: report.onRetrying,
             resumeKey: report.resumeKey,

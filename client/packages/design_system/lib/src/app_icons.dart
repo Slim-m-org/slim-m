@@ -151,7 +151,7 @@ abstract final class AppIcons {
   static const IconData autoUpdate = LucideIcons.packageCheck300;
 
   /// Saving an attachment this app cannot render inline - a PDF, an archive,
-  /// or a video before it finishes buffering. See `attachment_save.dart`.
+  /// or a video before it finishes buffering. See `downloads/downloads_controller.dart`.
   static const IconData download = LucideIcons.download300;
 
   /// Handing an opened image to the system share sheet; see `image_export.dart`.

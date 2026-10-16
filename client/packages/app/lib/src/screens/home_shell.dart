@@ -53,6 +53,7 @@ import '../widgets/new_device_banner_host.dart';
 import '../widgets/rules_gate_banner_host.dart';
 import '../widgets/push_to_talk_listener.dart';
 import '../widgets/rail_slot.dart';
+import '../downloads/transfers_banner.dart';
 import '../widgets/update_banner_host.dart';
 import '../widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
@@ -301,7 +302,9 @@ class HomeShell extends ConsumerWidget {
               child: NewDeviceBannerHost(
                 child: RulesGateBannerHost(
                   child: UpdateBannerHost(
-                    child: DatabaseResetNotice(child: scaffold),
+                    child: TransfersBannerHost(
+                      child: DatabaseResetNotice(child: scaffold),
+                    ),
                   ),
                 ),
               ),
