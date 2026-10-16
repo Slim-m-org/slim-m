@@ -54,8 +54,8 @@ wat = "1"
 tokio-tungstenite = "0.24"
 # Validates responses against schema/openapi.yaml in tests/response_contract.rs; default-features cut is deliberate (docs/dependencies.md).
 jsonschema = { version = "0.49", default-features = false }
-# Maintained fork of the archived serde_yaml, used only to load the schema for the validator.
-serde_yaml_ng = "0.10"
+# Pure-Rust YAML, used only to load schema/openapi.yaml in tests; serde_yaml_ng pulled in the unmaintained unsafe-libyaml (#2154).
+serde-saphyr = { version = "1.3", default-features = false, features = ["deserialize"] }
 
 [[bench]]
 name = "hot_paths"

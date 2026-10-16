@@ -12,14 +12,16 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use serde_yaml_ng::Value;
+use serde_json::Value;
+
+mod support;
 
 const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
 
 fn load_schema() -> Value {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schema/openapi.yaml");
     let text = fs::read_to_string(path).expect("read openapi.yaml");
-    serde_yaml_ng::from_str(&text).expect("parse openapi.yaml")
+    support::openapi::parse_schema_yaml(&text)
 }
 
 fn resolve<'a>(doc: &'a Value, parameter: &'a Value) -> &'a Value {
@@ -53,14 +55,14 @@ fn is_parsed(parameter: &Value) -> bool {
 /// Every operation with a parsed parameter, and whether it lists a `"400"`.
 fn parsed_operations(doc: &Value) -> Vec<(String, bool)> {
     let mut found = Vec::new();
-    let paths = doc["paths"].as_mapping().expect("paths");
+    let paths = doc["paths"].as_object().expect("paths");
     for (_, item) in paths {
-        let shared = item.get("parameters").and_then(Value::as_sequence);
+        let shared = item.get("parameters").and_then(Value::as_array);
         for method in METHODS {
             let Some(operation) = item.get(method) else {
                 continue;
             };
-            let own = operation.get("parameters").and_then(Value::as_sequence);
+            let own = operation.get("parameters").and_then(Value::as_array);
             let parsed = shared
                 .into_iter()
                 .chain(own)

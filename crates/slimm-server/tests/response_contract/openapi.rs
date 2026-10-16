@@ -41,8 +41,7 @@ impl Api {
         let path = repo_root.join("schema/openapi.yaml");
         let text = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let doc: Value = serde_yaml_ng::from_str(&text)
-            .unwrap_or_else(|e| panic!("{} is not parseable YAML: {e}", path.display()));
+        let doc: Value = crate::support::openapi::parse_schema_yaml(&text);
 
         let mut operations = BTreeMap::new();
         let paths = doc["paths"]

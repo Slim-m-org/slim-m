@@ -24,6 +24,8 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod support;
+
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -111,7 +113,7 @@ fn documented_client_frames() -> BTreeSet<String> {
 fn documented_in(frame_schema: &str) -> BTreeSet<String> {
     let path = repo_root().join("schema/openapi.yaml");
     let text = fs::read_to_string(&path).expect("read openapi.yaml");
-    let doc: serde_yaml_ng::Value = serde_yaml_ng::from_str(&text).expect("parse openapi.yaml");
+    let doc = support::openapi::parse_schema_yaml(&text);
 
     let schemas = doc
         .get("components")
@@ -120,7 +122,7 @@ fn documented_in(frame_schema: &str) -> BTreeSet<String> {
     let one_of = schemas
         .get(frame_schema)
         .and_then(|f| f.get("oneOf"))
-        .and_then(|o| o.as_sequence())
+        .and_then(|o| o.as_array())
         .unwrap_or_else(|| panic!("{frame_schema}.oneOf"));
 
     let mut names = BTreeSet::new();
@@ -140,7 +142,7 @@ fn documented_in(frame_schema: &str) -> BTreeSet<String> {
             .get("properties")
             .and_then(|p| p.get("type"))
             .and_then(|t| t.get("enum"))
-            .and_then(|e| e.as_sequence())
+            .and_then(|e| e.as_array())
             .unwrap_or_else(|| panic!("{schema_name} pins no `type` enum, so it names no frame"));
         assert_eq!(
             discriminator.len(),
