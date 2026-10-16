@@ -51,11 +51,10 @@ class VideoHealthOverlay extends StatelessWidget {
           alignment: Alignment.topLeft,
           children: [
             child!,
+            // Centred: the tile's corners hold its name, mic badge and pop-out button.
             if (state != VideoTileHealth.playing)
-              Positioned(
-                left: AppSpacing.s8,
-                bottom: AppSpacing.s8,
-                child: _HealthLabel(state: state),
+              Positioned.fill(
+                child: Center(child: _HealthLabel(state: state)),
               ),
           ],
         );
@@ -95,28 +94,28 @@ class _HealthLabel extends StatelessWidget {
     return Semantics(
       label: label,
       container: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s8,
-          vertical: AppSpacing.s4,
-        ),
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          borderRadius: BorderRadius.circular(AppRadii.control),
-          border: Border.all(color: tokens.borderSubtle),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            leading,
-            const SizedBox(width: AppSpacing.s4),
-            ExcludeSemantics(
-              child: Text(
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s8,
+            vertical: AppSpacing.s4,
+          ),
+          decoration: BoxDecoration(
+            color: tokens.surfaceRaised,
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            border: Border.all(color: tokens.borderSubtle),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              leading,
+              const SizedBox(width: AppSpacing.s4),
+              Text(
                 label,
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -132,6 +132,9 @@ class VideoStallWatchdog {
   /// How long one recovery step gets before the next is tried.
   final Duration stepGap;
 
+  /// How many new frames between two samples count as video flowing again.
+  static const minProgressFrames = 3;
+
   final DateTime Function() _clock;
   final _tracks = <String, _Track>{};
   final ValueNotifier<Map<String, VideoTileHealth>> health =
@@ -158,7 +161,10 @@ class VideoStallWatchdog {
           (reading.bytesReceived == null ||
               lastBytes == null ||
               reading.bytesReceived! <= lastBytes);
-      if (frames != null && last != null && frames > last) {
+      // One frame is what a recovery step's keyframe gives even a frozen source; flowing video gives dozens.
+      if (frames != null &&
+          last != null &&
+          frames - last >= minProgressFrames) {
         track.progressed(now, frames);
         continue;
       }

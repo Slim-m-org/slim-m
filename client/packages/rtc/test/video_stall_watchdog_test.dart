@@ -179,6 +179,23 @@ void main() {
     expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stopped});
   });
 
+  test('the single keyframe each step brings is not recovery', () {
+    // Seen on a real call: a frozen source still answers each step with one keyframe.
+    var frames = 200;
+    var answered = 0;
+    watchdog.observe([_playing(frames)]);
+    for (var i = 0; i < 12; i++) {
+      clock.advance(const Duration(seconds: 2));
+      if (steps.length > answered) {
+        answered = steps.length;
+        frames++;
+      }
+      watchdog.observe([_playing(frames)]);
+    }
+    expect(steps.length, 2, reason: 'recovery must not start over');
+    expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stopped});
+  });
+
   test('a tile that disappears is forgotten', () {
     watchdog.observe([_playing(1)]);
     clock.advance(const Duration(seconds: 4));
