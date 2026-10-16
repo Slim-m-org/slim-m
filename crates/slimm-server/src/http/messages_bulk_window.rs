@@ -126,7 +126,7 @@ async fn bulk_delete_by_author(
         ));
     }
 
-    delete_and_publish(&state, channel_id, &ids, ctx.user_id, &[author_id]).await?;
+    delete_and_publish(&state, channel_id, &ids, ctx.user_id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }

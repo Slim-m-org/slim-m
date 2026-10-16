@@ -20,6 +20,7 @@
 //! store, router, and request helpers every test shares, `cases` is the tests
 //! themselves.
 
+mod audit_subjects;
 mod cases;
 mod harness;
 #[path = "../support/mod.rs"]

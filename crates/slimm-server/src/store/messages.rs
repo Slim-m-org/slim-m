@@ -26,7 +26,7 @@ use super::attachments::{LinkError, release_message_attachments};
 use super::message_forwards::ForwardOrigin;
 use super::message_ops::insert_message_op;
 use super::message_reads::fetch_message;
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 
@@ -198,10 +198,10 @@ impl Store {
             return Ok(Edited::Gone);
         };
         if existing.content == content {
-            tx.commit().await?;
-            let message = fetch_message(&self.pool, id)
+            let message = fetch_message(&mut *tx, id)
                 .await?
-                .context("a message read inside the transaction vanished after it")?;
+                .context("a message read inside the transaction vanished in it")?;
+            tx.commit().await?;
             return Ok(Edited::Unchanged(message));
         }
 
@@ -238,11 +238,11 @@ impl Store {
             now,
         )
         .await?;
-        tx.commit().await?;
-
-        let message = fetch_message(&self.pool, id)
+        // Read before commit: a delete racing in after it would turn a good edit into a 500.
+        let message = fetch_message(&mut *tx, id)
             .await?
-            .context("a message this transaction just edited vanished after it")?;
+            .context("a message this transaction just edited vanished in it")?;
+        tx.commit().await?;
         Ok(Edited::Edited {
             message,
             op_seq,
@@ -310,7 +310,7 @@ impl Store {
                 ModerationAudit {
                     actor_id,
                     subject_id: author_id,
-                    action: "messages_deleted",
+                    action: ModerationAction::MessagesDeleted,
                     reason: None,
                     until: None,
                     created_at: now,

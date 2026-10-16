@@ -24,12 +24,34 @@ const TICKET_SWEEP_GRACE_MS: i64 = 60 * 60 * 1000;
 /// checks `expires_at`, so an expired row grants nothing; the day is slack.
 const ACCESS_SWEEP_GRACE_MS: i64 = 24 * 60 * 60 * 1000;
 
-/// How many rows one sweep deletes per table.
+/// How many rows one delete statement removes.
 ///
-/// Bounded so the sweep cannot take the write lock for an unbounded stretch on
-/// a deployment that has gone a long time without one. Whatever it does not
-/// reach this pass, it reaches on the next.
+/// Bounded so no single statement takes the write lock for an unbounded
+/// stretch on a deployment that has gone a long time without a sweep; the
+/// sweep loops batch after batch instead, yielding between them.
 const SWEEP_BATCH: i64 = 5_000;
+
+/// Batches per table per pass: a million rows, far past any real backlog, so
+/// one pass drains it while a runaway table still cannot pin the sweep.
+const MAX_BATCHES_PER_PASS: u32 = 200;
+
+/// Runs `batch` until it removes fewer than a full batch, returning the total.
+async fn drain<F, Fut>(mut batch: F) -> Result<u64, sqlx::Error>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<u64, sqlx::Error>>,
+{
+    let mut total = 0;
+    for _ in 0..MAX_BATCHES_PER_PASS {
+        let removed = batch().await?;
+        total += removed;
+        if removed < SWEEP_BATCH as u64 {
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+    Ok(total)
+}
 
 /// What one sweep removed, so the caller can log something meaningful and a
 /// test can assert on it.
@@ -68,36 +90,45 @@ impl Store {
         let refresh_cutoff = now - REFRESH_SWEEP_GRACE_MS;
         let ticket_cutoff = now - TICKET_SWEEP_GRACE_MS;
 
-        // Three statements, not one transaction; see the note on this function.
-        let access_tokens = sqlx::query!(
-            "DELETE FROM access_tokens WHERE rowid IN
-             (SELECT rowid FROM access_tokens WHERE expires_at < ? LIMIT ?)",
-            access_cutoff,
-            SWEEP_BATCH
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        // Separate statements, not one transaction; see the note on this function.
+        let access_tokens = drain(|| async {
+            sqlx::query!(
+                "DELETE FROM access_tokens WHERE rowid IN
+                 (SELECT rowid FROM access_tokens WHERE expires_at < ? LIMIT ?)",
+                access_cutoff,
+                SWEEP_BATCH
+            )
+            .execute(&self.pool)
+            .await
+            .map(|done| done.rows_affected())
+        })
+        .await?;
 
-        let refresh_tokens = sqlx::query!(
-            "DELETE FROM refresh_tokens WHERE rowid IN
-             (SELECT rowid FROM refresh_tokens WHERE expires_at < ? LIMIT ?)",
-            refresh_cutoff,
-            SWEEP_BATCH
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        let refresh_tokens = drain(|| async {
+            sqlx::query!(
+                "DELETE FROM refresh_tokens WHERE rowid IN
+                 (SELECT rowid FROM refresh_tokens WHERE expires_at < ? LIMIT ?)",
+                refresh_cutoff,
+                SWEEP_BATCH
+            )
+            .execute(&self.pool)
+            .await
+            .map(|done| done.rows_affected())
+        })
+        .await?;
 
-        let ws_tickets = sqlx::query!(
-            "DELETE FROM ws_tickets WHERE rowid IN
-             (SELECT rowid FROM ws_tickets WHERE expires_at < ? LIMIT ?)",
-            ticket_cutoff,
-            SWEEP_BATCH
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        let ws_tickets = drain(|| async {
+            sqlx::query!(
+                "DELETE FROM ws_tickets WHERE rowid IN
+                 (SELECT rowid FROM ws_tickets WHERE expires_at < ? LIMIT ?)",
+                ticket_cutoff,
+                SWEEP_BATCH
+            )
+            .execute(&self.pool)
+            .await
+            .map(|done| done.rows_affected())
+        })
+        .await?;
 
         Ok(SweptTokens {
             access_tokens,

@@ -28,7 +28,7 @@ use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{DeviceId, RoleId, SessionId, UserId};
 use crate::permissions::Permissions;
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::sessions::{SessionContext, revoke_session_rows};
 use super::{Store, now_ms};
 
@@ -186,7 +186,7 @@ impl Store {
             ModerationAudit {
                 actor_id: created_by,
                 subject_id: user_id,
-                action: "bot_create",
+                action: ModerationAction::BotCreate,
                 reason: Some(&format!(
                     "role {role_id} created with permissions {permission_bits}"
                 )),
@@ -340,7 +340,7 @@ impl Store {
             ModerationAudit {
                 actor_id,
                 subject_id: bot_user_id,
-                action: "bot_permission_grant",
+                action: ModerationAction::BotPermissionGrant,
                 reason: Some(&format!("role {role_id} permissions now {bits}")),
                 until: None,
                 created_at: now,
@@ -432,7 +432,7 @@ impl Store {
             ModerationAudit {
                 actor_id: revoked_by,
                 subject_id: bot_user_id,
-                action: "bot_revoke",
+                action: ModerationAction::BotRevoke,
                 reason: None,
                 until: None,
                 created_at: now,

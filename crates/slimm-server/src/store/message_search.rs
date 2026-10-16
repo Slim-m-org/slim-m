@@ -28,6 +28,9 @@ pub enum SearchError {
     /// statement runs, and that is where this is caught rather than in
     /// up-front input validation.
     InvalidQuery,
+    /// `before_id` names no message, so there is no position to page from;
+    /// answering an empty page would read as the end of the results.
+    UnknownCursor,
     Internal(anyhow::Error),
 }
 
@@ -68,6 +71,11 @@ pub struct MessageSearchFilters {
     /// Exclusive: `created_at < before_ms`, so a whole calendar day named by
     /// `before:` is excluded rather than half-included at its own midnight.
     pub before_ms: Option<i64>,
+    /// The page cursor for a search across channels: only messages ordered
+    /// after this one by `(created_at, seq, id)`, the result order. A
+    /// per-channel `seq` alone cannot page across channels, whose seqs are
+    /// unrelated.
+    pub before_id: Option<MessageId>,
 }
 
 impl Store {
@@ -152,6 +160,16 @@ impl Store {
             .await?;
         }
 
+        if let Some(before_id) = filters.before_id {
+            let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM messages WHERE id = ?")
+                .bind(before_id)
+                .fetch_optional(&self.pool)
+                .await?;
+            if exists.is_none() {
+                return Err(SearchError::UnknownCursor);
+            }
+        }
+
         let mut builder = QueryBuilder::new(
             r#"SELECT m.id, m.channel_id, m.author_id, u.display_name AS author_display_name,
                       m.seq, m.content, m.created_at, m.edited_at, m.reply_to_id
@@ -175,7 +193,13 @@ impl Store {
         }
         builder.push(")");
         builder.push(" AND m.deleted_at IS NULL AND m.seq < ");
-        builder.push_bind(before_seq.unwrap_or(i64::MAX));
+        // A per-channel seq means nothing across channels; before_id is the cursor whenever it is given.
+        let seq_ceiling = if filters.before_id.is_some() {
+            None
+        } else {
+            before_seq
+        };
+        builder.push_bind(seq_ceiling.unwrap_or(i64::MAX));
         if let Some(username) = &filters.author_username {
             builder.push(" AND m.author_id = (SELECT id FROM users WHERE username = ");
             builder.push_bind(username.to_owned());
@@ -197,7 +221,14 @@ impl Store {
             builder.push(" AND m.created_at < ");
             builder.push_bind(before_ms);
         }
-        builder.push(" ORDER BY m.created_at DESC, m.seq DESC LIMIT ");
+        if let Some(before_id) = filters.before_id {
+            builder.push(
+                " AND (m.created_at, m.seq, m.id) < (SELECT created_at, seq, id FROM messages WHERE id = ",
+            );
+            builder.push_bind(before_id);
+            builder.push(")");
+        }
+        builder.push(" ORDER BY m.created_at DESC, m.seq DESC, m.id DESC LIMIT ");
         builder.push_bind(limit);
 
         let rows = builder.build().fetch_all(&self.pool).await?;

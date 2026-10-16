@@ -89,11 +89,18 @@ impl StageResult {
     }
 }
 
-/// One entry of `GET /api/v2/runtimes`; only the field this broker reads.
+/// One entry of `GET /api/v2/runtimes`; only the fields this broker reads.
+/// Piston lists one entry per installed version, so a language repeats.
 #[derive(Deserialize)]
 pub(super) struct Runtime {
     pub(super) language: String,
+    #[serde(default)]
+    pub(super) aliases: Vec<String>,
 }
+
+/// Discovery's own bound, well under [`super::CLIENT_TIMEOUT`]: a runner that
+/// hangs on `/runtimes` must not stall the endpoint that lists Run buttons.
+const DISCOVERY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
 /// `POST {base}/api/v2/execute`. `language` and `code` are the whole of what
 /// a caller supplies; see the parent module's doc for why nothing else rides
@@ -157,6 +164,7 @@ pub(super) async fn runtimes(enabled: &Enabled) -> Option<Vec<Runtime>> {
     let response = enabled
         .http
         .get(format!("{}/api/v2/runtimes", enabled.base_url))
+        .timeout(DISCOVERY_TIMEOUT)
         .send()
         .await
         .ok()?;
@@ -186,6 +194,7 @@ mod tests {
         Enabled {
             http: reqwest::Client::builder().timeout(timeout).build().unwrap(),
             base_url,
+            languages: std::sync::Mutex::new(None),
         }
     }
 

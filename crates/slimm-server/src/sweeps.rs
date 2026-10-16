@@ -68,32 +68,35 @@ const TOKEN_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs
 pub(crate) fn spawn_token_sweep(store: store::Store) {
     spawn_sweep(TOKEN_SWEEP_INTERVAL, move || {
         let store = store.clone();
-        async move {
-            // Same schedule and reasoning as the token sweep: a spent challenge grants nothing.
-            match store.sweep_expired_totp_challenges().await {
-                Ok(0) => {}
-                Ok(swept) => tracing::info!(swept, "swept expired TOTP challenge rows"),
-                Err(err) => tracing::warn!(error = %err, "TOTP challenge sweep failed"),
-            }
-            match store.sweep_expired_tokens().await {
-                Ok(swept) => {
-                    if swept.total() > 0 {
-                        tracing::info!(
-                            access_tokens = swept.access_tokens,
-                            refresh_tokens = swept.refresh_tokens,
-                            ws_tickets = swept.ws_tickets,
-                            "swept expired token rows"
-                        );
-                    }
-                    record_sweep_run(&store, "token", swept.total() as i64).await;
-                }
-                Err(err) => tracing::warn!(error = %err, "token sweep failed"),
-            }
-            if let Err(err) = store.sweep_interactions().await {
-                tracing::warn!(error = %err, "interaction sweep failed");
-            }
-        }
+        async move { run_token_sweep_pass(&store).await }
     });
+}
+
+/// One pass of the token sweep, callable without the timer.
+pub async fn run_token_sweep_pass(store: &store::Store) {
+    // Same schedule and reasoning as the token sweep: a spent challenge grants nothing.
+    match store.sweep_expired_totp_challenges().await {
+        Ok(0) => {}
+        Ok(swept) => tracing::info!(swept, "swept expired TOTP challenge rows"),
+        Err(err) => tracing::warn!(error = %err, "TOTP challenge sweep failed"),
+    }
+    match store.sweep_expired_tokens().await {
+        Ok(swept) => {
+            if swept.total() > 0 {
+                tracing::info!(
+                    access_tokens = swept.access_tokens,
+                    refresh_tokens = swept.refresh_tokens,
+                    ws_tickets = swept.ws_tickets,
+                    "swept expired token rows"
+                );
+            }
+            record_sweep_run(store, "token", swept.total() as i64).await;
+        }
+        Err(err) => tracing::warn!(error = %err, "token sweep failed"),
+    }
+    if let Err(err) = store.sweep_interactions().await {
+        tracing::warn!(error = %err, "interaction sweep failed");
+    }
 }
 
 /// How often an uploaded-but-never-attached attachment is swept. Uploading is
@@ -111,32 +114,34 @@ pub(crate) fn spawn_attachment_sweep(store: store::Store, media: media::Media) {
     spawn_sweep(ATTACHMENT_SWEEP_INTERVAL, move || {
         let store = store.clone();
         let media = media.clone();
-        async move {
-            match store.sweep_orphaned_attachments().await {
-                Ok(freed) => {
-                    if !freed.is_empty() {
-                        tracing::info!(count = freed.len(), "swept orphaned attachment rows");
-                    }
-                    record_sweep_run(&store, "attachments", freed.len() as i64).await;
-                    for hex in freed {
-                        crate::blobs::release(&store, &media, &hex).await;
-                    }
-                }
-                Err(err) => tracing::warn!(error = %err, "attachment sweep failed"),
+        async move { run_attachment_sweep_pass(&store, &media).await }
+    });
+}
+
+/// One pass of the orphaned-attachment sweep, callable without the timer.
+pub async fn run_attachment_sweep_pass(store: &store::Store, media: &media::Media) {
+    match store.sweep_orphaned_attachments().await {
+        Ok(freed) => {
+            if !freed.is_empty() {
+                tracing::info!(count = freed.len(), "swept orphaned attachment rows");
             }
-            match crate::blobs::collect_garbage(&store, &media, std::time::SystemTime::now()).await
-            {
-                Ok(0) => {}
-                Ok(count) => tracing::info!(count, "removed leaked attachment files"),
-                Err(err) => tracing::warn!(error = %err, "attachment file scan failed"),
-            }
-            match media.uploads().sweep_expired(store::now_ms()).await {
-                Ok(0) => {}
-                Ok(count) => tracing::info!(count, "swept expired upload sessions"),
-                Err(err) => tracing::warn!(error = %err, "upload session sweep failed"),
+            record_sweep_run(store, "attachments", freed.len() as i64).await;
+            for hex in freed {
+                crate::blobs::release(store, media, &hex).await;
             }
         }
-    });
+        Err(err) => tracing::warn!(error = %err, "attachment sweep failed"),
+    }
+    match crate::blobs::collect_garbage(store, media, std::time::SystemTime::now()).await {
+        Ok(0) => {}
+        Ok(count) => tracing::info!(count, "removed leaked attachment files"),
+        Err(err) => tracing::warn!(error = %err, "attachment file scan failed"),
+    }
+    match media.uploads().sweep_expired(store::now_ms()).await {
+        Ok(0) => {}
+        Ok(count) => tracing::info!(count, "swept expired upload sessions"),
+        Err(err) => tracing::warn!(error = %err, "upload session sweep failed"),
+    }
 }
 
 /// How often the canvas op log is compacted. Long, the same reasoning
@@ -402,34 +407,41 @@ pub(crate) fn spawn_message_retention_sweep(
         let store = store.clone();
         let media = media.clone();
         let hub = hub.clone();
-        async move {
-            match store.sweep_message_retention().await {
-                Ok(swept) => {
-                    let pruned_count = swept.pruned.len();
-                    if pruned_count > 0 || swept.ops_reclaimed > 0 {
-                        tracing::info!(
-                            pruned = pruned_count,
-                            ops_reclaimed = swept.ops_reclaimed,
-                            "pruned messages past the retention window"
-                        );
-                    }
-                    record_sweep_run(&store, "message_retention", pruned_count as i64).await;
-                    crate::forward_events::publish_detached(&store, &hub, &swept.detached).await;
-                    for message in swept.pruned {
-                        hub.publish(hub::Event::MessageDeleted {
-                            channel_id: message.channel_id,
-                            message_id: message.message_id,
-                            op_seq: message.op_seq,
-                        });
-                        for hex in message.freed_attachments {
-                            crate::blobs::release(&store, &media, &hex).await;
-                        }
-                    }
+        async move { run_message_retention_sweep_pass(&store, &media, &hub).await }
+    });
+}
+
+/// One pass of the message retention sweep, callable without the timer.
+pub async fn run_message_retention_sweep_pass(
+    store: &store::Store,
+    media: &media::Media,
+    hub: &hub::Hub,
+) {
+    match store.sweep_message_retention().await {
+        Ok(swept) => {
+            let pruned_count = swept.pruned.len();
+            if pruned_count > 0 || swept.ops_reclaimed > 0 {
+                tracing::info!(
+                    pruned = pruned_count,
+                    ops_reclaimed = swept.ops_reclaimed,
+                    "pruned messages past the retention window"
+                );
+            }
+            record_sweep_run(store, "message_retention", pruned_count as i64).await;
+            crate::forward_events::publish_detached(store, hub, &swept.detached).await;
+            for message in swept.pruned {
+                hub.publish(hub::Event::MessageDeleted {
+                    channel_id: message.channel_id,
+                    message_id: message.message_id,
+                    op_seq: message.op_seq,
+                });
+                for hex in message.freed_attachments {
+                    crate::blobs::release(store, media, &hex).await;
                 }
-                Err(err) => tracing::warn!(error = %err, "message retention sweep failed"),
             }
         }
-    });
+        Err(err) => tracing::warn!(error = %err, "message retention sweep failed"),
+    }
 }
 
 /// How often due module schedules are checked; the shortest interval a

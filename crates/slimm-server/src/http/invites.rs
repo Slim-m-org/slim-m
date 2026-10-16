@@ -209,6 +209,7 @@ async fn revoke(
     Path(code): Path<String>,
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
+    let code = invite_code_key(&code);
     let permissions = state.store.base_permissions(ctx.user_id).await?;
     if !permissions.contains(Permissions::CREATE_INVITE) {
         return Err(ApiError::Forbidden);
@@ -232,7 +233,7 @@ async fn check(
     Path(code): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Json<CheckResponse>, ApiError> {
-    match state.store.check_invite(&code).await? {
+    match state.store.check_invite(&invite_code_key(&code)).await? {
         InviteCheck::Unusable => Ok(Json(CheckResponse {
             usable: false,
             community: None,
@@ -271,7 +272,11 @@ async fn redeem(
     // transaction, so an unthrottled loop of garbage codes serialised the whole
     // server on the write lock while proving nothing.
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    match state.store.redeem_invite(&code, ctx.user_id).await {
+    match state
+        .store
+        .redeem_invite(&invite_code_key(&code), ctx.user_id)
+        .await
+    {
         Ok(freshly_redeemed) => {
             if freshly_redeemed {
                 state.hub.publish(Event::MemberJoined(ctx.user_id));
@@ -282,4 +287,10 @@ async fn redeem(
         Err(RedeemError::Unusable) => Err(ApiError::BadRequest("that invite cannot be used")),
         Err(RedeemError::Internal(e)) => Err(e.into()),
     }
+}
+
+/// Codes are generated lowercase and meant to be read aloud, so whatever case
+/// the listener types back must still match.
+pub(crate) fn invite_code_key(code: &str) -> String {
+    code.trim().to_ascii_lowercase()
 }

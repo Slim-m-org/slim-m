@@ -54,9 +54,14 @@ impl DayWindow {
     /// day. The early-morning tail of a crossing window is
     /// [`DayWindow::tail_into_next_day`]'s job, not this one's, since that
     /// tail belongs to the *next* calendar day.
+    ///
+    /// An end of 23:59, the last minute a picker offers, reads as "until
+    /// midnight" and covers 23:59 itself; otherwise no window could cover a
+    /// whole day, and the always-on snooze placeholder went off-hours for a
+    /// minute every night (issue 2051).
     fn covers_from_start(&self, minute: u16) -> bool {
         if self.start_minute < self.end_minute {
-            (self.start_minute..self.end_minute).contains(&minute)
+            (self.start_minute..self.end_minute).contains(&minute) || self.runs_to_midnight(minute)
         } else {
             minute >= self.start_minute
         }
@@ -65,6 +70,10 @@ impl DayWindow {
     /// Whether this window, which started on the *previous* weekday, still
     /// covers `minute` on the day after: only possible when it crosses
     /// midnight, and only for minutes before `end_minute`.
+    fn runs_to_midnight(&self, minute: u16) -> bool {
+        self.end_minute == MINUTES_PER_DAY - 1 && minute == self.end_minute
+    }
+
     fn tail_into_next_day(&self, minute: u16) -> bool {
         self.start_minute > self.end_minute && minute < self.end_minute
     }
@@ -430,5 +439,27 @@ mod tests {
         assert_eq!(DayWindow::parse(100, 1440), None);
         assert_eq!(DayWindow::parse(500, 500), None);
         assert!(DayWindow::parse(0, 1439).is_some());
+    }
+
+    #[test]
+    fn a_window_ending_at_23_59_covers_the_last_minute_of_the_day() {
+        let all_day = DayWindow::parse(0, 1439).unwrap();
+        let schedule = Schedule {
+            timezone: "UTC".to_owned(),
+            days: [Some(all_day); WEEKDAYS],
+            off_hours_mode: OffHoursMode::MentionsAndDms,
+            snooze_until: None,
+        };
+        assert_eq!(
+            schedule.evaluate(ms_at("2024-03-08T23:59:30Z")),
+            OffHoursState::OnHours
+        );
+        assert_eq!(
+            schedule.evaluate(ms_at("2024-03-09T00:00:30Z")),
+            OffHoursState::OnHours
+        );
+        let evening = DayWindow::parse(18 * 60, 1439).unwrap();
+        assert!(evening.covers_from_start(1439));
+        assert!(!evening.covers_from_start(17 * 60));
     }
 }

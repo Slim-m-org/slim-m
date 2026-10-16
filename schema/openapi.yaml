@@ -3707,6 +3707,16 @@ paths:
             keyed by content hash).
           schema:
             type: string
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the file is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -3876,6 +3886,17 @@ paths:
         copy, and the id is referenced the same way on `sendMessage`. A
         session still short of its declared size answers 409. A full
         deployment drops the session.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the file is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "201":
           description: The stored attachment's metadata.
@@ -4771,6 +4792,17 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: before_id
+          in: query
+          description: >
+            The id of the last message on the previous page; returns only hits
+            after it in result order (newest first). Pages a search across
+            channels correctly, where `before`'s per-channel seq cannot, and
+            `before` is ignored when this is given. An id that names no
+            message answers 400.
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           description: Page size; the server clamps it.
@@ -4871,6 +4903,17 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: before_id
+          in: query
+          description: >
+            The id of the last message on the previous page; returns only hits
+            after it in result order (newest first). Pages a search across
+            channels correctly, where `before`'s per-channel seq cannot, and
+            `before` is ignored when this is given. An id that names no
+            message answers 400.
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           description: Page size; the server clamps it.
@@ -10187,6 +10230,12 @@ components:
         size:
           type: integer
           description: The whole file's size in bytes.
+        channel_id:
+          type: string
+          format: uuid
+          description: >
+            The channel the file is headed for; ATTACH_FILES is then checked
+            there, as uploadAttachment's channel_id does.
     UploadSession:
       type: object
       required: [id, size, offset, part_max_bytes, expires_at]
@@ -10402,6 +10451,23 @@ components:
             the schedule capability is approved and a channel is chosen.
           items:
             $ref: "#/components/schemas/DockSchedule"
+        changelog:
+          type: array
+          description: >
+            What each version changed, newest first, from the manifest's own
+            optional changelog; empty when the module publishes none.
+          items:
+            $ref: "#/components/schemas/DockChangelogEntry"
+    DockChangelogEntry:
+      type: object
+      required: [version, changes]
+      properties:
+        version:
+          type: string
+        changes:
+          type: array
+          items:
+            type: string
     DockSchedule:
       type: object
       required: [command, every_minutes]

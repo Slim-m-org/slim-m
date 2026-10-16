@@ -140,7 +140,22 @@ async fn ring(
         return Err(ApiError::Forbidden);
     }
 
-    let ring_id = state.voice.rings().start(channel_id, ctx.user_id, callee);
+    let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, callee);
+    if let Some((replaced_id, replaced_caller)) = replaced {
+        state.hub.publish(Event::CallRingEnded {
+            channel_id,
+            ring_id: replaced_id,
+            outcome: CallRingOutcome::Canceled,
+        });
+        record_call(
+            &state,
+            channel_id,
+            replaced_id,
+            replaced_caller,
+            CallRingOutcome::Canceled,
+        )
+        .await;
+    }
     state.hub.publish(Event::CallRinging {
         channel_id,
         ring_id,

@@ -6,6 +6,8 @@
 //! needs no event type of its own. Shared by the delete routes and the
 //! retention sweep, which are the two places a snapshot is removed.
 
+use std::sync::Arc;
+
 use crate::hub::{Event, Hub};
 use crate::store::{DetachedForward, Store};
 
@@ -30,9 +32,9 @@ pub(crate) async fn publish_detached(store: &Store, hub: &Hub, detached: &[Detac
             }
         };
         hub.publish(Event::MessageEdited {
-            message,
+            message: Arc::new(message),
             op_seq: forward.op_seq,
-            forwarded,
+            forwarded: forwarded.map(Arc::new),
         });
     }
 }

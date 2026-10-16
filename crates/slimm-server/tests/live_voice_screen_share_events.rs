@@ -319,3 +319,70 @@ async fn a_non_screen_share_track_publishes_nothing() {
         .is_none()
     );
 }
+
+/// A redelivered `track_unpublished` for a track already gone is not a
+/// second stop (issue 2085).
+#[tokio::test]
+async fn a_duplicate_unpublish_does_not_republish_a_stop() {
+    let (_store, _guard, state, room, alice_id, mut bob_ws) = joined_channel_and_viewer().await;
+    let app = http::router(state.clone());
+    deliver(
+        app.clone(),
+        track_published(&room, &alice_id, "TR_video", "SCREEN_SHARE"),
+    )
+    .await;
+    read_frame_of_type(&mut bob_ws, "voice.screen_share_changed").await;
+    let stop = track_unpublished(&room, &alice_id, "TR_video", "SCREEN_SHARE");
+    deliver(app.clone(), stop.clone()).await;
+    read_frame_of_type(&mut bob_ws, "voice.screen_share_changed").await;
+
+    deliver(app, stop).await;
+    assert!(
+        wait_for(
+            &mut bob_ws,
+            "voice.screen_share_changed",
+            Duration::from_millis(300)
+        )
+        .await
+        .is_none(),
+        "the duplicate stop was published again"
+    );
+}
+
+fn with_participant_sid(mut event: Value, sid: &str) -> Value {
+    event["participant"]["sid"] = json!(sid);
+    event
+}
+
+/// A track webhook from a session that already left must not leave behind an
+/// entry that swallows the member's next real join (issue 2086).
+#[tokio::test]
+async fn a_late_track_after_leaving_does_not_swallow_the_rejoin() {
+    let (_store, _guard, state, room, alice_id, mut bob_ws) = joined_channel_and_viewer().await;
+    let app = http::router(state.clone());
+    let left = json!({
+        "event": "participant_left",
+        "room": { "name": room },
+        "participant": { "identity": alice_id },
+    });
+    deliver(app.clone(), left).await;
+    read_frame_of_type(&mut bob_ws, "voice.participant_left").await;
+    let late = track_published(&room, &alice_id, "TR_old", "SCREEN_SHARE");
+    deliver(app.clone(), late).await;
+
+    deliver(
+        app,
+        with_participant_sid(joined(&room, &alice_id), "PA_second"),
+    )
+    .await;
+    assert!(
+        wait_for(
+            &mut bob_ws,
+            "voice.participant_joined",
+            Duration::from_secs(2)
+        )
+        .await
+        .is_some(),
+        "the rejoin was swallowed by the stale entry"
+    );
+}

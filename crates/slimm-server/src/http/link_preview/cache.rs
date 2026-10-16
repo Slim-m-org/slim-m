@@ -20,6 +20,35 @@ use super::video::VideoInfo;
 const CACHE_TTL_MS: i64 = 30 * 60 * 1000;
 const MAX_ENTRIES: usize = 5_000;
 
+/// How long a URL that yielded no preview is answered from memory, so a dead
+/// link pasted into a busy channel costs one outbound fetch, not one per reader.
+const MISS_TTL_MS: i64 = 60 * 1000;
+
+/// What one fetch for a URL came to, shared with every request that asked for
+/// the same URL while it was in flight.
+#[derive(Clone)]
+pub(super) enum Outcome {
+    Found(CachedPreview),
+    Missing,
+    Refused,
+}
+
+type InFlight = std::sync::Arc<tokio::sync::OnceCell<Outcome>>;
+
+/// The key a URL is cached under: parsed and re-serialized, so case in the
+/// scheme and host, a default port and a `#fragment` (never sent upstream)
+/// all land on one entry. An unparseable URL keys as itself; the handler has
+/// already refused it by then anyway.
+pub(super) fn cache_key(url: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(mut parsed) => {
+            parsed.set_fragment(None);
+            parsed.into()
+        }
+        Err(_) => url.to_owned(),
+    }
+}
+
 /// A preview as cached and served: the same fields [`Preview`] extracted,
 /// with the image (if any) replaced by an opaque token the client redeems at
 /// the image endpoint.
@@ -43,6 +72,8 @@ struct CachedImage {
 pub(super) struct Cache {
     key: [u8; 32],
     previews: Mutex<HashMap<String, CachedPreview>>,
+    misses: Mutex<HashMap<String, i64>>,
+    in_flight: Mutex<HashMap<String, InFlight>>,
     images: Mutex<HashMap<String, CachedImage>>,
 }
 
@@ -51,7 +82,42 @@ impl Cache {
         Self {
             key,
             previews: Mutex::new(HashMap::new()),
+            misses: Mutex::new(HashMap::new()),
+            in_flight: Mutex::new(HashMap::new()),
             images: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Whether [key] yielded no preview within the last [`MISS_TTL_MS`].
+    pub(super) fn recently_missing(&self, key: &str) -> bool {
+        lock(&self.misses)
+            .get(key)
+            .is_some_and(|at| now_ms() - at < MISS_TTL_MS)
+    }
+
+    pub(super) fn record_miss(&self, key: &str) {
+        let now = now_ms();
+        let mut misses = lock(&self.misses);
+        misses.retain(|_, at| now - *at < MISS_TTL_MS);
+        misses.insert(key.to_owned(), now);
+    }
+
+    /// The fetch every concurrent request for [key] shares.
+    pub(super) fn in_flight(&self, key: &str) -> InFlight {
+        lock(&self.in_flight)
+            .entry(key.to_owned())
+            .or_default()
+            .clone()
+    }
+
+    /// Forgets [cell] once it has resolved, unless a newer fetch replaced it.
+    pub(super) fn finish(&self, key: &str, cell: &InFlight) {
+        let mut in_flight = lock(&self.in_flight);
+        if in_flight
+            .get(key)
+            .is_some_and(|current| std::sync::Arc::ptr_eq(current, cell))
+        {
+            in_flight.remove(key);
         }
     }
 

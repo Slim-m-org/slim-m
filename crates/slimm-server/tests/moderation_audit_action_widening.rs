@@ -128,7 +128,14 @@ async fn the_rebuild_keeps_every_act_it_had_already_recorded() {
 async fn the_widened_action_is_accepted_and_the_old_ones_still_constrained() {
     let (pool, _guard) = pool_at_0048().await;
     seed(&pool).await;
-    migrator().await.run(&pool).await.expect("apply 0049");
+    // Through 0049 only: 0118 deliberately opens the action set, which moderation_audit_rebuilds.rs covers.
+    let mut through_0049 = migrator().await;
+    through_0049.migrations = through_0049
+        .iter()
+        .filter(|m| m.version <= VERSION)
+        .cloned()
+        .collect();
+    through_0049.run(&pool).await.expect("apply 0049");
 
     sqlx::query(
         "INSERT INTO moderation_audit_log (actor_id, subject_id, action, created_at)

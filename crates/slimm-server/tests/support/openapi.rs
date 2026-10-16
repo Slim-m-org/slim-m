@@ -478,3 +478,11 @@ pub fn normalize(path: &str) -> String {
         .collect::<Vec<_>>()
         .join("/")
 }
+
+/// `schema/openapi.yaml` as JSON, read as YAML 1.2: strict booleans keep a
+/// bare `y` (the canvas coordinate in a `required` list) a string, where YAML
+/// 1.1's `y`/`n`/`on`/`off` booleans would quietly turn it into `true`.
+pub fn parse_schema_yaml(text: &str) -> serde_json::Value {
+    serde_saphyr::from_str_with_options(text, serde_saphyr::options! { strict_booleans: true })
+        .expect("schema/openapi.yaml parses as YAML")
+}

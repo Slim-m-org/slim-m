@@ -135,7 +135,7 @@ impl Store {
         let thread_count = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "n!: i64" FROM channels c
                JOIN messages pm ON pm.id = c.parent_message_id
-               WHERE pm.channel_id = ? AND c.deleted_at IS NULL"#,
+               WHERE pm.channel_id = ? AND c.deleted_at IS NULL AND pm.deleted_at IS NULL"#,
             channel_id
         )
         .fetch_one(&mut *tx)

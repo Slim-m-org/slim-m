@@ -14,6 +14,7 @@ use serde::Deserialize;
 
 use super::super::hidden_chars::is_hidden_char;
 use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
+pub(in crate::http) use changelog::ChangelogEntry;
 pub(super) use index::{IndexEntry, parse_index};
 pub(in crate::http) use network::{ManifestNetwork, NET_FETCH};
 pub(in crate::http) use schedule::ManifestSchedule;
@@ -60,6 +61,8 @@ struct RawManifest {
     network: Option<network::RawNetwork>,
     #[serde(default)]
     schedules: Vec<schedule::RawSchedule>,
+    #[serde(default)]
+    changelog: Vec<changelog::RawChangelogEntry>,
 }
 
 #[derive(Deserialize)]
@@ -176,6 +179,7 @@ pub(super) struct Manifest {
     pub(super) extension_points: Vec<ManifestExtensionPoint>,
     pub(super) network: ManifestNetwork,
     pub(super) schedules: Vec<ManifestSchedule>,
+    pub(super) changelog: Vec<ChangelogEntry>,
 }
 
 pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
@@ -252,6 +256,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         permissions,
         network: network::validate_network(raw.network, &capabilities)?,
         schedules: schedule::validate_schedules(raw.schedules, &capabilities, &command_names)?,
+        changelog: changelog::validate_changelog(raw.changelog)?,
         capabilities,
         extension_points,
     })
@@ -445,6 +450,7 @@ fn is_sha256_hex(value: &str) -> bool {
 }
 
 mod artifact_path;
+mod changelog;
 mod index;
 mod names;
 mod network;

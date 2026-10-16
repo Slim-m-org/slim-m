@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM ws_tickets WHERE rowid IN\n                 (SELECT rowid FROM ws_tickets WHERE expires_at < ? LIMIT ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "443388fec3261a3202d743f04267b53f0fa25ff49f416b715403f3093b96b5b1"
+}

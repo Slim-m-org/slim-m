@@ -379,8 +379,14 @@ pub(super) async fn authorize_unstamped(
             message,
             op_seq,
             forwarded,
-        } => match super::message_frames::edited(store, ctx.user_id, message, op_seq, forwarded)
-            .await
+        } => match super::message_frames::edited(
+            store,
+            ctx.user_id,
+            (*message).clone(),
+            op_seq,
+            forwarded.as_deref().cloned(),
+        )
+        .await
         {
             Ok(frame) => frame,
             Err(()) => return Authorization::Unknown,
@@ -412,15 +418,15 @@ pub(super) async fn authorize_unstamped(
             };
             // This viewer's own `first_at` per emoji, reduced only from unblocked reactors - same as the old `reactions_for_messages` query did.
             let mut visible: Vec<(String, i64, i64)> = reactors
-                .into_iter()
+                .iter()
                 .filter_map(|(emoji, entries)| {
                     let unblocked_at: Vec<i64> = entries
-                        .into_iter()
+                        .iter()
                         .filter(|(id, _)| !blocked.contains(id))
-                        .map(|(_, created_at)| created_at)
+                        .map(|(_, created_at)| *created_at)
                         .collect();
                     let first_at = unblocked_at.iter().copied().min()?;
-                    Some((emoji, unblocked_at.len() as i64, first_at))
+                    Some((emoji.clone(), unblocked_at.len() as i64, first_at))
                 })
                 .collect();
             visible.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.0.cmp(&b.0)));
@@ -451,7 +457,7 @@ pub(super) async fn authorize_unstamped(
             module_id,
             command,
             ok,
-            output,
+            output: output.to_string(),
             ran_by: ran_by.map(|u| u.to_string()),
             ran_at,
         },

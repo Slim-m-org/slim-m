@@ -27,7 +27,7 @@ use sqlx::QueryBuilder;
 
 use super::attachments::release_message_attachments;
 use super::message_ops::insert_message_op;
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 
@@ -141,16 +141,15 @@ impl Store {
     /// error and produces no op and no event, which is the single path's own
     /// idempotence carried over unchanged.
     ///
-    /// [subjects] is the set of authors whose messages these are, one audit row
-    /// each. It is passed in rather than derived here because the caller has
-    /// already resolved them to run its permission checks, and resolving them
-    /// twice would let the two answers disagree.
+    /// One audit row per distinct author of a message this call actually
+    /// deleted, never the actor themselves: the single-delete path skips an
+    /// author deleting their own message, and an id that was already gone
+    /// moderated nobody.
     pub async fn bulk_delete_messages(
         &self,
         channel_id: ChannelId,
         ids: &[MessageId],
         actor_id: UserId,
-        subjects: &[UserId],
     ) -> anyhow::Result<BulkDeletion> {
         if ids.is_empty() {
             return Ok(BulkDeletion::default());
@@ -182,15 +181,19 @@ impl Store {
         for id in ids {
             separated.push_bind(*id);
         }
-        builder.push(") RETURNING id");
-        let claimed: Vec<MessageId> = builder
-            .build_query_scalar::<MessageId>()
-            .fetch_all(&mut *tx)
-            .await?;
+        builder.push(") RETURNING id, author_id");
+        let claimed: Vec<(MessageId, Option<UserId>)> =
+            builder.build_query_as().fetch_all(&mut *tx).await?;
+        let mut subjects: Vec<UserId> = Vec::new();
+        for author_id in claimed.iter().filter_map(|(_, author)| *author) {
+            if author_id != actor_id && !subjects.contains(&author_id) {
+                subjects.push(author_id);
+            }
+        }
 
         let mut deleted = Vec::with_capacity(claimed.len());
         let mut freed_attachments = Vec::new();
-        for message_id in claimed {
+        for (message_id, _) in claimed {
             let op_seq = insert_message_op(
                 &mut tx,
                 channel_id,
@@ -213,22 +216,19 @@ impl Store {
             super::forward_cascade::cascade_to_copies(&mut tx, &deleted_ids, Some(actor_id), now)
                 .await?;
 
-        // An act that deleted nothing is not an act, as the undo paths keep.
-        if !deleted.is_empty() {
-            for subject_id in subjects {
-                record_moderation_audit(
-                    &mut tx,
-                    ModerationAudit {
-                        actor_id,
-                        subject_id: *subject_id,
-                        action: "messages_deleted",
-                        reason: None,
-                        until: None,
-                        created_at: now,
-                    },
-                )
-                .await?;
-            }
+        for subject_id in subjects {
+            record_moderation_audit(
+                &mut tx,
+                ModerationAudit {
+                    actor_id,
+                    subject_id,
+                    action: ModerationAction::MessagesDeleted,
+                    reason: None,
+                    until: None,
+                    created_at: now,
+                },
+            )
+            .await?;
         }
 
         tx.commit().await?;

@@ -41,10 +41,10 @@ pub struct NotificationScheduleDetail {
 }
 
 /// The always-on placeholder [`Store::set_notification_snooze`] writes for
-/// an account with no schedule of its own yet: 00:00 to 23:59, a one-minute
-/// daily gap that is never enforced in practice, standing in for "on all
-/// day" without a special-cased zero-length window in the schema's CHECK
-/// constraint.
+/// an account with no schedule of its own yet: 00:00 to 23:59, which covers
+/// the whole day because an end of 23:59 reads as "until midnight" (see
+/// `DayWindow::covers_from_start`), without a special-cased zero-length
+/// window in the schema's CHECK constraint.
 const ALWAYS_ON_PLACEHOLDER: DayWindow = match DayWindow::parse(0, 1439) {
     Some(window) => window,
     None => unreachable!(),

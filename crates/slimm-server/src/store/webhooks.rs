@@ -23,7 +23,7 @@
 use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{ChannelId, MessageId, UserId, WebhookId};
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Store, now_ms};
 
 /// A webhook, as an operator will see it once the admin surface exists.
@@ -112,7 +112,7 @@ impl Store {
             ModerationAudit {
                 actor_id: created_by,
                 subject_id: user_id,
-                action: "webhook_create",
+                action: ModerationAction::WebhookCreate,
                 reason: None,
                 until: None,
                 created_at: now,
@@ -366,7 +366,7 @@ impl Store {
             ModerationAudit {
                 actor_id: rotated_by,
                 subject_id: user_id,
-                action: "webhook_rotate",
+                action: ModerationAction::WebhookRotate,
                 reason: None,
                 until: None,
                 created_at: now_ms(),
@@ -405,7 +405,7 @@ impl Store {
             ModerationAudit {
                 actor_id: revoked_by,
                 subject_id: user_id,
-                action: "webhook_revoke",
+                action: ModerationAction::WebhookRevoke,
                 reason: None,
                 until: None,
                 created_at: now_ms(),

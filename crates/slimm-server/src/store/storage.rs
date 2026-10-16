@@ -95,11 +95,13 @@ impl Store {
         let rows = sqlx::query!(
             r#"SELECT c.id AS "channel_id!: ChannelId", c.name AS "name!",
                       SUM(a.size) AS "bytes!: i64"
-               FROM message_attachments ma
-               JOIN attachments a ON a.sha256 = ma.sha256
-               JOIN messages m ON m.id = ma.message_id
-               JOIN channels c ON c.id = m.channel_id
-               WHERE m.deleted_at IS NULL AND c.deleted_at IS NULL
+               FROM (SELECT DISTINCT m.channel_id, ma.sha256
+                     FROM message_attachments ma
+                     JOIN messages m ON m.id = ma.message_id
+                     WHERE m.deleted_at IS NULL) per_channel
+               JOIN attachments a ON a.sha256 = per_channel.sha256
+               JOIN channels c ON c.id = per_channel.channel_id
+               WHERE c.deleted_at IS NULL
                  AND c.kind != 'dm' AND c.parent_message_id IS NULL
                GROUP BY c.id
                ORDER BY "bytes!: i64" DESC

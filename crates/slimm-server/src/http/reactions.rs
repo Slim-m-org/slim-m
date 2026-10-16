@@ -10,6 +10,8 @@
 //! PUT and DELETE on the same resource. A GET on it lists who left the
 //! reaction, per viewer; see `docs/decisions/0051-who-reacted.md`.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
@@ -135,7 +137,7 @@ async fn publish(
     state.hub.publish(Event::ReactionsChanged {
         channel_id,
         message_id,
-        reactors,
+        reactors: Arc::new(reactors),
     });
     Ok(())
 }
