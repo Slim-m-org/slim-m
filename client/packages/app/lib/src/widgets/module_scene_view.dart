@@ -36,6 +36,7 @@ import 'module_scene_pacing.dart';
 import 'module_scene_queue.dart';
 import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
+import 'swipe_to_reply.dart';
 
 /// Runs one action against the module and returns its raw result. The action
 /// and the current scene state are already packed into [input] as
@@ -460,32 +461,34 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
           scene: _scene,
           size: size,
           onActivate: _enqueue,
-          child: Listener(
-            onPointerDown: _handlePointerDown,
-            child: GestureDetector(
-              onTapUp: (d) => _handleTapUp(d, size),
-              onPanStart: (d) => _handlePanStart(d, size),
-              onPanUpdate: (d) => _handlePanUpdate(d, size),
-              child: Stack(
-                children: [
-                  SceneTimeline(
-                    scene: _scene,
-                    tokens: tokens,
-                    images: _images.snapshot(_scene),
-                    size: size,
-                  ),
-                  // Above the paint: a tap for a field must not also fall through.
-                  SceneInputOverlay(
-                    scene: _scene,
-                    size: size,
-                    onSubmit: _enqueue,
-                  ),
-                  Positioned(
-                    top: AppSpacing.s8,
-                    right: AppSpacing.s8,
-                    child: SceneBusyIndicator(busy: _busy, tokens: tokens),
-                  ),
-                ],
+          child: SwipeToReplyOptOut(
+            child: Listener(
+              onPointerDown: _handlePointerDown,
+              child: GestureDetector(
+                onTapUp: (d) => _handleTapUp(d, size),
+                onPanStart: (d) => _handlePanStart(d, size),
+                onPanUpdate: (d) => _handlePanUpdate(d, size),
+                child: Stack(
+                  children: [
+                    SceneTimeline(
+                      scene: _scene,
+                      tokens: tokens,
+                      images: _images.snapshot(_scene),
+                      size: size,
+                    ),
+                    // Above the paint: a tap for a field must not also fall through.
+                    SceneInputOverlay(
+                      scene: _scene,
+                      size: size,
+                      onSubmit: _enqueue,
+                    ),
+                    Positioned(
+                      top: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      child: SceneBusyIndicator(busy: _busy, tokens: tokens),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
