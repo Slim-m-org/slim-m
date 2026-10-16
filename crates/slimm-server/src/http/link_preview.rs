@@ -201,14 +201,33 @@ async fn preview(
     validate(&params.url, service.allow_private)
         .map_err(|_| ApiError::BadRequest("that link cannot be previewed"))?;
 
-    if let Some(cached) = service.cache.preview(&params.url) {
+    let key = cache::cache_key(&params.url);
+    if let Some(cached) = service.cache.preview(&key) {
         return Ok(axum::Json(to_dto(&params.url, cached)));
     }
-    let preview = fetch_preview(&service.client, &params.url, service.allow_private)
-        .await?
-        .ok_or(ApiError::NotFound("no preview available"))?;
-    let cached = service.cache.insert(&params.url, preview);
-    Ok(axum::Json(to_dto(&params.url, cached)))
+    if service.cache.recently_missing(&key) {
+        return Err(ApiError::NotFound("no preview available"));
+    }
+    let cell = service.cache.in_flight(&key);
+    let outcome = cell
+        .get_or_init(|| async {
+            match fetch_preview(&service.client, &params.url, service.allow_private).await {
+                Ok(Some(preview)) => cache::Outcome::Found(service.cache.insert(&key, preview)),
+                Ok(None) | Err(FetchError::Unavailable) => {
+                    service.cache.record_miss(&key);
+                    cache::Outcome::Missing
+                }
+                Err(FetchError::Refused) => cache::Outcome::Refused,
+            }
+        })
+        .await
+        .clone();
+    service.cache.finish(&key, &cell);
+    match outcome {
+        cache::Outcome::Found(cached) => Ok(axum::Json(to_dto(&params.url, cached))),
+        cache::Outcome::Missing => Err(ApiError::NotFound("no preview available")),
+        cache::Outcome::Refused => Err(ApiError::BadRequest("that link cannot be previewed")),
+    }
 }
 
 async fn image(
