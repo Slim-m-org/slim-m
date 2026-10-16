@@ -205,16 +205,22 @@ pub(crate) async fn after_edit(
     Ok(dtos_from_stored(&state.link_previews, stored))
 }
 
-/// Stores `embeds` when `fresh`, then reads back whatever actually landed.
+/// Stores `embeds` on a fresh send, or on a retry whose first attempt stored
+/// none, then reads back whatever actually landed.
 pub(crate) async fn store_and_reload(
     state: &AppState,
     message_id: MessageId,
     fresh: bool,
     embeds: &[NewEmbed],
 ) -> anyhow::Result<Vec<StoreEmbed>> {
-    if fresh && !embeds.is_empty() {
+    // A retry stores what its first attempt failed to; one that already has embeds leaves them, edits included.
+    if !embeds.is_empty() && (fresh || stored_embeds(state, message_id).await?.is_empty()) {
         state.store.set_message_embeds(message_id, embeds).await?;
     }
+    stored_embeds(state, message_id).await
+}
+
+async fn stored_embeds(state: &AppState, message_id: MessageId) -> anyhow::Result<Vec<StoreEmbed>> {
     Ok(state
         .store
         .embeds_for_messages(&[message_id])

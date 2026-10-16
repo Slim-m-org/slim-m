@@ -247,19 +247,21 @@ async fn send(
         message_components::store_and_reload(&state, id, sent.fresh, &components).await,
     );
 
+    // Also on a retry, which repairs mentions its first attempt failed to store; resolving is idempotent.
+    after_commit(
+        "its mentions",
+        super::message_mentions::resolve_and_store(
+            &state,
+            channel_id,
+            ctx.user_id,
+            sent.message.id,
+            &sent.message.content,
+        )
+        .await,
+    );
+
     // An idempotent retry must not fan out or push again; see this function's note.
     if sent.fresh {
-        after_commit(
-            "its mentions",
-            super::message_mentions::resolve_and_store(
-                &state,
-                channel_id,
-                ctx.user_id,
-                sent.message.id,
-                &sent.message.content,
-            )
-            .await,
-        );
         super::read_sync::advance_for_author(&state, ctx.user_id, &sent.message).await;
 
         state.hub.publish(Event::MessageCreated {
