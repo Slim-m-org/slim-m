@@ -111,7 +111,6 @@ class WindowManagerDesktopWindowPort
     with wm.WindowListener
     implements DesktopWindowPort {
   final _events = _EventStream();
-  bool _initialized = false;
 
   @override
   Stream<DesktopWindowEventKind> get events => _events.stream;
@@ -121,11 +120,20 @@ class WindowManagerDesktopWindowPort
   /// so the native listener is registered exactly once regardless of how
   /// many times initialization is asked for.
   @override
-  Future<void> ensureInitialized() async {
-    if (_initialized) return;
-    _initialized = true;
-    await wm.windowManager.ensureInitialized();
-    wm.windowManager.addListener(this);
+  Future<void> ensureInitialized() => _initializing ??= _initialize();
+
+  /// The one initialization in flight or done; cleared on failure so a later
+  /// call retries instead of believing a failed attempt succeeded.
+  Future<void>? _initializing;
+
+  Future<void> _initialize() async {
+    try {
+      await wm.windowManager.ensureInitialized();
+      wm.windowManager.addListener(this);
+    } catch (_) {
+      _initializing = null;
+      rethrow;
+    }
   }
 
   @override
