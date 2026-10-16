@@ -222,7 +222,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
           SettingsPane(
             id: 'bots',
             label: 'Bots',
-            icon: AppIcons.code,
+            icon: AppIcons.botAction,
             compactRoute: Routes.adminBots,
             builder: (_) => const BotsPane(),
           ),
