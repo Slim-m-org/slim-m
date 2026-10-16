@@ -16,11 +16,18 @@ extension VoiceSessionStall on VoiceSession {
     if (wanted && _stallStats == null) {
       _stallStats = callStats.snapshots.listen(_onStallSnapshot);
     } else if (!wanted && _stallStats != null) {
+      // Recovery state stays: a resubscribe step briefly leaves nothing subscribed.
       unawaited(_stallStats!.cancel());
       _stallStats = null;
-      _activeVideoKeys.clear();
-      _stallWatchdog.observe(const []);
     }
+  }
+
+  /// Forgets everything the watch knew; the call is over.
+  void _stopStallWatch() {
+    unawaited(_stallStats?.cancel());
+    _stallStats = null;
+    _activeVideoKeys.clear();
+    _stallWatchdog.observe(const []);
   }
 
   void _onStallSnapshot(CallStatsSnapshot snapshot) {
@@ -37,6 +44,9 @@ extension VoiceSessionStall on VoiceSession {
               active: pub.streamState == lk.StreamState.active,
               framesDecoded:
                   _framesDecoded(snapshot, peer.identity, pub.source),
+              bytesReceived:
+                  _bytesReceived(snapshot, peer.identity, pub.source),
+              screenShare: pub.source == lk.TrackSource.screenShareVideo,
             ),
     ];
     _activeVideoKeys.addAll([
@@ -64,16 +74,31 @@ extension VoiceSessionStall on VoiceSession {
     CallStatsSnapshot snapshot,
     String identity,
     lk.TrackSource source,
+  ) =>
+      _sumOf(snapshot, identity, source, (s) => s.framesDecoded)?.toInt();
+
+  num? _bytesReceived(
+    CallStatsSnapshot snapshot,
+    String identity,
+    lk.TrackSource source,
+  ) =>
+      _sumOf(snapshot, identity, source, (s) => s.bytes);
+
+  num? _sumOf(
+    CallStatsSnapshot snapshot,
+    String identity,
+    lk.TrackSource source,
+    num? Function(VideoStreamStats) read,
   ) {
     final wanted = _statsSource(source);
     for (final sample in snapshot) {
       if (sample.local || sample.identity != identity) continue;
       if (sample.source != wanted) continue;
-      final frames = [
+      final values = [
         for (final s in sample.streams)
-          if (s.framesDecoded case final f?) f,
+          if (read(s) case final v?) v,
       ];
-      return frames.isEmpty ? null : frames.reduce((a, b) => a + b);
+      return values.isEmpty ? null : values.reduce((a, b) => a + b);
     }
     return null;
   }
@@ -86,7 +111,7 @@ extension VoiceSessionStall on VoiceSession {
       for (final pub in peer.videoTrackPublications) {
         if (_stallKey(peer.identity, pub.source) != key) continue;
         debugPrint('video stall: $key, trying ${step.name}');
-        unawaited(_runStallStep(room, pub, step));
+        unawaited(_runStallStep(room, key, pub, step));
         return;
       }
     }
@@ -94,6 +119,7 @@ extension VoiceSessionStall on VoiceSession {
 
   Future<void> _runStallStep(
     lk.Room room,
+    String key,
     lk.RemoteTrackPublication pub,
     VideoStallStep step,
   ) async {
@@ -101,9 +127,8 @@ extension VoiceSessionStall on VoiceSession {
       switch (step) {
         case VideoStallStep.switchLayer:
           // A different layer makes the SFU send a fresh keyframe; best effort, adaptive stream may absorb it.
-          final chosen = _receiveQuality.layerFor(
-            screenShare: pub.source == lk.TrackSource.screenShareVideo,
-          );
+          final screenShare = pub.source == lk.TrackSource.screenShareVideo;
+          final chosen = _receiveQuality.layerFor(screenShare: screenShare);
           await pub.setVideoQuality(
             chosen == lk.VideoQuality.LOW
                 ? lk.VideoQuality.MEDIUM
@@ -111,12 +136,21 @@ extension VoiceSessionStall on VoiceSession {
           );
           await Future<void>.delayed(const Duration(seconds: 1));
           if (!_disposed && identical(room, _room)) {
-            await pub.setVideoQuality(chosen);
+            // Read again: the user may have changed quality during the nudge.
+            await pub.setVideoQuality(
+              _receiveQuality.layerFor(screenShare: screenShare),
+            );
           }
         case VideoStallStep.resubscribe:
           await pub.unsubscribe();
           await Future<void>.delayed(const Duration(milliseconds: 500));
-          if (!_disposed && identical(room, _room)) await pub.subscribe();
+          final interest = _videoCuller.interest;
+          // The culler may have resubscribed already, or stopped wanting it meanwhile.
+          if (!_disposed &&
+              identical(room, _room) &&
+              (interest == null || interest.contains(key))) {
+            await pub.subscribe();
+          }
       }
     } catch (e) {
       debugPrint('video stall: ${step.name} failed: $e');

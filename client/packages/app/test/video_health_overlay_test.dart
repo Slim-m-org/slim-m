@@ -5,6 +5,26 @@ import 'package:slimm_app/src/widgets/video_health_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+class _Video extends StatefulWidget {
+  const _Video(this.created);
+
+  final List<State> created;
+
+  @override
+  State<_Video> createState() => _VideoState();
+}
+
+class _VideoState extends State<_Video> {
+  @override
+  void initState() {
+    super.initState();
+    widget.created.add(this);
+  }
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(color: Colors.black);
+}
+
 void main() {
   late ValueNotifier<Map<String, VideoTileHealth>> health;
 
@@ -56,5 +76,30 @@ void main() {
     health.value = {'screen:bob': VideoTileHealth.stalled};
     await tester.pump();
     expect(find.text('Reconnecting video'), findsNothing);
+  });
+
+  testWidgets('a label coming and going never remounts the video', (
+    tester,
+  ) async {
+    final created = <State>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: VideoHealthOverlay(
+          health: health,
+          tileKey: 'camera:bob',
+          child: _Video(created),
+        ),
+      ),
+    );
+    for (final state in [
+      VideoTileHealth.stalled,
+      VideoTileHealth.playing,
+      VideoTileHealth.stopped,
+    ]) {
+      health.value = {'camera:bob': state};
+      await tester.pump();
+    }
+    expect(created, hasLength(1));
   });
 }

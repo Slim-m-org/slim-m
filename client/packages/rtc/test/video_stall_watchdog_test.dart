@@ -138,6 +138,47 @@ void main() {
     expect(watchdog.health.value, isEmpty);
   });
 
+  test('a static screen share is not a stall, a stuck decoder is', () {
+    VideoStallReading share(int frames, int bytes) => VideoStallReading(
+          key: 'screen:bob',
+          framesDecoded: frames,
+          expectPlaying: true,
+          bytesReceived: bytes,
+          needsTraffic: true,
+        );
+    watchdog.observe([share(40, 1000)]);
+    for (var i = 0; i < 6; i++) {
+      clock.advance(const Duration(seconds: 2));
+      watchdog.observe([share(40, 1000)]);
+    }
+    expect(steps, isEmpty, reason: 'nothing arriving is a quiet page');
+
+    for (var i = 1; i < 4; i++) {
+      clock.advance(const Duration(seconds: 2));
+      watchdog.observe([share(40, 1000 + i * 5000)]);
+    }
+    expect(steps, [('screen:bob', VideoStallStep.switchLayer)]);
+  });
+
+  test('a new tile gets the full grace period, then missing stats stall it',
+      () {
+    const blind = VideoStallReading(
+      key: 'camera:bob',
+      framesDecoded: null,
+      expectPlaying: true,
+    );
+    watchdog.observe([blind]);
+    clock.advance(const Duration(seconds: 2));
+    watchdog.observe([blind]);
+    expect(steps, isEmpty);
+    for (var i = 0; i < 8; i++) {
+      clock.advance(const Duration(seconds: 2));
+      watchdog.observe([blind]);
+    }
+    expect(steps.length, 2);
+    expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stopped});
+  });
+
   test('a tile that disappears is forgotten', () {
     watchdog.observe([_playing(1)]);
     clock.advance(const Duration(seconds: 4));
@@ -159,6 +200,8 @@ void main() {
           muted: muted,
           active: active,
           framesDecoded: 1,
+          bytesReceived: 10,
+          screenShare: false,
         );
 
     test('owes frames only when subscribed, unmuted, active and wanted', () {
