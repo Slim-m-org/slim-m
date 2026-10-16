@@ -27,6 +27,7 @@ import 'voice_camera_failure.dart';
 import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
 import 'video_pause.dart' show gateLocalPreview;
+import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
 import 'voice_settings_controller.dart';
 import 'voice_sfu_security.dart';
@@ -431,14 +432,24 @@ class VoiceController extends StateNotifier<VoiceState>
   Widget screenShareViewFor(String identity) => gateLocalPreview(
     state.participants,
     identity,
-    _session.screenShareViewFor(identity),
+    withVideoHealth(
+      _session.videoHealth,
+      identity,
+      _session.screenShareViewFor(identity),
+      screenShare: true,
+    ),
   );
 
   /// [identity]'s camera feed; see [VoiceSession.cameraViewFor].
   Widget cameraViewFor(String identity) => gateLocalPreview(
     state.participants,
     identity,
-    _session.cameraViewFor(identity),
+    withVideoHealth(
+      _session.videoHealth,
+      identity,
+      _session.cameraViewFor(identity),
+      screenShare: false,
+    ),
   );
 
   /// Declares which presence tiles a surface currently wants video for, so
