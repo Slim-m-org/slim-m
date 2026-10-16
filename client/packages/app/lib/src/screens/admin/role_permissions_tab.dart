@@ -18,7 +18,16 @@ import '../../providers/code_block_runner.dart';
 import '../../providers/providers.dart';
 import '../../providers/slash_command.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_save_bar.dart';
+import '../../widgets/settings_section_header.dart';
 import 'role_permissions_rows.dart';
+
+const _administratorDescription =
+    'Every permission below, in every channel, ignoring overrides.';
+
+/// The pane's horizontal inset, so cards line up with the role header above.
+const _inset = AppSpacing.s24;
 
 class RolePermissionsTab extends ConsumerStatefulWidget {
   const RolePermissionsTab({super.key, required this.role});
@@ -131,7 +140,6 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final myPermissions = ref.watch(myPermissionsProvider);
     final catalog =
         ref.watch(modulePermissionsProvider).valueOrNull ?? const [];
@@ -142,21 +150,35 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
       for (final g in granted ?? const <api.GrantedModulePermission>[])
         '${g.moduleId}:${g.permKey}',
     };
+    final held = widget.role.permissions;
 
     final showAdministrator = _matchesFilter(
       'Administrator',
-      'Every permission below, in every channel, ignoring overrides.',
+      _administratorDescription,
     );
+    final groups = [
+      for (final group in Perm.groups)
+        (
+          group,
+          [
+            for (final spec in group.permissions)
+              if (_matchesFilter(spec.label, spec.description)) spec,
+          ],
+        ),
+    ].where((g) => g.$2.isNotEmpty).toList();
+    final modules = granted == null
+        ? const <api.ModulePermission>[]
+        : [
+            for (final perm in catalog)
+              if (_matchesFilter(perm.name, perm.description)) perm,
+          ];
+    final nothingMatches =
+        !showAdministrator && groups.isEmpty && modules.isEmpty;
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s8,
-          ),
+          padding: const EdgeInsets.fromLTRB(_inset, AppSpacing.s16, _inset, 0),
           child: AppInput(
             controller: _filter,
             placeholder: 'Filter permissions',
@@ -167,137 +189,104 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
         ),
         if (actionError case final error?)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            padding: const EdgeInsets.fromLTRB(
+              _inset,
+              AppSpacing.s12,
+              _inset,
+              0,
+            ),
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s16,
-            ),
+            padding: const EdgeInsets.fromLTRB(_inset, 0, _inset, 40),
             children: [
-              if (showAdministrator)
-                AdministratorRow(
-                  value:
-                      _bitOverrides[Perm.administrator] ??
-                      widget.role.permissions.hasPermission(Perm.administrator),
-                  dimmed: !myPermissions.hasPermission(Perm.administrator),
-                  onChanged: myPermissions.hasPermission(Perm.administrator)
-                      ? (v) => _setBit(
-                          Perm.administrator,
-                          v,
-                          widget.role.permissions.hasPermission(
-                            Perm.administrator,
-                          ),
-                        )
-                      : null,
+              if (nothingMatches)
+                const SettingsEmptyState(
+                  icon: AppIcons.search,
+                  title: 'No permissions match',
+                  detail: 'Try a different word.',
                 ),
-              for (final group in Perm.groups) ...[
-                if (group.permissions.any(
-                  (s) => _matchesFilter(s.label, s.description),
-                ))
-                  GroupHeader(title: group.title),
-                for (final spec in group.permissions)
-                  if (_matchesFilter(spec.label, spec.description))
-                    PermissionListRow(
-                      spec: spec,
+              if (showAdministrator)
+                SettingsSectionCard(
+                  flush: true,
+                  children: [
+                    PermissionToggleRow(
+                      title: 'Administrator',
+                      description: _administratorDescription,
+                      semanticLabel: 'Administrator',
+                      held: myPermissions.hasPermission(Perm.administrator),
                       value:
-                          _bitOverrides[spec.bit] ??
-                          widget.role.permissions.hasPermission(spec.bit),
-                      allowed: myPermissions.hasPermission(spec.bit),
+                          _bitOverrides[Perm.administrator] ??
+                          held.hasPermission(Perm.administrator),
                       onChanged: (v) => _setBit(
-                        spec.bit,
+                        Perm.administrator,
                         v,
-                        widget.role.permissions.hasPermission(spec.bit),
+                        held.hasPermission(Perm.administrator),
                       ),
                     ),
-              ],
-              if (catalog.isNotEmpty && granted != null) ...[
-                if (catalog.any((p) => _matchesFilter(p.name, p.description)))
-                  const GroupHeader(title: 'Modules'),
-                for (final perm in catalog)
-                  if (_matchesFilter(perm.name, perm.description))
-                    ModulePermissionListRow(
-                      permission: perm,
-                      value:
-                          _moduleOverrides['${perm.moduleId}:${perm.permKey}'] ??
-                          grantedKeys.contains(
-                            '${perm.moduleId}:${perm.permKey}',
-                          ),
-                      onChanged: (v) => _setModule(
-                        '${perm.moduleId}:${perm.permKey}',
-                        v,
-                        grantedKeys.contains(
-                          '${perm.moduleId}:${perm.permKey}',
-                        ),
+                  ],
+                ),
+              for (final (group, specs) in groups)
+                SettingsSectionCard(
+                  flush: true,
+                  title: group.title,
+                  children: [
+                    for (final spec in specs)
+                      PermissionToggleRow(
+                        title: spec.label,
+                        description: spec.description,
+                        semanticLabel: spec.label,
+                        elevated: spec.elevated,
+                        held: myPermissions.hasPermission(spec.bit),
+                        value:
+                            _bitOverrides[spec.bit] ??
+                            held.hasPermission(spec.bit),
+                        onChanged: (v) =>
+                            _setBit(spec.bit, v, held.hasPermission(spec.bit)),
                       ),
-                    ),
-              ],
+                  ],
+                ),
+              if (modules.isNotEmpty)
+                SettingsSectionCard(
+                  flush: true,
+                  title: 'Modules',
+                  children: [
+                    for (final perm in modules) _moduleRow(perm, grantedKeys),
+                  ],
+                ),
             ],
           ),
         ),
         if (_pendingCount > 0)
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
+              _inset,
               0,
-              AppSpacing.s16,
+              _inset,
               AppSpacing.s16,
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: tokens.surfaceBase,
-                border: Border.all(color: tokens.borderSubtle),
-                borderRadius: BorderRadius.circular(AppRadii.card),
-                boxShadow: AppShadows.float,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s16,
-                  AppSpacing.s8,
-                  AppSpacing.s8,
-                  AppSpacing.s8,
-                ),
-                child: Row(
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const SizedBox(width: 6, height: 6),
-                    ),
-                    const SizedBox(width: AppSpacing.s8),
-                    Expanded(
-                      child: Text(
-                        '$_pendingCount unsaved ${_pendingCount == 1 ? 'change' : 'changes'}',
-                        style: AppText.ui.copyWith(color: tokens.textPrimary),
-                      ),
-                    ),
-                    AppButton(
-                      label: 'Discard',
-                      variant: AppButtonVariant.ghost,
-                      size: AppButtonSize.sm,
-                      disabled: _saving,
-                      onPressed: _discard,
-                    ),
-                    const SizedBox(width: AppSpacing.s8),
-                    AppButton(
-                      label: _saving ? 'Saving...' : 'Save changes',
-                      variant: AppButtonVariant.primary,
-                      size: AppButtonSize.sm,
-                      disabled: _saving,
-                      onPressed: _save,
-                    ),
-                  ],
-                ),
-              ),
+            child: SettingsSaveBar(
+              changeCount: _pendingCount,
+              saving: _saving,
+              onDiscard: _discard,
+              onSave: _save,
             ),
           ),
       ],
+    );
+  }
+
+  Widget _moduleRow(api.ModulePermission perm, Set<String> grantedKeys) {
+    final key = '${perm.moduleId}:${perm.permKey}';
+    return PermissionToggleRow(
+      title: perm.name,
+      description: perm.description.isEmpty
+          ? perm.moduleName
+          : perm.description,
+      semanticLabel: '${perm.name} (${perm.moduleName})',
+      value: _moduleOverrides[key] ?? grantedKeys.contains(key),
+      onChanged: (v) => _setModule(key, v, grantedKeys.contains(key)),
     );
   }
 }

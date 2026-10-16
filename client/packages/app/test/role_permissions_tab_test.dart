@@ -15,7 +15,9 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/screens/admin/role_permissions_rows.dart';
 import 'package:slimm_app/src/screens/admin/role_permissions_tab.dart';
+import 'package:slimm_app/src/widgets/settings_detail_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -69,6 +71,14 @@ Widget _wrap({
   );
 }
 
+Finder _row(String title) => find.ancestor(
+  of: find.text(title),
+  matching: find.byType(SettingsDetailRow),
+);
+
+Finder _toggle(String title) =>
+    find.descendant(of: _row(title), matching: find.byType(AppToggle));
+
 void main() {
   testWidgets('permissions are grouped under headers', (tester) async {
     await tester.pumpWidget(
@@ -79,8 +89,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('MESSAGES'), findsOneWidget);
-    expect(find.text('MODERATION'), findsOneWidget);
+    expect(find.text('Messages'), findsOneWidget);
+    expect(find.text('Moderation'), findsOneWidget);
     expect(find.text('Send messages'), findsOneWidget);
     expect(find.text('Manage roles'), findsOneWidget);
   });
@@ -93,9 +103,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final manageRolesRow = find
-        .ancestor(of: find.text('Manage roles'), matching: find.byType(Row))
-        .first;
+    final manageRolesRow = _row('Manage roles');
     expect(
       find.descendant(of: manageRolesRow, matching: find.text('ELEVATED')),
       findsOneWidget,
@@ -122,17 +130,9 @@ void main() {
     await tester.pumpWidget(_wrap(role: _role(), myPermissions: 0));
     await tester.pumpAndSettle();
 
-    expect(find.text("you don't hold this"), findsWidgets);
+    expect(find.byTooltip(PermissionToggleRow.notHeldHint), findsWidgets);
 
-    final sendMessagesRow = find
-        .ancestor(
-          of: find.text('Send messages'),
-          matching: find.byType(Padding),
-        )
-        .first;
-    final toggle = tester.widget<AppToggle>(
-      find.descendant(of: sendMessagesRow, matching: find.byType(AppToggle)),
-    );
+    final toggle = tester.widget<AppToggle>(_toggle('Send messages'));
     expect(toggle.onChanged, isNull);
   });
 
@@ -146,18 +146,7 @@ void main() {
 
       expect(find.textContaining('unsaved change'), findsNothing);
 
-      final sendMessagesToggle = find
-          .ancestor(
-            of: find.text('Send messages'),
-            matching: find.byType(Padding),
-          )
-          .first;
-      await tester.tap(
-        find.descendant(
-          of: sendMessagesToggle,
-          matching: find.byType(AppToggle),
-        ),
-      );
+      await tester.tap(_toggle('Send messages'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 unsaved change'), findsOneWidget);
@@ -192,15 +181,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final sendMessagesToggle = find
-        .ancestor(
-          of: find.text('Send messages'),
-          matching: find.byType(Padding),
-        )
-        .first;
-    await tester.tap(
-      find.descendant(of: sendMessagesToggle, matching: find.byType(AppToggle)),
-    );
+    await tester.tap(_toggle('Send messages'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save changes'));

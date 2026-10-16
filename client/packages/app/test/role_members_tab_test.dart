@@ -71,8 +71,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('BOTS · 1'), findsOneWidget);
-    expect(find.text('PEOPLE · 1'), findsOneWidget);
+    expect(find.text('Bots · 1'), findsOneWidget);
+    expect(find.text('People · 1'), findsOneWidget);
     expect(find.text('sample_bot'), findsOneWidget);
     expect(find.text('Kiki'), findsOneWidget);
   });
@@ -108,10 +108,8 @@ void main() {
     await tester.pumpWidget(_wrap([_member('b1', 'sample_bot', isBot: true)]));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('No people hold this role. Search above to add someone.'),
-      findsOneWidget,
-    );
+    expect(find.text('No people hold this role'), findsOneWidget);
+    expect(find.text('Search above to add someone.'), findsOneWidget);
   });
 
   testWidgets('a group past five collapses to a "+more" summary', (
@@ -122,7 +120,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('PEOPLE · 8'), findsOneWidget);
+    expect(find.text('People · 8'), findsOneWidget);
     expect(find.text('person0'), findsOneWidget);
     expect(find.text('person4'), findsOneWidget);
     expect(find.text('person5'), findsNothing);
