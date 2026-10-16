@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart'
     show LocalAlertChannel, isAndroidHost, isLinuxHost;
 
+import '../providers/desktop_message_text_settings.dart';
 import '../providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../providers/push_controller.dart';
@@ -36,7 +37,9 @@ class NotificationsSection extends ConsumerWidget {
     final soundsEnabled = ref.watch(messageSoundSettingsProvider);
     final moduleSoundsEnabled = ref.watch(moduleSoundSettingsProvider);
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final registered = status == PushStatus.registered;
+    // The Linux desktop shows its own notifications and never has push, so any push status would be the wrong answer there.
+    final localOnly = isLinuxHost;
+    final registered = status == PushStatus.registered || localOnly;
     final blocked = status == PushStatus.registeredNotificationsBlocked;
 
     return SettingsSectionCard(
@@ -50,7 +53,7 @@ class NotificationsSection extends ConsumerWidget {
                 ? tokens.dangerText
                 : tokens.textSecondary,
           ),
-          label: status.label,
+          label: localOnly ? 'Shown while slim-m is running' : status.label,
         ),
         SettingsToggleRow(
           label: 'Message, mention and error sounds',
@@ -68,11 +71,28 @@ class NotificationsSection extends ConsumerWidget {
           semanticLabel: 'Let modules play sound effects',
         ),
         const PushContentPreviewRow(),
+        if (isLinuxHost) const _DesktopMessageTextRow(),
         const NotificationPreferenceRow(),
         const NotificationScheduleSection(),
         // Only where a local notification actually displays (Android, Linux desktop); a pipe test via the same LocalNotifications.show path a real alert uses.
         if (isAndroidHost || isLinuxHost) const _TestNotificationRow(),
       ],
+    );
+  }
+}
+
+/// The desktop's own choice of whether a notification shows the message.
+class _DesktopMessageTextRow extends ConsumerWidget {
+  const _DesktopMessageTextRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SettingsToggleRow(
+      label: 'Show message text',
+      value: ref.watch(desktopMessageTextProvider),
+      semanticLabel: 'Show message text in notifications',
+      onChanged: (value) =>
+          ref.read(desktopMessageTextProvider.notifier).setEnabled(value),
     );
   }
 }
