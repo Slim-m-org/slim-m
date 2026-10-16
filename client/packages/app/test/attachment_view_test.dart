@@ -85,10 +85,8 @@ void main() {
       await _pump(tester, Uint8List.fromList(const [1, 2, 3, 4]));
 
       expect(find.byType(ErrorWidget), findsNothing);
-      expect(
-        find.text('Could not open ${_attachment.filename}.'),
-        findsOneWidget,
-      );
+      expect(find.text('Could not open'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
     },
   );
 
