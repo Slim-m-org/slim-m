@@ -57,6 +57,37 @@ void main() {
     expect(await store.pendingSpoilerIds('m1'), ['a']);
   });
 
+  test('a reply that opted out of the mention remembers it', () async {
+    await store.addPending(
+      id: 'm1',
+      channelId: 'c1',
+      authorId: 'u1',
+      content: 'hi',
+      replyToId: 'p',
+      mentionReply: false,
+      attachmentIds: const ['a'],
+    );
+
+    expect(await store.pendingMentionReply('m1'), isFalse);
+    expect(await store.pendingAttachmentIds('m1'), ['a']);
+    expect(await store.pendingSpoilerIds('m1'), isEmpty);
+  });
+
+  test('a reply defaults to mentioning, and a plain send never opts out',
+      () async {
+    await _queue(store, 'm1');
+    await store.addPending(
+      id: 'm2',
+      channelId: 'c1',
+      authorId: 'u1',
+      content: 'hi',
+      mentionReply: false,
+    );
+
+    expect(await store.pendingMentionReply('m1'), isTrue);
+    expect(await store.pendingMentionReply('m2'), isTrue);
+  });
+
   test('a send with no attachments has none to remember', () async {
     await _queue(store, 'm1');
 
