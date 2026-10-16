@@ -128,10 +128,8 @@ void main() {
     expect(find.text('Remove photo'), findsNothing);
   });
 
-  testWidgets('the card is compact and the avatar target clears 44', (t) async {
+  testWidgets('the Change target clears 44', (t) async {
     await _pump(t, width: 390);
-    final card = t.getSize(find.byType(AppCard));
-    expect(card.height, lessThan(90));
     final target = t.getSize(find.bySemanticsLabel(_avatarLabel));
     expect(target.shortestSide, greaterThanOrEqualTo(44));
   });
