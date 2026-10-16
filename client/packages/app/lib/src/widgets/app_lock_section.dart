@@ -9,11 +9,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show supportsBiometricLock;
 
 import '../providers/app_lock_preference.dart';
 import 'settings_section_header.dart';
-import 'settings_toggle_row.dart';
+import 'settings_detail_row.dart';
 
 class AppLockSection extends ConsumerWidget {
   const AppLockSection({super.key, this.supported});
@@ -28,16 +29,23 @@ class AppLockSection extends ConsumerWidget {
 
     final enabled = ref.watch(appLockPreferenceProvider);
     return SettingsSectionCard(
+      flush: true,
       title: 'App lock',
       description: 'Locks slim-m on this device, separate from your password.',
       children: [
-        SettingsToggleRow(
-          label: 'Require Face ID or fingerprint',
-          description: 'Uses your device passcode if biometrics fail.',
-          value: enabled,
-          semanticLabel: 'Require Face ID or a fingerprint to open slim-m',
-          onChanged: (next) =>
-              ref.read(appLockPreferenceProvider.notifier).set(next),
+        SettingsDetailRow(
+          title: 'Require Face ID or fingerprint',
+          badge: const AppBadge(
+            variant: AppBadgeVariant.tag,
+            label: 'Phones only',
+          ),
+          detail: 'Uses your device passcode if biometrics fail.',
+          trailing: AppToggle(
+            value: enabled,
+            semanticLabel: 'Require Face ID or a fingerprint to open slim-m',
+            onChanged: (next) =>
+                ref.read(appLockPreferenceProvider.notifier).set(next),
+          ),
         ),
       ],
     );

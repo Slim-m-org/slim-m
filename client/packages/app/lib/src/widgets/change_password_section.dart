@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/providers.dart';
 import 'change_password_sheet.dart';
 import 'reauth_sheet.dart' show reauthFailure;
+import 'settings_detail_row.dart';
 import 'settings_notice.dart';
 import 'settings_section_header.dart';
 
@@ -76,23 +77,29 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
       );
     }
     return SettingsSectionCard(
+      flush: true,
       title: 'Password',
       description: 'Changing it signs out your other devices.',
-      children: rows,
+      children: [Column(children: rows)],
     );
   }
 
   List<Widget> _rows() => [
-    AppListRow(
-      label: 'Change password',
-      leading: const Icon(AppIcons.changePassword),
-      subtitle: widget.embedded ? 'Signs out your other devices.' : null,
-      onTap: _open,
+    SettingsDetailRow(
+      icon: AppIcons.changePassword,
+      title: 'Password',
+      detail: 'Changing it signs out your other devices.',
+      trailing: AppButton(
+        label: 'Change',
+        size: AppButtonSize.sm,
+        semanticLabel: 'Change password',
+        onPressed: _open,
+      ),
     ),
     if (_changed) const SettingsNotice(message: 'Password changed.'),
     if (_loadError case final error?)
       Padding(
-        padding: const EdgeInsets.all(AppSpacing.s8),
+        padding: const EdgeInsets.all(AppSpacing.s16),
         child: AppErrorState(
           message: 'Could not start the change.',
           detail: error,

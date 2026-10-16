@@ -31,17 +31,10 @@ String _device(String id, {required bool current}) => jsonEncode({
   'is_current': current,
 });
 
-double _insetOf(WidgetTester tester, String label) {
+/// Right inset of [label]'s button inside its section, whose width is its card's.
+double _insetOf(WidgetTester tester, String label, Type section) {
   final button = tester.getRect(find.widgetWithText(AppButton, label));
-  final card = tester.getRect(
-    find
-        .ancestor(
-          of: find.widgetWithText(AppButton, label),
-          matching: find.byType(AppCard),
-        )
-        .first,
-  );
-  return button.left - card.left;
+  return tester.getRect(find.byType(section)).right - button.right;
 }
 
 void main() {
@@ -90,8 +83,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      _insetOf(tester, 'Sign out all other devices'),
-      _insetOf(tester, 'Delete account...'),
+      _insetOf(tester, 'Sign out others', DevicesSection),
+      _insetOf(tester, 'Delete account...', AccountSection),
     );
   });
 }

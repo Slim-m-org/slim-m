@@ -25,6 +25,7 @@ import '../api_failure.dart';
 import '../format.dart';
 import '../providers/filed_reports.dart';
 import '../providers/providers.dart';
+import 'settings_empty.dart';
 import 'settings_section_header.dart';
 
 class ReportStatusSection extends ConsumerWidget {
@@ -32,30 +33,26 @@ class ReportStatusSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final filedIds = ref.watch(filedReportsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionCard(
+          flush: true,
           title: 'Reports you filed',
           description:
               'Reports from this device, and whether each is still open.',
           children: [
             if (filedIds.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.s8),
-                child: Text(
-                  'Nothing filed from this device yet.',
-                  style: AppText.body.copyWith(color: tokens.textSecondary),
-                ),
+              const SettingsEmptyState(
+                icon: AppIcons.report,
+                title: 'Nothing filed from this device yet',
               )
             else
               for (final id in filedIds)
                 _FiledReportRow(key: ValueKey(id), reportId: id),
           ],
         ),
-        const SizedBox(height: AppSpacing.s16),
         const _CheckByIdSection(),
       ],
     );
@@ -116,13 +113,13 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     if (_loading) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+        padding: EdgeInsets.all(AppSpacing.s16),
         child: LinearProgressIndicator(),
       );
     }
     if (_error case final error?) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
+        padding: const EdgeInsets.all(AppSpacing.s16),
         child: Text(
           error,
           style: AppText.caption.copyWith(color: tokens.textSecondary),
@@ -131,7 +128,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
     }
     final status = _status!;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
+      padding: const EdgeInsets.all(AppSpacing.s16),
       child: Text(
         status.resolved
             ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
@@ -199,48 +196,55 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return SettingsSectionCard(
+      flush: true,
       title: 'Check a report by ID',
       description: 'Paste the ID of a report from another device.',
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        SettingsCardBlock(
+          gap: 6,
           children: [
-            Expanded(
-              child: AppInput(
-                controller: _idController,
-                placeholder: 'Report ID',
-                mono: true,
-                size: AppInputSize.sm,
-                onSubmitted: (_) => _check(),
+            Text(
+              'Report ID',
+              style: AppText.caption.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.medium,
               ),
             ),
-            const SizedBox(width: AppSpacing.s8),
-            AppButton(
-              label: 'Check',
-              size: AppButtonSize.sm,
-              disabled: _busy,
-              onPressed: _check,
+            Row(
+              spacing: AppSpacing.s8,
+              children: [
+                Expanded(
+                  child: AppInput(
+                    controller: _idController,
+                    placeholder: 'Report ID',
+                    semanticLabel: 'Report ID',
+                    mono: true,
+                    onSubmitted: (_) => _check(),
+                  ),
+                ),
+                AppButton(label: 'Check', disabled: _busy, onPressed: _check),
+              ],
             ),
+            if (_result case final status?)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.s4),
+                child: Text(
+                  status.resolved
+                      ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
+                      : 'Still open. Filed ${filedAgo(status.createdAt)}.',
+                  style: AppText.body.copyWith(color: tokens.textPrimary),
+                ),
+              ),
+            if (_error case final error?)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.s4),
+                child: AppErrorState(
+                  message: error,
+                  onDismiss: () => setState(() => _error = null),
+                ),
+              ),
           ],
         ),
-        if (_result case final status?)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.s12),
-            child: Text(
-              status.resolved
-                  ? 'Resolved. Filed ${filedAgo(status.createdAt)}.'
-                  : 'Still open. Filed ${filedAgo(status.createdAt)}.',
-              style: AppText.body.copyWith(color: tokens.textPrimary),
-            ),
-          ),
-        if (_error case final error?)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.s12),
-            child: AppErrorState(
-              message: error,
-              onDismiss: () => setState(() => _error = null),
-            ),
-          ),
       ],
     );
   }
