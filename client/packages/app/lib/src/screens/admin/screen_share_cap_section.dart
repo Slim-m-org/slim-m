@@ -87,7 +87,6 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Screen share quality',
           description: 'The tallest resolution a share may use.',
           children: [

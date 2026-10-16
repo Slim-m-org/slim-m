@@ -70,7 +70,6 @@ class InvitesPane extends ConsumerWidget {
         // Who may join sits above the codes that let them in; see JoinPolicyRow.
         if (canManageServer) ...const [
           SettingsSectionCard(
-            flush: true,
             title: 'Joining',
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
@@ -96,7 +95,6 @@ class _InviteList extends ConsumerWidget {
       errorMessage: 'Could not load invites.',
       onRetry: () => ref.invalidate(invitesProvider),
       data: (context, list) => SettingsSectionCard(
-        flush: true,
         title: 'Invites',
         children: [
           if (list.isEmpty)
@@ -189,7 +187,6 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
-      flush: true,
       title: 'New invite',
       children: [
         SettingsCardBlock(

@@ -116,7 +116,6 @@ class DockHostAccessCard extends StatelessWidget {
     final grantable = grantableHostCapabilities(manifest.capabilities);
     if (grantable.isEmpty) return const SizedBox.shrink();
     final access = SettingsSectionCard(
-      flush: true,
       title: 'Access to approve',
       children: [
         SettingsInfoLine(
@@ -141,7 +140,6 @@ class DockHostAccessCard extends StatelessWidget {
       children: [
         access,
         SettingsSectionCard(
-          flush: true,
           title: 'Second approval',
           children: [
             SettingsToggleRow(

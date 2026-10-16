@@ -27,12 +27,10 @@ class GeneralSettingsSection extends ConsumerWidget {
       children: [
         if (isDesktopHost)
           SettingsSectionCard(
-            flush: true,
             title: 'Startup',
             children: [const StartOnLoginRow(), _splashRow(ref)],
           ),
         SettingsSectionCard(
-          flush: true,
           title: 'History',
           description: 'How many messages load when you scroll back.',
           children: [

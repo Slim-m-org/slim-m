@@ -28,7 +28,6 @@ class DockWhatItAddsCard extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return SettingsSectionCard(
-      flush: true,
       title: 'What it adds',
       children: [
         for (final (title, subtitle) in entries)

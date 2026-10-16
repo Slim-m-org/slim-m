@@ -30,7 +30,6 @@ class DockChangelogCard extends StatelessWidget {
     final entries = all.take(dockChangelogCap).toList();
     final cut = all.length - entries.length;
     return SettingsSectionCard(
-      flush: true,
       title: "What's new",
       children: [
         for (final entry in entries)

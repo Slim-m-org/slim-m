@@ -29,7 +29,6 @@ class AppLockSection extends ConsumerWidget {
 
     final enabled = ref.watch(appLockPreferenceProvider);
     return SettingsSectionCard(
-      flush: true,
       title: 'App lock',
       description: 'Locks slim-m on this device, separate from your password.',
       children: [

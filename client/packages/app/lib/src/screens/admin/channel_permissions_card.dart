@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The bordered card the permissions grid sits in, matching a settings
-/// section's flush card: the toolbar, the legend, then the grid itself.
+/// section's card: the toolbar, the legend, then the grid itself.
 library;
 
 import 'package:flutter/material.dart';

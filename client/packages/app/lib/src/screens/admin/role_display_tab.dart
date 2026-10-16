@@ -127,7 +127,6 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
       padding: const EdgeInsets.fromLTRB(AppSpacing.s24, 0, AppSpacing.s24, 40),
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Name',
           children: [
             if (role.isEveryone)
@@ -159,7 +158,6 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
           ],
         ),
         SettingsSectionCard(
-          flush: true,
           title: 'Colour',
           description: 'Marks this role in the roles list.',
           children: [
@@ -178,7 +176,6 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
         ),
         if (!role.isEveryone)
           SettingsSectionCard(
-            flush: true,
             title: 'Display',
             children: [
               SettingsToggleRow(
@@ -203,7 +200,6 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
         ],
         if (!role.isEveryone)
           SettingsSectionCard(
-            flush: true,
             title: 'Danger zone',
             children: [
               SettingsActionRow(

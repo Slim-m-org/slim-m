@@ -86,7 +86,6 @@ class _TotalsCard extends StatelessWidget {
     final onDisk = storage.databaseBytes + storage.attachmentBytes;
     final total = 'of ${formatByteSize(onDisk)}';
     return SettingsSectionCard(
-      flush: true,
       title: 'On disk',
       trailing: SettingsRefreshButton(
         label: 'Refresh storage usage',
@@ -130,7 +129,6 @@ class _TopChannelsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsSectionCard(
-    flush: true,
     title: 'Storage by channel',
     children: [
       if (channels.isEmpty)
@@ -157,7 +155,6 @@ class _SweepsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsSectionCard(
-    flush: true,
     title: 'Background sweeps',
     children: [
       if (sweeps.isEmpty)

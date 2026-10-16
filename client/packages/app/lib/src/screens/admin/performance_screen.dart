@@ -201,7 +201,6 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Message retention',
           description: 'How long messages are kept before they are deleted.',
           children: [

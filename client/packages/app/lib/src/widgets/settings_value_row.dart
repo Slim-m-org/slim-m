@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A read-only row inside a flush settings card: a label and its value.
+/// A read-only row inside a settings card: a label and its value.
 library;
 
 import 'package:flutter/material.dart';

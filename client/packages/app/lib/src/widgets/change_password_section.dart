@@ -77,7 +77,6 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
       );
     }
     return SettingsSectionCard(
-      flush: true,
       title: 'Password',
       description: 'Changing it signs out your other devices.',
       children: [Column(children: rows)],

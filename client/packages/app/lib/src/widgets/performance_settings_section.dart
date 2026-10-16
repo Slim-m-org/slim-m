@@ -29,7 +29,6 @@ class PerformanceSettingsSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Media',
           description: 'What loads and plays on its own.',
           children: [
@@ -75,7 +74,6 @@ class PerformanceSettingsSection extends ConsumerWidget {
           ],
         ),
         SettingsSectionCard(
-          flush: true,
           title: 'Storage',
           description: 'How much this device keeps around.',
           children: [

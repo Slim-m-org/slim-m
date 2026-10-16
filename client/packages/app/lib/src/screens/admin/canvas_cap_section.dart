@@ -90,7 +90,6 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Canvas object cap',
           description: 'The most objects one channel canvas can hold.',
           children: [

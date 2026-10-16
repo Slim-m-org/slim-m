@@ -123,7 +123,6 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
             onDismiss: () => setState(() => _justCreated = null),
           ),
         SettingsSectionCard(
-          flush: true,
           title: ActionLabels.createWebhook,
           children: [
             SettingsCardBlock(
@@ -174,7 +173,6 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
           errorMessage: 'Could not load the webhooks.',
           onRetry: () => ref.invalidate(webhooksProvider),
           data: (context, list) => SettingsSectionCard(
-            flush: true,
             title: 'Webhooks in this Space',
             children: [
               if (list.isEmpty)

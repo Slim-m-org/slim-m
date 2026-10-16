@@ -224,7 +224,6 @@ class _PermissionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
-      flush: true,
       title: 'Permissions this will add',
       children: [
         if (permissions.isEmpty)
@@ -306,7 +305,6 @@ class _ActionsCard extends StatelessWidget {
           ),
         ],
         SettingsSectionCard(
-          flush: true,
           children: [
             SettingsToggleRow(
               label: 'Enabled',

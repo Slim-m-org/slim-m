@@ -213,7 +213,6 @@ class _ModuleAccessPaneState extends ConsumerState<ModuleAccessPane>
         ),
         if (installed != null)
           SettingsSectionCard(
-            flush: true,
             children: [
               SettingsToggleRow(
                 label: widget.manifest.name,
@@ -232,7 +231,6 @@ class _ModuleAccessPaneState extends ConsumerState<ModuleAccessPane>
           errorMessage: 'Could not load the roles.',
           onRetry: () => ref.invalidate(rolesProvider),
           data: (context, list) => SettingsSectionCard(
-            flush: true,
             title: installed == null ? null : 'Who can use it',
             children: [
               for (final role in list)

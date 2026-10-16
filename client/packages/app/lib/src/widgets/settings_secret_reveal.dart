@@ -29,7 +29,6 @@ class SettingsSecretReveal extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return SettingsSectionCard(
-      flush: true,
       children: [
         SettingsCardBlock(
           gap: AppSpacing.s12,

@@ -88,7 +88,6 @@ class _DockCommandPanelState extends ConsumerState<DockCommandPanel>
   Widget build(BuildContext context) => widget.bare
       ? _body(context)
       : SettingsSectionCard(
-          flush: true,
           title: widget.extensionPoint.name,
           children: [_body(context)],
         );

@@ -89,7 +89,6 @@ class _SystemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pool = metrics.pool;
     return SettingsSectionCard(
-      flush: true,
       title: 'System',
       trailing: SettingsRefreshButton(
         label: 'Refresh server metrics',
@@ -133,7 +132,6 @@ class _RequestVolumeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (requestsByClass.isEmpty) {
       return const SettingsSectionCard(
-        flush: true,
         title: 'Request volume by class',
         children: [
           SettingsEmptyState(
@@ -149,7 +147,6 @@ class _RequestVolumeCard extends StatelessWidget {
         )
         .join(', ');
     return SettingsSectionCard(
-      flush: true,
       title: 'Request volume by class',
       children: [
         SettingsCardBlock(

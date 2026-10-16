@@ -31,7 +31,6 @@ class ActivitySharingSection extends ConsumerWidget {
     final spotifyShown =
         ref.watch(spotifyLinkStatusProvider) is! SpotifyUnlinked;
     return SettingsSectionCard(
-      flush: true,
       title: 'Activity',
       description:
           'Shown to people who see your status, never when appearing offline.',

@@ -24,7 +24,7 @@ import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
 import 'run_guarded.dart';
 import 'settings_info_line.dart';
-import 'settings_row_group.dart';
+import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';

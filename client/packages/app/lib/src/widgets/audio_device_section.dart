@@ -20,7 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
-import 'settings_row_group.dart';
+import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 
@@ -100,10 +100,8 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     ];
     if (widget.embedded) return SettingsRowGroup(children: rows);
     return SettingsSectionCard(
-      flush: true,
       title: 'Input and output devices',
       description: 'Which microphone and speaker a call uses.',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: rows,
     );
   }

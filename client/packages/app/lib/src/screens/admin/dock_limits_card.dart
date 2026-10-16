@@ -30,7 +30,6 @@ class DockLimitsCard extends StatelessWidget {
       manifest.capabilities,
     ).isNotEmpty;
     return SettingsSectionCard(
-      flush: true,
       title: 'Limits on every run',
       children: [
         if (!asksForAccess) const SettingsInfoLine(dockNoAccessNote),

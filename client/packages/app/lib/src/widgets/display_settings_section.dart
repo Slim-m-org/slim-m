@@ -27,7 +27,6 @@ class DisplaySettingsSection extends ConsumerWidget {
     final marker = ref.watch(continuationMarkerControllerProvider);
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Messages',
       description: 'How tight messages sit, and how far apart groups are.',
       children: [

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Rows for a flush settings card that carry an icon tile and a second line:
+/// Rows for a settings card that carry an icon tile and a second line:
 /// the design's `.row` with a `.lead` tile, `.lab` and `.dm`.
 library;
 

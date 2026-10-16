@@ -200,7 +200,6 @@ class _ReportCardState extends ConsumerState<ReportCard>
         canJump || canDeleteMessage || canTimeOut || canRemove;
 
     return SettingsSectionCard(
-      flush: true,
       title: switch (report.subjectKind) {
         api.ReportSubject.message => 'Reported message',
         api.ReportSubject.ephemeralMessage => 'Reported private message',

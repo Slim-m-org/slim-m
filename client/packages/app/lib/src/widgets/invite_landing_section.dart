@@ -166,7 +166,6 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   Widget build(BuildContext context) {
     final settings = ref.watch(spaceSettingsProvider);
     return SettingsSectionCard(
-      flush: true,
       title: 'Landing page',
       description: 'What an invite link shows before sign-in.',
       children: settings.when(

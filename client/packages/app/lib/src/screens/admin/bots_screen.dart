@@ -116,7 +116,6 @@ class _BotsPaneState extends ConsumerState<BotsPane>
             onDismiss: () => setState(() => _justCreated = null),
           ),
         SettingsSectionCard(
-          flush: true,
           title: ActionLabels.createBot,
           children: [
             SettingsCardBlock(
@@ -167,7 +166,6 @@ class _BotsPaneState extends ConsumerState<BotsPane>
           errorMessage: 'Could not load the bots.',
           onRetry: () => ref.invalidate(botsProvider),
           data: (context, list) => SettingsSectionCard(
-            flush: true,
             title: 'Bots in this Space',
             children: [
               if (list.isEmpty)

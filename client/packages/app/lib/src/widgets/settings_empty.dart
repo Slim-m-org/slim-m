@@ -5,8 +5,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'settings_section_header.dart';
-
 /// The sentence alone, for a card that already exists around it.
 class SettingsEmptyLine extends StatelessWidget {
   const SettingsEmptyLine(this.message, {super.key});
@@ -24,17 +22,6 @@ class SettingsEmptyLine extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A pane with nothing to list: [message] in a card, top-left like every other group.
-class SettingsEmpty extends StatelessWidget {
-  const SettingsEmpty(this.message, {super.key});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) =>
-      SettingsSectionCard(children: [SettingsEmptyLine(message)]);
 }
 
 /// The design's centred empty card body: a round glyph, a title, one detail line.

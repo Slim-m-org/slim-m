@@ -62,7 +62,6 @@ class _GhostOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SettingsSectionCard(
-    flush: true,
     title: 'Overview',
     children: [_GhostRow(), _GhostRow(), _GhostRow(), _GhostRow()],
   );
@@ -75,7 +74,6 @@ class _GhostChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsSectionCard(
-    flush: true,
     title: title,
     children: const [
       SettingsCardBlock(
@@ -136,7 +134,6 @@ class _GhostMemberList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SettingsSectionCard(
-    flush: true,
     title: 'Attachment storage by member',
     children: [_GhostRow(), _GhostRow()],
   );

@@ -32,7 +32,6 @@ class AppInfoSection extends ConsumerWidget {
         const SizedBox(height: 28),
         const UpdateStatusRows(),
         SettingsSectionCard(
-          flush: true,
           title: 'Updates',
           children: [
             // Desktop only: a store build and the web page are updated by the store and the browser (decision 0025).

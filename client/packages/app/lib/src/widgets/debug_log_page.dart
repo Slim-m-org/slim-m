@@ -53,7 +53,6 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'This session',
           description: entries.isEmpty
               ? 'Errors the app catches are collected here for bug reports.'

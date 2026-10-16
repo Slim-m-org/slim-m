@@ -209,7 +209,6 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
                 ),
               if (showAdministrator)
                 SettingsSectionCard(
-                  flush: true,
                   children: [
                     PermissionToggleRow(
                       title: 'Administrator',
@@ -229,7 +228,6 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
                 ),
               for (final (group, specs) in groups)
                 SettingsSectionCard(
-                  flush: true,
                   title: group.title,
                   children: [
                     for (final spec in specs)
@@ -249,7 +247,6 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
                 ),
               if (modules.isNotEmpty)
                 SettingsSectionCard(
-                  flush: true,
                   title: 'Modules',
                   children: [
                     for (final perm in modules) _moduleRow(perm, grantedKeys),

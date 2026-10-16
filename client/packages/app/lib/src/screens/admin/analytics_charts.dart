@@ -58,7 +58,6 @@ class MessagesByDayCard extends StatelessWidget {
     final summaryLabel = days.map((d) => '${d.date}: ${d.count}').join(', ');
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Messages, last 30 days',
       children: [
         SettingsCardBlock(
@@ -106,7 +105,6 @@ class ActiveHoursCard extends StatelessWidget {
     ].join(', ');
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Active hours, last 30 days (UTC)',
       children: [
         SettingsCardBlock(
@@ -144,7 +142,6 @@ class MemoryCard extends StatelessWidget {
     final samples = stats.memorySamples;
     if (samples.isEmpty) {
       return const SettingsSectionCard(
-        flush: true,
         title: 'Server memory use',
         children: [
           SettingsEmptyState(
@@ -161,7 +158,6 @@ class MemoryCard extends StatelessWidget {
         .join(', ');
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Server memory use',
       children: [
         SettingsCardBlock(
@@ -203,7 +199,6 @@ class MemberStorageCard extends ConsumerWidget {
 
     if (usage.isEmpty) {
       return const SettingsSectionCard(
-        flush: true,
         title: 'Attachment storage by member',
         children: [
           SettingsEmptyState(
@@ -215,7 +210,6 @@ class MemberStorageCard extends ConsumerWidget {
     }
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Attachment storage by member',
       children: [
         for (final member in usage)

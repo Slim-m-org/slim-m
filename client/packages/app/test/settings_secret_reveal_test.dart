@@ -73,7 +73,6 @@ void main() {
     await _pump(
       tester,
       const SettingsSectionCard(
-        flush: true,
         children: [SettingsInfoLine('Heads up.', warn: true)],
       ),
     );

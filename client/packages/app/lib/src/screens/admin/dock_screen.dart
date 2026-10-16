@@ -235,7 +235,6 @@ class _DockPaneState extends ConsumerState<DockPane>
             const SizedBox(height: AppSpacing.s12),
             if (shown.isEmpty)
               SettingsSectionCard(
-                flush: true,
                 children: [
                   SettingsEmptyState(
                     icon: AppIcons.dock,
@@ -247,7 +246,6 @@ class _DockPaneState extends ConsumerState<DockPane>
               )
             else
               SettingsSectionCard(
-                flush: true,
                 title: catalog.sections.isEmpty ? null : 'Official modules',
                 children: [
                   for (final entry in shown)
@@ -306,7 +304,6 @@ class _UpdateAllBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final subject = count == 1 ? '1 module has' : '$count modules have';
     return SettingsSectionCard(
-      flush: true,
       children: [
         SettingsDetailRow(
           icon: AppIcons.dock,

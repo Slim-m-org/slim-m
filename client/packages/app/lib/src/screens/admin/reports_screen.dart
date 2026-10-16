@@ -119,7 +119,6 @@ class _OpenQueuePane extends ConsumerWidget {
         children: [
           if (list.isEmpty)
             const SettingsSectionCard(
-              flush: true,
               children: [
                 SettingsEmptyState(
                   icon: AppIcons.report,

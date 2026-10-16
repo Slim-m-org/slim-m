@@ -37,7 +37,6 @@ class VideoQualitySection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Video quality',
           description: 'Lower it to save data, raise it to see more.',
           children: [
@@ -73,7 +72,6 @@ class VideoQualitySection extends ConsumerWidget {
           ],
         ),
         SettingsSectionCard(
-          flush: true,
           title: 'Sharing and preview',
           children: [
             // Absent, never disabled, where this platform cannot publish it; see supportsScreenShareAudio.

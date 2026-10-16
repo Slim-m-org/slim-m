@@ -30,7 +30,7 @@ class SettingsDangerCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsSectionHeader(title, flush: true),
+        SettingsSectionHeader(title),
         DecoratedBox(
           decoration: BoxDecoration(
             color: tokens.surfaceRaised,

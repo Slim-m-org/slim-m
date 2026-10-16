@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/widgets/settings_hairline.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -16,8 +17,14 @@ Widget _harness(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 
+/// The card's own box, as opposed to its header above it.
+final _card = find.descendant(
+  of: find.byType(SettingsSectionCard),
+  matching: find.byType(ClipRRect),
+);
+
 void main() {
-  testWidgets('wraps its rows in a bordered AppCard', (tester) async {
+  testWidgets('wraps its rows in the card', (tester) async {
     await tester.pumpWidget(
       _harness(
         const SettingsSectionCard(
@@ -28,47 +35,32 @@ void main() {
     );
 
     expect(
-      find.descendant(of: find.byType(AppCard), matching: find.text('a phone')),
+      find.descendant(of: _card, matching: find.text('a phone')),
       findsOneWidget,
       reason: 'the row must be inside the card, not a sibling of it',
     );
   });
 
-  testWidgets('the header stays outside the card, at its own type scale', (
-    tester,
-  ) async {
+  testWidgets('the header stays outside the card', (tester) async {
     await tester.pumpWidget(
       _harness(
         const SettingsSectionCard(
           title: 'Devices',
+          description: 'They are listed here.',
           children: [Text('a phone')],
         ),
       ),
     );
 
     expect(
-      find.descendant(of: find.byType(AppCard), matching: find.text('Devices')),
+      find.descendant(of: _card, matching: find.text('Devices')),
       findsNothing,
-      reason:
-          'the section name is a SettingsSectionHeader above the card, not '
-          'AppCard\'s own small uppercase title slot',
     );
     expect(find.byType(SettingsSectionHeader), findsOneWidget);
-  });
-
-  testWidgets('a description renders above the card, between it and the '
-      'title', (tester) async {
-    await tester.pumpWidget(
-      _harness(
-        const SettingsSectionCard(
-          title: 'Blocked',
-          description: 'They are not told.',
-          children: [Text('nobody blocked')],
-        ),
-      ),
+    expect(
+      tester.getBottomLeft(find.text('They are listed here.')).dy,
+      lessThan(tester.getTopLeft(_card).dy),
     );
-
-    expect(find.text('They are not told.'), findsOneWidget);
   });
 
   testWidgets('adds no horizontal inset of its own, so the screen frame is '
@@ -83,36 +75,13 @@ void main() {
     );
 
     final body = tester.getRect(find.byType(Scaffold));
-    final card = tester.getRect(find.byType(AppCard));
-
-    expect(
-      card.left,
-      body.left,
-      reason:
-          'decision 0013: a section owns no horizontal padding. This used to '
-          'add AppSpacing.s16 on top of the frame\'s own, which is why '
-          'personal and Space settings sat at 32 while every admin screen sat '
-          'at 16 - three insets across screens one tap apart.',
-    );
+    final card = tester.getRect(_card);
+    expect(card.left, body.left, reason: 'decision 0013');
     expect(card.right, body.right);
-  });
-
-  testWidgets('the header lines up with the card it names', (tester) async {
-    await tester.pumpWidget(
-      _harness(
-        const SettingsSectionCard(
-          title: 'Devices',
-          children: [Text('a phone')],
-        ),
-      ),
-    );
-
     expect(
       tester.getRect(find.text('Devices')).left,
-      tester.getRect(find.byType(AppCard)).left,
-      reason:
-          'a header indented differently from its own card reads as belonging '
-          'to something else',
+      card.left,
+      reason: 'the header lines up with the card it names',
     );
   });
 
@@ -132,32 +101,45 @@ void main() {
     },
   );
 
-  testWidgets('divided draws one hairline between each pair of rows', (
+  testWidgets('one hairline between each pair of rows, none at the edges', (
     tester,
   ) async {
     await tester.pumpWidget(
       _harness(
         const SettingsSectionCard(
           title: 'Display',
-          divided: true,
           children: [Text('a'), Text('b'), Text('c')],
         ),
       ),
     );
-    expect(find.byType(Divider), findsNWidgets(2));
+    final rules = find.byType(SettingsHairline);
+    expect(rules, findsNWidgets(2));
+    expect(
+      tester.getRect(rules.first).width,
+      tester.getRect(_card).width,
+      reason: 'the rule runs the full width of the card',
+    );
+  });
 
+  testWidgets('a row inside the card takes the card row metrics', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _harness(
         const SettingsSectionCard(
           title: 'Display',
-          children: [Text('a'), Text('b'), Text('c')],
+          children: [AppListRow(label: 'Clock')],
         ),
       ),
     );
-    expect(find.byType(Divider), findsNothing);
+    expect(tester.getSize(find.byType(AppListRow)).height, 56);
+    expect(
+      tester.getTopLeft(find.text('Clock')).dx - tester.getTopLeft(_card).dx,
+      AppCardRowScope.inset,
+    );
   });
 
-  testWidgets('an untitled card starts as far down as a titled one', (
+  testWidgets('an untitled card starts as far down as a titled header', (
     tester,
   ) async {
     Future<double> cardTop(String? title) async {
@@ -166,16 +148,16 @@ void main() {
           SettingsSectionCard(title: title, children: const [Text('row')]),
         ),
       );
-      return tester.getTopLeft(find.byType(AppCard)).dy;
+      return tester.getTopLeft(_card).dy;
     }
 
     final untitled = await cardTop(null);
     final titled = await cardTop('Display');
-    expect(untitled, AppSpacing.s24);
+    expect(untitled, 28);
     expect(titled, greaterThan(untitled));
   });
 
-  testWidgets('a flush card keeps its border over a child that fills its '
+  testWidgets('the card keeps its border over a child that fills its '
       'own background', (tester) async {
     final boundary = GlobalKey();
     const fill = Color(0xFFFF0000);
@@ -189,7 +171,6 @@ void main() {
               child: const SizedBox(
                 width: 200,
                 child: SettingsSectionCard(
-                  flush: true,
                   children: [
                     SizedBox(height: 80, child: ColoredBox(color: fill)),
                   ],

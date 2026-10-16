@@ -132,7 +132,6 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
       onImage: (bytes, _) => unawaited(_crop(bytes)),
       onRejected: setActionError,
       child: SettingsSectionCard(
-        flush: true,
         title: 'Identity',
         children: [
           _IdentityRow(

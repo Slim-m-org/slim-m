@@ -55,7 +55,6 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     final devices = ref.watch(devicesProvider);
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Devices',
       description: 'Everywhere this account is signed in.',
       children: devices.when(

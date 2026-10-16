@@ -78,7 +78,6 @@ class _MediaCapabilitySectionState
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
-      flush: true,
       title: 'This device',
       children: [
         AppListRow(

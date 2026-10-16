@@ -48,7 +48,6 @@ class _MemoryDiagnosticsState extends State<MemoryDiagnostics> {
     final rss = currentResidentBytes();
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Memory',
       description: _updatedLabel,
       trailing: SettingsRefreshButton(

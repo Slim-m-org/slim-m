@@ -122,7 +122,6 @@ class _NotificationSnoozeSectionState
     }
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Snooze',
       children: [
         row,

@@ -207,7 +207,6 @@ class _SignInSection extends ConsumerWidget {
     final status = ref.watch(totpStatusProvider).valueOrNull;
     final hideTotp = status != null && totpSectionHidden(status);
     return SettingsSectionCard(
-      flush: true,
       title: 'Sign-in',
       description: "How you prove it's you on a new device.",
       children: [

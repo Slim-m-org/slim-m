@@ -54,7 +54,6 @@ class _AnalyticsToggleHeaderState extends State<AnalyticsToggleHeader> {
   Widget build(BuildContext context) {
     if (!widget.enabled) {
       return SettingsSectionCard(
-        flush: true,
         children: [
           SettingsToggleRow(
             label: 'Record Space analytics',
@@ -67,7 +66,6 @@ class _AnalyticsToggleHeaderState extends State<AnalyticsToggleHeader> {
       );
     }
     return SettingsSectionCard(
-      flush: true,
       children: [
         AppListRow(
           label: 'Space analytics is on',

@@ -62,7 +62,6 @@ class _DockCommandPanelGroupState extends State<DockCommandPanelGroup> {
       );
     }
     return SettingsSectionCard(
-      flush: true,
       title: 'Commands',
       children: [
         for (final (index, ep) in commands.indexed) ...[

@@ -132,7 +132,6 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                 children: [
                   if (candidates.isNotEmpty)
                     SettingsSectionCard(
-                      flush: true,
                       title: 'Add to this role',
                       children: [
                         for (final candidate in candidates)
@@ -217,7 +216,6 @@ class _HolderGroup extends StatelessWidget {
         '+ ${hidden.length} more · ${hidden.map((h) => h.displayName).join(', ')}';
 
     return SettingsSectionCard(
-      flush: true,
       title: '$title · ${holders.length}',
       children: [
         if (holders.isEmpty && emptyTitle != null)

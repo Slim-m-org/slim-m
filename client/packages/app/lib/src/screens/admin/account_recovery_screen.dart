@@ -66,7 +66,6 @@ class AccountRecoveryPane extends ConsumerWidget {
     // Hidden, not inert: see this library's doc for the rule.
     if (!canIssue) {
       return const SettingsSectionCard(
-        flush: true,
         children: [
           SettingsEmptyState(
             icon: AppIcons.shield,
@@ -78,7 +77,6 @@ class AccountRecoveryPane extends ConsumerWidget {
     }
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Reset codes',
       description: resetCodesDescription,
       children: [

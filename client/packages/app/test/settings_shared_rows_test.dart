@@ -63,7 +63,6 @@ void main() {
     await tester.pumpWidget(
       _host(
         const SettingsSectionCard(
-          flush: true,
           children: [
             SettingsValueRow(label: 'Code', value: 'abc123', mono: true),
           ],

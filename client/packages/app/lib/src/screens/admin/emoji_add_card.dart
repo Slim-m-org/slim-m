@@ -216,7 +216,6 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
       icon: AppIcons.image,
       onDrop: (files) => unawaited(_drop(files)),
       child: SettingsSectionCard(
-        flush: true,
         title: 'New emoji',
         children: [
           SettingsActionRow(

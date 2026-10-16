@@ -76,10 +76,7 @@ void main() {
           theme: buildTheme(Brightness.dark, AppTokens.dark),
           home: const Scaffold(
             body: SingleChildScrollView(
-              child: SettingsSectionCard(
-                flush: true,
-                children: [TotpSection()],
-              ),
+              child: SettingsSectionCard(children: [TotpSection()]),
             ),
           ),
         ),

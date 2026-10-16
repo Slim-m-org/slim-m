@@ -88,7 +88,6 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
           data: (context, list) {
             if (list.isEmpty) {
               return const SettingsSectionCard(
-                flush: true,
                 title: 'Emoji (0)',
                 children: [
                   SettingsEmptyState(
@@ -104,7 +103,6 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
                 if (emojiNameMatches(e.name, _search.text)) e,
             ];
             return SettingsSectionCard(
-              flush: true,
               title: shown.length == list.length
                   ? 'Emoji (${list.length})'
                   : 'Emoji (${shown.length} of ${list.length})',

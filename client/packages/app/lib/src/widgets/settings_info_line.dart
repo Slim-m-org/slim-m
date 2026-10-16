@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A one-line aside inside a flush settings card: an info glyph and a caption.
+/// A one-line aside inside a settings card: an info glyph and a caption.
 library;
 
 import 'package:flutter/material.dart';

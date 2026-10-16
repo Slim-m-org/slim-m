@@ -147,7 +147,6 @@ class _OverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsSectionCard(
-    flush: true,
     title: 'Overview',
     children: [
       SettingsMeterRow(

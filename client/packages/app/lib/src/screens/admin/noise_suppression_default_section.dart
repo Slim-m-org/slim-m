@@ -47,7 +47,6 @@ class _NoiseSuppressionDefaultSectionState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Noise suppression',
           description: 'For members who leave it on Space default.',
           children: [

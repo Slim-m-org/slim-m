@@ -35,7 +35,6 @@ class AppearanceSettingsSection extends ConsumerWidget {
 
   Widget _themeCard(WidgetRef ref) {
     return SettingsSectionCard(
-      flush: true,
       title: 'Theme',
       children: [
         SettingsCardBlock(
@@ -65,7 +64,6 @@ class AppearanceSettingsSection extends ConsumerWidget {
     final motion = ref.watch(motionPreferenceControllerProvider);
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Text and layout',
       children: [
         SettingsSliderRow(

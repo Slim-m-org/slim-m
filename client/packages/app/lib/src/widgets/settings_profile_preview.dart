@@ -43,7 +43,6 @@ class SettingsProfilePreview extends ConsumerWidget {
         : AppCanvasColors.cursors[colour % AppCanvasColors.cursors.length];
 
     return SettingsSectionCard(
-      flush: true,
       title: 'How others see you',
       description: 'Updates as you edit below.',
       children: [

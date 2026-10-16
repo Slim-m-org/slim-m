@@ -107,7 +107,6 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
-      flush: true,
       title: 'General',
       children: [
         SettingsCardBlock(

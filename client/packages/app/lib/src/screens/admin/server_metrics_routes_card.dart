@@ -22,7 +22,6 @@ class SlowestRoutesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (routes.isEmpty) {
       return const SettingsSectionCard(
-        flush: true,
         title: 'Slowest routes',
         children: [
           SettingsEmptyState(
@@ -34,7 +33,6 @@ class SlowestRoutesCard extends StatelessWidget {
     }
     final sorted = [...routes]..sort(_byP95Descending);
     return SettingsSectionCard(
-      flush: true,
       title: 'Slowest routes',
       description: 'Slowest first, by p95 latency.',
       children: [

@@ -50,11 +50,6 @@ class CameraOnJoinSection extends ConsumerWidget {
       ),
     ];
     if (embedded) return rows.single;
-    return SettingsSectionCard(
-      flush: true,
-      title: 'Camera',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: rows,
-    );
+    return SettingsSectionCard(title: 'Camera', children: rows);
   }
 }

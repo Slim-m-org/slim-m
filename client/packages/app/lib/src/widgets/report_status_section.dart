@@ -38,7 +38,6 @@ class ReportStatusSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Reports you filed',
           description:
               'Reports from this device, and whether each is still open.',
@@ -196,7 +195,6 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return SettingsSectionCard(
-      flush: true,
       title: 'Check a report by ID',
       description: 'Paste the ID of a report from another device.',
       children: [

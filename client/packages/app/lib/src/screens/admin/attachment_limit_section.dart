@@ -99,7 +99,6 @@ class _AttachmentLimitSectionState extends ConsumerState<AttachmentLimitSection>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           title: 'Attachment size limit',
           description: 'Largest file a member can upload.',
           children: [

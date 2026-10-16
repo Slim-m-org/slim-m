@@ -19,7 +19,7 @@ import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
 import '../screens/admin/overwrite_target_picker_sheets.dart';
 import 'run_guarded.dart';
-import 'settings_row_group.dart';
+import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'user_avatar.dart';
 
@@ -264,7 +264,6 @@ class NotificationAlwaysLetThroughSection extends ConsumerWidget {
     final schedule = ref.watch(notificationScheduleProvider).valueOrNull;
     if (schedule == null) return const SizedBox.shrink();
     return SettingsSectionCard(
-      flush: true,
       title: 'Always let through',
       description: 'These reach you outside your hours too.',
       children: [

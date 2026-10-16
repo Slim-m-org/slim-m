@@ -53,7 +53,6 @@ class DockCommunitySection extends StatelessWidget {
     final repo = section.source.repo;
     final shown = section.entries.where(_matches).toList(growable: false);
     return SettingsSectionCard(
-      flush: true,
       title: 'Community source: $repo',
       description:
           'Not the official registry, so review what each module can do.',

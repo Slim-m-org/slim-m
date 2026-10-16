@@ -56,7 +56,6 @@ class ReportHistoryPane extends ConsumerWidget {
       data: (context, list) => ListView(
         children: [
           SettingsSectionCard(
-            flush: true,
             title: 'History',
             description: 'Closed reports and moderation actions, newest first.',
             children: [

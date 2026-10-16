@@ -56,7 +56,6 @@ class DockScheduleCard extends StatelessWidget {
         ? channelId!
         : _noChannel;
     return SettingsSectionCard(
-      flush: true,
       title: 'Schedule',
       children: [
         for (final s in schedules)

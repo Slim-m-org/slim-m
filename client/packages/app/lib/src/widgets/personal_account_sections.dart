@@ -47,7 +47,6 @@ class BlockedSection extends ConsumerWidget {
     final blocks = ref.watch(blocksProvider);
 
     return SettingsSectionCard(
-      flush: true,
       title: 'People you blocked',
       description: 'You stop seeing and hearing from them; they are not told.',
       children: [

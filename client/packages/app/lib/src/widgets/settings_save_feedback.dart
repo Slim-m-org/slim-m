@@ -22,7 +22,7 @@ class SettingsSaveFeedback extends StatelessWidget {
   final String? error;
   final VoidCallback? onDismissError;
 
-  /// Inside a flush card as one of its rows, so it takes the card's 16 inset.
+  /// Inside a settings card as one of its rows, so it takes the card's 16 inset.
   final bool inCard;
 
   @override

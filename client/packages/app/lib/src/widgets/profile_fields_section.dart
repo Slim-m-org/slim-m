@@ -122,7 +122,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     );
 
     return SettingsSectionCard(
-      flush: true,
       title: 'About you',
       children: [
         SettingsCardBlock(

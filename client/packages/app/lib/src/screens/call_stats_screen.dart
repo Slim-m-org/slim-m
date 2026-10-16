@@ -55,7 +55,6 @@ class _StatsState extends State<_Stats> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          flush: true,
           children: [
             SettingsToggleRow(
               label: 'Log to console',
@@ -97,7 +96,6 @@ class _StatsEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsSectionCard(
-    flush: true,
     children: [SettingsEmptyState(icon: AppIcons.camera, title: message)],
   );
 }
@@ -111,7 +109,6 @@ class _SampleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final transport = callStatsTransportLine(sample.transport);
     return SettingsSectionCard(
-      flush: true,
       title: callStatsTitle(sample),
       children: [
         for (final stream in sample.streams)

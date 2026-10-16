@@ -54,7 +54,6 @@ class NotificationsSection extends ConsumerWidget {
           bell: style.bell,
         ),
         SettingsSectionCard(
-          flush: true,
           title: 'When to notify',
           children: [
             const NotificationPreferenceRow(),
@@ -68,7 +67,6 @@ class NotificationsSection extends ConsumerWidget {
         const NotificationAlwaysLetThroughSection(),
         const NotificationSnoozeSection(),
         SettingsSectionCard(
-          flush: true,
           title: 'Sounds',
           children: [
             SettingsToggleRow(

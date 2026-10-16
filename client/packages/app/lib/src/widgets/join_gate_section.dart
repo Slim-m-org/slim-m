@@ -28,7 +28,6 @@ class JoinGateSection extends ConsumerWidget {
     return gate.when(
       loading: () => const SizedBox.shrink(),
       error: (e, _) => SettingsSectionCard(
-        flush: true,
         title: 'Join gate',
         children: [
           SettingsCardBlock(
@@ -107,7 +106,6 @@ class _JoinGateFormState extends ConsumerState<_JoinGateForm>
     ];
     final error = actionError;
     return SettingsSectionCard(
-      flush: true,
       title: 'Join gate',
       children: [
         SettingsToggleRow(

@@ -19,7 +19,7 @@ import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
 import '../widgets/settings_info_line.dart';
-import '../widgets/settings_row_group.dart';
+import '../widgets/settings_hairline.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
@@ -146,7 +146,6 @@ class _MicrophoneSection extends ConsumerWidget {
 
     if (hostHasInputGate(ref)) {
       return SettingsSectionCard(
-        flush: true,
         title: 'Microphone',
         description: 'Sound below the line is not sent.',
         children: [
@@ -160,7 +159,6 @@ class _MicrophoneSection extends ConsumerWidget {
     }
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Microphone',
       description: 'Your input level while you are in a call.',
       children: [
@@ -202,7 +200,6 @@ class _DevicesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SettingsSectionCard(
-      flush: true,
       title: 'Devices',
       description: 'What a call uses to hear, speak and show you.',
       children: [
@@ -221,7 +218,6 @@ class _SoundsSection extends ConsumerWidget {
     final settings = ref.watch(voiceSettingsControllerProvider);
 
     return SettingsSectionCard(
-      flush: true,
       title: 'Sounds',
       children: [
         SettingsToggleRow(

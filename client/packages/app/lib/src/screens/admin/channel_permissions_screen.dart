@@ -87,7 +87,6 @@ class _ChannelPermissionsPaneState
     final channel = _channel;
     if (channel == null) {
       return SettingsSectionCard(
-        flush: true,
         children: [
           AppListRow(
             label: 'Choose a channel',
@@ -101,7 +100,6 @@ class _ChannelPermissionsPaneState
     final header = widget.lockChannel
         ? null
         : SettingsSectionCard(
-            flush: true,
             children: [
               SettingsDetailRow(
                 icon: channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
