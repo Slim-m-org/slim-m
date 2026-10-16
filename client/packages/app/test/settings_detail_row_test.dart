@@ -55,4 +55,77 @@ void main() {
     expect(find.text('Nobody is blocked'), findsOneWidget);
     expect(find.text('People you block will be listed here.'), findsOneWidget);
   });
+
+  testWidgets('meta leads the detail line in the mono face', (tester) async {
+    await _pump(
+      tester,
+      const SettingsDetailRow(title: 'Dice', meta: 'v1.2.0', detail: 'Rolls'),
+    );
+    final meta = tester.widget<Text>(find.text('v1.2.0'));
+    expect(meta.style?.fontFamily, AppFonts.mono);
+    expect(find.text('Rolls'), findsOneWidget);
+  });
+
+  testWidgets('onTap makes the whole row a labelled button', (tester) async {
+    var taps = 0;
+    await _pump(
+      tester,
+      SettingsDetailRow(
+        title: 'Dice',
+        onTap: () => taps++,
+        onTapSemanticLabel: 'View Dice',
+      ),
+    );
+    await tester.tap(find.bySemanticsLabel('View Dice'));
+    expect(taps, 1);
+  });
+
+  testWidgets('an error sits under the row and can be dismissed', (
+    tester,
+  ) async {
+    var dismissed = false;
+    await _pump(
+      tester,
+      SettingsDetailRow(
+        title: 'Dice',
+        error: 'Could not revoke Dice.',
+        onErrorDismiss: () => dismissed = true,
+      ),
+    );
+    expect(find.text('Could not revoke Dice.'), findsOneWidget);
+    await tester.tap(find.text('Dismiss'));
+    expect(dismissed, isTrue);
+  });
+
+  testWidgets('trailing actions drop under the text on a narrow card only', (
+    tester,
+  ) async {
+    Future<(Offset, Offset)> place(double width) async {
+      await _pump(
+        tester,
+        Center(
+          child: SizedBox(
+            width: width,
+            child: const SettingsDetailRow(
+              icon: AppIcons.dock,
+              title: 'helper',
+              stackTrailingWhenNarrow: true,
+              trailing: Text('actions'),
+            ),
+          ),
+        ),
+      );
+      return (
+        tester.getTopLeft(find.text('helper')),
+        tester.getTopLeft(find.text('actions')),
+      );
+    }
+
+    final (_, narrow) = await place(360);
+    final (title, _) = await place(360);
+    expect(narrow.dy, greaterThan(title.dy));
+    final (wideTitle, wide) = await place(700);
+    expect(wide.dy, lessThan(wideTitle.dy + 30));
+    expect(wide.dx, greaterThan(wideTitle.dx));
+  });
 }

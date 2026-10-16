@@ -16,6 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/permissions.dart';
+import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/bots_screen.dart';
 import 'package:slimm_app/src/widgets/toast_overlay.dart';
@@ -49,16 +51,19 @@ String _botJson(
 
 Future<void> _pump(
   WidgetTester tester,
-  http.Response Function(http.Request) handler,
-) async {
+  http.Response Function(http.Request) handler, {
+  int mine = 0,
+  double width = 800,
+}) async {
   // Taller than 600px default: the permission list pushes buttons off-screen.
-  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      myPermissionsProvider.overrideWithValue(mine),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       apiProvider.overrideWith((ref) {
         final api = SlimmApi(
@@ -177,7 +182,7 @@ void main() {
     });
 
     expect(find.text('@helper'), findsOneWidget);
-    expect(find.text('Token active.'), findsOneWidget);
+    expect(find.textContaining('Token active.'), findsOneWidget);
     expect(
       find.textContaining('slimbot_'),
       findsNothing,
@@ -205,7 +210,10 @@ void main() {
       findsOneWidget,
       reason: 'the account stays, so what it wrote stays attributed to it',
     );
-    expect(find.text('Revoked. Kept for what it wrote.'), findsOneWidget);
+    expect(
+      find.textContaining('Revoked. Kept for what it wrote.'),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(AppButton, 'Revoke'), findsNothing);
   });
 
@@ -270,5 +278,102 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppToggle), findsWidgets);
+  });
+
+  AppToggle toggle(WidgetTester tester, String label) => tester
+      .widgetList<AppToggle>(find.byType(AppToggle))
+      .firstWhere((t) => t.semanticLabel == label);
+
+  testWidgets('creating a bot sends its username and the permissions picked', (
+    tester,
+  ) async {
+    Map<String, dynamic>? body;
+    await _pump(tester, (request) {
+      if (request.method == 'POST' && request.url.path == '/bots') {
+        body = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'bot': jsonDecode(_botJson('helper')),
+            'token': _botToken,
+          }),
+          201,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('[]', 200);
+    }, mine: Perm.sendMessages | Perm.viewChannel);
+
+    await tester.enterText(find.byType(TextField).first, 'helper');
+    await tester.tap(find.text('Permissions'));
+    await tester.pumpAndSettle();
+    toggle(tester, 'Send messages').onChanged!(true);
+    await tester.pump();
+    expect(find.text('1 granted'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Create bot'));
+    await tester.pumpAndSettle();
+
+    expect(body?['username'], 'helper');
+    expect(body?['permissions'], Perm.sendMessages);
+  });
+
+  testWidgets('a permission the admin lacks cannot be granted to a new bot', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      (request) => http.Response('[]', 200),
+      mine: Perm.viewChannel,
+    );
+    await tester.tap(find.text('Permissions'));
+    await tester.pumpAndSettle();
+
+    expect(toggle(tester, 'View channels').onChanged, isNotNull);
+    expect(toggle(tester, 'Manage roles').onChanged, isNull);
+  });
+
+  testWidgets('an empty username creates nothing', (tester) async {
+    var posted = false;
+    await _pump(tester, (request) {
+      if (request.method == 'POST') posted = true;
+      return http.Response('[]', 200);
+    });
+    await tester.tap(find.widgetWithText(AppButton, 'Create bot'));
+    await tester.pumpAndSettle();
+    expect(posted, isFalse);
+  });
+
+  testWidgets('a failed create stays on the form as a persistent error', (
+    tester,
+  ) async {
+    await _pump(tester, (request) {
+      if (request.method == 'POST') return http.Response('down', 500);
+      return http.Response('[]', 200);
+    });
+    await tester.enterText(find.byType(TextField).first, 'helper');
+    await tester.tap(find.widgetWithText(AppButton, 'Create bot'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('create the bot'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('with no bots the list says so', (tester) async {
+    await _pump(tester, (request) => http.Response('[]', 200));
+    expect(find.text('No bots yet.'), findsOneWidget);
+  });
+
+  testWidgets('a listed bot fits a phone with both actions', (tester) async {
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/bots') {
+        return http.Response(
+          '[${_botJson('helper', lastUsed: 1000, permissions: 3)}]',
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 200);
+    }, width: 360);
+    expect(tester.takeException(), isNull);
+    expect(find.widgetWithText(AppButton, 'Permissions'), findsOneWidget);
+    expect(find.widgetWithText(AppButton, 'Revoke'), findsOneWidget);
   });
 }

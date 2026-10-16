@@ -55,10 +55,16 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
                     fontWeight: AppWeights.medium,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  widget.summary,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                const SizedBox(width: AppSpacing.s8),
+                Expanded(
+                  child: Text(
+                    widget.summary,
+                    textAlign: TextAlign.end,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: tokens.textSecondary,
+                    ),
+                  ),
                 ),
               ],
             ),

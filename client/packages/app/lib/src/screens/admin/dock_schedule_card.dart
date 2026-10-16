@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_select_row.dart';
 
@@ -45,7 +47,6 @@ class DockScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final choices = [
       const SettingsChoice(value: _noChannel, label: 'None'),
       for (final c in channels)
@@ -55,18 +56,13 @@ class DockScheduleCard extends StatelessWidget {
         ? channelId!
         : _noChannel;
     return SettingsSectionCard(
+      flush: true,
       title: 'Schedule',
       children: [
         for (final s in schedules)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: AppSpacing.s4,
-            ),
-            child: Text(
-              'Runs ${s.command} ${dockEveryWords(s.everyMinutes)}',
-              style: AppText.body.copyWith(color: tokens.textPrimary),
-            ),
+          SettingsDetailRow(
+            icon: AppIcons.clock,
+            title: 'Runs ${s.command} ${dockEveryWords(s.everyMinutes)}',
           ),
         IgnorePointer(
           ignoring: !enabled,
@@ -78,12 +74,9 @@ class DockScheduleCard extends StatelessWidget {
           ),
         ),
         if (chosen == _noChannel)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            child: Text(
-              'It will not run on its own until you pick a channel.',
-              style: AppText.caption.copyWith(color: tokens.warnText),
-            ),
+          const SettingsCardNote(
+            'It will not run on its own until you pick a channel.',
+            warn: true,
           ),
       ],
     );

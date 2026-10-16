@@ -12,6 +12,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../api_failure.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_card_note.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_module_row.dart';
 
@@ -48,24 +50,24 @@ class DockCommunitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final repo = section.source.repo;
     final shown = section.entries.where(_matches).toList(growable: false);
     return SettingsSectionCard(
+      flush: true,
       title: 'Community source: $repo',
       description:
           'Not the official registry, so review what each module can do.',
-      divided: true,
       children: [
         if (section.failed)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            child: AppErrorState(message: 'Could not load modules from $repo.'),
+          SettingsCardBlock(
+            children: [
+              AppErrorState(message: 'Could not load modules from $repo.'),
+            ],
           )
         else if (section.entries.isEmpty)
-          _note('This source lists no modules.', tokens)
+          const SettingsCardNote('This source lists no modules.')
         else if (shown.isEmpty)
-          _note('No module in this source matches the search.', tokens)
+          const SettingsCardNote('No module in this source matches the search.')
         else
           for (final entry in shown)
             DockModuleRow(
@@ -73,9 +75,9 @@ class DockCommunitySection extends StatelessWidget {
               installed: _installedHere(entry),
               source: section.source.id,
             ),
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s8),
-          child: AppButton(
+        SettingsActionRow(
+          message: 'Modules already installed from it stay installed.',
+          action: AppButton(
             label: 'Remove this source',
             icon: AppIcons.delete,
             variant: AppButtonVariant.danger,
@@ -87,14 +89,6 @@ class DockCommunitySection extends StatelessWidget {
       ],
     );
   }
-
-  Widget _note(String text, AppTokens tokens) => Padding(
-    padding: const EdgeInsets.all(AppSpacing.s8),
-    child: Text(
-      text,
-      style: AppText.body.copyWith(color: tokens.textSecondary),
-    ),
-  );
 }
 
 Future<void> showAddDockSourceSheet(BuildContext context) {
