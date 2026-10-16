@@ -19,6 +19,9 @@ import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
 import '../screens/admin/overwrite_target_picker_sheets.dart';
 import 'run_guarded.dart';
+import 'settings_row_group.dart';
+import 'settings_section_header.dart';
+import 'user_avatar.dart';
 
 /// "Always notify me about" - People: the member card's own shortcut
 /// (`member_card_notification_schedule_action.dart`) writes to the same
@@ -40,8 +43,6 @@ class NotificationScheduleAllowedPeople extends ConsumerStatefulWidget {
 class _NotificationScheduleAllowedPeopleState
     extends ConsumerState<NotificationScheduleAllowedPeople>
     with GuardedActionState<NotificationScheduleAllowedPeople> {
-  bool _expanded = false;
-
   Future<void> _add() async {
     final member = await showAppSheet<api.UserProfile>(
       context,
@@ -70,45 +71,28 @@ class _NotificationScheduleAllowedPeopleState
     final members = ref.watch(membersProvider).valueOrNull ?? const [];
     final byId = {for (final m in members) m.id: m};
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsRowGroup(
       children: [
-        AppListRow(
-          leading: const Icon(AppIcons.account),
-          label: 'People',
-          meta: '${widget.allowedUserIds.length}',
-          trailing: AnimatedRotation(
-            turns: _expanded ? 0.5 : 0,
-            duration: AppMotion.fast,
-            child: const Icon(AppIcons.chevronDown),
-          ),
-          onTap: () => setState(() => _expanded = !_expanded),
-        ),
-        if (_expanded) ...[
-          for (final id in widget.allowedUserIds)
-            AppListRow(
-              label: byId[id]?.displayName ?? 'Former member',
-              meta: byId[id] == null ? null : '@${byId[id]!.username}',
-              trailing: AppIconButton(
-                icon: AppIcons.dismiss,
-                semanticLabel: 'Remove',
-                onPressed: () => _remove(id),
-              ),
-            ),
+        const _ListLabel('PEOPLE'),
+        for (final id in widget.allowedUserIds)
           AppListRow(
-            leading: const Icon(AppIcons.add),
-            label: 'Add a person',
-            onTap: _add,
+            leading: UserAvatar.known(
+              name: byId[id]?.displayName ?? 'Former member',
+              userId: id,
+              avatarUpdatedAt: byId[id]?.avatarUpdatedAt,
+              size: AppAvatarSize.s28,
+            ),
+            label: byId[id]?.displayName ?? 'Former member',
+            trailing: AppIconButton(
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Remove ${byId[id]?.displayName ?? 'member'}',
+              onPressed: () => _remove(id),
+            ),
           ),
-        ],
+        _AddRow(label: 'Add a person', onTap: _add),
         if (actionError != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s8,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
               message: actionError!,
               onDismiss: clearActionError,
@@ -136,23 +120,7 @@ class NotificationScheduleAllowedChannels extends ConsumerStatefulWidget {
 class _NotificationScheduleAllowedChannelsState
     extends ConsumerState<NotificationScheduleAllowedChannels>
     with GuardedActionState<NotificationScheduleAllowedChannels> {
-  bool _expanded = false;
-
-  /// Built once per expand, not on every `build()`: a `StreamBuilder` given a
-  /// fresh `Stream` each build re-subscribes every time, and a drift stream
-  /// emits its current value immediately on listen, which turns that into a
-  /// rebuild loop. It is single-subscription, so collapsing drops it and the
-  /// next expand builds a new one. A collapsed row never needs a channel name
-  /// at all, only the count already in
-  /// [NotificationScheduleAllowedChannels.allowedChannelIds].
-  Stream<List<Channel>>? _channels;
-
-  void _toggleExpanded() {
-    setState(() {
-      _expanded = !_expanded;
-      _channels = _expanded ? _channelsStream() : null;
-    });
-  }
+  late final Stream<List<Channel>> _channels = _channelsStream();
 
   Future<void> _add() async {
     final store = await ref.read(storeProvider.future);
@@ -184,72 +152,129 @@ class _NotificationScheduleAllowedChannelsState
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppListRow(
-          leading: const Icon(AppIcons.hash),
-          label: 'Channels',
-          meta: '${widget.allowedChannelIds.length}',
-          trailing: AnimatedRotation(
-            turns: _expanded ? 0.5 : 0,
-            duration: AppMotion.fast,
-            child: const Icon(AppIcons.chevronDown),
-          ),
-          onTap: _toggleExpanded,
-        ),
-        if (_expanded)
-          StreamBuilder<List<Channel>>(
-            stream: _channels,
-            builder: (context, snapshot) {
-              final byId = {
-                for (final c in snapshot.data ?? const <Channel>[]) c.id: c,
-              };
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final id in widget.allowedChannelIds)
-                    AppListRow(
-                      leading: Icon(
-                        byId[id]?.kind == 'voice'
-                            ? AppIcons.voice
-                            : AppIcons.hash,
-                      ),
-                      label: byId[id]?.name ?? 'Former channel',
-                      trailing: AppIconButton(
-                        icon: AppIcons.dismiss,
-                        semanticLabel: 'Remove',
-                        onPressed: () => _remove(id),
-                      ),
-                    ),
-                  AppListRow(
-                    leading: const Icon(AppIcons.add),
-                    label: 'Add a channel',
-                    onTap: _add,
-                  ),
-                ],
-              );
-            },
-          ),
-        if (actionError != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s8,
-            ),
-            child: AppErrorState(
-              message: actionError!,
-              onDismiss: clearActionError,
-            ),
-          ),
-      ],
+    return StreamBuilder<List<Channel>>(
+      stream: _channels,
+      builder: (context, snapshot) {
+        final byId = {
+          for (final c in snapshot.data ?? const <Channel>[]) c.id: c,
+        };
+        return SettingsRowGroup(
+          children: [
+            const _ListLabel('CHANNELS'),
+            for (final id in widget.allowedChannelIds)
+              AppListRow(
+                leading: Icon(
+                  byId[id]?.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+                ),
+                label: byId[id]?.name ?? 'Former channel',
+                trailing: AppIconButton(
+                  icon: AppIcons.dismiss,
+                  semanticLabel: 'Remove ${byId[id]?.name ?? 'channel'}',
+                  onPressed: () => _remove(id),
+                ),
+              ),
+            _AddRow(label: 'Add a channel', onTap: _add),
+            if (actionError != null)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: AppErrorState(
+                  message: actionError!,
+                  onDismiss: clearActionError,
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
   Stream<List<Channel>> _channelsStream() async* {
     final store = await ref.read(storeProvider.future);
     yield* store.watchChannels();
+  }
+}
+
+/// The mono caps label that opens each list in the always-let-through card.
+class _ListLabel extends StatelessWidget {
+  const _ListLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        AppSpacing.s12,
+        AppSpacing.s16,
+        AppSpacing.s8,
+      ),
+      child: Text(
+        text,
+        style: AppText.micro.copyWith(
+          fontFamily: AppFonts.mono,
+          letterSpacing: 1,
+          color: tokens.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _AddRow extends StatelessWidget {
+  const _AddRow({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        child: ExcludeSemantics(
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 52),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            child: Text(
+              '+ $label',
+              style: AppText.caption.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.semi,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Always let through": who and what may notify outside the schedule's hours.
+class NotificationAlwaysLetThroughSection extends ConsumerWidget {
+  const NotificationAlwaysLetThroughSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final schedule = ref.watch(notificationScheduleProvider).valueOrNull;
+    if (schedule == null) return const SizedBox.shrink();
+    return SettingsSectionCard(
+      flush: true,
+      title: 'Always let through',
+      description: 'These reach you outside your hours too.',
+      children: [
+        NotificationScheduleAllowedPeople(
+          allowedUserIds: schedule.allowedUserIds,
+        ),
+        NotificationScheduleAllowedChannels(
+          allowedChannelIds: schedule.allowedChannelIds,
+        ),
+      ],
+    );
   }
 }

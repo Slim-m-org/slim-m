@@ -133,13 +133,16 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.textContaining('is not currently connected'),
+        find.textContaining('connected. Using the system default'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('is not currently connected'), findsOneWidget);
+      expect(
+        find.textContaining('connected. Using the system default'),
+        findsOneWidget,
+      );
       final row = tester.widget<SettingsSelectRow<String>>(
         _pickerRow('Microphone'),
       );

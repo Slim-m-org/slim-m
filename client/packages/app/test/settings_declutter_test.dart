@@ -14,13 +14,13 @@ import 'voice_settings_screen_harness.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('the voice pane has four section headers', (tester) async {
+  testWidgets('the voice pane has five section headers', (tester) async {
     await tester.pumpWidget(
       wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(SettingsSectionHeader), findsNWidgets(4));
+    expect(find.byType(SettingsSectionHeader), findsNWidgets(5));
     expect(find.text('Devices'), findsOneWidget);
   });
 
