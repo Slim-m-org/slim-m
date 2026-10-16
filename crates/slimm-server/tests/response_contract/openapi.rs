@@ -41,7 +41,8 @@ impl Api {
         let path = repo_root.join("schema/openapi.yaml");
         let text = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let doc: Value = crate::support::openapi::parse_schema_yaml(&text);
+        let mut doc: Value = crate::support::openapi::parse_schema_yaml(&text);
+        widen_nullable(&mut doc);
 
         let mut operations = BTreeMap::new();
         let paths = doc["paths"]
@@ -219,3 +220,38 @@ fn read_responses(
     }
     out
 }
+
+/// Rewrites OpenAPI 3.0's `nullable: true` beside a `type` as the 3.1 union
+/// `type: [x, "null"]` the validator understands. The schema keeps the 3.0
+/// keyword because oasdiff cannot read the union (docs/ci.md); without this a
+/// documented-nullable field holding null fails here, or worse, a check that
+/// expected it passes for the wrong reason.
+fn widen_nullable(node: &mut Value) {
+    match node {
+        Value::Object(map) => {
+            if map.get("nullable") == Some(&Value::Bool(true))
+                && let Some(Value::String(kind)) = map.get("type").cloned()
+            {
+                map.insert("type".to_owned(), json!([kind, "null"]));
+                map.remove("nullable");
+            }
+            map.values_mut().for_each(widen_nullable);
+        }
+        Value::Array(items) => items.iter_mut().for_each(widen_nullable),
+        _ => {}
+    }
+}
+
+#[test]
+fn a_nullable_field_accepts_null_once_widened() {
+    let mut schema = json!({
+        "type": "object",
+        "properties": { "parent": { "type": "string", "nullable": true } },
+    });
+    widen_nullable(&mut schema);
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    assert!(validator.is_valid(&json!({ "parent": null })));
+    assert!(validator.is_valid(&json!({ "parent": "x" })));
+    assert!(!validator.is_valid(&json!({ "parent": 3 })));
+}
+
