@@ -155,39 +155,30 @@ void main() {
       allowedUserIds: ['user-maya', 'user-gone'],
     );
 
-    testWidgets('is a count until expanded, then names each person', (
-      tester,
-    ) async {
+    testWidgets('names each person under a PEOPLE label', (tester) async {
       await _pump(tester, widget);
-      expect(find.text('2'), findsOneWidget);
-      expect(find.text('Maya'), findsNothing);
 
-      await tester.tap(find.text('People'));
-      await tester.pumpAndSettle();
-
+      expect(find.text('PEOPLE'), findsOneWidget);
       expect(find.text('Maya'), findsOneWidget);
-      expect(find.text('@maya'), findsOneWidget);
+      await _unmount(tester);
     });
 
     testWidgets('a person who is not a member any more reads Former member', (
       tester,
     ) async {
       await _pump(tester, widget);
-      await tester.tap(find.text('People'));
-      await tester.pumpAndSettle();
 
       expect(find.text('Former member'), findsOneWidget);
+      await _unmount(tester);
     });
 
     testWidgets('Remove deletes that person and refetches the schedule', (
       tester,
     ) async {
       final wired = await _pump(tester, widget);
-      await tester.tap(find.text('People'));
-      await tester.pumpAndSettle();
       final reads = wired.scheduleReads;
 
-      await tester.tap(find.bySemanticsLabel('Remove').first);
+      await tester.tap(find.bySemanticsLabel('Remove Maya').first);
       await tester.pumpAndSettle();
 
       expect(
@@ -195,17 +186,16 @@ void main() {
         contains('DELETE /notifications/schedule/allowed-users/user-maya'),
       );
       expect(wired.scheduleReads, greaterThan(reads));
+      await _unmount(tester);
     });
 
     testWidgets('Add a person puts the one picked and refetches', (
       tester,
     ) async {
       final wired = await _pump(tester, widget);
-      await tester.tap(find.text('People'));
-      await tester.pumpAndSettle();
       final reads = wired.scheduleReads;
 
-      await tester.tap(find.text('Add a person'));
+      await tester.tap(find.text('+ Add a person'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Noor'));
       await tester.pumpAndSettle();
@@ -215,22 +205,22 @@ void main() {
         contains('PUT /notifications/schedule/allowed-users/user-noor'),
       );
       expect(wired.scheduleReads, greaterThan(reads));
+      await _unmount(tester);
     });
 
     testWidgets('a refused remove is a persistent error, not a SnackBar', (
       tester,
     ) async {
       final wired = await _pump(tester, widget, failWrites: true);
-      await tester.tap(find.text('People'));
-      await tester.pumpAndSettle();
       final reads = wired.scheduleReads;
 
-      await tester.tap(find.bySemanticsLabel('Remove').first);
+      await tester.tap(find.bySemanticsLabel('Remove Maya').first);
       await tester.pumpAndSettle();
 
       expect(find.byType(AppErrorState), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
       expect(wired.scheduleReads, reads, reason: 'nothing changed to refetch');
+      await _unmount(tester);
     });
   });
 
@@ -239,11 +229,8 @@ void main() {
       allowedChannelIds: ['c-general', 'c-lounge', 'c-gone'],
     );
 
-    testWidgets('subscribes to the store only once expanded', (tester) async {
+    testWidgets('subscribes to the store once, not per build', (tester) async {
       final wired = await _pump(tester, widget);
-      expect(wired.store.watches, 0);
-
-      await tester.tap(find.text('Channels'));
       await _settle(tester);
       await tester.pump(const Duration(seconds: 1));
 
@@ -251,17 +238,10 @@ void main() {
       await _unmount(tester);
     });
 
-    testWidgets('collapsing and expanding again still lists the channels', (
-      tester,
-    ) async {
-      await _pump(tester, widget);
-      await tester.tap(find.text('Channels'));
+    testWidgets('a rebuild still lists the channels', (tester) async {
+      final wired = await _pump(tester, widget);
       await _settle(tester);
-      await tester.tap(find.text('Channels'));
-      await tester.pumpAndSettle();
-      expect(find.text('general'), findsNothing);
-
-      await tester.tap(find.text('Channels'));
+      wired.container.invalidate(notificationScheduleProvider);
       await _settle(tester);
 
       expect(tester.takeException(), isNull);
@@ -273,7 +253,6 @@ void main() {
       tester,
     ) async {
       await _pump(tester, widget);
-      await tester.tap(find.text('Channels'));
       await _settle(tester);
 
       expect(find.text('general'), findsOneWidget);
@@ -287,11 +266,10 @@ void main() {
       tester,
     ) async {
       final wired = await _pump(tester, widget);
-      await tester.tap(find.text('Channels'));
       await _settle(tester);
       final reads = wired.scheduleReads;
 
-      await tester.tap(find.bySemanticsLabel('Remove').first);
+      await tester.tap(find.bySemanticsLabel('Remove general').first);
       await tester.pumpAndSettle();
 
       expect(
@@ -306,11 +284,10 @@ void main() {
       tester,
     ) async {
       final wired = await _pump(tester, widget);
-      await tester.tap(find.text('Channels'));
       await _settle(tester);
       final reads = wired.scheduleReads;
 
-      await tester.tap(find.text('Add a channel'));
+      await tester.tap(find.text('+ Add a channel'));
       await _settle(tester);
       await tester.tap(find.text('lounge').last);
       await tester.pumpAndSettle();
@@ -327,10 +304,9 @@ void main() {
       tester,
     ) async {
       await _pump(tester, widget, failWrites: true);
-      await tester.tap(find.text('Channels'));
       await _settle(tester);
 
-      await tester.tap(find.bySemanticsLabel('Remove').first);
+      await tester.tap(find.bySemanticsLabel('Remove general').first);
       await tester.pumpAndSettle();
 
       expect(find.byType(AppErrorState), findsOneWidget);

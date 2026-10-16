@@ -40,7 +40,8 @@ enum PushStatus {
 extension PushStatusLabel on PushStatus {
   String get label => switch (this) {
     PushStatus.notSignedIn => 'Not signed in',
-    PushStatus.unsupportedPlatform => 'Not available on this device',
+    PushStatus.unsupportedPlatform =>
+      "Notifications aren't available on this device",
     PushStatus.noTokenYet => 'Waiting on the notification permission',
     PushStatus.registrationFailed => 'The device could not register',
     PushStatus.serverError => 'Could not reach the server',

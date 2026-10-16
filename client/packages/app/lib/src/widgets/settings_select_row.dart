@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'settings_section_header.dart';
+
 /// One choice offered by a [SettingsSelectRow].
 class SettingsChoice<T> {
   const SettingsChoice({required this.value, required this.label});
@@ -28,6 +30,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
     this.sheetFootnote,
     this.description,
     this.unknownLabel = 'Unknown',
+    this.sub = false,
   });
 
   final String label;
@@ -54,6 +57,9 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// Shown in place of a choice's label when [value] is null. Must never be a
   /// real choice's own label, or "not known" reads as that choice.
   final String unknownLabel;
+
+  /// Renders as an indented sub-row of the row above, not a row of its own.
+  final bool sub;
 
   String get _currentLabel {
     final current = value;
@@ -155,6 +161,32 @@ class SettingsSelectRow<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final desktop = MediaQuery.sizeOf(context).width >= kCompactWidth;
+    final chevron = Icon(
+      desktop ? AppIcons.chevronDown : AppIcons.chevronRight,
+      size: AppSizes.icon16,
+      color: tokens.textSecondary,
+    );
+    if (sub) {
+      return SettingsSubRow(
+        label: label,
+        semanticLabel: '$label, currently $_currentLabel',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.s8,
+          children: [
+            Flexible(
+              child: Text(
+                _currentLabel,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              ),
+            ),
+            chevron,
+          ],
+        ),
+        onTap: () => desktop ? _openDropdown(context) : _open(context),
+      );
+    }
     return AppListRow(
       label: label,
       subtitle: description,
@@ -176,11 +208,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
               ),
             ),
             // Down on desktop for a dropdown, right on a phone for a sheet.
-            Icon(
-              desktop ? AppIcons.chevronDown : AppIcons.chevronRight,
-              size: AppSizes.icon16,
-              color: tokens.textSecondary,
-            ),
+            chevron,
           ],
         ),
       ),

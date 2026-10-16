@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A settings row whose value is a short segmented choice at the right.
+/// A label (and optional description) with a segmented choice at its right
+/// edge, the design's `.row` with a segmented control.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
     required this.choices,
     required this.onChanged,
     this.description,
+    this.footnote,
   });
 
   final String label;
@@ -24,21 +26,37 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
   final List<SettingsChoice<T>> choices;
   final ValueChanged<T> onChanged;
 
-  static const _stackBelow = 480.0;
+  /// Extra caption under the description, for a state the choice cannot show.
+  final String? footnote;
 
-  Widget get _control => AppSegmentedControl.inline(
-    semanticLabel: label,
-    options: [
-      for (final choice in choices) AppSegmentedOption(label: choice.label),
-    ],
-    selectedIndex: choices.indexWhere((c) => c.value == value),
-    onSegmentSelected: (i) => onChanged(choices[i].value),
-  );
+  /// Below this row width the control drops under the label instead of
+  /// squeezing it.
+  static const stackBelowWidth = 480.0;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final metrics = SettingsRowMetrics.of(context);
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: AppText.ui.copyWith(color: tokens.textPrimary)),
+        for (final line in [description, footnote].nonNulls) ...[
+          const SizedBox(height: 2),
+          Text(
+            line,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ],
+      ],
+    );
+    final control = AppSegmentedControl.inline(
+      semanticLabel: label,
+      options: [for (final c in choices) AppSegmentedOption(label: c.label)],
+      selectedIndex: choices.indexWhere((c) => c.value == value),
+      onSegmentSelected: (i) => onChanged(choices[i].value),
+    );
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: metrics.minHeight),
       child: Padding(
@@ -48,38 +66,18 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, box) {
-            final labels = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: AppText.ui.copyWith(color: tokens.textPrimary),
-                ),
-                if (description != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    description!,
-                    style: AppText.caption.copyWith(
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            );
-            // Beside the label only when both fit; a phone stacks them.
-            if (box.maxWidth < _stackBelow) {
+            if (box.maxWidth + 2 * metrics.inset < stackBelowWidth) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: AppSpacing.s8,
-                children: [labels, _control],
+                children: [text, control],
               );
             }
             return Row(
               spacing: AppSpacing.s16,
               children: [
-                Expanded(child: labels),
-                _control,
+                Expanded(child: text),
+                control,
               ],
             );
           },

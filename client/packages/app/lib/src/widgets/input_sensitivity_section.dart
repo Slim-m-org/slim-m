@@ -11,6 +11,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart';
+import 'settings_info_line.dart';
 import 'settings_toggle_row.dart';
 
 class InputSensitivityMeter extends ConsumerWidget {
@@ -31,12 +32,16 @@ class InputSensitivityMeter extends ConsumerWidget {
     final inCall = flags.state == VoiceSessionState.connected;
     final reading = ref.watch(inputGateReadingProvider).valueOrNull;
     final level = inCall ? reading?.levelDb : null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-          child: Row(
+    final scale = AppText.micro.copyWith(
+      fontFamily: AppFonts.mono,
+      color: tokens.textSecondary,
+    );
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
               Expanded(
                 child: Text(
@@ -46,27 +51,43 @@ class InputSensitivityMeter extends ConsumerWidget {
               ),
               Text(
                 '${threshold.round()} dB',
-                style: AppText.code.copyWith(color: tokens.textSecondary),
+                style: AppText.caption.copyWith(
+                  fontFamily: AppFonts.mono,
+                  color: tokens.textSecondary,
+                ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        AppSlider(
-          tall: true,
-          value: threshold,
-          min: kInputFloorDb,
-          max: 0,
-          meter: level == null ? 0 : inputLevelFraction(level) * 100,
-          muted: !inCall || !flags.microphoneEnabled,
-          semanticLabel: 'Input sensitivity',
-          onChanged: auto
-              ? null
-              : (db) => ref
-                    .read(voiceSettingsControllerProvider.notifier)
-                    .setInputThreshold(db),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.s8),
+          AppSlider(
+            tall: true,
+            value: threshold,
+            min: kInputFloorDb,
+            max: 0,
+            meter: level == null ? 0 : inputLevelFraction(level) * 100,
+            muted: !inCall || !flags.microphoneEnabled,
+            semanticLabel: 'Input sensitivity',
+            onChanged: auto
+                ? null
+                : (db) => ref
+                      .read(voiceSettingsControllerProvider.notifier)
+                      .setInputThreshold(db),
+          ),
+          const SizedBox(height: AppSpacing.s4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${kInputFloorDb.round()} dB', style: scale),
+              Text('0 dB', style: scale),
+            ],
+          ),
+          if (!inCall)
+            const SettingsInfoLine(
+              'Join a call to see your live level on this bar.',
+              padding: EdgeInsets.only(top: AppSpacing.s8),
+            ),
+        ],
+      ),
     );
   }
 }

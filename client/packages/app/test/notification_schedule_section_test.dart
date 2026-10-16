@@ -17,6 +17,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/device_timezone.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/notification_schedule_section.dart';
+import 'package:slimm_app/src/widgets/notification_snooze_section.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -88,7 +89,14 @@ Future<void> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: const Scaffold(
-          body: SingleChildScrollView(child: NotificationScheduleSection()),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                NotificationScheduleSection(),
+                NotificationSnoozeSection(),
+              ],
+            ),
+          ),
         ),
       ),
     ),
