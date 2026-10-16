@@ -51,7 +51,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../routing/routes.dart';
 import '../widgets/settings_section_header.dart';
-import '../widgets/media_capability_section.dart';
 import '../widgets/activity_sharing_section.dart';
 import '../widgets/app_info_section.dart';
 import '../widgets/app_lock_section.dart';
@@ -66,6 +65,7 @@ import '../widgets/report_status_section.dart';
 import '../widgets/settings_panes.dart';
 import '../widgets/settings_profile_preview.dart';
 import '../widgets/totp_section.dart';
+import '../widgets/troubleshooting_pane.dart';
 import '../widgets/change_password_section.dart';
 import 'voice_settings_screen.dart';
 import '../action_labels.dart';
@@ -180,7 +180,9 @@ class PersonalSettingsScreen extends StatelessWidget {
               id: 'troubleshooting',
               label: 'Troubleshooting',
               icon: AppIcons.troubleshooting,
-              builder: (context) => const MediaCapabilitySection(),
+              builder: (context) => const TroubleshootingPane(),
+              headingBuilder: (context, onClose) =>
+                  TroubleshootingHeading(onClose: onClose),
             ),
             SettingsPane(
               id: 'about',

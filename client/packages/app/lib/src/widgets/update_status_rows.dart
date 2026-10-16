@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What Settings > About says about updates: whether one is waiting, and a
-/// way to ask again without relaunching.
+/// What Settings > About says about the build and its updates: the app's name
+/// and version, whether an update is waiting, and a way to ask again without
+/// relaunching.
 ///
 /// Both numbers, deliberately. The owner's complaint that led to decision
 /// 0025 was that a prompt naming one version could not be triaged from a
@@ -86,28 +87,131 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.shouldRun()) return const SizedBox.shrink();
-    final update = ref.watch(inSessionUpdateProvider);
-    final installed = ref.watch(appInfoProvider).valueOrNull?.version;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final update = widget.shouldRun()
+        ? ref.watch(inSessionUpdateProvider)
+        : null;
+    final info = ref.watch(appInfoProvider);
+    final installed = info.valueOrNull?.version;
+    final status = [
+      if (update != null && installed != null)
+        '${update.version} is available. You have $installed. '
+            '${updateActionHint(update.format)}',
+      ?_result,
+    ];
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 2,
       children: [
-        if (update != null && installed != null)
-          AppListRow(
-            leading: const Icon(AppIcons.download),
-            label: '${update.version} is available. You have $installed.',
-            subtitle: updateActionHint(update.format),
+        Text(
+          'slim-m',
+          style: AppText.body.copyWith(
+            color: tokens.textPrimary,
+            fontWeight: AppWeights.semi,
           ),
-        AppListRow(
-          leading: const Icon(AppIcons.retry),
-          label: 'Check for updates',
-          subtitle: _result,
-          meta: _checking ? 'Checking…' : null,
-          onTap: _checking ? null : () => unawaited(_checkNow()),
         ),
+        Text(
+          info.when(
+            data: (i) => i.buildNumber.isEmpty
+                ? 'Version ${i.version}'
+                : 'Version ${i.version} (${i.buildNumber})',
+            loading: () => 'Loading…',
+            error: (e, _) => 'Version unknown',
+          ),
+          style: AppText.caption.copyWith(
+            color: tokens.textSecondary,
+            fontFamily: AppFonts.mono,
+          ),
+        ),
+        for (final line in status)
+          Text(
+            line,
+            style: AppText.caption.copyWith(color: tokens.textPrimary),
+          ),
       ],
+    );
+    final button = widget.shouldRun()
+        ? AppButton(
+            label: _checking ? 'Checking…' : 'Check for updates',
+            onPressed: _checking ? null : () => unawaited(_checkNow()),
+          )
+        : null;
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.s20),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Below this the button would squeeze the name out of its own row.
+          final stacked = box.maxWidth < 420;
+          final head = Row(
+            spacing: AppSpacing.s16,
+            children: [
+              const AppIconTile(),
+              Expanded(child: identity),
+              if (button != null && !stacked) button,
+            ],
+          );
+          if (button == null || !stacked) return head;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.s16,
+            children: [head, button],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The app's mark: three grey dots and an accent square on a dark tile.
+class AppIconTile extends StatelessWidget {
+  const AppIconTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    Widget dot(double x, double y) => Positioned(
+      left: x,
+      top: y,
+      child: Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: tokens.textSecondary,
+        ),
+      ),
+    );
+    return ExcludeSemantics(
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: tokens.surfaceSunken,
+          border: Border.all(color: tokens.borderStrong),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
+        child: Stack(
+          children: [
+            dot(11, 11),
+            dot(20, 11),
+            dot(11, 20),
+            Positioned(
+              left: 23,
+              top: 23,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: tokens.accent,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
