@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/database_key_store.dart';
 import '../providers/last_text_channel.dart';
+import '../providers/toasts.dart';
 import '../providers/providers.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
 import '../providers/channel_search_controller.dart';
@@ -77,8 +78,20 @@ class ConversationPane extends ConsumerWidget {
     if (channel == null &&
         row.hasValue &&
         ref.watch(initialSyncCompleteProvider)) {
+      final fallback = fallbackChannel(
+        last: ref.read(lastTextChannelProvider),
+        previous: ref.read(previousTextChannelProvider),
+        gone: channelId,
+      );
       if (ref.watch(removedRoomsProvider).contains(channelId)) {
-        return _LeaveRemovedRoom(fallback: ref.read(lastTextChannelProvider));
+        return _LeaveRemovedRoom(fallback: fallback);
+      }
+      final deletedName = ref.watch(deletedChannelsProvider)[channelId];
+      if (deletedName != null) {
+        return _LeaveRemovedRoom(
+          fallback: fallback,
+          notice: '#$deletedName was deleted',
+        );
       }
       return UnlistedChannel(channelId: channelId);
     }
@@ -97,7 +110,10 @@ class ConversationPane extends ConsumerWidget {
         : 'text';
     if (stage == 'text' && channel != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(lastTextChannelProvider.notifier).state = channelId;
+        final last = ref.read(lastTextChannelProvider.notifier);
+        if (last.state == channelId) return;
+        ref.read(previousTextChannelProvider.notifier).state = last.state;
+        last.state = channelId;
       });
     }
     final body = AppFadeIn(
@@ -168,23 +184,28 @@ class _VoiceConversationHeader extends ConsumerWidget {
   }
 }
 
-/// A temporary room that emptied and was removed while still on screen:
-/// back to the last text conversation, or the channel list without one.
-class _LeaveRemovedRoom extends StatefulWidget {
-  const _LeaveRemovedRoom({required this.fallback});
+/// A channel removed while still on screen (a temporary room that emptied,
+/// or a deleted channel such as a closed ticket): back to the last text
+/// conversation, or the channel list without one, saying why when [notice]
+/// is set.
+class _LeaveRemovedRoom extends ConsumerStatefulWidget {
+  const _LeaveRemovedRoom({required this.fallback, this.notice});
 
   final String? fallback;
+  final String? notice;
 
   @override
-  State<_LeaveRemovedRoom> createState() => _LeaveRemovedRoomState();
+  ConsumerState<_LeaveRemovedRoom> createState() => _LeaveRemovedRoomState();
 }
 
-class _LeaveRemovedRoomState extends State<_LeaveRemovedRoom> {
+class _LeaveRemovedRoomState extends ConsumerState<_LeaveRemovedRoom> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final notice = widget.notice;
+      if (notice != null) ref.read(toastsProvider.notifier).show(notice);
       final fallback = widget.fallback;
       context.go(fallback == null ? Routes.channels : Routes.channel(fallback));
     });

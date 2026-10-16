@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/last_text_channel.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/platform.dart';
@@ -150,6 +151,32 @@ void main() {
       );
 
       expect(await harness.store.hasChannel('c1'), isFalse);
+    },
+  );
+
+  test(
+    'channel.deleted remembers the name, so an open pane can say what went',
+    () async {
+      final harness = _harness(
+        handle: (request) async => http.Response('unexpected call', 500),
+      );
+      addTearDown(harness.container.dispose);
+      addTearDown(harness.store.db.close);
+      final controller = harness.container.read(
+        syncControllerProvider.notifier,
+      );
+      await harness.store.upsertChannels([
+        Channel.fromJson(_channelJson(id: 'c1', name: 'ticket-0004')),
+      ]);
+
+      await controller.applyServerEventForTest(
+        const ChannelDeleted(channelId: 'c1'),
+      );
+
+      expect(harness.container.read(deletedChannelsProvider), {
+        'c1': 'ticket-0004',
+      });
+      expect(harness.container.read(removedRoomsProvider), isEmpty);
     },
   );
 
