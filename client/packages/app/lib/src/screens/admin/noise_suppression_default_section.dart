@@ -12,9 +12,9 @@ import '../../providers/providers.dart';
 import '../../widgets/join_policy_row.dart' show spaceSettingsProvider;
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
-import '../../widgets/success_flash.dart';
 
 class NoiseSuppressionDefaultSection extends ConsumerStatefulWidget {
   const NoiseSuppressionDefaultSection({super.key});
@@ -43,29 +43,37 @@ class _NoiseSuppressionDefaultSectionState
     ref.listen(spaceSettingsProvider, (_, next) => retireOptimistic(next));
     final current = optimistic ?? settings.valueOrNull?.strongNoiseSuppression;
 
-    return SettingsSectionCard(
-      title: 'Noise suppression',
-      description: 'For members who leave it on Space default.',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsToggleRow(
-          label: 'Strong by default',
-          description: 'Also removes keyboards, fans and room noise.',
-          value: current ?? false,
-          semanticLabel: 'Strong noise suppression by default',
-          onChanged: current == null || saving ? null : _set,
+        SettingsSectionCard(
+          flush: true,
+          title: 'Noise suppression',
+          description: 'For members who leave it on Space default.',
+          children: [
+            SettingsToggleRow(
+              label: 'Strong by default',
+              description: 'Also removes keyboards, fans and room noise.',
+              value: current ?? false,
+              semanticLabel: 'Strong noise suppression by default',
+              onChanged: current == null || saving ? null : _set,
+            ),
+            if (settings.hasError && current == null)
+              SettingsCardBlock(
+                children: [
+                  AppErrorState(
+                    message: 'Could not load the current default.',
+                    onRetry: () => ref.invalidate(spaceSettingsProvider),
+                  ),
+                ],
+              ),
+          ],
         ),
-        if (settings.hasError && current == null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(
-            message: 'Could not load the current default.',
-            onRetry: () => ref.invalidate(spaceSettingsProvider),
-          ),
-        ],
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
       ],
     );
   }

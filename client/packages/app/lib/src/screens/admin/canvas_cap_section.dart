@@ -15,8 +15,9 @@ import '../../providers/providers.dart';
 import '../../widgets/canvas_memory_estimate.dart';
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/success_flash.dart';
+import '../../widgets/settings_segmented_block.dart';
 
 /// The per-channel canvas object cap; index-matched to the segmented options
 /// below. All lie inside the server's settable range (100 to 100000), and
@@ -85,40 +86,42 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
     final current = optimistic ?? cap.valueOrNull;
     final selectedIndex = _canvasCapOptions.indexWhere((o) => o.$2 == current);
 
-    return SettingsSectionCard(
-      title: 'Canvas object cap',
-      description: 'The most objects one channel canvas can hold.',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppAsyncView<int>(
-          value: AppAsyncState(data: current, error: cap.error),
-          center: false,
-          errorMessage: 'Could not load the canvas object cap.',
-          onRetry: () => ref.invalidate(spaceCanvasCapProvider),
-          data: (context, value) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppSegmentedControl.inline(
+        SettingsSectionCard(
+          flush: true,
+          title: 'Canvas object cap',
+          description: 'The most objects one channel canvas can hold.',
+          children: [
+            if (current != null) ...[
+              SettingsSegmentedBlock(
                 semanticLabel: 'Canvas object cap',
-                options: [
-                  for (final option in _canvasCapOptions)
-                    AppSegmentedOption(label: option.$1, disabled: saving),
-                ],
+                labels: [for (final option in _canvasCapOptions) option.$1],
                 selectedIndex: selectedIndex,
-                onSegmentSelected: (i) => _setCap(_canvasCapOptions[i].$2),
+                disabled: saving,
+                onSelected: (i) => _setCap(_canvasCapOptions[i].$2),
               ),
-              const SizedBox(height: AppSpacing.s12),
-              AppCallout(
-                tone: AppCalloutTone.info,
-                child: Text(canvasCapConsequence(value)),
+              SettingsSubRow(label: canvasCapConsequence(current)),
+            ] else
+              SettingsCardBlock(
+                children: [
+                  AppAsyncView<int>(
+                    value: AppAsyncState(data: current, error: cap.error),
+                    center: false,
+                    errorMessage: 'Could not load the canvas object cap.',
+                    onRetry: () => ref.invalidate(spaceCanvasCapProvider),
+                    data: (context, value) => const SizedBox.shrink(),
+                  ),
+                ],
               ),
-            ],
-          ),
+          ],
         ),
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
       ],
     );
   }

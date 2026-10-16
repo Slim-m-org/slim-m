@@ -91,7 +91,9 @@ void main() {
   });
 
   Color? poolColor(WidgetTester tester, String value) =>
-      tester.widget<Text>(find.text(value)).style?.color;
+      (tester.widget<Text>(find.text(value)).textSpan! as TextSpan)
+          .style
+          ?.color;
 
   testWidgets('a pool at its ceiling is drawn in the danger colour', (
     tester,
@@ -101,7 +103,7 @@ void main() {
       _metrics(pool: const api.DbPoolStats(max: 8, size: 8, inUse: 8)),
     );
 
-    expect(poolColor(tester, '8 / 8'), AppTokens.light.dangerText);
+    expect(poolColor(tester, '8 of 8'), AppTokens.light.dangerText);
   });
 
   testWidgets('a pool with headroom keeps the ordinary text colour', (
@@ -112,7 +114,7 @@ void main() {
       _metrics(pool: const api.DbPoolStats(max: 8, size: 8, inUse: 2)),
     );
 
-    expect(poolColor(tester, '2 / 8'), AppTokens.light.textPrimary);
+    expect(poolColor(tester, '2 of 8'), AppTokens.light.textPrimary);
   });
 
   test('formatLatency uses milliseconds under a second and seconds above', () {

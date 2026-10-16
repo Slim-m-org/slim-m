@@ -30,9 +30,10 @@ import '../../routing/routes.dart';
 import '../../widgets/attachment_format.dart' show formatByteSize;
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
-import '../../widgets/success_flash.dart';
+import '../../widgets/settings_meter_row.dart';
+import '../../widgets/settings_save_feedback.dart';
+import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
-import 'admin_stat_tile.dart';
 import 'analytics_charts.dart';
 import 'analytics_ghost.dart';
 import 'analytics_toggle.dart';
@@ -84,12 +85,11 @@ class _AnalyticsPaneState extends ConsumerState<AnalyticsPane>
           busy: saving || analytics.isLoading || !analytics.hasValue,
           onChanged: _setEnabled,
         ),
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
-        const SizedBox(height: AppSpacing.s16),
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
         // With no stats held to keep on screen, the error stands alone rather than beside an off-state preview.
         if (analytics.hasError &&
             (!enabled || analytics.valueOrNull?.stats == null))
@@ -131,33 +131,32 @@ class _StatsView extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _StatTiles(stats: stats),
-      const SizedBox(height: AppSpacing.s16),
+      _OverviewCard(stats: stats),
       MessagesByDayCard(stats: stats),
-      const SizedBox(height: AppSpacing.s16),
       ActiveHoursCard(stats: stats),
-      const SizedBox(height: AppSpacing.s16),
       MemoryCard(stats: stats),
-      const SizedBox(height: AppSpacing.s16),
       MemberStorageCard(usage: memberStorage),
     ],
   );
 }
 
-class _StatTiles extends StatelessWidget {
-  const _StatTiles({required this.stats});
+class _OverviewCard extends StatelessWidget {
+  const _OverviewCard({required this.stats});
 
   final api.AnalyticsStats stats;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: AppSpacing.s12,
-    runSpacing: AppSpacing.s12,
+  Widget build(BuildContext context) => SettingsSectionCard(
+    flush: true,
+    title: 'Overview',
     children: [
-      AdminStatTile(label: 'Total messages', value: '${stats.totalMessages}'),
-      AdminStatTile(label: 'Members', value: '${stats.memberCount}'),
-      AdminStatTile(label: 'Channels', value: '${stats.channelCount}'),
-      AdminStatTile(
+      SettingsMeterRow(
+        label: 'Total messages',
+        value: '${stats.totalMessages}',
+      ),
+      SettingsMeterRow(label: 'Members', value: '${stats.memberCount}'),
+      SettingsMeterRow(label: 'Channels', value: '${stats.channelCount}'),
+      SettingsMeterRow(
         label: 'Attachments stored',
         value: formatByteSize(stats.attachmentBytes),
       ),

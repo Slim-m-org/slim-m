@@ -13,6 +13,8 @@ import '../../providers/user_profiles.dart';
 import '../../widgets/analytics_bar_chart.dart';
 import '../../widgets/attachment_format.dart' show formatByteSize;
 import '../../widgets/author_label.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_meter_row.dart';
 import '../../widgets/settings_section_header.dart';
 
 /// Every sixth hour: the landmarks a reader navigates a day by, rather than
@@ -56,23 +58,28 @@ class MessagesByDayCard extends StatelessWidget {
     final summaryLabel = days.map((d) => '${d.date}: ${d.count}').join(', ');
 
     return SettingsSectionCard(
+      flush: true,
       title: 'Messages, last 30 days',
       children: [
-        AnalyticsBarChart(
-          values: days.map((d) => d.count.toDouble()).toList(),
-          semanticsLabel: 'Messages per day: $summaryLabel',
-          ticks: _dateTicks(days),
-          maxLabel: busiest == null || busiest.count == 0
-              ? null
-              : '${busiest.count}',
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Text(
-          busiest == null || busiest.count == 0
-              ? 'Total: $total'
-              : 'Total: $total · busiest day: ${busiest.date} '
-                    '(${busiest.count})',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        SettingsCardBlock(
+          gap: AppSpacing.s8,
+          children: [
+            AnalyticsBarChart(
+              values: days.map((d) => d.count.toDouble()).toList(),
+              semanticsLabel: 'Messages per day: $summaryLabel',
+              ticks: _dateTicks(days),
+              maxLabel: busiest == null || busiest.count == 0
+                  ? null
+                  : '${busiest.count}',
+            ),
+            Text(
+              busiest == null || busiest.count == 0
+                  ? 'Total: $total'
+                  : 'Total: $total · busiest day: ${busiest.date} '
+                        '(${busiest.count})',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ],
         ),
       ],
     );
@@ -99,22 +106,27 @@ class ActiveHoursCard extends StatelessWidget {
     ].join(', ');
 
     return SettingsSectionCard(
+      flush: true,
       title: 'Active hours, last 30 days (UTC)',
       children: [
-        AnalyticsBarChart(
-          values: hours.map((c) => c.toDouble()).toList(),
-          semanticsLabel: 'Messages per UTC hour of day: $summaryLabel',
-          ticks: _hourTicks(hours.length),
-          maxLabel: total == 0 ? null : '${hours[peakHour]}',
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Text(
-          total == 0
-              ? 'No messages in this window.'
-              : 'Busiest hour: ${peakHour.toString().padLeft(2, '0')}:00 '
-                    'UTC (${hours[peakHour]} messages), summed across '
-                    'every member.',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        SettingsCardBlock(
+          gap: AppSpacing.s8,
+          children: [
+            AnalyticsBarChart(
+              values: hours.map((c) => c.toDouble()).toList(),
+              semanticsLabel: 'Messages per UTC hour of day: $summaryLabel',
+              ticks: _hourTicks(hours.length),
+              maxLabel: total == 0 ? null : '${hours[peakHour]}',
+            ),
+            Text(
+              total == 0
+                  ? 'No messages in this window.'
+                  : 'Busiest hour: ${peakHour.toString().padLeft(2, '0')}:00 '
+                        'UTC (${hours[peakHour]} messages), summed across '
+                        'every member.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ],
         ),
       ],
     );
@@ -131,12 +143,13 @@ class MemoryCard extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final samples = stats.memorySamples;
     if (samples.isEmpty) {
-      return SettingsSectionCard(
+      return const SettingsSectionCard(
+        flush: true,
         title: 'Server memory use',
         children: [
-          Text(
-            'Not enough data yet; check back shortly.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          SettingsEmptyState(
+            icon: AppIcons.analytics,
+            title: 'Not enough data yet; check back shortly.',
           ),
         ],
       );
@@ -148,20 +161,26 @@ class MemoryCard extends StatelessWidget {
         .join(', ');
 
     return SettingsSectionCard(
+      flush: true,
       title: 'Server memory use',
       children: [
-        AnalyticsBarChart(
-          values: samples.map((s) => s.rssBytes.toDouble()).toList(),
-          semanticsLabel: 'Server memory readings, oldest first: $summaryLabel',
-          ticks: samples.length < 2
-              ? const {}
-              : {0: 'oldest', samples.length - 1: 'newest'},
-          maxLabel: formatByteSize(peak),
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Text(
-          'Latest: ${formatByteSize(latest)} · peak: ${formatByteSize(peak)}',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        SettingsCardBlock(
+          gap: AppSpacing.s8,
+          children: [
+            AnalyticsBarChart(
+              values: samples.map((s) => s.rssBytes.toDouble()).toList(),
+              semanticsLabel:
+                  'Server memory readings, oldest first: $summaryLabel',
+              ticks: samples.length < 2
+                  ? const {}
+                  : {0: 'oldest', samples.length - 1: 'newest'},
+              maxLabel: formatByteSize(peak),
+            ),
+            Text(
+              'Latest: ${formatByteSize(latest)} · peak: ${formatByteSize(peak)}',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ],
         ),
       ],
     );
@@ -179,64 +198,36 @@ class MemberStorageCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     resolveAuthorProfiles(ref, usage.map((u) => u.userId));
     final profiles = ref.watch(batchProfilesControllerProvider);
 
     if (usage.isEmpty) {
-      return SettingsSectionCard(
+      return const SettingsSectionCard(
+        flush: true,
         title: 'Attachment storage by member',
         children: [
-          Text(
-            'Nobody has uploaded an attachment yet.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          SettingsEmptyState(
+            icon: AppIcons.members,
+            title: 'Nobody has uploaded an attachment yet.',
           ),
         ],
       );
     }
 
     return SettingsSectionCard(
+      flush: true,
       title: 'Attachment storage by member',
       children: [
         for (final member in usage)
-          _MemberStorageRow(usage: member, profiles: profiles),
-      ],
-    );
-  }
-}
-
-class _MemberStorageRow extends StatelessWidget {
-  const _MemberStorageRow({required this.usage, required this.profiles});
-
-  final api.MemberAttachmentUsage usage;
-  final Map<String, api.UserProfile?> profiles;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final name = authorLabel(
-      authorId: usage.userId,
-      cachedDisplayName: null,
-      profiles: profiles,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.body.copyWith(color: tokens.textPrimary),
+          SettingsMeterRow(
+            label: authorLabel(
+              authorId: member.userId,
+              cachedDisplayName: null,
+              profiles: profiles,
             ),
+            value: formatByteSize(member.attachmentBytes),
           ),
-          Text(
-            formatByteSize(usage.attachmentBytes),
-            style: AppText.body.copyWith(color: tokens.textSecondary),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

@@ -20,9 +20,11 @@ import '../../providers/admin_providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/analytics_bar_chart.dart';
 import '../../widgets/attachment_format.dart' show formatByteSize;
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_meter_row.dart';
+import '../../widgets/settings_refresh_button.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
-import 'admin_stat_tile.dart';
 import 'server_metrics_routes_card.dart';
 
 class ServerMetricsScreen extends StatelessWidget {
@@ -55,19 +57,20 @@ class ServerMetricsPane extends ConsumerWidget {
   }
 }
 
-class _MetricsView extends StatelessWidget {
+class _MetricsView extends ConsumerWidget {
   const _MetricsView({required this.metrics});
 
   final api.ServerMetrics metrics;
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context, WidgetRef ref) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _SystemCard(metrics: metrics),
-      const SizedBox(height: AppSpacing.s16),
+      _SystemCard(
+        metrics: metrics,
+        onRefresh: () => ref.invalidate(serverMetricsProvider),
+      ),
       _RequestVolumeCard(requestsByClass: metrics.requestsByClass),
-      const SizedBox(height: AppSpacing.s16),
       SlowestRoutesCard(routes: metrics.routes),
     ],
   );
@@ -77,37 +80,42 @@ class _MetricsView extends StatelessWidget {
 /// the process-wide numbers a bottleneck search starts from before drilling
 /// into any one route.
 class _SystemCard extends StatelessWidget {
-  const _SystemCard({required this.metrics});
+  const _SystemCard({required this.metrics, required this.onRefresh});
 
   final api.ServerMetrics metrics;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final pool = metrics.pool;
     return SettingsSectionCard(
+      flush: true,
       title: 'System',
+      trailing: SettingsRefreshButton(
+        label: 'Refresh server metrics',
+        onPressed: onRefresh,
+      ),
       children: [
-        Wrap(
-          spacing: AppSpacing.s12,
-          runSpacing: AppSpacing.s12,
-          children: [
-            AdminStatTile(
-              label: 'Resident memory',
-              value: metrics.residentMemoryBytes == null
-                  ? 'unknown'
-                  : formatByteSize(metrics.residentMemoryBytes!.round()),
-            ),
-            AdminStatTile(
-              label: 'WebSocket connections',
-              value: '${metrics.webSocketConnections}',
-            ),
-            AdminStatTile(
-              label: 'DB pool in use',
-              value: pool == null ? 'unknown' : '${pool.inUse} / ${pool.max}',
-              warn: pool != null && pool.max > 0 && pool.inUse >= pool.max,
-            ),
-          ],
+        SettingsMeterRow(
+          label: 'Resident memory',
+          value: metrics.residentMemoryBytes == null
+              ? 'unknown'
+              : formatByteSize(metrics.residentMemoryBytes!.round()),
         ),
+        SettingsMeterRow(
+          label: 'WebSocket connections',
+          value: '${metrics.webSocketConnections}',
+        ),
+        if (pool == null)
+          const SettingsMeterRow(label: 'DB pool in use', value: 'unknown')
+        else
+          SettingsMeterRow(
+            label: 'DB pool in use',
+            value: '${pool.inUse}',
+            of: 'of ${pool.max}',
+            fraction: meterFraction(pool.inUse, pool.max),
+            warn: pool.max > 0 && pool.inUse >= pool.max,
+          ),
       ],
     );
   }
@@ -123,14 +131,14 @@ class _RequestVolumeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     if (requestsByClass.isEmpty) {
-      return SettingsSectionCard(
+      return const SettingsSectionCard(
+        flush: true,
         title: 'Request volume by class',
         children: [
-          Text(
-            'No requests recorded since this server process started.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          SettingsEmptyState(
+            icon: AppIcons.requestLatency,
+            title: 'No requests recorded since this server process started.',
           ),
         ],
       );
@@ -141,49 +149,28 @@ class _RequestVolumeCard extends StatelessWidget {
         )
         .join(', ');
     return SettingsSectionCard(
+      flush: true,
       title: 'Request volume by class',
       children: [
-        AnalyticsBarChart(
-          values: requestsByClass.map((c) => c.admitted.toDouble()).toList(),
-          semanticsLabel: 'Requests admitted per class: $summaryLabel',
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        for (final entry in requestsByClass) _RequestClassRow(entry: entry),
-      ],
-    );
-  }
-}
-
-class _RequestClassRow extends StatelessWidget {
-  const _RequestClassRow({required this.entry});
-
-  final api.RequestClassCount entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              entry.className,
-              style: AppText.body.copyWith(color: tokens.textPrimary),
+        SettingsCardBlock(
+          children: [
+            AnalyticsBarChart(
+              values: requestsByClass
+                  .map((c) => c.admitted.toDouble())
+                  .toList(),
+              semanticsLabel: 'Requests admitted per class: $summaryLabel',
             ),
-          ),
-          Text(
-            entry.refused == 0
+          ],
+        ),
+        for (final entry in requestsByClass)
+          SettingsMeterRow(
+            label: entry.className,
+            value: entry.refused == 0
                 ? '${entry.admitted} admitted'
                 : '${entry.admitted} admitted, ${entry.refused} refused',
-            style: AppText.caption.copyWith(
-              color: entry.refused == 0
-                  ? tokens.textSecondary
-                  : tokens.dangerText,
-            ),
+            warn: entry.refused > 0,
           ),
-        ],
-      ),
+      ],
     );
   }
 }
