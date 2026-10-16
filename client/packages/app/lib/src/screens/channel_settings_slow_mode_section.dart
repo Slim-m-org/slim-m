@@ -20,7 +20,7 @@ import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
 import '../widgets/settings_select_row.dart';
-import '../widgets/settings_row_feedback.dart';
+import '../widgets/settings_save_feedback.dart';
 
 /// The interval choices offered here, index-matched to the segmented
 /// control below. Not the server's own full 0..21600 range
@@ -107,10 +107,11 @@ class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
           ],
           onChanged: (seconds) => _saving ? null : _setSeconds(seconds),
         ),
-        SettingsRowFeedback(
+        SettingsSaveFeedback(
+          inCard: true,
           tick: successTick,
           error: actionError,
-          onDismiss: clearActionError,
+          onDismissError: clearActionError,
         ),
       ],
     );

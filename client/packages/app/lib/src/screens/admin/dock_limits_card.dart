@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_host_access_card.dart';
@@ -33,7 +33,7 @@ class DockLimitsCard extends StatelessWidget {
       flush: true,
       title: 'Limits on every run',
       children: [
-        if (!asksForAccess) const SettingsCardNote(dockNoAccessNote),
+        if (!asksForAccess) const SettingsInfoLine(dockNoAccessNote),
         if (_ungranted(manifest.capabilities) case final names
             when names.isNotEmpty)
           SettingsCardBlock(

@@ -17,7 +17,7 @@ import '../widgets/run_guarded.dart';
 import '../widgets/settings_hairline.dart';
 import '../widgets/settings_select_row.dart';
 import '../widgets/settings_toggle_row.dart';
-import '../widgets/settings_row_feedback.dart';
+import '../widgets/settings_save_feedback.dart';
 
 /// The user limits offered, 0 for none; the server takes 0 to 99.
 const List<(String, int)> userLimitOptions = [
@@ -112,10 +112,11 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
           sheetFootnote: 'The most people in the call at once.',
           onChanged: (value) => _saving ? null : _save(userLimit: value),
         ),
-        SettingsRowFeedback(
+        SettingsSaveFeedback(
+          inCard: true,
           tick: successTick,
           error: actionError,
-          onDismiss: clearActionError,
+          onDismissError: clearActionError,
         ),
       ],
     );

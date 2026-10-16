@@ -18,7 +18,7 @@ import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/run_guarded.dart';
-import '../widgets/settings_row_feedback.dart';
+import '../widgets/settings_save_feedback.dart';
 import '../widgets/settings_toggle_row.dart';
 
 /// Denies `@everyone` the view of [channelId] and grants it to [selfId],
@@ -159,10 +159,11 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
           onChanged: _saving ? null : (value) => unawaited(_set(value)),
         ),
         if (actionError != null)
-          SettingsRowFeedback(
+          SettingsSaveFeedback(
+            inCard: true,
             tick: 0,
             error: actionError,
-            onDismiss: clearActionError,
+            onDismissError: clearActionError,
           ),
       ],
     );

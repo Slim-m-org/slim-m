@@ -10,6 +10,7 @@ class SettingsInfoLine extends StatelessWidget {
     this.text, {
     super.key,
     this.tinted = false,
+    this.warn = false,
     this.padding = const EdgeInsets.symmetric(
       horizontal: AppSpacing.s16,
       vertical: 10,
@@ -21,11 +22,15 @@ class SettingsInfoLine extends StatelessWidget {
   /// Sub-row tint, for a line that belongs to the rows above it.
   final bool tinted;
 
+  /// A caution (something will not happen until someone acts), not an aside.
+  final bool warn;
+
   final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final tone = warn ? tokens.warnText : tokens.textSecondary;
     return Container(
       color: tinted
           ? Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5)
@@ -38,16 +43,13 @@ class SettingsInfoLine extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 1),
             child: Icon(
-              AppIcons.info,
+              warn ? AppIcons.warning : AppIcons.info,
               size: AppSizes.icon16,
-              color: tokens.textSecondary,
+              color: tone,
             ),
           ),
           Expanded(
-            child: Text(
-              text,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
+            child: Text(text, style: AppText.caption.copyWith(color: tone)),
           ),
         ],
       ),

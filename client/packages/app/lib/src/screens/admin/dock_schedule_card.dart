@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_select_row.dart';
@@ -74,7 +74,7 @@ class DockScheduleCard extends StatelessWidget {
           ),
         ),
         if (chosen == _noChannel)
-          const SettingsCardNote(
+          const SettingsInfoLine(
             'It will not run on its own until you pick a channel.',
             warn: true,
           ),

@@ -11,7 +11,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 
@@ -119,7 +119,7 @@ class DockHostAccessCard extends StatelessWidget {
       flush: true,
       title: 'Access to approve',
       children: [
-        SettingsCardNote(
+        SettingsInfoLine(
           reapprove.isEmpty
               ? 'Off unless you turn it on.'
               : 'A new build needs ${_labels(reapprove)} approved again.',

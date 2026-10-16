@@ -13,7 +13,7 @@ import '../../api_failure.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../widgets/settings_detail_row.dart';
-import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_module_row.dart';
 
@@ -65,9 +65,9 @@ class DockCommunitySection extends StatelessWidget {
             ],
           )
         else if (section.entries.isEmpty)
-          const SettingsCardNote('This source lists no modules.')
+          const SettingsInfoLine('This source lists no modules.')
         else if (shown.isEmpty)
-          const SettingsCardNote('No module in this source matches the search.')
+          const SettingsInfoLine('No module in this source matches the search.')
         else
           for (final entry in shown)
             DockModuleRow(

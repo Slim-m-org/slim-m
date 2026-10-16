@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
@@ -228,7 +228,7 @@ class _PermissionsCard extends StatelessWidget {
       title: 'Permissions this will add',
       children: [
         if (permissions.isEmpty)
-          const SettingsCardNote(
+          const SettingsInfoLine(
             'None. This module adds no grantable permission.',
           )
         else

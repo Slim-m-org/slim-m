@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/settings_danger_card.dart';
 import 'package:slimm_app/src/widgets/settings_field.dart';
 import 'package:slimm_app/src/widgets/settings_hairline.dart';
-import 'package:slimm_app/src/widgets/settings_row_feedback.dart';
+import 'package:slimm_app/src/widgets/settings_save_feedback.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/widgets/settings_value_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -109,10 +109,11 @@ void main() {
     var dismissed = 0;
     await tester.pumpWidget(
       _host(
-        SettingsRowFeedback(
+        SettingsSaveFeedback(
+          inCard: true,
           tick: 0,
           error: 'Could not save.',
-          onDismiss: () => dismissed++,
+          onDismissError: () => dismissed++,
         ),
       ),
     );

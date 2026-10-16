@@ -4,7 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
-import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 
@@ -39,7 +39,7 @@ class DockChangelogCard extends StatelessWidget {
             detail: entry.changes.join('\n'),
           ),
         if (cut > 0)
-          SettingsCardNote(
+          SettingsInfoLine(
             cut == 1 ? 'and 1 earlier version' : 'and $cut earlier versions',
           ),
       ],

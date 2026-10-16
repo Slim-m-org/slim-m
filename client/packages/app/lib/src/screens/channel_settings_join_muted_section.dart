@@ -13,7 +13,7 @@ import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
 import '../widgets/settings_toggle_row.dart';
-import '../widgets/settings_row_feedback.dart';
+import '../widgets/settings_save_feedback.dart';
 
 class ChannelJoinMutedSection extends ConsumerStatefulWidget {
   const ChannelJoinMutedSection({super.key, required this.channel});
@@ -70,10 +70,11 @@ class _ChannelJoinMutedSectionState
           onChanged: _saving ? null : _set,
           semanticLabel: 'Members join this channel muted',
         ),
-        SettingsRowFeedback(
+        SettingsSaveFeedback(
+          inCard: true,
           tick: successTick,
           error: actionError,
-          onDismiss: clearActionError,
+          onDismissError: clearActionError,
         ),
       ],
     );

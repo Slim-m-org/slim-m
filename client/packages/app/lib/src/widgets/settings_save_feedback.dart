@@ -13,23 +13,37 @@ class SettingsSaveFeedback extends StatelessWidget {
     super.key,
     required this.tick,
     required this.error,
-    required this.onDismissError,
+    this.onDismissError,
+    this.inCard = false,
   });
 
   /// `GuardedActionState.successTick`.
   final int tick;
   final String? error;
-  final VoidCallback onDismissError;
+  final VoidCallback? onDismissError;
+
+  /// Inside a flush card as one of its rows, so it takes the card's 16 inset.
+  final bool inCard;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SuccessFlash(tick: tick),
-      if (error != null) ...[
-        const SizedBox(height: AppSpacing.s8),
-        AppErrorState(message: error!, onDismiss: onDismissError),
+  Widget build(BuildContext context) {
+    final inset = inCard ? AppSpacing.s16 : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: inset),
+          child: SuccessFlash(tick: tick),
+        ),
+        if (error case final message?)
+          Padding(
+            padding: inCard
+                ? const EdgeInsets.all(AppSpacing.s16)
+                : const EdgeInsets.only(top: AppSpacing.s8),
+            child: AppErrorState(message: message, onDismiss: onDismissError),
+          ),
       ],
-    ],
-  );
+    );
+  }
 }

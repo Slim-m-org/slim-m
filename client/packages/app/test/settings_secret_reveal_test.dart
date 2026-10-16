@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/widgets/bot_permission_toggles.dart';
-import 'package:slimm_app/src/widgets/settings_card_note.dart';
+import 'package:slimm_app/src/widgets/settings_info_line.dart';
 import 'package:slimm_app/src/widgets/settings_secret_reveal.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -67,22 +67,24 @@ void main() {
     expect(dismissed, isTrue);
   });
 
-  testWidgets('a card note is one inset sentence, warn tone on request', (
+  testWidgets('an info line is one inset sentence, warn tone on request', (
     tester,
   ) async {
     await _pump(
       tester,
       const SettingsSectionCard(
         flush: true,
-        children: [SettingsCardNote('Heads up.', warn: true)],
+        children: [SettingsInfoLine('Heads up.', warn: true)],
       ),
     );
     final tokens = AppTokens.dark;
     final text = tester.widget<Text>(find.text('Heads up.'));
     expect(text.style?.color, tokens.warnText);
+    final icon = find.byIcon(AppIcons.warning);
+    expect(tester.widget<Icon>(icon).color, tokens.warnText);
     expect(
-      tester.getTopLeft(find.text('Heads up.')).dx -
-          tester.getTopLeft(find.byType(SettingsCardNote)).dx,
+      tester.getTopLeft(icon).dx -
+          tester.getTopLeft(find.byType(SettingsInfoLine)).dx,
       AppSpacing.s16,
     );
   });
