@@ -86,6 +86,7 @@ class _MediaCapabilitySectionState
           label: 'Device check',
           subtitle: 'Tests your microphone, camera and screen capture.',
           trailing: AppButton(
+            size: AppButtonSize.sm,
             label: _buttonLabel(),
             onPressed: _status == _CheckStatus.running ? null : _run,
           ),

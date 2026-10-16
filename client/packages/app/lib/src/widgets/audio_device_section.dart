@@ -131,13 +131,10 @@ class _DevicePickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!supported) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        child: AppCallout(
-          tone: AppCalloutTone.info,
-          icon: icon,
-          child: Text('$label: $unsupportedCaption'),
-        ),
+      return AppListRow(
+        label: label,
+        subtitle: unsupportedCaption,
+        meta: 'Default',
       );
     }
 
