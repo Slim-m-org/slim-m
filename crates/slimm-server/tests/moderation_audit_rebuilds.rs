@@ -186,6 +186,7 @@ async fn after_0118_a_new_action_needs_no_migration_but_junk_is_refused() {
     };
     assert!(insert("future_act").await.is_ok());
     assert!(insert("Bad Act!").await.is_err());
+    assert!(insert("UPPER").await.is_err());
     assert!(insert("").await.is_err());
 }
 

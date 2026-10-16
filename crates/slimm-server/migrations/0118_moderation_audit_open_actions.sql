@@ -19,7 +19,7 @@ CREATE TABLE moderation_audit_log_new (
     until      INTEGER,
     created_at INTEGER NOT NULL,
     CONSTRAINT moderation_audit_action
-        CHECK (length(action) BETWEEN 1 AND 64 AND action GLOB '[a-z]*' AND action NOT GLOB '*[^a-z_]*'),
+        CHECK (length(action) BETWEEN 1 AND 64 AND action NOT GLOB '*[^a-z0-9_]*'),
     CONSTRAINT moderation_audit_until CHECK (
         CASE action
             WHEN 'timeout' THEN until IS NOT NULL
