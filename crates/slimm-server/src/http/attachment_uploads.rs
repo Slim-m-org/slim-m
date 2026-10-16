@@ -108,7 +108,7 @@ async fn create(
     }
     let meta = UploadMeta {
         user_id: ctx.user_id.0.to_string(),
-        filename: media::sanitize_filename(req.filename.as_deref().unwrap_or("file")),
+        filename: media::sanitize_display_filename(req.filename.as_deref().unwrap_or("file")),
         size: req.size,
         created_at: now_ms(),
     };

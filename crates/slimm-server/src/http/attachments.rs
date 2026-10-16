@@ -134,7 +134,7 @@ async fn upload(
         return Err(err);
     }
 
-    let filename = media::sanitize_filename(params.filename.as_deref().unwrap_or("file"));
+    let filename = media::sanitize_display_filename(params.filename.as_deref().unwrap_or("file"));
     let hex_id = pending.hex_id().to_owned();
     let size = pending.size() as i64;
     let sha256 = media::from_hex(&hex_id).expect("a hex id from sha256 is well-formed hex");
@@ -294,15 +294,21 @@ pub(super) fn apply_asset_headers(headers: &mut HeaderMap, content_type: &str, f
     } else {
         "attachment"
     };
-    let safe_name = media::sanitize_filename(filename);
-    let disposition = format!("{disposition_kind}; filename=\"{safe_name}\"");
+    let display = media::sanitize_display_filename(filename);
+    let ascii = media::sanitize_filename(&display);
+    let disposition = if ascii == display {
+        format!("{disposition_kind}; filename=\"{ascii}\"")
+    } else {
+        let encoded = media::rfc5987_encode(&display);
+        format!("{disposition_kind}; filename=\"{ascii}\"; filename*=UTF-8''{encoded}")
+    };
 
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_str(content_type)
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
-    // `sanitize_filename` guarantees printable ASCII so this cannot fail; the
+    // The ASCII fallback and RFC 5987 encoding keep this printable ASCII, so it cannot fail; the
     // fallback keeps a future change to that guarantee a response, not a panic.
     let disposition_value = HeaderValue::from_str(&disposition)
         .unwrap_or_else(|_| HeaderValue::from_static("attachment"));
