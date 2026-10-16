@@ -55,6 +55,9 @@ Rect _frame(WidgetTester tester) => tester.getRect(
       .first,
 );
 
+/// Modules that declare more canvas than they draw on; the rest fill it.
+const _cropped = {'word-guess', 'spirograph', 'plot'};
+
 void main() {
   for (final (label, width) in const [('desktop', 760.0), ('phone', 358.0)]) {
     for (final entry in shippedScenes.entries) {
@@ -69,6 +72,11 @@ void main() {
           lessThanOrEqualTo(ModuleSceneFrame.inlineEdge(width) + 2),
         );
         final scene = parseModuleScene(jsonEncode(entry.value))!;
+        expect(
+          scene.viewWidth * scene.viewHeight < scene.width * scene.height,
+          _cropped.contains(entry.key),
+          reason: 'only scenes with slack around their drawing are cropped',
+        );
         expect(
           frame.width / frame.height,
           closeTo(scene.viewWidth / scene.viewHeight, 0.08),

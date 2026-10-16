@@ -7,6 +7,7 @@
 /// round trip, the re-render and the keyboard action are all in play.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -114,5 +115,112 @@ void main() {
     await tester.tap(find.byType(TextField));
     await _submit(tester, 'crane');
     expect(find.byType(TextField), findsNothing);
+  });
+
+  group('while a reply is pending', () {
+    late Completer<String> reply;
+    late ValueNotifier<String> shown;
+    late List<String> actions;
+
+    Future<void> mountPending(WidgetTester tester) async {
+      reply = Completer<String>();
+      shown = ValueNotifier(_scene(used: 0));
+      addTearDown(shown.dispose);
+      actions = [];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: SizedBox(
+              width: 500,
+              child: ValueListenableBuilder(
+                valueListenable: shown,
+                builder: (_, json, _) => ModuleSceneView(
+                  initial: parseModuleScene(json)!,
+                  runCommand: (raw) async {
+                    actions.add(jsonDecode(raw)['action'] as String);
+                    return api.RunModuleCommandResult(
+                      ok: true,
+                      output: await reply.future,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'crane');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('text typed ahead survives the reply', (tester) async {
+      await mountPending(tester);
+      await tester.enterText(find.byType(TextField), 'sla');
+      reply.complete(_scene(used: 1, value: 'CRANE'));
+      await tester.pumpAndSettle();
+      expect(_field(tester).textEditingValue.text, 'sla');
+    });
+
+    testWidgets('an identical reply leaves typed text alone', (tester) async {
+      await mountPending(tester);
+      await tester.enterText(find.byType(TextField), 'sla');
+      reply.complete(_scene(used: 1));
+      await tester.pumpAndSettle();
+      expect(_field(tester).textEditingValue.text, 'sla');
+    });
+
+    testWidgets('a stray scene does not use up the reply', (tester) async {
+      await mountPending(tester);
+      shown.value = _scene(used: 5);
+      await tester.pump();
+      reply.complete(_scene(used: 1, value: 'CRANE'));
+      await tester.pumpAndSettle();
+      expect(_field(tester).textEditingValue.text, 'CRANE');
+    });
+  });
+
+  testWidgets('an empty or blank entry is not sent', (tester) async {
+    final actions = await _mount(tester, (used) => _scene(used: used));
+    await tester.tap(find.byType(TextField));
+    await _submit(tester, '   ');
+    expect(actions, isEmpty);
+    expect(_field(tester).widget.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('a failed command does not wipe what is typed next', (
+    tester,
+  ) async {
+    var fail = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: SizedBox(
+            width: 500,
+            child: ModuleSceneView(
+              initial: parseModuleScene(_scene(used: 0))!,
+              runCommand: (_) async => fail
+                  ? throw StateError('down')
+                  : api.RunModuleCommandResult(
+                      ok: true,
+                      output: _scene(used: 1, value: 'CRANE'),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextField));
+    await _submit(tester, 'crane');
+    fail = false;
+    await tester.enterText(find.byType(TextField), 'slate');
+    await tester.pumpAndSettle();
+    expect(_field(tester).textEditingValue.text, 'slate');
   });
 }

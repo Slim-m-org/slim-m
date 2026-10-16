@@ -24,6 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
 import 'module_scene.dart';
+import 'module_scene_bounds.dart';
 import 'module_scene_busy.dart';
 import 'module_scene_images.dart';
 import 'module_scene_inputs.dart';
@@ -143,7 +144,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     if (_isOwnWork(widget.initial.state)) {
       _rememberOwn(widget.initial.state);
       if (_scene.state != widget.initial.state) {
-        setState(() => _scene = widget.initial);
+        setState(() => _scene = keepCropStable(_scene, widget.initial));
       }
       return;
     }
@@ -151,7 +152,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     _queue.clear();
     _paintedThisDrag.clear();
     _rememberOwn(widget.initial.state);
-    setState(() => _scene = widget.initial);
+    setState(() => _scene = keepCropStable(_scene, widget.initial));
   }
 
   /// Whether a scene arriving from above is this view's own, rather than a
@@ -203,7 +204,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
       setState(() {
         _busy = false;
         if (next != null) {
-          _scene = next;
+          _scene = keepCropStable(_scene, next);
           _playNotes(next);
           if (!next.live) _stop();
         } else {

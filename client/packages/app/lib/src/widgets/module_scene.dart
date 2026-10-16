@@ -474,6 +474,18 @@ class ModuleScene {
   /// it. See `module_scene_bounds.dart`.
   final Rect? crop;
 
+  ModuleScene withCrop(Rect? crop) => ModuleScene(
+    width: width,
+    height: height,
+    ops: ops,
+    background: background,
+    state: state,
+    controls: controls,
+    status: status,
+    live: live,
+    crop: crop,
+  );
+
   double get viewLeft => crop?.left ?? 0;
   double get viewTop => crop?.top ?? 0;
   double get viewWidth => crop?.width ?? width;

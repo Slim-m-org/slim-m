@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The real message card around word-guess and minesweeper at a desktop and a
-/// phone width. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
+/// Capture helper, asserts nothing: the real message card around word-guess and minesweeper at a
+/// desktop and a phone width. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
 library;
 
 import 'package:flutter_test/flutter_test.dart';

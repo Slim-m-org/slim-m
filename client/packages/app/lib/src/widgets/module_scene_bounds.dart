@@ -95,3 +95,17 @@ Rect? _opBounds(SceneOp op, ModuleScene scene) {
       return null;
   }
 }
+
+/// [next] framed no tighter than [previous] was, so a module whose drawing
+/// grows and shrinks does not resize the card on every update.
+///
+/// A new canvas size starts over, since the old view means nothing on it.
+ModuleScene keepCropStable(ModuleScene previous, ModuleScene next) {
+  if (previous.width != next.width || previous.height != next.height) {
+    return next;
+  }
+  final before = previous.crop;
+  final after = next.crop;
+  if (before == null || after == null) return next.withCrop(null);
+  return next.withCrop(before.expandToInclude(after));
+}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// word-guess and minesweeper in a card at a desktop and a phone width, so the
-/// framing can be looked at. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
+/// Capture helper, asserts nothing: word-guess and minesweeper in a card at a desktop and a
+/// phone width, so the framing can be looked at. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
 library;
 
 import 'dart:convert';

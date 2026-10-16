@@ -74,9 +74,11 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
   /// entry can be typed at once. The module's reply still decides the value.
   void _submit(InputOp op, String text) {
     final trimmed = text.trim();
-    widget.onSubmit('${op.submit}:$trimmed');
-    _controllers[op.submit]?.clear();
-    _awaitingReply.add(op.submit);
+    if (trimmed.isNotEmpty) {
+      widget.onSubmit('${op.submit}:$trimmed');
+      _controllers[op.submit]?.clear();
+      _awaitingReply.add(op.submit);
+    }
     // Done unfocuses a field after onSubmitted runs, so ask once that has happened.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus[op.submit]?.requestFocus();
@@ -118,7 +120,9 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
 
       final changedByModule = _lastFromModule[op.submit] != op.value;
       _lastFromModule[op.submit] = op.value;
-      final answered = newScene && _awaitingReply.remove(op.submit);
+      // Only a scene that changes this field is the reply; a stray one must not use it up.
+      final answered =
+          newScene && changedByModule && _awaitingReply.remove(op.submit);
       final hasFocus = _focus[op.submit]?.hasFocus ?? false;
       // An answered field is empty unless a next entry was typed before the reply.
       final beingTyped = hasFocus && (!answered || controller.text.isNotEmpty);
@@ -146,22 +150,59 @@ class _SceneInputOverlayState extends State<SceneInputOverlay> {
     return Stack(
       children: [
         for (final op in ops)
-          Positioned(
-            left: (op.x - scene.viewLeft) * sx,
-            top: (op.y - scene.viewTop) * sy,
-            width: op.w * sx,
-            child: AppInput(
-              controller: _controllers[op.submit],
-              focusNode: _focus[op.submit],
-              placeholder: op.placeholder,
-              size: AppInputSize.sm,
-              inputFormatters: [LengthLimitingTextInputFormatter(op.maxLength)],
-              semanticLabel: op.placeholder ?? 'Scene input',
-              textInputAction: TextInputAction.done,
-              onSubmitted: (text) => _submit(op, text),
+          Positioned.fill(
+            child: CustomSingleChildLayout(
+              delegate: _FieldLayout(
+                left: (op.x - scene.viewLeft) * sx,
+                top: (op.y - scene.viewTop) * sy,
+                width: op.w * sx,
+              ),
+              child: AppInput(
+                controller: _controllers[op.submit],
+                focusNode: _focus[op.submit],
+                placeholder: op.placeholder,
+                size: AppInputSize.sm,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(op.maxLength),
+                ],
+                semanticLabel: op.placeholder ?? 'Scene input',
+                textInputAction: TextInputAction.done,
+                onSubmitted: (text) => _submit(op, text),
+              ),
             ),
           ),
       ],
     );
   }
+}
+
+/// Places a field at its scene position but never lower than it fits, since a
+/// field has a pixel height the scene's units cannot promise room for.
+class _FieldLayout extends SingleChildLayoutDelegate {
+  const _FieldLayout({
+    required this.left,
+    required this.top,
+    required this.width,
+  });
+
+  final double left;
+  final double top;
+  final double width;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints.tightFor(width: width);
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) => Offset(
+    left.clamp(0.0, (size.width - childSize.width).clamp(0.0, double.infinity)),
+    top.clamp(
+      0.0,
+      (size.height - childSize.height).clamp(0.0, double.infinity),
+    ),
+  );
+
+  @override
+  bool shouldRelayout(_FieldLayout old) =>
+      left != old.left || top != old.top || width != old.width;
 }
