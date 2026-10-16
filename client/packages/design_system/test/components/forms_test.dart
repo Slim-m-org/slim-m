@@ -345,7 +345,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(_wrap(SizedBox(
           width: 200,
-          child: AppSlider(value: 4, max: 16, divisions: 4, onChanged: (_) {}))));
+          child:
+              AppSlider(value: 4, max: 16, divisions: 4, onChanged: (_) {}))));
 
       final theme = SliderTheme.of(tester.element(find.byType(Slider)));
       expect(theme.tickMarkShape, SliderTickMarkShape.noTickMark);
