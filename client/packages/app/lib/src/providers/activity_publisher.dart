@@ -46,13 +46,18 @@ class ActivityPublisher {
   final _rejected = <ActivityFeed, api.PresenceActivity>{};
   api.PresenceActivity? _sent;
   bool _pushing = false;
+  bool _pushAgain = false;
   bool _disposed = false;
 
-  bool get _hidden =>
-      _ref.read(ownVisibilityProvider) == api.PresenceVisibility.hidden;
+  /// Not until the visibility is known: before `/me` answers, a user hidden
+  /// on the server would otherwise have their feeds opened at launch.
+  bool get _mayShare {
+    final visibility = _ref.read(ownVisibilityProvider);
+    return visibility != null && visibility != api.PresenceVisibility.hidden;
+  }
 
   bool _wanted(ActivityFeed feed) =>
-      _ref.read(feed.enabled) && _ref.read(feed.available) && !_hidden;
+      _ref.read(feed.enabled) && _ref.read(feed.available) && _mayShare;
 
   void _refresh() {
     for (final feed in _ref.read(activityFeedsProvider)) {
@@ -91,7 +96,7 @@ class ActivityPublisher {
   }
 
   (ActivityFeed, api.PresenceActivity)? _choose() {
-    if (_hidden) return null;
+    if (!_mayShare) return null;
     for (final feed in _ref.read(activityFeedsProvider)) {
       final reading = _readings[feed];
       if (reading == null || !_wanted(feed)) continue;
@@ -101,13 +106,21 @@ class ActivityPublisher {
     return null;
   }
 
-  /// One loop at a time: a push that arrives mid-flight is picked up by the
-  /// loop's next pass, so the newest reading is the last one the server sees.
+  /// One loop at a time: a push that arrives mid-flight marks [_pushAgain],
+  /// and the loop looks once more before it ends, so the newest reading is
+  /// the last one the server sees even if it landed while a pass was
+  /// deciding there was nothing to send.
   Future<void> _push() async {
-    if (_pushing) return;
+    if (_pushing) {
+      _pushAgain = true;
+      return;
+    }
     _pushing = true;
     try {
-      while (!_disposed && await _pushOnce()) {}
+      do {
+        _pushAgain = false;
+        while (!_disposed && await _pushOnce()) {}
+      } while (_pushAgain && !_disposed);
     } finally {
       _pushing = false;
     }
