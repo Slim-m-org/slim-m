@@ -4,7 +4,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -93,48 +92,6 @@ void main() {
     await tester.pump();
     final field = tester.widget<EditableText>(find.byType(EditableText));
     expect(field.focusNode.hasFocus, isTrue);
-  });
-
-  testWidgets('#2031 a list row with no action is skipped by Tab', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AppListRow(label: 'Static'),
-            AppListRow(label: 'Tappable', onTap: () {}),
-          ],
-        ),
-      ),
-    );
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-    final focused = FocusManager.instance.primaryFocus?.context
-        ?.findAncestorWidgetOfExactType<AppListRow>();
-    expect(focused?.label, 'Tappable');
-  });
-
-  testWidgets('#2031 a read-only row can still opt in as a Tab stop', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(
-        const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppListRow(label: 'Skipped'),
-            AppListRow(label: 'Log entry', tabStop: true),
-          ],
-        ),
-      ),
-    );
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-    final focused = FocusManager.instance.primaryFocus?.context
-        ?.findAncestorWidgetOfExactType<AppListRow>();
-    expect(focused?.label, 'Log entry');
   });
 
   testWidgets('#2032 a disabled menu item is dimmed', (tester) async {

@@ -109,7 +109,6 @@ class AppListRow extends StatefulWidget {
     this.height,
     this.onTap,
     this.focusNode,
-    this.tabStop,
     this.semanticLabel,
     this.stateDescription,
     this.subtitle,
@@ -163,12 +162,6 @@ class AppListRow extends StatefulWidget {
   /// node is ordinary Flutter widget hygiene and has no visual effect on its
   /// own.
   final FocusNode? focusNode;
-
-  /// Whether Tab stops on this row; defaults to whether it has an [onTap].
-  /// A read-only row a keyboard user should still reach (an activity log
-  /// entry) passes true. A row that is not a Tab stop stays focusable for a
-  /// screen reader, which keeps its controls as their own nodes.
-  final bool? tabStop;
 
   /// Overrides the accessible label entirely (state suffixes below are still
   /// appended). Falls back to [label].
@@ -241,16 +234,6 @@ class AppListRow extends StatefulWidget {
 class _AppListRowState extends State<AppListRow> {
   bool _hovered = false;
   bool _focused = false;
-
-  /// Used when the caller passes no [AppListRow.focusNode]; only its
-  /// traversal is managed here.
-  late final FocusNode _ownFocusNode = FocusNode(debugLabel: 'AppListRow');
-
-  @override
-  void dispose() {
-    _ownFocusNode.dispose();
-    super.dispose();
-  }
 
   /// A finger has no hover, so on a phone this is the only sign a tap landed
   /// before its action runs. Shown as the same raised fill hover uses, but it
@@ -468,9 +451,7 @@ class _AppListRowState extends State<AppListRow> {
       button: widget.onTap != null,
       selected: widget.selected,
       child: FocusableActionDetector(
-        focusNode: widget.focusNode ??
-            (_ownFocusNode
-              ..skipTraversal = !(widget.tabStop ?? widget.onTap != null)),
+        focusNode: widget.focusNode,
         mouseCursor:
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
         onShowHoverHighlight: (v) => setState(() => _hovered = v),
