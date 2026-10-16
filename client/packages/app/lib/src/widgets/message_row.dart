@@ -7,12 +7,8 @@
 /// lives in `hover_reveal.dart`, both split out to keep this file to the row's
 /// own composition.
 ///
-/// A horizontal swipe on a row used to start a reply. It was removed on
-/// 2026-09-11 at the owner's request: it ran opposite to the direction every
-/// comparable app uses, and a row can now hold something you drag on - a
-/// module scene is the case that surfaced it - where a horizontal drag meant
-/// to draw was taken as a reply instead. Reply is still on the row's context
-/// menu, which is where it was reached from anyway.
+/// A left-to-right swipe on a phone-width row starts a reply; see
+/// `swipe_to_reply.dart`.
 ///
 /// The background fill answers `hovered || menuOpen` rather than `hovered`
 /// alone: `menuOpen` is `HoverReveal`'s own signal that this row's context
@@ -40,6 +36,7 @@ import 'message_row_callbacks.dart';
 import 'message_row_column.dart';
 import 'message_row_parts.dart';
 import 'reactions_row.dart';
+import 'swipe_to_reply.dart';
 import 'message_text.dart';
 
 /// One message, and optionally the "New" divider directly above it.
@@ -143,124 +140,131 @@ class MessageRow extends ConsumerWidget {
         children: [
           if (dayLabel != null) DayDivider(label: dayLabel!),
           if (showNewDivider) const NewMessagesDivider(),
-          MessageContextMenuRegion(
-            content: message.content,
-            actions: actions,
-            onAddReaction: () => showEmojiPickerSheet(
-              context,
-              onSelect: callbacks.onPickReaction,
-            ),
-            onPickReaction: callbacks.onPickReaction,
-            reactedEmoji: {
-              for (final r in extras.reactions)
-                if (r.reacted) r.emoji,
-            },
-            // A failed row is marked by a red hairline down its left edge
-            // (error grammar 01) - the row itself stays at full strength,
-            // because its content is still the author's to act on.
-            child: Stack(
-              // The toolbar's shadow spills past the row; clipping it would cut the blur.
-              clipBehavior: Clip.none,
-              children: [
-                // Full-bleed, edge to edge; see this file's own doc comment.
-                Positioned.fill(
-                  child: AnimatedContainer(
-                    key: MessageRow.hoverFillKey,
-                    duration: AppMotion.reduced(context, AppMotion.fast),
-                    curve: AppMotion.entrance,
-                    color: hovered || menuOpen || editing
-                        ? tokens.surfaceRaised
-                        : extras.mentionsMe
-                        ? tokens.accentSoft
-                        : Colors.transparent,
-                  ),
-                ),
-                ConstrainedBox(
-                  // A row shorter than the toolbar would leave part of it painted but unhittable.
-                  constraints: BoxConstraints(
-                    minHeight: compact ? 0 : MessageHoverToolbar.height,
-                  ),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: message.failed
-                          ? Border(
-                              left: BorderSide(
-                                color: tokens.dangerBorder,
-                                width: 2,
-                              ),
-                            )
+          SwipeToReply(
+            enabled: compact && actions.canReply && !editing && !_unsent,
+            onReply: actions.onReply,
+            child: MessageContextMenuRegion(
+              content: message.content,
+              actions: actions,
+              onAddReaction: () => showEmojiPickerSheet(
+                context,
+                onSelect: callbacks.onPickReaction,
+              ),
+              onPickReaction: callbacks.onPickReaction,
+              reactedEmoji: {
+                for (final r in extras.reactions)
+                  if (r.reacted) r.emoji,
+              },
+              // A failed row is marked by a red hairline down its left edge
+              // (error grammar 01) - the row itself stays at full strength,
+              // because its content is still the author's to act on.
+              child: Stack(
+                // The toolbar's shadow spills past the row; clipping it would cut the blur.
+                clipBehavior: Clip.none,
+                children: [
+                  // Full-bleed, edge to edge; see this file's own doc comment.
+                  Positioned.fill(
+                    child: AnimatedContainer(
+                      key: MessageRow.hoverFillKey,
+                      duration: AppMotion.reduced(context, AppMotion.fast),
+                      curve: AppMotion.entrance,
+                      color: hovered || menuOpen || editing
+                          ? tokens.surfaceRaised
                           : extras.mentionsMe
-                          ? Border(
-                              left: BorderSide(color: tokens.accent, width: 2),
-                            )
-                          : const Border(),
+                          ? tokens.accentSoft
+                          : Colors.transparent,
                     ),
-                    child: Padding(
-                      // Top-only: a bottom inset here doubled the next row's top inset.
-                      padding: EdgeInsets.fromLTRB(
-                        gutter,
-                        grouped
-                            ? density.groupedRowGap
-                            : density.rowGap + groupSpacing,
-                        gutter,
-                        0,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          MessageRowLeading(
-                            grouped: grouped,
-                            message: message,
-                            hovered: hovered,
-                          ),
-                          const SizedBox(width: AppSpacing.s12),
-                          Expanded(
-                            // Align loosens Expanded's tight width so the cap can
-                            // bite: without it the max was silently a no-op and body
-                            // text ran the full pane on any monitor.
-                            child: Align(
-                              alignment: Alignment.topLeft,
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: kMessageColumnMax,
+                  ),
+                  ConstrainedBox(
+                    // A row shorter than the toolbar would leave part of it painted but unhittable.
+                    constraints: BoxConstraints(
+                      minHeight: compact ? 0 : MessageHoverToolbar.height,
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: message.failed
+                            ? Border(
+                                left: BorderSide(
+                                  color: tokens.dangerBorder,
+                                  width: 2,
                                 ),
-                                child: MessageRowColumn(
-                                  message: message,
-                                  grouped: grouped,
-                                  compact: compact,
-                                  editing: editing,
-                                  actions: actions,
-                                  knownUsernames: knownUsernames,
-                                  knownRoleNames: knownRoleNames,
-                                  customEmoji: customEmoji,
-                                  callbacks: callbacks,
-                                  extras: extras,
-                                  replyTo: replyTo,
-                                  replyParentAdjacent: replyParentAdjacent,
-                                  viewerIsCaller: viewerIsCaller,
+                              )
+                            : extras.mentionsMe
+                            ? Border(
+                                left: BorderSide(
+                                  color: tokens.accent,
+                                  width: 2,
+                                ),
+                              )
+                            : const Border(),
+                      ),
+                      child: Padding(
+                        // Top-only: a bottom inset here doubled the next row's top inset.
+                        padding: EdgeInsets.fromLTRB(
+                          gutter,
+                          grouped
+                              ? density.groupedRowGap
+                              : density.rowGap + groupSpacing,
+                          gutter,
+                          0,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            MessageRowLeading(
+                              grouped: grouped,
+                              message: message,
+                              hovered: hovered,
+                            ),
+                            const SizedBox(width: AppSpacing.s12),
+                            Expanded(
+                              // Align loosens Expanded's tight width so the cap can
+                              // bite: without it the max was silently a no-op and body
+                              // text ran the full pane on any monitor.
+                              child: Align(
+                                alignment: Alignment.topLeft,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: kMessageColumnMax,
+                                  ),
+                                  child: MessageRowColumn(
+                                    message: message,
+                                    grouped: grouped,
+                                    compact: compact,
+                                    editing: editing,
+                                    actions: actions,
+                                    knownUsernames: knownUsernames,
+                                    knownRoleNames: knownRoleNames,
+                                    customEmoji: customEmoji,
+                                    callbacks: callbacks,
+                                    extras: extras,
+                                    replyTo: replyTo,
+                                    replyParentAdjacent: replyParentAdjacent,
+                                    viewerIsCaller: viewerIsCaller,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                // Outside layout, and never on compact, which reserves no clearance for it.
-                if (!compact &&
-                    (hovered || focusWithin) &&
-                    !_unsent &&
-                    !editing)
-                  Positioned(
-                    top: 0,
-                    right: AppSizes.paneGutter,
-                    child: MessageHoverToolbar(
-                      actions: actions,
-                      onPickReaction: callbacks.onPickReaction,
+                  // Outside layout, and never on compact, which reserves no clearance for it.
+                  if (!compact &&
+                      (hovered || focusWithin) &&
+                      !_unsent &&
+                      !editing)
+                    Positioned(
+                      top: 0,
+                      right: AppSizes.paneGutter,
+                      child: MessageHoverToolbar(
+                        actions: actions,
+                        onPickReaction: callbacks.onPickReaction,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
