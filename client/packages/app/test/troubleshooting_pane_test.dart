@@ -5,13 +5,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
+import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_harness.dart';
 
-Future<void> _open(WidgetTester tester) async {
+Future<ProviderContainer> _open(WidgetTester tester) async {
   tester.view.physicalSize = const Size(1400, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -28,6 +31,7 @@ Future<void> _open(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Debug log'));
   await tester.pumpAndSettle();
+  return container;
 }
 
 void main() {
@@ -62,6 +66,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('overflowed'), findsOneWidget);
     expect(find.text('reconnected'), findsNothing);
+  });
+
+  testWidgets('Copy all puts every entry on the clipboard', (tester) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final container = await _open(tester);
+
+    await tester.tap(find.text('Copy all'));
+    await tester.pumpAndSettle();
+
+    expect(copied, allOf(contains('overflowed'), contains('reconnected')));
+    final toasts = container.read(toastsProvider.notifier);
+    for (final toast in container.read(toastsProvider)) {
+      toasts.dismiss(toast.id);
+    }
   });
 
   testWidgets('clear empties the log and shows the all-clear state', (

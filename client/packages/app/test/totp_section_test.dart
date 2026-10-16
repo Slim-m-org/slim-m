@@ -60,6 +60,9 @@ class _Server {
   /// The JSON body of each enrol and confirm, in order.
   final List<Map<String, dynamic>> bodies = [];
 
+  /// The JSON body of each recovery-code reissue and disable, in order.
+  final List<Map<String, dynamic>> codeBodies = [];
+
   MockClient get client => MockClient((request) async {
     final path = request.url.path;
     calls.add('${request.method} $path');
@@ -73,6 +76,9 @@ class _Server {
           headers: json,
         );
       }
+    }
+    if (path == '/auth/totp/recovery-codes' || path == '/auth/totp/disable') {
+      codeBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
     }
     return switch ((request.method, path)) {
       ('GET', '/auth/totp') => http.Response(
@@ -322,5 +328,45 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
     expect(find.text('JBSWY3DPEHPK3PXP'), findsNothing);
     expect(find.widgetWithText(AppButton, 'Continue'), findsOneWidget);
+  });
+
+  testWidgets('Recovery codes replaces the set with the code typed', (
+    tester,
+  ) async {
+    final server = _Server(statusBody: _status(enabled: true, remaining: 3));
+    await _pump(tester, server);
+
+    await tester.tap(find.text('Recovery codes'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '654321');
+    await tester.pumpAndSettle();
+    await _tapSubmit(tester, 'Replace codes');
+
+    expect(server.codeBodies, [
+      {'code': '654321'},
+    ]);
+    expect(find.textContaining(_codes.first), findsOneWidget);
+  });
+
+  testWidgets('Turn off sends the code and refreshes the status', (
+    tester,
+  ) async {
+    final server = _Server(statusBody: _status(enabled: true, remaining: 3));
+    await _pump(tester, server);
+
+    await tester.tap(find.text('Turn off two-factor authentication'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '123456');
+    await tester.pumpAndSettle();
+    await _tapSubmit(tester, 'Turn off');
+
+    expect(server.codeBodies, [
+      {'code': '123456'},
+    ]);
+    expect(
+      server.calls.where((c) => c == 'GET /auth/totp').length,
+      2,
+      reason: 'the section refetches its status once the factor is off',
+    );
   });
 }
