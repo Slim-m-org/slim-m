@@ -21,6 +21,7 @@ import '../providers/attachment_preview_quality.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_chip.dart';
 import 'attachment_format.dart';
+import 'attachment_image_states.dart';
 import 'attachment_reveal.dart';
 import 'attachment_spoiler.dart';
 import 'attachment_video_player.dart';
@@ -28,7 +29,6 @@ import 'image_actions_menu.dart';
 import 'run_guarded.dart';
 import 'fullscreen_image_viewer.dart';
 import 'image_decode.dart';
-import 'message_row_parts.dart' show AttachmentPlaceholder;
 import 'viewport_freeze.dart';
 
 /// Mirrors `media::is_inline` in `crates/slimm-server/src/media.rs`: the
@@ -196,15 +196,21 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     );
     final bytesAsync = ref.watch(attachmentBytesProvider(attachment.id));
     return bytesAsync.when(
-      loading: () => const AttachmentPlaceholder(),
-      error: (error, _) => _tappable(
-        label: 'Retry loading ${attachment.filename}',
-        onTap: () => ref.invalidate(attachmentBytesProvider(attachment.id)),
-        child: _FailureBox(
-          tokens: tokens,
-          message: 'Could not load ${attachment.filename}. Tap to retry.',
-          width: 420,
-          height: 168,
+      loading: () => _captioned(
+        caption,
+        AttachmentLoadingBox(
+          filename: attachment.filename,
+          width: kInlineImageMax,
+          tileEdge: tile,
+        ),
+      ),
+      error: (error, _) => _captioned(
+        caption,
+        AttachmentFailureBox(
+          filename: attachment.filename,
+          width: kInlineImageMax,
+          tileEdge: tile,
+          onRetry: _refetch,
         ),
       ),
       data: (bytes) {
@@ -295,12 +301,12 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                                 cacheWidth: decodeWidth,
                                 // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
                                 errorBuilder: (context, error, stackTrace) =>
-                                    _FailureBox(
-                                      tokens: tokens,
-                                      message:
-                                          'Could not open ${attachment.filename}.',
+                                    AttachmentFailureBox(
+                                      filename: attachment.filename,
                                       width: kInlineImageMax,
-                                      height: 168,
+                                      tileEdge: tile,
+                                      message: 'Could not open',
+                                      onRetry: _refetch,
                                     ),
                               ),
                       ),
@@ -349,6 +355,27 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     );
   }
 
+  void _refetch() => ref.invalidate(attachmentBytesProvider(attachment.id));
+
+  /// The real preview's caption under a stand-in, so nothing shifts on arrival.
+  Widget _captioned(String caption, Widget box) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    if (widget.tileEdge != null) return box;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        box,
+        const SizedBox(height: AppSpacing.s4),
+        Text(
+          caption,
+          overflow: TextOverflow.ellipsis,
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+      ],
+    );
+  }
+
   Widget _tappable({
     required String label,
     required VoidCallback onTap,
@@ -362,39 +389,6 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         cursor: SystemMouseCursors.click,
         child: GestureDetector(onTap: onTap, child: child),
       ),
-    );
-  }
-}
-
-/// The bordered "something went wrong" placeholder shared by a failed fetch
-/// and a fetch that succeeded but handed back bytes the codec refuses to
-/// decode - the same box, the same stripe token, so both read as one visual
-/// language rather than two.
-class _FailureBox extends StatelessWidget {
-  const _FailureBox({
-    required this.tokens,
-    required this.message,
-    required this.width,
-    required this.height,
-  });
-
-  final AppTokens tokens;
-  final String message;
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tokens.stripe,
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: Text(message, style: TextStyle(color: tokens.textSecondary)),
     );
   }
 }

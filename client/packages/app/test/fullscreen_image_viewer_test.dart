@@ -277,7 +277,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(attempts, 1);
 
-    await tester.tap(find.textContaining('Could not load holiday.png'));
+    await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
     expect(_viewer(), findsNothing);
@@ -298,16 +298,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Could not open holiday.png.'));
+      await tester.tap(find.text('Could not open'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
       expect(_viewer(), findsOneWidget);
-      expect(
-        find.text('Could not open holiday.png.'),
-        findsWidgets,
-        reason: 'both the thumbnail and the viewer show the same message',
-      );
+      expect(find.text('Could not open holiday.png.'), findsOneWidget);
     },
   );
 }
