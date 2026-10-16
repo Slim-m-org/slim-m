@@ -80,7 +80,13 @@ pub struct CodeRunner {
 struct Enabled {
     http: reqwest::Client,
     base_url: String,
+    /// The last discovery answer and when it was asked, so every Run-button
+    /// lookup is not a round trip to the runner.
+    languages: std::sync::Mutex<Option<(std::time::Instant, Vec<String>)>>,
 }
+
+/// How long a discovery answer is reused before the runner is asked again.
+const LANGUAGES_TTL: Duration = Duration::from_secs(60);
 
 /// One invocation's outcome: `ok` plus a single payload, the exact shape
 /// `http::module_commands::CommandOutcome` already answers with, so a run
@@ -125,6 +131,7 @@ impl CodeRunner {
                 Some(Arc::new(Enabled {
                     http,
                     base_url: url.trim_end_matches('/').to_owned(),
+                    languages: std::sync::Mutex::new(None),
                 }))
             }
             None => {
@@ -152,14 +159,31 @@ impl CodeRunner {
     /// reached: a runner having a bad moment loses its Run buttons for that
     /// request rather than failing the whole discovery list, the same
     /// clean-no-op posture an unconfigured runner already gets.
+    ///
+    /// Each name appears once, aliases included (`cpp` for `c++`), so a fence
+    /// tagged with either gets a Run button. An answer is reused for
+    /// [`LANGUAGES_TTL`]; when the runner fails, the last good answer stands.
     pub async fn languages(&self) -> Vec<String> {
         let Some(enabled) = &self.inner else {
             return Vec::new();
         };
-        piston::runtimes(enabled)
-            .await
-            .map(|runtimes| runtimes.into_iter().map(|r| r.language).collect())
-            .unwrap_or_default()
+        let cached = lock_languages(enabled).clone();
+        if let Some((asked_at, languages)) = &cached
+            && asked_at.elapsed() < LANGUAGES_TTL
+        {
+            return languages.clone();
+        }
+        let languages = match piston::runtimes(enabled).await {
+            Some(runtimes) => runtimes
+                .into_iter()
+                .flat_map(|runtime| std::iter::once(runtime.language).chain(runtime.aliases))
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+            None => cached.map(|(_, stale)| stale).unwrap_or_default(),
+        };
+        *lock_languages(enabled) = Some((std::time::Instant::now(), languages.clone()));
+        languages
     }
 
     /// Runs `code` as `language` and returns Piston's own outcome, ceilings
@@ -222,5 +246,14 @@ mod tests {
         let config = Config::default();
         let runner = CodeRunner::new(&config).unwrap();
         assert!(!runner.is_enabled());
+    }
+}
+
+fn lock_languages(
+    enabled: &Enabled,
+) -> std::sync::MutexGuard<'_, Option<(std::time::Instant, Vec<String>)>> {
+    match enabled.languages.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
     }
 }
