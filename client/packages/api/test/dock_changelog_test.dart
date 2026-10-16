@@ -75,12 +75,12 @@ void main() {
     final m = DockManifest.fromJson(_manifest(_three));
 
     test('not installed: the newest entry only', () {
-      expect(_versions(m.changesSince(null)), ['0.1.3']);
+      expect(_versions(m.changesSince(null)), ['0.1.10']);
     });
 
     test('installed older: every entry newer than it', () {
-      expect(_versions(m.changesSince('0.1.1')), ['0.1.3', '0.1.2', '0.1.10']);
-      expect(_versions(m.changesSince('0.1.2')), ['0.1.3', '0.1.10']);
+      expect(_versions(m.changesSince('0.1.1')), ['0.1.10', '0.1.3', '0.1.2']);
+      expect(_versions(m.changesSince('0.1.2')), ['0.1.10', '0.1.3']);
     });
 
     test('up to date: nothing', () {
@@ -102,6 +102,36 @@ void main() {
         ]),
       );
       expect(_versions(odd.changesSince('beta-1')), ['beta-2']);
+    });
+
+    test('an unlisted non-numeric installed version yields only the newest',
+        () {
+      expect(_versions(m.changesSince('nightly')), ['0.1.10']);
+    });
+
+    test('an unsorted changelog is returned newest first', () {
+      final unsorted = DockManifest.fromJson(
+        _manifest([
+          {
+            'version': '0.1.2',
+            'changes': ['a'],
+          },
+          {
+            'version': '0.1.10',
+            'changes': ['b'],
+          },
+          {
+            'version': '0.1.3',
+            'changes': ['c'],
+          },
+        ]),
+      );
+      expect(_versions(unsorted.changesSince('0.1.0')), [
+        '0.1.10',
+        '0.1.3',
+        '0.1.2',
+      ]);
+      expect(_versions(unsorted.changesSince(null)), ['0.1.10']);
     });
 
     test('empty changelog stays empty', () {

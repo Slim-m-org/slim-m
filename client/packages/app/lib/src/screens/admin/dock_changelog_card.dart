@@ -10,6 +10,9 @@ import '../../widgets/settings_section_header.dart';
 
 /// What changed: the newest entry before install, every entry the space is
 /// missing once installed. Draws nothing when there is nothing to say.
+/// Entries shown before the rest collapse into a count.
+const dockChangelogCap = 5;
+
 class DockChangelogCard extends StatelessWidget {
   const DockChangelogCard({
     super.key,
@@ -22,8 +25,10 @@ class DockChangelogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = manifest.changesSince(installedVersion);
-    if (entries.isEmpty) return const SizedBox.shrink();
+    final all = manifest.changesSince(installedVersion);
+    if (all.isEmpty) return const SizedBox.shrink();
+    final entries = all.take(dockChangelogCap).toList();
+    final cut = all.length - entries.length;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s16),
@@ -54,6 +59,19 @@ class DockChangelogCard extends StatelessWidget {
                       ),
                     ),
                 ],
+              ),
+            ),
+          if (cut > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s8,
+                vertical: AppSpacing.s4,
+              ),
+              child: Text(
+                cut == 1
+                    ? 'and 1 earlier version'
+                    : 'and $cut earlier versions',
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
             ),
         ],

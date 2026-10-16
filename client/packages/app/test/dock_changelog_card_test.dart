@@ -69,4 +69,19 @@ void main() {
     await _pump(tester, _manifest([]), null);
     expect(find.text("What's new"), findsNothing);
   });
+
+  testWidgets('caps at five entries and counts the rest', (tester) async {
+    final many = _manifest([
+      for (var i = 9; i >= 1; i--)
+        {
+          'version': '0.$i.0',
+          'changes': ['change $i'],
+        },
+    ]);
+    await _pump(tester, many, '0.0.1');
+    expect(find.text('v0.9.0'), findsOneWidget);
+    expect(find.text('v0.5.0'), findsOneWidget);
+    expect(find.text('v0.4.0'), findsNothing);
+    expect(find.text('and 4 earlier versions'), findsOneWidget);
+  });
 }

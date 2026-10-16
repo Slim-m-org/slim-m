@@ -241,6 +241,14 @@ List<DockChangelogEntry> _changelog(Object? json) {
   ];
 }
 
+List<DockChangelogEntry> _newestFirst(List<DockChangelogEntry> entries) {
+  bool numeric(DockChangelogEntry e) =>
+      compareDockVersions(e.version, e.version) != null;
+  final nums = entries.where(numeric).toList()
+    ..sort((a, b) => compareDockVersions(b.version, a.version)!);
+  return [...nums, ...entries.where((e) => !numeric(e))];
+}
+
 /// Dot-separated integer parts compared left to right (missing parts are 0);
 /// null when either side is not purely numeric.
 int? compareDockVersions(String a, String b) {
@@ -297,22 +305,26 @@ class DockManifest {
   /// What to tell someone about this module: the newest entry when nothing is
   /// installed, otherwise every entry newer than [installedVersion].
   ///
-  /// Versions that are not dot-separated integers fall back to equality: the
-  /// entries listed before the installed one are the newer ones.
+  /// Numeric versions are sorted newest first whatever order they were
+  /// published in; non-numeric ones follow in published order. When a
+  /// comparison is impossible the entries listed before the installed one are
+  /// the newer ones, and an installed version nobody lists yields only the
+  /// newest entry rather than the whole history.
   List<DockChangelogEntry> changesSince(String? installedVersion) {
-    if (installedVersion == null) return changelog.take(1).toList();
-    final numeric = [
-      for (final e in changelog)
-        if (compareDockVersions(e.version, installedVersion) case final c?) c,
+    final sorted = _newestFirst(changelog);
+    if (installedVersion == null) return sorted.take(1).toList();
+    final comparable = [
+      for (final e in sorted)
+        if (compareDockVersions(e.version, installedVersion) != null) e,
     ];
-    if (numeric.length == changelog.length) {
+    if (comparable.length == sorted.length) {
       return [
-        for (final e in changelog)
+        for (final e in sorted)
           if (compareDockVersions(e.version, installedVersion)! > 0) e,
       ];
     }
-    final at = changelog.indexWhere((e) => e.version == installedVersion);
-    return at < 0 ? changelog : changelog.sublist(0, at);
+    final at = sorted.indexWhere((e) => e.version == installedVersion);
+    return at < 0 ? sorted.take(1).toList() : sorted.sublist(0, at);
   }
 
   /// Absent when the module does not declare `net.fetch`.
