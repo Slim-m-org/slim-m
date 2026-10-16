@@ -2,10 +2,11 @@
 /// The canvas's committed-content paint layers: the lattice and the
 /// permanently placed ink, images, notes and shapes.
 ///
-/// Each takes its own `repaint` listenable and answers `shouldRepaint` false,
-/// which is the shape the Phase 5 spike's `benchmark/paint_paths.dart` proved:
-/// the painter object is constructed once and a camera move repaints without
-/// any widget rebuilding.
+/// Each takes its own `repaint` listenable, which is the shape the Phase 5
+/// spike's `benchmark/paint_paths.dart` proved: the painter object is
+/// constructed once and a camera move repaints without any widget rebuilding.
+/// `shouldRepaint` is true only for a replaced instance, which `CanvasSurface`
+/// builds only when a colour changes (a theme switch).
 ///
 /// Colours arrive as plain [Color]s from the app layer. This package does not
 /// depend on the design system, the same convention every existing painter in
@@ -267,5 +268,7 @@ class StrokePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(StrokePainter oldDelegate) => false;
+  // A new instance only ever comes from a colour change (CanvasSurface.didUpdateWidget).
+  bool shouldRepaint(StrokePainter oldDelegate) =>
+      !identical(oldDelegate, this);
 }

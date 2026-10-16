@@ -53,10 +53,7 @@ String? hitTestStroke(
   for (final slot in out.slots) {
     if (document.strokeIfAlive(slot) != null) candidates.add(slot);
   }
-  candidates.sort(
-    (a, b) =>
-        document.strokeAt(b).zIndex.compareTo(document.strokeAt(a).zIndex),
-  );
+  candidates.sort((a, b) => document.comparePaintOrder(b, a));
 
   for (final slot in candidates) {
     final stroke = document.strokeAt(slot);
@@ -91,10 +88,7 @@ String? hitTestBoxAt(
       candidates.add(slot);
     }
   }
-  candidates.sort(
-    (a, b) =>
-        document.strokeAt(b).zIndex.compareTo(document.strokeAt(a).zIndex),
-  );
+  candidates.sort((a, b) => document.comparePaintOrder(b, a));
 
   for (final slot in candidates) {
     final stroke = document.strokeAt(slot);

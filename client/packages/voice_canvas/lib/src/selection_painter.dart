@@ -106,5 +106,7 @@ class SelectionPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(SelectionPainter oldDelegate) => false;
+  // A new instance only ever comes from a colour change (CanvasSurface.didUpdateWidget).
+  bool shouldRepaint(SelectionPainter oldDelegate) =>
+      !identical(oldDelegate, this);
 }
