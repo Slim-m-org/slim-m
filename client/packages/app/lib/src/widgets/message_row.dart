@@ -170,6 +170,8 @@ class MessageRow extends ConsumerWidget {
                     curve: AppMotion.entrance,
                     color: hovered || menuOpen || editing
                         ? tokens.surfaceRaised
+                        : extras.mentionsMe
+                        ? tokens.accentSoft
                         : Colors.transparent,
                   ),
                 ),
@@ -186,6 +188,10 @@ class MessageRow extends ConsumerWidget {
                                 color: tokens.dangerBorder,
                                 width: 2,
                               ),
+                            )
+                          : extras.mentionsMe
+                          ? Border(
+                              left: BorderSide(color: tokens.accent, width: 2),
                             )
                           : const Border(),
                     ),

@@ -292,6 +292,7 @@ Future<void> sendOptimistically(
   List<String> attachmentIds = const [],
   List<String> spoilerIds = const [],
   String? replyToId,
+  bool mentionReply = true,
   VoidCallback? onQueued,
 }) async {
   final store = await read(storeProvider.future);
@@ -301,6 +302,7 @@ Future<void> sendOptimistically(
     authorId: authorId,
     content: content,
     replyToId: replyToId,
+    mentionReply: mentionReply,
     attachmentIds: attachmentIds,
     spoilerIds: spoilerIds,
   );
@@ -313,6 +315,7 @@ Future<void> sendOptimistically(
       attachmentIds: attachmentIds,
       spoilerAttachmentIds: spoilerIds,
       replyToId: replyToId,
+      mentionReply: mentionReply,
     );
     // Lands on the same row, because it carries the same id.
     await store.applyMessage(sent);
@@ -343,6 +346,7 @@ Future<void> retryMessage(ProviderReader read, Message message) async {
     attachmentIds: await store.pendingAttachmentIds(message.id),
     spoilerIds: await store.pendingSpoilerIds(message.id),
     replyToId: message.replyToId,
+    mentionReply: await store.pendingMentionReply(message.id),
   );
 }
 

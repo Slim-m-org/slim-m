@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
+import '../providers/providers.dart' show sessionProvider;
 import 'app_surface_view.dart';
 import 'attachment_gallery.dart';
 import 'bot_ui_failure.dart';
@@ -33,6 +34,10 @@ import 'message_text.dart';
 import 'poll_view.dart';
 import 'reactions_row.dart';
 import 'reply_quote.dart';
+
+final _selfId = Provider<String?>(
+  (ref) => ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
+);
 
 class MessageRowColumn extends ConsumerWidget {
   const MessageRowColumn({
@@ -103,7 +108,14 @@ class MessageRowColumn extends ConsumerWidget {
           ),
         if (message.replyToId != null &&
             !(isBot && replyParentAdjacent && _isCommand(replyTo)))
-          ReplyQuote(resolved: replyTo, onTap: callbacks.onReplyTap ?? () {}),
+          ReplyQuote(
+            resolved: replyTo,
+            onTap: callbacks.onReplyTap ?? () {},
+            pinged:
+                extras.mentionsMe &&
+                replyTo?.authorId != null &&
+                replyTo?.authorId == ref.watch(_selfId),
+          ),
         if (editing)
           Padding(
             // The row is raised while editing; the field needs air above the fill's edge.

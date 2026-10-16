@@ -25,6 +25,7 @@ import '../providers/message_extras.dart';
 import '../providers/message_jump.dart';
 import '../providers/mounted_channels.dart';
 import '../providers/providers.dart';
+import '../providers/reply_mention_preference.dart';
 import '../routing/breakpoints.dart';
 import '../widgets/blocked_dm_notice.dart';
 import '../widgets/channel_attachment_drop_zone.dart';
@@ -236,6 +237,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     _drafts.clear(widget.channelId);
     // Read and cleared before the first await, same as the composer text.
     final replyToId = _replyingTo?.id;
+    final mentionReply =
+        _replyingTo?.authorId != ref.read(sessionProvider).tokens?.userId &&
+        ref.read(replyMentionProvider);
     setState(() => _replyingTo = null);
 
     // The container outlives this screen, which a send can be left behind by.
@@ -249,6 +253,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       attachmentIds: attachmentIds,
       spoilerIds: attachments.spoilerIds,
       replyToId: replyToId,
+      mentionReply: mentionReply,
       onQueued: _scrollToLatest,
     );
     _scrollToLatest();

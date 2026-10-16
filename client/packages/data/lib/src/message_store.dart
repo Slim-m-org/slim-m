@@ -357,10 +357,17 @@ class MessageStore {
     required String authorId,
     required String content,
     String? replyToId,
+    bool mentionReply = true,
     List<String> attachmentIds = const [],
     List<String> spoilerIds = const [],
   }) async {
-    await _savePendingAttachments(this, id, attachmentIds, spoilerIds);
+    await _savePendingAttachments(
+      this,
+      id,
+      attachmentIds,
+      spoilerIds,
+      mentionReply: mentionReply || replyToId == null,
+    );
     await db.into(db.messages).insertOnConflictUpdate(
           MessagesCompanion.insert(
             id: id,
@@ -400,6 +407,9 @@ class MessageStore {
   /// The attachment ids a send was queued with, for a retry to carry again.
   Future<List<String>> pendingAttachmentIds(String id) =>
       _pendingAttachmentIds(this, id);
+
+  /// False only when a queued reply opted out of mentioning its author.
+  Future<bool> pendingMentionReply(String id) => _pendingMentionReply(this, id);
 
   /// Which of [pendingAttachmentIds] were queued as spoilers.
   Future<List<String>> pendingSpoilerIds(String id) =>

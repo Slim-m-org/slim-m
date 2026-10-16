@@ -33,7 +33,15 @@ const int _quoteMaxRunes = 120;
 const double _quoteThumbEdge = AppSpacing.s20;
 
 class ReplyQuote extends ConsumerWidget {
-  const ReplyQuote({super.key, required this.resolved, required this.onTap});
+  const ReplyQuote({
+    super.key,
+    required this.resolved,
+    required this.onTap,
+    this.pinged = false,
+  });
+
+  /// The reply mentioned this viewer, so the author is shown as "@Name".
+  final bool pinged;
 
   /// The parent message, if this client currently holds it locally. See this
   /// file's own doc comment for what null does and does not mean.
@@ -55,13 +63,14 @@ class ReplyQuote extends ConsumerWidget {
               (m) => authorResolution(m, resolved.authorId ?? ''),
             ),
           );
-    final label = resolved == null
+    final name = resolved == null
         ? null
         : authorLabelResolved(
             authorId: resolved.authorId,
             cachedDisplayName: resolved.authorDisplayName,
             resolution: resolution!,
           );
+    final label = name == null ? null : (pinged ? '@$name' : name);
     final attachments = resolved == null
         ? const <api.Attachment>[]
         : ref.watch(

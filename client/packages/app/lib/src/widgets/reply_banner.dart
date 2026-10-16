@@ -20,12 +20,18 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../message_preview.dart';
 import '../providers/message_extras.dart';
+import '../providers/providers.dart';
+import '../providers/reply_mention_preference.dart';
 import '../providers/user_profiles.dart';
 import 'author_label.dart';
 import 'reply_target_summary.dart';
 
 /// Small enough that the banner stays one row at the close control's height.
 const double _thumbnailEdge = AppSpacing.s24;
+
+final _selfId = Provider<String?>(
+  (ref) => ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
+);
 
 class ReplyBanner extends ConsumerWidget {
   const ReplyBanner({super.key, required this.message, required this.onCancel});
@@ -101,6 +107,8 @@ class ReplyBanner extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (message.authorId != ref.watch(_selfId))
+                const _MentionToggle(),
               AppIconButton(
                 icon: AppIcons.dismiss,
                 semanticLabel: 'Cancel reply',
@@ -109,6 +117,50 @@ class ReplyBanner extends ConsumerWidget {
                 onPressed: onCancel,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Discord's reply ping switch: "@ On" mentions the author, "@ Off" does not.
+class _MentionToggle extends ConsumerWidget {
+  const _MentionToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final on = ref.watch(replyMentionProvider);
+    final color = on ? tokens.accent : tokens.textSecondary;
+    return Tooltip(
+      message: 'Mention the author',
+      child: Semantics(
+        button: true,
+        toggled: on,
+        label: 'Mention the author',
+        excludeSemantics: true,
+        child: AppTouchHitArea(
+          child: InkWell(
+            onTap: () => ref.read(replyMentionProvider.notifier).set(!on),
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppIcons.mentions, size: 14, color: color),
+                  const SizedBox(width: AppSpacing.s4),
+                  Text(
+                    on ? 'On' : 'Off',
+                    style: AppText.caption.copyWith(
+                      color: color,
+                      fontWeight: AppWeights.semi,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
