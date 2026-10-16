@@ -257,4 +257,138 @@ void main() {
     );
     expect(caption.style?.color, tokens.textSecondary);
   });
+
+  testWidgets('the snooze buttons send their own deadlines', (tester) async {
+    final sent = <int>[];
+    await _pump(tester, (request) async {
+      if (request.url.path == '/notifications/schedule/snooze' &&
+          request.method == 'PUT') {
+        final ms =
+            (jsonDecode(request.body) as Map<String, dynamic>)['until_ms']
+                as int;
+        sent.add(ms);
+        return _json({'snooze_until': ms});
+      }
+      if (request.url.path == '/notifications/schedule') {
+        return _json({'schedule': _scheduleJson()});
+      }
+      return http.Response('', 404);
+    });
+
+    final before = DateTime.now();
+    await tester.tap(find.text('1h'));
+    await tester.pumpAndSettle();
+    final hour = DateTime.fromMillisecondsSinceEpoch(sent.single);
+    expect(hour.difference(before).inMinutes, inInclusiveRange(59, 61));
+
+    sent.clear();
+    await tester.tap(find.text('Until tomorrow'));
+    await tester.pumpAndSettle();
+    final tomorrow = DateTime.fromMillisecondsSinceEpoch(sent.single);
+    expect(tomorrow, DateTime(before.year, before.month, before.day + 1));
+  });
+
+  testWidgets('Cancel clears an active snooze', (tester) async {
+    var cleared = false;
+    await _pump(tester, (request) async {
+      if (request.url.path == '/notifications/schedule/snooze' &&
+          request.method == 'DELETE') {
+        cleared = true;
+        return http.Response('', 204);
+      }
+      if (request.url.path == '/notifications/schedule') {
+        return _json({
+          'schedule': _scheduleJson(
+            snoozeUntil: DateTime.now()
+                .add(const Duration(hours: 1))
+                .millisecondsSinceEpoch,
+          ),
+        });
+      }
+      return http.Response('', 404);
+    });
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
+  });
+
+  testWidgets('turning the schedule off clears it on the server', (
+    tester,
+  ) async {
+    var cleared = false;
+    await _pump(tester, (request) async {
+      if (request.url.path == '/notifications/schedule') {
+        if (request.method == 'DELETE') {
+          cleared = true;
+          return http.Response('', 204);
+        }
+        return _json({'schedule': cleared ? null : _scheduleJson()});
+      }
+      return http.Response('', 404);
+    });
+
+    await tester.tap(find.byType(AppToggle));
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
+    expect(find.text('Hours'), findsNothing);
+  });
+
+  testWidgets('choosing mentions and direct messages sends that mode', (
+    tester,
+  ) async {
+    Map<String, dynamic>? putBody;
+    await _pump(tester, (request) async {
+      if (request.url.path == '/notifications/schedule') {
+        if (request.method == 'PUT') {
+          putBody = jsonDecode(request.body) as Map<String, dynamic>;
+        }
+        return _json({
+          'schedule': _scheduleJson(
+            offHoursMode: putBody?['off_hours_mode'] as String? ?? 'nothing',
+          ),
+        });
+      }
+      return http.Response('', 404);
+    });
+
+    await tester.tap(find.text('Outside these hours'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mentions and direct messages').last);
+    await tester.pumpAndSettle();
+
+    expect(putBody!['off_hours_mode'], 'mentions');
+  });
+
+  testWidgets('the Hours row sends the start and end picked', (tester) async {
+    Map<String, dynamic>? putBody;
+    await _pump(tester, (request) async {
+      if (request.url.path == '/notifications/schedule') {
+        if (request.method == 'PUT') {
+          putBody = jsonDecode(request.body) as Map<String, dynamic>;
+        }
+        return _json({'schedule': _scheduleJson()});
+      }
+      return http.Response('', 404);
+    });
+
+    Future<void> pickHour(String hour) async {
+      await tester.tap(find.byIcon(Icons.keyboard_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, hour);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('Hours'));
+    await tester.pumpAndSettle();
+    await pickHour('8');
+    await pickHour('6');
+
+    final day = (putBody!['days'] as List<dynamic>).first as Map;
+    expect(day['start_minute'], 8 * 60);
+    expect(day['end_minute'], 18 * 60);
+  });
 }

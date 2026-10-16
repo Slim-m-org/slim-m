@@ -116,6 +116,32 @@ void main() {
     expect(find.text('Nothing'), findsOneWidget);
   });
 
+  testWidgets('choosing mentions and direct messages sends that value', (
+    tester,
+  ) async {
+    var stored = 'everything';
+    final container = _containerWith((request) async {
+      if (request.method == 'PUT' && request.url.path == '/push/preference') {
+        stored =
+            (jsonDecode(request.body) as Map<String, dynamic>)['preference']
+                as String;
+      }
+      return request.url.path == '/push/preference'
+          ? _json({'preference': stored})
+          : http.Response('', 404);
+    });
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_harness(container));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All messages'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mentions and direct messages'));
+    await tester.pumpAndSettle();
+
+    expect(stored, 'mentions');
+  });
+
   testWidgets(
     'a server predating the route (a bare 404) hides the row entirely',
     (tester) async {
