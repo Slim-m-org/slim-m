@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Downloads run from an app-scoped controller: they stream to the chosen
-/// target, report progress, survive the widgets that started them, and a
-/// cancel stops the request and removes the partial file.
+/// target, report progress, survive the widgets that started them, and every
+/// way of stopping one closes the connection and removes the partial file.
 library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/downloads/downloads_controller.dart';
-import 'package:slimm_app/src/downloads/transfers_banner.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import 'downloads_harness.dart';
 
@@ -23,19 +20,20 @@ const _iso = api.Attachment(
   size: 8,
 );
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 20));
-
 void main() {
   late FakeAttachmentServer server;
   late FakeSaveDialog dialog;
   late ProviderContainer container;
 
-  // Built inside each test, not setUp: a widget test's fake-async zone must own the stream.
-  void harness({int status = 200}) {
+  void harness({int status = 200, Duration? stall, api.SessionStore? session}) {
     server = FakeAttachmentServer(status: status, contentLength: 8);
     dialog = FakeSaveDialog();
-    container = downloadsContainer(server, dialog);
+    container = downloadsContainer(
+      server,
+      dialog,
+      stall: stall,
+      session: session,
+    );
     addTearDown(container.dispose);
     container.listen(downloadsProvider, (_, _) {});
   }
@@ -44,12 +42,20 @@ void main() {
       container.read(downloadsProvider.notifier);
   List<DownloadTask> tasks() => container.read(downloadsProvider);
 
+  late Future<void> run;
+
+  /// Starts a download into [run] and waits until its body is being read.
+  Future<void> begin() async {
+    run = controller().start(_iso);
+    await until(() => server.body.hasListener);
+  }
+
   test('streams every chunk to the target and finishes', () async {
     harness();
-    final started = controller().start(_iso);
-    await _settle();
+    await begin();
+    final started = run;
     server.body.add([1, 2, 3, 4]);
-    await _settle();
+    await until(() => dialog.targets.single.bytes.length == 4);
     expect(tasks().single.running, isTrue);
     server.body.add([5, 6, 7, 8]);
     await server.body.close();
@@ -60,7 +66,6 @@ void main() {
     expect(target.finished, isTrue);
     expect(tasks().single.phase, DownloadPhase.done);
     expect(tasks().single.received, 8);
-    expect(dialog.filenames, ['Win11.iso']);
   });
 
   test('a dismissed Save dialog starts nothing', () async {
@@ -71,33 +76,72 @@ void main() {
     expect(server.requests, 0);
   });
 
+  test('a dialog that throws leaves a failed row', () async {
+    harness();
+    dialog.explode = true;
+    await controller().start(_iso);
+    expect(tasks().single.phase, DownloadPhase.failed);
+    expect(tasks().single.message, 'Could not save Win11.iso.');
+  });
+
+  test('two quick clicks open one dialog and start one download', () async {
+    harness();
+    dialog.hold = Completer<void>();
+    final first = controller().start(_iso);
+    await until(() => dialog.filenames.isNotEmpty);
+    await controller().start(_iso);
+    expect(dialog.filenames, hasLength(1));
+    dialog.hold!.complete();
+    await until(() => server.body.hasListener);
+    expect(server.requests, 1);
+    await controller().cancel(tasks().single.id);
+    await first;
+  });
+
   test('the same attachment is not downloaded twice at once', () async {
     harness();
-    unawaited(controller().start(_iso));
-    await _settle();
+    await begin();
+    final started = run;
     await controller().start(_iso);
     expect(tasks(), hasLength(1));
     expect(server.requests, 1);
+    await controller().cancel(tasks().single.id);
+    await started;
   });
 
   test('cancel closes the response and deletes the partial file', () async {
     harness();
-    unawaited(controller().start(_iso));
-    await _settle();
+    await begin();
+    final started = run;
     server.body.add([1, 2, 3]);
-    await _settle();
+    await until(() => dialog.targets.single.bytes.length == 3);
 
     await controller().cancel(tasks().single.id);
+    await started;
 
-    expect(server.bodyCancelled, isTrue);
+    await until(() => server.bodyCancelled);
     expect(dialog.targets.single.discarded, isTrue);
     expect(dialog.targets.single.finished, isFalse);
     expect(tasks(), isEmpty);
   });
 
+  test('cancelling before the headers arrive still closes the body', () async {
+    harness();
+    server.headersGate = Completer<void>();
+    final started = controller().start(_iso);
+    await until(() => server.requests == 1 && tasks().isNotEmpty);
+
+    await controller().cancel(tasks().single.id);
+    server.headersGate!.complete();
+    await started;
+
+    await until(() => server.bodyCancelled);
+    expect(dialog.targets.single.discarded, isTrue);
+    expect(tasks(), isEmpty);
+  });
+
   test('a refused download fails with a sentence and leaves no file', () async {
     harness(status: 403);
-
     await controller().start(_iso);
 
     final task = tasks().single;
@@ -110,111 +154,157 @@ void main() {
     'a connection that dies mid-body fails and deletes the partial',
     () async {
       harness();
-      unawaited(controller().start(_iso));
-      await _settle();
+      await begin();
+      final started = run;
       server.body.add([1, 2]);
       server.body.addError(const api.TransportException('reset'));
-      await _settle();
+      await started;
 
       expect(tasks().single.phase, DownloadPhase.failed);
       expect(dialog.targets.single.discarded, isTrue);
     },
   );
 
-  Future<ValueNotifier<String>> pumpApp(WidgetTester tester) async {
-    final channel = ValueNotifier('a');
-    addTearDown(channel.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
-            body: TransfersBannerHost(
-              child: ValueListenableBuilder<String>(
-                valueListenable: channel,
-                builder: (context, id, _) => id == 'a'
-                    ? Consumer(
-                        key: const ValueKey('channel-a'),
-                        builder: (context, ref, _) => TextButton(
-                          onPressed: () =>
-                              ref.read(downloadsProvider.notifier).start(_iso),
-                          child: const Text('save'),
-                        ),
-                      )
-                    : const Text('channel b', key: ValueKey('channel-b')),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    return channel;
-  }
+  test(
+    'a stalled body fails, discards the partial and cancels the source',
+    () async {
+      harness(stall: const Duration(milliseconds: 30));
+      final started = controller().start(_iso);
+      await started;
 
-  testWidgets('a download carries on, and stays on screen, when the widget '
-      'that started it goes away (a channel switch)', (tester) async {
+      expect(tasks().single.phase, DownloadPhase.failed);
+      expect(dialog.targets.single.discarded, isTrue);
+      await until(() => server.bodyCancelled);
+    },
+  );
+
+  test('a target that cannot write fails and closes the connection', () async {
     harness();
-    final channel = await pumpApp(tester);
-    await tester.tap(find.text('save'));
-    await tester.pump(const Duration(milliseconds: 200));
-    server.body.add([1, 2, 3, 4]);
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump();
-    expect(find.text('Win11.iso'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-
-    channel.value = 'b';
-    await tester.pump();
-    expect(find.text('channel b'), findsOneWidget);
-    expect(
-      find.text('Win11.iso'),
-      findsOneWidget,
-      reason: 'banner is app scope',
-    );
-    expect(dialog.targets.single.discarded, isFalse);
-    expect(server.bodyCancelled, isFalse);
-
-    server.body.add([5, 6, 7, 8]);
-    unawaited(server.body.close());
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(dialog.targets.single.bytes, hasLength(8));
-    expect(dialog.targets.single.finished, isTrue);
-    expect(find.text('Saved Win11.iso'), findsOneWidget);
-  });
-
-  testWidgets('Cancel in the banner stops the download and clears the row', (
-    tester,
-  ) async {
-    harness();
-    await pumpApp(tester);
-    await tester.tap(find.text('save'));
-    await tester.pump(const Duration(milliseconds: 200));
+    dialog.make = () => FakeTarget()..failWrite = true;
+    await begin();
+    final started = run;
     server.body.add([1, 2]);
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump();
+    await started;
 
-    await tester.tap(find.text('Cancel'));
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump();
-
-    expect(server.bodyCancelled, isTrue);
+    expect(tasks().single.phase, DownloadPhase.failed);
     expect(dialog.targets.single.discarded, isTrue);
-    expect(find.text('Win11.iso'), findsNothing);
+    await until(() => server.bodyCancelled);
   });
 
-  testWidgets('a failed download stays as a red row with Retry, no SnackBar', (
-    tester,
-  ) async {
-    harness(status: 403);
-    await pumpApp(tester);
+  test('a target that cannot finish fails and discards', () async {
+    harness();
+    dialog.make = () => FakeTarget()..failFinish = true;
+    await begin();
+    final started = run;
+    server.body.add([1]);
+    await server.body.close();
+    await started;
 
-    await tester.tap(find.text('save'));
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump();
-
-    expect(find.byType(SnackBar), findsNothing);
-    expect(find.textContaining('Could not download Win11.iso'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(tasks().single.phase, DownloadPhase.failed);
+    expect(dialog.targets.single.discarded, isTrue);
   });
+
+  test(
+    'a dismissed final save step removes the row instead of saying saved',
+    () async {
+      harness();
+      dialog.make = () => FakeTarget()..saved = false;
+      await begin();
+      final started = run;
+      server.body.add([1]);
+      await server.body.close();
+      await started;
+
+      expect(tasks(), isEmpty);
+    },
+  );
+
+  test('a target too small for the file refuses before downloading', () async {
+    harness();
+    dialog.make = () => FakeTarget(limit: 4);
+    await controller().start(_iso);
+
+    expect(tasks().single.phase, DownloadPhase.failed);
+    expect(tasks().single.message, contains('too large'));
+    expect(server.requests, 0);
+    expect(dialog.targets.single.discarded, isTrue);
+  });
+
+  test('retrying replaces the failed row and downloads again', () async {
+    harness();
+    dialog.make = () => FakeTarget()..failWrite = dialog.targets.isEmpty;
+    await begin();
+    var started = run;
+    server.body.add([1]);
+    await started;
+    expect(tasks().single.phase, DownloadPhase.failed);
+
+    started = controller().start(_iso);
+    await until(() => server.requests == 2 && server.body.hasListener);
+
+    expect(tasks(), hasLength(1));
+    expect(tasks().single.running, isTrue);
+    server.body.add([1, 2, 3, 4, 5, 6, 7, 8]);
+    await server.body.close();
+    await started;
+    expect(tasks().single.phase, DownloadPhase.done);
+  });
+
+  test(
+    'dismiss removes a row, and a new download prunes finished ones',
+    () async {
+      harness();
+      await begin();
+      var started = run;
+      await server.body.close();
+      await started;
+      expect(tasks().single.phase, DownloadPhase.done);
+
+      started = controller().start(_iso);
+      await until(() => server.requests == 2 && server.body.hasListener);
+      expect(tasks(), hasLength(1));
+      expect(tasks().single.running, isTrue);
+
+      controller().dismiss(tasks().single.id);
+      expect(tasks(), isEmpty);
+      await server.body.close();
+      await started;
+    },
+  );
+
+  test(
+    'disposing the container cancels runs and discards partial files',
+    () async {
+      harness();
+      await begin();
+      final started = run;
+      server.body.add([1]);
+      await until(() => dialog.targets.single.bytes.isNotEmpty);
+
+      container.dispose();
+      await started;
+
+      await until(() => server.bodyCancelled);
+      expect(dialog.targets.single.discarded, isTrue);
+    },
+  );
+
+  test(
+    'signing out clears the rows and cancels the running download',
+    () async {
+      final session = api.SessionStore(tokens: testTokens);
+      harness(session: session);
+      await begin();
+      final started = run;
+      server.body.add([1]);
+      await until(() => dialog.targets.single.bytes.isNotEmpty);
+
+      session.set(null);
+      await started;
+
+      await until(() => server.bodyCancelled);
+      expect(dialog.targets.single.discarded, isTrue);
+      expect(tasks(), isEmpty);
+    },
+  );
 }

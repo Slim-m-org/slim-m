@@ -7,6 +7,8 @@
 /// Cancel; a failure stays red on its own row until dismissed.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -15,14 +17,46 @@ import '../widgets/banner_host_layout.dart';
 import '../widgets/transfer_meter.dart';
 import 'downloads_controller.dart';
 
-class TransfersBannerHost extends ConsumerWidget {
+/// How often the rows repaint while something runs, so a stalled transfer's
+/// decaying rate shows even though no bytes arrive to trigger a rebuild.
+final transfersTickProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 1),
+);
+
+class TransfersBannerHost extends ConsumerStatefulWidget {
   const TransfersBannerHost({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TransfersBannerHost> createState() =>
+      _TransfersBannerHostState();
+}
+
+class _TransfersBannerHostState extends ConsumerState<TransfersBannerHost> {
+  Timer? _tick;
+
+  void _syncTicker(bool running) {
+    if (running && _tick == null) {
+      _tick = Timer.periodic(ref.read(transfersTickProvider), (_) {
+        if (mounted) setState(() {});
+      });
+    } else if (!running) {
+      _tick?.cancel();
+      _tick = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tasks = ref.watch(downloadsProvider);
+    _syncTicker(tasks.any((t) => t.running));
     return BannerHostLayout(
       banner: tasks.isEmpty
           ? null
@@ -33,7 +67,7 @@ class TransfersBannerHost extends ConsumerWidget {
                 children: [for (final t in tasks) _TransferRow(task: t)],
               ),
             ),
-      child: child,
+      child: widget.child,
     );
   }
 }
