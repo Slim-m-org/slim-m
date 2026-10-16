@@ -145,7 +145,7 @@ impl Store {
         }
 
         let mut builder = QueryBuilder::new(
-            "SELECT id FROM users WHERE deleted_at IS NULL AND LOWER(username) IN (",
+            "SELECT id FROM users WHERE deleted_at IS NULL AND is_webhook = 0 AND LOWER(username) IN (",
         );
         let mut separated = builder.separated(", ");
         for name in usernames {
