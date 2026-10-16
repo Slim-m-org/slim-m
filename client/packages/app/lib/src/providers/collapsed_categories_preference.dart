@@ -19,23 +19,24 @@ Set<String> loadCollapsedCategories(SharedPreferences prefs) =>
 
 class CollapsedCategoriesController extends StateNotifier<Set<String>> {
   CollapsedCategoriesController(this._ref) : super(const {}) {
-    _load();
+    _loaded = _load();
   }
 
   final Ref _ref;
 
-  /// Set the instant a toggle runs, so a load still in flight from the
-  /// constructor never overwrites it once it finally resolves - the same
-  /// "the newer truth wins" race [AutoUpdateController] already guards.
-  bool _toggled = false;
+  /// Every toggle waits for this, so one that lands before the stored set
+  /// has loaded builds on that set instead of on the empty start, and two
+  /// quick toggles still apply in order.
+  late final Future<void> _loaded;
 
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
-    if (!_toggled) state = loadCollapsedCategories(prefs);
+    if (mounted) state = loadCollapsedCategories(prefs);
   }
 
   Future<void> toggle(String categoryId) async {
-    _toggled = true;
+    await _loaded;
+    if (!mounted) return;
     final next = {...state};
     if (!next.remove(categoryId)) next.add(categoryId);
     state = next;
