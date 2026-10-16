@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+import 'dock_changelog_card.dart';
 import 'dock_command_panel_group.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
@@ -101,19 +102,23 @@ class DockManifestView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // No title row: the app bar already names the module; see this class's doc.
-        Text(
-          manifest.author == null
-              ? 'v${manifest.version}'
-              : 'v${manifest.version} · ${manifest.author}',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                manifest.author == null
+                    ? 'v${manifest.version}'
+                    : 'v${manifest.version} · ${manifest.author}',
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+            ),
+            if (verified) ...[
+              const SizedBox(width: AppSpacing.s8),
+              const DockVerifiedBadge(),
+            ],
+          ],
         ),
-        if (verified) ...[
-          const SizedBox(height: AppSpacing.s8),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: DockVerifiedBadge(),
-          ),
-        ],
         if (sourceRepo != null) ...[
           const SizedBox(height: AppSpacing.s8),
           AppBadge(
@@ -127,6 +132,10 @@ class DockManifestView extends StatelessWidget {
           style: AppText.body.copyWith(color: tokens.textPrimary),
         ),
         const SizedBox(height: AppSpacing.s16),
+        DockChangelogCard(
+          manifest: manifest,
+          installedVersion: installed?.version,
+        ),
         _PermissionsCard(permissions: manifest.permissions),
         if (manifest.extensionPoints.any((ep) => ep.kind != 'command')) ...[
           const SizedBox(height: AppSpacing.s16),

@@ -138,7 +138,7 @@ Decision [0054](decisions/0054-push-preview-default-on.md) has the old-client ca
 
 ## Modules and module sources
 
-Modules are WebAssembly programs the server runs in-process, installed from the Dock in Space settings under Addons.
+Modules are WebAssembly programs the server runs in-process, installed from Modules in Space settings under Addons.
 All Dock routes need MANAGE_SERVER.
 [modules/building-modules.md](modules/building-modules.md) is the author's guide, and this section is about what you approve.
 

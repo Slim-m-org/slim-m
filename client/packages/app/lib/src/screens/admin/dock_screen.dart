@@ -38,7 +38,7 @@ class DockScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SettingsScreenScaffold(
-    title: 'Dock',
+    title: 'Modules',
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     child: DockPane(),
