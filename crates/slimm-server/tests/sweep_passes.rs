@@ -9,7 +9,9 @@ use slimm_server::hub::{Event, Hub};
 use slimm_server::ids::MessageId;
 use slimm_server::media::Media;
 use slimm_server::store::{NewMessage, Store};
-use slimm_server::{run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass};
+use slimm_server::{
+    run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
+};
 use sqlx::SqlitePool;
 
 mod support;
@@ -73,7 +75,10 @@ async fn the_attachment_pass_deletes_an_orphans_file() {
     let w = world("slimm-pass-attachment").await;
     let sha = [0xABu8; 32];
     let hex: String = sha.iter().map(|b| format!("{b:02x}")).collect();
-    w.media.write_attachment(&hex, b"orphan".to_vec()).await.unwrap();
+    w.media
+        .write_attachment(&hex, b"orphan".to_vec())
+        .await
+        .unwrap();
     w.store
         .store_attachment(&sha, 6, "image/png", "orphan.png", None)
         .await
@@ -86,7 +91,10 @@ async fn the_attachment_pass_deletes_an_orphans_file() {
 
     run_attachment_sweep_pass(&w.store, &w.media).await;
 
-    assert!(w.media.read_attachment(&hex).await.is_err(), "the orphan's file survived");
+    assert!(
+        w.media.read_attachment(&hex).await.is_err(),
+        "the orphan's file survived"
+    );
     assert_eq!(last_reclaimed(&w.pool, "attachments").await, Some(1));
 }
 
@@ -100,7 +108,10 @@ async fn the_retention_pass_announces_each_pruned_message_and_frees_its_file() {
     w.store.set_message_retention_days(30).await.unwrap();
     let sha = [0xCDu8; 32];
     let hex: String = sha.iter().map(|b| format!("{b:02x}")).collect();
-    w.media.write_attachment(&hex, b"old file".to_vec()).await.unwrap();
+    w.media
+        .write_attachment(&hex, b"old file".to_vec())
+        .await
+        .unwrap();
     w.store
         .store_attachment(&sha, 8, "image/png", "old.png", Some(user))
         .await
@@ -133,6 +144,9 @@ async fn the_retention_pass_announces_each_pruned_message_and_frees_its_file() {
         }
     }
     assert_eq!(deleted, vec![id]);
-    assert!(w.media.read_attachment(&hex).await.is_err(), "the pruned message's file survived");
+    assert!(
+        w.media.read_attachment(&hex).await.is_err(),
+        "the pruned message's file survived"
+    );
     assert_eq!(last_reclaimed(&w.pool, "message_retention").await, Some(1));
 }
