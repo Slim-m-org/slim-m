@@ -135,11 +135,8 @@ class AppAvatar extends StatelessWidget {
 
   /// The name, then whatever the ring and the dot show, so a screen reader
   /// hears what a sighted viewer sees.
-  String _label(String? presenceWord) => [
-        name,
-        if (speaking) 'speaking',
-        if (presenceWord != null) presenceWord,
-      ].join(', ');
+  String _label(String? presenceWord) => '$name${speaking ? ', speaking' : ''}'
+      '${presenceWord == null ? '' : ', $presenceWord'}';
 
   @override
   Widget build(BuildContext context) {
