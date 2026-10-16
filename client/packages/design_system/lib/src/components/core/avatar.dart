@@ -49,10 +49,12 @@ Color _tintFor(String source) =>
 /// rendered different initials in the server chip than everywhere else (the
 /// 2026-08-11 review's second-initials finding).
 String initialsFor(String name) {
-  final stripped = name.replaceAll(RegExp('[^a-zA-Z0-9]'), '');
-  final take = stripped.length < 2 ? stripped.length : 2;
-  return stripped.substring(0, take).toUpperCase();
+  final stripped = name.replaceAll(_notLetterOrDigit, '');
+  return String.fromCharCodes(stripped.runes.take(2)).toUpperCase();
 }
+
+/// Letters and digits in any script stay; symbols and punctuation go.
+final RegExp _notLetterOrDigit = RegExp(r'[^\p{L}\p{N}]', unicode: true);
 
 /// Light ink for the fixed tints above; every themed text colour inverts and
 /// would go illegible on them in dark.
@@ -130,6 +132,14 @@ class AppAvatar extends StatelessWidget {
   final Widget? placeholder;
 
   final String? semanticLabel;
+
+  /// The name, then whatever the ring and the dot show, so a screen reader
+  /// hears what a sighted viewer sees.
+  String _label(String? presenceWord) => [
+        name,
+        if (speaking) 'speaking',
+        if (presenceWord != null) presenceWord,
+      ].join(', ');
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +235,7 @@ class AppAvatar extends StatelessWidget {
     // placeholder icon) from merging its own auto-label into this one.
     return Semantics(
       image: true,
-      label: semanticLabel ?? (speaking ? '$name, speaking' : name),
+      label: semanticLabel ?? _label(dot ? presence.word : null),
       child: ExcludeSemantics(child: content),
     );
   }

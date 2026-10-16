@@ -110,9 +110,12 @@ void main() {
           find.descendant(
               of: button, matching: find.byType(CircularProgressIndicator)),
           findsOneWidget);
+      // Still laid out, so the button keeps its width, but fully transparent.
       expect(find.descendant(of: button, matching: find.text('Save')),
-          findsNothing,
-          reason: 'the label has faded out by now');
+          findsOneWidget);
+      final label = tester.widget<AnimatedOpacity>(find.ancestor(
+          of: find.text('Save'), matching: find.byType(AnimatedOpacity)));
+      expect(label.opacity, 0);
       await tester.tap(button);
       await tester.pump();
       expect(pressed, isFalse);

@@ -44,6 +44,9 @@ double _diameterFor(AppIconButtonSize size) => switch (size) {
 /// grows the invisible tap area to [AppSizes.rowTouch] without growing the
 /// glyph, the same "small control, bigger tap target" split the row height
 /// already uses. Left unset it follows [AppTouchTargets.of].
+///
+/// Only a button given an [active] value is announced as a toggle; leaving it
+/// null keeps a plain action button from reading as a switch that is off.
 class AppIconButton extends StatefulWidget {
   const AppIconButton({
     super.key,
@@ -52,7 +55,7 @@ class AppIconButton extends StatefulWidget {
     this.onPressed,
     this.variant = AppIconButtonVariant.ghost,
     this.size = AppIconButtonSize.md,
-    this.active = false,
+    this.active,
     this.touch,
     this.iconSize = AppSizes.icon20,
     this.tooltip,
@@ -69,7 +72,9 @@ class AppIconButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final AppIconButtonVariant variant;
   final AppIconButtonSize size;
-  final bool active;
+  final bool? active;
+
+  bool get _active => active ?? false;
 
   /// Null means "whatever this subtree is at", read from [AppTouchTargets].
   final bool? touch;
@@ -135,11 +140,14 @@ class _AppIconButtonState extends State<AppIconButton> {
         border = null;
     }
 
-    if (_hovered && enabled && !widget.active && !widget.suppressOwnHoverFill) {
+    if (_hovered &&
+        enabled &&
+        !widget._active &&
+        !widget.suppressOwnHoverFill) {
       fill = tokens.surfaceRaised;
     }
 
-    if (widget.active) {
+    if (widget._active) {
       fill = tokens.accentSoft;
       ink = tokens.accent;
       // The caret beside a joined control draws the seam in the subtle border.
