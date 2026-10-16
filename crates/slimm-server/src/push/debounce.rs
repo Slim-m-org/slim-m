@@ -22,10 +22,24 @@ use crate::store::now_ms;
 /// window must never silence a different recipient's wake. Debouncing exists
 /// to collapse a burst of messages for one person, not to let one recipient's
 /// state (or bad luck) silence somebody else's notification.
+///
+/// A mention is not collapsed into a window a plain message opened: it is the
+/// one push a recipient asked for by name, so it reopens the window as a
+/// mention window instead.
 pub(super) struct Debounce {
     window_ms: i64,
-    last_fired: Mutex<HashMap<(ChannelId, UserId), i64>>,
+    last_fired: Mutex<HashMap<(ChannelId, UserId), Window>>,
 }
+
+#[derive(Clone, Copy)]
+struct Window {
+    opened_at: i64,
+    by_mention: bool,
+}
+
+/// Past this many open windows, elapsed ones are swept on the next insert, so
+/// the map tracks recent pairs rather than every pair ever pushed.
+const PRUNE_ABOVE: usize = 4_096;
 
 impl Debounce {
     pub(super) fn new(window_ms: i64) -> Self {
@@ -41,8 +55,13 @@ impl Debounce {
     /// [`Self::release_if_undelivered`] with the same `fired_at`, or the next
     /// genuine trigger for this recipient would be wrongly suppressed too.
     /// `None` means a burst is already collapsed into an open window.
-    pub(super) fn try_fire(&self, channel_id: ChannelId, user_id: UserId) -> Option<i64> {
-        self.try_fire_at(channel_id, user_id, now_ms())
+    pub(super) fn try_fire(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+        mention: bool,
+    ) -> Option<i64> {
+        self.try_fire_at(channel_id, user_id, now_ms(), mention)
     }
 
     /// [`Self::try_fire`] with an explicit clock, for deterministic tests.
@@ -51,16 +70,27 @@ impl Debounce {
         channel_id: ChannelId,
         user_id: UserId,
         now: i64,
+        mention: bool,
     ) -> Option<i64> {
         let mut last_fired = self.lock();
         let key = (channel_id, user_id);
-        match last_fired.get(&key) {
-            Some(&last) if now - last < self.window_ms => None,
-            _ => {
-                last_fired.insert(key, now);
-                Some(now)
-            }
+        let suppressed = last_fired.get(&key).is_some_and(|window| {
+            now - window.opened_at < self.window_ms && (window.by_mention || !mention)
+        });
+        if suppressed {
+            return None;
         }
+        if last_fired.len() >= PRUNE_ABOVE {
+            last_fired.retain(|_, window| now - window.opened_at < self.window_ms);
+        }
+        last_fired.insert(
+            key,
+            Window {
+                opened_at: now,
+                by_mention: mention,
+            },
+        );
+        Some(now)
     }
 
     /// Releases a window that turned out to deliver nobody anything, so the
@@ -77,12 +107,12 @@ impl Debounce {
     ) {
         let mut last_fired = self.lock();
         let key = (channel_id, user_id);
-        if last_fired.get(&key) == Some(&fired_at) {
+        if last_fired.get(&key).map(|window| window.opened_at) == Some(fired_at) {
             last_fired.remove(&key);
         }
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(ChannelId, UserId), i64>> {
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(ChannelId, UserId), Window>> {
         match self.last_fired.lock() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
@@ -104,19 +134,19 @@ mod tests {
         let channel = ChannelId::generate();
         let bob = user();
         assert!(
-            debounce.try_fire_at(channel, bob, 0).is_some(),
+            debounce.try_fire_at(channel, bob, 0, false).is_some(),
             "first trigger fires"
         );
         assert!(
-            debounce.try_fire_at(channel, bob, 500).is_none(),
+            debounce.try_fire_at(channel, bob, 500, false).is_none(),
             "inside the window is suppressed"
         );
         assert!(
-            debounce.try_fire_at(channel, bob, 999).is_none(),
+            debounce.try_fire_at(channel, bob, 999, false).is_none(),
             "still inside the window"
         );
         assert!(
-            debounce.try_fire_at(channel, bob, 1_000).is_some(),
+            debounce.try_fire_at(channel, bob, 1_000, false).is_some(),
             "the window has fully elapsed"
         );
     }
@@ -127,10 +157,10 @@ mod tests {
         let a = ChannelId::generate();
         let b = ChannelId::generate();
         let bob = user();
-        assert!(debounce.try_fire_at(a, bob, 0).is_some());
+        assert!(debounce.try_fire_at(a, bob, 0, false).is_some());
         // A burst in channel a does not suppress channel b.
-        assert!(debounce.try_fire_at(b, bob, 0).is_some());
-        assert!(debounce.try_fire_at(a, bob, 100).is_none());
+        assert!(debounce.try_fire_at(b, bob, 0, false).is_some());
+        assert!(debounce.try_fire_at(a, bob, 100, false).is_none());
     }
 
     /// Regression: the debounce used to be keyed on channel alone, so a window
@@ -142,13 +172,13 @@ mod tests {
         let channel = ChannelId::generate();
         let bob = user();
         let carol = user();
-        assert!(debounce.try_fire_at(channel, bob, 0).is_some());
+        assert!(debounce.try_fire_at(channel, bob, 0, false).is_some());
         assert!(
-            debounce.try_fire_at(channel, carol, 50).is_some(),
+            debounce.try_fire_at(channel, carol, 50, false).is_some(),
             "bob's open window must not suppress carol's wake"
         );
         assert!(
-            debounce.try_fire_at(channel, bob, 100).is_none(),
+            debounce.try_fire_at(channel, bob, 100, false).is_none(),
             "bob's own burst is still collapsed"
         );
     }
@@ -163,11 +193,11 @@ mod tests {
         let channel = ChannelId::generate();
         let bob = user();
         let fired_at = debounce
-            .try_fire_at(channel, bob, 0)
+            .try_fire_at(channel, bob, 0, false)
             .expect("first trigger fires");
         debounce.release_if_undelivered(channel, bob, fired_at);
         assert!(
-            debounce.try_fire_at(channel, bob, 1).is_some(),
+            debounce.try_fire_at(channel, bob, 1, false).is_some(),
             "a window that delivered nothing must not suppress the very next trigger"
         );
     }
@@ -177,14 +207,42 @@ mod tests {
         let debounce = Debounce::new(1_000);
         let channel = ChannelId::generate();
         let bob = user();
-        let stale_fired_at = debounce.try_fire_at(channel, bob, 0).unwrap();
+        let stale_fired_at = debounce.try_fire_at(channel, bob, 0, false).unwrap();
         // The window elapses naturally and opens again for a later message.
-        assert!(debounce.try_fire_at(channel, bob, 1_000).is_some());
+        assert!(debounce.try_fire_at(channel, bob, 1_000, false).is_some());
         // A late release from the first task must not tear the second down.
         debounce.release_if_undelivered(channel, bob, stale_fired_at);
         assert!(
-            debounce.try_fire_at(channel, bob, 1_500).is_none(),
+            debounce.try_fire_at(channel, bob, 1_500, false).is_none(),
             "the newer window must still be in effect"
+        );
+    }
+
+    #[test]
+    fn a_mention_is_not_collapsed_into_a_plain_message_window() {
+        let debounce = Debounce::new(10_000);
+        let (channel, bob) = (ChannelId::generate(), user());
+        assert!(debounce.try_fire_at(channel, bob, 0, false).is_some());
+        assert!(
+            debounce.try_fire_at(channel, bob, 5_000, true).is_some(),
+            "the mention was dropped by the plain-message window"
+        );
+        assert!(debounce.try_fire_at(channel, bob, 6_000, true).is_none());
+        assert!(debounce.try_fire_at(channel, bob, 7_000, false).is_none());
+    }
+
+    #[test]
+    fn elapsed_windows_are_swept_once_the_map_grows() {
+        let debounce = Debounce::new(1_000);
+        let channel = ChannelId::generate();
+        for _ in 0..PRUNE_ABOVE {
+            debounce.try_fire_at(channel, user(), 0, false);
+        }
+        debounce.try_fire_at(channel, user(), 5_000, false);
+        assert_eq!(
+            debounce.lock().len(),
+            1,
+            "elapsed windows were kept forever"
         );
     }
 }

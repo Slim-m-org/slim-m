@@ -110,9 +110,13 @@ pub(super) async fn deliver(
     // Once per recipient, not once per device; see the note on this function.
     let mut decisions: HashMap<UserId, Option<i64>> = HashMap::new();
     for target in &targets {
-        decisions
-            .entry(target.user_id)
-            .or_insert_with(|| debounce.try_fire(channel_id, target.user_id));
+        decisions.entry(target.user_id).or_insert_with(|| {
+            debounce.try_fire(
+                channel_id,
+                target.user_id,
+                mentioned.contains(&target.user_id),
+            )
+        });
     }
     let opened: HashMap<UserId, i64> = decisions
         .into_iter()
