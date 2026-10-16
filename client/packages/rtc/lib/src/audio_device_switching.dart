@@ -61,18 +61,29 @@ class AudioDeviceSwitching {
   /// takes effect from the very first published track rather than only
   /// after a live switch; see [selectInput]/[selectOutput] for the mid-call
   /// path.
-  lk.RoomOptions roomOptions(lk.RoomOptions base) => base.copyWith(
-        defaultAudioCaptureOptions: lk.AudioCaptureOptions(
-          // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
-          deviceId:
-              isPulseDeviceId(_preferredInputId) ? null : _preferredInputId,
-          // Reopening on unmute flips Bluetooth profiles and clips the first syllable.
-          stopAudioCaptureOnMute: false,
+  lk.RoomOptions roomOptions(
+    lk.RoomOptions base, {
+    bool noiseSuppression = true,
+  }) =>
+      base.copyWith(
+        defaultAudioCaptureOptions: captureOptions(
+          noiseSuppression: noiseSuppression,
         ),
         defaultAudioOutputOptions: lk.AudioOutputOptions(
           deviceId:
               isPulseDeviceId(_preferredOutputId) ? null : _preferredOutputId,
         ),
+      );
+
+  /// [noiseSuppression] is libwebrtc's own; Strong turns it off where rnnoise
+  /// runs instead.
+  lk.AudioCaptureOptions captureOptions({bool noiseSuppression = true}) =>
+      lk.AudioCaptureOptions(
+        // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
+        deviceId: isPulseDeviceId(_preferredInputId) ? null : _preferredInputId,
+        noiseSuppression: noiseSuppression,
+        // Reopening on unmute flips Bluetooth profiles and clips the first syllable.
+        stopAudioCaptureOnMute: false,
       );
 
   /// Forgets a remembered microphone or speaker that is no longer plugged in,

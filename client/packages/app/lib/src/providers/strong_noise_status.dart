@@ -9,13 +9,6 @@ import 'package:slimm_rtc/rtc.dart';
 import 'noise_suppression.dart';
 import 'voice_flags.dart';
 
-/// About 2 s of consecutive inactive polls at the gate's 50 ms interval.
-const int kStrongInactivePolls = 40;
-
-/// Active polls in a row before the note goes away, so one stray frame does
-/// not flicker it.
-const int kStrongActivePolls = 10;
-
 /// Strong is the effective choice, a call is live and the mic is unmuted.
 final _strongExpectedProvider = Provider.autoDispose<bool>((ref) {
   final choice = ref.watch(noiseSuppressionProvider);
@@ -42,24 +35,14 @@ class _StrongInactiveNotifier extends StateNotifier<bool> {
     });
   }
 
-  int _inactive = 0;
-  int _active = 0;
+  final _tracker = StrongInactivityTracker();
 
   void _reset() {
-    _inactive = 0;
-    _active = 0;
+    _tracker.reset();
     state = false;
   }
 
-  void _add(bool active) {
-    if (active) {
-      _inactive = 0;
-      if (++_active >= kStrongActivePolls) state = false;
-    } else {
-      _active = 0;
-      if (++_inactive >= kStrongInactivePolls) state = true;
-    }
-  }
+  void _add(bool active) => state = _tracker.add(strongActive: active);
 }
 
 final strongNoiseInactiveProvider =

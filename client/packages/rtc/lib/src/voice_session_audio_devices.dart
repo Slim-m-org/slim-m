@@ -23,6 +23,7 @@ part of 'voice_session.dart';
 mixin VoiceSessionAudioDevices {
   lk.Room? get _room;
   set _lastError(Object? value);
+  CaptureNoiseSuppression get _capture;
 
   final AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
     const HardwareAudioDevices(),
@@ -83,7 +84,10 @@ mixin VoiceSessionAudioDevices {
   /// default), live where this platform honours it, and remembered for the
   /// next join either way; see [AudioDeviceSwitching.selectInput].
   Future<bool> selectAudioInputDevice(AudioDevice? device) =>
-      _trySelectAudio(() => _audioSwitching.selectInput(_room, device));
+      _trySelectAudio(() async {
+        await _audioSwitching.selectInput(_room, device);
+        _capture.deviceChanged();
+      });
 
   /// [selectAudioInputDevice]'s counterpart for local playback.
   Future<bool> selectAudioOutputDevice(AudioDevice? device) =>

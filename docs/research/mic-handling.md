@@ -188,6 +188,20 @@ Objective scores:
 - Risk: without WebRTC NS, rnnoise at 48k must carry the load; compare on keyboard/fan recordings first. Switching capture options mid-call may glitch.
 - Verify: ViSQOL + noise-reduction dB on a noisy-speech corpus; manual listening for musical noise.
 
+#### Measured 2026-10-16
+Offline A/B on espeak speech with synthetic noise, noise floor in dB (lower is better) and log-spectral distortion (lsd, lower is better).
+Speech level was unchanged within 0.3 dB in every case.
+
+| noise | webrtc only | A: webrtc + rnnoise | B: rnnoise only |
+| --- | --- | --- | --- |
+| fan at -38 dBFS | -63.4 dB, lsd 8.92 | -61.8 dB, lsd 16.34 | -66.3 dB, lsd 14.15 |
+| keyboard at -36 dBFS | -46.1 dB, lsd 12.99 | -52.8 dB, lsd 19.59 | -61.6 dB, lsd 16.35 |
+| hiss at -45 dBFS | -61.8 dB, lsd 11.25 | -61.6 dB, lsd 17.66 | -68.9 dB, lsd 15.75 |
+
+rnnoise alone beats the stacked chain on every noise type, with about 2 dB less distortion.
+Caveats: synthetic speech and noise, and the python webrtc-noise-gain APM at 16 kHz rather than the fork's own build.
+Script and raw output are in `~/.slimm-scratch/tmp/mic-ab/`, not in the repo.
+
 ### P5 - Measure Linux AGC vs the system mic volume (medium impact, low effort, research-only first)
 - Problem: possible that AGC moves the PulseAudio/PipeWire source volume (user's mic slider drifts, other apps affected).
 - Evidence: our libwebrtc.so contains `pa_context_set_source_volume_by_index`; SetMicrophoneVolume calls it [src]; upstream main no longer feeds the analog level back from `AudioTransportImpl`, so behavior depends on the prebuilt's age [unverified].

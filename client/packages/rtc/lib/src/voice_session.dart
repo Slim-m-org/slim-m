@@ -20,6 +20,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
+import 'capture_noise_suppression.dart';
 import 'input_gate.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
@@ -79,6 +80,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
+    _initCapture();
     _screenShare = ScreenShareControl(_broadcast);
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
@@ -94,6 +96,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
             dynacast: true,
             defaultVideoPublishOptions: cameraPublishOptions(),
           ),
+          noiseSuppression: _capture.webrtcNoiseSuppression,
         ),
       );
 
@@ -519,6 +522,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();
+    await _disposeCapture();
     await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();

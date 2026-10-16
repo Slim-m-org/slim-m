@@ -91,7 +91,18 @@ extension VoiceSessionTracks on VoiceSession {
     final room = _room;
     if (room == null) return false;
     try {
-      await room.localParticipant?.setMicrophoneEnabled(enabled);
+      final hadTrack = _micPublication != null;
+      final options = _micCaptureOptions();
+      await room.localParticipant?.setMicrophoneEnabled(
+        enabled,
+        audioCaptureOptions: options,
+      );
+      if (enabled && options != null) {
+        if (!hadTrack) {
+          _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
+        }
+        _capture.retry();
+      }
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
       return true;
