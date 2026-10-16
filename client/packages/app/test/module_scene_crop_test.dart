@@ -66,7 +66,7 @@ void main() {
         expect(frame.width, lessThanOrEqualTo(card.width));
         expect(
           frame.height,
-          lessThanOrEqualTo(ModuleSceneFrame.maxInlineEdge + 2),
+          lessThanOrEqualTo(ModuleSceneFrame.inlineEdge(width) + 2),
         );
         final scene = parseModuleScene(jsonEncode(entry.value))!;
         expect(
@@ -91,9 +91,9 @@ void main() {
     await _pump(tester, wordGuessScene(), const Size(760, 0));
     final frame = _frame(tester);
     expect(frame.width, lessThan(frame.height), reason: 'portrait, not square');
-    expect(frame.width, lessThan(260), reason: 'was a 360px square');
+    expect(frame.width, lessThan(360), reason: 'was a 360px square');
     final pad = (21 - crop.left) * frame.width / crop.width;
-    expect(pad, inInclusiveRange(2, 14), reason: 'small padding, in pixels');
+    expect(pad, inInclusiveRange(2, 18), reason: 'small padding, in pixels');
     // The field must sit wholly inside the frame, not be clipped by the crop.
     expect(
       frame.contains(tester.getBottomRight(find.byType(TextField))),

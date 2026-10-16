@@ -402,6 +402,29 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.fillAvailable) return _content(context);
+    final windowHeight = MediaQuery.sizeOf(context).height;
+    final aspect = _scene.viewHeight == 0
+        ? 1.0
+        : _scene.viewWidth / _scene.viewHeight;
+    // The caption and controls take the frame's width, never widen the card past it.
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        width: ModuleSceneFrame.inlineWidth(
+          maxWidth: constraints.hasBoundedWidth ? constraints.maxWidth : null,
+          windowHeight: windowHeight,
+          aspect: aspect,
+          sceneHeight: _scene.viewHeight,
+        ),
+        child: _content(
+          context,
+          cardWidth: constraints.hasBoundedWidth ? constraints.maxWidth : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, {double? cardWidth}) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final aspect = _scene.viewHeight == 0
         ? 1.0
@@ -410,13 +433,15 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.fillAvailable)
-          Expanded(child: _frame(aspect, tokens))
+          Expanded(child: _frame(aspect, tokens, cardWidth))
         else
-          _frame(aspect, tokens),
+          _frame(aspect, tokens, cardWidth),
         if (_scene.status != null) ...[
           const SizedBox(height: AppSpacing.s8),
           Text(
             _scene.status!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: AppText.caption.copyWith(
               fontFamily: AppFonts.mono,
               color: tokens.textSecondary,
@@ -454,8 +479,13 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
 
   /// The board itself, in its box. Split out because full screen wraps it in
   /// an [Expanded] and inline does not, and a widget cannot be both.
-  Widget _frame(double aspect, AppTokens tokens) => ModuleSceneFrame(
+  Widget _frame(
+    double aspect,
+    AppTokens tokens,
+    double? cardWidth,
+  ) => ModuleSceneFrame(
     aspect: aspect,
+    cardWidth: cardWidth,
     sceneHeight: _scene.viewHeight,
     fillAvailable: widget.fillAvailable,
     child: LayoutBuilder(
