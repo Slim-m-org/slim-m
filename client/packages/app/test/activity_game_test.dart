@@ -223,10 +223,10 @@ void main() {
     );
     expect(find.text(game.label), findsOneWidget);
     expect(find.text(listening.label), findsNothing);
-    expect(find.text('Sharing right now: nothing'), findsOneWidget);
+    expect(find.text('Nothing'), findsOneWidget);
     expect(find.textContaining('Counter-Strike 2'), findsNothing);
 
-    await tester.tap(find.textContaining('listed games'));
+    await tester.tap(find.text('Listed games'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Counter-Strike 2'), findsOneWidget);
   });

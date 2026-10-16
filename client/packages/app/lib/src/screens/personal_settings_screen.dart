@@ -103,9 +103,9 @@ class PersonalSettingsScreen extends StatelessWidget {
               // No presence rows: the rail footer's own status menu already sets both the state and the status text.
               builder: (context) => const Column(
                 children: [
+                  SettingsProfilePreview(),
                   AvatarSettingsSection(),
                   ProfileFieldsSection(),
-                  SettingsProfilePreview(),
                   ActivitySharingSection(),
                 ],
               ),

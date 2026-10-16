@@ -287,9 +287,10 @@ void main() {
     await tester.tap(find.widgetWithText(AppListRow, 'Profile'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Self'), findsOneWidget);
+    // The live preview and the Identity row both name the account.
+    expect(find.text('Self'), findsNWidgets(2));
 
-    await tester.tap(find.byTooltip('Edit display name'));
+    await tester.tap(find.bySemanticsLabel('Edit display name'));
     await tester.pumpAndSettle();
 
     expect(find.text('Edit display name'), findsOneWidget);

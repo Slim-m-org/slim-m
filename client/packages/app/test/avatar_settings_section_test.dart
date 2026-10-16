@@ -124,50 +124,55 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Self'), findsOneWidget);
+    expect(find.text('Display name'), findsOneWidget);
     expect(find.text('@self'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Edit display name'));
+    await tester.tap(find.bySemanticsLabel('Edit display name'));
     await tester.pumpAndSettle();
 
     expect(find.text('Edit display name'), findsOneWidget);
   });
 
-  testWidgets('the camera badge meets the 44pt touch-target minimum', (
-    tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [
-        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/me') {
-                return http.Response(
-                  jsonEncode(_meJson(null)),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response('', 404);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
+  testWidgets(
+    'the Change button meets the 44pt touch-target minimum at phone width',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+          apiProvider.overrideWith((ref) {
+            final api = SlimmApi(
+              baseUrl: Uri.parse('http://localhost:8080'),
+              session: ref.watch(sessionProvider),
+              httpClient: MockClient((request) async {
+                if (request.url.path == '/me') {
+                  return http.Response(
+                    jsonEncode(_meJson(null)),
+                    200,
+                    headers: {'content-type': 'application/json'},
+                  );
+                }
+                return http.Response('', 404);
+              }),
+            );
+            ref.onDispose(api.close);
+            return api;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await tester.pumpWidget(_harness(container));
-    await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_harness(container));
+      await tester.pumpAndSettle();
 
-    final size = tester.getSize(find.bySemanticsLabel(_cameraLabel));
-    expect(size.width, greaterThanOrEqualTo(44));
-    expect(size.height, greaterThanOrEqualTo(44));
-  });
+      final size = tester.getSize(find.bySemanticsLabel(_cameraLabel));
+      expect(size.width, greaterThanOrEqualTo(44));
+      expect(size.height, greaterThanOrEqualTo(44));
+    },
+  );
 
   testWidgets(
     'an existing avatar offers Remove, and removing it clears the preview',

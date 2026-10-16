@@ -25,16 +25,10 @@ import 'package:slimm_platform/platform.dart';
 
 import 'composer_harness.dart' show usePicker;
 
-/// The badge's own `InkWell`, found through the camera glyph it always
-/// carries rather than through its `Semantics` label: once `AppErrorState`
-/// is also on screen, `tester.tap(find.bySemanticsLabel(...))` no longer
-/// lands the tap on the real badge, so this finder is what the second half
-/// of the reproduction below actually needed to get past the first defect
-/// and reach the one this file is about.
-Finder _cameraBadge() => find.ancestor(
-  of: find.byIcon(AppIcons.avatarCamera),
-  matching: find.byType(InkWell),
-);
+/// The Change button, found by its text rather than its `Semantics` label:
+/// once `AppErrorState` is also on screen, `tester.tap(find.bySemanticsLabel(...))`
+/// no longer lands the tap on the real button.
+Finder _cameraBadge() => find.text('Change');
 
 const _tokens = TokenPair(
   userId: 'self',
