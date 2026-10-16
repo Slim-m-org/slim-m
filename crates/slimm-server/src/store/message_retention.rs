@@ -69,6 +69,9 @@ pub struct PrunedMessage {
     /// the soft delete it performs always writes a fresh op.
     pub op_seq: Option<i64>,
     pub freed_attachments: Vec<String>,
+    /// Whether it was pinned. The soft delete's trigger drops the pin row, so
+    /// the sweep must announce the unpin itself or clients keep showing it.
+    pub was_pinned: bool,
 }
 
 /// What one retention sweep tick did.
@@ -214,6 +217,21 @@ impl Store {
             return Ok((Vec::new(), detached));
         }
 
+        // Read before the soft delete fires the trigger that drops the pin; see `PrunedMessage::was_pinned`.
+        let mut pinned_query =
+            QueryBuilder::new("SELECT message_id FROM pinned_messages WHERE message_id IN (");
+        let mut pinned_ids = pinned_query.separated(", ");
+        for id in &candidates {
+            pinned_ids.push_bind(*id);
+        }
+        pinned_query.push(")");
+        let pinned: std::collections::HashSet<MessageId> = pinned_query
+            .build_query_scalar::<MessageId>()
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .collect();
+
         // One soft-delete for the whole batch; RETURNING names the rows it actually flipped and their channel.
         let mut update = QueryBuilder::new("UPDATE messages SET deleted_at = ");
         update.push_bind(now);
@@ -301,6 +319,7 @@ impl Store {
                 message_id,
                 op_seq: Some(op_seq_of[&message_id]),
                 freed_attachments: freed_of.remove(&message_id).unwrap_or_default(),
+                was_pinned: pinned.contains(&message_id),
             })
             .collect();
         Ok((pruned, detached))

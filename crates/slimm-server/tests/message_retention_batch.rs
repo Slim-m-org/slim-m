@@ -229,3 +229,43 @@ async fn a_byte_a_live_canvas_object_holds_is_not_freed_and_the_sweep_survives()
     );
     assert!(s.attachment_summary(&sha256).await.unwrap().is_some());
 }
+
+/// A pruned message that was pinned says so, so the sweep can publish the
+/// unpin its soft delete caused (issue 2114).
+#[tokio::test]
+async fn a_pruned_pinned_message_reports_that_it_was_pinned() {
+    let (s, pool, _guard) = harness("slimm-retention-pinned").await;
+    let admin = register(&s, "root").await;
+    let general = general(&s).await;
+    s.set_message_retention_days(30).await.unwrap();
+    let mut ids = Vec::new();
+    for _ in 0..2 {
+        let id = s
+            .send_message(NewMessage::plain(
+                general,
+                admin,
+                MessageId::generate(),
+                "old",
+            ))
+            .await
+            .unwrap()
+            .message
+            .id;
+        backdate_message(&pool, id, -60 * DAY_MS).await;
+        ids.push(id);
+    }
+    s.pin_message(general, ids[0], admin).await.unwrap();
+
+    let swept = s.sweep_message_retention().await.unwrap();
+
+    let pinned_flag = |id: MessageId| {
+        swept
+            .pruned
+            .iter()
+            .find(|p| p.message_id == id)
+            .unwrap()
+            .was_pinned
+    };
+    assert!(pinned_flag(ids[0]));
+    assert!(!pinned_flag(ids[1]));
+}
