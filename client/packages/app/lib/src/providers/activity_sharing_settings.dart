@@ -22,12 +22,17 @@ class ActivitySwitchController extends StateNotifier<bool> {
   final Ref _ref;
   final String _key;
 
+  /// Set once the user flips the switch, so a load still in flight never
+  /// puts the stored value back over their choice.
+  bool _changed = false;
+
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
-    if (mounted) state = prefs.getBool(_key) ?? false;
+    if (mounted && !_changed) state = prefs.getBool(_key) ?? false;
   }
 
   Future<void> setEnabled(bool enabled) async {
+    _changed = true;
     state = enabled;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_key, enabled);

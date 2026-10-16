@@ -286,6 +286,7 @@ This step checks the identifiers agree with each other across `project.pbxproj` 
 Phones are locked to portrait and tablets are free to rotate, on both platforms, and the two halves fail in opposite directions if either is quietly edited.
 This step reads the iOS orientation arrays, the two Android `bools.xml` overrides, and the Kotlin code that applies the lock, and fails if any of the four no longer agrees with the others.
 The one exception is full screen call video (decision 0058): the iPhone array may list landscape as a ceiling only while `AppDelegate.swift` still defaults to portrait and `fullscreen_video_overlay.dart` is the only Dart code that asks for landscape, and the step fails otherwise.
+It also fails if the web manifest sets an orientation: an installed web app cannot tell a phone from a desktop, so a lock there would lock every desktop install too.
 
 ### No emoji in UI source
 
