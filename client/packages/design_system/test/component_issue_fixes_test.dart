@@ -4,7 +4,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -18,9 +17,6 @@ Widget _app(Widget child, {bool? touch}) {
     ),
   );
 }
-
-SemanticsData _data(WidgetTester tester, Finder finder) =>
-    tester.getSemantics(finder).getSemanticsData();
 
 void main() {
   testWidgets('#2023 a plain icon button is not announced as a toggle', (
@@ -47,12 +43,14 @@ void main() {
         ),
       ),
     );
-    final plain = _data(tester, find.bySemanticsLabel('Close'));
-    expect(plain.hasFlag(SemanticsFlag.isButton), isTrue);
-    expect(plain.hasFlag(SemanticsFlag.hasToggledState), isFalse);
-    final toggle = _data(tester, find.bySemanticsLabel('Mute'));
-    expect(toggle.hasFlag(SemanticsFlag.hasToggledState), isTrue);
-    expect(toggle.hasFlag(SemanticsFlag.isToggled), isTrue);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Close')),
+      isSemantics(isButton: true, hasToggledState: false),
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Mute')),
+      isSemantics(hasToggledState: true, isToggled: true),
+    );
     handle.dispose();
   });
 
@@ -116,6 +114,27 @@ void main() {
     final focused = FocusManager.instance.primaryFocus?.context
         ?.findAncestorWidgetOfExactType<AppListRow>();
     expect(focused?.label, 'Tappable');
+  });
+
+  testWidgets('#2031 a read-only row can still opt in as a Tab stop', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppListRow(label: 'Skipped'),
+            AppListRow(label: 'Log entry', tabStop: true),
+          ],
+        ),
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final focused = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<AppListRow>();
+    expect(focused?.label, 'Log entry');
   });
 
   testWidgets('#2032 a disabled menu item is dimmed', (tester) async {
@@ -185,12 +204,10 @@ void main() {
     await tester.pumpWidget(
       _app(AppToast(message: 'Saved', onDismiss: () => dismissed++)),
     );
-    final node = tester.getSemantics(find.bySemanticsLabel(RegExp('Saved')));
-    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.tap,
-    );
+    final toast = find.semantics.byLabel(RegExp('Saved'));
+    expect(toast, findsOne);
+    expect(toast.evaluate().single, isSemantics(hasTapAction: true));
+    tester.semantics.tap(toast);
     expect(dismissed, 1);
     handle.dispose();
   });
