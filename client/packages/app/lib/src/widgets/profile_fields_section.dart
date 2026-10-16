@@ -52,11 +52,15 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     super.dispose();
   }
 
+  /// What the server last accepted, so a blur with nothing changed sends nothing.
+  String? _savedPronouns;
+  String? _savedAbout;
+
   void _seed(api.Me me) {
     if (_seeded) return;
     _seeded = true;
-    _pronouns.text = me.pronouns ?? '';
-    _about.text = me.about ?? '';
+    _pronouns.text = _savedPronouns = me.pronouns ?? '';
+    _about.text = _savedAbout = me.about ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.invalidate(profileDraftProvider);
     });
@@ -68,8 +72,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   }
 
   Future<void> _savePronouns() async {
+    final text = _pronouns.text.trim();
+    if (text == _savedPronouns) return;
     try {
-      await ref.read(apiProvider).updateMe(pronouns: _pronouns.text.trim());
+      await ref.read(apiProvider).updateMe(pronouns: text);
+      _savedPronouns = text;
       ref.invalidate(meProvider);
     } on api.ApiException {
       // Low-stakes; the field keeps the unsaved text rather than a banner.
@@ -77,8 +84,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   }
 
   Future<void> _saveAbout() async {
+    final text = _about.text.trim();
+    if (text == _savedAbout) return;
     try {
-      await ref.read(apiProvider).updateMe(about: _about.text.trim());
+      await ref.read(apiProvider).updateMe(about: text);
+      _savedAbout = text;
       ref.invalidate(meProvider);
     } on api.ApiException {
       // Same tolerance as _savePronouns.

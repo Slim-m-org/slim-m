@@ -124,6 +124,24 @@ void main() {
     await tester.tap(find.byType(TextField).first);
     await tester.pumpAndSettle();
     expect(patches, contains(equals({'about': 'Builds things'})));
+    expect(
+      patches,
+      hasLength(2),
+      reason: 'each field sends once, only when its text changed',
+    );
+  });
+
+  testWidgets('focusing and leaving a field without typing sends nothing', (
+    tester,
+  ) async {
+    final patches = await _pump(tester, const ProfileFieldsSection());
+
+    await tester.tap(find.byType(TextField).first);
+    await tester.tap(find.byType(TextField).last);
+    await tester.tap(find.byType(TextField).first);
+    await tester.pumpAndSettle();
+
+    expect(patches, isEmpty);
   });
 
   testWidgets('tapping a Profile colour swatch saves that colour', (

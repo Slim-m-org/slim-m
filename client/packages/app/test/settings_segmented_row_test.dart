@@ -60,6 +60,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a wide control stacks even in a pane a short one fits beside', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(496, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    Widget row(List<String> labels) => SettingsSegmentedRow<int>(
+      label: 'Noise suppression',
+      value: 0,
+      choices: [
+        for (final (i, l) in labels.indexed) SettingsChoice(value: i, label: l),
+      ],
+      onChanged: (_) {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: Column(
+            children: [
+              row(const ['On', 'Off']),
+              row(const ['Space default', 'Standard', 'Strong suppression']),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final labels = find.text('Noise suppression');
+    expect(
+      tester.getTopLeft(find.text('On')).dy,
+      lessThan(tester.getBottomLeft(labels.first).dy),
+      reason: 'two short segments leave the label room beside them',
+    );
+    expect(
+      tester.getTopLeft(find.text('Space default')).dy,
+      greaterThan(tester.getBottomLeft(labels.last).dy),
+      reason: 'three long segments would leave the label too narrow',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   test('only a problem reads as a warning banner', () {
     expect(
       notificationBannerStyle(PushStatus.registered, localOnly: false).warn,
