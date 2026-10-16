@@ -18,6 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../providers/reaction_users.dart';
 import '../providers/user_profiles.dart';
 import 'context_menu_focus.dart';
+import 'emoji_names.dart';
 import 'reaction_users_list.dart';
 import 'reaction_users_surface.dart';
 
@@ -84,6 +85,14 @@ class _ReactionChipWhoState extends ConsumerState<ReactionChipWho> {
     return reactionSummaryLine(reactionUserNames(ids, profiles), total);
   }
 
+  /// The emoji's own `:name:` first, so a glyph nobody recognises is named
+  /// before the list of who left it.
+  String _tooltipText() {
+    final name = emojiDisplayName(widget.reaction.emoji, widget.customEmoji);
+    final summary = _summary();
+    return name == null ? summary : '$name\n$summary';
+  }
+
   @override
   void dispose() {
     _rest?.cancel();
@@ -99,7 +108,7 @@ class _ReactionChipWhoState extends ConsumerState<ReactionChipWho> {
       onEnter: _enter,
       onExit: _exit,
       child: Tooltip(
-        message: _summary(),
+        message: _tooltipText(),
         triggerMode: TooltipTriggerMode.manual,
         waitDuration: const Duration(milliseconds: 500),
         excludeFromSemantics: true,
