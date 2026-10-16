@@ -119,3 +119,32 @@ async fn an_edit_racing_a_delete_never_errors() {
         assert!(edit.is_ok(), "edit {i} failed: {:?}", edit.err());
     }
 }
+
+#[tokio::test]
+async fn a_file_posted_in_two_channels_counts_once_in_each() {
+    let (s, _pool, user, channel, _guard) = store("slimm-audit-bytes-two").await;
+    let other = s.create_channel("other-audit", "text").await.unwrap().id;
+    s.store_attachment(&[8; 32], 4_000, "image/png", "b.png", Some(user))
+        .await
+        .unwrap();
+    for (target, n) in [(channel, 2), (other, 3)] {
+        for i in 0..n {
+            let text = format!("again {i}");
+            s.send_message(NewMessage {
+                attachment_ids: &[[8; 32].to_vec()],
+                spoiler_ids: &[],
+                ..NewMessage::plain(target, user, MessageId::generate(), &text)
+            })
+            .await
+            .unwrap();
+        }
+    }
+
+    let rows = s.attachment_bytes_by_channel(10).await.unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(
+        rows.iter().all(|row| row.attachment_bytes == 4_000),
+        "{:?}",
+        rows.iter().map(|r| r.attachment_bytes).collect::<Vec<_>>()
+    );
+}

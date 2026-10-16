@@ -185,6 +185,18 @@ async fn after_0118_a_new_action_needs_no_migration_but_junk_is_refused() {
         .execute(&pool)
     };
     assert!(insert("future_act").await.is_ok());
+    assert!(insert("act2").await.is_ok());
+    assert!(insert("a1_b").await.is_ok());
+    assert!(
+        insert(Box::leak("a".repeat(64).into_boxed_str()))
+            .await
+            .is_ok()
+    );
+    assert!(
+        insert(Box::leak("a".repeat(65).into_boxed_str()))
+            .await
+            .is_err()
+    );
     assert!(insert("Bad Act!").await.is_err());
     assert!(insert("UPPER").await.is_err());
     assert!(insert("").await.is_err());

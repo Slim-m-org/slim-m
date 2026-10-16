@@ -126,6 +126,38 @@ mod tests {
 
     /// The schema documents the action enum clients switch on; a variant
     /// added here without it would reach clients undocumented.
+    /// `ALL` is hand-kept; this ties it to the enum. A new variant forces an
+    /// arm here (the match has no wildcard), and its index then has to be in
+    /// `ALL` for the length check to pass.
+    #[test]
+    fn all_lists_every_variant_once() {
+        fn position(action: ModerationAction) -> usize {
+            match action {
+                ModerationAction::Remove => 0,
+                ModerationAction::Restore => 1,
+                ModerationAction::Timeout => 2,
+                ModerationAction::TimeoutCleared => 3,
+                ModerationAction::MessagesDeleted => 4,
+                ModerationAction::BotCreate => 5,
+                ModerationAction::BotRevoke => 6,
+                ModerationAction::BotPermissionGrant => 7,
+                ModerationAction::WebhookCreate => 8,
+                ModerationAction::WebhookRevoke => 9,
+                ModerationAction::WebhookRotate => 10,
+                ModerationAction::TotpCleared => 11,
+                ModerationAction::AccountDelete => 12,
+                ModerationAction::ResetCodeIssue => 13,
+                ModerationAction::NicknameSet => 14,
+                ModerationAction::NicknameClear => 15,
+            }
+        }
+        let mut seen = vec![false; ModerationAction::ALL.len()];
+        for action in ModerationAction::ALL {
+            seen[position(action)] = true;
+        }
+        assert!(seen.iter().all(|s| *s), "ALL is missing a variant");
+    }
+
     #[test]
     fn every_action_is_in_the_schema_and_nothing_else_is() {
         let text = std::fs::read_to_string(concat!(

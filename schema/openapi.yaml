@@ -4797,7 +4797,9 @@ paths:
           description: >
             The id of the last message on the previous page; returns only hits
             after it in result order (newest first). Pages a search across
-            channels correctly, where `before`'s per-channel seq cannot.
+            channels correctly, where `before`'s per-channel seq cannot, and
+            `before` is ignored when this is given. An id that names no
+            message answers 400.
           schema:
             type: string
             format: uuid
@@ -4906,7 +4908,9 @@ paths:
           description: >
             The id of the last message on the previous page; returns only hits
             after it in result order (newest first). Pages a search across
-            channels correctly, where `before`'s per-channel seq cannot.
+            channels correctly, where `before`'s per-channel seq cannot, and
+            `before` is ignored when this is given. An id that names no
+            message answers 400.
           schema:
             type: string
             format: uuid
