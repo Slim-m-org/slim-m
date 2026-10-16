@@ -16,6 +16,7 @@ import 'package:slimm_app/src/deep_links.dart';
 import 'package:slimm_app/src/providers/activity_feeds.dart';
 import 'package:slimm_app/src/providers/activity_publisher.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
+import 'package:slimm_app/src/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/spotify/spotify_client.dart';
 import 'package:slimm_app/src/spotify/spotify_config.dart';
@@ -75,7 +76,15 @@ class SpotifyRig {
             baseUrl: Uri.parse('http://localhost:8080'),
             session: ref.watch(sessionProvider),
             httpClient: MockClient((request) async {
-              if (request.url.path == '/me') return http.Response('{}', 404);
+              if (request.url.path == '/me') {
+                return http.Response(
+                  '{"id":"self","username":"self","display_name":"Self",'
+                  '"created_at":0,"permissions":0,'
+                  '"presence_visibility":"online"}',
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
               calls.add('${request.method} ${request.url.path}');
               return http.Response('', 204);
             }),
@@ -109,6 +118,11 @@ class SpotifyRig {
     await container.read(preferencesProvider.future);
     container.read(activityPublisherProvider);
     await settle();
+    // Sharing waits for /me to say the visibility.
+    for (var i = 0; i < 20; i++) {
+      if (container.read(ownVisibilityProvider) != null) break;
+      await settle();
+    }
   }
 
   Future<void> settle() =>
