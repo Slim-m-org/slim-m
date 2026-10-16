@@ -319,6 +319,9 @@ async fn run_search(
         Err(SearchError::InvalidQuery) => {
             return Err(ApiError::BadRequest("that search query is not valid"));
         }
+        Err(SearchError::UnknownCursor) => {
+            return Err(ApiError::BadRequest("before_id names no message"));
+        }
         Err(SearchError::Internal(e)) => return Err(e.into()),
     };
 

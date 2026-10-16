@@ -82,3 +82,63 @@ async fn paging_across_channels_neither_skips_nor_repeats() {
     sent.sort();
     assert_eq!(unique, sent, "a hit was skipped");
 }
+
+#[tokio::test]
+async fn an_unknown_cursor_is_refused_and_before_is_ignored_beside_before_id() {
+    let (store, pool, _guard) = new_store_with_pool().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES),
+            true,
+        )
+        .await
+        .unwrap();
+    let alpha = store
+        .create_channel("alpha", "text")
+        .await
+        .unwrap()
+        .id
+        .to_string();
+    let app = app(store.clone());
+    let token = register(&store, "alice").await;
+    let mut ids = Vec::new();
+    for at in [100, 200, 300] {
+        let id = send(&app, &alpha, &token, "herons").await["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        set_created_at(&pool, &id, at).await;
+        ids.push(id);
+    }
+    let get = |uri: String| {
+        let app = app.clone();
+        let token = token.clone();
+        async move {
+            app.oneshot(request("GET", &uri, Some(&token), None))
+                .await
+                .unwrap()
+        }
+    };
+
+    let unknown = get(format!(
+        "/search/messages?q=herons&before_id={}",
+        uuid::Uuid::now_v7()
+    ))
+    .await;
+    assert_eq!(unknown.status(), axum::http::StatusCode::BAD_REQUEST);
+
+    let page = json_body(
+        get(format!(
+            "/search/messages?q=herons&before=1&before_id={}",
+            ids[2]
+        ))
+        .await,
+    )
+    .await;
+    assert_eq!(
+        page.as_array().unwrap().len(),
+        2,
+        "before=1 should not narrow a before_id page"
+    );
+}
