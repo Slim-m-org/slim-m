@@ -13,6 +13,18 @@ extension CanvasDocumentQueries on CanvasDocument {
   /// [strokeIfAlive] is the one to use there.
   CanvasStroke strokeAt(int slot) => _strokes[slot]!;
 
+  /// Paint order between two slots, bottom first: z-index, then the server's
+  /// seq, then the slot, the same total order the server's (z_index, seq)
+  /// gives, so ties never shuffle between frames or between clients.
+  int comparePaintOrder(int a, int b) {
+    final sa = _strokes[a]!;
+    final sb = _strokes[b]!;
+    final byZ = sa.zIndex.compareTo(sb.zIndex);
+    if (byZ != 0) return byZ;
+    final bySeq = sa.seq.compareTo(sb.seq);
+    return bySeq != 0 ? bySeq : a.compareTo(b);
+  }
+
   /// The stroke at [slot], or null if it was never a real object, has been
   /// removed, or failed to land.
   CanvasStroke? strokeIfAlive(int slot) {

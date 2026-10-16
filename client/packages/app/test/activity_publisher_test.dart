@@ -46,7 +46,7 @@ class _FakeSource implements NowPlayingSource {
 }
 
 class _Harness {
-  _Harness({this.source, this.storedVisibility}) {
+  _Harness({this.source, this.storedVisibility = 'online', this.meGate}) {
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -60,6 +60,7 @@ class _Harness {
             httpClient: MockClient((request) async {
               // The stored visibility is read from /me; it is not an activity call.
               if (request.url.path == '/me') {
+                await meGate?.future;
                 final stored = storedVisibility;
                 if (stored == null) return http.Response('{}', 404);
                 return http.Response(
@@ -86,6 +87,9 @@ class _Harness {
 
   final _FakeSource? source;
   final String? storedVisibility;
+
+  /// Holds `/me` back until completed, for the launch window before it answers.
+  final Completer<void>? meGate;
   final events = StreamController<api.ServerEvent>.broadcast(sync: true);
   final calls = <String>[];
   late final ProviderContainer container;
@@ -97,6 +101,11 @@ class _Harness {
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);
     await settle();
+    // Sharing waits for /me to say the visibility; a held /me is the test's own point.
+    for (var i = 0; i < 20 && meGate == null; i++) {
+      if (container.read(ownVisibilityProvider) != null) break;
+      await settle();
+    }
   }
 
   Future<void> settle() => Future<void>.delayed(Duration.zero);
@@ -196,6 +205,31 @@ void main() {
     expect(h.calls, isEmpty);
     expect(source.open, isFalse);
   });
+
+  test(
+    '#2017 nothing is read before /me says whether you are hidden',
+    () async {
+      final source = _FakeSource();
+      final gate = Completer<void>();
+      final h = _Harness(
+        source: source,
+        storedVisibility: 'hidden',
+        meGate: gate,
+      );
+      addTearDown(h.dispose);
+      await h.start(enabled: true);
+
+      expect(
+        source.open,
+        isFalse,
+        reason: 'the feed opened before /me answered',
+      );
+      gate.complete();
+      await h.settle();
+      await h.settle();
+      expect(source.open, isFalse);
+    },
+  );
 
   test('hiding after sharing clears it, and unhiding shares again', () async {
     final source = _FakeSource();

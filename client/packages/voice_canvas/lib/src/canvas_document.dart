@@ -136,9 +136,7 @@ class CanvasDocument extends ChangeNotifier {
         for (var slot = 0; slot < _strokes.length; slot++)
           if (_strokes[slot]?.alive ?? false) slot,
       ]);
-    _sortedAlive.sort(
-      (a, b) => _strokes[a]!.zIndex.compareTo(_strokes[b]!.zIndex),
-    );
+    _sortedAlive.sort(comparePaintOrder);
     _orderDirty = false;
   }
 
@@ -173,6 +171,11 @@ class CanvasDocument extends ChangeNotifier {
       final existing = _strokes[known];
       // A duplicate naming a slot this document has since freed is refused.
       if (existing == null) return null;
+      // A stroke given up as failed whose commit did land comes back.
+      if (!existing.alive) {
+        existing.alive = true;
+        objectCount.value = objectCount.value + 1;
+      }
       existing
         ..zIndex = input.zIndex
         ..seq = input.seq;

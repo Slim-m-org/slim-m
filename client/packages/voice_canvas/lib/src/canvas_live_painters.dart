@@ -212,7 +212,9 @@ class DraftShapePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(DraftShapePainter oldDelegate) => false;
+  // A new instance only ever comes from a colour change (CanvasSurface.didUpdateWidget).
+  bool shouldRepaint(DraftShapePainter oldDelegate) =>
+      !identical(oldDelegate, this);
 }
 
 /// Other participants' in-flight strokes, in world coordinates.
@@ -270,7 +272,9 @@ class RemoteDraftPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(RemoteDraftPainter oldDelegate) => false;
+  // A new instance only ever comes from a colour change (CanvasSurface.didUpdateWidget).
+  bool shouldRepaint(RemoteDraftPainter oldDelegate) =>
+      !identical(oldDelegate, this);
 }
 
 /// Other participants' live pointers.
@@ -419,5 +423,7 @@ class CursorPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CursorPainter oldDelegate) => false;
+  // A new instance only ever comes from a colour change (CanvasSurface.didUpdateWidget).
+  bool shouldRepaint(CursorPainter oldDelegate) =>
+      !identical(oldDelegate, this);
 }
