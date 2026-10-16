@@ -46,7 +46,7 @@ pub(crate) async fn resolve_and_store(
     }
     state
         .store
-        .set_message_mentions(message_id, &mentioned)
+        .set_message_mentions(message_id, &mentioned, reply_ping)
         .await
 }
 
@@ -59,12 +59,31 @@ pub(crate) async fn reply_ping_target(
     sender: UserId,
     reply_to_id: MessageId,
 ) -> anyhow::Result<Option<UserId>> {
-    let Some(author) = state.store.reply_ping_candidate(reply_to_id).await? else {
+    let candidate = state.store.reply_ping_candidate(reply_to_id).await?;
+    pingable(state, channel_id, sender, candidate).await
+}
+
+/// The ping an edit of `message_id` keeps: the one its send stored, if that
+/// person can still see the channel.
+pub(crate) async fn kept_reply_ping(
+    state: &AppState,
+    channel_id: ChannelId,
+    sender: UserId,
+    message_id: MessageId,
+) -> anyhow::Result<Option<UserId>> {
+    let pinged = state.store.reply_pinged(message_id).await?;
+    pingable(state, channel_id, sender, pinged).await
+}
+
+async fn pingable(
+    state: &AppState,
+    channel_id: ChannelId,
+    sender: UserId,
+    candidate: Option<UserId>,
+) -> anyhow::Result<Option<UserId>> {
+    let Some(user) = candidate.filter(|user| *user != sender) else {
         return Ok(None);
     };
-    if author == sender {
-        return Ok(None);
-    }
-    let viewers = state.store.viewers_among(channel_id, &[author]).await?;
-    Ok(viewers.contains(&author).then_some(author))
+    let viewers = state.store.viewers_among(channel_id, &[user]).await?;
+    Ok(viewers.contains(&user).then_some(user))
 }

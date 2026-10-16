@@ -124,7 +124,7 @@ class MessageExtras {
   final int? threadUnreadCount;
 
   /// This viewer is mentioned, including by a reply that pinged them. Per
-  /// viewer, so a bare live frame (always false) can never clear it.
+  /// viewer, so only a REST fetch can clear it.
   final bool mentionsMe;
 
   MessageExtras copyWith({
@@ -283,7 +283,10 @@ class MessageExtrasController
     threadReplyCount: message.threadReplyCount ?? existing?.threadReplyCount,
     threadLastReplyAt: message.threadLastReplyAt ?? existing?.threadLastReplyAt,
     threadUnreadCount: message.threadUnreadCount ?? existing?.threadUnreadCount,
-    mentionsMe: message.mentionsMe || (existing?.mentionsMe ?? false),
+    // Only REST pages carry it per viewer; the author's own send and edit responses say false.
+    mentionsMe: authoritative
+        ? message.mentionsMe
+        : message.mentionsMe || (existing?.mentionsMe ?? false),
   );
 
   /// Replaces the cached tallies from a broadcast, carrying `reacted` over from

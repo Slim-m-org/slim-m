@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT mm.user_id AS \"user_id!: UserId\"\n               FROM message_mentions mm JOIN users u ON u.id = mm.user_id\n               WHERE mm.message_id = ? AND mm.via_reply = 1 AND u.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d75ee04a76f41d120f99b0c28a69f094f5a6fea7616f478a1089ba0fa56c2e09"
+}

@@ -20,6 +20,7 @@ impl Store {
         &self,
         message_id: MessageId,
         mentioned: &[UserId],
+        reply_ping: Option<UserId>,
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
         sqlx::query!(
@@ -29,10 +30,12 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         for user_id in mentioned {
+            let via_reply = reply_ping == Some(*user_id);
             sqlx::query!(
-                "INSERT INTO message_mentions (user_id, message_id) VALUES (?, ?)",
+                "INSERT INTO message_mentions (user_id, message_id, via_reply) VALUES (?, ?, ?)",
                 user_id,
-                message_id
+                message_id,
+                via_reply
             )
             .execute(&mut *tx)
             .await?;
@@ -90,10 +93,6 @@ impl Store {
         Ok(ids.into_iter().collect())
     }
 
-    /// Whether `message_id` mentions `user_id` - the live path's own point
-    /// lookup, run once per connection a `message.created`/`message.edited`
-    /// frame reaches, since the hub broadcast carries no per-viewer field for
-    /// it to read instead (see `http::ws::authorization`).
     /// The author of `message_id` when they could be pinged by a reply: a
     /// live account that is not a webhook. `None` for a webhook, a deleted
     /// account or an anonymized message.
@@ -112,6 +111,24 @@ impl Store {
         Ok(author)
     }
 
+    /// Who `message_id`'s reply pinged, if its send stored a ping and they
+    /// are still a live account.
+    pub async fn reply_pinged(&self, message_id: MessageId) -> anyhow::Result<Option<UserId>> {
+        let pinged = sqlx::query_scalar!(
+            r#"SELECT mm.user_id AS "user_id!: UserId"
+               FROM message_mentions mm JOIN users u ON u.id = mm.user_id
+               WHERE mm.message_id = ? AND mm.via_reply = 1 AND u.deleted_at IS NULL"#,
+            message_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(pinged)
+    }
+
+    /// Whether `message_id` mentions `user_id` - the live path's own point
+    /// lookup, run once per connection a `message.created`/`message.edited`
+    /// frame reaches, since the hub broadcast carries no per-viewer field for
+    /// it to read instead (see `http::ws::authorization`).
     pub async fn is_mentioned(
         &self,
         message_id: MessageId,

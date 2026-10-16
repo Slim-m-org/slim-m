@@ -24,6 +24,7 @@ api.Message _message(
   List<api.ReactionSummary> reactions = const [],
   String? threadChannelId,
   int? threadReplyCount,
+  bool mentionsMe = false,
 }) {
   final base = channelMessage(seq);
   return api.Message(
@@ -38,6 +39,7 @@ api.Message _message(
     reactions: reactions,
     threadChannelId: threadChannelId,
     threadReplyCount: threadReplyCount,
+    mentionsMe: mentionsMe,
   );
 }
 
@@ -110,4 +112,20 @@ void main() {
           'never clobber what a REST fetch already established',
     );
   });
+
+  test(
+    'a refetch clears a mention an edit removed, a send response does not',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final extras = container.read(messageExtrasProvider.notifier);
+
+      extras.applyMessages([_message(1, mentionsMe: true)]);
+      extras.applyMessage(_message(1));
+      expect(extras.extrasFor('m1').mentionsMe, isTrue);
+
+      extras.applyMessages([_message(1)]);
+      expect(extras.extrasFor('m1').mentionsMe, isFalse);
+    },
+  );
 }
