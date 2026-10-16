@@ -73,6 +73,7 @@ extension VoiceSessionTracks on VoiceSession {
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
+    _stopStallWatch();
     _capture.reset();
     final cancelEvents = _cancelEvents;
     _cancelEvents = null;

@@ -44,16 +44,17 @@ class VideoHealthOverlay extends StatelessWidget {
       child: child,
       builder: (context, states, child) {
         final state = states[tileKey] ?? VideoTileHealth.playing;
-        if (state == VideoTileHealth.playing) return child!;
+        // Always the same Stack, so a label coming or going never remounts the video under it.
         return Stack(
           fit: StackFit.expand,
           children: [
             child!,
-            Positioned(
-              left: AppSpacing.s8,
-              bottom: AppSpacing.s8,
-              child: _HealthLabel(state: state),
-            ),
+            if (state != VideoTileHealth.playing)
+              Positioned(
+                left: AppSpacing.s8,
+                bottom: AppSpacing.s8,
+                child: _HealthLabel(state: state),
+              ),
           ],
         );
       },

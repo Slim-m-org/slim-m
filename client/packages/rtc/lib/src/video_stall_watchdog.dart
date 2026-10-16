@@ -31,6 +31,8 @@ class VideoStallReading {
     required this.framesDecoded,
     required this.expectPlaying,
     this.paused = false,
+    this.bytesReceived,
+    this.needsTraffic = false,
   });
 
   /// The tile key, `<kind>:<identity>` as the subscription culler uses.
@@ -44,6 +46,13 @@ class VideoStallReading {
 
   /// The server paused this stream.
   final bool paused;
+
+  /// The receiver's byte counter, read only when [needsTraffic] is set.
+  final num? bytesReceived;
+
+  /// Frames standing still count only while bytes keep arriving: a screen
+  /// share of a static page legitimately sends almost nothing.
+  final bool needsTraffic;
 }
 
 /// One remote video publication as the watchdog needs to see it.
@@ -53,6 +62,8 @@ typedef StallPublication = ({
   bool muted,
   bool active,
   int? framesDecoded,
+  num? bytesReceived,
+  bool screenShare,
 });
 
 /// Turns publications into readings. [seenActive] remembers which keys have
@@ -74,12 +85,17 @@ List<VideoStallReading> stallReadings(
               !pub.muted &&
               pub.active &&
               (interest == null || interest.contains(pub.key)),
+          bytesReceived: pub.bytesReceived,
+          needsTraffic: pub.screenShare,
         ),
     ];
 
 class _Track {
+  _Track(this.since);
+
   int? frames;
-  DateTime since = DateTime.fromMillisecondsSinceEpoch(0);
+  num? bytes;
+  DateTime since;
   int nextStep = 0;
   DateTime? lastStepAt;
 
@@ -128,7 +144,7 @@ class VideoStallWatchdog {
     final seen = <String>{};
     for (final reading in readings) {
       seen.add(reading.key);
-      final track = _tracks.putIfAbsent(reading.key, _Track.new);
+      final track = _tracks.putIfAbsent(reading.key, () => _Track(now));
       if (reading.paused) {
         track.progressed(now, reading.framesDecoded);
         next[reading.key] = VideoTileHealth.paused;
@@ -136,11 +152,18 @@ class VideoStallWatchdog {
       }
       final frames = reading.framesDecoded;
       final last = track.frames;
+      final lastBytes = track.bytes;
+      track.bytes = reading.bytesReceived;
+      final idle = reading.needsTraffic &&
+          (reading.bytesReceived == null ||
+              lastBytes == null ||
+              reading.bytesReceived! <= lastBytes);
       if (frames != null && last != null && frames > last) {
         track.progressed(now, frames);
         continue;
       }
-      if (!reading.expectPlaying || frames == null || frames != last) {
+      // Stats missing twice running count as standing still; the grace period covers a fresh track.
+      if (!reading.expectPlaying || frames != last || idle) {
         track.rebaseline(now, frames);
         if (track.nextStep > 0 && reading.expectPlaying) {
           next[reading.key] = VideoTileHealth.stalled;
