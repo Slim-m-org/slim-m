@@ -4,7 +4,7 @@
 ///
 /// See `attachment_video_source.dart` for how each platform gets the
 /// bearer-token-gated bytes to `package:media_kit`'s player, and
-/// `attachment_save.dart` for the save action beside the player - a video
+/// `downloads/downloads_controller.dart` for the save action beside the player - a video
 /// that plays but cannot be saved is still only half of what this fixes.
 library;
 
@@ -18,9 +18,9 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../downloads/downloads_controller.dart';
 import '../providers/providers.dart';
 import 'attachment_format.dart';
-import 'attachment_save.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_reopen.dart';
 import 'attachment_video_source.dart' show AttachmentVideoSource;
@@ -61,7 +61,6 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   )();
 
   bool _ready = false;
-  bool _saving = false;
   double? _fetchProgress;
   StreamSubscription<String>? _errorSub;
   late final StaleTokenReopener _reopener;
@@ -123,16 +122,9 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     );
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final failure = await saveAttachment(ref, attachment);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (failure != null) {
-      setActionError(failure);
-    } else {
-      clearActionError();
-    }
+  void _save() {
+    clearActionError();
+    unawaited(ref.read(downloadsProvider.notifier).start(attachment));
   }
 
   @override
@@ -147,6 +139,12 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final saving = ref.watch(
+      downloadsProvider.select(
+        (tasks) =>
+            tasks.any((t) => t.running && t.attachment.id == attachment.id),
+      ),
+    );
     final caption =
         '${attachment.filename} · ${formatByteSize(attachment.size)}';
 
@@ -194,7 +192,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
               ),
             ),
             const SizedBox(width: AppSpacing.s4),
-            _saving
+            saving
                 ? const Padding(
                     padding: EdgeInsets.all(AppSpacing.s4),
                     child: SizedBox(

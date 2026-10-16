@@ -65,6 +65,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     required int length,
     required List<String>? capabilities,
     String? filename,
+    String? channelId,
     void Function(int sent)? onProgress,
     void Function(bool retrying)? onRetrying,
     UploadCancelToken? cancel,
@@ -93,6 +94,7 @@ extension SlimmApiUploadSessions on SlimmApi {
         source.open,
         length: length,
         filename: filename,
+        channelId: channelId,
         onProgress: onProgress,
       );
     }
@@ -100,6 +102,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       source,
       length: length,
       filename: filename,
+      channelId: channelId,
       onProgress: onProgress,
       onRetrying: onRetrying,
       cancel: cancel,
@@ -145,6 +148,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     UploadSource source, {
     required int length,
     String? filename,
+    String? channelId,
     void Function(int sent)? onProgress,
     void Function(bool retrying)? onRetrying,
     UploadCancelToken? cancel,
@@ -154,7 +158,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     required int partBytes,
   }) async {
     Future<UploadSession> create() => _patiently(
-          () => _createUploadSession(filename, length),
+          () => _createUploadSession(filename, length, channelId),
           cancel: cancel,
           backoff: backoff,
           stallLimit: stallLimit,
@@ -169,6 +173,7 @@ extension SlimmApiUploadSessions on SlimmApi {
             session,
             source,
             length: length,
+            channelId: channelId,
             onProgress: onProgress,
             onRetrying: onRetrying,
             cancel: cancel,
@@ -222,6 +227,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     UploadSession session,
     UploadSource source, {
     required int length,
+    required String? channelId,
     required void Function(int sent)? onProgress,
     required void Function(bool retrying)? onRetrying,
     required UploadCancelToken? cancel,
@@ -242,7 +248,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       cancel?.throwIfCancelled();
       try {
         if (offset >= length) {
-          final done = await _completeUploadSession(session.id);
+          final done = await _completeUploadSession(session.id, channelId);
           progressed();
           return done;
         }
@@ -298,11 +304,19 @@ extension SlimmApiUploadSessions on SlimmApi {
     }
   }
 
-  Future<UploadSession> _createUploadSession(String? filename, int size) async {
+  Future<UploadSession> _createUploadSession(
+    String? filename,
+    int size,
+    String? channelId,
+  ) async {
     final json = await _send(
       'POST',
       '/attachments/uploads',
-      body: {if (filename != null) 'filename': filename, 'size': size},
+      body: {
+        if (filename != null) 'filename': filename,
+        'size': size,
+        if (channelId != null) 'channel_id': channelId,
+      },
     );
     return _decodeShape(
         json, 'POST /attachments/uploads', UploadSession.fromJson);
@@ -346,8 +360,13 @@ extension SlimmApiUploadSessions on SlimmApi {
   Future<void> _discardUploadSession(String id) =>
       _send('DELETE', '/attachments/uploads/$id', expectNoContent: true);
 
-  Future<Attachment> _completeUploadSession(String id) async {
-    final json = await _send('POST', '/attachments/uploads/$id/complete');
+  Future<Attachment> _completeUploadSession(
+      String id, String? channelId) async {
+    final json = await _send(
+      'POST',
+      '/attachments/uploads/$id/complete',
+      query: channelId == null ? null : {'channel_id': channelId},
+    );
     return _decodeShape(
       json,
       'POST /attachments/uploads/$id/complete',

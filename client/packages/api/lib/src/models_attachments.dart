@@ -57,3 +57,22 @@ class FetchedBytes {
   final Uint8List bytes;
   final String contentType;
 }
+
+/// An attachment response whose body has not been read yet, for a caller that
+/// writes it to disk as it arrives instead of holding it in memory.
+///
+/// Cancelling the subscription to [body] closes the connection, which is how
+/// a download is stopped on the wire.
+class AttachmentDownload {
+  const AttachmentDownload({
+    required this.body,
+    required this.contentType,
+    this.contentLength,
+  });
+
+  final Stream<List<int>> body;
+  final String contentType;
+
+  /// Null when the server did not say, in which case progress has no total.
+  final int? contentLength;
+}

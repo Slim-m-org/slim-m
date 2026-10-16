@@ -6,13 +6,15 @@
 /// own doc comment for the full picture of what renders where.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../downloads/downloads_controller.dart';
 import 'attachment_format.dart';
-import 'attachment_save.dart';
 import 'run_guarded.dart';
 
 class AttachmentChip extends ConsumerStatefulWidget {
@@ -26,31 +28,24 @@ class AttachmentChip extends ConsumerStatefulWidget {
 
 class _AttachmentChipState extends ConsumerState<AttachmentChip>
     with GuardedActionState<AttachmentChip> {
-  /// Set while the chip's own save action is fetching bytes and handing them
-  /// to the platform's save flow; see [_save].
-  bool _saving = false;
-
   api.Attachment get attachment => widget.attachment;
 
-  /// Fetches the attachment through the same cached, authenticated path an
-  /// inline image already uses, then hands it to the platform's save flow -
-  /// the whole point of this chip existing at all rather than a dead
-  /// rectangle. See `attachment_save.dart`.
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final failure = await saveAttachment(ref, attachment);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (failure != null) {
-      setActionError(failure);
-    } else {
-      clearActionError();
-    }
+  /// Hands the download to the app-scoped controller, which outlives this
+  /// chip; progress and Cancel live in the transfers banner.
+  void _save() {
+    clearActionError();
+    unawaited(ref.read(downloadsProvider.notifier).start(attachment));
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final saving = ref.watch(
+      downloadsProvider.select(
+        (tasks) =>
+            tasks.any((t) => t.running && t.attachment.id == attachment.id),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -93,7 +88,7 @@ class _AttachmentChipState extends ConsumerState<AttachmentChip>
                       ),
                     ),
                     const SizedBox(width: AppSpacing.s8),
-                    _saving
+                    saving
                         ? const SizedBox(
                             width: 16,
                             height: 16,

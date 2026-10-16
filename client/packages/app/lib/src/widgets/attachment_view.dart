@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Renders one attachment: an inline image once its bytes arrive, a real
 /// player for a video, or a filename-and-size chip for anything else. The
-/// chip and the video player both carry a save action (`attachment_save.dart`)
+/// chip and the video player both carry a save action (`downloads/downloads_controller.dart`)
 /// - every attachment this app cannot render inline is still something a
 /// user can get out of it.
 ///
