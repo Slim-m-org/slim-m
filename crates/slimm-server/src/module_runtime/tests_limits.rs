@@ -149,3 +149,102 @@ async fn a_trap_reads_as_a_sentence_not_an_enum_name() {
     assert!(text.contains("outside its memory"), "{text}");
     assert!(!text.contains("MemoryOutOfBounds"), "{text}");
 }
+
+fn counting_loop(iterations: u32) -> Vec<u8> {
+    module(&format!(
+        r#"(func (export "run") (param i32 i32) (result i64) (local $i i32)
+            (local.set $i (i32.const {iterations}))
+            (loop $l
+              (local.set $i (i32.sub (local.get $i) (i32.const 1)))
+              (br_if $l (local.get $i)))
+            (i64.const 0))"#
+    ))
+}
+
+#[tokio::test]
+async fn a_module_can_spend_its_declared_fuel_across_alloc_and_run() {
+    let limits = RunLimits {
+        fuel: 1_150_000,
+        ..LIMITS
+    };
+    let out = run(counting_loop(100_000), limits).await;
+    assert!(
+        out.is_ok(),
+        "fuel handed out but never burned was lost: {out:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_module_still_runs_out_of_a_budget_it_overspends() {
+    let limits = RunLimits {
+        fuel: 200_000,
+        ..LIMITS
+    };
+    let err = run(counting_loop(100_000), limits)
+        .await
+        .expect_err("over budget");
+    assert!(matches!(err, RunError::ResourceLimited(_)), "{err}");
+}
+
+struct SlowCountingPoster {
+    calls: std::sync::atomic::AtomicU32,
+    delay: Duration,
+}
+
+impl super::MessagePoster for SlowCountingPoster {
+    fn post(&self, _channel: Option<&str>, _content: &str) -> Result<String, super::PostRefused> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        std::thread::sleep(self.delay);
+        Ok("posted".to_owned())
+    }
+}
+
+#[tokio::test]
+async fn a_host_call_after_the_deadline_is_refused() {
+    let request = r#"{"capability":"message.post","content":"hi"}"#;
+    let wasm = wat::parse_str(format!(
+        r#"(module
+            (import "slim" "host_call" (func $host_call (param i32 i32) (result i64)))
+            (memory (export "memory") 1)
+            (global $bump (mut i32) (i32.const 8192))
+            (data (i32.const 1024) "{}")
+            (func (export "alloc") (param $len i32) (result i32)
+                (local $ptr i32)
+                (local.set $ptr (global.get $bump))
+                (global.set $bump (i32.add (global.get $bump) (local.get $len)))
+                (local.get $ptr))
+            (func (export "run") (param i32 i32) (result i64)
+                (drop (call $host_call (i32.const 1024) (i32.const {len})))
+                (call $host_call (i32.const 1024) (i32.const {len}))))"#,
+        request.replace('"', "\\\""),
+        len = request.len()
+    ))
+    .unwrap();
+    let poster = std::sync::Arc::new(SlowCountingPoster {
+        calls: Default::default(),
+        delay: Duration::from_millis(150),
+    });
+    let surface = super::CapabilitySurface::enabled(
+        vec!["message.post".to_owned()],
+        "deadline-module",
+        std::sync::Arc::new(super::InMemoryKv::default()),
+    )
+    .with_poster(poster.clone());
+    let limits = RunLimits {
+        wall: Duration::from_millis(50),
+        ..LIMITS
+    };
+
+    let sha = sha256_hex(&wasm);
+    let err = ModuleHost::run_with_capabilities(wasm, sha, limits, b"hi".to_vec(), surface)
+        .await
+        .expect_err("the wall clock passes during the first post");
+    assert!(matches!(err, RunError::Timeout), "{err}");
+    tokio::time::sleep(Duration::from_millis(400)).await;
+
+    assert_eq!(
+        poster.calls.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "the second post ran after the deadline"
+    );
+}
