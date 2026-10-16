@@ -247,7 +247,7 @@ mod tests {
     fn a_swept_ring_can_no_longer_be_answered() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee).0;
+        rings.start(channel, caller, callee);
 
         let swept = rings.sweep_stale_at(Instant::now() + RING_TIMEOUT);
         assert_eq!(swept.len(), 1, "sanity: the ring really did time out");
@@ -262,7 +262,7 @@ mod tests {
     fn an_answered_ring_is_no_longer_there_for_the_sweep_to_time_out() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee).0;
+        rings.start(channel, caller, callee);
 
         assert!(rings.answer(channel, callee).is_some());
         assert!(
@@ -277,7 +277,7 @@ mod tests {
     fn a_ring_past_its_timeout_is_not_listed_as_outstanding() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee).0;
+        rings.start(channel, caller, callee);
         let now = Instant::now();
 
         assert_eq!(rings.outstanding_for_at(callee, now).len(), 1);
@@ -293,7 +293,7 @@ mod tests {
     fn a_stray_heartbeat_from_somebody_else_does_not_answer_the_ring() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee).0;
+        rings.start(channel, caller, callee);
 
         assert_eq!(rings.answer(channel, uid()), None, "not the named callee");
         // Still outstanding: a real answer from the actual callee still works.
@@ -338,7 +338,7 @@ mod tests {
     fn a_ring_under_the_timeout_is_not_swept() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee).0;
+        rings.start(channel, caller, callee);
 
         assert!(
             rings

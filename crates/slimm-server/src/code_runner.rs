@@ -202,6 +202,15 @@ impl CodeRunner {
     }
 }
 
+fn lock_languages(
+    enabled: &Enabled,
+) -> std::sync::MutexGuard<'_, Option<(std::time::Instant, Vec<String>)>> {
+    match enabled.languages.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,14 +255,5 @@ mod tests {
         let config = Config::default();
         let runner = CodeRunner::new(&config).unwrap();
         assert!(!runner.is_enabled());
-    }
-}
-
-fn lock_languages(
-    enabled: &Enabled,
-) -> std::sync::MutexGuard<'_, Option<(std::time::Instant, Vec<String>)>> {
-    match enabled.languages.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
     }
 }

@@ -38,6 +38,7 @@ pub(crate) enum ModerationAction {
 }
 
 impl ModerationAction {
+    #[cfg(test)]
     pub(crate) const ALL: [Self; 16] = [
         Self::Remove,
         Self::Restore,

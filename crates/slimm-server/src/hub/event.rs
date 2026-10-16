@@ -20,6 +20,9 @@ use crate::store::{
 };
 use crate::voice::CallRingOutcome;
 
+/// Each emoji with who reacted and when, as `ReactionsChanged` carries it.
+pub type Reactors = Vec<(String, Vec<(UserId, i64)>)>;
+
 /// Something that happened and should reach interested connections.
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -149,7 +152,7 @@ pub enum Event {
     ReactionsChanged {
         channel_id: ChannelId,
         message_id: MessageId,
-        reactors: Arc<Vec<(String, Vec<(UserId, i64)>)>>,
+        reactors: Arc<Reactors>,
     },
     /// A fenced code block was run and its shared output changed. Carries the
     /// whole current result (the [`Event::ThreadUpdated`] shape), overwriting
