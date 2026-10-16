@@ -29,6 +29,8 @@
 mod cache;
 mod extract;
 mod fetch;
+#[cfg(test)]
+mod fetch_tests;
 mod image_token;
 mod oembed;
 mod ssrf;
