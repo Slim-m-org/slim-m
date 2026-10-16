@@ -19,7 +19,7 @@ import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import 'debug_log_page.dart';
 import 'media_capability_section.dart';
-import 'settings_icon_tile.dart';
+import 'settings_detail_row.dart';
 import 'settings_panes.dart';
 
 /// Whether the debug log is showing inside the pane; dropped with the pane.
