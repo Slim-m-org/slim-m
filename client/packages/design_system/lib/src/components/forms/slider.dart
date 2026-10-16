@@ -138,6 +138,8 @@ class _AppSliderState extends State<AppSlider> {
             RoundSliderOverlayShape(overlayRadius: widget.tall ? 14 : 12),
         trackShape: track,
         thumbShape: thumb,
+        // A divided slider still reads as one continuous trough, as in the settings design.
+        tickMarkShape: SliderTickMarkShape.noTickMark,
       ),
       child: Slider(
         value: value,

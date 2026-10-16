@@ -341,6 +341,16 @@ void main() {
       expect(reported, isNotNull);
     });
 
+    testWidgets('a divided slider draws no tick marks on its trough',
+        (tester) async {
+      await tester.pumpWidget(_wrap(SizedBox(
+          width: 200,
+          child: AppSlider(value: 4, max: 16, divisions: 4, onChanged: (_) {}))));
+
+      final theme = SliderTheme.of(tester.element(find.byType(Slider)));
+      expect(theme.tickMarkShape, SliderTickMarkShape.noTickMark);
+    });
+
     testWidgets('tall variant renders without a meter or ticks supplied',
         (tester) async {
       await tester.pumpWidget(_wrap(SizedBox(
