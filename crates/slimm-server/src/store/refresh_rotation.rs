@@ -80,6 +80,13 @@ impl Store {
     /// that never reached the server at all, which this system must tolerate
     /// regardless, and it buys back the sign-out.
     ///
+    /// `refresh_tokens.successor_hash` (migration 0071) is deliberately never
+    /// written. Revoking the previous successor when a pending token rotates
+    /// again would strand a client whose two concurrent refreshes raced and
+    /// that kept the earlier response; the server cannot tell that apart from
+    /// a lost response, and `concurrent_refresh_of_same_token_never_errors`
+    /// holds the line on never stranding it.
+    ///
     /// The claim is still the transaction's first statement, so it takes the
     /// write lock up front and a concurrent rotation waits on the lock rather
     /// than racing a stale snapshot. `used_at` is set with `COALESCE` so a
