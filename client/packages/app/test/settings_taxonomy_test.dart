@@ -56,7 +56,7 @@ void main() {
 
     for (final (group, pane) in _panes) {
       if (group != null) {
-        expect(find.text(group), findsWidgets, reason: group);
+        expect(find.text(group.toUpperCase()), findsWidgets, reason: group);
       }
       expect(find.text(pane), findsOneWidget, reason: pane);
     }
@@ -74,7 +74,7 @@ void main() {
 
     for (final (group, pane) in _panes) {
       expect(group, isNotNull, reason: '$pane sits under an unnamed group');
-      expect(find.text(group!), findsWidgets, reason: group);
+      expect(find.text(group!.toUpperCase()), findsWidgets, reason: group);
     }
   });
 

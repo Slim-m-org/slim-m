@@ -147,6 +147,6 @@ void main() {
       matching: find.byType(ListView),
     );
     final listView = tester.widget<ListView>(paneList);
-    expect(listView.padding, const EdgeInsets.all(AppSpacing.s16));
+    expect(listView.padding, const EdgeInsets.fromLTRB(32, 24, 32, 40));
   });
 }

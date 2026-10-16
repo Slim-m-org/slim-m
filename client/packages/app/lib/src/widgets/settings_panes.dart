@@ -24,6 +24,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../routing/breakpoints.dart';
 import '../routing/close_screen.dart';
 
+part 'settings_panes_chrome.dart';
+
 /// How wide a [SettingsPane.wide] pane may get, matching the room a Space
 /// settings panel leaves beside the nav (decision 0061).
 const double kSettingsWideContentMax = 880;
@@ -194,6 +196,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
 
     final nav = _Nav(
       groups: widget.groups,
+      rail: wide,
       selectedId: selected?.id,
       // Wide only: on compact no lit row is ever visible beside its pane.
       showSelection: wide,
@@ -222,17 +225,9 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
       );
     }
 
+    // No app bar beside a nav: the nav carries the title and the way back, the pane its own heading and close.
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        leading: BackToButton(
-          tooltip: widget.backTooltip,
-          fallback: widget.backFallback,
-        ),
-        actions: selected?.actions,
-      ),
       body: SafeArea(
-        top: false,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -240,9 +235,28 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
               width: 240,
               child: DecoratedBox(
                 decoration: BoxDecoration(
+                  color: tokens.surfaceSunken,
                   border: Border(right: BorderSide(color: tokens.borderSubtle)),
                 ),
-                child: nav,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.s12,
+                    AppSpacing.s16,
+                    AppSpacing.s12,
+                    AppSpacing.s16,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _NavHeader(
+                        title: widget.title,
+                        backTooltip: widget.backTooltip,
+                        backFallback: widget.backFallback,
+                      ),
+                      Expanded(child: nav),
+                    ],
+                  ),
+                ),
               ),
             ),
             Expanded(
@@ -252,6 +266,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
                       pane: selected,
                       contentKey: _contentKey(selected),
                       showHeading: true,
+                      onClose: () => closeScreen(context, widget.backFallback),
                     ),
             ),
           ],
@@ -275,7 +290,22 @@ class _PaneBody extends StatelessWidget {
     required this.pane,
     required this.contentKey,
     this.showHeading = false,
+    this.onClose,
   });
+
+  /// Beside a nav: the pane's own close, at the right of its heading.
+  final VoidCallback? onClose;
+
+  /// The redesign's pane inset beside a nav, for a pane that kept the default.
+  static const _wideInset = EdgeInsets.fromLTRB(32, 24, 32, 40);
+
+  EdgeInsets get _padding =>
+      showHeading && pane.padding == const EdgeInsets.all(AppSpacing.s16)
+      ? _wideInset
+      : pane.padding;
+
+  Widget get _heading =>
+      _PaneHeading(pane.label, actions: pane.actions, onClose: onClose);
 
   final SettingsPane pane;
 
@@ -295,9 +325,9 @@ class _PaneBody extends StatelessWidget {
       maxWidth: pane.wide ? kSettingsWideContentMax : kContentColumnMax,
       child: pane.scrollable
           ? ListView(
-              padding: pane.padding,
+              padding: _padding,
               children: [
-                if (showHeading) _PaneHeading(pane.label),
+                if (showHeading) _heading,
                 KeyedSubtree(
                   key: contentKey,
                   child: Builder(builder: pane.builder),
@@ -309,16 +339,21 @@ class _PaneBody extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s16),
-                  child: _PaneHeading(pane.label),
+                  padding: EdgeInsets.fromLTRB(
+                    _padding.left,
+                    _padding.top,
+                    _padding.right,
+                    0,
+                  ),
+                  child: _heading,
                 ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
-                      pane.padding.left,
+                      _padding.left,
                       0,
-                      pane.padding.right,
-                      pane.padding.bottom,
+                      _padding.right,
+                      _padding.bottom,
                     ),
                     child: KeyedSubtree(
                       key: contentKey,
@@ -339,39 +374,10 @@ class _PaneBody extends StatelessWidget {
   );
 }
 
-/// One rule for every settings nav (design review note 19, applied here and
-/// to Space settings, which shares this widget): a group label is mono, faint
-/// and sentence case, with a hairline above it, rather than the small-caps
-/// sans label this nav used to borrow from [AppCard]'s own header.
-///
-/// That label was written to sit above a card's body, not beside a 20px pane
-/// icon. At the same size the icon outweighed it, so a caps label on its own
-/// row read as another nav row rather than the heading over the rows; the
-/// hairline and the quieter colour are what separate it now, not its size.
-class _PaneHeading extends StatelessWidget {
-  const _PaneHeading(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Semantics(
-      header: true,
-      child: Text(
-        label,
-        style: AppText.heading.copyWith(
-          color: tokens.textPrimary,
-          fontWeight: AppWeights.semi,
-        ),
-      ),
-    );
-  }
-}
-
 class _Nav extends StatelessWidget {
   const _Nav({
     required this.groups,
+    required this.rail,
     required this.selectedId,
     required this.showSelection,
     required this.onSelect,
@@ -379,6 +385,9 @@ class _Nav extends StatelessWidget {
   });
 
   final List<SettingsPaneGroup> groups;
+
+  /// Inside the wide layout's nav column, which already pads and titles it.
+  final bool rail;
   final String? selectedId;
   final bool showSelection;
   final void Function(String) onSelect;
@@ -391,39 +400,22 @@ class _Nav extends StatelessWidget {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: AppSpacing.s12,
-            ),
+            padding: rail
+                ? EdgeInsets.zero
+                : const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s8,
+                    vertical: AppSpacing.s12,
+                  ),
             children: [
-              for (final group in groups) ...[
+              for (final (index, group) in groups.indexed) ...[
                 if (group.label case final label?)
-                  Container(
-                    margin: const EdgeInsets.only(top: AppSpacing.s12),
-                    padding: const EdgeInsets.fromLTRB(10, 14, 10, 6),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: tokens.borderSubtle),
-                      ),
-                    ),
-                    child: Semantics(
-                      header: true,
-                      child: Text(
-                        label,
-                        style: AppText.code.copyWith(
-                          fontSize: AppText.micro.fontSize,
-                          fontWeight: AppWeights.medium,
-                          letterSpacing: 1,
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                    ),
-                  )
+                  _GroupLabel(label, first: index == 0)
                 else
                   const SizedBox(height: AppSpacing.s20),
                 for (final pane in group.panes)
                   AppListRow(
                     label: pane.label,
+                    height: rail ? 32 : null,
                     // Sized and colored to match the trailing chevron below, not Flutter's ~24px default.
                     leading: pane.icon == null
                         ? null
@@ -449,7 +441,12 @@ class _Nav extends StatelessWidget {
           ),
         ),
         if (footer != null)
-          Padding(padding: const EdgeInsets.all(AppSpacing.s8), child: footer!),
+          Padding(
+            padding: rail
+                ? EdgeInsets.zero
+                : const EdgeInsets.all(AppSpacing.s8),
+            child: footer!,
+          ),
       ],
     );
   }

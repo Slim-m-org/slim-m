@@ -32,18 +32,27 @@ import 'package:slimm_design_system/design_system.dart';
 /// genuinely needs to name a run of sections should bring it back
 /// deliberately rather than inherit it as dead code.
 class SettingsSectionHeader extends StatelessWidget {
-  const SettingsSectionHeader(this.title, {super.key, this.description});
+  const SettingsSectionHeader(
+    this.title, {
+    super.key,
+    this.description,
+    this.flush = false,
+  });
 
   final String title;
   final String? description;
+
+  /// The redesigned settings spacing (28 above, 10 to the card, 2 between
+  /// title and description), beside a [SettingsSectionCard.flush] card.
+  final bool flush;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.s24,
-        bottom: AppSpacing.s8,
+      padding: EdgeInsets.only(
+        top: flush ? 28 : AppSpacing.s24,
+        bottom: flush ? 10 : AppSpacing.s8,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,7 +68,7 @@ class SettingsSectionHeader extends StatelessWidget {
             ),
           ),
           if (description != null) ...[
-            const SizedBox(height: AppSpacing.s4),
+            SizedBox(height: flush ? 2 : AppSpacing.s4),
             Text(
               description!,
               style: AppText.caption.copyWith(color: tokens.textSecondary),
@@ -96,7 +105,17 @@ class SettingsSectionCard extends StatelessWidget {
     this.description,
     this.crossAxisAlignment = CrossAxisAlignment.start,
     this.divided = false,
+    this.flush = false,
+    this.trailing,
   });
+
+  /// Rows edge to edge with a hairline between every child and no inner
+  /// padding: the personal settings redesign. Non-row content goes in a
+  /// [SettingsCardBlock] so it keeps its own 16px inset.
+  final bool flush;
+
+  /// Beside the title, for a section-level action (a refresh button).
+  final Widget? trailing;
 
   /// Draws a hairline between children, for a card that is a list of rows.
   ///
@@ -138,6 +157,7 @@ class SettingsSectionCard extends StatelessWidget {
       'SettingsSectionCard.description needs a title to render under',
     );
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    if (flush) return _flush(tokens);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,4 +193,158 @@ class SettingsSectionCard extends StatelessWidget {
       ],
     );
   }
+
+  Widget _flush(AppTokens tokens) {
+    final header = title == null
+        ? const SizedBox(height: 28)
+        : SettingsSectionHeader(title!, description: description, flush: true);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (trailing == null)
+          header
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: header),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: trailing,
+              ),
+            ],
+          ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.surfaceRaised,
+            border: Border.all(color: tokens.borderSubtle),
+            borderRadius: BorderRadius.circular(AppRadii.card),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.card - 1),
+            child: Material(
+              type: MaterialType.transparency,
+              child: AppStrongLabelScope(
+                child: AppCardRowScope(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < children.length; i++) ...[
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: tokens.borderSubtle,
+                          ),
+                        children[i],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Non-row content inside a [SettingsSectionCard.flush] card (form fields, a
+/// preview), inset by the card's own 16 on every side.
+class SettingsCardBlock extends StatelessWidget {
+  const SettingsCardBlock({
+    super.key,
+    required this.children,
+    this.gap = AppSpacing.s16,
+  });
+
+  final List<Widget> children;
+  final double gap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(AppSpacing.s16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      spacing: gap,
+      children: children,
+    ),
+  );
+}
+
+/// A setting that belongs to the row above it (the key under push to talk,
+/// the days under a schedule): indented, shorter, on a slightly deeper tint.
+class SettingsSubRow extends StatelessWidget {
+  const SettingsSubRow({
+    super.key,
+    required this.label,
+    this.leading,
+    this.trailing,
+    this.onTap,
+    this.semanticLabel,
+  });
+
+  final String label;
+  final Widget? leading;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final row = Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.fromLTRB(32, 6, AppSpacing.s16, 6),
+      color: Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5),
+      child: Row(
+        spacing: 10,
+        children: [
+          if (leading != null) leading!,
+          Expanded(
+            child: Text(
+              label,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      label: semanticLabel ?? label,
+      child: InkWell(
+        onTap: onTap,
+        child: ExcludeSemantics(child: row),
+      ),
+    );
+  }
+}
+
+/// The padding and least height a settings row takes: edge to edge inside a
+/// flush card, inset inside a padded one.
+class SettingsRowMetrics {
+  const SettingsRowMetrics._(this.minHeight, this.inset, this.vertical);
+
+  factory SettingsRowMetrics.of(BuildContext context) =>
+      AppCardRowScope.of(context)
+      ? const SettingsRowMetrics._(
+          AppCardRowScope.minHeight,
+          AppCardRowScope.inset,
+          AppSpacing.s8,
+        )
+      : SettingsRowMetrics._(
+          AppListRow.heightFor(context),
+          AppSpacing.s8,
+          AppSpacing.s4,
+        );
+
+  final double minHeight;
+  final double inset;
+  final double vertical;
 }
