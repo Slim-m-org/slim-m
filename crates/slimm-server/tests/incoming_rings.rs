@@ -242,12 +242,23 @@ async fn a_ring_replaced_by_the_other_side_is_reported_ended() {
     assert_eq!(ring(&h.app, &channel_id, &bob_token).await, StatusCode::OK);
 
     let mut ended = Vec::new();
+    let mut records = 0;
     for rx in [&mut durable, &mut ephemeral] {
         while let Ok(event) = rx.try_recv() {
-            if let slimm_server::hub::Event::CallRingEnded { ring_id, .. } = event {
-                ended.push(ring_id.to_string());
+            match event {
+                slimm_server::hub::Event::CallRingEnded {
+                    ring_id, outcome, ..
+                } => {
+                    ended.push((ring_id.to_string(), outcome.as_str().to_owned()));
+                }
+                slimm_server::hub::Event::MessageCreated { call: Some(_), .. } => records += 1,
+                _ => {}
             }
         }
     }
-    assert_eq!(ended, vec![alice_ring]);
+    assert_eq!(ended, vec![(alice_ring, "answered".to_owned())]);
+    assert_eq!(
+        records, 0,
+        "ringing back is not a finished call, so it leaves no record"
+    );
 }

@@ -141,20 +141,18 @@ async fn ring(
     }
 
     let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, callee);
+    // Announced so the first caller stops ringing out, but not recorded: the call goes on under the new ring, which gets the one record.
     if let Some((replaced_id, replaced_caller)) = replaced {
+        let outcome = if replaced_caller == ctx.user_id {
+            CallRingOutcome::Canceled
+        } else {
+            CallRingOutcome::Answered
+        };
         state.hub.publish(Event::CallRingEnded {
             channel_id,
             ring_id: replaced_id,
-            outcome: CallRingOutcome::Canceled,
+            outcome,
         });
-        record_call(
-            &state,
-            channel_id,
-            replaced_id,
-            replaced_caller,
-            CallRingOutcome::Canceled,
-        )
-        .await;
     }
     state.hub.publish(Event::CallRinging {
         channel_id,
