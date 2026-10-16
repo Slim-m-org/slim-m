@@ -14,7 +14,7 @@
 
 use sqlx::SqliteConnection;
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::roles::administrator_count;
 use super::sessions::revoke_session_rows;
 use super::{Store, now_ms};
@@ -124,7 +124,7 @@ impl Store {
                 ModerationAudit {
                     actor_id: restored_by,
                     subject_id: user_id,
-                    action: "restore",
+                    action: ModerationAction::Restore,
                     reason: None,
                     until: None,
                     created_at: now,
@@ -283,7 +283,7 @@ pub(super) async fn remove_one(
         ModerationAudit {
             actor_id: removed_by,
             subject_id: user_id,
-            action: "remove",
+            action: ModerationAction::Remove,
             reason,
             until: None,
             created_at: now,

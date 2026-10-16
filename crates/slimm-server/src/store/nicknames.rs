@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{MAX_IDS_PER_QUERY, Store, now_ms};
 use crate::ids::UserId;
 
@@ -61,7 +61,7 @@ impl Store {
             ModerationAudit {
                 actor_id: actor,
                 subject_id: subject,
-                action: "nickname_set",
+                action: ModerationAction::NicknameSet,
                 reason: Some(nickname),
                 until: None,
                 created_at: now,
@@ -87,7 +87,7 @@ impl Store {
                 ModerationAudit {
                     actor_id: actor,
                     subject_id: subject,
-                    action: "nickname_clear",
+                    action: ModerationAction::NicknameClear,
                     reason: None,
                     until: None,
                     created_at: now,

@@ -17,7 +17,7 @@
 
 use std::collections::HashMap;
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Store, now_ms};
 use crate::ids::UserId;
 use crate::permissions::Permissions;
@@ -127,7 +127,7 @@ impl Store {
                 ModerationAudit {
                     actor_id: cleared_by,
                     subject_id: user_id,
-                    action: "timeout_cleared",
+                    action: ModerationAction::TimeoutCleared,
                     reason: None,
                     until: Some(until),
                     created_at: now,
@@ -271,7 +271,7 @@ pub(super) async fn timeout_one(
         ModerationAudit {
             actor_id: issued_by,
             subject_id: user_id,
-            action: "timeout",
+            action: ModerationAction::Timeout,
             reason,
             until: Some(until),
             created_at: now,

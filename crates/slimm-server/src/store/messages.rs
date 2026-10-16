@@ -26,7 +26,7 @@ use super::attachments::{LinkError, release_message_attachments};
 use super::message_forwards::ForwardOrigin;
 use super::message_ops::insert_message_op;
 use super::message_reads::fetch_message;
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 
@@ -310,7 +310,7 @@ impl Store {
                 ModerationAudit {
                     actor_id,
                     subject_id: author_id,
-                    action: "messages_deleted",
+                    action: ModerationAction::MessagesDeleted,
                     reason: None,
                     until: None,
                     created_at: now,
