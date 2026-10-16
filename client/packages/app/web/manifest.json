@@ -6,7 +6,6 @@
     "background_color": "#17191C",
     "theme_color": "#17191C",
     "description": "A lightweight, self-hostable messaging client.",
-    "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
         {
