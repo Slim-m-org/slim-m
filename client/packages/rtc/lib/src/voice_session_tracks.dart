@@ -133,17 +133,10 @@ extension VoiceSessionTracks on VoiceSession {
     return result.ok;
   }
 
-  /// Delegates to [LocalAudioState.applyTo]; see that class for why this
-  /// runs on every room event rather than only when a control moves.
-  Future<void> _applyLocalAudioState(lk.Room room) async {
-    final failure = await _audio.applyTo(room);
-    if (failure != null) _lastError = failure;
-  }
-
   /// Moved here from the main class body for its 500-line hard ceiling:
   /// private plumbing, so an extension costs it nothing an
   /// `implements VoiceSession` fake would notice.
-  void _refreshParticipants() {
+  void _rebuildRoster() {
     final room = _room;
     if (room == null || _disposed) return;
 
@@ -169,7 +162,7 @@ extension VoiceSessionTracks on VoiceSession {
     );
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer =
-        recheck == null ? null : Timer(recheck, _refreshParticipants);
+        recheck == null ? null : Timer(recheck, _rebuildRoster);
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
     if (listEquals(next, _participants)) return;
     _participants = List.unmodifiable(next);

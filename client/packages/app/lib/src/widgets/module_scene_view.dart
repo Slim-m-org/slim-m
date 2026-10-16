@@ -33,6 +33,7 @@ import 'module_scene_expand.dart';
 import 'module_scene_frame.dart';
 import 'module_scene_keyboard.dart';
 import 'module_scene_pacing.dart';
+import 'module_scene_queue.dart';
 import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
 
@@ -93,23 +94,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   bool _playing = false;
   String? _error;
 
-  /// Actions waiting on the one in flight, oldest first.
-  ///
-  /// A module call is a round trip and only one runs at a time, so a drag
-  /// across a grid produces actions faster than they can be sent. Dropping the
-  /// ones that arrive while busy - which is what the [_busy] guard in [_send]
-  /// does on its own - would leave holes in a drawn line, so they queue here
-  /// and drain in order instead.
-  final _queue = <String>[];
-
-  /// Capped so a long drag on a fine grid cannot build a backlog the board
-  /// spends a minute catching up on. A dropped tail is better than a board
-  /// that keeps moving after the finger stops.
-  static const _maxQueue = 64;
-
-  /// Cells already sent during the current drag, so crossing one twice does
-  /// not toggle it back off. Cleared when the drag starts.
-  final _paintedThisDrag = <String>{};
+  final _queue = SceneActionQueue();
 
   /// The last few scene states this view produced itself.
   ///
@@ -150,7 +135,6 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     }
     _stop();
     _queue.clear();
-    _paintedThisDrag.clear();
     _rememberOwn(widget.initial.state);
     setState(() => _scene = keepCropStable(_scene, widget.initial));
   }
@@ -221,7 +205,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
       }
       if (queued && !_pacing.exhausted) {
         // Put it back and hold: see _drain on why not just drop it.
-        _queue.insert(0, action);
+        _queue.putBack(action);
         await Future<void>.delayed(_pacing.interval);
         if (!mounted) return;
         setState(() => _busy = false);
@@ -327,7 +311,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   /// for exactly the gestures this needs to know the origin of.
   void _handlePointerDown(PointerDownEvent event) {
     _downAt = event.localPosition;
-    _paintedThisDrag.clear();
+    _queue.startDrag();
   }
 
   void _handleTapUp(TapUpDetails details, Size size) {
@@ -353,12 +337,11 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   void _paintCell(Offset local, Size size) {
     final action = sceneTapAction(_scene, local, size);
     if (action == null || !action.contains(':')) return;
-    if (!_paintedThisDrag.add(action)) return;
+    if (!_queue.markPainted(action)) return;
     _enqueue(action);
   }
 
   void _enqueue(String action) {
-    if (_queue.length >= _maxQueue) return;
     _queue.add(action);
     unawaited(_drain());
   }
@@ -378,27 +361,8 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     while (_queue.isNotEmpty && mounted) {
       // Per iteration: play's step can take _busy between sends.
       if (_busy) return;
-      await _send(_takeNext(), queued: true);
+      await _send(_queue.takeNext(_scene), queued: true);
     }
-  }
-
-  /// The next call to make: one queued action, or every leading action sharing
-  /// a prefix the module reads as a list, joined into one.
-  ///
-  /// A whole drag becomes a single round trip that way. Without it the queue
-  /// still drains in order and nothing is lost - it just costs a call per cell,
-  /// which over a real network is what made drawing feel like work.
-  String _takeNext() {
-    final first = _queue.removeAt(0);
-    final prefix = first.split(':').first;
-    if (!first.contains(':') || !sceneAllowsTapBatch(_scene, first)) {
-      return first;
-    }
-    final cells = <String>[first.substring(prefix.length + 1)];
-    while (_queue.isNotEmpty && _queue.first.startsWith('$prefix:')) {
-      cells.add(_queue.removeAt(0).substring(prefix.length + 1));
-    }
-    return '$prefix:${cells.join(';')}';
   }
 
   @override
