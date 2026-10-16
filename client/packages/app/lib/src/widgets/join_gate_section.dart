@@ -10,8 +10,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_permissions.dart';
 import '../providers/join_gate_providers.dart';
 import '../providers/providers.dart';
-import 'labeled_field.dart';
 import 'run_guarded.dart';
+import 'settings_field.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
@@ -27,9 +27,19 @@ class JoinGateSection extends ConsumerWidget {
     final gate = ref.watch(joinGateProvider);
     return gate.when(
       loading: () => const SizedBox.shrink(),
-      error: (e, _) => AppErrorState(
-        message: 'Could not load the join gate.',
-        onRetry: () => ref.invalidate(joinGateProvider),
+      error: (e, _) => SettingsSectionCard(
+        flush: true,
+        title: 'Join gate',
+        children: [
+          SettingsCardBlock(
+            children: [
+              AppErrorState(
+                message: 'Could not load the join gate.',
+                onRetry: () => ref.invalidate(joinGateProvider),
+              ),
+            ],
+          ),
+        ],
       ),
       data: (loaded) => _JoinGateForm(initial: loaded),
     );
@@ -97,8 +107,8 @@ class _JoinGateFormState extends ConsumerState<_JoinGateForm>
     ];
     final error = actionError;
     return SettingsSectionCard(
+      flush: true,
       title: 'Join gate',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsToggleRow(
           label: 'Gate new members',
@@ -108,26 +118,22 @@ class _JoinGateFormState extends ConsumerState<_JoinGateForm>
           value: _enabled,
           onChanged: _saving ? null : (v) => setState(() => _enabled = v),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s8,
-            AppSpacing.s12,
-            AppSpacing.s8,
-            AppSpacing.s4,
-          ),
-          child: LabeledField(
-            label: 'Rules',
-            child: AppInput(
-              controller: _rules,
-              placeholder: 'Be kind. No spam.',
-              minLines: 4,
-              maxLines: 12,
-              counterMax: api.InputLimits.spaceRules,
-              keyboardType: TextInputType.multiline,
-              errorText: _rulesError,
-              semanticLabel: 'Rules',
+        SettingsCardBlock(
+          children: [
+            SettingsField(
+              label: 'Rules',
+              child: AppInput(
+                controller: _rules,
+                placeholder: 'Be kind. No spam.',
+                minLines: 4,
+                maxLines: 12,
+                counterMax: api.InputLimits.spaceRules,
+                keyboardType: TextInputType.multiline,
+                errorText: _rulesError,
+                semanticLabel: 'Rules',
+              ),
             ),
-          ),
+          ],
         ),
         SettingsSelectRow<String>(
           label: 'Rules channel',
@@ -145,22 +151,20 @@ class _JoinGateFormState extends ConsumerState<_JoinGateForm>
           value: _paused,
           onChanged: _saving ? null : (v) => setState(() => _paused = v),
         ),
-        if (error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-            child: AppErrorState(message: error, onDismiss: clearActionError),
-          ),
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s8),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: AppButton(
-              label: 'Save',
-              variant: AppButtonVariant.primary,
-              busy: _saving,
-              onPressed: _save,
+        SettingsCardBlock(
+          children: [
+            if (error != null)
+              AppErrorState(message: error, onDismiss: clearActionError),
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppButton(
+                label: 'Save',
+                variant: AppButtonVariant.primary,
+                busy: _saving,
+                onPressed: _save,
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );

@@ -135,6 +135,32 @@ void main() {
     expect(session.callStats.running, isFalse);
   });
 
+  testWidgets('the log toggle flips the sampler while in a call', (
+    tester,
+  ) async {
+    final session = FakeSession()
+      ..callStats = CallStatsSampler(targets: () => const []);
+    await tester.pumpWidget(_screen(session));
+    await tester.pumpAndSettle();
+    final controller = ProviderScope.containerOf(
+      tester.element(find.byType(CallStatsScreen)),
+    ).read(voiceControllerProvider.notifier);
+    await controller.join('channel-1');
+    await tester.pumpAndSettle();
+    expect(session.callStats.logging, isFalse);
+
+    await tester.tap(find.byType(AppToggle));
+    await tester.pumpAndSettle();
+    expect(session.callStats.logging, isTrue);
+
+    await tester.tap(find.byType(AppToggle));
+    await tester.pumpAndSettle();
+    expect(session.callStats.logging, isFalse);
+
+    await controller.leave();
+    await tester.pumpWidget(const SizedBox());
+  });
+
   group('wording', () {
     test('titles name who is sending what', () {
       expect(callStatsTitle(_sample), 'Bo, screen share');

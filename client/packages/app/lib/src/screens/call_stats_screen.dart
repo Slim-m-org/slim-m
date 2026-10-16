@@ -15,6 +15,7 @@ import '../routing/routes.dart';
 import '../widgets/call_stats_lines.dart';
 import '../widgets/settings_empty.dart';
 import '../widgets/settings_section_header.dart';
+import '../widgets/settings_detail_row.dart';
 import '../widgets/settings_toggle_row.dart';
 import 'settings_screen_scaffold.dart';
 
@@ -32,7 +33,7 @@ class CallStatsScreen extends ConsumerWidget {
       backFallback: Routes.personalSettings,
       child: inCall
           ? _Stats(sampler: sampler)
-          : const SettingsEmpty('Join a call to see its video stats.'),
+          : const _StatsEmpty('Join a call to see its video stats.'),
     );
   }
 }
@@ -54,6 +55,7 @@ class _StatsState extends State<_Stats> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
+          flush: true,
           children: [
             SettingsToggleRow(
               label: 'Log to console',
@@ -70,10 +72,10 @@ class _StatsState extends State<_Stats> {
           builder: (context, snapshot) {
             final samples = snapshot.data;
             if (samples == null) {
-              return const SettingsEmpty('Waiting for the first sample.');
+              return const _StatsEmpty('Waiting for the first sample.');
             }
             if (samples.isEmpty) {
-              return const SettingsEmpty('Nobody is sending video yet.');
+              return const _StatsEmpty('Nobody is sending video yet.');
             }
             final ordered = [...samples]
               ..sort((a, b) => a.key.compareTo(b.key));
@@ -88,6 +90,18 @@ class _StatsState extends State<_Stats> {
   }
 }
 
+class _StatsEmpty extends StatelessWidget {
+  const _StatsEmpty(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => SettingsSectionCard(
+    flush: true,
+    children: [SettingsEmptyState(icon: AppIcons.camera, title: message)],
+  );
+}
+
 class _SampleCard extends StatelessWidget {
   const _SampleCard({required this.sample});
 
@@ -95,43 +109,31 @@ class _SampleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final transport = callStatsTransportLine(sample.transport);
-    final figures = AppText.caption.copyWith(
-      color: tokens.textSecondary,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
     return SettingsSectionCard(
+      flush: true,
       title: callStatsTitle(sample),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final stream in sample.streams) ...[
-          for (final (i, line) in callStatsStreamLines(
-            stream,
-            local: sample.local,
-          ).indexed)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-              child: Text(
-                line,
-                style: i == 0
-                    ? AppText.ui.copyWith(
-                        color: tokens.textPrimary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      )
-                    : figures,
-              ),
-            ),
-          const SizedBox(height: AppSpacing.s8),
-        ],
+        for (final stream in sample.streams)
+          _streamRow(callStatsStreamLines(stream, local: sample.local)),
         if (sample.streams.isEmpty)
-          const SettingsEmptyLine('No video stream reported yet.'),
+          const SettingsEmptyState(
+            icon: AppIcons.camera,
+            title: 'No video stream reported yet.',
+          ),
         if (transport != null && transport.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-            child: Text(transport, style: figures),
+          SettingsDetailRow(
+            title: 'Connection',
+            detail: transport,
+            monoDetail: true,
           ),
       ],
     );
   }
+
+  Widget _streamRow(List<String> lines) => SettingsDetailRow(
+    title: lines.first,
+    detail: lines.length > 1 ? lines.skip(1).join('\n') : null,
+    monoDetail: true,
+  );
 }

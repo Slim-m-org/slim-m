@@ -10,6 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
+import '../../widgets/settings_hairline.dart';
 
 /// The role picker, or nothing at all.
 ///
@@ -43,7 +44,7 @@ class InviteRoleGrantPicker extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       // See this widget's own doc comment for why this differs from below.
       error: (_, _) => Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.s12),
+        padding: const EdgeInsets.all(AppSpacing.s16),
         child: AppErrorState(
           message: 'Could not check which roles you can grant.',
           onRetry: () => ref.invalidate(rolesProvider),
@@ -59,15 +60,22 @@ class InviteRoleGrantPicker extends ConsumerWidget {
         if (grantable.isEmpty) return const SizedBox.shrink();
 
         final chosen = grantable.where((r) => r.id == selected).firstOrNull;
-        return Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.s12),
-          child: AppListRow(
-            label: 'Role granted',
-            meta: chosen?.name ?? 'None',
-            semanticLabel: 'Role granted, currently ${chosen?.name ?? 'none'}',
-            trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
-            onTap: () => _open(context, grantable),
-          ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SettingsHairline(),
+            AppListRow(
+              label: 'Role granted',
+              meta: chosen?.name ?? 'None',
+              semanticLabel:
+                  'Role granted, currently ${chosen?.name ?? 'none'}',
+              trailing: const Icon(
+                AppIcons.chevronRight,
+                size: AppSizes.icon16,
+              ),
+              onTap: () => _open(context, grantable),
+            ),
+          ],
         );
       },
     );

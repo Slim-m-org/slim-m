@@ -30,7 +30,7 @@ void main() {
         profiles: {'mod-1': 'Mod One', 'user-1': 'Some User'},
       );
 
-      expect(find.text('The queue is empty.'), findsOneWidget);
+      expect(find.text('The queue is empty'), findsOneWidget);
       expect(find.text('Some User'), findsNothing);
 
       await tester.tap(find.text('History'));
@@ -41,13 +41,13 @@ void main() {
         findsOneWidget,
         reason: 'the audit entry\'s subject, once its History tab is shown',
       );
-      expect(find.text('The queue is empty.'), findsNothing);
+      expect(find.text('The queue is empty'), findsNothing);
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('The queue is empty.'),
+        find.text('The queue is empty'),
         findsOneWidget,
         reason:
             'switching back must not have lost the open queue\'s own '

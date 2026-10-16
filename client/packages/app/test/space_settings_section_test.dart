@@ -133,7 +133,7 @@ void main() {
     expect(find.byType(ListTile), findsNothing);
     // Wide always shows something: the first pane is embedded, not routed.
     expect(find.byType(ReportsPane), findsOneWidget);
-    expect(find.text('The queue is empty.'), findsOneWidget);
+    expect(find.text('The queue is empty'), findsOneWidget);
 
     // Geometry, not just text: the four panes sit under SERVER, between CONFIGURATION and ADDONS.
     final configurationY = tester.getTopLeft(find.text('CONFIGURATION')).dy;

@@ -8,27 +8,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Unaliased for the `updateChannel` extension; `Channel` hidden to avoid `slimm_data`'s.
 import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/run_guarded.dart';
-import '../widgets/settings_section_header.dart';
 import '../widgets/settings_toggle_row.dart';
-import '../widgets/success_flash.dart';
+import '../widgets/settings_row_feedback.dart';
 
 class ChannelJoinMutedSection extends ConsumerStatefulWidget {
-  const ChannelJoinMutedSection({
-    super.key,
-    required this.channel,
-    this.embedded = false,
-  });
+  const ChannelJoinMutedSection({super.key, required this.channel});
 
   final Channel channel;
 
   /// One toggle row inside another card instead of its own card.
-  final bool embedded;
-
   @override
   ConsumerState<ChannelJoinMutedSection> createState() =>
       _ChannelJoinMutedSectionState();
@@ -68,28 +60,7 @@ class _ChannelJoinMutedSectionState
     final stored =
         ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
         widget.channel;
-    final rows = [
-      SettingsToggleRow(
-        label: 'Join muted',
-        description: 'Members start with their mic off and can unmute.',
-        value: _optimistic ?? stored.joinMuted,
-        onChanged: _saving ? null : _set,
-        semanticLabel: 'Members join this channel muted',
-      ),
-      SuccessFlash(tick: successTick),
-      if (actionError != null) ...[
-        const SizedBox(height: AppSpacing.s8),
-        AppErrorState(message: actionError!, onDismiss: clearActionError),
-      ],
-    ];
-    if (widget.embedded) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: rows,
-      );
-    }
-    return SettingsSectionCard(
-      title: 'Voice',
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsToggleRow(
@@ -99,11 +70,11 @@ class _ChannelJoinMutedSectionState
           onChanged: _saving ? null : _set,
           semanticLabel: 'Members join this channel muted',
         ),
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsRowFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismiss: clearActionError,
+        ),
       ],
     );
   }

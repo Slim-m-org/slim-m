@@ -119,7 +119,7 @@ void main() {
 
       expect(find.text('General'), findsOneWidget);
       expect(find.text('Danger zone'), findsOneWidget);
-      expect(find.text('Delete channel'), findsOneWidget);
+      expect(find.text('Delete channel...'), findsOneWidget);
       expect(find.byType(ChannelPermissionsGrid), findsNothing);
     },
   );

@@ -24,6 +24,7 @@ import '../providers/voice_controller.dart';
 import 'confirm_dialog.dart';
 import 'reauth_sheet.dart';
 import 'run_guarded.dart';
+import 'settings_danger_card.dart';
 import 'settings_detail_row.dart';
 import 'settings_empty.dart';
 import 'settings_section_header.dart';
@@ -156,58 +157,29 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SettingsSectionHeader('Delete account', flush: true),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: tokens.surfaceRaised,
-              border: Border.all(
-                color: tokens.dangerText.withValues(alpha: 0.3),
+      child: SettingsDangerCard(
+        title: 'Delete account',
+        message: accountDeletionDescription,
+        // The ellipsis says a confirmation follows, as every other
+        // destructive action in this app does.
+        action: AppButton(
+          label: 'Delete account...',
+          variant: AppButtonVariant.danger,
+          size: AppButtonSize.sm,
+          onPressed: () => _confirmDeletion(context, ref),
+        ),
+        error: _deleteError == null
+            ? null
+            : AppErrorState(
+                message:
+                    'Could not delete the account. Your account is '
+                    'unchanged and you are still signed in.',
+                detail: _deleteError,
+                onRetry: () => _confirmDeletion(context, ref),
+                onDismiss: () => setState(() => _deleteError = null),
               ),
-              borderRadius: BorderRadius.circular(AppRadii.card),
-            ),
-            child: AppCardRowScope(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SettingsActionRow(
-                    message: accountDeletionDescription,
-                    // The ellipsis says a confirmation follows, as every other
-                    // destructive action in this app does.
-                    action: AppButton(
-                      label: 'Delete account...',
-                      variant: AppButtonVariant.danger,
-                      size: AppButtonSize.sm,
-                      onPressed: () => _confirmDeletion(context, ref),
-                    ),
-                  ),
-                  if (_deleteError case final error?)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.s16,
-                        0,
-                        AppSpacing.s16,
-                        AppSpacing.s16,
-                      ),
-                      child: AppErrorState(
-                        message:
-                            'Could not delete the account. Your account is '
-                            'unchanged and you are still signed in.',
-                        detail: error,
-                        onRetry: () => _confirmDeletion(context, ref),
-                        onDismiss: () => setState(() => _deleteError = null),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
