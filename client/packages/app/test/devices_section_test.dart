@@ -98,7 +98,7 @@ void main() {
     expect(find.text('A phone'), findsOneWidget);
     expect(find.text('A tablet'), findsOneWidget);
 
-    await tester.tap(find.text('Sign out all other devices'));
+    await tester.tap(find.text('Sign out others'));
     await tester.pumpAndSettle();
     expect(find.text('Sign out all other devices?'), findsOneWidget);
     await tester.tap(find.widgetWithText(AppButton, 'Sign out all'));
@@ -147,7 +147,7 @@ void main() {
         return http.Response('{}', 404);
       });
 
-      await tester.tap(find.text('Sign out all other devices'));
+      await tester.tap(find.text('Sign out others'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(AppButton, 'Sign out all'));
       await tester.pumpAndSettle();
@@ -176,7 +176,7 @@ void main() {
         return http.Response('{}', 404);
       });
 
-      expect(find.text('Sign out all other devices'), findsNothing);
+      expect(find.text('Sign out others'), findsNothing);
     },
   );
 }

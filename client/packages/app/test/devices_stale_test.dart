@@ -106,15 +106,15 @@ void main() {
   ) async {
     await _pump(tester, rows);
 
-    expect(find.text('Not used recently'), findsOneWidget);
-    final heading = tester.getTopLeft(find.text('Not used recently')).dy;
+    expect(find.text('NOT USED RECENTLY'), findsOneWidget);
+    final heading = tester.getTopLeft(find.text('NOT USED RECENTLY')).dy;
     expect(tester.getTopLeft(find.text('iPhone')).dy, lessThan(heading));
     expect(
       tester.getTopLeft(find.text('Linux - fedora')).dy,
       lessThan(heading),
     );
     expect(tester.getTopLeft(find.text('iOS')).dy, greaterThan(heading));
-    expect(find.text('This device'), findsOneWidget);
+    expect(find.text('THIS DEVICE'), findsOneWidget);
   });
 
   testWidgets('no row ever prints the loopback host name', (tester) async {
@@ -133,13 +133,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(removed, {'3', '4'});
-    expect(find.text('Not used recently'), findsNothing);
+    expect(find.text('NOT USED RECENTLY'), findsNothing);
     expect(find.text('Linux - fedora'), findsOneWidget);
   });
 
   testWidgets('with nothing stale there is no group', (tester) async {
     await _pump(tester, rows.sublist(0, 2));
-    expect(find.text('Not used recently'), findsNothing);
+    expect(find.text('NOT USED RECENTLY'), findsNothing);
     expect(find.widgetWithText(AppButton, 'Sign out unused'), findsNothing);
   });
 }

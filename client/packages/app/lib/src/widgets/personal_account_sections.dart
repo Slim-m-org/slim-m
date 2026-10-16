@@ -24,8 +24,9 @@ import '../providers/voice_controller.dart';
 import 'confirm_dialog.dart';
 import 'reauth_sheet.dart';
 import 'run_guarded.dart';
-import 'settings_section_header.dart';
+import 'settings_detail_row.dart';
 import 'settings_empty.dart';
+import 'settings_section_header.dart';
 
 export 'devices_section.dart' show DevicesSection, devicesProvider;
 
@@ -45,17 +46,18 @@ class BlockedSection extends ConsumerWidget {
     final blocks = ref.watch(blocksProvider);
 
     return SettingsSectionCard(
+      flush: true,
       title: 'People you blocked',
       description: 'You stop seeing and hearing from them; they are not told.',
       children: [
         if (!blocks.settled)
           const Padding(
-            padding: EdgeInsets.all(AppSpacing.s8),
+            padding: EdgeInsets.all(AppSpacing.s16),
             child: LinearProgressIndicator(),
           )
         else if (blocks.error case final error?)
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.s8),
+            padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
               message: 'Could not load the block list.',
               detail: error,
@@ -63,13 +65,14 @@ class BlockedSection extends ConsumerWidget {
             ),
           )
         else if (blocks.ids.isEmpty)
-          const SettingsEmptyLine('Nobody is blocked.')
+          const SettingsEmptyState(
+            icon: AppIcons.revoke,
+            title: 'Nobody is blocked',
+            detail:
+                'People you block will be listed here, with a way to unblock them.',
+          )
         else
-          Column(
-            children: [
-              for (final userId in blocks.ids) _BlockedRow(userId: userId),
-            ],
-          ),
+          for (final userId in blocks.ids) _BlockedRow(userId: userId),
       ],
     );
   }
@@ -109,13 +112,13 @@ class _BlockedRowState extends ConsumerState<_BlockedRow>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppListRow(
-          leading: const Icon(AppIcons.account),
-          label: name ?? 'Deleted account',
-          meta: name == null ? widget.userId : null,
+        SettingsDetailRow(
+          icon: AppIcons.account,
+          title: name ?? 'Deleted account',
+          detail: name == null ? widget.userId : null,
+          monoDetail: true,
           trailing: AppButton(
             label: 'Unblock',
-            variant: AppButtonVariant.secondary,
             size: AppButtonSize.sm,
             onPressed: _unblock,
           ),
@@ -153,38 +156,59 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSectionCard(
-      title: 'Account',
-      description: accountDeletionDescription,
-      children: [
-        // Matches channel_settings_danger_zone.dart's own "Delete channel":
-        // an irreversible action reads as a button, not a navigation row.
-        // The ellipsis says a confirmation follows, the same convention
-        // every other destructive action in this app uses.
-        AppButton(
-          label: 'Delete account...',
-          variant: AppButtonVariant.danger,
-          full: true,
-          onPressed: () => _confirmDeletion(context, ref),
-        ),
-        if (_deleteError case final error?)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              0,
-              AppSpacing.s8,
-              AppSpacing.s8,
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SettingsSectionHeader('Delete account', flush: true),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: tokens.surfaceRaised,
+              border: Border.all(
+                color: tokens.dangerText.withValues(alpha: 0.3),
+              ),
+              borderRadius: BorderRadius.circular(AppRadii.card),
             ),
-            child: AppErrorState(
-              message:
-                  'Could not delete the account. Your account is '
-                  'unchanged and you are still signed in.',
-              detail: error,
-              onRetry: () => _confirmDeletion(context, ref),
-              onDismiss: () => setState(() => _deleteError = null),
+            child: AppCardRowScope(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SettingsActionRow(
+                    message: accountDeletionDescription,
+                    // The ellipsis says a confirmation follows, as every other
+                    // destructive action in this app does.
+                    action: AppButton(
+                      label: 'Delete account...',
+                      variant: AppButtonVariant.danger,
+                      size: AppButtonSize.sm,
+                      onPressed: () => _confirmDeletion(context, ref),
+                    ),
+                  ),
+                  if (_deleteError case final error?)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.s16,
+                        0,
+                        AppSpacing.s16,
+                        AppSpacing.s16,
+                      ),
+                      child: AppErrorState(
+                        message:
+                            'Could not delete the account. Your account is '
+                            'unchanged and you are still signed in.',
+                        detail: error,
+                        onRetry: () => _confirmDeletion(context, ref),
+                        onDismiss: () => setState(() => _deleteError = null),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 

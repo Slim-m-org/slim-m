@@ -78,7 +78,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('Change password'));
+    await tester.tap(find.widgetWithText(AppButton, 'Change'));
     await tester.pumpAndSettle();
     return sent;
   }

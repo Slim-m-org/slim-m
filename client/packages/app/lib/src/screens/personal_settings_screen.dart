@@ -46,6 +46,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../routing/routes.dart';
@@ -196,17 +197,21 @@ class PersonalSettingsScreen extends StatelessWidget {
 
 /// Password and two-factor together: both are how you prove it is you, and
 /// one card of rows reads lighter than a card per single button.
-class _SignInSection extends StatelessWidget {
+class _SignInSection extends ConsumerWidget {
   const _SignInSection();
 
   @override
-  Widget build(BuildContext context) => const SettingsSectionCard(
-    title: 'Sign-in',
-    description: 'How you prove it is you on a new device.',
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      ChangePasswordSection(embedded: true),
-      TotpSection(embedded: true),
-    ],
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(totpStatusProvider).valueOrNull;
+    final hideTotp = status != null && totpSectionHidden(status);
+    return SettingsSectionCard(
+      flush: true,
+      title: 'Sign-in',
+      description: "How you prove it's you on a new device.",
+      children: [
+        const ChangePasswordSection(embedded: true),
+        if (!hideTotp) const TotpSection(embedded: true),
+      ],
+    );
+  }
 }

@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
+import 'settings_detail_row.dart';
 import 'settings_notice.dart';
 import 'settings_section_header.dart';
 import 'totp_code_sheet.dart';
@@ -26,6 +27,10 @@ import 'totp_recovery_codes.dart';
 final totpStatusProvider = FutureProvider.autoDispose<api.TotpStatus>(
   (ref) => ref.watch(apiProvider).totpStatus(),
 );
+
+/// Whether the section has nothing to offer, so a card around it can skip it.
+bool totpSectionHidden(api.TotpStatus status) =>
+    status.policy == api.TotpPolicy.off && !status.enabled;
 
 /// Below this, the section says so rather than only showing the number: a
 /// count nobody reads as low is not a warning.
@@ -74,11 +79,14 @@ class _TotpBody extends ConsumerWidget {
   final api.TotpStatus status;
   final bool embedded;
 
-  bool get _hidden => status.policy == api.TotpPolicy.off && !status.enabled;
+  bool get _hidden => totpSectionHidden(status);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (_hidden) return const SizedBox.shrink();
+    if (embedded) {
+      return _EmbeddedTotp(status: status, description: _description);
+    }
     final rows = status.enabled
         ? [
             if (status.recoveryCodesRemaining <= _lowRecoveryCodes)
@@ -86,18 +94,7 @@ class _TotpBody extends ConsumerWidget {
             _RecoveryCodesRow(remaining: status.recoveryCodesRemaining),
             const _DisableRow(),
           ]
-        : [
-            _TurnOnRow(
-              pending: status.pending,
-              subtitle: embedded ? _description : null,
-            ),
-          ];
-    if (embedded) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: rows,
-      );
-    }
+        : [_TurnOnRow(pending: status.pending)];
     return SettingsSectionCard(
       title: 'Two-factor authentication',
       description: _description,
@@ -117,10 +114,7 @@ class _TotpBody extends ConsumerWidget {
 }
 
 class _TurnOnRow extends ConsumerWidget {
-  const _TurnOnRow({required this.pending, this.subtitle});
-
-  /// What two-factor does, when no card heading above already says so.
-  final String? subtitle;
+  const _TurnOnRow({required this.pending});
 
   /// An enrolment was started and never confirmed. Worth saying, because the
   /// offer is "finish this" rather than "start something".
@@ -130,15 +124,72 @@ class _TurnOnRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => AppListRow(
     label: pending ? 'Finish setting up' : 'Turn on two-factor authentication',
     leading: const Icon(AppIcons.shield),
-    subtitle: pending
-        ? 'You started setting this up and did not finish, so it is not on '
-              'yet. Starting again gives you a fresh key.'
-        : subtitle,
-    onTap: () async {
-      final done = await showTotpEnrolSheet(context, ref);
-      if (done == true) ref.invalidate(totpStatusProvider);
-    },
+    subtitle: pending ? _pendingNote : null,
+    onTap: () => enrol(context, ref),
   );
+
+  static Future<void> enrol(BuildContext context, WidgetRef ref) async {
+    final done = await showTotpEnrolSheet(context, ref);
+    if (done == true) ref.invalidate(totpStatusProvider);
+  }
+}
+
+const _pendingNote =
+    'You started setting this up and did not finish, so it is not on '
+    'yet. Starting again gives you a fresh key.';
+
+/// The Sign-in card's two-factor row: state badge and description, with the
+/// recovery and turn-off actions as sub rows once it is on.
+class _EmbeddedTotp extends ConsumerWidget {
+  const _EmbeddedTotp({required this.status, required this.description});
+
+  final api.TotpStatus status;
+  final String description;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final remaining = status.recoveryCodesRemaining;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (status.enabled && remaining <= _lowRecoveryCodes)
+          _LowCodesNotice(remaining: remaining),
+        SettingsDetailRow(
+          icon: AppIcons.shield,
+          title: 'Two-factor authentication',
+          badge: AppBadge(
+            variant: status.enabled
+                ? AppBadgeVariant.role
+                : AppBadgeVariant.warn,
+            label: status.enabled ? 'On' : 'Off',
+          ),
+          detail: status.pending ? _pendingNote : description,
+          trailing: status.enabled
+              ? null
+              : AppButton(
+                  label: status.pending ? 'Finish' : 'Turn on',
+                  size: AppButtonSize.sm,
+                  semanticLabel: status.pending
+                      ? 'Finish setting up two-factor authentication'
+                      : 'Turn on two-factor authentication',
+                  onPressed: () => _TurnOnRow.enrol(context, ref),
+                ),
+        ),
+        if (status.enabled) ...[
+          SettingsSubRow(
+            label: 'Recovery codes, $remaining left',
+            onTap: () => _RecoveryCodesRow.reissue(context, ref),
+            trailing: const Icon(AppIcons.resetCode, size: AppSizes.icon16),
+          ),
+          SettingsSubRow(
+            label: 'Turn off two-factor authentication',
+            onTap: () => _DisableRow.turnOff(context, ref),
+            trailing: const Icon(AppIcons.shieldOff, size: AppSizes.icon16),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _RecoveryCodesRow extends ConsumerWidget {
@@ -152,13 +203,13 @@ class _RecoveryCodesRow extends ConsumerWidget {
     leading: const Icon(AppIcons.resetCode),
     meta: '$remaining left',
     semanticLabel: 'Recovery codes, $remaining left',
-    onTap: () => _reissue(context, ref),
+    onTap: () => reissue(context, ref),
   );
 
   /// Replacing the set needs a current code, and the sheet that asks for one
   /// hands back the new codes through a second sheet rather than a toast: they
   /// are shown once, so they need somewhere they can be read and copied.
-  Future<void> _reissue(BuildContext context, WidgetRef ref) async {
+  static Future<void> reissue(BuildContext context, WidgetRef ref) async {
     List<String>? fresh;
     await showTotpCodeSheet(
       context,
@@ -198,26 +249,27 @@ class _DisableRow extends ConsumerWidget {
     leading: const Icon(AppIcons.shieldOff),
     // Short enough to survive a row's one-line truncation on a phone.
     subtitle: 'Your password alone will get you back in.',
-    onTap: () async {
-      final done = await showTotpCodeSheet(
-        context,
-        title: 'Turn off two-factor authentication',
-        description:
-            'Enter a code from your authenticator, or a recovery code.',
-        submitLabel: 'Turn off',
-        dangerous: true,
-        onSubmit: (code) async {
-          try {
-            await ref.read(apiProvider).disableTotp(code);
-            return null;
-          } on api.ApiException catch (e) {
-            return totpCodeFailure(e);
-          }
-        },
-      );
-      if (done == true) ref.invalidate(totpStatusProvider);
-    },
+    onTap: () => turnOff(context, ref),
   );
+
+  static Future<void> turnOff(BuildContext context, WidgetRef ref) async {
+    final done = await showTotpCodeSheet(
+      context,
+      title: 'Turn off two-factor authentication',
+      description: 'Enter a code from your authenticator, or a recovery code.',
+      submitLabel: 'Turn off',
+      dangerous: true,
+      onSubmit: (code) async {
+        try {
+          await ref.read(apiProvider).disableTotp(code);
+          return null;
+        } on api.ApiException catch (e) {
+          return totpCodeFailure(e);
+        }
+      },
+    );
+    if (done == true) ref.invalidate(totpStatusProvider);
+  }
 }
 
 class _LowCodesNotice extends StatelessWidget {
