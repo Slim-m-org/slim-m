@@ -254,4 +254,3 @@ fn a_nullable_field_accepts_null_once_widened() {
     assert!(validator.is_valid(&json!({ "parent": "x" })));
     assert!(!validator.is_valid(&json!({ "parent": 3 })));
 }
-
