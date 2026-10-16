@@ -22,13 +22,21 @@ bool get supportsInputGate =>
 
 /// One read of the native gate.
 class InputGateReading {
-  const InputGateReading({required this.levelDb, required this.voice});
+  const InputGateReading({
+    required this.levelDb,
+    required this.voice,
+    this.strongActive = false,
+  });
 
   /// Capture level in dBFS, before the gate.
   final double levelDb;
 
   /// Whether the level crossed the threshold within the hold time.
   final bool voice;
+
+  /// Whether rnnoise processed the last frame; false when it is off or the
+  /// capture is not 48 kHz.
+  final bool strongActive;
 }
 
 /// [levelDb] as 0 to 1 across the meter's range.
@@ -113,6 +121,7 @@ class InputGateMonitor {
       final reading = InputGateReading(
         levelDb: (raw['levelDb'] as num?)?.toDouble() ?? kInputFloorDb,
         voice: raw['voice'] == true,
+        strongActive: raw['strongNoiseSuppression'] == true,
       );
       if (!_levels.isClosed) _levels.add(reading);
       if (reading.voice != _voice) {

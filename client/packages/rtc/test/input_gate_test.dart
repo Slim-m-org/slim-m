@@ -11,12 +11,20 @@ class _FakeGate {
   final calls = <(String, Object?)>[];
   double levelDb = -70;
   bool voice = false;
+  bool? strongNoiseSuppression;
   bool fail = false;
 
   Future<Object?> invoke(String method, [Object? args]) async {
     calls.add((method, args));
     if (fail) throw StateError('no gate in this build');
-    if (method == 'getInputGate') return {'levelDb': levelDb, 'voice': voice};
+    if (method == 'getInputGate') {
+      return {
+        'levelDb': levelDb,
+        'voice': voice,
+        if (strongNoiseSuppression != null)
+          'strongNoiseSuppression': strongNoiseSuppression,
+      };
+    }
     return null;
   }
 }
@@ -47,6 +55,27 @@ void main() {
       strongNoiseSuppression: true,
     );
     expect((fake.calls.single.$2! as Map)['strongNoiseSuppression'], isTrue);
+  });
+
+  test('a reading carries whether strong suppression ran, false if unsent', () {
+    fakeAsync((async) {
+      final fake = _FakeGate();
+      final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+      final active = <bool>[];
+      gate.readings.listen((r) => active.add(r.strongActive));
+      gate.start(() {});
+
+      async.elapse(const Duration(milliseconds: 60));
+      fake.strongNoiseSuppression = true;
+      async.elapse(const Duration(milliseconds: 60));
+      fake.strongNoiseSuppression = false;
+      async.elapse(const Duration(milliseconds: 60));
+      gate.stop();
+
+      expect(active.first, isFalse, reason: 'an older native build has no key');
+      expect(active, contains(true));
+      expect(active.last, isFalse);
+    });
   });
 
   test('an unsupported host never reaches the platform', () {

@@ -58,6 +58,9 @@ It used about 0.05% of one core.
 libwebrtc's own suppressor handles steady hiss well but lets keyboards, fans and room noise through.
 "Strong" runs rnnoise 0.2 (xiph, BSD-3-Clause, vendored in the fork under `third_party/rnnoise`) first in the capture chain, so the gate and its meter see the cleaned signal.
 It works on 480-sample frames, which is exactly one 10 ms hook frame at 48 kHz; at any other capture rate it passes audio through and `getInputGate` reports `strongNoiseSuppression: false`.
+The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s (40 polls), the settings row shows "Strong is off for this mic. It needs a 48 kHz input.", and hides it after 10 active polls in a row.
+While Strong is active the mic is opened with libwebrtc's own noise suppression off, because rnnoise alone measured better than the two in series (docs/research/mic-handling.md, P4).
+If Strong reads inactive for about 2 s, the client reopens the mic with libwebrtc's suppression back on so a call is never left with none, and keeps it on until the input device or the choice changes; reopening is deferred while muted or on push-to-talk.
 
 Measured on its own with the e2e fake voice and added white noise: about 0.7% of one core (generic C, no SIMD dispatch), noise alone 30 to 37 dB quieter, speech level unchanged within 0.5 dB.
 It adds about 1.4 MB to the desktop plugin.

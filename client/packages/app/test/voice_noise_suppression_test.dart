@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/screens/voice_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_settings_screen_harness.dart';
 
@@ -33,7 +34,17 @@ http.Client _client({required bool spaceStrong}) => MockClient((request) async {
       headers: {'content-type': 'application/json'},
     );
   }
-  return voiceTokenClient().send(request).then(http.Response.fromStream);
+  return http.Response(
+    jsonEncode({
+      'url': 'wss://sfu.example.com',
+      'room': 'channel-1',
+      'token': 'jwt',
+      'expires_at': 0,
+      'can_publish': true,
+    }),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
 });
 
 Future<FakeSession> _pump(
@@ -132,5 +143,96 @@ void main() {
 
     voice.setNoiseSuppression(NoiseSuppressionChoice.standard);
     expect(session.lastStrongNoiseSuppression, isFalse);
+  });
+
+  group('the inactive note', () {
+    const note = 'Strong is off for this mic. It needs a 48 kHz input.';
+
+    Future<FakeSession> join(
+      WidgetTester tester, {
+      NoiseSuppressionChoice choice = NoiseSuppressionChoice.strong,
+      bool spaceStrong = false,
+      bool muted = false,
+      bool joined = true,
+    }) async {
+      final session = await _pump(tester, spaceStrong: spaceStrong);
+      _container(tester).read(noiseSuppressionProvider.notifier).state = choice;
+      final controller = _container(
+        tester,
+      ).read(voiceControllerProvider.notifier);
+      if (joined) await controller.join('channel-1');
+      if (muted) await controller.toggleMicrophone();
+      await tester.pumpAndSettle();
+      return session;
+    }
+
+    // Clears the heartbeat timer a connected call keeps running.
+    Future<void> hangUp(WidgetTester tester) =>
+        _container(tester).read(voiceControllerProvider.notifier).leave();
+
+    Future<void> poll(
+      WidgetTester tester,
+      FakeSession session,
+      int count, {
+      required bool active,
+    }) async {
+      for (var i = 0; i < count; i++) {
+        session.inputGateController.add(
+          InputGateReading(levelDb: -40, voice: false, strongActive: active),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows after sustained inactive readings, hides once active', (
+      tester,
+    ) async {
+      final session = await join(tester);
+      await poll(tester, session, kStrongInactivePolls - 1, active: false);
+      expect(find.text(note), findsNothing);
+      await poll(tester, session, 1, active: false);
+      expect(find.text(note), findsOneWidget);
+
+      await poll(tester, session, kStrongActivePolls - 1, active: true);
+      expect(find.text(note), findsOneWidget);
+      await poll(tester, session, 1, active: true);
+      expect(find.text(note), findsNothing);
+      await hangUp(tester);
+    });
+
+    testWidgets('Space default that resolves to Strong counts', (tester) async {
+      final session = await join(
+        tester,
+        choice: NoiseSuppressionChoice.spaceDefault,
+        spaceStrong: true,
+      );
+      await poll(tester, session, kStrongInactivePolls, active: false);
+      expect(find.text(note), findsOneWidget);
+      await hangUp(tester);
+    });
+
+    testWidgets('never shows on Standard', (tester) async {
+      final session = await join(
+        tester,
+        choice: NoiseSuppressionChoice.standard,
+      );
+      await poll(tester, session, kStrongInactivePolls, active: false);
+      expect(find.text(note), findsNothing);
+      await hangUp(tester);
+    });
+
+    testWidgets('never shows while muted', (tester) async {
+      final session = await join(tester, muted: true);
+      await poll(tester, session, kStrongInactivePolls, active: false);
+      expect(find.text(note), findsNothing);
+      await hangUp(tester);
+    });
+
+    testWidgets('never shows out of a call', (tester) async {
+      final session = await join(tester, joined: false);
+      await poll(tester, session, kStrongInactivePolls, active: false);
+      expect(find.text(note), findsNothing);
+      await hangUp(tester);
+    });
   });
 }

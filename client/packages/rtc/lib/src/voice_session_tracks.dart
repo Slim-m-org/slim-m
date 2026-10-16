@@ -73,6 +73,7 @@ extension VoiceSessionTracks on VoiceSession {
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
+    _capture.reset();
     final cancelEvents = _cancelEvents;
     _cancelEvents = null;
     if (cancelEvents != null) await _step(cancelEvents);
@@ -91,7 +92,15 @@ extension VoiceSessionTracks on VoiceSession {
     final room = _room;
     if (room == null) return false;
     try {
-      await room.localParticipant?.setMicrophoneEnabled(enabled);
+      final hadTrack = _mic.hasTrack;
+      final options = _micCaptureOptions();
+      await _mic.setEnabled(enabled, options);
+      if (enabled && options != null) {
+        if (!hadTrack) {
+          _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
+        }
+        _capture.retry();
+      }
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
       return true;

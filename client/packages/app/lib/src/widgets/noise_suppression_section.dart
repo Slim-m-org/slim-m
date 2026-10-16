@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/noise_suppression.dart';
+import '../providers/strong_noise_status.dart';
 
 class NoiseSuppressionSection extends ConsumerWidget {
   const NoiseSuppressionSection({super.key});
@@ -27,6 +28,7 @@ class NoiseSuppressionSection extends ConsumerWidget {
     final description = choice == NoiseSuppressionChoice.spaceDefault
         ? 'This Space uses ${spaceStrong ? 'Strong' : 'Standard'}.'
         : 'Strong also removes keyboards, fans and room noise.';
+    final strongInactive = ref.watch(strongNoiseInactiveProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -57,6 +59,16 @@ class NoiseSuppressionSection extends ConsumerWidget {
               .read(noiseSuppressionProvider.notifier)
               .set(NoiseSuppressionChoice.values[i]),
         ),
+        if (strongInactive) ...[
+          const SizedBox(height: AppSpacing.s8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+            child: Text(
+              'Strong is off for this mic. It needs a 48 kHz input.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+        ],
       ],
     );
   }
