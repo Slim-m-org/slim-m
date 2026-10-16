@@ -23,6 +23,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/desktop_message_notifier.dart';
+import 'package:slimm_app/src/providers/desktop_message_text_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
@@ -34,8 +35,12 @@ class _FakeNotifications implements LocalNotifications {
   final channels = <LocalAlertChannel>[];
 
   @override
-  Future<void> show(String text, {required LocalAlertChannel channel}) async {
-    shown.add(text);
+  Future<void> show(
+    String text, {
+    required LocalAlertChannel channel,
+    String? title,
+  }) async {
+    shown.add(title == null ? text : '$title: $text');
     channels.add(channel);
   }
 
@@ -186,6 +191,29 @@ void main() {
     );
     await _settle(setup);
 
+    expect(setup.notifications.shown, ['Alice in #general: hi']);
+    await setup.dispose();
+  });
+
+  test('with message text off, only the author is named', () async {
+    if (!isDesktopHost) return;
+    SharedPreferences.setMockInitialValues({desktopMessageTextKey: false});
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    final setup = await _wire();
+
+    setup.events.add(
+      api.MessageCreated(
+        _message(
+          id: 'm1',
+          authorId: 'alice',
+          authorDisplayName: 'Alice',
+          channelId: 'group-1',
+          content: 'secret plans',
+        ),
+      ),
+    );
+    await _settle(setup);
+
     expect(setup.notifications.shown, ['New message from Alice']);
     await setup.dispose();
   });
@@ -240,7 +268,7 @@ void main() {
     await _settle(setup);
 
     // Not exact: _settle's flush is by the old "me", who may now notify too.
-    expect(setup.notifications.shown, contains('New message from Old Me'));
+    expect(setup.notifications.shown, contains('Old Me in #general: hi'));
     expect(
       setup.notifications.shown.where((t) => t.contains('someone-new')),
       isEmpty,
@@ -332,7 +360,7 @@ void main() {
     );
     await _settle(setup, until: () => setup.notifications.shown.isNotEmpty);
 
-    expect(setup.notifications.shown, ['New message from Alice']);
+    expect(setup.notifications.shown, ['Alice in #general: hey @nick look']);
     expect(
       setup.notifications.channels,
       [LocalAlertChannel.mentions],
