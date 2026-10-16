@@ -30,32 +30,51 @@ class DisplayDensityPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatar = density.avatarSize;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Sample(
-            key: firstRowKey,
-            avatar: avatar,
-            top: density.rowGap,
-            name: 'Ada',
-            line: 'Does the new spacing read better?',
-          ),
-          _SampleContinuation(
-            key: continuationRowKey,
-            density: density,
-            marker: marker,
-            line: 'Same author, a follow-up line.',
-          ),
-          _Sample(
-            key: secondRowKey,
-            avatar: avatar,
-            top: density.rowGap + groupSpacing,
-            name: 'Grace',
-            line: 'It does, a little tighter.',
-          ),
-        ],
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return ColoredBox(
+      color: tokens.surfaceBase,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s16,
+          14,
+          AppSpacing.s16,
+          AppSpacing.s16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'PREVIEW',
+              style: AppText.micro.copyWith(
+                fontFamily: AppFonts.mono,
+                letterSpacing: 11 * AppTracking.label,
+                color: tokens.textSecondary,
+              ),
+            ),
+            _Sample(
+              key: firstRowKey,
+              avatar: avatar,
+              top: density.rowGap,
+              name: 'Ada',
+              time: '9:41a',
+              line: 'Does the new spacing read better?',
+            ),
+            _SampleContinuation(
+              key: continuationRowKey,
+              density: density,
+              marker: marker,
+              line: 'Same author, a follow-up line.',
+            ),
+            _Sample(
+              key: secondRowKey,
+              avatar: avatar,
+              top: density.rowGap + groupSpacing,
+              name: 'Grace',
+              time: '9:42a',
+              line: 'It does, a little tighter.',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -67,12 +86,14 @@ class _Sample extends StatelessWidget {
     required this.avatar,
     required this.top,
     required this.name,
+    required this.time,
     required this.line,
   });
 
   final double avatar;
   final double top;
   final String name;
+  final String time;
   final String line;
 
   @override
@@ -95,9 +116,21 @@ class _Sample extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: AppText.body.copyWith(
+                Text.rich(
+                  TextSpan(
+                    text: name,
+                    children: [
+                      TextSpan(
+                        text: '  $time',
+                        style: AppText.micro.copyWith(
+                          fontFamily: AppFonts.mono,
+                          fontWeight: AppWeights.regular,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: AppText.ui.copyWith(
                     color: tokens.textPrimary,
                     fontWeight: AppWeights.semi,
                   ),

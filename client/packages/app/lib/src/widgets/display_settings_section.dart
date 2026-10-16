@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The density, group spacing and interface scale controls with their live
+/// The density, group spacing and thread line controls with their live
 /// preview (decision 0062), grouped under Appearance.
 library;
 
@@ -10,7 +10,9 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/display_density.dart';
 import 'display_density_preview.dart';
 import 'settings_section_header.dart';
+import 'settings_segmented_row.dart';
 import 'settings_select_row.dart';
+import 'settings_slider_row.dart';
 
 class DisplaySettingsSection extends ConsumerWidget {
   const DisplaySettingsSection({super.key});
@@ -22,88 +24,53 @@ class DisplaySettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final density = ref.watch(messageDensityControllerProvider);
     final spacing = ref.watch(groupSpacingControllerProvider);
-    final scale = ref.watch(uiScaleControllerProvider);
     final marker = ref.watch(continuationMarkerControllerProvider);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsSectionCard(
+      flush: true,
+      title: 'Messages',
+      description: 'How tight messages sit, and how far apart groups are.',
       children: [
-        SettingsSectionCard(
-          title: 'Messages',
-          description: 'How tight messages sit, and how groups look.',
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SettingsSelectRow<AppDensity>(
-              label: 'Message density',
-              value: density,
-              choices: [
-                for (final option in AppDensity.values)
-                  SettingsChoice(value: option, label: _label(option)),
-              ],
-              onChanged: (next) => ref
-                  .read(messageDensityControllerProvider.notifier)
-                  .select(next),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            SettingsSelectRow<ContinuationMarker>(
-              label: 'Continuation marker',
-              value: marker,
-              choices: [
-                for (final option in ContinuationMarker.values)
-                  SettingsChoice(value: option, label: _markerLabel(option)),
-              ],
-              onChanged: (next) => ref
-                  .read(continuationMarkerControllerProvider.notifier)
-                  .select(next),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            DisplayDensityPreview(
-              density: density,
-              groupSpacing: spacing,
-              marker: marker,
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-              child: Text(
-                'Group spacing',
-                style: AppText.ui.copyWith(color: tokens.textPrimary),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            AppSlider(
-              key: spacingSliderKey,
-              value: spacing.toDouble(),
-              min: groupSpacingSteps.first.toDouble(),
-              max: groupSpacingSteps.last.toDouble(),
-              divisions: groupSpacingSteps.length - 1,
-              ticks: [for (final s in groupSpacingSteps) '$s'],
-              semanticLabel: 'Space between message groups',
-              onChanged: (v) => ref
-                  .read(groupSpacingControllerProvider.notifier)
-                  .select(v.round()),
-            ),
-          ],
+        DisplayDensityPreview(
+          density: density,
+          groupSpacing: spacing,
+          marker: marker,
         ),
-        SettingsSectionCard(
-          title: 'Interface scale',
-          description: 'Make everything larger or smaller.',
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppSlider(
-              key: scaleSliderKey,
-              value: scale.toDouble(),
-              min: uiScaleMin.toDouble(),
-              max: uiScaleMax.toDouble(),
-              divisions: (uiScaleMax - uiScaleMin) ~/ uiScaleStep,
-              ticks: [for (var p = uiScaleMin; p <= uiScaleMax; p += 10) '$p%'],
-              semanticLabel: 'Interface scale',
-              onChanged: (v) => ref
-                  .read(uiScaleControllerProvider.notifier)
-                  .select(v.round()),
-            ),
+        SettingsSegmentedRow<AppDensity>(
+          label: 'Density',
+          value: density,
+          choices: [
+            for (final option in AppDensity.values)
+              SettingsChoice(value: option, label: _label(option)),
           ],
+          onChanged: (next) =>
+              ref.read(messageDensityControllerProvider.notifier).select(next),
+        ),
+        SettingsSliderRow(
+          sliderKey: spacingSliderKey,
+          label: 'Space between groups',
+          valueLabel: '$spacing px',
+          value: spacing.toDouble(),
+          min: groupSpacingSteps.first.toDouble(),
+          max: groupSpacingSteps.last.toDouble(),
+          minLabel: '${groupSpacingSteps.first}',
+          maxLabel: '${groupSpacingSteps.last}',
+          divisions: groupSpacingSteps.length - 1,
+          onChanged: (v) => ref
+              .read(groupSpacingControllerProvider.notifier)
+              .select(v.round()),
+        ),
+        SettingsSegmentedRow<ContinuationMarker>(
+          label: 'Thread lines',
+          description: 'Join a run of messages from one person with a line.',
+          value: marker,
+          choices: [
+            for (final option in ContinuationMarker.values)
+              SettingsChoice(value: option, label: _markerLabel(option)),
+          ],
+          onChanged: (next) => ref
+              .read(continuationMarkerControllerProvider.notifier)
+              .select(next),
         ),
       ],
     );

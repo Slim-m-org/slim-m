@@ -43,6 +43,8 @@ Future<void> _pumpSection(
 }
 
 Future<void> _chooseFrom<T>(WidgetTester tester, String label) async {
+  await tester.ensureVisible(find.byType(SettingsSelectRow<T>));
+  await tester.pumpAndSettle();
   await tester.tap(find.byType(SettingsSelectRow<T>));
   await tester.pumpAndSettle();
   await tester.tap(find.text(label).last);

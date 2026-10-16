@@ -26,6 +26,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
     required this.onChanged,
     this.sheetTitle,
     this.sheetFootnote,
+    this.description,
     this.unknownLabel = 'Unknown',
   });
 
@@ -46,6 +47,9 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// weighing them rather than as a section caption answering a question
   /// nobody asked yet.
   final String? sheetFootnote;
+
+  /// A line under the label saying what the setting governs.
+  final String? description;
 
   /// Shown in place of a choice's label when [value] is null. Must never be a
   /// real choice's own label, or "not known" reads as that choice.
@@ -153,13 +157,32 @@ class SettingsSelectRow<T> extends StatelessWidget {
     final desktop = MediaQuery.sizeOf(context).width >= kCompactWidth;
     return AppListRow(
       label: label,
-      meta: _currentLabel,
+      subtitle: description,
       semanticLabel: '$label, currently $_currentLabel',
-      // Down on desktop for a dropdown, right on a phone for a sheet.
-      trailing: Icon(
-        desktop ? AppIcons.chevronDown : AppIcons.chevronRight,
-        size: AppSizes.icon16,
-        color: tokens.textSecondary,
+      // AppListRow gives a trailing no bound, so the value is capped here.
+      trailing: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.5,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 6,
+          children: [
+            Flexible(
+              child: Text(
+                _currentLabel,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              ),
+            ),
+            // Down on desktop for a dropdown, right on a phone for a sheet.
+            Icon(
+              desktop ? AppIcons.chevronDown : AppIcons.chevronRight,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
+            ),
+          ],
+        ),
       ),
       onTap: () => desktop ? _openDropdown(context) : _open(context),
     );

@@ -25,7 +25,6 @@ import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_identity.dart';
 import 'package:slimm_app/src/widgets/message_text.dart';
 import 'package:slimm_app/src/widgets/message_transcript.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -456,12 +455,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Continuation marker'), findsOneWidget);
+      expect(find.text('Thread lines'), findsOneWidget);
       expect(find.byKey(ContinuationRail.railKey), findsNothing);
 
-      await tester.tap(find.byType(SettingsSelectRow<ContinuationMarker>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Tree').last);
+      await tester.tap(find.text('Tree'));
       await tester.pumpAndSettle();
 
       expect(

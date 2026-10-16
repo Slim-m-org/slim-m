@@ -25,63 +25,79 @@ class PerformanceSettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SettingsSectionCard(
-      divided: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsSelectRow<MediaAutoDownload>(
-          label: 'Auto-download media',
-          sheetTitle: 'Auto-download media',
-          value: ref.watch(mediaAutoDownloadControllerProvider),
-          choices: [
-            for (final value in MediaAutoDownload.values)
-              SettingsChoice(value: value, label: value.label),
+        SettingsSectionCard(
+          flush: true,
+          title: 'Media',
+          description: 'What loads and plays on its own.',
+          children: [
+            SettingsSelectRow<MediaAutoDownload>(
+              label: 'Auto-download media',
+              sheetTitle: 'Auto-download media',
+              value: ref.watch(mediaAutoDownloadControllerProvider),
+              choices: [
+                for (final value in MediaAutoDownload.values)
+                  SettingsChoice(value: value, label: value.label),
+              ],
+              sheetFootnote:
+                  'Whether images load as you scroll or wait for a tap.',
+              onChanged: (next) => ref
+                  .read(mediaAutoDownloadControllerProvider.notifier)
+                  .select(next),
+            ),
+            SettingsSelectRow<GifAutoplay>(
+              label: 'Autoplay GIFs',
+              sheetTitle: 'Autoplay GIFs',
+              value: ref.watch(gifAutoplayControllerProvider),
+              choices: [
+                for (final value in GifAutoplay.values)
+                  SettingsChoice(value: value, label: value.label),
+              ],
+              sheetFootnote: 'Whether gifs move on their own.',
+              onChanged: (next) =>
+                  ref.read(gifAutoplayControllerProvider.notifier).select(next),
+            ),
+            SettingsSelectRow<AttachmentPreviewQuality>(
+              label: 'Attachment preview quality',
+              sheetTitle: 'Attachment preview quality',
+              value: ref.watch(attachmentPreviewQualityControllerProvider),
+              choices: [
+                for (final quality in AttachmentPreviewQuality.values)
+                  SettingsChoice(value: quality, label: quality.label),
+              ],
+              sheetFootnote: 'How sharply attachments are drawn in messages.',
+              onChanged: (next) => ref
+                  .read(attachmentPreviewQualityControllerProvider.notifier)
+                  .select(next),
+            ),
           ],
-          sheetFootnote: 'Whether images load as you scroll or wait for a tap.',
-          onChanged: (next) => ref
-              .read(mediaAutoDownloadControllerProvider.notifier)
-              .select(next),
         ),
-        SettingsSelectRow<GifAutoplay>(
-          label: 'Autoplay GIFs',
-          sheetTitle: 'Autoplay GIFs',
-          value: ref.watch(gifAutoplayControllerProvider),
-          choices: [
-            for (final value in GifAutoplay.values)
-              SettingsChoice(value: value, label: value.label),
+        SettingsSectionCard(
+          flush: true,
+          title: 'Storage',
+          description: 'How much this device keeps around.',
+          children: [
+            SettingsSelectRow<int>(
+              label: 'Image cache',
+              sheetTitle: 'Image cache limit',
+              value: ref.watch(imageCacheLimitControllerProvider),
+              choices: [
+                for (final mb in imageCacheLimitChoicesMb)
+                  SettingsChoice(
+                    value: mb,
+                    label: mb == defaultImageCacheLimitMb
+                        ? '$mb MB (default)'
+                        : '$mb MB',
+                  ),
+              ],
+              description: 'How much memory recent images may use.',
+              onChanged: (next) => ref
+                  .read(imageCacheLimitControllerProvider.notifier)
+                  .select(next),
+            ),
           ],
-          sheetFootnote: 'Whether gifs move on their own.',
-          onChanged: (next) =>
-              ref.read(gifAutoplayControllerProvider.notifier).select(next),
-        ),
-        SettingsSelectRow<AttachmentPreviewQuality>(
-          label: 'Attachment preview quality',
-          sheetTitle: 'Attachment preview quality',
-          value: ref.watch(attachmentPreviewQualityControllerProvider),
-          choices: [
-            for (final quality in AttachmentPreviewQuality.values)
-              SettingsChoice(value: quality, label: quality.label),
-          ],
-          sheetFootnote: 'How sharply attachments are drawn in messages.',
-          onChanged: (next) => ref
-              .read(attachmentPreviewQualityControllerProvider.notifier)
-              .select(next),
-        ),
-        SettingsSelectRow<int>(
-          label: 'Image cache',
-          sheetTitle: 'Image cache limit',
-          value: ref.watch(imageCacheLimitControllerProvider),
-          choices: [
-            for (final mb in imageCacheLimitChoicesMb)
-              SettingsChoice(
-                value: mb,
-                label: mb == defaultImageCacheLimitMb
-                    ? '$mb MB (default)'
-                    : '$mb MB',
-              ),
-          ],
-          sheetFootnote: 'How much memory recent images may use.',
-          onChanged: (next) =>
-              ref.read(imageCacheLimitControllerProvider.notifier).select(next),
         ),
       ],
     );
