@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.author_id AS \"author_id!: UserId\"\n               FROM messages m JOIN users u ON u.id = m.author_id\n               WHERE m.id = ? AND u.deleted_at IS NULL AND u.is_webhook = 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "author_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8f0abf302b58266bf9ddc94f2e3af31638273a17347e2deaa51d5db69ca86260"
+}

@@ -237,6 +237,8 @@ pub struct SentMessage {
     pub seq: Seq,
     pub content: String,
     pub presence: PresenceTracker,
+    /// The replied-to author a reply chose to ping; pushed as a mention.
+    pub reply_ping: Option<UserId>,
 }
 
 #[cfg(test)]

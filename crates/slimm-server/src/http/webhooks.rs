@@ -203,6 +203,7 @@ async fn deliver(
                 context.principal_id,
                 sent.message.id,
                 &sent.message.content,
+                None,
             )
             .await,
         );
@@ -227,6 +228,7 @@ async fn deliver(
                 seq: sent.message.seq,
                 content: sent.message.content.clone(),
                 presence: state.hub.presence(),
+                reply_ping: None,
             },
         );
         super::threads::notify_reply(&state, channel_id).await;

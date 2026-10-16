@@ -80,6 +80,11 @@ struct SendRequest {
     /// same channel (live or soft-deleted); anything else is a 400.
     #[serde(default)]
     reply_to_id: Option<String>,
+    /// On a reply, whether to ping the replied-to author (Discord's "@ On"):
+    /// they are added to this message's mentions. Off by default, so a client
+    /// that never sends it keeps a reply silent.
+    #[serde(default)]
+    mention_reply: bool,
     /// The message this one forwards, if any. Unlike `reply_to_id` it may
     /// live in any channel the sender can see, and only its id is accepted:
     /// the server reads the original's author, timestamp and text for
@@ -184,6 +189,7 @@ async fn send(
         .as_deref()
         .map(|raw| parse_uuid(raw).map(MessageId))
         .transpose()?;
+    let mention_reply = req.mention_reply;
     // A retry must not re-authorize what already succeeded; the authoritative check still runs in the transaction.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
     // Never on a retry: see `enforce_slow_mode`'s own doc for why a second attempt at an id that already landed must not be refused.
@@ -247,6 +253,14 @@ async fn send(
         message_components::store_and_reload(&state, id, sent.fresh, &components).await,
     );
 
+    let reply_ping = match sent.message.reply_to_id.filter(|_| mention_reply) {
+        Some(parent) => after_commit(
+            "its reply ping",
+            super::message_mentions::reply_ping_target(&state, channel_id, ctx.user_id, parent)
+                .await,
+        ),
+        None => None,
+    };
     // Also on a retry, which repairs mentions its first attempt failed to store; resolving is idempotent.
     after_commit(
         "its mentions",
@@ -256,6 +270,7 @@ async fn send(
             ctx.user_id,
             sent.message.id,
             &sent.message.content,
+            reply_ping,
         )
         .await,
     );
@@ -288,6 +303,7 @@ async fn send(
                 seq: sent.message.seq,
                 content: sent.message.content.clone(),
                 presence: state.hub.presence(),
+                reply_ping,
             },
         );
         // A no-op for an ordinary channel; see `threads::notify_reply`.
@@ -480,6 +496,16 @@ async fn edit(
             op_seq,
             code_runs_cleared,
         } => {
+            // A reply's ping is not in its text, so an edit keeps it only if the send stored one.
+            let reply_ping = match message.reply_to_id {
+                Some(parent) => match state.store.reply_ping_candidate(parent).await? {
+                    Some(author) if state.store.is_mentioned(message.id, author).await? => {
+                        Some(author)
+                    }
+                    _ => None,
+                },
+                None => None,
+            };
             // Content changed, so the mention set may have too; see resolve_and_store's own doc for the author-vs-editor choice below.
             super::message_mentions::resolve_and_store(
                 &state,
@@ -487,6 +513,7 @@ async fn edit(
                 message.author_id.unwrap_or(ctx.user_id),
                 message.id,
                 &message.content,
+                reply_ping,
             )
             .await?;
 

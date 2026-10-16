@@ -94,6 +94,24 @@ impl Store {
     /// lookup, run once per connection a `message.created`/`message.edited`
     /// frame reaches, since the hub broadcast carries no per-viewer field for
     /// it to read instead (see `http::ws::authorization`).
+    /// The author of `message_id` when they could be pinged by a reply: a
+    /// live account that is not a webhook. `None` for a webhook, a deleted
+    /// account or an anonymized message.
+    pub async fn reply_ping_candidate(
+        &self,
+        message_id: MessageId,
+    ) -> anyhow::Result<Option<UserId>> {
+        let author = sqlx::query_scalar!(
+            r#"SELECT m.author_id AS "author_id!: UserId"
+               FROM messages m JOIN users u ON u.id = m.author_id
+               WHERE m.id = ? AND u.deleted_at IS NULL AND u.is_webhook = 0"#,
+            message_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(author)
+    }
+
     pub async fn is_mentioned(
         &self,
         message_id: MessageId,

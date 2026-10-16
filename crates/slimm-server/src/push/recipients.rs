@@ -72,7 +72,7 @@ pub async fn message_recipients(
     presence: &PresenceTracker,
 ) -> anyhow::Result<Vec<UserId>> {
     let (recipients, _mentioned) =
-        message_audience(store, channel_id, author_id, content, presence).await?;
+        message_audience(store, channel_id, author_id, content, presence, None).await?;
     Ok(recipients)
 }
 
@@ -84,6 +84,7 @@ pub(crate) async fn message_audience(
     author_id: UserId,
     content: &str,
     presence: &PresenceTracker,
+    reply_ping: Option<UserId>,
 ) -> anyhow::Result<(Vec<UserId>, HashSet<UserId>)> {
     // Push registrations first, permissions second; see the note above.
     let candidates = store.users_with_push_devices().await?;
@@ -93,8 +94,10 @@ pub(crate) async fn message_audience(
         .filter(|user_id| *user_id != author_id && !blockers.contains(user_id))
         .collect();
     let viewers = store.viewers_among(channel_id, &candidates).await?;
-    let mentioned =
+    let mut mentioned =
         resolved_mentions(store, channel_id, author_id, content, &viewers, presence).await?;
+    // A reply's ping was already checked against the channel at send; it still needs a device and no block.
+    mentioned.extend(reply_ping.filter(|pinged| viewers.contains(pinged)));
     // Resolved once: both steps below ask the same "is this a thread, and whose" question.
     let parent = store.thread_parent(channel_id).await?;
     let viewers =

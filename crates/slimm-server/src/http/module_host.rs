@@ -264,6 +264,7 @@ impl ChannelPoster {
             self.user_id,
             id,
             &message.content,
+            None,
         )
         .await
         {
@@ -291,6 +292,7 @@ impl ChannelPoster {
                 seq: message.seq,
                 content: message.content.clone(),
                 presence: state.hub.presence(),
+                reply_ping: None,
             },
         );
         super::threads::notify_reply(state, message.channel_id).await;

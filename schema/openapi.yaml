@@ -13694,6 +13694,13 @@ components:
           description: >-
             The message this one replies to. Must already exist (live or
             soft-deleted) in this same channel, or the send is a 400.
+        mention_reply:
+          type: boolean
+          description: >-
+            On a reply, ping the replied-to author: they are added to this
+            message's mentions (mentions_me, an unread mention and a mention
+            push), unless they are the sender, a webhook, or cannot see the
+            channel. Defaults to false. An edit keeps the ping.
         forwarded_from_id:
           type: [string, "null"]
           format: uuid

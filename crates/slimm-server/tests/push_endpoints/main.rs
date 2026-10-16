@@ -18,5 +18,6 @@ mod call_signals;
 mod delivery;
 mod harness;
 mod missed_call;
+mod reply_ping;
 #[path = "../support/mod.rs"]
 mod support;
