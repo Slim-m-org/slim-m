@@ -14,7 +14,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -45,6 +45,7 @@ import 'screen_share_view.dart';
 import 'voice_disconnect_reason.dart';
 import 'video_publish_options.dart';
 import 'video_quality.dart';
+import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
@@ -52,6 +53,7 @@ import 'voice_roster_snapshot.dart';
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_listener_audio.dart';
+part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
 part 'voice_session_video.dart';
@@ -115,6 +117,11 @@ class VoiceSession
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
   late final VideoSubscriptionCuller _videoCuller;
+
+  /// See [videoHealth]; fed by [callStats] while any remote video is subscribed.
+  late final _stallWatchdog = VideoStallWatchdog(recover: _recoverStalledVideo);
+  StreamSubscription<CallStatsSnapshot>? _stallStats;
+  final _activeVideoKeys = <String>{};
 
   /// Per-track video stats, sampled only while something is listening.
   late final callStats = CallStatsSampler(
@@ -399,6 +406,12 @@ class VoiceSession
   /// exact counterpart: a plain [Widget] backed by [CameraView], working for
   /// the local participant exactly as it works for anyone else, which is
   /// what makes a self camera preview possible.
+  /// Per tile key (`<kind>:<identity>`), what each remote video's tile should
+  /// say beyond its picture: paused by the server, stalled and recovering, or
+  /// stopped. A tile missing from the map is playing normally.
+  ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
+      _stallWatchdog.health;
+
   Widget cameraViewFor(String identity) {
     final room = _room;
     if (room == null) return const SizedBox.shrink();
@@ -472,6 +485,8 @@ class VoiceSession
     if (_disposed) return;
     _disposed = true;
     _videoCuller.dispose();
+    await _stallStats?.cancel();
+    _stallWatchdog.dispose();
     await callStats.dispose();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
