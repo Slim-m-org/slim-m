@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"n!: i64\" FROM channels c\n               JOIN messages pm ON pm.id = c.parent_message_id\n               WHERE pm.channel_id = ? AND c.deleted_at IS NULL AND pm.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "n!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ec23e43bc36130aa4038e53bfe0e891ed90f588a4cee664ade4088b235ea86a7"
+}

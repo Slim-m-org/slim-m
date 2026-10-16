@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"n!: i64\" FROM saved_messages s\n               JOIN messages m ON m.id = s.message_id AND m.deleted_at IS NULL\n               WHERE s.user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "n!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cd7ad7107e124f01195960b2531653a8f58aae5810cd465a210acdd61c3aecc0"
+}
