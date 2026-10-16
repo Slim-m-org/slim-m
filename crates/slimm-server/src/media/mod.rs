@@ -88,17 +88,16 @@ pub fn sanitize_filename(name: &str) -> String {
 }
 
 /// The filename people see: their own text, Unicode included, minus what could
-/// break a header or mislead the eye - control characters, quotes,
-/// backslashes, path separators and bidirectional overrides that would make
-/// `cod.exe` read as `exe.doc`. [`sanitize_filename`] still derives the
+/// break a header or mislead the eye - quotes, backslashes, path separators,
+/// and every hidden character `hidden_chars` refuses elsewhere, bidi marks
+/// that would make `cod.exe` read as `exe.doc` among them. [`sanitize_filename`] still derives the
 /// ASCII fallback for the header from it.
 pub fn sanitize_display_filename(name: &str) -> String {
     let cleaned: String = name
         .chars()
         .map(|c| {
-            let unsafe_char = c.is_control()
-                || matches!(c, '"' | '\\' | '/')
-                || matches!(c, '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}');
+            let unsafe_char =
+                crate::hidden_chars::is_hidden_char(c) || matches!(c, '"' | '\\' | '/');
             if unsafe_char { '_' } else { c }
         })
         .take(FILENAME_MAX_CHARS)
