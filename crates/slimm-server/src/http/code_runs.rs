@@ -162,7 +162,7 @@ async fn run(
         module_id: req.module_id,
         command: req.command,
         ok,
-        output: stored.clone(),
+        output: stored.as_str().into(),
         ran_by: Some(ctx.user_id),
         ran_at,
     });

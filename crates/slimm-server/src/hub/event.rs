@@ -70,14 +70,14 @@ pub enum Event {
     /// a different sequence from the message's own `seq`, which an edit does
     /// not move; the two sit adjacent in one frame.
     MessageEdited {
-        message: Message,
+        message: Arc<Message>,
         op_seq: i64,
         /// Present when the edited message forwards something. An edit
         /// changes the note, never what was forwarded, so this repeats the
         /// origin rather than implying it went: a receiver applying the
         /// frame writes what it is given, and a frame that omitted this
         /// would read as "no longer a forward".
-        forwarded: Option<ForwardSummary>,
+        forwarded: Option<Arc<ForwardSummary>>,
     },
     /// A poll's votes changed. Carries the whole per-option tally rather than
     /// a delta, so a client that missed a frame cannot drift, exactly like
@@ -149,7 +149,7 @@ pub enum Event {
     ReactionsChanged {
         channel_id: ChannelId,
         message_id: MessageId,
-        reactors: Vec<(String, Vec<(UserId, i64)>)>,
+        reactors: Arc<Vec<(String, Vec<(UserId, i64)>)>>,
     },
     /// A fenced code block was run and its shared output changed. Carries the
     /// whole current result (the [`Event::ThreadUpdated`] shape), overwriting
@@ -164,7 +164,7 @@ pub enum Event {
         module_id: String,
         command: String,
         ok: bool,
-        output: String,
+        output: Arc<str>,
         ran_by: Option<UserId>,
         ran_at: i64,
     },
@@ -371,7 +371,7 @@ pub enum Event {
         /// channel a moment ago, and the frame carries only the channel id.
         /// Bounded by the targeted role's membership, or by one for a member
         /// overwrite.
-        previously_visible_to: Vec<UserId>,
+        previously_visible_to: Arc<Vec<UserId>>,
     },
     /// Someone's presence on a channel's voice call changed: a first
     /// heartbeat for a `(user, channel)` pair (a join), a clean hangup's
@@ -561,7 +561,7 @@ pub enum Event {
         channel_id: ChannelId,
         user_id: UserId,
         object_id: CanvasObjectId,
-        points: Vec<f64>,
+        points: Arc<Vec<f64>>,
         ended: bool,
     },
     /// A placed object was repositioned.

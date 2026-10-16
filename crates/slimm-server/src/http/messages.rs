@@ -489,9 +489,9 @@ async fn edit(
             .await?;
 
             state.hub.publish(Event::MessageEdited {
-                message: message.clone(),
+                message: Arc::new(message.clone()),
                 op_seq,
-                forwarded: forwarded.clone(),
+                forwarded: forwarded.clone().map(Arc::new),
             });
             // A bare MessageEdited frame cannot shrink a client's cached runs (message_extras.dart), so this is the only signal that does.
             if code_runs_cleared {

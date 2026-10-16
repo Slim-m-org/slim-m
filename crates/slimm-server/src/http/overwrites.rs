@@ -24,6 +24,8 @@
 //! half-applied. Same checks as [`set`], run per entry before any of them
 //! write.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
@@ -246,7 +248,7 @@ async fn set(
     }
     state.hub.publish(Event::OverwriteChanged {
         channel_id,
-        previously_visible_to,
+        previously_visible_to: Arc::new(previously_visible_to),
     });
     Ok(StatusCode::NO_CONTENT)
 }
@@ -354,7 +356,7 @@ async fn batch_set(
         .await?;
     state.hub.publish(Event::OverwriteChanged {
         channel_id,
-        previously_visible_to: previously_visible_to_all,
+        previously_visible_to: Arc::new(previously_visible_to_all),
     });
 
     let overwrites = state
@@ -424,7 +426,7 @@ async fn clear(
     }
     state.hub.publish(Event::OverwriteChanged {
         channel_id,
-        previously_visible_to,
+        previously_visible_to: Arc::new(previously_visible_to),
     });
     Ok(StatusCode::NO_CONTENT)
 }
