@@ -105,7 +105,11 @@ async fn get_invite_banner(
     Path(code): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    match state.store.check_invite(&code).await? {
+    match state
+        .store
+        .check_invite(&super::invites::invite_code_key(&code))
+        .await?
+    {
         InviteCheck::Usable(_) => banner_response(&state).await,
         InviteCheck::Unusable => Err(ApiError::NotFound("no banner")),
     }
