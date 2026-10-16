@@ -31,6 +31,7 @@ const List<(String?, String)> _panes = [
   ('You', 'Voice & screen share'),
   ('Safety', 'Blocked'),
   ('Safety', 'Report status'),
+  ('App', 'General'),
   ('App', 'About slim-m'),
 ];
 

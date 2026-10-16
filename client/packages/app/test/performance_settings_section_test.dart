@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The performance pane carries both memory dials - attachment preview quality
 /// and the image-cache cap - each stating its current value with the default
-/// marked. The desktop startup-splash row is covered on its
-/// own in `desktop_splash_settings_row_test.dart`, the same "a new preference
-/// gets its own file" shape `voice_settings_push_to_talk_test.dart` already
-/// uses; this file only asserts they are present at all.
+/// marked, and none of the app-behaviour rows that moved to General.
 library;
 
 import 'package:flutter/material.dart';
@@ -30,14 +27,14 @@ void main() {
     expect(find.text('Autoplay GIFs'), findsOneWidget);
     expect(find.text('Attachment preview quality'), findsOneWidget);
     expect(find.text('Image cache'), findsOneWidget);
-    expect(find.text('Message page size'), findsOneWidget);
     // Each row states its current value, and every current is the default.
     expect(find.text('Always (default)'), findsOneWidget);
     expect(find.text('On hover or tap (default)'), findsOneWidget);
     expect(find.text('Sharp (default)'), findsOneWidget);
     expect(find.text('100 MB (default)'), findsOneWidget);
-    expect(find.text('Standard (50, default)'), findsOneWidget);
-    // Desktop-only (isDesktopHost gate); one row now - Disabled replaced the toggle.
-    expect(find.text('Startup splash'), findsOneWidget);
+    // App behaviour lives on the General pane, not here.
+    expect(find.text('Message page size'), findsNothing);
+    expect(find.text('Startup splash'), findsNothing);
+    expect(find.text('Start on login'), findsNothing);
   });
 }

@@ -55,6 +55,7 @@ import '../widgets/activity_sharing_section.dart';
 import '../widgets/app_info_section.dart';
 import '../widgets/app_lock_section.dart';
 import '../widgets/appearance_settings_section.dart';
+import '../widgets/general_settings_section.dart';
 import '../widgets/performance_settings_section.dart';
 import '../widgets/avatar_settings_section.dart';
 import '../widgets/personal_account_sections.dart';
@@ -168,6 +169,12 @@ class PersonalSettingsScreen extends StatelessWidget {
         SettingsPaneGroup(
           label: 'App',
           panes: [
+            SettingsPane(
+              id: 'general',
+              label: ActionLabels.general,
+              icon: AppIcons.settings,
+              builder: (context) => const GeneralSettingsSection(),
+            ),
             SettingsPane(
               id: 'troubleshooting',
               label: 'Troubleshooting',
