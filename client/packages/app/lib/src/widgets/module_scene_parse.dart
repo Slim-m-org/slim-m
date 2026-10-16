@@ -21,6 +21,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'module_scene.dart';
+import 'module_scene_bounds.dart';
 import 'module_scene_path.dart';
 import 'module_scene_sweep.dart';
 
@@ -59,7 +60,7 @@ ModuleScene? parseModuleScene(String raw) {
     _double(decoded['width'], 100),
     _double(decoded['height'], 100),
   );
-  return ModuleScene(
+  final scene = ModuleScene(
     width: width,
     height: height,
     ops: ops,
@@ -68,6 +69,17 @@ ModuleScene? parseModuleScene(String raw) {
     controls: _stringList(decoded['controls']),
     status: _string(decoded['status']),
     live: decoded['live'] == true,
+  );
+  return ModuleScene(
+    width: scene.width,
+    height: scene.height,
+    ops: scene.ops,
+    background: scene.background,
+    state: scene.state,
+    controls: scene.controls,
+    status: scene.status,
+    live: scene.live,
+    crop: sceneContentBounds(scene),
   );
 }
 

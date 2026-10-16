@@ -69,13 +69,13 @@ void main() {
     final board = _board(tester);
     expect(
       board.width,
-      lessThanOrEqualTo(ModuleSceneFrame.maxInlineEdge),
+      lessThanOrEqualTo(ModuleSceneFrame.maxWideInlineEdge),
       reason: 'a compact inline widget, not a billboard',
     );
     expect(
       board.width,
-      ModuleSceneFrame.maxInlineEdge,
-      reason: 'the inline edge is the tighter bound for three rows',
+      3 * ModuleSceneFrame.maxCellSize,
+      reason: 'the per-cell bound is the tighter one for three rows',
     );
     expect(
       board.width,
@@ -94,7 +94,7 @@ void main() {
     final board = _board(tester);
     expect(
       board.height,
-      closeTo(ModuleSceneFrame.maxInlineEdge, 1.5),
+      closeTo(ModuleSceneFrame.maxWideInlineEdge, 1.5),
       reason: 'a big grid is bounded inline too; full screen is where it grows',
     );
   });
@@ -109,7 +109,7 @@ void main() {
     final board = _board(tester);
     expect(board.width / board.height, closeTo(2, 0.01));
     // Within the hairline: the border rounds the inner box by a pixel.
-    expect(board.height, closeTo(ModuleSceneFrame.maxInlineEdge, 1.5));
+    expect(board.height, closeTo(3 * ModuleSceneFrame.maxCellSize, 1.5));
   });
 
   testWidgets('a short window keeps a usable board', (tester) async {

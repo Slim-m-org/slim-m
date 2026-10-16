@@ -80,48 +80,52 @@ class _AppSurfaceViewState extends ConsumerState<AppSurfaceView> {
       });
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.s8),
-      decoration: BoxDecoration(
-        color: tokens.surfaceSunken,
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                AppIcons.dock,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.s4),
-              Text(
-                widget.title,
-                style: AppText.micro.copyWith(color: tokens.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          if (sharedRun != null)
-            _output(_asResult(sharedRun))
-          else if (launch?.result case final answered?)
-            _output(answered)
-          else if (launch?.error case final error?)
-            AppErrorState(message: error, onRetry: () => _launch(retry: true))
-          else
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
-              child: SizedBox(
-                width: AppSizes.icon20,
-                height: AppSizes.icon20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+    // Hugs its content: a game is as wide as its board plus the padding, not the message.
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.s8),
+        decoration: BoxDecoration(
+          color: tokens.surfaceSunken,
+          border: Border.all(color: tokens.borderSubtle),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  AppIcons.dock,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.s4),
+                Text(
+                  widget.title,
+                  style: AppText.micro.copyWith(color: tokens.textSecondary),
+                ),
+              ],
             ),
-        ],
+            const SizedBox(height: AppSpacing.s8),
+            if (sharedRun != null)
+              _output(_asResult(sharedRun))
+            else if (launch?.result case final answered?)
+              _output(answered)
+            else if (launch?.error case final error?)
+              AppErrorState(message: error, onRetry: () => _launch(retry: true))
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+                child: SizedBox(
+                  width: AppSizes.icon20,
+                  height: AppSizes.icon20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

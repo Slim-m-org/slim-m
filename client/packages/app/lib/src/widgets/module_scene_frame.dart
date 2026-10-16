@@ -26,7 +26,12 @@ class ModuleSceneFrame extends StatelessWidget {
     required this.child,
     this.sceneHeight = 0,
     this.fillAvailable = false,
+    this.cardWidth,
   });
+
+  /// The room the card around this frame was offered, when the frame is already
+  /// narrowed to its own size and would otherwise read that as the card's.
+  final double? cardWidth;
 
   /// Width over height of the scene's own coordinate space; anything at or
   /// below zero is treated as square.
@@ -69,6 +74,14 @@ class ModuleSceneFrame extends StatelessWidget {
   /// 1818x1071 desktop. This is the bound that holds for every scene.
   static const maxInlineEdge = 360.0;
 
+  /// Card widths at or below which phones' edge applies, and from which the wide one does.
+  static const narrowUpTo = 480.0;
+  static const wideFrom = 760.0;
+
+  /// The inline edge on a wide card: 520 is the largest that still leaves a
+  /// message's text and a second board visible in a 1080p window.
+  static const maxWideInlineEdge = 520.0;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -106,20 +119,21 @@ class ModuleSceneFrame extends StatelessWidget {
         },
       );
     }
-    final windowBound = MediaQuery.sizeOf(context).height * viewportShare;
-    final cellBound = sceneHeight > 0
-        ? sceneHeight * maxCellSize
-        : double.infinity;
-    final maxHeight = math.max(
-      minHeight,
-      math.min(math.min(windowBound, cellBound), maxInlineEdge),
-    );
+    final windowHeight = MediaQuery.sizeOf(context).height;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final widthForHeight = maxHeight * ratio;
-        final width = constraints.hasBoundedWidth
-            ? math.min(constraints.maxWidth, widthForHeight)
-            : widthForHeight;
+        final offered = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : null;
+        final width = inlineWidth(
+          maxWidth: cardWidth == null || offered == null
+              ? offered
+              : math.min(offered, cardWidth!),
+          edgeWidth: cardWidth ?? offered,
+          windowHeight: windowHeight,
+          aspect: ratio,
+          sceneHeight: sceneHeight,
+        );
         return Align(
           alignment: Alignment.centerLeft,
           child: SizedBox(
@@ -136,5 +150,44 @@ class ModuleSceneFrame extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// The longest edge an inline board may have in a card [availableWidth] wide.
+  ///
+  /// Phones and narrow panes keep [maxInlineEdge]; from [wideFrom] up the
+  /// bound grows to [maxWideInlineEdge], so a game in a desktop-width card is
+  /// not a small square adrift. Chosen by width alone, never by platform.
+  static double inlineEdge(double? availableWidth) {
+    if (availableWidth == null) return maxInlineEdge;
+    final t = ((availableWidth - narrowUpTo) / (wideFrom - narrowUpTo)).clamp(
+      0.0,
+      1.0,
+    );
+    return maxInlineEdge + (maxWideInlineEdge - maxInlineEdge) * t;
+  }
+
+  /// The width an inline scene frame takes, so the card around it can hug it.
+  static double inlineWidth({
+    required double? maxWidth,
+    double? edgeWidth,
+    required double windowHeight,
+    required double aspect,
+    required double sceneHeight,
+  }) {
+    final ratio = aspect <= 0 ? 1.0 : aspect;
+    final cellBound = sceneHeight > 0
+        ? sceneHeight * maxCellSize
+        : double.infinity;
+    final maxHeight = math.max(
+      minHeight,
+      math.min(
+        math.min(windowHeight * viewportShare, cellBound),
+        inlineEdge(edgeWidth ?? maxWidth),
+      ),
+    );
+    final widthForHeight = maxHeight * ratio;
+    return maxWidth == null
+        ? widthForHeight
+        : math.min(maxWidth, widthForHeight);
   }
 }
