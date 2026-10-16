@@ -9,7 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../routing/routes.dart';
-import '../../widgets/settings_entity_row.dart';
+import '../../widgets/settings_detail_row.dart';
 import 'dock_install_consent.dart';
 
 class DockModuleRow extends StatelessWidget {
@@ -55,25 +55,6 @@ class DockModuleRow extends StatelessWidget {
       ? 'v${entry.version}'
       : 'Installed v${installed.version}, latest v${entry.version}';
 
-  /// Version then summary on one line, the version quiet and the summary
-  /// yielding; the longer "Installed v1, latest v2" gets a line of its own.
-  List<Widget> _detailLines(api.InstalledDockModule? installed) {
-    final version = SettingsEntityDetail(_versionLine(entry, installed));
-    final summary = SettingsEntityDetail(entry.summary);
-    if (installed != null && installed.version != entry.version) {
-      return [version, summary];
-    }
-    return [
-      Row(
-        children: [
-          version,
-          const SizedBox(width: AppSpacing.s8),
-          Flexible(child: summary),
-        ],
-      ),
-    ];
-  }
-
   /// The Verified mark, then the install state, beside the name.
   Widget? _badges(api.InstalledDockModule? installed, bool blocked) {
     final state = blocked
@@ -98,36 +79,26 @@ class DockModuleRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final installed = this.installed;
     final blocked = entry.shadowed;
-    return SettingsEntityRow(
-      // Accent leading when installed, so it reads as installed down the list at a glance, not only from its badge.
-      leading: Icon(
-        AppIcons.dock,
-        color: installed == null ? null : tokens.accent,
-      ),
-      headline: entry.name,
+    return SettingsDetailRow(
+      icon: AppIcons.dock,
+      title: entry.name,
       badge: _badges(installed, blocked),
-      details: [
-        ..._detailLines(installed),
-        if (blocked)
-          const SettingsEntityDetail(
-            'Another source already provides a module with this id, so it '
-            'cannot be installed from here.',
-            wrap: true,
-          ),
-      ],
+      meta: _versionLine(entry, installed),
+      detail: blocked
+          ? 'Another source already provides a module with this id, so it '
+                'cannot be installed from here.'
+          : entry.summary,
       onTap: blocked
           ? null
           : () =>
                 context.push(Routes.adminDockModule(entry.id, source: source)),
       onTapSemanticLabel: 'View ${entry.name}',
       // Decorative: the row itself is the control, so this points the way without being a second, smaller target.
-      actions: blocked
-          ? const []
-          : [
-              ExcludeSemantics(
-                child: Icon(AppIcons.chevronRight, color: tokens.textSecondary),
-              ),
-            ],
+      trailing: blocked
+          ? null
+          : ExcludeSemantics(
+              child: Icon(AppIcons.chevronRight, color: tokens.textSecondary),
+            ),
     );
   }
 }

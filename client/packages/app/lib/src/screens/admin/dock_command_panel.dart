@@ -34,10 +34,14 @@ class DockCommandPanel extends ConsumerStatefulWidget {
     super.key,
     required this.moduleId,
     required this.extensionPoint,
+    this.bare = false,
   });
 
   final String moduleId;
   final api.DockExtensionPoint extensionPoint;
+
+  /// Just the body, for a row of a card the caller already draws.
+  final bool bare;
 
   @override
   ConsumerState<DockCommandPanel> createState() => _DockCommandPanelState();
@@ -81,22 +85,30 @@ class _DockCommandPanelState extends ConsumerState<DockCommandPanel>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.bare
+      ? _body(context)
+      : SettingsSectionCard(
+          flush: true,
+          title: widget.extensionPoint.name,
+          children: [_body(context)],
+        );
+
+  /// The input, Run button and result, for a card of its own or an open row.
+  Widget _body(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final description = widget.extensionPoint.description;
     final result = _result;
-    return SettingsSectionCard(
-      title: widget.extensionPoint.name,
+    return SettingsCardBlock(
+      gap: AppSpacing.s8,
       children: [
-        if (description != null) ...[
+        if (description != null)
           Text(
             description,
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
-          const SizedBox(height: AppSpacing.s8),
-        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: AppSpacing.s8,
           children: [
             Expanded(
               child: AppInput(
@@ -106,7 +118,6 @@ class _DockCommandPanelState extends ConsumerState<DockCommandPanel>
                 onSubmitted: (_) => _run(),
               ),
             ),
-            const SizedBox(width: AppSpacing.s8),
             AppButton(
               label: _running ? 'Running...' : 'Run',
               disabled: _running,
@@ -114,18 +125,14 @@ class _DockCommandPanelState extends ConsumerState<DockCommandPanel>
             ),
           ],
         ),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
+        if (actionError != null)
           AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
-        if (result != null) ...[
-          const SizedBox(height: AppSpacing.s8),
+        if (result != null)
           ModuleCommandOutput(
             result: result,
             moduleId: widget.moduleId,
             command: widget.extensionPoint.name,
           ),
-        ],
       ],
     );
   }

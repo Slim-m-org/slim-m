@@ -56,18 +56,16 @@ class _DockCommandPanelGroupState extends State<DockCommandPanelGroup> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final ep in commands) ...[
-            const SizedBox(height: AppSpacing.s16),
+          for (final ep in commands)
             DockCommandPanel(moduleId: widget.moduleId, extensionPoint: ep),
-          ],
         ],
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsSectionCard(
+      flush: true,
+      title: 'Commands',
       children: [
         for (final (index, ep) in commands.indexed) ...[
-          const SizedBox(height: AppSpacing.s8),
           _CommandSummaryRow(
             extensionPoint: ep,
             expanded: index == _expanded,
@@ -75,10 +73,12 @@ class _DockCommandPanelGroupState extends State<DockCommandPanelGroup> {
               _expanded = index == _expanded ? null : index;
             }),
           ),
-          if (index == _expanded) ...[
-            const SizedBox(height: AppSpacing.s4),
-            DockCommandPanel(moduleId: widget.moduleId, extensionPoint: ep),
-          ],
+          if (index == _expanded)
+            DockCommandPanel(
+              moduleId: widget.moduleId,
+              extensionPoint: ep,
+              bare: true,
+            ),
         ],
       ],
     );
@@ -101,22 +101,18 @@ class _CommandSummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SettingsSectionCard(
-      children: [
-        AppListRow(
-          label: extensionPoint.name,
-          subtitle: extensionPoint.description,
-          trailing: Icon(
-            expanded ? AppIcons.chevronDown : AppIcons.chevronRight,
-            size: AppSizes.icon16,
-            color: tokens.textSecondary,
-          ),
-          onTap: onTap,
-          semanticLabel: expanded
-              ? 'Collapse ${extensionPoint.name}'
-              : 'Expand ${extensionPoint.name}',
-        ),
-      ],
+    return AppListRow(
+      label: extensionPoint.name,
+      subtitle: extensionPoint.description,
+      trailing: Icon(
+        expanded ? AppIcons.chevronDown : AppIcons.chevronRight,
+        size: AppSizes.icon16,
+        color: tokens.textSecondary,
+      ),
+      onTap: onTap,
+      semanticLabel: expanded
+          ? 'Collapse ${extensionPoint.name}'
+          : 'Expand ${extensionPoint.name}',
     );
   }
 }

@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../widgets/settings_card_note.dart';
+import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_host_access_card.dart';
 
@@ -23,49 +25,37 @@ class DockLimitsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final limits = manifest.runtime.limits;
     final asksForAccess = grantableHostCapabilities(
       manifest.capabilities,
     ).isNotEmpty;
     return SettingsSectionCard(
+      flush: true,
       title: 'Limits on every run',
       children: [
-        if (!asksForAccess)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              AppSpacing.s4,
-              AppSpacing.s8,
-              AppSpacing.s8,
-            ),
-            child: Text(
-              dockNoAccessNote,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ),
+        if (!asksForAccess) const SettingsCardNote(dockNoAccessNote),
         if (_ungranted(manifest.capabilities) case final names
             when names.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              AppSpacing.s4,
-              AppSpacing.s8,
-              AppSpacing.s8,
-            ),
-            child: Wrap(
-              spacing: AppSpacing.s8,
-              runSpacing: AppSpacing.s4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                for (final name in names)
-                  AppBadge(variant: AppBadgeVariant.tag, label: name),
-                Text(
-                  'Named by the module, but this server grants nothing for it.',
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+          SettingsCardBlock(
+            gap: AppSpacing.s8,
+            children: [
+              Wrap(
+                spacing: AppSpacing.s8,
+                runSpacing: AppSpacing.s4,
+                children: [
+                  for (final name in names)
+                    AppBadge(variant: AppBadgeVariant.tag, label: name),
+                ],
+              ),
+              Text(
+                'Named by the module, but this server grants nothing for it.',
+                style: AppText.caption.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).extension<AppTokens>()!.textSecondary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         _LimitRow('Memory', _describe(limits.memoryMb, (mb) => '$mb MB')),
         _LimitRow('Time', _describe(limits.wallMs, _duration)),
@@ -128,31 +118,6 @@ class _LimitRow extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s8,
-        vertical: AppSpacing.s4,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: AppSpacing.s64,
-            child: Text(
-              label,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppText.caption.copyWith(color: tokens.textPrimary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      SettingsDetailRow(title: label, detail: value);
 }

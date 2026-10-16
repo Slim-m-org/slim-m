@@ -42,6 +42,12 @@ class SettingsDetailRow extends StatelessWidget {
     this.monoDetail = false,
     this.trailing,
     this.dimmed = false,
+    this.meta,
+    this.onTap,
+    this.onTapSemanticLabel,
+    this.error,
+    this.onErrorDismiss,
+    this.stackTrailingWhenNarrow = false,
   });
 
   final String title;
@@ -54,54 +60,133 @@ class SettingsDetailRow extends StatelessWidget {
   final Widget? trailing;
   final bool dimmed;
 
+  /// A mono lead-in on the detail line (a version, an id), before [detail].
+  final String? meta;
+
+  /// Makes the whole row a button, e.g. into the thing it names.
+  final VoidCallback? onTap;
+  final String? onTapSemanticLabel;
+
+  /// A failed action on this row, shown persistently under it.
+  final String? error;
+  final VoidCallback? onErrorDismiss;
+
+  /// Drops a wide [trailing] (several buttons) under the text on a narrow card.
+  final bool stackTrailingWhenNarrow;
+
+  static const _stackBelow = 520.0;
+
+  Widget? _detailLine(AppTokens tokens) {
+    final style = AppText.caption.copyWith(
+      color: tokens.textSecondary,
+      fontFamily: monoDetail ? AppFonts.mono : null,
+    );
+    if (meta == null) {
+      return detail == null ? null : Text(detail!, style: style);
+    }
+    return Wrap(
+      spacing: AppSpacing.s8,
+      children: [
+        Text(meta!, style: style.copyWith(fontFamily: AppFonts.mono)),
+        if (detail != null) Text(detail!, style: style),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final metrics = SettingsRowMetrics.of(context);
-    final detailStyle = AppText.caption.copyWith(
-      color: tokens.textSecondary,
-      fontFamily: monoDetail ? AppFonts.mono : null,
+    final detailLine = _detailLine(tokens);
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      spacing: 2,
+      children: [
+        Row(
+          spacing: AppSpacing.s8,
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.ui.copyWith(color: tokens.textPrimary),
+              ),
+            ),
+            ?badge,
+          ],
+        ),
+        ?detailLine,
+      ],
     );
-    final row = ConstrainedBox(
+    Widget row = ConstrainedBox(
       constraints: BoxConstraints(minHeight: metrics.minHeight),
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: metrics.inset,
           vertical: metrics.vertical + 2,
         ),
-        child: Row(
-          spacing: 14,
-          children: [
-            if (icon != null) SettingsIconTile(icon!),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                spacing: 2,
-                children: [
-                  Row(
-                    spacing: AppSpacing.s8,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          title,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.ui.copyWith(color: tokens.textPrimary),
-                        ),
-                      ),
-                      ?badge,
-                    ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked =
+                stackTrailingWhenNarrow &&
+                trailing != null &&
+                constraints.maxWidth < _stackBelow;
+            final lead = Row(
+              spacing: 14,
+              children: [
+                if (icon != null) SettingsIconTile(icon!),
+                Expanded(child: text),
+                if (!stacked) ?trailing,
+              ],
+            );
+            if (!stacked) return lead;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              spacing: AppSpacing.s8,
+              children: [
+                lead,
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: icon != null ? AppSizes.icon32 + 14 : 0,
                   ),
-                  if (detail != null) Text(detail!, style: detailStyle),
-                ],
-              ),
-            ),
-            ?trailing,
-          ],
+                  child: trailing,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
-    return dimmed ? Opacity(opacity: 0.6, child: row) : row;
+    if (onTap != null) {
+      row = Semantics(
+        button: true,
+        label: onTapSemanticLabel ?? title,
+        child: InkWell(
+          onTap: onTap,
+          child: ExcludeSemantics(child: row),
+        ),
+      );
+    }
+    if (dimmed) row = Opacity(opacity: 0.6, child: row);
+    if (error == null) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            metrics.inset,
+            0,
+            metrics.inset,
+            AppSpacing.s12,
+          ),
+          child: AppErrorState(message: error!, onDismiss: onErrorDismiss),
+        ),
+      ],
+    );
   }
 }
 

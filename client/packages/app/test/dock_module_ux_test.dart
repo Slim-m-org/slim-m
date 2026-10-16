@@ -19,6 +19,7 @@ import 'package:slimm_app/src/screens/admin/dock_limits_card.dart';
 import 'package:slimm_app/src/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/screens/admin/dock_screen.dart';
+import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -221,7 +222,7 @@ void main() {
       tester,
     ) async {
       await _pump(tester, width: width, installedVersion: '0.1.0');
-      final card = tester.getRect(find.byType(AppCard).first);
+      final card = tester.getRect(find.byType(SettingsSectionCard).first);
       final field = tester.getRect(find.byType(AppInput));
       // The 2px focus ring plus its 2px gutter are reserved outside the box.
       expect(field.left, card.left - 4);
