@@ -267,6 +267,12 @@ abstract final class AppIcons {
   /// Checks for when something does not work, beside About in settings.
   static const IconData troubleshooting = LucideIcons.lifeBuoy300;
 
+  /// The device check row in troubleshooting.
+  static const IconData deviceCheck = LucideIcons.activity300;
+
+  /// The debug log row in troubleshooting.
+  static const IconData debugLog = LucideIcons.fileText300;
+
   /// A tile's own resize grip, drawn at its bottom-right corner.
   static const IconData tileResize = LucideIcons.moveDiagonal2300;
 

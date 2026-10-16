@@ -36,6 +36,7 @@ rm -f "$OUT/index.html" "$OUT/manifest.json"
 JOBS=(
   "screens|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_test.dart"
   "screens-settings|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_settings_test.dart"
+  "settings-troubleshooting|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_settings_trouble_test.dart"
   "bot-buttons|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_bot_buttons_test.dart"
   "bot-ui|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_bot_ui_test.dart"
   "call-dock|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_dock_test.dart"

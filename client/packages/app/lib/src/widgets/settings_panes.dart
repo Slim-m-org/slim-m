@@ -43,6 +43,7 @@ class SettingsPane {
     this.compactRoute,
     this.actions,
     this.wide = false,
+    this.headingBuilder,
   });
 
   /// Stable across rebuilds, so the selection survives a pane's own setState.
@@ -81,6 +82,10 @@ class SettingsPane {
   /// A grid or list that wants the wider cap; forms and prose keep the
   /// narrower [kContentColumnMax] so their lines stay readable.
   final bool wide;
+
+  /// Replaces the heading row beside the nav, for a pane that swaps to an inner page and names it itself (a breadcrumb).
+  final Widget Function(BuildContext context, VoidCallback? onClose)?
+  headingBuilder;
 }
 
 /// A run of panes, usually under a heading: `You`, `Safety`.
@@ -304,8 +309,9 @@ class _PaneBody extends StatelessWidget {
       ? _wideInset
       : pane.padding;
 
-  Widget get _heading =>
-      _PaneHeading(pane.label, actions: pane.actions, onClose: onClose);
+  Widget _heading(BuildContext context) =>
+      pane.headingBuilder?.call(context, onClose) ??
+      SettingsPaneHeading(pane.label, actions: pane.actions, onClose: onClose);
 
   final SettingsPane pane;
 
@@ -327,7 +333,7 @@ class _PaneBody extends StatelessWidget {
           ? ListView(
               padding: _padding,
               children: [
-                if (showHeading) _heading,
+                if (showHeading) _heading(context),
                 KeyedSubtree(
                   key: contentKey,
                   child: Builder(builder: pane.builder),
@@ -345,7 +351,7 @@ class _PaneBody extends StatelessWidget {
                     _padding.right,
                     0,
                   ),
-                  child: _heading,
+                  child: _heading(context),
                 ),
                 Expanded(
                   child: Padding(

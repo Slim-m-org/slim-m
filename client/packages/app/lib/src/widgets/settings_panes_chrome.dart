@@ -4,8 +4,13 @@ part of 'settings_panes.dart';
 /// A pane's heading row beside the nav: its name, any pane actions, and the
 /// close that the app bar used to carry (personal settings redesign,
 /// 2026-10-16).
-class _PaneHeading extends StatelessWidget {
-  const _PaneHeading(this.label, {this.actions, this.onClose});
+class SettingsPaneHeading extends StatelessWidget {
+  const SettingsPaneHeading(
+    this.label, {
+    super.key,
+    this.actions,
+    this.onClose,
+  });
 
   final String label;
   final List<Widget>? actions;
