@@ -198,10 +198,10 @@ impl Store {
             return Ok(Edited::Gone);
         };
         if existing.content == content {
-            tx.commit().await?;
-            let message = fetch_message(&self.pool, id)
+            let message = fetch_message(&mut *tx, id)
                 .await?
-                .context("a message read inside the transaction vanished after it")?;
+                .context("a message read inside the transaction vanished in it")?;
+            tx.commit().await?;
             return Ok(Edited::Unchanged(message));
         }
 
@@ -238,11 +238,11 @@ impl Store {
             now,
         )
         .await?;
-        tx.commit().await?;
-
-        let message = fetch_message(&self.pool, id)
+        // Read before commit: a delete racing in after it would turn a good edit into a 500.
+        let message = fetch_message(&mut *tx, id)
             .await?
-            .context("a message this transaction just edited vanished after it")?;
+            .context("a message this transaction just edited vanished in it")?;
+        tx.commit().await?;
         Ok(Edited::Edited {
             message,
             op_seq,
