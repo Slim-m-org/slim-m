@@ -114,6 +114,7 @@ extension SlimmApiAuth on SlimmApi {
     if (current == null) {
       throw const UnauthorizedException('not signed in');
     }
+    final TokenPair tokens;
     try {
       final json = await _send(
         'POST',
@@ -121,22 +122,28 @@ extension SlimmApiAuth on SlimmApi {
         authenticated: false,
         body: {'refresh_token': current.refreshToken},
       );
-      final tokens = TokenPair.fromJson(json as Map<String, dynamic>);
-      session.set(tokens);
-      // Bounded: a wedged key store must cost one slow rotation, never every later request.
-      var persisted = true;
-      await session.settled.timeout(
-        _persistDeadline,
-        onTimeout: () => persisted = false,
-      );
-      session.noteRotation(persisted: persisted);
-      return tokens;
+      tokens = TokenPair.fromJson(json as Map<String, dynamic>);
     } on UnauthorizedException {
       // The refresh token is spent, revoked, or the session is gone; the only
-      // move left is a fresh sign-in.
-      session.clear(reason: session.describeRejection());
+      // move left is a fresh sign-in - unless the session already moved on.
+      if (identical(session.tokens, current)) {
+        session.clear(reason: session.describeRejection());
+      }
       rethrow;
     }
+    // Signed out, or signed in as someone else, while this was in flight: never put the old account back.
+    if (!identical(session.tokens, current)) {
+      throw const UnauthorizedException('signed out while refreshing');
+    }
+    session.set(tokens);
+    // Bounded: a wedged key store must cost one slow rotation, never every later request.
+    var persisted = true;
+    await session.settled.timeout(
+      _persistDeadline,
+      onTimeout: () => persisted = false,
+    );
+    session.noteRotation(persisted: persisted);
+    return tokens;
   }
 
   /// Mints a single-use ticket for opening a WebSocket.
