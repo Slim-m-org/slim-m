@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// One tri-state cell of the permissions grid. State is carried by fill and
-/// glyph together (solid accent check, tinted danger cross, plain outlined
-/// arrow), all from existing accent and danger roles, so it never rests on
-/// colour alone.
+/// glyph together (solid accent check, tinted danger cross, sunken arrow),
+/// all from existing accent and danger roles, so it never rests on colour
+/// alone. The shapes follow the segmented control: control radius, a sunken
+/// trough for the neutral state and a filled chip for the chosen one.
 library;
 
 import 'package:flutter/material.dart';
@@ -67,8 +68,8 @@ class CellChip extends StatelessWidget {
         AppIcons.restrictedChannel,
       ),
       CellState.inherit => (
-        tokens.surfaceRaised,
-        tokens.borderStrong,
+        tokens.surfaceSunken,
+        tokens.borderSubtle,
         tokens.textSecondary,
         AppIcons.shapeArrow,
       ),
@@ -99,7 +100,7 @@ class CellChip extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: tokens.textPrimary,
                     shape: BoxShape.circle,
-                    border: Border.all(color: tokens.surfaceBase, width: 1.5),
+                    border: Border.all(color: tokens.surfaceRaised, width: 1.5),
                   ),
                   child: const SizedBox(width: 9, height: 9),
                 ),
@@ -122,12 +123,12 @@ class CellChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         border: Border.all(color: border, width: 1.5),
-        borderRadius: BorderRadius.circular(AppRadii.card),
+        borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: lift,
-          borderRadius: BorderRadius.circular(AppRadii.card),
+          borderRadius: BorderRadius.circular(AppRadii.control),
         ),
         child: Icon(icon, size: 16, color: glyph),
       ),

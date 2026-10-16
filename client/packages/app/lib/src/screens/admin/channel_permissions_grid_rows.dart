@@ -181,7 +181,8 @@ class GroupHeaderRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppText.micro.copyWith(
                     color: hovered ? tokens.textPrimary : tokens.textSecondary,
-                    fontWeight: AppWeights.medium,
+                    fontFamily: AppFonts.mono,
+                    letterSpacing: AppText.micro.fontSize! * 0.06,
                   ),
                 ),
               ),
@@ -213,10 +214,7 @@ class GridLabelRow extends StatelessWidget {
             label,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppText.ui.copyWith(
-              color: tokens.textPrimary,
-              fontSize: 13.5,
-            ),
+            style: AppText.ui.copyWith(color: tokens.textPrimary),
           ),
         ),
       ),

@@ -13,6 +13,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'channel_permissions_grid.dart';
 import 'overwrite_target_picker_sheets.dart';
@@ -84,52 +86,36 @@ class _ChannelPermissionsPaneState
   Widget build(BuildContext context) {
     final channel = _channel;
     if (channel == null) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppListRow(
-              label: 'Choose a channel',
-              trailing: const Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
-              ),
-              onTap: _pickChannel,
-            ),
-          ],
-        ),
+      return SettingsSectionCard(
+        flush: true,
+        children: [
+          AppListRow(
+            label: 'Choose a channel',
+            trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
+            onTap: _pickChannel,
+          ),
+        ],
       );
     }
 
     final header = widget.lockChannel
         ? null
-        : Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              AppSpacing.s12,
-              AppSpacing.s16,
-              AppSpacing.s4,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
-                  size: AppSizes.icon16,
-                ),
-                const SizedBox(width: AppSpacing.s8),
-                Expanded(
-                  child: Text(
-                    '${channel.name} · Permissions',
-                    style: AppText.heading,
-                  ),
-                ),
-                TextButton(
+        : SettingsSectionCard(
+            flush: true,
+            children: [
+              SettingsDetailRow(
+                icon: channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+                title: channel.name,
+                detail: 'Permission overwrites',
+                trailing: AppButton(
+                  label: 'Change',
+                  semanticLabel: 'Change channel',
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
                   onPressed: _pickChannel,
-                  child: const Text('Change'),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
     final grid = ChannelPermissionsGrid(
       key: ValueKey(channel.id),
@@ -141,7 +127,10 @@ class _ChannelPermissionsPaneState
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (header != null) header,
+          if (header != null) ...[
+            header,
+            const SizedBox(height: AppSpacing.s12),
+          ],
           constraints.hasBoundedHeight ? Expanded(child: grid) : grid,
         ],
       ),

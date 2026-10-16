@@ -51,9 +51,9 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            AppSpacing.s16,
-            AppSpacing.s16,
+            AppSpacing.s24,
+            AppSpacing.s20,
+            AppSpacing.s24,
             AppSpacing.s12,
           ),
           child: Row(
@@ -84,8 +84,8 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
           ),
           child: Padding(
-            // s16 and s20 less the focus ring's 4 per side, so the labels sit where they did.
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+            // The pane inset less the focus ring's 4 per side, so the labels line up with the cards below.
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s20),
             // Scrolls rather than wraps: three tab labels plus a live count may not fit a phone's width.
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,

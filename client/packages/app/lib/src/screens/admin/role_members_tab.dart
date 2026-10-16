@@ -16,6 +16,8 @@ import '../../providers/member_presence.dart' show membersProvider;
 import '../../providers/providers.dart';
 import '../../widgets/bot_avatar_placeholder.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_section_header.dart';
 import '../../widgets/user_avatar.dart';
 
 /// A group past this size collapses to this many rows plus a "+N more"
@@ -99,64 +101,73 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
         final people = holders.where((m) => !m.isBot).toList();
         final candidates = _candidates(list);
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            AppSpacing.s12,
-            AppSpacing.s16,
-            AppSpacing.s16,
-          ),
+        return Column(
           children: [
-            AppInput(
-              controller: _search,
-              placeholder: 'Search members to add',
-              icon: const Icon(AppIcons.search),
-              semanticLabel: 'Search members to add',
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) {
-                if (candidates.isNotEmpty) unawaited(_add(candidates.first));
-              },
-            ),
-            for (final candidate in candidates)
-              AppListRow(
-                leading: UserAvatar.known(
-                  name: candidate.displayName,
-                  userId: candidate.id,
-                  avatarUpdatedAt: candidate.avatarUpdatedAt,
-                  size: AppAvatarSize.s28,
-                  shape: candidate.isBot
-                      ? AppAvatarShape.square
-                      : AppAvatarShape.circle,
-                  placeholder: candidate.isBot
-                      ? botAvatarPlaceholder(context, candidate.displayName)
-                      : null,
-                ),
-                label: candidate.displayName,
-                meta: '@${candidate.username}',
-                trailing: const Text('⏎ add'),
-                onTap: () => unawaited(_add(candidate)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s24,
+                AppSpacing.s16,
+                AppSpacing.s24,
+                0,
               ),
-            if (actionError case final error?) ...[
-              const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: error, onDismiss: clearActionError),
-            ],
-            const SizedBox(height: AppSpacing.s16),
-            _HolderGroup(
-              title: 'Bots',
-              holders: bots,
-              expanded: _expandBots,
-              onExpand: () => setState(() => _expandBots = true),
-              onRemove: _remove,
+              child: AppInput(
+                controller: _search,
+                placeholder: 'Search members to add',
+                icon: const Icon(AppIcons.search),
+                semanticLabel: 'Search members to add',
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) {
+                  if (candidates.isNotEmpty) unawaited(_add(candidates.first));
+                },
+              ),
             ),
-            const SizedBox(height: AppSpacing.s12),
-            _HolderGroup(
-              title: 'People',
-              holders: people,
-              expanded: _expandPeople,
-              onExpand: () => setState(() => _expandPeople = true),
-              onRemove: _remove,
-              emptyMessage:
-                  'No people hold this role. Search above to add someone.',
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s24,
+                  0,
+                  AppSpacing.s24,
+                  40,
+                ),
+                children: [
+                  if (candidates.isNotEmpty)
+                    SettingsSectionCard(
+                      flush: true,
+                      title: 'Add to this role',
+                      children: [
+                        for (final candidate in candidates)
+                          AppListRow(
+                            leading: _avatar(context, candidate),
+                            label: candidate.displayName,
+                            meta: '@${candidate.username}',
+                            trailing: const Text('⏎ add'),
+                            onTap: () => unawaited(_add(candidate)),
+                          ),
+                      ],
+                    ),
+                  if (actionError case final error?) ...[
+                    const SizedBox(height: AppSpacing.s12),
+                    AppErrorState(message: error, onDismiss: clearActionError),
+                  ],
+                  if (bots.isNotEmpty)
+                    _HolderGroup(
+                      title: 'Bots',
+                      holders: bots,
+                      expanded: _expandBots,
+                      onExpand: () => setState(() => _expandBots = true),
+                      onRemove: _remove,
+                    ),
+                  _HolderGroup(
+                    title: 'People',
+                    holders: people,
+                    expanded: _expandPeople,
+                    onExpand: () => setState(() => _expandPeople = true),
+                    onRemove: _remove,
+                    emptyTitle: 'No people hold this role',
+                    emptyDetail: 'Search above to add someone.',
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -165,6 +176,18 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
   }
 }
 
+Widget _avatar(BuildContext context, api.UserProfile member) =>
+    UserAvatar.known(
+      name: member.displayName,
+      userId: member.id,
+      avatarUpdatedAt: member.avatarUpdatedAt,
+      size: AppAvatarSize.s28,
+      shape: member.isBot ? AppAvatarShape.square : AppAvatarShape.circle,
+      placeholder: member.isBot
+          ? botAvatarPlaceholder(context, member.displayName)
+          : null,
+    );
+
 class _HolderGroup extends StatelessWidget {
   const _HolderGroup({
     required this.title,
@@ -172,7 +195,8 @@ class _HolderGroup extends StatelessWidget {
     required this.expanded,
     required this.onExpand,
     required this.onRemove,
-    this.emptyMessage,
+    this.emptyTitle,
+    this.emptyDetail,
   });
 
   final String title;
@@ -180,11 +204,11 @@ class _HolderGroup extends StatelessWidget {
   final bool expanded;
   final VoidCallback onExpand;
   final ValueChanged<api.UserProfile> onRemove;
-  final String? emptyMessage;
+  final String? emptyTitle;
+  final String? emptyDetail;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final shown = expanded || holders.length <= _collapseAt
         ? holders
         : holders.take(_collapseAt).toList();
@@ -192,38 +216,21 @@ class _HolderGroup extends StatelessWidget {
     final summary =
         '+ ${hidden.length} more · ${hidden.map((h) => h.displayName).join(', ')}';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsSectionCard(
+      flush: true,
+      title: '$title · ${holders.length}',
       children: [
-        Text(
-          '${title.toUpperCase()} · ${holders.length}',
-          style: AppText.micro.copyWith(color: tokens.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        if (holders.isEmpty && emptyMessage != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-            child: Text(
-              emptyMessage!,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
+        if (holders.isEmpty && emptyTitle != null)
+          SettingsEmptyState(
+            icon: AppIcons.account,
+            title: emptyTitle!,
+            detail: emptyDetail,
           )
         else
           for (final holder in shown)
             AppListRow(
               key: ValueKey(holder.id),
-              leading: UserAvatar.known(
-                name: holder.displayName,
-                userId: holder.id,
-                avatarUpdatedAt: holder.avatarUpdatedAt,
-                size: AppAvatarSize.s28,
-                shape: holder.isBot
-                    ? AppAvatarShape.square
-                    : AppAvatarShape.circle,
-                placeholder: holder.isBot
-                    ? botAvatarPlaceholder(context, holder.displayName)
-                    : null,
-              ),
+              leading: _avatar(context, holder),
               label: holder.displayName,
               meta: '@${holder.username}',
               trailing: AppButton(
@@ -235,16 +242,12 @@ class _HolderGroup extends StatelessWidget {
               ),
             ),
         if (hidden.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-            child: FocusableTapTarget(
-              onTap: onExpand,
-              semanticLabel: summary,
-              builder: (context, focused, hovered) => Text(
-                summary,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-                overflow: TextOverflow.ellipsis,
-              ),
+          FocusableTapTarget(
+            onTap: onExpand,
+            semanticLabel: summary,
+            builder: (context, focused, hovered) => SettingsSubRow(
+              label: summary,
+              trailing: const Icon(AppIcons.chevronDown, size: AppSizes.icon16),
             ),
           ),
       ],
