@@ -107,9 +107,11 @@ class AudioDeviceSwitching {
   /// Null means the system default. Mid-call, that selects the platform's
   /// own default entry, and changes nothing live where it lists none: the
   /// first physical device is not the system default.
-  Future<void> selectInput(lk.Room? room, AudioDevice? device) async {
+  ///
+  /// True when the live capture was reopened on the new device.
+  Future<bool> selectInput(lk.Room? room, AudioDevice? device) async {
     _preferredInputId = device?.id;
-    if (room == null || !supportsInputSelection) return;
+    if (room == null || !supportsInputSelection) return false;
     final target = device ?? await _devices.systemDefaultInput();
     if (target == null) {
       // libwebrtc knows no default here; the sound server's own one is the system default.
@@ -117,13 +119,14 @@ class AudioDeviceSwitching {
       if (serverDefault != null) {
         await _pulse.moveOwnStreams(capture: true, deviceId: serverDefault);
       }
-      return;
+      return false;
     }
     if (isPulseDeviceId(target.id)) {
       await _pulse.moveOwnStreams(capture: true, deviceId: target.id);
-      return;
+      return false;
     }
     await _liveInput(room, _asMediaDevice(target, 'audioinput'));
+    return true;
   }
 
   /// Re-points this process's streams at the preferred sound server nodes;

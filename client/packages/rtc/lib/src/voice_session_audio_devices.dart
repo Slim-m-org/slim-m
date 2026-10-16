@@ -24,6 +24,8 @@ mixin VoiceSessionAudioDevices {
   lk.Room? get _room;
   set _lastError(Object? value);
   CaptureNoiseSuppression get _capture;
+  MicPort get _mic;
+  bool get supportsInputGate;
 
   final AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
     const HardwareAudioDevices(),
@@ -85,8 +87,22 @@ mixin VoiceSessionAudioDevices {
   /// next join either way; see [AudioDeviceSwitching.selectInput].
   Future<bool> selectAudioInputDevice(AudioDevice? device) =>
       _trySelectAudio(() async {
-        await _audioSwitching.selectInput(_room, device);
         _capture.deviceChanged();
+        // The reopen a switch does reuses the track's own options, not the room's.
+        if (supportsInputGate) {
+          _mic.adoptOptions(
+            _audioSwitching.captureOptions(
+              noiseSuppression: _capture.webrtcNoiseSuppression,
+            ),
+          );
+        }
+        final reopened = await _audioSwitching.selectInput(_room, device);
+        if (reopened && supportsInputGate && _mic.open) {
+          _capture.opened(
+            webrtcNoiseSuppression: _capture.webrtcNoiseSuppression,
+          );
+        }
+        _capture.retry();
       });
 
   /// [selectAudioInputDevice]'s counterpart for local playback.

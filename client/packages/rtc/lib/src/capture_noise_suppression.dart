@@ -8,13 +8,19 @@ import 'dart:async';
 
 import 'strong_inactivity.dart';
 
+/// Longest wait between restart attempts after a failure.
+const Duration kMaxRestartBackoff = Duration(seconds: 30);
+
+/// How long a wanted restart waits, so rapid toggles collapse into one.
+const Duration kCaptureRestartDebounce = Duration(seconds: 1);
+
 class CaptureNoiseSuppression {
   CaptureNoiseSuppression({
     required this.supported,
     required this.restart,
     required this.canRestart,
     required this.onNativeStrongChanged,
-    this.debounce = const Duration(seconds: 1),
+    this.debounce = kCaptureRestartDebounce,
   });
 
   /// Only hosts with the native input gate can run rnnoise at all.
@@ -35,6 +41,10 @@ class CaptureNoiseSuppression {
   bool _strong = false;
   bool _fallback = false;
   bool _captureOff = false;
+  bool _disposed = false;
+  bool _inFlight = false;
+  int _failures = 0;
+  int _generation = 0;
   Timer? _timer;
 
   /// What a track opened now should use.
@@ -43,6 +53,8 @@ class CaptureNoiseSuppression {
   /// Strong stays on natively until the open track has libwebrtc's back, so
   /// a switch to Standard never leaves the mic with nothing.
   bool get nativeStrong => _strong || _captureOff;
+
+  bool get _mismatch => webrtcNoiseSuppression == _captureOff;
 
   void setStrong(bool strong) {
     if (strong == _strong) return;
@@ -53,9 +65,19 @@ class CaptureNoiseSuppression {
   }
 
   /// The input device changed, so what its sample rate allowed is unknown.
-  void deviceChanged() {
+  /// Call [retry] once the switch has settled.
+  void deviceChanged() => _resetFallback();
+
+  /// A new call opens a new track; nothing about the last one carries over.
+  void reset() {
+    _generation++;
+    _timer?.cancel();
+    _timer = null;
+    _failures = 0;
     _resetFallback();
-    _schedule();
+    final wasOff = _captureOff;
+    _captureOff = false;
+    if (wasOff) onNativeStrongChanged();
   }
 
   /// A track was just opened with [webrtcNoiseSuppression].
@@ -80,7 +102,10 @@ class CaptureNoiseSuppression {
   /// Retries a restart that was waiting for the mic to open.
   void retry() => _schedule();
 
-  void dispose() => _timer?.cancel();
+  void dispose() {
+    _disposed = true;
+    _timer?.cancel();
+  }
 
   void _resetFallback() {
     _fallback = false;
@@ -88,9 +113,11 @@ class CaptureNoiseSuppression {
   }
 
   void _schedule() {
-    if (webrtcNoiseSuppression == !_captureOff) {
+    if (_disposed || _inFlight) return;
+    if (!_mismatch) {
       _timer?.cancel();
       _timer = null;
+      _failures = 0;
       return;
     }
     if (!canRestart()) return;
@@ -99,13 +126,34 @@ class CaptureNoiseSuppression {
 
   Future<void> _run() async {
     _timer = null;
+    if (_disposed || _inFlight || !_mismatch) return;
+    if (!canRestart()) {
+      if (_failures > 0) _rearm();
+      return;
+    }
     final want = webrtcNoiseSuppression;
-    if (want == !_captureOff || !canRestart()) return;
+    final generation = _generation;
+    _inFlight = true;
     try {
       await restart(webrtcNoiseSuppression: want);
+      if (_disposed || generation != _generation) return;
+      _failures = 0;
       opened(webrtcNoiseSuppression: want);
     } on Object {
-      // The old track keeps running, and nativeStrong still covers it.
+      if (generation == _generation) {
+        _failures++;
+        _rearm();
+      }
+    } finally {
+      _inFlight = false;
     }
+    if (generation == _generation) _schedule();
+  }
+
+  /// Backs off up to [kMaxRestartBackoff] so a room mid-reconnect is not hammered.
+  void _rearm() {
+    final scaled = debounce * (1 << _failures.clamp(0, 5));
+    final delay = scaled > kMaxRestartBackoff ? kMaxRestartBackoff : scaled;
+    _timer = Timer(delay, _run);
   }
 }

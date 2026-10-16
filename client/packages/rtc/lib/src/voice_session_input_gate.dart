@@ -8,7 +8,10 @@ const double _kAutoThresholdStepDb = 0.5;
 
 mixin VoiceSessionInputGate {
   lk.Room? get _room;
+  VoiceSessionState get _state;
   AudioDeviceSwitching get _audioSwitching;
+  late final MicPort _mic;
+  late final void Function() _afterRestart;
   late final InputGateMonitor _gate;
   late final CaptureNoiseSuppression _capture;
   StreamSubscription<InputGateReading>? _captureReadings;
@@ -21,35 +24,30 @@ mixin VoiceSessionInputGate {
 
   bool get supportsInputGate => _gate.supported;
 
-  void _initCapture() {
+  void _initCapture(
+    MicPort? mic,
+    Duration? debounce,
+    void Function() afterRestart,
+  ) {
+    _afterRestart = afterRestart;
+    _mic = mic ?? LiveKitMicPort(() => _room);
     _capture = CaptureNoiseSuppression(
       supported: _gate.supported,
       restart: _restartCapture,
-      canRestart: () => _micOpen && _gateEnabled,
+      canRestart: () =>
+          _state == VoiceSessionState.connected && _mic.open && _gateEnabled,
       onNativeStrongChanged: () => unawaited(_applyInputGate()),
+      debounce: debounce ?? kCaptureRestartDebounce,
     );
     _captureReadings = _gate.readings.listen(
       (r) =>
-          _capture.onReading(strongActive: r.strongActive, micOpen: _micOpen),
+          _capture.onReading(strongActive: r.strongActive, micOpen: _mic.open),
     );
   }
 
   Future<void> _disposeCapture() async {
     _capture.dispose();
     await _captureReadings?.cancel();
-  }
-
-  lk.LocalTrackPublication<lk.LocalAudioTrack>? get _micPublication {
-    final all = _room?.localParticipant?.audioTrackPublications;
-    for (final p in all ?? <lk.LocalTrackPublication<lk.LocalAudioTrack>>[]) {
-      if (p.source == lk.TrackSource.microphone) return p;
-    }
-    return null;
-  }
-
-  bool get _micOpen {
-    final pub = _micPublication;
-    return pub != null && !pub.muted;
   }
 
   /// Null leaves the room's defaults, which is all a host without the gate needs.
@@ -60,11 +58,10 @@ mixin VoiceSessionInputGate {
       : null;
 
   Future<void> _restartCapture({required bool webrtcNoiseSuppression}) async {
-    final track = _micPublication?.track;
-    if (track == null) return;
-    await track.restartTrack(
+    await _mic.restart(
       _audioSwitching.captureOptions(noiseSuppression: webrtcNoiseSuppression),
     );
+    _afterRestart();
   }
 
   /// Your microphone's level and voice state, while in a call.

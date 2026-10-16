@@ -30,6 +30,7 @@ export 'src/input_gate.dart'
         kInputFloorDb;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
+export 'src/mic_port.dart';
 export 'src/remote_video_publication.dart';
 export 'src/screen_share.dart';
 export 'src/screen_share_audio.dart';

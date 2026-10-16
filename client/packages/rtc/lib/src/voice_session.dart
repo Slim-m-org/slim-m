@@ -21,6 +21,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
 import 'capture_noise_suppression.dart';
+import 'mic_port.dart';
 import 'input_gate.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
@@ -70,6 +71,8 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
     DesktopSources? desktopSources,
     CameraDevices? cameraDevices,
     InputGateMonitor? inputGate,
+    MicPort? micPort,
+    Duration? captureRestartDebounce,
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching =
@@ -80,7 +83,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
-    _initCapture();
+    _initCapture(micPort, captureRestartDebounce, _followPreferredDevices);
     _screenShare = ScreenShareControl(_broadcast);
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
@@ -123,6 +126,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   final _participantsController =
       StreamController<List<VoiceParticipant>>.broadcast();
 
+  @override
   VoiceSessionState _state = VoiceSessionState.idle;
   List<VoiceParticipant> _participants = const [];
   Object? _lastError;
