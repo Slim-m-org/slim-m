@@ -68,6 +68,11 @@ pub struct MessageSearchFilters {
     /// Exclusive: `created_at < before_ms`, so a whole calendar day named by
     /// `before:` is excluded rather than half-included at its own midnight.
     pub before_ms: Option<i64>,
+    /// The page cursor for a search across channels: only messages ordered
+    /// after this one by `(created_at, seq, id)`, the result order. A
+    /// per-channel `seq` alone cannot page across channels, whose seqs are
+    /// unrelated.
+    pub before_id: Option<MessageId>,
 }
 
 impl Store {
@@ -197,7 +202,14 @@ impl Store {
             builder.push(" AND m.created_at < ");
             builder.push_bind(before_ms);
         }
-        builder.push(" ORDER BY m.created_at DESC, m.seq DESC LIMIT ");
+        if let Some(before_id) = filters.before_id {
+            builder.push(
+                " AND (m.created_at, m.seq, m.id) < (SELECT created_at, seq, id FROM messages WHERE id = ",
+            );
+            builder.push_bind(before_id);
+            builder.push(")");
+        }
+        builder.push(" ORDER BY m.created_at DESC, m.seq DESC, m.id DESC LIMIT ");
         builder.push_bind(limit);
 
         let rows = builder.build().fetch_all(&self.pool).await?;

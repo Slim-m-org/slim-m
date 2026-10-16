@@ -4792,6 +4792,15 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: before_id
+          in: query
+          description: >
+            The id of the last message on the previous page; returns only hits
+            after it in result order (newest first). Pages a search across
+            channels correctly, where `before`'s per-channel seq cannot.
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           description: Page size; the server clamps it.
@@ -4892,6 +4901,15 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: before_id
+          in: query
+          description: >
+            The id of the last message on the previous page; returns only hits
+            after it in result order (newest first). Pages a search across
+            channels correctly, where `before`'s per-channel seq cannot.
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           description: Page size; the server clamps it.

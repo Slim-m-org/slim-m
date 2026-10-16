@@ -53,7 +53,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, Query};
 use super::message_enrich::with_reactions;
 use super::messages::{MessageDto, parse_uuid};
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::store::{MessageSearchFilters, SearchError};
 
@@ -80,6 +80,9 @@ pub fn routes() -> Router<AppState> {
 struct SearchParams {
     q: Option<String>,
     before: Option<i64>,
+    /// The id of the last message on the previous page; see
+    /// [`crate::store::MessageSearchFilters::before_id`].
+    before_id: Option<String>,
     limit: Option<i64>,
     /// `from:username`, compared exactly - see
     /// [`crate::store::MessageSearchFilters::author_username`].
@@ -239,6 +242,11 @@ fn parse_request(
         has_link,
         after_ms,
         before_ms,
+        before_id: params
+            .before_id
+            .as_deref()
+            .map(|raw| parse_uuid(raw).map(MessageId))
+            .transpose()?,
     };
     Ok((query, filters, limit))
 }

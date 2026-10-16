@@ -16,6 +16,7 @@
 
 mod basic;
 mod cross_channel;
+mod cross_channel_paging;
 mod fixtures;
 mod operators_content;
 mod operators_identity;
