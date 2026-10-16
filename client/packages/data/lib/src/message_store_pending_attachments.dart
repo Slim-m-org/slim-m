@@ -5,10 +5,6 @@ part of 'message_store.dart';
 /// never collide with one, and rows written before spoilers read as plain.
 const _spoilerMark = '!';
 
-/// Stored beside the ids when a reply opted out of mentioning its author, so
-/// a retry honours the choice. Not hex, so it never collides with an id.
-const _noMentionMark = '@';
-
 /// Remembers the ids a queued send carries, or forgets them when it has none.
 Future<void> _savePendingAttachments(
   MessageStore store,
@@ -19,9 +15,8 @@ Future<void> _savePendingAttachments(
 }) async {
   ids = [
     for (final id in ids) spoilerIds.contains(id) ? '$_spoilerMark$id' : id,
-    if (!mentionReply) _noMentionMark,
   ];
-  if (ids.isEmpty) {
+  if (ids.isEmpty && mentionReply) {
     await _forgetPendingAttachments(store, messageId);
     return;
   }
@@ -29,6 +24,7 @@ Future<void> _savePendingAttachments(
         PendingAttachmentsCompanion.insert(
           messageId: messageId,
           attachmentIds: ids,
+          mentionReply: Value(mentionReply ? null : false),
         ),
       );
 }
@@ -44,8 +40,7 @@ Future<List<String>> _pendingAttachmentIds(
   if (row == null) return const [];
   return [
     for (final id in row.attachmentIds)
-      if (id != _noMentionMark &&
-          (!spoilersOnly || id.startsWith(_spoilerMark)))
+      if (!spoilersOnly || id.startsWith(_spoilerMark))
         id.startsWith(_spoilerMark) ? id.substring(1) : id,
   ];
 }
@@ -54,7 +49,7 @@ Future<bool> _pendingMentionReply(MessageStore store, String messageId) async {
   final row = await (store.db.select(store.db.pendingAttachments)
         ..where((p) => p.messageId.equals(messageId)))
       .getSingleOrNull();
-  return row == null || !row.attachmentIds.contains(_noMentionMark);
+  return row?.mentionReply ?? true;
 }
 
 Future<void> _forgetPendingAttachments(
