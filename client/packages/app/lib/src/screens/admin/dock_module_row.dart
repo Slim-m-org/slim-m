@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One module in the Dock's list, official or community. Split out of
+/// One module in the Modules list, official or community. Split out of
 /// `dock_screen.dart` so the community sections can reuse it.
 library;
 
@@ -55,16 +55,40 @@ class DockModuleRow extends StatelessWidget {
       ? 'v${entry.version}'
       : 'Installed v${installed.version}, latest v${entry.version}';
 
-  /// The version line, led by the Verified mark for the official source; it
-  /// lives here because the headline row has no room for a second badge.
-  Widget _versionDetail(api.InstalledDockModule? installed) {
-    final line = SettingsEntityDetail(_versionLine(entry, installed));
-    if (!dockIsVerified(source)) return line;
+  /// Version then summary on one line, the version quiet and the summary
+  /// yielding; the longer "Installed v1, latest v2" gets a line of its own.
+  List<Widget> _detailLines(api.InstalledDockModule? installed) {
+    final version = SettingsEntityDetail(_versionLine(entry, installed));
+    final summary = SettingsEntityDetail(entry.summary);
+    if (installed != null && installed.version != entry.version) {
+      return [version, summary];
+    }
+    return [
+      Row(
+        children: [
+          version,
+          const SizedBox(width: AppSpacing.s8),
+          Flexible(child: summary),
+        ],
+      ),
+    ];
+  }
+
+  /// The Verified mark, then the install state, beside the name.
+  Widget? _badges(api.InstalledDockModule? installed, bool blocked) {
+    final state = blocked
+        ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken')
+        : installed == null
+        ? null
+        : _stateBadge(entry, installed);
+    final verified = dockIsVerified(source);
+    if (state == null && !verified) return null;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const DockVerifiedBadge(),
-        const SizedBox(width: AppSpacing.s8),
-        Flexible(child: line),
+        if (verified) const DockVerifiedBadge(),
+        if (verified && state != null) const SizedBox(width: AppSpacing.s8),
+        ?state,
       ],
     );
   }
@@ -81,14 +105,9 @@ class DockModuleRow extends StatelessWidget {
         color: installed == null ? null : tokens.accent,
       ),
       headline: entry.name,
-      badge: blocked
-          ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken')
-          : installed == null
-          ? null
-          : _stateBadge(entry, installed),
+      badge: _badges(installed, blocked),
       details: [
-        _versionDetail(installed),
-        SettingsEntityDetail(entry.summary, wrap: true),
+        ..._detailLines(installed),
         if (blocked)
           const SettingsEntityDetail(
             'Another source already provides a module with this id, so it '
@@ -98,7 +117,8 @@ class DockModuleRow extends StatelessWidget {
       ],
       onTap: blocked
           ? null
-          : () => context.go(Routes.adminDockModule(entry.id, source: source)),
+          : () =>
+                context.push(Routes.adminDockModule(entry.id, source: source)),
       onTapSemanticLabel: 'View ${entry.name}',
       // Decorative: the row itself is the control, so this points the way without being a second, smaller target.
       actions: blocked

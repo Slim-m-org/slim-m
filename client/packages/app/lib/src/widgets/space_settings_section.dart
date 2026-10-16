@@ -213,7 +213,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
         if (canManageServer)
           SettingsPane(
             id: 'dock',
-            label: 'Dock',
+            label: 'Modules',
             icon: AppIcons.dock,
             compactRoute: Routes.adminDock,
             builder: (_) => const DockPane(),

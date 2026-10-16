@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The empty apps launcher used to tell every viewer the same thing -
-/// "Install one from the Dock first" - which a non-admin cannot act on.
+/// "Install one from Modules first" - which a non-admin cannot act on.
 library;
 
 import 'package:flutter/material.dart';
@@ -61,12 +61,12 @@ void main() {
 
       expect(
         find.text(
-          'No apps installed. Ask an admin to install one from the '
-          'Dock.',
+          'No apps installed. Ask an admin to install one from '
+          'Modules.',
         ),
         findsOneWidget,
       );
-      expect(find.text('Open the Dock'), findsNothing);
+      expect(find.text('Open Modules'), findsNothing);
     },
   );
 
@@ -74,9 +74,9 @@ void main() {
     await _open(tester, permissions: Perm.manageServer);
 
     expect(find.text('No apps installed yet.'), findsOneWidget);
-    expect(find.text('Open the Dock'), findsOneWidget);
+    expect(find.text('Open Modules'), findsOneWidget);
 
-    await tester.tap(find.text('Open the Dock'));
+    await tester.tap(find.text('Open Modules'));
     await tester.pumpAndSettle();
 
     expect(find.text('Dock screen'), findsOneWidget);

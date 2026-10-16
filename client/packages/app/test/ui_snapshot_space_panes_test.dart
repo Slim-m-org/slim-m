@@ -21,7 +21,7 @@ const _panes = <String>[
   'Analytics',
   'Storage',
   'Server metrics',
-  'Dock',
+  'Modules',
   'Bots',
   'Webhooks',
 ];

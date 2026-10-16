@@ -60,12 +60,12 @@ class NotificationsSection extends ConsumerWidget {
           semanticLabel: 'Play a sound for messages, mentions and errors',
         ),
         SettingsToggleRow(
-          label: 'Dock module sounds',
+          label: 'Module sounds',
           description: 'Lets modules play short sounds.',
           value: moduleSoundsEnabled,
           onChanged: (value) =>
               ref.read(moduleSoundSettingsProvider.notifier).setEnabled(value),
-          semanticLabel: 'Let Dock modules play sound effects',
+          semanticLabel: 'Let modules play sound effects',
         ),
         const PushContentPreviewRow(),
         const NotificationPreferenceRow(),

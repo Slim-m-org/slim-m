@@ -16,8 +16,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 // The non-admin copy: myPermissionsProvider defaults to 0 with no override.
 const _emptyCopy =
-    'No apps installed. Ask an admin to install one from the '
-    'Dock.';
+    'No apps installed. Ask an admin to install one from '
+    'Modules.';
 
 Future<void> _open(WidgetTester tester, Future<List<api.App>> future) async {
   await tester.pumpWidget(

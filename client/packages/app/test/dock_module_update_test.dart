@@ -48,8 +48,9 @@ Map<String, dynamic> _entry(String version) => {
   'summary': 'Conway cellular automata.',
 };
 
-Map<String, dynamic> _manifest(String version) => {
+Map<String, dynamic> _manifest(String version, [Object? changelog]) => {
   ..._entry(version),
+  'changelog': ?changelog,
   'author': 'slim-m',
   'artifact': {
     'kind': 'wasm',
@@ -98,6 +99,7 @@ Future<List<String>> _pumpDock(
   required String offered,
   required String installedVersion,
   bool enabled = true,
+  Object? changelog,
 }) async {
   // The module screen is taller than the default 800x600 surface.
   await tester.binding.setSurfaceSize(const Size(800, 1200));
@@ -113,7 +115,7 @@ Future<List<String>> _pumpDock(
       return _json([_installedRow(version, enabled: enabled)]);
     }
     if (path == '/space/dock/modules/game-of-life') {
-      return _json(_manifest(offered));
+      return _json(_manifest(offered, changelog));
     }
     if (path == '/space/dock/modules/game-of-life/install' &&
         request.method == 'POST') {
@@ -179,7 +181,51 @@ Future<List<String>> _pumpDock(
   return installs;
 }
 
+const _notes = [
+  {
+    'version': '0.3.0',
+    'changes': ['Faster steps'],
+  },
+  {
+    'version': '0.2.0',
+    'changes': ['Wraparound edges'],
+  },
+  {
+    'version': '0.1.0',
+    'changes': ['First release'],
+  },
+];
+
 void main() {
+  testWidgets("an outdated module lists only what it is missing", (
+    tester,
+  ) async {
+    await _pumpDock(
+      tester,
+      offered: '0.3.0',
+      installedVersion: '0.2.0',
+      changelog: _notes,
+    );
+    await tester.tap(find.text('Game of Life'));
+    await tester.pumpAndSettle();
+    expect(find.text("What's new"), findsOneWidget);
+    expect(find.text('Faster steps'), findsOneWidget);
+    expect(find.text('Wraparound edges'), findsNothing);
+    expect(find.text('Update to v0.3.0'), findsOneWidget);
+  });
+
+  testWidgets('a current module shows no release notes', (tester) async {
+    await _pumpDock(
+      tester,
+      offered: '0.3.0',
+      installedVersion: '0.3.0',
+      changelog: _notes,
+    );
+    await tester.tap(find.text('Game of Life'));
+    await tester.pumpAndSettle();
+    expect(find.text("What's new"), findsNothing);
+  });
+
   testWidgets('an outdated module says so on its row', (tester) async {
     await _pumpDock(tester, offered: '0.3.0', installedVersion: '0.2.0');
     // AppBadge paints its label uppercased, whatever the variant.
