@@ -46,7 +46,9 @@ class VideoHealthOverlay extends StatelessWidget {
         final state = states[tileKey] ?? VideoTileHealth.playing;
         // Always the same Stack, so a label coming or going never remounts the video under it.
         return Stack(
-          fit: StackFit.expand,
+          // Passthrough and a fixed corner keep the video's own layout exactly as without the overlay.
+          fit: StackFit.passthrough,
+          alignment: Alignment.topLeft,
           children: [
             child!,
             if (state != VideoTileHealth.playing)
