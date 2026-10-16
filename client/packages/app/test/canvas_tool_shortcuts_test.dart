@@ -23,15 +23,17 @@ CanvasTool? _activeTool(WidgetTester tester) {
   };
   final active = <CanvasTool>[
     for (final entry in icons.entries)
-      if (tester.widget<AppIconButton>(_button(entry.value)).active) entry.key,
+      if (tester.widget<AppIconButton>(_button(entry.value)).active ?? false)
+        entry.key,
     if (tester
-        .widgetList<AppIconButton>(
-          find.byWidgetPredicate(
-            (w) => w is AppIconButton && w.semanticLabel == 'Shape',
-          ),
-        )
-        .single
-        .active)
+            .widgetList<AppIconButton>(
+              find.byWidgetPredicate(
+                (w) => w is AppIconButton && w.semanticLabel == 'Shape',
+              ),
+            )
+            .single
+            .active ??
+        false)
       CanvasTool.shape,
   ];
   return active.length == 1 ? active.single : null;

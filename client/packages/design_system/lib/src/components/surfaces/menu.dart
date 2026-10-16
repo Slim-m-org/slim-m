@@ -241,11 +241,13 @@ class _AppMenuItemState extends State<AppMenuItem> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final active = widget.onTap != null;
     final touch = widget.touch ?? AppTouchTargets.of(context);
-    final ink = _toneColor(tokens);
+    // An item with no action is dimmed throughout, so it cannot pass for one that works.
+    final ink = active ? _toneColor(tokens) : tokens.textDisabled;
     // The source dims the icon to text-secondary for the normal tone even
     // though the label is text-primary; warn/danger keep icon and label in step.
-    final iconInk =
-        widget.tone == AppMenuItemTone.normal ? tokens.textSecondary : ink;
+    final iconInk = active && widget.tone == AppMenuItemTone.normal
+        ? tokens.textSecondary
+        : ink;
 
     final selectedFill = widget.tone == AppMenuItemTone.warn
         ? tokens.warnSoft

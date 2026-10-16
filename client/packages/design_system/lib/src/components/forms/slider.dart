@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../touch_targets.dart';
 import 'focusable_tap_target.dart';
 import 'slider_shapes.dart';
 
@@ -161,7 +162,10 @@ class _AppSliderState extends State<AppSlider> {
           ),
           borderRadius: BorderRadius.circular(AppRadii.full),
         ),
-        child: slider,
+        // On touch the 24px-tall control grows to the touch floor; the track stays centred and looks the same.
+        child: AppTouchTargets.of(context)
+            ? SizedBox(height: AppSizes.rowTouch, child: slider)
+            : slider,
       ),
     );
 

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../touch_targets.dart';
 
 /// The syntax role a span of code plays, matched one-to-one with
 /// [AppCodeColors]'s five fields so a role can never be added on one side
@@ -228,6 +229,10 @@ class _CodeBlockToggle extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
+        constraints: BoxConstraints(
+          minHeight: AppTouchTargets.of(context) ? AppSizes.rowTouch : 0,
+        ),
+        alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: tokens.borderSubtle)),

@@ -451,6 +451,8 @@ class _AppListRowState extends State<AppListRow> {
       button: widget.onTap != null,
       selected: widget.selected,
       child: FocusableActionDetector(
+        // A row with nothing to do is not a Tab stop and draws no focus ring.
+        enabled: widget.onTap != null,
         focusNode: widget.focusNode,
         mouseCursor:
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,

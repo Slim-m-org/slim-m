@@ -88,17 +88,22 @@ class AppToast extends StatelessWidget {
     );
 
     // Overlays have no Material above; without one the text gets a yellow underline.
-    final semantic = Semantics(
+    final material = Material(type: MaterialType.transparency, child: card);
+
+    // The labelled node owns the dismiss action, so a screen reader can reach it.
+    return Semantics(
       liveRegion: true,
       container: true,
-      child: Material(type: MaterialType.transparency, child: card),
-    );
-
-    if (onDismiss == null) return semantic;
-    return GestureDetector(
       onTap: onDismiss,
-      behavior: HitTestBehavior.opaque,
-      child: semantic,
+      onTapHint: onDismiss == null ? null : 'Dismiss',
+      child: onDismiss == null
+          ? material
+          : GestureDetector(
+              onTap: onDismiss,
+              behavior: HitTestBehavior.opaque,
+              excludeFromSemantics: true,
+              child: material,
+            ),
     );
   }
 
