@@ -17,6 +17,7 @@ import 'package:http/testing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/widgets/totp_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -48,7 +49,15 @@ const _codes = ['zzz-code-one', 'zzz-code-two', 'zzz-code-three'];
 /// Every request the section and its sheets make, with a per-path record so a
 /// test can assert what was and was not called.
 class _Server {
-  _Server({this.statusBody, this.confirmStatus = 200, this.passwordOk = true});
+  _Server({
+    this.statusBody,
+    this.confirmStatus = 200,
+    this.passwordOk = true,
+    this.statusFails = false,
+  });
+
+  /// The status read answers 500, so the section shows its load failure.
+  final bool statusFails;
 
   final String? statusBody;
   final int confirmStatus;
@@ -81,6 +90,11 @@ class _Server {
       codeBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
     }
     return switch ((request.method, path)) {
+      ('GET', '/auth/totp') when statusFails => http.Response(
+        '{}',
+        500,
+        headers: json,
+      ),
       ('GET', '/auth/totp') => http.Response(
         statusBody ?? _status(),
         200,
@@ -141,7 +155,11 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const Scaffold(body: SingleChildScrollView(child: TotpSection())),
+        home: const Scaffold(
+          body: SingleChildScrollView(
+            child: SettingsSectionCard(flush: true, children: [TotpSection()]),
+          ),
+        ),
       ),
     ),
   );
@@ -152,7 +170,8 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
 /// surface it starts off-screen and a bare `tap` would miss it and silently do
 /// nothing. Scrolling it in first is what makes the tap real.
 Future<void> _tapSubmit(WidgetTester tester, String label) async {
-  final button = find.widgetWithText(AppButton, label);
+  // The sheet sits on top; the row behind it can carry the same label.
+  final button = find.widgetWithText(AppButton, label).last;
   await tester.ensureVisible(button);
   await tester.pumpAndSettle();
   await tester.tap(button);
@@ -162,7 +181,7 @@ Future<void> _tapSubmit(WidgetTester tester, String label) async {
 /// Taps the turn-on row and gets past the password step, which is the first
 /// thing the flow asks for.
 Future<void> _startEnrolment(WidgetTester tester) async {
-  await tester.tap(find.text('Turn on two-factor authentication'));
+  await tester.tap(find.text('Turn on'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField), 'correct horse');
   await tester.pumpAndSettle();
@@ -171,17 +190,29 @@ Future<void> _startEnrolment(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('a status that fails to load says so inside the Sign-in card, '
+      'not in a card of its own', (tester) async {
+    await _pump(tester, _Server(statusFails: true));
+
+    expect(
+      find.text('Could not load your two-factor settings.'),
+      findsOneWidget,
+    );
+    expect(find.byType(SettingsSectionCard), findsOneWidget);
+  });
+
   testWidgets('an account with no factor is offered one', (tester) async {
     await _pump(tester, _Server());
-    expect(find.text('Turn on two-factor authentication'), findsOneWidget);
-    expect(find.text('Recovery codes'), findsNothing);
+    expect(find.text('Turn on'), findsOneWidget);
+    expect(find.text('OFF'), findsOneWidget);
+    expect(find.textContaining('Recovery codes'), findsNothing);
   });
 
   /// A half-finished setup is not the same offer: the copy has to say it was
   /// started, or somebody reads "turn on" and assumes the first attempt worked.
   testWidgets('a started-but-unconfirmed enrolment says so', (tester) async {
     await _pump(tester, _Server(statusBody: _status(pending: true)));
-    expect(find.text('Finish setting up'), findsOneWidget);
+    expect(find.text('Finish'), findsOneWidget);
     expect(find.textContaining('did not finish'), findsOneWidget);
   });
 
@@ -192,10 +223,10 @@ void main() {
       tester,
       _Server(statusBody: _status(enabled: true, remaining: 10)),
     );
-    expect(find.text('Recovery codes'), findsOneWidget);
-    expect(find.text('10 left'), findsOneWidget);
+    expect(find.text('ON'), findsOneWidget);
+    expect(find.text('Recovery codes, 10 left'), findsOneWidget);
     expect(find.text('Turn off two-factor authentication'), findsOneWidget);
-    expect(find.text('Turn on two-factor authentication'), findsNothing);
+    expect(find.text('Turn on'), findsNothing);
   });
 
   /// A count alone is not a warning. Somebody down to their last code needs to
@@ -263,7 +294,7 @@ void main() {
     );
 
     // The submit is refused while no code has been typed.
-    final turnOn = find.widgetWithText(AppButton, 'Turn on');
+    final turnOn = find.widgetWithText(AppButton, 'Turn on').last;
     expect(turnOn, findsOneWidget);
     expect(tester.widget<AppButton>(turnOn).disabled, isTrue);
   });
@@ -336,7 +367,7 @@ void main() {
     final server = _Server(statusBody: _status(enabled: true, remaining: 3));
     await _pump(tester, server);
 
-    await tester.tap(find.text('Recovery codes'));
+    await tester.tap(find.textContaining('Recovery codes,'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '654321');
     await tester.pumpAndSettle();

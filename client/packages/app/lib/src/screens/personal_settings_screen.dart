@@ -212,7 +212,7 @@ class _SignInSection extends ConsumerWidget {
       description: "How you prove it's you on a new device.",
       children: [
         const ChangePasswordSection(embedded: true),
-        if (!hideTotp) const TotpSection(embedded: true),
+        if (!hideTotp) const TotpSection(),
       ],
     );
   }

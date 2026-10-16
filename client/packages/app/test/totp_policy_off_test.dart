@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/reauth_sheet.dart';
+import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/widgets/totp_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -74,7 +75,12 @@ void main() {
         child: MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
           home: const Scaffold(
-            body: SingleChildScrollView(child: TotpSection()),
+            body: SingleChildScrollView(
+              child: SettingsSectionCard(
+                flush: true,
+                children: [TotpSection()],
+              ),
+            ),
           ),
         ),
       ),
