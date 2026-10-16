@@ -14,6 +14,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/user_profiles.dart';
 import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/widgets/display_density_preview.dart';
+import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
 import 'package:slimm_app/src/widgets/display_settings_section.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
@@ -185,7 +186,7 @@ void main() {
     tester,
   ) async {
     final container = _container();
-    await tester.pumpWidget(_app(container, const DisplaySettingsSection()));
+    await tester.pumpWidget(_app(container, const AppearanceSettingsSection()));
     await tester.pumpAndSettle();
 
     final before = _previewAvatarTop(tester);
@@ -201,6 +202,10 @@ void main() {
     final after = _previewAvatarTop(tester);
     expect(after - before, 16);
 
+    await tester.ensureVisible(
+      find.byKey(DisplaySettingsSection.scaleSliderKey),
+    );
+    await tester.pumpAndSettle();
     await tester.tapAt(
       tester
               .getRect(_trackOf(DisplaySettingsSection.scaleSliderKey))

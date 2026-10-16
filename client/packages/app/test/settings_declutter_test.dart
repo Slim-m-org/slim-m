@@ -6,6 +6,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
 import 'package:slimm_app/src/widgets/display_settings_section.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';
 
@@ -24,13 +25,13 @@ void main() {
     expect(find.text('Devices'), findsOneWidget);
   });
 
-  testWidgets('the display controls sit under two section headers', (
+  testWidgets('the appearance pane sits under three section headers', (
     tester,
   ) async {
-    await tester.pumpWidget(wrap(const DisplaySettingsSection()));
+    await tester.pumpWidget(wrap(const AppearanceSettingsSection()));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SettingsSectionHeader), findsNWidgets(2));
+    expect(find.byType(SettingsSectionHeader), findsNWidgets(3));
     expect(find.byKey(DisplaySettingsSection.spacingSliderKey), findsOneWidget);
     expect(find.byKey(DisplaySettingsSection.scaleSliderKey), findsOneWidget);
   });

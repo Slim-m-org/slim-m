@@ -22,22 +22,33 @@ class GeneralSettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SettingsSectionCard(
-      divided: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (isDesktopHost) const StartOnLoginRow(),
-        if (isDesktopHost) _splashRow(ref),
-        SettingsSelectRow<MessagePageSize>(
-          label: 'Message page size',
-          sheetTitle: 'Message page size',
-          value: ref.watch(messagePageSizeControllerProvider),
-          choices: [
-            for (final value in MessagePageSize.values)
-              SettingsChoice(value: value, label: value.label),
+        if (isDesktopHost)
+          SettingsSectionCard(
+            flush: true,
+            title: 'Startup',
+            children: [const StartOnLoginRow(), _splashRow(ref)],
+          ),
+        SettingsSectionCard(
+          flush: true,
+          title: 'History',
+          description: 'How many messages load when you scroll back.',
+          children: [
+            SettingsSelectRow<MessagePageSize>(
+              label: 'Message page size',
+              sheetTitle: 'Message page size',
+              value: ref.watch(messagePageSizeControllerProvider),
+              choices: [
+                for (final value in MessagePageSize.values)
+                  SettingsChoice(value: value, label: value.label),
+              ],
+              onChanged: (next) => ref
+                  .read(messagePageSizeControllerProvider.notifier)
+                  .select(next),
+            ),
           ],
-          sheetFootnote: 'How many messages load when you scroll back.',
-          onChanged: (next) =>
-              ref.read(messagePageSizeControllerProvider.notifier).select(next),
         ),
       ],
     );
