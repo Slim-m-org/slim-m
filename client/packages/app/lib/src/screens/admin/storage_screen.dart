@@ -17,9 +17,12 @@ import '../../format.dart';
 import '../../providers/admin_providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/attachment_format.dart' show formatByteSize;
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_meter_row.dart';
+import '../../widgets/settings_refresh_button.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
-import 'admin_stat_tile.dart';
 
 class StorageScreen extends StatelessWidget {
   const StorageScreen({super.key});
@@ -33,8 +36,7 @@ class StorageScreen extends StatelessWidget {
   );
 }
 
-/// The read-only storage view, embeddable as a Space settings pane as well
-/// as routed.
+/// The storage view, embeddable as a Space settings pane as well as routed.
 class StoragePane extends ConsumerWidget {
   const StoragePane({super.key});
 
@@ -51,53 +53,67 @@ class StoragePane extends ConsumerWidget {
   }
 }
 
-class _StorageView extends StatelessWidget {
+class _StorageView extends ConsumerWidget {
   const _StorageView({required this.storage});
 
   final api.SpaceStorage storage;
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context, WidgetRef ref) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _TotalsCard(storage: storage),
-      const SizedBox(height: AppSpacing.s16),
-      _TopChannelsCard(channels: storage.topChannels),
-      const SizedBox(height: AppSpacing.s16),
+      _TotalsCard(
+        storage: storage,
+        onRefresh: () => ref.invalidate(spaceStorageProvider),
+      ),
+      _TopChannelsCard(
+        channels: storage.topChannels,
+        totalBytes: storage.attachmentBytes,
+      ),
       _SweepsCard(sweeps: storage.sweeps),
     ],
   );
 }
 
 class _TotalsCard extends StatelessWidget {
-  const _TotalsCard({required this.storage});
+  const _TotalsCard({required this.storage, required this.onRefresh});
 
   final api.SpaceStorage storage;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final onDisk = storage.databaseBytes + storage.attachmentBytes;
+    final total = 'of ${formatByteSize(onDisk)}';
     return SettingsSectionCard(
+      flush: true,
       title: 'On disk',
+      trailing: SettingsRefreshButton(
+        label: 'Refresh storage usage',
+        onPressed: onRefresh,
+      ),
       children: [
-        Wrap(
-          spacing: AppSpacing.s12,
-          runSpacing: AppSpacing.s12,
-          children: [
-            AdminStatTile(label: 'Total', value: formatByteSize(onDisk)),
-            AdminStatTile(
-              label: 'Database',
-              value: formatByteSize(storage.databaseBytes),
-            ),
-            AdminStatTile(
-              label: 'Attachments',
-              value: formatByteSize(storage.attachmentBytes),
-            ),
-            AdminStatTile(
-              label: 'Reclaimable',
-              value: formatByteSize(storage.databaseReclaimableBytes),
-            ),
-          ],
+        SettingsMeterRow(label: 'Total', value: formatByteSize(onDisk)),
+        SettingsMeterRow(
+          label: 'Database',
+          value: formatByteSize(storage.databaseBytes),
+          of: total,
+          fraction: meterFraction(storage.databaseBytes, onDisk),
+        ),
+        SettingsMeterRow(
+          label: 'Attachments',
+          value: formatByteSize(storage.attachmentBytes),
+          of: total,
+          fraction: meterFraction(storage.attachmentBytes, onDisk),
+        ),
+        SettingsMeterRow(
+          label: 'Reclaimable',
+          value: formatByteSize(storage.databaseReclaimableBytes),
+          of: 'of ${formatByteSize(storage.databaseBytes)} database',
+          fraction: meterFraction(
+            storage.databaseReclaimableBytes,
+            storage.databaseBytes,
+          ),
         ),
       ],
     );
@@ -107,61 +123,29 @@ class _TotalsCard extends StatelessWidget {
 /// Channels holding the most attachment bytes, heaviest first. DMs and
 /// threads are excluded server-side; see `store/storage.rs`.
 class _TopChannelsCard extends StatelessWidget {
-  const _TopChannelsCard({required this.channels});
+  const _TopChannelsCard({required this.channels, required this.totalBytes});
 
   final List<api.ChannelStorage> channels;
+  final int totalBytes;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    if (channels.isEmpty) {
-      return SettingsSectionCard(
-        title: 'Storage by channel',
-        children: [
-          Text(
-            'No channel has any stored attachments yet.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ],
-      );
-    }
-    return SettingsSectionCard(
-      title: 'Storage by channel',
-      children: [
-        for (final channel in channels) _ChannelStorageRow(channel: channel),
-      ],
-    );
-  }
-}
-
-class _ChannelStorageRow extends StatelessWidget {
-  const _ChannelStorageRow({required this.channel});
-
-  final api.ChannelStorage channel;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '#${channel.name}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.body.copyWith(color: tokens.textPrimary),
-            ),
-          ),
-          Text(
-            formatByteSize(channel.attachmentBytes),
-            style: AppText.body.copyWith(color: tokens.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SettingsSectionCard(
+    flush: true,
+    title: 'Storage by channel',
+    children: [
+      if (channels.isEmpty)
+        const SettingsEmptyState(
+          icon: AppIcons.storage,
+          title: 'No channel has any stored attachments yet.',
+        ),
+      for (final channel in channels)
+        SettingsMeterRow(
+          label: '#${channel.name}',
+          value: formatByteSize(channel.attachmentBytes),
+          fraction: meterFraction(channel.attachmentBytes, totalBytes),
+        ),
+    ],
+  );
 }
 
 /// When each background sweep last ran and roughly what it reclaimed. A
@@ -172,52 +156,22 @@ class _SweepsCard extends StatelessWidget {
   final List<api.SweepStatus> sweeps;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    if (sweeps.isEmpty) {
-      return SettingsSectionCard(
-        title: 'Background sweeps',
-        children: [
-          Text(
-            'No sweep has run yet on this deployment.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ],
-      );
-    }
-    return SettingsSectionCard(
-      title: 'Background sweeps',
-      children: [for (final sweep in sweeps) _SweepRow(sweep: sweep)],
-    );
-  }
-}
-
-class _SweepRow extends StatelessWidget {
-  const _SweepRow({required this.sweep});
-
-  final api.SweepStatus sweep;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              sweepLabel(sweep.name),
-              style: AppText.body.copyWith(color: tokens.textPrimary),
-            ),
-          ),
-          Text(
-            sweepSummary(sweep),
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SettingsSectionCard(
+    flush: true,
+    title: 'Background sweeps',
+    children: [
+      if (sweeps.isEmpty)
+        const SettingsEmptyState(
+          icon: AppIcons.clock,
+          title: 'No sweep has run yet on this deployment.',
+        ),
+      for (final sweep in sweeps)
+        SettingsDetailRow(
+          title: sweepLabel(sweep.name),
+          detail: sweepSummary(sweep),
+        ),
+    ],
+  );
 }
 
 /// A human label for a sweep's stable snake_case identifier. Falls back to

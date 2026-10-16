@@ -15,8 +15,9 @@ import '../../providers/providers.dart';
 import '../../widgets/channel_rail_frame.dart' show serverInfoProvider;
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/success_flash.dart';
+import '../../widgets/settings_segmented_block.dart';
 
 const _mib = 1024 * 1024;
 const _gib = 1024 * _mib;
@@ -94,32 +95,38 @@ class _AttachmentLimitSectionState extends ConsumerState<AttachmentLimitSection>
           );
     final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
-    return SettingsSectionCard(
-      title: 'Attachment size limit',
-      description: 'Largest file a member can upload.',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (options.isNotEmpty)
-          AppSegmentedControl.inline(
-            semanticLabel: 'Attachment size limit',
-            options: [
-              for (final option in options)
-                AppSegmentedOption(label: option.$1, disabled: saving),
-            ],
-            selectedIndex: selectedIndex,
-            onSegmentSelected: (i) => _setLimit(options[i].$2),
-          ),
-        if (limit.hasError && served == null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(
-            message: 'Could not load the current limit.',
-            onRetry: () => ref.invalidate(spaceAttachmentLimitProvider),
-          ),
-        ],
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsSectionCard(
+          flush: true,
+          title: 'Attachment size limit',
+          description: 'Largest file a member can upload.',
+          children: [
+            if (options.isNotEmpty)
+              SettingsSegmentedBlock(
+                semanticLabel: 'Attachment size limit',
+                labels: [for (final option in options) option.$1],
+                selectedIndex: selectedIndex,
+                disabled: saving,
+                onSelected: (i) => _setLimit(options[i].$2),
+              ),
+            if (limit.hasError && served == null)
+              SettingsCardBlock(
+                children: [
+                  AppErrorState(
+                    message: 'Could not load the current limit.',
+                    onRetry: () => ref.invalidate(spaceAttachmentLimitProvider),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
       ],
     );
   }

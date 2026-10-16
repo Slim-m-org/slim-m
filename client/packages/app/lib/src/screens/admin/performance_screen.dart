@@ -15,7 +15,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
@@ -24,8 +23,9 @@ import '../../widgets/attachment_format.dart' show formatByteSize;
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/success_flash.dart';
+import '../../widgets/settings_segmented_block.dart';
 import '../settings_screen_scaffold.dart';
 import 'attachment_limit_section.dart';
 import 'canvas_cap_section.dart';
@@ -55,13 +55,9 @@ class PerformancePane extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _RetentionSection(),
-      SizedBox(height: AppSpacing.s16),
       CanvasCapSection(),
-      SizedBox(height: AppSpacing.s16),
       ScreenShareCapSection(),
-      SizedBox(height: AppSpacing.s16),
       AttachmentLimitSection(),
-      SizedBox(height: AppSpacing.s16),
       NoiseSuppressionDefaultSection(),
     ],
   );
@@ -201,30 +197,30 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
     );
     final stats = ref.watch(spaceAnalyticsProvider).valueOrNull?.stats;
 
-    return SettingsSectionCard(
-      title: 'Message retention',
-      description: 'How long messages are kept before they are deleted.',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppSegmentedControl.inline(
-          semanticLabel: 'Message retention window',
-          options: [
-            for (final option in _retentionDayOptions)
-              AppSegmentedOption(label: option.$1, disabled: saving),
+        SettingsSectionCard(
+          flush: true,
+          title: 'Message retention',
+          description: 'How long messages are kept before they are deleted.',
+          children: [
+            SettingsSegmentedBlock(
+              semanticLabel: 'Message retention window',
+              labels: [for (final option in _retentionDayOptions) option.$1],
+              selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+              disabled: saving,
+              onSelected: (i) =>
+                  _setDays(_retentionDayOptions[i].$2, current: current),
+            ),
+            SettingsSubRow(label: retentionConsequence(current, stats)),
           ],
-          selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-          onSegmentSelected: (i) =>
-              _setDays(_retentionDayOptions[i].$2, current: current),
         ),
-        const SizedBox(height: AppSpacing.s12),
-        AppCallout(
-          tone: AppCalloutTone.info,
-          child: Text(retentionConsequence(current, stats)),
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
         ),
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
       ],
     );
   }

@@ -88,9 +88,9 @@ void main() {
 
     expect(requestedPath, '/space/storage');
     expect(find.text('490.3 KB'), findsOneWidget); // total on disk
-    expect(find.text('488.3 KB'), findsOneWidget); // database
-    expect(find.text('2.0 KB'), findsOneWidget); // attachments
-    expect(find.text('4.0 KB'), findsOneWidget); // reclaimable
+    expect(find.text('488.3 KB of 490.3 KB'), findsOneWidget); // database
+    expect(find.text('2.0 KB of 490.3 KB'), findsOneWidget); // attachments
+    expect(find.text('4.0 KB of 488.3 KB database'), findsOneWidget);
     expect(find.text('#heavy'), findsOneWidget);
     expect(find.text('1.5 KB'), findsOneWidget); // that channel's own bytes
     expect(find.text('Expired sessions'), findsOneWidget);
