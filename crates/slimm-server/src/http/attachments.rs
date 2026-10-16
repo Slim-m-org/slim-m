@@ -27,7 +27,6 @@ use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, Json, Query, UPLOAD};
 use super::message_dto::AttachmentDto;
 use crate::media::{self, StreamError};
-use crate::permissions::Permissions;
 use crate::store::AttachmentSummary;
 
 /// A fetched attachment's bytes never change (they are keyed by their own
@@ -60,6 +59,8 @@ pub fn upload_routes() -> Router<AppState> {
 #[derive(Deserialize)]
 struct UploadParams {
     filename: Option<String>,
+    /// Where the file is headed; see `attachment_uploads::may_attach`.
+    channel_id: Option<String>,
 }
 
 // --- Handlers ---
@@ -85,11 +86,11 @@ struct UploadParams {
 /// two leaves an orphaned file (harmless, eventually swept) rather than a row
 /// that promises bytes which were never written.
 ///
-/// Requires ATTACH_FILES deployment-wide. An upload names no channel, so the
-/// per-channel check still happens when the resulting id is attached to a
-/// message; until this bit was checked at all a member denied attachments
-/// everywhere - or one currently timed out - could still write bytes into
-/// media storage.
+/// Requires ATTACH_FILES in the channel the upload names, or deployment-wide
+/// when it names none; the per-channel check still happens when the resulting
+/// id is attached to a message. Until this bit was checked at all a member
+/// denied attachments everywhere - or one currently timed out - could still
+/// write bytes into media storage.
 async fn upload(
     AuthedLimited(ctx): AuthedLimited<UPLOAD>,
     Query(params): Query<UploadParams>,
@@ -98,14 +99,8 @@ async fn upload(
     body: Body,
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
     // Before the body streams, so no permission means no disk write.
-    if !state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::ATTACH_FILES)
-    {
-        return Err(ApiError::Forbidden);
-    }
+    super::attachment_uploads::may_attach(&state, ctx.user_id, params.channel_id.as_deref())
+        .await?;
 
     let max_bytes = effective_attachment_max(&state).await?;
     // A fast-fail on a declared oversize; the true size is re-checked below.

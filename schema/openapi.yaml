@@ -3707,6 +3707,16 @@ paths:
             keyed by content hash).
           schema:
             type: string
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the file is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -3876,6 +3886,17 @@ paths:
         copy, and the id is referenced the same way on `sendMessage`. A
         session still short of its declared size answers 409. A full
         deployment drops the session.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the file is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "201":
           description: The stored attachment's metadata.
@@ -10187,6 +10208,12 @@ components:
         size:
           type: integer
           description: The whole file's size in bytes.
+        channel_id:
+          type: string
+          format: uuid
+          description: >
+            The channel the file is headed for; ATTACH_FILES is then checked
+            there, as uploadAttachment's channel_id does.
     UploadSession:
       type: object
       required: [id, size, offset, part_max_bytes, expires_at]

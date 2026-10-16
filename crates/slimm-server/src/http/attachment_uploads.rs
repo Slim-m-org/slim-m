@@ -22,7 +22,8 @@ use super::attachments::{effective_attachment_max, room_for, sniffable};
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, Query, UPLOAD, WRITE};
 use super::message_dto::AttachmentDto;
-use crate::ids::UserId;
+use super::messages::parse_uuid;
+use crate::ids::{ChannelId, UserId};
 use crate::media::{
     self, AppendError, MAX_OPEN_SESSIONS_PER_USER, UPLOAD_PART_MAX_BYTES, UPLOAD_SESSION_TTL,
     UploadMeta,
@@ -45,6 +46,9 @@ pub fn routes() -> Router<AppState> {
 struct CreateRequest {
     filename: Option<String>,
     size: u64,
+    /// Where the file is headed; see [`may_attach`].
+    #[serde(default)]
+    channel_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -74,13 +78,39 @@ struct AppendParams {
     offset: u64,
 }
 
-async fn may_attach(state: &AppState, user_id: UserId) -> Result<(), ApiError> {
-    let base = state.store.base_permissions(user_id).await?;
-    if base.contains(Permissions::ATTACH_FILES) {
+/// ATTACH_FILES in `channel` when the client names where the file is headed,
+/// so a channel overwrite granting it counts; deployment-wide otherwise. The
+/// send re-checks the channel the id is finally attached in either way.
+pub(super) async fn may_attach(
+    state: &AppState,
+    user_id: UserId,
+    channel: Option<&str>,
+) -> Result<(), ApiError> {
+    let allowed = match channel {
+        Some(raw) => {
+            let channel_id = ChannelId(parse_uuid(raw)?);
+            state
+                .store
+                .has_permission(user_id, channel_id, Permissions::ATTACH_FILES)
+                .await?
+        }
+        None => state
+            .store
+            .base_permissions(user_id)
+            .await?
+            .contains(Permissions::ATTACH_FILES),
+    };
+    if allowed {
         Ok(())
     } else {
         Err(ApiError::Forbidden)
     }
+}
+
+#[derive(Deserialize)]
+struct CompleteParams {
+    #[serde(default)]
+    channel_id: Option<String>,
 }
 
 /// Charged to the upload budget once per file; the parts ride the write budget.
@@ -89,7 +119,7 @@ async fn create(
     State(state): State<AppState>,
     Json(req): Json<CreateRequest>,
 ) -> Result<(StatusCode, Json<UploadSessionDto>), ApiError> {
-    may_attach(&state, ctx.user_id).await?;
+    may_attach(&state, ctx.user_id, req.channel_id.as_deref()).await?;
     if req.size == 0 {
         return Err(ApiError::BadRequest("attachment is empty"));
     }
@@ -162,10 +192,11 @@ async fn append(
 async fn complete(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(upload_id): Path<String>,
+    Query(params): Query<CompleteParams>,
     State(state): State<AppState>,
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
     let (id, meta, offset) = owned_session(&state, ctx.user_id, &upload_id).await?;
-    may_attach(&state, ctx.user_id).await?;
+    may_attach(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     if offset != meta.size {
         return Err(ApiError::Conflict("upload is not complete"));
     }
