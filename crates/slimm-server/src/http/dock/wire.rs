@@ -98,6 +98,14 @@ pub(super) struct ManifestDto {
     network: Option<NetworkDto>,
     /// Commands the host runs on a timer once `schedule` is approved.
     schedules: Vec<ScheduleDto>,
+    /// What each version changed, newest first; empty when none is published.
+    changelog: Vec<ChangelogEntryDto>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ChangelogEntryDto {
+    version: String,
+    changes: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -155,6 +163,14 @@ impl From<Manifest> for ManifestDto {
                 .map(|s| ScheduleDto {
                     command: s.command,
                     every_minutes: s.every_minutes,
+                })
+                .collect(),
+            changelog: m
+                .changelog
+                .into_iter()
+                .map(|e| ChangelogEntryDto {
+                    version: e.version,
+                    changes: e.changes,
                 })
                 .collect(),
         }

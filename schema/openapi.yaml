@@ -10402,6 +10402,23 @@ components:
             the schedule capability is approved and a channel is chosen.
           items:
             $ref: "#/components/schemas/DockSchedule"
+        changelog:
+          type: array
+          description: >
+            What each version changed, newest first, from the manifest's own
+            optional changelog; empty when the module publishes none.
+          items:
+            $ref: "#/components/schemas/DockChangelogEntry"
+    DockChangelogEntry:
+      type: object
+      required: [version, changes]
+      properties:
+        version:
+          type: string
+        changes:
+          type: array
+          items:
+            type: string
     DockSchedule:
       type: object
       required: [command, every_minutes]
