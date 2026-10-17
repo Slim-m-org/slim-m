@@ -7,6 +7,11 @@ import { readStack, type Stack } from './stack';
 export type UserName = 'alice' | 'bob';
 export const USERS: UserName[] = ['alice', 'bob'];
 
+const appsByTest = new WeakMap<TestInfo, FlutterApp[]>();
+
+/** How long each step's end state stays on screen, so a person watching the video can read it. */
+const LINGER_MS = Number(process.env.E2E_LINGER_MS ?? 700);
+
 type StorageState = NonNullable<BrowserContextOptions['storageState']>;
 
 export interface Users {
@@ -41,7 +46,11 @@ async function openUser(
     storageState,
     recordVideo: { dir: testInfo.outputPath(`video-${name}`), size: { width: 1280, height: 900 } },
   });
-  const app = new FlutterApp(await context.newPage(), name);
+  const page = await context.newPage();
+  // The video starts with the page, so this lets a reviewer line a step up with a video timestamp.
+  testInfo.annotations.push({ type: `video-start-${name}`, description: String(Date.now()) });
+  const app = new FlutterApp(page, name);
+  appsByTest.set(testInfo, [...(appsByTest.get(testInfo) ?? []), app]);
   await app.open(stack.web);
   return app;
 }
@@ -53,6 +62,7 @@ async function openBoth(browser: Browser, stack: Stack, testInfo: TestInfo, sess
 
 /** Closes the user's context, which finalises their video, and attaches the video. */
 async function closeBoth(users: Users, testInfo: TestInfo): Promise<void> {
+  await settleVideo();
   await Promise.all(
     Object.values(users).map(async (app) => {
       const { page } = app;
@@ -61,6 +71,28 @@ async function closeBoth(users: Users, testInfo: TestInfo): Promise<void> {
       if (video) await testInfo.attach(`${app.name}.webm`, { path: await video.path(), contentType: 'video/webm' });
     }),
   );
+}
+
+/**
+ * A test.step whose end state is painted and held on screen for every user in the test.
+ *
+ * The pause is pacing for the video, not synchronisation: the step has already asserted its outcome.
+ */
+export async function step<T>(title: string, body: () => Promise<T> | T): Promise<T> {
+  return test.step(title, async () => {
+    const result = await body();
+    await settleVideo(title);
+    return result;
+  });
+}
+
+async function settleVideo(title = 'end of test'): Promise<void> {
+  const info = test.info();
+  const apps = appsByTest.get(info) ?? [];
+  await Promise.all(apps.map((app) => app.painted().catch(() => undefined)));
+  // Lets a reviewer pull the frame for this step out of each video by timestamp.
+  info.annotations.push({ type: 'step-end', description: JSON.stringify({ title, at: Date.now() }) });
+  if (apps.length) await apps[0].page.waitForTimeout(LINGER_MS);
 }
 
 export async function signIn(app: FlutterApp, stack: Stack, username: UserName): Promise<void> {
