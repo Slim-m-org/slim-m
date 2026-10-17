@@ -12,14 +12,14 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 
 /// The splash content is laid out on this fixed canvas, the design's own.
-const Size kStartupCanvas = Size(480, 340);
+const Size kStartupCanvas = Size(360, 260);
 
 const double _pitch = 28;
 const double _unit = _pitch / 12;
-const Offset _markOrigin = Offset(205, 95);
+const Offset _markOrigin = Offset(145, 45);
 const double kStartupMarkSize = 32 * _unit;
-const Offset _rippleCentre = Offset(240, 130);
-const double _rippleReach = 250;
+const Offset _rippleCentre = Offset(180, 80);
+const double _rippleReach = 210;
 
 /// When the wordmark under the mark starts to settle, in seconds.
 const double kStartupWordAt = 0.7;
@@ -50,7 +50,7 @@ final List<_Cell> _cells = [
 ];
 
 _Cell? _latticeCell(int i, int j) {
-  final at = Offset(226 + i * _pitch, 116 + j * _pitch);
+  final at = Offset(166 + i * _pitch, 66 + j * _pitch);
   if (at.dx < 10 || at.dx > kStartupCanvas.width - 10) return null;
   if (at.dy < 10 || at.dy > kStartupCanvas.height - 10) return null;
   // The four points the mark assembles from are drawn by the mark itself.

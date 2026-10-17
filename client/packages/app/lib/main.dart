@@ -259,6 +259,7 @@ class SlimMApp extends ConsumerWidget {
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
         leaving: ref.watch(startupLeavingProvider),
+        rounded: currentDesktopPlatform() == DesktopPlatform.linux,
         windowPort: currentDesktopPlatform() == DesktopPlatform.linux
             ? DesktopWindowShell.port
             : null,

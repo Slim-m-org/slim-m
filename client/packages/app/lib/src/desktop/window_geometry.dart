@@ -14,7 +14,7 @@ import 'dart:math' as math;
 /// there because this file is deliberately platform-channel-free per
 /// decision 0012's own rule, and `DesktopWindowShell` already imports this
 /// file, so the reverse import would be a cycle. See [looksLikeSplashSize].
-const kSplashWindowSize = WindowSize(width: 480, height: 340);
+const kSplashWindowSize = WindowSize(width: 360, height: 260);
 
 /// The tallest a native Linux title bar could still be adding on top of
 /// [kSplashWindowSize] at the instant a stray write landed, before
@@ -35,11 +35,16 @@ const _splashTitleBarMargin = 48;
 /// size this small can only be leftover corruption from a build that
 /// shipped without it - see [healSplashCorruption].
 bool looksLikeSplashSize(WindowSize size) =>
-    _within(size, kSplashWindowSize) || _within(size, _legacySplashSize);
+    _within(size, kSplashWindowSize) ||
+    _within(size, _legacySplashSize) ||
+    _within(size, _previousSplashSize);
 
 /// The splash before it took the Startup Window design's shape; the corrupt
 /// saves this guard heals were written at this size.
 const _legacySplashSize = WindowSize(width: 380, height: 460);
+
+/// The splash size before it was made compact; saves from that era can linger.
+const _previousSplashSize = WindowSize(width: 480, height: 340);
 
 bool _within(WindowSize size, WindowSize splash) =>
     size.width <= splash.width &&

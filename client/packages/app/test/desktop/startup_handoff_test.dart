@@ -309,7 +309,7 @@ void main() {
       final port = FakeDesktopWindowPort();
       DesktopWindowShell.debugPort = port;
       await DesktopWindowShell.prepareHandoff(_container());
-      tester.view.physicalSize = const Size(480, 387);
+      tester.view.physicalSize = const Size(360, 387);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
@@ -333,7 +333,7 @@ void main() {
   );
 
   test('viewHasLeftSplash looks at width only', () {
-    expect(viewHasLeftSplash(const Size(480, 387)), isFalse);
+    expect(viewHasLeftSplash(const Size(360, 387)), isFalse);
     expect(viewHasLeftSplash(const Size(1920, 1080)), isTrue);
     expect(viewHasLeftSplash(null), isFalse);
   });

@@ -88,10 +88,14 @@ class StartupApp extends StatelessWidget {
     this.prompt,
     this.windowPort,
     this.leaving = false,
+    this.rounded = false,
   });
 
   final String status;
   final StartupPrompt? prompt;
+
+  /// Round the window's corners; only where the runner gives it a transparent surface.
+  final bool rounded;
 
   /// See `startupLeavingProvider`.
   final bool leaving;
@@ -109,6 +113,7 @@ class StartupApp extends StatelessWidget {
       prompt: prompt,
       windowPort: windowPort,
       leaving: leaving,
+      rounded: rounded,
     ),
   );
 }
@@ -120,10 +125,12 @@ class StartupScreen extends StatefulWidget {
     this.prompt,
     this.windowPort,
     this.leaving = false,
+    this.rounded = false,
   });
 
   final String status;
   final DesktopWindowPort? windowPort;
+  final bool rounded;
 
   /// Fades the content out ahead of the handoff; see `startupLeavingProvider`.
   final bool leaving;
@@ -196,7 +203,7 @@ class _StartupScreenState extends State<StartupScreen>
         ),
       ),
       Positioned(
-        top: 194 + 6 * (1 - word),
+        top: 138 + 6 * (1 - word),
         left: 0,
         right: 0,
         child: Opacity(
@@ -224,7 +231,7 @@ class _StartupScreenState extends State<StartupScreen>
         : AppMotion.entrance.transform(
             ((_seconds - kStartupWordAt) / 0.25).clamp(0.0, 1.0),
           );
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: tokens.surfaceRaised,
       body: Stack(
         children: [
@@ -243,7 +250,7 @@ class _StartupScreenState extends State<StartupScreen>
                         Positioned.fill(
                           child: AnimatedSlide(
                             // A question needs the lower half of the window, so the lockup rises to make room.
-                            offset: Offset(0, prompt == null ? 0 : -0.2),
+                            offset: Offset(0, prompt == null ? 0 : -0.13),
                             duration: AppMotion.reduced(
                               context,
                               AppMotion.base,
@@ -254,8 +261,8 @@ class _StartupScreenState extends State<StartupScreen>
                         ),
                         if (prompt == null)
                           Positioned(
-                            left: 140,
-                            top: 236,
+                            left: 80,
+                            top: 176,
                             width: 200,
                             child: StartupSteps(
                               steps: _steps,
@@ -266,10 +273,13 @@ class _StartupScreenState extends State<StartupScreen>
                           )
                         else
                           Positioned(
-                            left: 0,
-                            right: 0,
-                            top: 168,
-                            child: Center(
+                            left: AppSpacing.s16,
+                            right: AppSpacing.s16,
+                            top: 132,
+                            bottom: AppSpacing.s8,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.topCenter,
                               child: _Prompt(prompt: prompt, tokens: tokens),
                             ),
                           ),
@@ -303,6 +313,11 @@ class _StartupScreenState extends State<StartupScreen>
         ],
       ),
     );
+    if (!widget.rounded) return scaffold;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.window),
+      child: scaffold,
+    );
   }
 }
 
@@ -315,7 +330,7 @@ class _Prompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 320),
+      constraints: const BoxConstraints(maxWidth: 296),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -333,15 +348,16 @@ class _Prompt extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.s16),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppSpacing.s8,
+            runSpacing: AppSpacing.s8,
             children: [
               AppButton(
                 label: prompt.secondaryLabel,
                 variant: AppButtonVariant.ghost,
                 onPressed: prompt.onSecondary,
               ),
-              const SizedBox(width: AppSpacing.s8),
               AppButton(
                 label: prompt.primaryLabel,
                 variant: AppButtonVariant.primary,
