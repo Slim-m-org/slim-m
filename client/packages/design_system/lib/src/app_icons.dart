@@ -96,6 +96,9 @@ abstract final class AppIcons {
   /// closed accent roles. Never shown for a tie at the top.
   static const IconData pollLeading = LucideIcons.trendingUp300;
   static const IconData code = LucideIcons.code300;
+
+  /// A fenced code block, beside [code]'s inline code.
+  static const IconData codeBlock = LucideIcons.squareCode300;
   static const IconData webhook = LucideIcons.webhook300;
   static const IconData smile = LucideIcons.smile300;
 
