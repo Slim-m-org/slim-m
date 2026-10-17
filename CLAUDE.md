@@ -14,7 +14,7 @@ slim-m is a lightweight, self-hostable Discord-style platform for text, voice, s
 - Wire protocol: schema-first JSON in `schema/openapi.yaml`
 - Name is temporary; final product name is chosen before 1.0
 
-Read first when starting substantial work:
+Read first when starting substantial work (`docs/README.md` indexes the rest, `docs/DEVELOPING.md` is the contributor setup):
 1. `docs/BRIEF.md`
 2. `docs/STRATEGY.md`
 3. `docs/ROADMAP.md`

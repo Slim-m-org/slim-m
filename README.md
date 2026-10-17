@@ -55,7 +55,8 @@ curl localhost:8080/version     # -> {"name":"slim-m",...}
 
 - API reference: [schema/openapi.yaml](schema/openapi.yaml) is the source of record; nothing renders it automatically (GitHub has no built-in OpenAPI viewer and building one into a CI artifact nobody downloads was not worth a job), so build a browsable copy locally with `npx @redocly/cli build-docs schema/openapi.yaml -o /tmp/api.html`
 - [Brief](docs/BRIEF.md), [strategy](docs/STRATEGY.md), [roadmap](docs/ROADMAP.md)
-- [Decisions of record](docs/decisions/), [backlog](docs/BACKLOG.md)
+- [docs/README.md](docs/README.md): where every document is
+- [Decisions of record](docs/decisions/)
 - [Licensing](LICENSING.md) (PolyForm Noncommercial, whole repo), [contributing](CONTRIBUTING.md)
 
 ## License
@@ -68,6 +69,7 @@ If you want to use it commercially, open an issue and ask.
 
 ## For contributors
 
+[docs/DEVELOPING.md](docs/DEVELOPING.md) goes from a fresh clone to everything running, and runs every CI check locally.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the definition of done.
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is a ten minute tour of the code.
 [docs/RELEASING.md](docs/RELEASING.md) is the release runbook, and [docs/CHANGING-CI.md](docs/CHANGING-CI.md) is what to know before editing a workflow.

@@ -1,6 +1,6 @@
 # Research corpus index
 
-55 files, roughly 12,500 lines, spanning 2026-07-23 to 2026-09-16.
+Research notes from 2026-07-23 onward; `git ls-files docs/research` lists them all.
 
 **Status: this is a point-in-time record, not a description of current state.**
 Most of it (everything dated 2026-07-23) was written before a line of implementation code existed, to decide what to build and then to attack that decision before committing to it.
