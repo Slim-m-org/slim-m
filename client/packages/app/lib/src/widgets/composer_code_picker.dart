@@ -54,7 +54,7 @@ Future<CodeInsertChoice?> showCodeInsertPicker(
   required bool allowInline,
 }) => showAppSheet<CodeInsertChoice>(
   context,
-  maxWidth: 360,
+  maxWidth: 300,
   builder: (_) => CodeInsertPicker(allowInline: allowInline),
 );
 
@@ -73,11 +73,17 @@ class _CodeInsertPickerState extends ConsumerState<CodeInsertPicker> {
   late final _filterFocus = FocusNode(onKeyEvent: (_, event) => _onKey(event));
   int _highlighted = 0;
   List<CodeInsertChoice> _shown = const [];
+  final _scroll = ScrollController();
+  double _rowHeight = AppSizes.rowPointer;
+
+  /// Rows shown before the list scrolls; enough for both kinds and a few languages.
+  static const _visibleRows = 8;
 
   @override
   void dispose() {
     _filter.dispose();
     _filterFocus.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -117,7 +123,21 @@ class _CodeInsertPickerState extends ConsumerState<CodeInsertPicker> {
     };
     if (step == 0 || _shown.isEmpty) return KeyEventResult.ignored;
     setState(() => _highlighted = (_highlighted + step) % _shown.length);
+    _reveal(_highlighted);
     return KeyEventResult.handled;
+  }
+
+  /// Keeps the highlighted row inside the capped list as the arrows move it.
+  void _reveal(int index) {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final top = index * _rowHeight;
+    final bottom = top + _rowHeight;
+    if (top < position.pixels) {
+      _scroll.jumpTo(top);
+    } else if (bottom > position.pixels + position.viewportDimension) {
+      _scroll.jumpTo(bottom - position.viewportDimension);
+    }
   }
 
   /// Reads the state, not the last build: a key can land before the redraw.
@@ -132,6 +152,7 @@ class _CodeInsertPickerState extends ConsumerState<CodeInsertPicker> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final rows = _rows();
     _shown = [for (final row in rows) row.$1];
+    _rowHeight = AppListRow.heightFor(context);
     final highlighted = rows.isEmpty
         ? -1
         : _highlighted.clamp(0, rows.length - 1);
@@ -140,37 +161,44 @@ class _CodeInsertPickerState extends ConsumerState<CodeInsertPicker> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppSpacing.s12,
+              0,
+              AppSpacing.s12,
+              AppSpacing.s8,
             ),
-            child: Text('Insert code', style: AppText.heading),
+            child: Text(
+              'Insert code',
+              style: AppText.ui.copyWith(fontWeight: AppWeights.semi),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
+              AppSpacing.s12,
               0,
-              AppSpacing.s16,
-              AppSpacing.s8,
+              AppSpacing.s12,
+              AppSpacing.s4,
             ),
             child: AppInput(
+              size: AppInputSize.sm,
               controller: _filter,
               focusNode: _filterFocus,
               // A soft keyboard would cover the list a tap could choose from.
               autofocus: !usesSoftKeyboard(context),
               placeholder: 'Filter languages',
               semanticLabel: 'Filter languages',
-              icon: const Icon(AppIcons.search),
+              icon: const Icon(AppIcons.search, size: AppSizes.icon16),
               onChanged: (_) => setState(() => _highlighted = 0),
               onSubmitted: _submit,
             ),
           ),
-          Flexible(
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: _rowHeight * _visibleRows),
             child: ListView(
+              controller: _scroll,
               shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
               children: [
                 for (final (i, (choice, runs)) in rows.indexed)
                   AppListRow(
@@ -198,7 +226,7 @@ class _CodeInsertPickerState extends ConsumerState<CodeInsertPicker> {
                   ),
                 if (rows.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(AppSpacing.s16),
+                    padding: const EdgeInsets.all(AppSpacing.s12),
                     child: Text(
                       'No match. Enter tags the block '
                       '"${_filter.text.trim().toLowerCase()}".',
@@ -210,7 +238,7 @@ class _CodeInsertPickerState extends ConsumerState<CodeInsertPicker> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.s8),
+          const SizedBox(height: AppSpacing.s4),
         ],
       ),
     );

@@ -81,6 +81,8 @@ void main() {
 
       expect(find.text('Insert code'), findsWidgets);
       expect(find.text('Inline code'), findsOneWidget);
+      await tester.enterText(_filterField, 'pyth');
+      await tester.pump();
       await tester.tap(find.text('Python'));
       await tester.pumpAndSettle();
 
@@ -94,6 +96,8 @@ void main() {
       await pumpDesktop(tester);
       await openPicker(tester);
 
+      await tester.enterText(_filterField, 'p');
+      await tester.pump();
       final python = find.ancestor(
         of: find.text('Python'),
         matching: find.byType(AppListRow),
@@ -102,6 +106,8 @@ void main() {
         find.descendant(of: python.first, matching: find.text('RUNS')),
         findsOneWidget,
       );
+      await tester.enterText(_filterField, 'rust');
+      await tester.pump();
       final rust = find.ancestor(
         of: find.text('Rust'),
         matching: find.byType(AppListRow),
@@ -127,6 +133,31 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.text, '```typescript\n\n```');
+    });
+
+    testWidgets('arrowing past the visible rows keeps the highlight in view', (
+      tester,
+    ) async {
+      await pumpDesktop(tester);
+      await openPicker(tester);
+
+      for (var i = 0; i < 12; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      }
+      await tester.pump();
+
+      final list = tester.getRect(
+        find.descendant(
+          of: find.byType(CodeInsertPicker),
+          matching: find.byType(ListView),
+        ),
+      );
+      final highlighted = find.byWidgetPredicate(
+        (w) => w is AppListRow && w.selected,
+      );
+      final row = tester.getRect(highlighted);
+      expect(row.top, greaterThanOrEqualTo(list.top - 0.5));
+      expect(row.bottom, lessThanOrEqualTo(list.bottom + 0.5));
     });
 
     testWidgets('a name with no match still tags the block', (tester) async {
