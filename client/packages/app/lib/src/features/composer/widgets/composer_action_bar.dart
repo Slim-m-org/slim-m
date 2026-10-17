@@ -107,12 +107,7 @@ class ComposerActionBar extends ConsumerWidget {
                 // Top, not centred: a centred icon drifts as the field grows.
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppIconButton(
-                    icon: AppIcons.add,
-                    semanticLabel: touch ? 'More actions' : 'Attach a file',
-                    tooltip: touch ? 'More actions' : 'Attach a file',
-                    onPressed: touch ? onOpenActions : onPickFile,
-                  ),
+                  _attachButton(),
                   const SizedBox(width: AppSpacing.s8),
                   Expanded(
                     child: ComposerField(
@@ -128,46 +123,10 @@ class ComposerActionBar extends ConsumerWidget {
                   ),
                   const SizedBox(width: AppSpacing.s8),
                   // Behind the add button at touch density; see `showComposerActionsSheet`.
-                  if (!touch) ...[
-                    AppIconButton(
-                      icon: AppIcons.poll,
-                      semanticLabel: 'Create a poll',
-                      tooltip: 'Create a poll',
-                      onPressed: () =>
-                          showPollComposerSheet(context, channelId),
-                    ),
-                    AppIconButton(
-                      icon: AppIcons.code,
-                      semanticLabel: 'Insert code',
-                      tooltip: 'Insert code',
-                      onPressed: onInsertCode,
-                    ),
-                    ComposerPickerButton(
-                      controller: pickerController,
-                      gifSearchEnabled: gifSearchEnabled,
-                      onSelectEmoji: onInsertEmoji,
-                      onPickedGif: onStageGif,
-                    ),
-                  ] else
-                    AppIconButton(
-                      icon: AppIcons.smile,
-                      // Says what it opens: the GIFs tab is absent without a provider.
-                      semanticLabel: gifSearchEnabled
-                          ? 'Insert emoji or a GIF'
-                          : 'Insert emoji',
-                      tooltip: gifSearchEnabled
-                          ? 'Insert emoji or a GIF'
-                          : 'Insert emoji',
-                      // Same two tabs the pointer panel has; see its own sheet doc.
-                      onPressed: () => unawaited(
-                        showComposerPickerSheet(
-                          context,
-                          onSelectEmoji: onInsertEmoji,
-                          onPickedGif: onStageGif,
-                          showGifTab: gifSearchEnabled,
-                        ),
-                      ),
-                    ),
+                  if (touch)
+                    _touchEmojiButton(context)
+                  else
+                    ..._pointerButtons(context),
                   // Always rendered, only disabled when empty or over the limit.
                   AppIconButton(
                     icon: AppIcons.send,
@@ -179,6 +138,56 @@ class ComposerActionBar extends ConsumerWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _attachButton() {
+    final label = touch ? 'More actions' : 'Attach a file';
+    return AppIconButton(
+      icon: AppIcons.add,
+      semanticLabel: label,
+      tooltip: label,
+      onPressed: touch ? onOpenActions : onPickFile,
+    );
+  }
+
+  List<Widget> _pointerButtons(BuildContext context) => [
+    AppIconButton(
+      icon: AppIcons.poll,
+      semanticLabel: 'Create a poll',
+      tooltip: 'Create a poll',
+      onPressed: () => showPollComposerSheet(context, channelId),
+    ),
+    AppIconButton(
+      icon: AppIcons.code,
+      semanticLabel: 'Insert code',
+      tooltip: 'Insert code',
+      onPressed: onInsertCode,
+    ),
+    ComposerPickerButton(
+      controller: pickerController,
+      gifSearchEnabled: gifSearchEnabled,
+      onSelectEmoji: onInsertEmoji,
+      onPickedGif: onStageGif,
+    ),
+  ];
+
+  Widget _touchEmojiButton(BuildContext context) {
+    // Says what it opens: the GIFs tab is absent without a provider.
+    final label = gifSearchEnabled ? 'Insert emoji or a GIF' : 'Insert emoji';
+    return AppIconButton(
+      icon: AppIcons.smile,
+      semanticLabel: label,
+      tooltip: label,
+      // Same two tabs the pointer panel has; see its own sheet doc.
+      onPressed: () => unawaited(
+        showComposerPickerSheet(
+          context,
+          onSelectEmoji: onInsertEmoji,
+          onPickedGif: onStageGif,
+          showGifTab: gifSearchEnabled,
         ),
       ),
     );

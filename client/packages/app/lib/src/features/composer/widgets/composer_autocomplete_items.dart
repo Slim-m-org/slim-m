@@ -163,6 +163,24 @@ List<AutocompleteSuggestion> _mentions(
   String? selfId, {
   required bool canMentionEveryone,
 }) {
+  return [
+    if (canMentionEveryone) ..._massMentionRows(term),
+    ..._roleSuggestions(term, members),
+    for (final m in _memberCandidates(term, members, selfId))
+      AutocompleteSuggestion(
+        insert: '@${m.username} ',
+        label: m.displayName,
+        detail: '@${m.username}',
+        userId: m.id,
+      ),
+  ].take(maxAutocompleteRows).toList(growable: false);
+}
+
+List<api.UserProfile> _memberCandidates(
+  String term,
+  List<api.UserProfile> members,
+  String? selfId,
+) {
   final candidates = members.where((m) => m.id != selfId).where((m) {
     if (term.isEmpty) return true;
     return m.username.toLowerCase().contains(term) ||
@@ -175,27 +193,19 @@ List<AutocompleteSuggestion> _mentions(
     if (aStarts != bStarts) return aStarts ? -1 : 1;
     return a.username.toLowerCase().compareTo(b.username.toLowerCase());
   });
-
-  return [
-    if (canMentionEveryone)
-      for (final (name, detail) in _massMentions)
-        if (term.isEmpty || name.startsWith(term))
-          AutocompleteSuggestion(
-            insert: '@$name ',
-            label: '@$name',
-            detail: detail,
-            isMassMention: true,
-          ),
-    ..._roleSuggestions(term, members),
-    for (final m in candidates)
-      AutocompleteSuggestion(
-        insert: '@${m.username} ',
-        label: m.displayName,
-        detail: '@${m.username}',
-        userId: m.id,
-      ),
-  ].take(maxAutocompleteRows).toList(growable: false);
+  return candidates;
 }
+
+List<AutocompleteSuggestion> _massMentionRows(String term) => [
+  for (final (name, detail) in _massMentions)
+    if (term.isEmpty || name.startsWith(term))
+      AutocompleteSuggestion(
+        insert: '@$name ',
+        label: '@$name',
+        detail: detail,
+        isMassMention: true,
+      ),
+];
 
 /// The distinct role names [term] matches across [members]' own `roles`
 /// field - the only role catalog available to an ordinary composer, since
@@ -248,30 +258,55 @@ List<AutocompleteSuggestion> _commandRows(
       label: '/gif',
       detail: 'search for a GIF',
     ),
+  ..._builtinRows(term),
+  ..._slashCommandRows(term, slashCommands),
+  ..._appRows(term, apps),
+  ..._botCommandRows(term, botCommands),
+].take(maxAutocompleteRows).toList(growable: false);
+
+bool _startsWithTerm(String term, String name) =>
+    term.isEmpty || name.toLowerCase().startsWith(term);
+
+List<AutocompleteSuggestion> _builtinRows(String term) => [
   for (final (name, text, detail) in _commands)
     if (term.isEmpty || name.startsWith(term))
       AutocompleteSuggestion(insert: '$text ', label: '/$name', detail: detail),
+];
+
+List<AutocompleteSuggestion> _slashCommandRows(
+  String term,
+  List<api.SlashCommand> slashCommands,
+) => [
   for (final command in slashCommands)
-    if (term.isEmpty || command.name.toLowerCase().startsWith(term))
+    if (_startsWithTerm(term, command.name))
       AutocompleteSuggestion(
         insert: '/${command.name} ',
         label: '/${command.name}',
         detail: command.description,
       ),
-  // An app launches on its keyword alone (no arguments), so its row inserts the complete `/module-id` ready to send.
+];
+
+// An app launches on its keyword alone (no arguments), so its row inserts the complete `/module-id` ready to send.
+List<AutocompleteSuggestion> _appRows(String term, List<api.App> apps) => [
   for (final app in apps)
-    if (term.isEmpty || app.moduleId.toLowerCase().startsWith(term))
+    if (_startsWithTerm(term, app.moduleId))
       AutocompleteSuggestion(
         insert: '/${app.moduleId}',
         label: '/${app.moduleId}',
         detail: app.name,
       ),
-  // Two bots sharing a prefix and name both stay, disambiguated by `detail`.
+];
+
+// Two bots sharing a prefix and name both stay, disambiguated by `detail`.
+List<AutocompleteSuggestion> _botCommandRows(
+  String term,
+  List<api.ChannelBotCommand> botCommands,
+) => [
   for (final command in botCommands)
-    if (term.isEmpty || command.name.toLowerCase().startsWith(term))
+    if (_startsWithTerm(term, command.name))
       AutocompleteSuggestion(
         insert: '${command.prefix}${command.name} ',
         label: '${command.prefix}${command.name}',
         detail: '${command.description} · ${command.botDisplayName}',
       ),
-].take(maxAutocompleteRows).toList(growable: false);
+];

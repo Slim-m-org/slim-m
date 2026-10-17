@@ -86,7 +86,7 @@ AutocompleteQuery? autocompleteQueryAt(String text, int caret) {
     final ch = text[i];
 
     // Whitespace before any trigger means the caret is not inside one.
-    if (ch == ' ' || ch == '\n' || ch == '\t') return null;
+    if (_isSpace(ch)) return null;
 
     final kind = switch (ch) {
       ':' => AutocompleteKind.emoji,
@@ -95,30 +95,37 @@ AutocompleteQuery? autocompleteQueryAt(String text, int caret) {
       _ => null,
     };
     if (kind == null) continue;
-
-    // A command is the whole message or nothing.
-    if (kind == AutocompleteKind.command && i != 0) return null;
-
-    // Must start the message or follow whitespace.
-    if (i > 0) {
-      final before = text[i - 1];
-      if (before != ' ' && before != '\n' && before != '\t') return null;
-    }
-
-    final term = text.substring(i + 1, caret);
-    // A closed shortcode is finished; a space means the caret is past it.
-    if (term.contains(':') || term.contains(' ')) return null;
-
-    if (kind == AutocompleteKind.emoji && term.length < minEmojiChars) {
-      return null;
-    }
-
-    return AutocompleteQuery(
-      kind: kind,
-      term: term.toLowerCase(),
-      start: i,
-      end: caret,
-    );
+    return _queryAtTrigger(text, caret, i, kind);
   }
   return null;
+}
+
+bool _isSpace(String ch) => ch == ' ' || ch == '\n' || ch == '\t';
+
+AutocompleteQuery? _queryAtTrigger(
+  String text,
+  int caret,
+  int i,
+  AutocompleteKind kind,
+) {
+  // A command is the whole message or nothing.
+  if (kind == AutocompleteKind.command && i != 0) return null;
+
+  // Must start the message or follow whitespace.
+  if (i > 0 && !_isSpace(text[i - 1])) return null;
+
+  final term = text.substring(i + 1, caret);
+  // A closed shortcode is finished; a space means the caret is past it.
+  if (term.contains(':') || term.contains(' ')) return null;
+
+  if (kind == AutocompleteKind.emoji && term.length < minEmojiChars) {
+    return null;
+  }
+
+  return AutocompleteQuery(
+    kind: kind,
+    term: term.toLowerCase(),
+    start: i,
+    end: caret,
+  );
 }
