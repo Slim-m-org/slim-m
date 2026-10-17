@@ -65,8 +65,9 @@ impl fmt::Display for RunError {
 pub struct ModuleHost;
 
 impl ModuleHost {
-    /// Verifies `wasm`'s sha256 against `expected_sha256`, then instantiates
-    /// and calls it on a blocking task bounded by `limits.wall`. The run
+    /// Verifies `wasm`'s sha256 against `expected_sha256`, compiles it (once
+    /// per module), then instantiates and calls it on a blocking task bounded
+    /// by `limits.wall`, which starts after compiling. The run
     /// executes in fuel slices and checks the deadline between them, so a
     /// timeout also stops the wasm; the outer timeout is only a backstop for
     /// a task that never reaches a slice boundary.
@@ -107,10 +108,13 @@ impl ModuleHost {
             return Err(RunError::HashMismatch);
         }
 
+        // The wall cap is the module's own run time: compiling it is the host's cost, paid once.
+        let module = tokio::task::spawn_blocking(move || compiled_module(&digest, &wasm))
+            .await
+            .map_err(|_| RunError::Trap("module compile did not complete".to_owned()))??;
         let wall = limits.wall;
         let deadline = Instant::now() + wall;
         let task = tokio::task::spawn_blocking(move || {
-            let module = compiled_module(&digest, &wasm)?;
             run_sync(&module, limits, &input, (surface, deadline))
         });
         match tokio::time::timeout(wall, task).await {
