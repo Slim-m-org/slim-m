@@ -29,7 +29,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 import 'support/fake_sync.dart';
 
 const _tokens = TokenPair(

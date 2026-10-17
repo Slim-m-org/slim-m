@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.da
 import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 import 'ui_snapshot_support.dart';
 
 const _lines = [

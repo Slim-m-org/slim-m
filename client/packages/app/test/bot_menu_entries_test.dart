@@ -24,7 +24,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 api.ChannelBotUi _bot(String name, List<String> labels) => api.ChannelBotUi(
   botUserId: 'bot-$name',

@@ -24,7 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_call_controls_harness.dart' show InertSession;

@@ -32,7 +32,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 

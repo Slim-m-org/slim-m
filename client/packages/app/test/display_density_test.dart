@@ -22,7 +22,7 @@ import 'package:slimm_app/src/widgets/ui_scale_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 ProviderContainer _container() {
   final container = ProviderContainer(

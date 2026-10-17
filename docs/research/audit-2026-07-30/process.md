@@ -246,7 +246,7 @@ Shape of the fix: assert 413 exactly, and cover the 400 branch directly so the s
 
 ### A conditional assertion in message_row_test can skip the panel-to-row wiring check (low)
 
-`client/packages/app/test/message_row_test.dart:443`
+`client/packages/app/test/features/messages/message_row_test.dart:443`
 
 `final tile = find.byType(InkWell).hitTestable(); if (tile.evaluate().isNotEmpty) { ... expect(picked, isNotNull, ...); }`, where `picked` is assigned by `onPickReaction` at line 406 and read nowhere else.
 `hitTestable()` yields an empty finder whenever the tiles land outside the viewport or under another layer, and the assertion then never runs while the test passes.

@@ -19,4 +19,4 @@ client/packages/app/test/app_snackbar_test.dart # test harness copies the ambien
 client/packages/design_system/test/components/sheet_test.dart # test harness copies the ambient MediaQueryData with disableAnimations overridden.
 client/packages/design_system/test/components/surfaces_test.dart # test harness copies the ambient MediaQueryData with textScaler overridden.
 client/packages/app/test/ui_snapshot_support.dart # renderSurface copies the ambient MediaQueryData with textScaler overridden for the 200% text-scale pass.
-client/packages/app/test/message_row_time_format_test.dart # _pumpRow copies the ambient MediaQueryData with textScaler overridden for the 200% gutter-timestamp case.
+client/packages/app/test/features/messages/message_row_time_format_test.dart # _pumpRow copies the ambient MediaQueryData with textScaler overridden for the 200% gutter-timestamp case.

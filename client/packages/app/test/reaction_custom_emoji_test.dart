@@ -25,7 +25,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 /// A codepoint reaction, escaped rather than literal: the hygiene gate
 /// forbids an emoji codepoint anywhere in `client/`.

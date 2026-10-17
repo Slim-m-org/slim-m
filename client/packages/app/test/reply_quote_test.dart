@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 void main() {
   testWidgets('a resolved parent shows its author and a snippet', (

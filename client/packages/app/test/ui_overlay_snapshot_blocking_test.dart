@@ -30,7 +30,8 @@ import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_image
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 
-import 'message_row_harness.dart' show harness, message, noActions;
+import 'features/messages/message_row_harness.dart'
+    show harness, message, noActions;
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'support/fake_blocks.dart';
