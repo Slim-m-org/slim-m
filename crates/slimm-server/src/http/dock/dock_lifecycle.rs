@@ -6,15 +6,15 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 
-use super::AppState;
-use super::dock::keywords::{self, ensure_slash_keywords_free};
-use super::dock::wire::InstalledModuleDto;
-use super::error::ApiError;
-use super::extract::require_manage_server;
-use super::extract::{Authed, Json, enforce};
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::require_manage_server;
+use super::super::extract::{Authed, Json, enforce};
+use super::keywords::{self, ensure_slash_keywords_free};
+use super::wire::InstalledModuleDto;
 use crate::ratelimit::Class;
 
-pub(super) async fn uninstall(
+pub(in crate::http) async fn uninstall(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
@@ -29,7 +29,7 @@ pub(super) async fn uninstall(
     }
 }
 
-pub(super) async fn enable(
+pub(in crate::http) async fn enable(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
@@ -40,7 +40,7 @@ pub(super) async fn enable(
     apply_enabled(&state, &id, true).await
 }
 
-pub(super) async fn disable(
+pub(in crate::http) async fn disable(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
@@ -80,7 +80,7 @@ async fn apply_enabled(
     Ok(Json(InstalledModuleDto::from(installed)))
 }
 
-pub(super) async fn list_installed(
+pub(in crate::http) async fn list_installed(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,

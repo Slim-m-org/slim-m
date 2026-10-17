@@ -9,9 +9,9 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce, require_manage_server};
 use crate::ratelimit::Class;
 use crate::store::DockSource;
 
@@ -24,7 +24,7 @@ const MAX_REPO_NAME_LEN: usize = 100;
 
 /// `owner/repo`, GitHub's own character rules, and nothing that could steer
 /// the fixed host's path elsewhere.
-pub(super) fn validate_repo(repo: &str) -> Result<(), ApiError> {
+pub(in crate::http) fn validate_repo(repo: &str) -> Result<(), ApiError> {
     const INVALID: ApiError = ApiError::BadRequest("a source is a GitHub owner/repo slug");
     let (owner, name) = repo.split_once('/').ok_or(INVALID)?;
     let owner_ok = !owner.is_empty()
@@ -45,7 +45,7 @@ pub(super) fn validate_repo(repo: &str) -> Result<(), ApiError> {
 }
 
 #[derive(Serialize)]
-pub(super) struct SourceDto {
+pub(in crate::http) struct SourceDto {
     id: String,
     repo: String,
     official: bool,
@@ -64,7 +64,7 @@ impl From<DockSource> for SourceDto {
     }
 }
 
-pub(super) async fn list_sources(
+pub(in crate::http) async fn list_sources(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
@@ -90,11 +90,11 @@ pub(super) async fn list_sources(
 }
 
 #[derive(Deserialize)]
-pub(super) struct AddSourceRequest {
+pub(in crate::http) struct AddSourceRequest {
     repo: String,
 }
 
-pub(super) async fn add_source(
+pub(in crate::http) async fn add_source(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
@@ -123,7 +123,7 @@ pub(super) async fn add_source(
     Ok((status, Json(SourceDto::from(source))))
 }
 
-pub(super) async fn remove_source(
+pub(in crate::http) async fn remove_source(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
