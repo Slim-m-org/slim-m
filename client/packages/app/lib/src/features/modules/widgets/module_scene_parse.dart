@@ -40,21 +40,7 @@ ModuleScene? parseModuleScene(String raw) {
   }
   if (decoded is! Map || decoded[r'$slim'] != 'scene/1') return null;
 
-  final opsRaw = decoded['ops'];
-  final ops = <SceneOp>[];
-  var images = 0;
-  var animated = 0;
-  if (opsRaw is List) {
-    for (final entry in opsRaw) {
-      if (entry is! Map) continue;
-      final op = _parseOp(entry, allowSweep: animated < SceneSweep.maxPerScene);
-      if (op == null) continue;
-      if (sweepOf(op) != null) animated++;
-      // Counted here: _parseOp sees one op and cannot know how many preceded it.
-      if (op is ImageOp && ++images > ImageOp.maxPerScene) continue;
-      ops.add(op);
-    }
-  }
+  final ops = _parseOps(decoded['ops']);
 
   final (width, height) = _boundedAspect(
     _double(decoded['width'], 100),
@@ -81,6 +67,23 @@ ModuleScene? parseModuleScene(String raw) {
     live: scene.live,
     crop: sceneContentBounds(scene),
   );
+}
+
+List<SceneOp> _parseOps(Object? opsRaw) {
+  final ops = <SceneOp>[];
+  if (opsRaw is! List) return ops;
+  var images = 0;
+  var animated = 0;
+  for (final entry in opsRaw) {
+    if (entry is! Map) continue;
+    final op = _parseOp(entry, allowSweep: animated < SceneSweep.maxPerScene);
+    if (op == null) continue;
+    if (sweepOf(op) != null) animated++;
+    // Counted here: _parseOp sees one op and cannot know how many preceded it.
+    if (op is ImageOp && ++images > ImageOp.maxPerScene) continue;
+    ops.add(op);
+  }
+  return ops;
 }
 
 SceneOp? _parseOp(Map<Object?, Object?> op, {required bool allowSweep}) {

@@ -99,83 +99,98 @@ Future<void> showAppLauncherSheet(
               center: false,
               errorMessage: 'Could not load your apps.',
               onRetry: () => sheetRef.invalidate(appLaunchProvider),
-              data: (context, list) {
-                if (list.isEmpty) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s16,
-                          vertical: AppSpacing.s8,
-                        ),
-                        child: Text(
-                          // Only an admin can act on this, so only an admin is told to.
-                          canManageServer
-                              ? 'No apps installed yet.'
-                              : 'No apps installed. Ask an admin to install '
-                                    'one from Modules.',
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                      ),
-                      if (canManageServer)
-                        AppListRow(
-                          label: 'Open Modules',
-                          leading: Icon(
-                            AppIcons.dock,
-                            size: AppSizes.icon16,
-                            color: tokens.textSecondary,
-                          ),
-                          trailing: ExcludeSemantics(
-                            child: Icon(
-                              AppIcons.chevronRight,
-                              size: AppSizes.icon16,
-                              color: tokens.textSecondary,
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.of(sheetContext).pop();
-                            context.push(Routes.adminDock);
-                          },
-                        ),
-                    ],
-                  );
-                }
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final app in list)
-                      AppListRow(
-                        label: app.name,
-                        subtitle: app.description,
-                        leading: Icon(
-                          AppIcons.dock,
-                          size: AppSizes.icon16,
-                          color: tokens.textSecondary,
-                        ),
-                        onTap: () {
-                          Navigator.of(sheetContext).pop();
-                          unawaited(
-                            launchApp(
-                              ref: ref,
-                              channelId: channelId,
-                              app: app,
-                              onError: onError,
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                );
-              },
+              data: (context, list) => list.isEmpty
+                  ? _emptyApps(sheetContext, context, tokens, canManageServer)
+                  : _appRows(sheetContext, ref, channelId, list, onError),
             ),
           ),
         );
       },
     ),
+  );
+}
+
+Widget _emptyApps(
+  BuildContext sheetContext,
+  BuildContext context,
+  AppTokens tokens,
+  bool canManageServer,
+) {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s16,
+          vertical: AppSpacing.s8,
+        ),
+        child: Text(
+          // Only an admin can act on this, so only an admin is told to.
+          canManageServer
+              ? 'No apps installed yet.'
+              : 'No apps installed. Ask an admin to install '
+                    'one from Modules.',
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+      ),
+      if (canManageServer)
+        AppListRow(
+          label: 'Open Modules',
+          leading: Icon(
+            AppIcons.dock,
+            size: AppSizes.icon16,
+            color: tokens.textSecondary,
+          ),
+          trailing: ExcludeSemantics(
+            child: Icon(
+              AppIcons.chevronRight,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
+            ),
+          ),
+          onTap: () {
+            Navigator.of(sheetContext).pop();
+            context.push(Routes.adminDock);
+          },
+        ),
+    ],
+  );
+}
+
+Widget _appRows(
+  BuildContext sheetContext,
+  WidgetRef ref,
+  String channelId,
+  List<api.App> list,
+  void Function(String message)? onError,
+) {
+  final tokens = Theme.of(sheetContext).extension<AppTokens>()!;
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final app in list)
+        AppListRow(
+          label: app.name,
+          subtitle: app.description,
+          leading: Icon(
+            AppIcons.dock,
+            size: AppSizes.icon16,
+            color: tokens.textSecondary,
+          ),
+          onTap: () {
+            Navigator.of(sheetContext).pop();
+            unawaited(
+              launchApp(
+                ref: ref,
+                channelId: channelId,
+                app: app,
+                onError: onError,
+              ),
+            );
+          },
+        ),
+    ],
   );
 }

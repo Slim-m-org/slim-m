@@ -303,28 +303,49 @@ String? sceneTapAction(ModuleScene scene, Offset tapped, Size size) {
   final sy = scene.viewHeight == 0 ? 1.0 : size.height / scene.viewHeight;
   final local = tapped.translate(scene.viewLeft * sx, scene.viewTop * sy);
   for (final op in scene.ops.reversed) {
-    switch (op) {
-      case CellsOp() when op.tap != null && op.cols > 0 && op.rows > 0:
-        final grid = cellsGridRect(op, scene, sx, sy);
-        final col = ((local.dx - grid.left) / (grid.width / op.cols)).floor();
-        final row = ((local.dy - grid.top) / (grid.height / op.rows)).floor();
-        if (col >= 0 && col < op.cols && row >= 0 && row < op.rows) {
-          return '${op.tap}:$row,$col';
-        }
-      case RectOp() when op.tap != null:
-        final rect = Rect.fromLTWH(op.x * sx, op.y * sy, op.w * sx, op.h * sy);
-        if (rect.contains(local)) return op.tap;
-      case CircleOp() when op.tap != null:
-        final center = Offset(op.cx * sx, op.cy * sy);
-        if ((local - center).distance <= op.r * ((sx + sy) / 2)) return op.tap;
-      case ImageOp() when op.tap != null:
-        final rect = Rect.fromLTWH(op.x * sx, op.y * sy, op.w * sx, op.h * sy);
-        if (rect.contains(local)) return op.tap;
-      case PathOp() when op.tap != null:
-        if (buildScenePath(op.steps, sx, sy).contains(local)) return op.tap;
-      default:
-        break;
-    }
+    final action = _opTapAction(op, scene, local, sx, sy);
+    if (action != null) return action;
   }
   return null;
+}
+
+String? _opTapAction(
+  SceneOp op,
+  ModuleScene scene,
+  Offset local,
+  double sx,
+  double sy,
+) {
+  Rect box(double x, double y, double w, double h) =>
+      Rect.fromLTWH(x * sx, y * sy, w * sx, h * sy);
+  return switch (op) {
+    CellsOp() when op.tap != null && op.cols > 0 && op.rows > 0 =>
+      _cellsTapAction(op, scene, local, sx, sy),
+    RectOp() when op.tap != null =>
+      box(op.x, op.y, op.w, op.h).contains(local) ? op.tap : null,
+    CircleOp() when op.tap != null =>
+      (local - Offset(op.cx * sx, op.cy * sy)).distance <=
+              op.r * ((sx + sy) / 2)
+          ? op.tap
+          : null,
+    ImageOp() when op.tap != null =>
+      box(op.x, op.y, op.w, op.h).contains(local) ? op.tap : null,
+    PathOp() when op.tap != null =>
+      buildScenePath(op.steps, sx, sy).contains(local) ? op.tap : null,
+    _ => null,
+  };
+}
+
+String? _cellsTapAction(
+  CellsOp op,
+  ModuleScene scene,
+  Offset local,
+  double sx,
+  double sy,
+) {
+  final grid = cellsGridRect(op, scene, sx, sy);
+  final col = ((local.dx - grid.left) / (grid.width / op.cols)).floor();
+  final row = ((local.dy - grid.top) / (grid.height / op.rows)).floor();
+  if (col < 0 || col >= op.cols || row < 0 || row >= op.rows) return null;
+  return '${op.tap}:$row,$col';
 }
