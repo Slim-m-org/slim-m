@@ -22,18 +22,8 @@ extension SyncControllerEvents on SyncController {
   ) async {
     bool isCurrent() => generation == _generation;
     switch (event) {
-      case MessageCreated(:final message):
-        await _materialise(message.channelId, api, store, isCurrent);
-        if (!isCurrent()) return;
-        if (await _skipsOver(
-          message.channelId,
-          message.seq,
-          store,
-          isCurrent,
-        )) {
-          return;
-        }
-        await store.applyMessage(message);
+      case MessageCreated():
+        await _onMessageCreated(event, api, store, isCurrent);
       case MessageEdited(:final message, :final opSeq):
         await _materialise(message.channelId, api, store, isCurrent);
         if (!isCurrent()) return;
@@ -42,13 +32,9 @@ extension SyncControllerEvents on SyncController {
         }
         await store.applyMessage(message);
       case MessageDeleted(:final channelId, :final messageId, :final opSeq):
-
-        /// Closes a real gap: this switch previously had no case for a
-        /// delete at all, so a message removed by another user (or this
-        /// account's own delete looping back) never left the local store
-        /// and stayed visible until the next full resync.
         if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
         if (!isCurrent()) return;
+        // Without this case a delete by another user stayed visible until the next full resync.
         await store.discard(messageId);
       case ReadStateChanged(
         :final channelId,
@@ -71,16 +57,7 @@ extension SyncControllerEvents on SyncController {
       case ChannelUpdated(:final channel):
         await store.upsertChannels([channel]);
       case ChannelDeleted(:final channelId):
-        final row = await store.channelRow(channelId);
-        if (row?.roomOwnerId != null) {
-          final removed = _ref.read(removedRoomsProvider.notifier);
-          removed.state = {...removed.state, channelId};
-        } else if (row != null) {
-          final deleted = _ref.read(deletedChannelsProvider.notifier);
-          deleted.state = {...deleted.state, channelId: row.name};
-        }
-        // A channel already known to be gone; no round trip needed for that.
-        await store.removeChannel(channelId);
+        await _onChannelDeleted(channelId, store);
       case OverwriteChanged():
       case RoleChanged():
       case MemberRoleChanged():
@@ -97,6 +74,34 @@ extension SyncControllerEvents on SyncController {
       case _:
         break;
     }
+  }
+
+  Future<void> _onMessageCreated(
+    MessageCreated event,
+    SlimmApi api,
+    MessageStore store,
+    bool Function() isCurrent,
+  ) async {
+    final message = event.message;
+    await _materialise(message.channelId, api, store, isCurrent);
+    if (!isCurrent()) return;
+    if (await _skipsOver(message.channelId, message.seq, store, isCurrent)) {
+      return;
+    }
+    await store.applyMessage(message);
+  }
+
+  Future<void> _onChannelDeleted(String channelId, MessageStore store) async {
+    final row = await store.channelRow(channelId);
+    if (row?.roomOwnerId != null) {
+      final removed = _ref.read(removedRoomsProvider.notifier);
+      removed.state = {...removed.state, channelId};
+    } else if (row != null) {
+      final deleted = _ref.read(deletedChannelsProvider.notifier);
+      deleted.state = {...deleted.state, channelId: row.name};
+    }
+    // A channel already known to be gone; no round trip needed for that.
+    await store.removeChannel(channelId);
   }
 
   /// Refreshes the channel list for a message in a channel not held yet, which

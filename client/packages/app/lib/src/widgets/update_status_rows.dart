@@ -27,6 +27,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../desktop/startup_screen.dart';
@@ -85,22 +86,12 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final update = widget.shouldRun()
-        ? ref.watch(inSessionUpdateProvider)
-        : null;
-    final info = ref.watch(appInfoProvider);
-    final installed = info.valueOrNull?.version;
-    final status = [
-      if (update != null && installed != null)
-        '${update.version} is available. You have $installed. '
-            '${updateActionHint(update.format)}',
-      ?_result,
-    ];
-
-    final identity = Column(
+  Widget _identity(
+    AppTokens tokens,
+    AsyncValue<PackageInfo> info,
+    List<String> status,
+  ) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 2,
       children: [
@@ -113,9 +104,7 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
         ),
         Text(
           info.when(
-            data: (i) => i.buildNumber.isEmpty
-                ? 'Version ${i.version}'
-                : 'Version ${i.version} (${i.buildNumber})',
+            data: _versionLabel,
             loading: () => 'Loading…',
             error: (e, _) => 'Version unknown',
           ),
@@ -131,6 +120,28 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
           ),
       ],
     );
+  }
+
+  String _versionLabel(PackageInfo i) => i.buildNumber.isEmpty
+      ? 'Version ${i.version}'
+      : 'Version ${i.version} (${i.buildNumber})';
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final update = widget.shouldRun()
+        ? ref.watch(inSessionUpdateProvider)
+        : null;
+    final info = ref.watch(appInfoProvider);
+    final installed = info.valueOrNull?.version;
+    final status = [
+      if (update != null && installed != null)
+        '${update.version} is available. You have $installed. '
+            '${updateActionHint(update.format)}',
+      ?_result,
+    ];
+
+    final identity = _identity(tokens, info, status);
     final button = widget.shouldRun()
         ? AppButton(
             label: _checking ? 'Checking…' : 'Check for updates',

@@ -61,19 +61,17 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _showOn(
   return messenger.showSnackBar(
     SnackBar(
       content: Text(message),
-      margin: floating
-          ? EdgeInsets.fromLTRB(
-              side,
-              AppSpacing.s4,
-              side,
-              reserveBottom > 0
-                  ? reserveBottom + AppSpacing.s16
-                  : AppSpacing.s8,
-            )
-          : null,
+      margin: floating ? _snackbarMargin(side, reserveBottom) : null,
     ),
     snackBarAnimationStyle: reduceMotion ? AnimationStyle.noAnimation : null,
   );
+}
+
+EdgeInsets _snackbarMargin(double side, double reserveBottom) {
+  final bottom = reserveBottom > 0
+      ? reserveBottom + AppSpacing.s16
+      : AppSpacing.s8;
+  return EdgeInsets.fromLTRB(side, AppSpacing.s4, side, bottom);
 }
 
 /// Shows, then - when a [container] is available - hands the snackbar to
