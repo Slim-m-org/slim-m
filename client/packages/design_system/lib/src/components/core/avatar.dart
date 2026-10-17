@@ -207,14 +207,16 @@ class AppAvatar extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            content,
+            // Cut out rather than painted over, so the gap shows whatever surface the avatar sits on.
+            ClipPath(
+              clipper: _DotCutout(center: center, radius: haloRadius),
+              child: content,
+            ),
             Positioned(
               left: center.dx - haloRadius,
               top: center.dy - haloRadius,
-              child: Container(
+              child: Padding(
                 padding: const EdgeInsets.all(AppAvatarGeometry.dotHalo),
-                decoration: BoxDecoration(
-                    color: tokens.surfaceBase, shape: BoxShape.circle),
                 child: phone
                     ? AppPresencePhoneMark(size: geometry.markDiameter)
                     : AppStatusDot(
@@ -312,4 +314,23 @@ class _Face extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The avatar minus the circle its presence mark sits in.
+class _DotCutout extends CustomClipper<Path> {
+  const _DotCutout({required this.center, required this.radius});
+
+  final Offset center;
+  final double radius;
+
+  @override
+  Path getClip(Size size) => Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Offset.zero & size),
+        Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
+      );
+
+  @override
+  bool shouldReclip(_DotCutout oldClipper) =>
+      oldClipper.center != center || oldClipper.radius != radius;
 }
