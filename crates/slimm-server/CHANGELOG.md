@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.93.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.92.0...server-v0.93.0) (2026-10-17)
+
+
+### Features
+
+* server audit, reply pings, frozen video recovery, continuation markers, the settings redesign, a new quick switcher and the october audit fixes ([#2213](https://github.com/Slim-m-org/slim-m/issues/2213)) ([0e6362c](https://github.com/Slim-m-org/slim-m/commit/0e6362cd7524ddd1601e84325272bab680ebbe3d))
+
+
+### Bug Fixes
+
+* large uploads survive blips and redeploys, any file can be attached, the native app goes direct on the LAN, today's backlog items, and the first batch of audit fixes ([#2208](https://github.com/Slim-m-org/slim-m/issues/2208)) ([60ed2d4](https://github.com/Slim-m-org/slim-m/commit/60ed2d42448eae38b63396909cc5ff678de0cca1))
+
 ## [0.92.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.91.0...server-v0.92.0) (2026-10-15)
 
 
