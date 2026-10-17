@@ -96,6 +96,16 @@ E2E_REBUILD=1 scripts/e2e.sh             # after a client change, or it serves t
 
 See [e2e.md](e2e.md) for how the harness finds controls and what each scenario proves.
 
+## Load tests and profiling
+
+```bash
+scripts/load-run.sh fanout -e LISTENERS=500 -e SENDERS=10   # k6 in Docker against a throwaway local server
+scripts/load-run.sh --profile http_mix                      # the same, under samply
+```
+
+It refuses any target that is not loopback, so it can never touch the live deployment.
+See [../perf/load/README.md](../perf/load/README.md).
+
 ## The gates CI runs, locally
 
 Each of these fails a pull request in `hygiene.yml`, and each has a local script.

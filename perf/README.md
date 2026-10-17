@@ -132,6 +132,12 @@ Nothing to do for a normal release: the `baseline` job commits it.
 If a run failed or was skipped, run `perf.yml` by hand from main with the release's tag (`gh workflow run perf.yml -f tag=server-vX.Y.Z`); it measures that tag's commit and commits the file the same way.
 `scripts/lib/test_perf_baseline_freshness.py` fails once the newest committed baseline falls more than a few releases behind the newest `server-v*` tag, so a missed run shows up.
 
+## Load tests and profiling
+
+`perf/load/` holds k6 scenarios (WebSocket fan-out, a REST mix, a reconnect storm) that run against a disposable local server, and a runner that can record a CPU profile of the server while they run.
+These are for finding where the server breaks, not for per-release baselines.
+See [load/README.md](load/README.md) for how to run them and [load/FINDINGS.md](load/FINDINGS.md) for what they found.
+
 ## Measuring client cold start and idle memory
 
 `scripts/measure-client-startup.sh` (repo root) times how long the client
