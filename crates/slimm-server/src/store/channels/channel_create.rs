@@ -71,52 +71,11 @@ pub struct CreatedChannel {
 }
 
 impl Store {
-    /// Creates a channel and seeds its message and canvas sequence counters.
-    /// Idempotent by `id`: a retry with the same id returns the row already
-    /// stored under it rather than inserting again, the same contract
-    /// [`super::super::messages::Store::send_message`] gives a message send.
-    ///
-    /// [`Store::create_channel`] is the convenience form for a caller with no
-    /// client-supplied id of its own; it mints one and always sees
-    /// [`CreatedChannel::fresh`] true, since a freshly generated UUIDv7 id
-    /// cannot already be in use.
-    ///
-    /// Appended to the end of the deployment's channel order: one more than
-    /// the highest position among live, non-DM, non-thread channels,
-    /// computed inside this same transaction so two concurrent creates
-    /// cannot both claim the last slot. A DM's or a thread's position is
-    /// left at its schema default (0) and never read, since both are
-    /// excluded from every position-ordered query - the same exclusion
-    /// [`super::super::bootstrap::Store::list_channels`] and
-    /// [`super::channel_order::Store::reorder_channels`] already apply.
-    ///
-    /// Uses [`Store::begin_write`] (`BEGIN IMMEDIATE`) rather than a deferred
-    /// transaction, for the same reason [`super::super::messages::Store::send_message`]
-    /// does: this reads the id before it writes.
-    ///
-    /// The id probe matches a deleted row as well as a live one: the id
-    /// column is unique either way, so falling through to an INSERT would hit
-    /// the unique id and map to a 500. A live match is a retry and comes back
-    /// as one; a deleted match is [`CreateChannelError::Deleted`].
-    ///
-    /// `channels` also holds DM channels and threads (a thread is a channel
-    /// with `parent_message_id` set), neither of which this route can create
-    /// or return: a match is only a retry when it is the same
-    /// text/voice-and-top-level shape this call itself would have inserted,
-    /// otherwise it is [`CreateChannelError::IdConflict`] rather than a 500
-    /// or a wrong-typed 200.
-    ///
-    /// `private_to` closes the window a create-then-restrict two-step leaves
-    /// open: `Some(creator)` denies `@everyone` VIEW_CHANNEL and grants it to
-    /// `creator` instead, both overwrites written in this same transaction as
-    /// the channel row and its seq counters, so a caller can never observe a
-    /// channel that exists but is not yet private. `None` creates a channel
-    /// visible to `@everyone` as usual. Never consulted on a retry: the
-    /// first, fresh create is the only one that can still choose visibility.
-    ///
-    /// `join_muted` is written by the same INSERT, for the same reason: a
-    /// follow-up UPDATE would let a reader see the channel before its flag.
-    /// Like `private_to`, it is ignored on a retry.
+    /// Creates a channel and seeds its sequence counters, idempotent by `id`
+    /// like a message send. It takes the next channel position and writes
+    /// `private_to` and `join_muted` in the same transaction, so nobody can
+    /// see a channel before it is private or flagged. A deleted or
+    /// differently shaped row under the same id is an error, not a 500.
     pub async fn create_channel_with_id(
         &self,
         id: ChannelId,

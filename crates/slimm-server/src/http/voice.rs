@@ -1,36 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Joining a channel's voice room, and seeing who else already has.
-//!
-//! Most of these routes are almost entirely the check in front: the token
-//! this hands back is a bearer credential the SFU trusts, so what a caller
-//! may do in a room is decided here, once, from their permissions in that
-//! channel.
-//!
-//! Eviction is the other half of that. A minted token cannot be revoked, so its
-//! TTL bounds how long a removed participant could walk back in; removing them
-//! from the room is what makes a kick take effect now rather than in two
-//! minutes.
-//!
-//! The roster is read-only: `VIEW_CHANNEL` is the gate, the same bit
-//! that lets a member read a text channel's messages without also being able
-//! to send into it. A participant who chose to appear offline is dropped from
-//! every viewer's roster but their own, the same treatment [`crate::presence`]
-//! gives every other surface; see [`roster`]'s doc comment for why that is a
-//! deliberate call rather than an oversight.
-//!
-//! The heartbeat pair is the exception to "the check in front": `heartbeat`
-//! is gated the same way minting a token is, but `forget_heartbeat` is not
-//! gated at all beyond authentication, because forgetting a caller's own
-//! liveness marker exposes nothing about the channel it names.
-//!
-//! The heartbeat pair is also where [`Event::VoiceActivityChanged`] is
-//! published: on the first heartbeat for a `(user, channel)` pair (a join)
-//! and on a real forget (a clean hangup), each a single lock-held
-//! check-and-write against [`crate::voice::VoiceService::record_heartbeat_reporting_new`]
-//! / [`crate::voice::VoiceService::forget_heartbeat_reporting_removed`] so a
-//! routine refresh never republishes and two concurrent first heartbeats
-//! cannot both publish either. The third publish site, the stale-heartbeat
-//! sweep, lives in `lib.rs` rather than here.
+//! Joining a channel's voice room, and seeing who else already has. A minted
+//! token is a credential the SFU trusts, so what a caller may do in a room is
+//! decided here once; eviction makes a kick take effect before the token
+//! lapses. See docs/internals.md for the heartbeat and roster reasoning.
 
 use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
@@ -153,53 +125,10 @@ async fn token(
     }
 }
 
-/// Refreshes proof that the caller is still on this channel's call.
-///
-/// `CONNECT` is the gate, the same one minting a token requires: a heartbeat
-/// for a room the caller could not have joined is not evidence of anything.
-/// Best-effort by design on the client, and idempotent here - repeating it
-/// only pushes the deadline out further. See [`crate::voice::VoiceService`]
-/// for what a heartbeat that stops arriving eventually causes.
-///
-/// Publishes [`Event::VoiceActivityChanged`] only on a first heartbeat for
-/// this `(user, channel)` pair - a real join - never on the routine refreshes
-/// that follow it every few seconds for as long as the call lasts.
-///
-/// A FIRST join is also what answers an outstanding
-/// [`crate::voice::CallRings`] ring naming this caller as the callee, since
-/// nothing separate marks answering: joining a call *is* answering it. A
-/// later keepalive from someone already in the room answers nothing. See
-/// `voice::ring`'s own module doc for why answering has no route of its own.
-///
-/// The ring is claimed BEFORE the heartbeat is recorded, and the ordering is
-/// load-bearing rather than incidental. `CallRings` and `CallHeartbeats` are
-/// separately locked, so with the record first there was a window - a few
-/// milliseconds against a 30-second timeout - in which
-/// [`crate::sweep_stale_call_rings_at`] could take the ring between the two.
-/// The callee ended up genuinely joined while the server published
-/// `TimedOut` and evicted the CALLER, leaving one person alone in a room
-/// with no `Answered` event ever sent. Claiming first makes the two outcomes
-/// exclusive: either this takes the ring and the sweep finds nothing, or the
-/// sweep took it first and this reads as an ordinary join, which is exactly
-/// what it is by then.
-///
-/// [`crate::voice::VoiceService::has_heartbeat`] gates that claim, and it is
-/// not redundant with the ordering above. Moving the claim ahead of the
-/// record also moved it out from behind `is_a_real_join`, so without this
-/// gate EVERY heartbeat would try to answer - including the routine 15-second
-/// keepalives a call sends for as long as it lasts. A caller hanging up and
-/// immediately calling back, while the callee is still sitting in the room,
-/// would then have that second ring answered by the callee's own background
-/// timer within 15 seconds, with the callee never seeing or touching it - and
-/// an explicit Decline would be racing their own keepalive to the lock.
-///
-/// The read-then-write that gate opens is the one
-/// [`crate::voice::VoiceService::has_heartbeat`]'s own doc warns about, but
-/// it is harmless here: it decides only whether to ATTEMPT the claim, and
-/// `CallRings::answer` is itself atomic, so two concurrent first heartbeats
-/// can both attempt and exactly one can win. The publish that genuinely
-/// needs the single lock-held check still uses
-/// `record_heartbeat_reporting_new`, untouched.
+/// Refreshes proof that the caller is still on this channel's call, gated on
+/// `CONNECT`. A first heartbeat is a join: it publishes the activity change
+/// and answers a ring naming the caller, claiming the ring before recording
+/// the heartbeat so the timeout sweep cannot also take it.
 async fn heartbeat(
     Authed(ctx): Authed,
     parts: Parts,
@@ -257,26 +186,10 @@ async fn heartbeat(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Tells the server this caller left a channel's call cleanly, so its
-/// heartbeat entry is dropped now rather than left for the sweep to
-/// rediscover once it goes stale and call the SFU about a participant who
-/// already disconnected on their own.
-///
-/// No permission gate beyond authentication, unlike every other route in this
-/// file: forgetting one's own liveness marker cannot expose anything about a
-/// channel, so there is nothing here for a permission check to protect and a
-/// permission revoked mid-call must not be what blocks a client's own
-/// cleanup. Harmless, and answers the same way, on a deployment with no SFU
-/// configured or a channel that does not exist: there is never anything to
-/// forget either way.
-///
-/// Publishes [`Event::VoiceActivityChanged`] only when there really was
-/// something to forget, so a client that calls this having never joined (or
-/// calling it twice) does not fan out a signal for a call that never changed.
-///
-/// Also cancels an outstanding ring naming this caller, independently of
-/// whether a heartbeat existed to forget: a caller who rang but never got as
-/// far as heartbeating yet can still hang up on the ring itself.
+/// Drops the caller's heartbeat after a clean leave, so the sweep never calls
+/// the SFU about someone already gone. Authentication only: forgetting your
+/// own liveness exposes nothing, and a revoked permission must not block
+/// cleanup. Also cancels a ring the caller started.
 async fn forget_heartbeat(
     Authed(ctx): Authed,
     parts: Parts,
@@ -328,42 +241,10 @@ struct RosterResponse {
     call_age_ms: Option<i64>,
 }
 
-/// Who is currently connected to a channel's voice room, whether or not the
-/// caller has joined it.
-///
-/// Gated on `VIEW_CHANNEL` alone, the same bit `listMessages` reads under:
-/// seeing who is talking is exactly as sensitive as seeing what they typed,
-/// and no more, so this does not also require `CONNECT`.
-///
-/// Appear-offline still applies here even though a room's own realtime
-/// protocol has no such preference: a participant with [`Visibility::Hidden`]
-/// is dropped from the roster of every viewer but themselves, structurally,
-/// the same way [`crate::presence::status_for`] never lets a hidden user's
-/// true state reach another viewer's payload. Joining a call with somebody
-/// already still shows that person live once you are both in the room - the
-/// SFU has to tell participants about each other to let them hear one
-/// another - but this route is the *preview* shown before joining, and that
-/// preview must not become a second way to learn a hidden user is online.
-///
-/// `call_age_ms` is how long the longest-present listed participant has been
-/// in the room: the call's age, the same for everyone who can see them.
-/// Computed over the filtered list only, so a hidden participant cannot be
-/// inferred from an age older than anyone shown.
-///
-/// A configured SFU that cannot be reached answers 503, not 500 or an empty
-/// list: an empty room and an unreachable one are different claims, and only
-/// the former means nobody is there.
-///
-/// **Rate limit**: `Class::AuthedRead`, sized against this route's own real
-/// cadence - `voiceRosterPollInterval` in the client polls it every 15
-/// seconds per channel a rail row renders unjoined. It used to share
-/// `Class::Write`'s budget with token mint, heartbeat, and kick, so a
-/// deployment with more than a couple of open channels could exhaust that
-/// budget on polling alone before any of those mutations ran. This still
-/// makes one real call to the SFU's `ListParticipants` per request rather
-/// than a plain row lookup, and unlike `/metrics` or `/space/analytics` it
-/// is reachable by any member with `VIEW_CHANNEL`, not only an operator; see
-/// [`Class::AuthedRead`]'s own doc for why that budget still holds here.
+/// Who is in a channel's voice room, gated on `VIEW_CHANNEL` like reading its
+/// messages. Hidden participants are left out for everyone but themselves,
+/// and `call_age_ms` is computed over the shown list so it cannot betray
+/// one. An unreachable SFU answers 503, since that is not an empty room.
 async fn roster(
     Authed(ctx): Authed,
     parts: Parts,
@@ -431,30 +312,10 @@ async fn roster(
     }))
 }
 
-/// Evicts a participant from a channel's voice room.
-///
-/// Gated on `KICK_MEMBERS` in that channel, evaluated per channel rather than
-/// deployment-wide, so a moderator's rights follow the same shape as every
-/// other channel action here. That per-channel scope is why the escalation
-/// check below reads `granted_permissions_in_channel` rather than
-/// [`crate::store::Store::granted_base_permissions`]: a caller who holds
-/// `KICK_MEMBERS` only through a channel overwrite may still hold nothing
-/// deployment-wide, and comparing against the wrong scope would compare
-/// against permissions that were never the ones granting this act. No
-/// self-check, unlike [`super::members::authorize`]: kicking yourself out of
-/// a room you are in is harmless, so nothing here refuses it.
-///
-/// Idempotent: removing somebody who is not in the room succeeds. The SFU is
-/// the authority on who is connected, and a client that retries after a
-/// timeout must not be told the kick failed when it landed.
-///
-/// This does not stop them asking for a new token. It is not meant to: taking
-/// away `CONNECT` is what bars someone from a room, and this is what makes that
-/// take effect immediately instead of whenever their current token lapses.
-///
-/// A configured SFU that cannot be reached answers 503, not 500: that is
-/// upstream being down rather than this server malfunctioning, and it is the
-/// difference a caller needs to decide whether retrying is worth anything.
+/// Evicts a participant from a channel's voice room, gated on `KICK_MEMBERS`
+/// in that channel (so the escalation check compares channel-scoped grants).
+/// Idempotent, since the SFU is the authority on who is connected; taking
+/// away `CONNECT` is what keeps them out afterwards.
 async fn kick(
     Authed(ctx): Authed,
     parts: Parts,

@@ -1,47 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Full-text search over messages, backed by the FTS5 index kept current by
-//! the triggers in migration 0002, plus a Slack-style operator layer over
-//! it: `from:`, `in:`, `has:`, `before:`/`after:`.
-//!
-//! Two routes share every bit of this file beyond their own permission
-//! scoping: `GET /channels/{channelId}/messages/search` (the channel
-//! header's search panel) searches one channel, named in the path or by
-//! `in:`, and requires `VIEW_CHANNEL` on the path channel up front; `GET
-//! /search/messages` (the command palette's cross-channel scope) has no path
-//! channel to check and instead searches every channel
-//! [`crate::store::Store::visible_channels`] says the caller can view, or the
-//! subset of those named by `in:` when given. Neither ever reaches a channel
-//! the caller cannot view: [`resolve_scope`] is the one place `in:` is
-//! resolved and permission-filtered for both, and the cross-channel
-//! route's default scope is `visible_channels` itself, which only ever
-//! returns channels `VIEW_CHANNEL` already grants. `visible_channels` also
-//! excludes DMs and threads (see its own doc comment), so cross-channel
-//! search never reaches a DM the caller was not searching directly.
-//!
-//! `q` reaches FTS5 close to as-is, so a caller may use its mini query
-//! language (`AND`/`OR`/`NOT`, `"phrase"`, a trailing `*` prefix). That is
-//! safe against leaking another channel: the index has exactly one column
-//! (`content`), so a query string has no other column to pivot to, and the
-//! channel restriction is an ordinary SQL predicate the query text can never
-//! reach, never part of the `MATCH` expression itself. See
-//! [`crate::store::Store::search_messages`] for the rest of that reasoning
-//! and for how a malformed query surfaces as [`SearchError::InvalidQuery`]
-//! rather than a 500: SQLite only validates FTS5 syntax once the statement
-//! runs.
-//!
-//! The operators are parsed client-side (`message_search_query.dart`), which
-//! is why this file only ever sees them as already-split query parameters -
-//! `q` never carries `from:nick` as literal text a caller could exploit to
-//! widen a channel restriction the way `q` itself cannot.
-//!
-//! Channel and member search need no route here at all: both are already
-//! answered from data the client already holds permission-correctly. `GET
-//! /channels` only ever lists what [`crate::store::Store::visible_channels`]
-//! grants, so the client's local channel list is never wider than that; the
-//! member list (`GET /members`) is deployment-wide by design (see
-//! `http::users`'s own doc comment), not scoped to a channel, so there is no
-//! per-channel visibility question to get wrong there. The command palette
-//! (`command_palette_items.dart`) filters both lists by name locally.
+//! Full-text search over messages through FTS5, with `from:`, `in:`, `has:`
+//! and date operators, for one channel or every channel the caller can view.
+//! [`resolve_scope`] is the one place `in:` is permission-filtered, and the
+//! channel restriction is SQL the query text can never reach; see
+//! docs/internals.md.
 
 use axum::Router;
 use axum::extract::{Path, State};

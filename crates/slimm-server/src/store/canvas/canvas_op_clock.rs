@@ -56,54 +56,10 @@ impl CanvasOpClock {
 }
 
 impl Store {
-    /// A per-op timestamp, unlike plain `now_ms()`, guaranteed never to
-    /// repeat for as long as this `Store` exists.
-    ///
-    /// `canvas_objects.deleted_at` doubles as the fence `restore_candidates`'s
-    /// `clear` branch matches a whole batch of un-delete candidates against
-    /// (`WHERE deleted_at = target.created_at`), on the stated assumption
-    /// that "the single writer this database has means no other write can
-    /// share that millisecond." That conflates strict ordering with distinct
-    /// values: two sequential `submit_canvas_op` calls can read the same
-    /// wall-clock millisecond from `SystemTime::now()`, which is well within
-    /// reach on a fast SQLite/WAL commit. A `remove` and an unrelated `clear`
-    /// sharing one timestamp would let restoring the `clear` silently
-    /// un-delete whatever the `remove` touched too - even a member's own
-    /// removal of their own object, with no `MANAGE_CANVAS` involved in that
-    /// removal at all.
-    ///
-    /// Every canvas-op write already runs inside `Store::begin_write`'s
-    /// exclusive `BEGIN IMMEDIATE` lock, so calls into this function are
-    /// already totally ordered within one process's lifetime; the in-memory
-    /// counter alone only has to break a tie between two reads of the same
-    /// millisecond, not coordinate concurrency none of these calls can have.
-    ///
-    /// A bare in-memory counter resets to zero on every process restart,
-    /// though, and a burst of concurrent submissions just before a crash can
-    /// have pushed it several milliseconds ahead of the wall clock; if the
-    /// process restarts fast enough for real time to still be inside that
-    /// window, the first post-restart call could return a value a
-    /// still-live, un-restored fence already depends on being unique. Seeding
-    /// the counter from `MAX(created_at)` already committed to `canvas_ops`,
-    /// once per `Store` (so once per process, since a restart constructs a
-    /// fresh `Store` rather than reusing one that outlived it), closes that:
-    /// the seed is read inside the caller's own write-locked transaction, so
-    /// no call on this `Store` can race ahead of it, and the database itself
-    /// cannot move backward across a restart the way an in-memory counter
-    /// does. This does not, and cannot, protect two separate processes
-    /// writing the same database file at once - each would seed and then
-    /// advance its own counter independently - but nothing in this project's
-    /// single-process architecture is meant to allow that in the first place.
-    ///
-    /// The seed query names every kind explicitly rather than a bare
-    /// `SELECT MAX(created_at)`: over a `canvas_ops` growing without bound
-    /// (`move`/`reorder` rows are never swept, see `canvas_ops_sweep.rs`'s
-    /// own module doc), an unfiltered `MAX` cannot use an index at all and
-    /// pays for a full table scan under this same write lock. Matching the
-    /// `canvas_op_kind` CHECK constraint's own list against the
-    /// `canvas_ops_kind_created_at` index turns that into one index descent
-    /// per kind - a handful of steps regardless of table size, the same
-    /// optimization that also makes the sweep's own per-kind queries cheap.
+    /// A per-op timestamp that never repeats for this `Store`, because a
+    /// restore fence matches on it and two ops sharing a millisecond would let
+    /// restoring a clear un-delete an unrelated removal. Seeded from the
+    /// committed maximum so a restart cannot reuse one; see docs/internals.md.
     pub(in crate::store) async fn now_ms_unique(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,

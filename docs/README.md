@@ -27,6 +27,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [e2e.md](e2e.md): the end-to-end harness (real LiveKit, server and two browsers).
 - [RELEASING.md](RELEASING.md): the release runbook; [APP-STORE.md](APP-STORE.md) for the iOS listing and review.
 - [dependencies.md](dependencies.md): why each dependency is there.
+- [internals.md](internals.md): how and why individual modules work, moved out of long doc comments.
 - [video-quality.md](video-quality.md) and [voice-input-gate.md](voice-input-gate.md): how call media is tuned.
 - [agents/job-template.md](agents/job-template.md): the job file format for agent work.
 
