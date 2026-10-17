@@ -49,6 +49,9 @@ abstract final class AppIcons {
   static const IconData add = LucideIcons.plus300;
   static const IconData search = LucideIcons.search300;
   static const IconData info = LucideIcons.info300;
+
+  /// Connected to the server over its own network rather than the internet.
+  static const IconData localNetwork = LucideIcons.plug300;
   static const IconData chevronDown = LucideIcons.chevronDown300;
   static const IconData chevronUp = LucideIcons.chevronUp300;
   static const IconData pin = LucideIcons.pin300;

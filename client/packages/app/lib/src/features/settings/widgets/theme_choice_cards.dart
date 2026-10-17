@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The theme picker: one card per choice, each with a small window drawn in
-/// that theme's own colours.
+/// The theme picker: one small window per choice, drawn in that theme's own
+/// colours, ringed in the accent when chosen.
 library;
 
 import 'package:flutter/material.dart';
@@ -41,7 +41,7 @@ class ThemeChoiceCards extends StatelessWidget {
     ];
     if (narrow) {
       return Column(
-        spacing: 10,
+        spacing: AppSpacing.s16,
         children: [
           for (var i = 0; i < cards.length; i += 2)
             Row(
@@ -82,43 +82,51 @@ class _ThemeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final outline = selected ? tokens.textPrimary : tokens.borderSubtle;
+    // The ring is always drawn so selecting a card never shifts its neighbours.
+    final ring = selected ? tokens.accent : Colors.transparent;
+    final labelColor = selected ? tokens.accent : tokens.textSecondary;
     return Semantics(
       button: true,
       selected: selected,
       label: _label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.control + 3),
         child: ExcludeSemantics(
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: outline, width: selected ? 2 : 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: AppSpacing.s8,
-              children: [
-                _Thumbnail(choice: choice),
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 6,
+            children: [
+              AnimatedContainer(
+                duration: AppMotion.reduced(context, AppMotion.fast),
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadii.control + 3),
+                  border: Border.all(color: ring, width: 2),
+                ),
+                child: _Thumbnail(choice: choice),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  spacing: 4,
                   children: [
-                    Expanded(
+                    Flexible(
                       child: Text(
                         _label,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.caption.copyWith(
-                          color: tokens.textPrimary,
+                          color: labelColor,
+                          fontWeight: selected ? AppWeights.semi : null,
                         ),
                       ),
                     ),
                     if (selected)
-                      Icon(AppIcons.check, size: 14, color: tokens.textPrimary),
+                      Icon(AppIcons.check, size: 14, color: tokens.accent),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

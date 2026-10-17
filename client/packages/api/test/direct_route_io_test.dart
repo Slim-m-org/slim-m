@@ -114,6 +114,25 @@ void main() {
     expect(await get(r, '/b'), 'direct', reason: 'new addresses reset it');
   });
 
+  test('a switch between the routes is announced once each way', () async {
+    final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = closed.port;
+    await closed.close();
+    final (direct, _) = await _server('direct', _host);
+    final r = route();
+    final seen = <bool>[];
+    r.activeChanges.listen(seen.add);
+
+    r.advertise(['127.0.0.1:${direct.port}']);
+    await get(r, '/a');
+    await get(r, '/b');
+    r.advertise(['127.0.0.1:$port']);
+    await get(r, '/c');
+    await pumpEventQueue();
+
+    expect(seen, [true, false]);
+  });
+
   test('the event socket takes the same route', () async {
     final (direct, _) = await _server('direct', _host);
     final r = route()..advertise(['127.0.0.1:${direct.port}']);

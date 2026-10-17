@@ -224,6 +224,10 @@ class SlimmApi {
   /// Whether requests are currently going over the server's own network.
   bool get usesDirectRoute => _route?.active ?? false;
 
+  /// Each change of [usesDirectRoute].
+  Stream<bool> get directRouteChanges =>
+      _route?.activeChanges ?? const Stream.empty();
+
   /// Opens the event socket over the same route requests take.
   WebSocketChannel openWebSocket(Uri url) =>
       _route?.connectWebSocket(url) ?? WebSocketChannel.connect(url);

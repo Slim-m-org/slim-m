@@ -35,6 +35,20 @@ void main() {
   setUpAll(loadRealFonts);
 
   for (final theme in const ['dark', 'light']) {
+    testWidgets('settings menu at phone-portrait ($theme)', (tester) async {
+      await renderSurface(
+        tester,
+        '/settings',
+        'phone-portrait',
+        theme,
+        'settings-menu-phone-portrait-$theme',
+        overrides: [
+          voiceControllerProvider.overrideWith(
+            (ref) => SnapshotVoiceController(ref, const VoiceState()),
+          ),
+        ],
+      );
+    });
     for (final pane in _panes.entries) {
       for (final viewport in phoneAndDesktop) {
         testWidgets('settings pane ${pane.key} at $viewport ($theme)', (

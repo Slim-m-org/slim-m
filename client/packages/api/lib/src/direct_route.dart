@@ -26,6 +26,9 @@ abstract interface class DirectRoute {
   /// Whether the last connection went over an advertised address.
   bool get active;
 
+  /// Each new [active] value, only when it differs from the last one.
+  Stream<bool> get activeChanges;
+
   /// The HTTP client every request to the server goes through.
   http.Client get httpClient;
 

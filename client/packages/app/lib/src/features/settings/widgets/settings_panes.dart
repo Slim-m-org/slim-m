@@ -23,6 +23,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
 import '../../../routing/close_screen.dart';
+import 'settings_section_header.dart';
 
 part 'settings_panes_chrome.dart';
 
@@ -401,50 +402,40 @@ class _Nav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: rail
-                ? EdgeInsets.zero
-                : const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s8,
-                    vertical: AppSpacing.s12,
+          child: rail
+              ? ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final (index, group) in groups.indexed) ...[
+                      if (group.label case final label?)
+                        _GroupLabel(label, first: index == 0)
+                      else
+                        const SizedBox(height: AppSpacing.s20),
+                      for (final pane in group.panes) _row(context, pane),
+                    ],
+                  ],
+                )
+              // Compact: each group a raised card on the page, the same two tones the wide nav and its panes show.
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.s16,
+                    0,
+                    AppSpacing.s16,
+                    AppSpacing.s16,
                   ),
-            children: [
-              for (final (index, group) in groups.indexed) ...[
-                if (group.label case final label?)
-                  _GroupLabel(label, first: index == 0)
-                else
-                  const SizedBox(height: AppSpacing.s20),
-                for (final pane in group.panes)
-                  AppListRow(
-                    label: pane.label,
-                    height: rail ? 32 : null,
-                    // Sized and colored to match the trailing chevron below, not Flutter's ~24px default.
-                    leading: pane.icon == null
-                        ? null
-                        : Icon(
-                            pane.icon,
-                            size: AppSizes.icon16,
-                            color: tokens.textSecondary,
-                          ),
-                    meta: pane.badge,
-                    selected: showSelection && pane.id == selectedId,
-                    // A chevron only where the row actually goes somewhere.
-                    trailing: showSelection
-                        ? null
-                        : Icon(
-                            AppIcons.chevronRight,
-                            size: AppSizes.icon16,
-                            color: tokens.textSecondary,
-                          ),
-                    onTap: () => onSelect(pane.id),
-                  ),
-              ],
-            ],
-          ),
+                  children: [
+                    for (final group in groups)
+                      SettingsSectionCard(
+                        title: group.label,
+                        children: [
+                          for (final pane in group.panes) _row(context, pane),
+                        ],
+                      ),
+                  ],
+                ),
         ),
         if (footer != null)
           Padding(
@@ -454,6 +445,29 @@ class _Nav extends StatelessWidget {
             child: footer!,
           ),
       ],
+    );
+  }
+
+  Widget _row(BuildContext context, SettingsPane pane) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return AppListRow(
+      label: pane.label,
+      height: rail ? 32 : null,
+      // Sized and colored to match the trailing chevron below, not Flutter's ~24px default.
+      leading: pane.icon == null
+          ? null
+          : Icon(pane.icon, size: AppSizes.icon16, color: tokens.textSecondary),
+      meta: pane.badge,
+      selected: showSelection && pane.id == selectedId,
+      // A chevron only where the row actually goes somewhere.
+      trailing: showSelection
+          ? null
+          : Icon(
+              AppIcons.chevronRight,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
+            ),
+      onTap: () => onSelect(pane.id),
     );
   }
 }

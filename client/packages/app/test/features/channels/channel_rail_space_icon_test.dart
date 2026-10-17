@@ -11,10 +11,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/direct_route.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/sync_failure.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -31,13 +33,18 @@ final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
 );
 
-ProviderContainer _setup({int? iconUpdatedAt}) => ProviderContainer(
+ProviderContainer _setup({
+  int? iconUpdatedAt,
+  bool direct = false,
+  SyncStatus status = SyncStatus.live,
+}) => ProviderContainer(
   overrides: [
+    directRouteProvider.overrideWith((ref) => Stream.value(direct)),
     syncFailureProvider.overrideWith((ref) => null),
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
     syncControllerProvider.overrideWith(
-      (ref) => StubSyncController(ref, SyncStatus.live),
+      (ref) => StubSyncController(ref, status),
     ),
     hasFailedSinceLiveProvider.overrideWith((ref) => false),
     apiProvider.overrideWith((ref) {
@@ -112,5 +119,35 @@ void main() {
     expect(find.byType(SpaceIconFrame), findsNothing);
     final dot = tester.getRect(find.byType(SpaceConnectionDot));
     expect(tester.getRect(find.text('Home')).left, closeTo(dot.right + 6, 1));
+  });
+
+  testWidgets('over the local network the badge is a plug on the same corner', (
+    tester,
+  ) async {
+    final setup = _setup(iconUpdatedAt: 5, direct: true);
+    addTearDown(setup.dispose);
+    await _pumpHeader(tester, setup);
+
+    final icon = tester.getRect(find.byType(SpaceIconFrame));
+    final badge = tester.getRect(find.byType(SpaceConnectionDot));
+    expect(find.byIcon(AppIcons.localNetwork), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Connected over your local network'),
+      findsOneWidget,
+    );
+    expect(badge.size, const Size.square(SpaceConnectionDot.haloedPlugSize));
+    expect(badge.center.dx, closeTo(icon.right - 1, 2));
+    expect(badge.center.dy, closeTo(icon.bottom - 1, 2));
+  });
+
+  testWidgets('a dropped connection shows offline even on the local network', (
+    tester,
+  ) async {
+    final setup = _setup(direct: true, status: SyncStatus.offline);
+    addTearDown(setup.dispose);
+    await _pumpHeader(tester, setup);
+
+    expect(find.byIcon(AppIcons.localNetwork), findsNothing);
+    expect(find.bySemanticsLabel('Offline, retrying'), findsOneWidget);
   });
 }
