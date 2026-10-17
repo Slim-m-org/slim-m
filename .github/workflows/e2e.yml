@@ -33,6 +33,7 @@ on:
       - "docker/**"
       - "schema/openapi.yaml"
       - "scripts/e2e.sh"
+      - "scripts/e2e-stack.sh"
       - "scripts/lib/e2e_*.py"
       - "scripts/lib/test_e2e_*.py"
       - ".github/workflows/e2e.yml"
