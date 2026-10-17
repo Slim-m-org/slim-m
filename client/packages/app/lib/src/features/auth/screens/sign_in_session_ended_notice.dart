@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/providers.dart';
-import '../widgets/server_notice.dart';
+import '../../../providers/providers.dart';
+import '../../../widgets/server_notice.dart';
 
 class SessionEndedNotice extends ConsumerWidget {
   const SessionEndedNotice({super.key});

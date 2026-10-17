@@ -9,7 +9,7 @@ library;
 
 import 'package:slimm_api/api.dart';
 
-import '../api_failure.dart';
+import '../../../api_failure.dart';
 
 /// Which field a failure lands on, per error grammar 03: an error belongs to
 /// the thing that failed, with that thing's content preserved.

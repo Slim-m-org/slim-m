@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
-import 'account_state_refresh.dart';
+import '../features/auth/providers/account_state_refresh.dart';
 import 'channel_history.dart';
 import 'channel_notification_overrides_controller.dart';
 import 'channel_refresher.dart';

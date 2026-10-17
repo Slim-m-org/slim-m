@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_app/src/desktop/update_watch.dart';
-import 'package:slimm_app/src/providers/database_key_store.dart';
+import 'package:slimm_app/src/features/auth/providers/database_key_store.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/widgets/new_device_banner_host.dart';
 import 'package:slimm_app/src/widgets/update_banner_host.dart';

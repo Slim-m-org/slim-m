@@ -15,8 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/providers.dart';
-import '../widgets/server_notice.dart';
+import '../../../providers/providers.dart';
+import '../../../widgets/server_notice.dart';
 
 class InviteRequiredNotice extends ConsumerWidget {
   const InviteRequiredNotice({super.key, required this.version});

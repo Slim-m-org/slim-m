@@ -16,9 +16,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../providers/providers.dart';
-import '../routing/page_transitions.dart';
-import 'server_fingerprint_step.dart';
+import '../../../providers/providers.dart';
+import '../../../routing/page_transitions.dart';
+import '../../../widgets/server_fingerprint_step.dart';
 import 'server_identity_changed_step.dart';
 
 /// The handle a server's pinned public key is stored under, one per address:

@@ -18,7 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_api/api.dart' show InputLimits, usernameCharacters;
 
-import '../widgets/labeled_field.dart';
+import '../../../widgets/labeled_field.dart';
 import 'sign_in_error.dart';
 
 const usernameRule = 'Letters, digits, _ . and - only. Up to 32 characters.';

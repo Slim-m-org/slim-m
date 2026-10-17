@@ -21,9 +21,9 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/default_server.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/sign_in_screen.dart';
+import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_app/src/widgets/labeled_field.dart';
-import 'package:slimm_app/src/widgets/server_identity_confirmation.dart';
+import 'package:slimm_app/src/features/auth/widgets/server_identity_confirmation.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

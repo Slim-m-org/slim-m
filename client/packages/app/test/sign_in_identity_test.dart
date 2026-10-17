@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/sign_in_identity.dart';
+import 'package:slimm_app/src/features/auth/providers/sign_in_identity.dart';
 import 'package:slimm_platform/platform.dart';
 
 class _BrokenStore extends InMemoryKeyStore {

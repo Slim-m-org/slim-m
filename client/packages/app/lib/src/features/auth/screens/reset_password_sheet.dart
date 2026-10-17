@@ -20,11 +20,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../api_failure.dart';
-import '../default_server.dart';
-import '../providers/providers.dart';
-import '../server_scheme_policy.dart';
-import '../widgets/labeled_field.dart';
+import '../../../api_failure.dart';
+import '../../../default_server.dart';
+import '../../../providers/providers.dart';
+import '../../../server_scheme_policy.dart';
+import '../../../widgets/labeled_field.dart';
 import '../widgets/server_identity_confirmation.dart';
 
 /// Validates [target], confirms the server's identity, then opens the sheet.

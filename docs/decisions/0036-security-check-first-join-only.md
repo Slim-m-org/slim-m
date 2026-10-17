@@ -12,7 +12,7 @@ A changed key for a known server must still stop the flow, as a warning.
 
 ## What the code does
 
-`confirmServerIdentity` (`client/packages/app/lib/src/widgets/server_identity_confirmation.dart`) is the one path every entry point uses: invite, manual address, official server and sign-in.
+`confirmServerIdentity` (`client/packages/app/lib/src/features/auth/widgets/server_identity_confirmation.dart`) is the one path every entry point uses: invite, manual address, official server and sign-in.
 It pins the server's public key under `server_identity:<origin>` in the existing key store.
 
 - No pin yet: `ServerFingerprintStep` ("Confirm this server").

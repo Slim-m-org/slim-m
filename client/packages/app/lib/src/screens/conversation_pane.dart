@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_by_id_provider.dart';
-import '../providers/database_key_store.dart';
+import '../features/auth/providers/database_key_store.dart';
 import '../providers/last_text_channel.dart';
 import '../providers/toasts.dart';
 import '../providers/providers.dart';

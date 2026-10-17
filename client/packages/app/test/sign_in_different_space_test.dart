@@ -19,8 +19,8 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/default_server.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/onboarding_screen.dart';
-import 'package:slimm_app/src/screens/sign_in_screen.dart';
+import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
+import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

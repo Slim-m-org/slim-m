@@ -11,8 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../widgets/server_identity_confirmation.dart';
-import 'providers.dart';
-import 'sync_controller.dart';
+import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 /// The identity the server now presents when it differs from the pinned one.
 ///

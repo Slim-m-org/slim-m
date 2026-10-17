@@ -10,7 +10,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../widgets/banner_host_layout.dart';
+import '../../../widgets/banner_host_layout.dart';
 
 /// The handle the database key is stored under in [KeyStore].
 const databaseKeyHandle = 'slimm.database.key';

@@ -25,7 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
-import 'reauth_sheet.dart';
+import '../features/auth/widgets/reauth_sheet.dart';
 import 'totp_failures.dart';
 import 'totp_recovery_codes.dart';
 

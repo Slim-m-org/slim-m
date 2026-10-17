@@ -11,9 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../default_server.dart';
-import '../deep_links.dart';
-import '../providers/providers.dart';
+import '../../../default_server.dart';
+import '../../../deep_links.dart';
+import '../../../providers/providers.dart';
 import 'onboarding_dialogs.dart';
 import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';

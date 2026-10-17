@@ -28,7 +28,7 @@ import '../format.dart';
 import '../providers/display_preferences.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
-import 'reauth_sheet.dart';
+import '../features/auth/widgets/reauth_sheet.dart';
 
 /// Asks for the administrator's password, then shows the issued code for
 /// [subjectId], named [subjectName] in its title.

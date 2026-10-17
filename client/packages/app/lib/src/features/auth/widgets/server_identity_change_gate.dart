@@ -9,9 +9,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/providers.dart';
+import '../../../providers/providers.dart';
 import '../providers/server_identity_recheck.dart';
-import '../providers/sync_controller.dart';
+import '../../../providers/sync_controller.dart';
 import 'server_identity_changed_step.dart';
 import 'server_identity_confirmation.dart';
 

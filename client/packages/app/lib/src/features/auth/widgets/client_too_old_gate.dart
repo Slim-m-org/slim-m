@@ -19,11 +19,11 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../desktop/rpm_updater.dart';
-import '../desktop/startup_screen.dart' show updateActionHint;
-import '../providers/client_floor.dart';
-import '../providers/providers.dart';
-import '../web_update/web_page.dart';
+import '../../../desktop/rpm_updater.dart';
+import '../../../desktop/startup_screen.dart' show updateActionHint;
+import '../../../providers/client_floor.dart';
+import '../../../providers/providers.dart';
+import '../../../web_update/web_page.dart';
 
 /// Where a build that cannot self-update sends someone instead.
 const releasesUrl = 'https://github.com/Slim-m-org/slim-m/releases';

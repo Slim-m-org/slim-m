@@ -9,12 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/providers.dart';
+import '../../../providers/providers.dart';
 import 'change_password_sheet.dart';
 import 'reauth_sheet.dart' show reauthFailure;
-import 'settings_detail_row.dart';
-import 'settings_notice.dart';
-import 'settings_section_header.dart';
+import '../../../widgets/settings_detail_row.dart';
+import '../../../widgets/settings_notice.dart';
+import '../../../widgets/settings_section_header.dart';
 
 class ChangePasswordSection extends ConsumerStatefulWidget {
   const ChangePasswordSection({super.key, this.embedded = false});

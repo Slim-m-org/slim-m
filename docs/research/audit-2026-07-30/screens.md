@@ -66,11 +66,11 @@ An admin debugging why a friend cannot join is told a different problem with a d
 **"Already taken." and "Will be added as :name:" render together** (medium) - `client/packages/app/lib/src/screens/admin/emoji_upload_card.dart:150`.
 The two lines always co-occur for a taken name, one in danger red and one promising success, about 8dp apart above a disabled button.
 
-**The onboarding stepper counts to three over a flow with two panes** (medium) - `client/packages/app/lib/src/widgets/onboarding_shell.dart:30`.
+**The onboarding stepper counts to three over a flow with two panes** (medium) - `client/packages/app/lib/src/features/auth/widgets/onboarding_shell.dart:30`.
 `OnboardingStep.server` is never passed by any production widget; the fingerprint step builds its own bare `Scaffold`, and the invite path never runs identity confirmation at all.
 The stepper exists specifically to say how many steps are left, which is the one thing it does not do.
 
-**The server identity tick is fed reachability, not the pinned fingerprint** (medium) - `client/packages/app/lib/src/widgets/onboarding_shell.dart:351`.
+**The server identity tick is fed reachability, not the pinned fingerprint** (medium) - `client/packages/app/lib/src/features/auth/widgets/onboarding_shell.dart:351`.
 Sign-in passes `confirmed: version.identity != null`, so a server whose key changed still ticks; the widget's own doc comment claims the opposite.
 The glyph also has no `semanticLabel`, so confirmed and unconfirmed are indistinguishable to a screen reader on the one signal that separates "the server you pinned" from "some server that answered".
 
@@ -79,7 +79,7 @@ Clear is always offered and the server is idempotent, so on the one screen that 
 
 ## 3. Dead controls, and capabilities with no route to them
 
-**Account recovery has no UI at either end** (high) - `client/packages/app/lib/src/screens/sign_in_screen.dart:377`.
+**Account recovery has no UI at either end** (high) - `client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:377`.
 `resetPassword` and `issueResetCode` both exist client-side, both routes exist server-side, and neither has a single call site.
 This is the fourth instance of the same dead-feature shape (`markRead`, `Routes.settings`, `report`/`blockUser`), and `route_reachability_test.dart` cannot see it because the gap is an uncalled API method rather than an unnavigated route.
 It compounds with the missing password reveal and the never-committed autofill on the same screen.
@@ -205,7 +205,7 @@ This is one token decision, not three screen fixes.
 
 ## 8. Components bypassed at the call site, and touch density
 
-**Onboarding's three entry cards are a raw `InkWell`** (medium) - `client/packages/app/lib/src/screens/onboarding_screen.dart:134`.
+**Onboarding's three entry cards are a raw `InkWell`** (medium) - `client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart:134`.
 The app's first three actions get Material's overlay washes instead of the 2px accent focus ring every other row draws, no haptic, and no trailing glyph, so three identically-weighted bordered rectangles read as callouts.
 They also announce their title and description twice - the wrapper has no `container: true` and neither `Text` is excluded, the exact defect the design system already diagnosed and fixed in the component this should use.
 
@@ -239,7 +239,7 @@ No live region anywhere in the file and focus never moves into it, so up to eigh
 **Nav group labels are their own accessible name, uppercased** (medium) - `client/packages/app/lib/src/widgets/settings_panes.dart:239`.
 The rail and the member pane both do the opposite, with a comment explaining that some screen readers spell such a word out; the new settings nav is the one site that regressed, on the only structure a screen-reader user has for navigating it.
 
-**Nothing announces or focuses a field-scoped failure** (low) - `client/packages/app/lib/src/screens/sign_in_screen.dart:342`.
+**Nothing announces or focuses a field-scoped failure** (low) - `client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:342`.
 The form-scoped error is a live region and announces at once; the three field errors are reachable but not announced when they appear, and focus stays on the submit button - so the most common failure, a wrong password, reads as the button having done nothing.
 
 **A disabled segmented option never says why** (low) - `client/packages/design_system/lib/src/components/forms/segmented_control.dart:31`.
@@ -253,7 +253,7 @@ The row already knows the reason.
 A bare `HH:mm` is unresolvable on its own, and the day divider that would resolve it may be many screens above.
 The 24-hour fixed-width format itself is a documented layout constraint and should not be changed.
 
-**The mode flip on sign-in rewrites the page, including adding a required field, and announces nothing** (low) - `client/packages/app/lib/src/screens/sign_in_screen.dart:362`, while incidental server notices each announce themselves.
+**The mode flip on sign-in rewrites the page, including adding a required field, and announces nothing** (low) - `client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:362`, while incidental server notices each announce themselves.
 
 ## 10. The modal frame, and the emptiness inside it
 
@@ -323,10 +323,10 @@ Surface weight runs opposite to consequence: the two least consequential control
 The picker it uses takes a footnote for exactly this and has a working precedent two files away; nothing anywhere in the client explains what an open Space means.
 The same setting is called "Who can join" on the row and "Who can create an account" in the sheet it opens.
 
-**Continue is gated on accepting terms that do not exist anywhere in the product** (low) - `client/packages/app/lib/src/screens/onboarding_screen.dart:272`.
+**Continue is gated on accepting terms that do not exist anywhere in the product** (low) - `client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart:272`.
 The checkbox is a recorded Play compliance requirement and should stay; the gap is that the document it names is not on screen, not linked and not served.
 
-**A settings cog is the icon for "Connect to a Space"** (low) - `client/packages/app/lib/src/screens/onboarding_screen.dart:77`, the only one of three entry glyphs that actively misdescribes its row.
+**A settings cog is the icon for "Connect to a Space"** (low) - `client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart:77`, the only one of three entry glyphs that actively misdescribes its row.
 Similarly, "Removed members" is drawn with the sign-out glyph (`space_settings_section.dart:91`), which means signing out one screen away, and "Delete account" uses the alert-circle (`personal_account_sections.dart:170`) while a trash glyph exists - so when a delete fails the pane shows two red alert glyphs meaning two different things in one column.
 
 **Copy hands over half of what the recipient needs** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:194`.

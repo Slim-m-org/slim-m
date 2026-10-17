@@ -13,7 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'server_identity_fingerprint.dart';
+import '../features/auth/widgets/server_identity_fingerprint.dart';
 
 /// The two rows of four hex groups plus the colour strip, shared by the
 /// first-connect confirmation and the identity-changed warning so the two

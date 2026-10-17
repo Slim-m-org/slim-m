@@ -14,7 +14,7 @@ import 'package:slimm_api/api.dart' show InputLimits;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../screens/sign_in_credential_fields.dart' show passwordRule;
-import 'labeled_field.dart';
+import '../../../widgets/labeled_field.dart';
 
 /// What a caller does with the typed values, returning null on success or the
 /// sentence to show if it failed.

@@ -42,8 +42,8 @@ client/packages/app/lib/src/routing/router.dart 5
 client/packages/app/lib/src/screens/admin/invite_role_grant_picker.dart 1
 client/packages/app/lib/src/screens/channel_screen.dart 4
 client/packages/app/lib/src/screens/home_shell.dart 5
-client/packages/app/lib/src/screens/onboarding_screen.dart 2
-client/packages/app/lib/src/screens/sign_in_screen.dart 5
+client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart 2
+client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart 5
 client/packages/app/lib/src/screens/voice_call_controls.dart 3
 client/packages/app/lib/src/screens/voice_screen.dart 3
 client/packages/app/lib/src/widgets/attachment_view.dart 1

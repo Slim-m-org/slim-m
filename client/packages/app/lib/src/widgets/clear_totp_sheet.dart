@@ -24,7 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
-import 'reauth_sheet.dart';
+import '../features/auth/widgets/reauth_sheet.dart';
 
 /// Opens the sheet for [subjectId], named [subjectName] in its title.
 Future<void> showClearTotpSheet(

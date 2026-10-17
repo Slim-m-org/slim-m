@@ -8,7 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/onboarding_shell.dart';
+import 'package:slimm_app/src/features/auth/widgets/onboarding_shell.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness(Widget child, {Size size = const Size(1200, 900)}) =>

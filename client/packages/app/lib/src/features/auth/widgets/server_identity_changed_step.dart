@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'server_fingerprint_step.dart';
+import '../../../widgets/server_fingerprint_step.dart';
 
 /// Shown when the address answers with a different key than the one already
 /// pinned for it. Requires an explicit acknowledgement before the one action

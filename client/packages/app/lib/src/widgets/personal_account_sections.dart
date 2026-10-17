@@ -22,7 +22,7 @@ import '../providers/sync_controller.dart';
 import '../providers/user_profiles.dart';
 import '../providers/voice_controller.dart';
 import 'confirm_dialog.dart';
-import 'reauth_sheet.dart';
+import '../features/auth/widgets/reauth_sheet.dart';
 import 'run_guarded.dart';
 import 'settings_danger_card.dart';
 import 'settings_detail_row.dart';

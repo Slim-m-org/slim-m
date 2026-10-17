@@ -13,7 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/user_profiles.dart';
 import 'package:slimm_app/src/routing/close_screen.dart';
-import 'package:slimm_app/src/screens/sign_in_alternatives.dart';
+import 'package:slimm_app/src/features/auth/screens/sign_in_alternatives.dart';
 import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
