@@ -11,6 +11,7 @@ import 'package:slimm_data/data.dart';
 
 import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
+import '../widgets/optimistic_setting_state.dart';
 import '../widgets/run_guarded.dart';
 import '../widgets/settings_toggle_row.dart';
 import '../widgets/settings_save_feedback.dart';
@@ -28,46 +29,36 @@ class ChannelJoinMutedSection extends ConsumerStatefulWidget {
 
 class _ChannelJoinMutedSectionState
     extends ConsumerState<ChannelJoinMutedSection>
-    with GuardedActionState<ChannelJoinMutedSection> {
-  bool _saving = false;
-  bool? _optimistic;
-
-  Future<void> _set(bool joinMuted) async {
-    setState(() {
-      _saving = true;
-      _optimistic = joinMuted;
-    });
-    final ok = await guard(
-      whatFailed: 'change join muted',
-      action: () async {
-        final updated = await ref
-            .read(apiProvider)
-            .updateChannel(channelId: widget.channel.id, joinMuted: joinMuted);
-        final store = await ref.read(storeProvider.future);
-        await store.upsertChannels([updated]);
-      },
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (!ok) _optimistic = null;
-    });
-  }
+    with
+        GuardedActionState<ChannelJoinMutedSection>,
+        OptimisticSettingState<ChannelJoinMutedSection, bool> {
+  Future<void> _set(bool joinMuted) => saveOptimistic(
+    joinMuted,
+    whatFailed: 'change join muted',
+    action: () async {
+      final updated = await ref
+          .read(apiProvider)
+          .updateChannel(channelId: widget.channel.id, joinMuted: joinMuted);
+      final store = await ref.read(storeProvider.future);
+      await store.upsertChannels([updated]);
+    },
+    refresh: channelByIdProvider(widget.channel.id),
+  );
 
   @override
   Widget build(BuildContext context) {
+    final channel = channelByIdProvider(widget.channel.id);
+    ref.listen(channel, (_, next) => retireOptimistic(next));
     // The stored row, so a save that landed earlier is what a later failure falls back to.
-    final stored =
-        ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
-        widget.channel;
+    final stored = ref.watch(channel).valueOrNull ?? widget.channel;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsToggleRow(
           label: 'Join muted',
           description: 'Members start with their mic off and can unmute.',
-          value: _optimistic ?? stored.joinMuted,
-          onChanged: _saving ? null : _set,
+          value: shown(stored.joinMuted, false),
+          onChanged: saving ? null : _set,
           semanticLabel: 'Members join this channel muted',
         ),
         SettingsSaveFeedback(
