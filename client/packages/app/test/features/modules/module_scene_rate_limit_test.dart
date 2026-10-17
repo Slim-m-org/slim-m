@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_pacing.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'support/module_scene_fixtures.dart';
+import '../../support/module_scene_fixtures.dart';
 
 /// Advances past the pacing waits, which are plain delays rather than
 /// animations - `pumpAndSettle` alone returns while one is still outstanding

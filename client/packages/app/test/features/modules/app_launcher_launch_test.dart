@@ -25,7 +25,7 @@ import 'package:slimm_app/src/features/modules/widgets/app_launcher_sheet.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sync.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',

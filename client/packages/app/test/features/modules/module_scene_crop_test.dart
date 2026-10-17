@@ -19,7 +19,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene_frame.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'module_scene_fixtures.dart';
+import '../../module_scene_fixtures.dart';
 
 Future<void> _pump(WidgetTester tester, Map<String, Object?> scene, Size card) {
   tester.view.physicalSize = Size(card.width + 32, 900);

@@ -43,7 +43,7 @@ The additive behaviour above is only useful if it cannot silently regress into a
 Each is now held by a guard test:
 
 - An unknown extension-point kind and an unknown capability still parse: `crates/slimm-server/src/http/dock/manifest/tests.rs::accepts_an_unknown_extension_point_kind_and_capability`.
-- An unknown scene op is skipped: `client/packages/app/test/module_scene_test.dart` ("skips unknown ones").
+- An unknown scene op is skipped: `client/packages/app/test/features/modules/module_scene_test.dart` ("skips unknown ones").
 - An unknown wire frame is ignored: `client/packages/api/test/code_run_event_test.dart` ("an unknown frame type is ignored, not thrown").
 
 A change that makes any of these reject-or-throw instead of ignore is a breaking change to the extension contract and must fail one of these tests first.

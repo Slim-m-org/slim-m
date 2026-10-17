@@ -18,7 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'support/module_scene_fixtures.dart';
+import '../../support/module_scene_fixtures.dart';
 
 void main() {
   testWidgets('a drag paints every cell it crosses, in order', (tester) async {

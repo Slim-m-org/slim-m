@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_command_output.dar
 import 'package:slimm_app/src/features/modules/widgets/module_scene_fullscreen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/module_scene_fixtures.dart';
+import '../../support/module_scene_fixtures.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',

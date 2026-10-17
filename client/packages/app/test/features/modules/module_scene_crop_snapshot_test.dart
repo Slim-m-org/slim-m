@@ -12,8 +12,8 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'module_scene_fixtures.dart';
-import 'ui_snapshot_support.dart';
+import '../../module_scene_fixtures.dart';
+import '../../ui_snapshot_support.dart';
 
 Future<void> _shot(WidgetTester tester, String name, double width) async {
   tester.view.physicalSize = Size(width + 32, 640);

@@ -11,8 +11,8 @@ import 'package:slimm_app/src/widgets/app_surface_view.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'app_surface_card_support.dart';
-import 'module_scene_fixtures.dart';
+import '../../app_surface_card_support.dart';
+import '../../module_scene_fixtures.dart';
 
 Rect _frame(WidgetTester tester) => tester.getRect(
   find

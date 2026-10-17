@@ -47,7 +47,7 @@ app/test/activity_feeds_test.dart
 app/test/activity_publisher_test.dart
 app/test/android_push_messages_test.dart
 app/test/api_failure_test.dart
-app/test/app_launch_match_test.dart
+app/test/features/modules/app_launch_match_test.dart
 app/test/attachment_preview_quality_test.dart
 app/test/author_label_test.dart
 app/test/auto_update_preference_test.dart
@@ -136,8 +136,8 @@ app/test/message_search_query_test.dart
 app/test/message_search_test.dart
 app/test/message_selection_test.dart
 app/test/moderation_history_controller_test.dart
-app/test/module_scene_cells_ceiling_test.dart
-app/test/module_scene_gradient_test.dart
+app/test/features/modules/module_scene_cells_ceiling_test.dart
+app/test/features/modules/module_scene_gradient_test.dart
 app/test/mounted_channels_test.dart
 app/test/notification_sound_playback_volume_test.dart
 app/test/notification_sound_rules_test.dart

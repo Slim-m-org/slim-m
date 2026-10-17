@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/modules/widgets/app_launcher_sheet.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/sync_live_rig.dart' show rigMessage;
+import '../../support/sync_live_rig.dart' show rigMessage;
 
 void main() {
   testWidgets('a launch that finishes after the sheet closed still lands', (

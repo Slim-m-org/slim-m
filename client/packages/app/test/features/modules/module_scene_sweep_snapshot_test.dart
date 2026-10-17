@@ -13,7 +13,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_support.dart';
+import '../../ui_snapshot_support.dart';
 
 const _cells =
     '0010000000100000'

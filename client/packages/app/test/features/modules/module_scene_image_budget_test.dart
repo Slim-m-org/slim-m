@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_images.dart';
 
-import 'support/synthetic_png.dart';
+import '../../support/synthetic_png.dart';
 
 ModuleScene _sceneOf(List<Uint8List> pngs) {
   final ops = [

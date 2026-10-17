@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene_frame.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'module_scene_fixtures.dart';
+import '../../module_scene_fixtures.dart';
 
 Map<String, Object?> _rectAt(double x, double y, double w, [double? h]) =>
     sceneOf(100, 100, [
