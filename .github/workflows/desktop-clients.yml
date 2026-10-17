@@ -44,7 +44,7 @@ jobs:
     runs-on: windows-latest
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
     environment: release
-    # write, not read: the last step attaches the zip to the github release.
+    # write, not read: the last step attaches the zip and setup to the github release.
     permissions:
       contents: write
     env:
@@ -102,6 +102,18 @@ jobs:
           Set-Content -Path "$release/VERSION" -Value $version -NoNewline
           Compress-Archive -Path client/packages/app/build/windows/x64/runner/Release/* -DestinationPath "slim-m-client-$version-windows-x64.zip"
 
+      - uses: ./.github/actions/install-inno-setup
+
+      # Same bundle as the zip, so the setup lays out the layout install.ps1 does (packaging/windows/slim-m.iss).
+      - name: build the per-user setup
+        shell: pwsh
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          $version = $env:TAG -replace "^client-v", ""
+          iscc "/DAppVersion=$version" "/DSourceDir=$PWD/client/packages/app/build/windows/x64/runner/Release" "/O$PWD" packaging/windows/slim-m.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: attach to the github release
         shell: bash
         env:
@@ -110,7 +122,7 @@ jobs:
         # Retried because a tag-push run can start before release-please's release object exists.
         run: |
           for _ in 1 2 3 4 5; do
-            gh release upload "$TAG" slim-m-client-*-windows-x64.zip --clobber && exit 0
+            gh release upload "$TAG" slim-m-client-*-windows-x64.zip slim-m-setup-*.exe --clobber && exit 0
             sleep 60
           done
           exit 1
@@ -122,7 +134,7 @@ jobs:
     runs-on: macos-latest
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
     environment: release
-    # write, not read: the last step attaches the zip to the github release.
+    # write, not read: the last step attaches the zip and setup to the github release.
     permissions:
       contents: write
     steps:

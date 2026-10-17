@@ -63,22 +63,24 @@ String _executableToRun() {
   return target?.launcher.path ?? executable;
 }
 
-({String program, List<String> arguments})? _thisProcessCommand() =>
-    relaunchCommand(
-      os: Platform.operatingSystem,
-      environment: Platform.environment,
-      executable: _executableToRun(),
-      executableArguments: Platform.executableArguments,
-      pid: pid,
-    );
+({String program, List<String> arguments})? _thisProcessCommand([
+  String? executable,
+]) => relaunchCommand(
+  os: Platform.operatingSystem,
+  environment: Platform.environment,
+  executable: executable ?? _executableToRun(),
+  executableArguments: Platform.executableArguments,
+  pid: pid,
+);
 
 /// Whether [spawnRelaunch] can do anything for this process.
 bool canRelaunchThisProcess() => _thisProcessCommand() != null;
 
 /// Starts the detached child that brings the app back once this process has
-/// exited. The caller quits afterwards; this never does.
-Future<void> spawnRelaunch() async {
-  final command = _thisProcessCommand();
+/// exited. The caller quits afterwards; this never does. [executable] names
+/// what to start when it is not this process's own install.
+Future<void> spawnRelaunch({String? executable}) async {
+  final command = _thisProcessCommand(executable);
   if (command == null) return;
   await Process.start(
     command.program,

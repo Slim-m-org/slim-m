@@ -64,11 +64,11 @@ Future<void> installWindowsUpdate({
     await _publishVersion(update, layout, unpack);
     final before = layout.pointedVersion(LayoutNames.current);
     if (before != null && before != update.version) {
-      _writePointer(layout, LayoutNames.previous, before);
+      writeWindowsPointer(layout, LayoutNames.previous, before);
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
     safeDelete(File(layout.path(LayoutNames.pendingTries)));
-    _writePointer(layout, LayoutNames.current, update.version);
+    writeWindowsPointer(layout, LayoutNames.current, update.version);
     safeDelete(update.file);
   } on FileSystemException catch (error) {
     throw SelfUpdateFailure(
@@ -85,7 +85,7 @@ Future<void> _publishVersion(
   Unpack unpack,
 ) async {
   final target = layout.versionDir(update.version);
-  if (_isComplete(target)) return;
+  if (isWindowsVersionComplete(target)) return;
   final scratch = Directory(
     layout.path('${LayoutNames.unpackPrefix}${update.version}'),
   );
@@ -93,7 +93,7 @@ Future<void> _publishVersion(
   try {
     await scratch.create(recursive: true);
     await unpack(update.file, scratch);
-    if (!_isComplete(scratch)) {
+    if (!isWindowsVersionComplete(scratch)) {
       throw const FileSystemException(
         'the zip has no ${WindowsNames.appExecutable}',
       );
@@ -106,12 +106,18 @@ Future<void> _publishVersion(
   }
 }
 
-bool _isComplete(Directory dir) =>
+/// Whether [dir] holds a whole version: the app executable is the last thing a
+/// complete unpack leaves.
+bool isWindowsVersionComplete(Directory dir) =>
     File(p.join(dir.path, WindowsNames.appExecutable)).existsSync();
 
 /// Writes [name] through a sibling temp file; the rename replaces an existing
 /// file in one step (MoveFileEx with MOVEFILE_REPLACE_EXISTING on Windows).
-void _writePointer(WindowsInstallLayout layout, String name, String version) {
+void writeWindowsPointer(
+  WindowsInstallLayout layout,
+  String name,
+  String version,
+) {
   final temp = File(layout.path('.$name.new'))..writeAsStringSync(version);
   temp.renameSync(layout.path(name));
 }

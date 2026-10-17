@@ -144,9 +144,10 @@ The layout root is `%LOCALAPPDATA%\slim-m`, holding `app-<version>` folders, the
 The launcher is a Go program in `packaging/windows/launcher`, built with the zip in `desktop-clients.yml`; a symlink is not an option because creating one needs elevation or developer mode.
 The updater unzips into an `app-<version>` folder, writes the new pointer through a temp file and a replacing rename, and restarts through the launcher.
 The pending-start marker, the third-start rollback, the twenty-second settle and the prune work as on Linux, with the launcher counting starts.
-`install.cmd` in the zip is the first install, so no new distribution channel exists.
+`install.cmd` in the zip and the per-user `slim-m-setup-<version>.exe` (Inno Setup, `packaging/windows/slim-m.iss`) are the first install, and both write this layout.
+A bare extracted zip can also move itself into the layout from Settings > About.
 Only a layout with the launcher and `current` beside an `app-<version>` folder self-updates: a bare extracted zip, `Program Files` and a packaged MSIX keep the release-page notifier.
-The launcher is not replaced by updates; a fix to it needs another run of `install.cmd`.
+The launcher replaces itself once a version has run cleanly, by the self-test and rename swap described above; only a launcher from before that code needs another run of `install.cmd` or the setup.
 
 ## macOS applier as built
 

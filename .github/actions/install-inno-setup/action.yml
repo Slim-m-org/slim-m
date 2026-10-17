@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Installs a pinned Inno Setup into the runner's profile and puts iscc on PATH.
+
+name: install inno setup
+description: Download Inno Setup at a pinned version, check its sha256 and install it per-user.
+
+runs:
+  using: composite
+  steps:
+    - shell: pwsh
+      env:
+        INNO_VERSION: "6.7.3"
+        INNO_SHA256: "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+      run: |
+        $installer = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNO_VERSION.exe"
+        Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/is-$($env:INNO_VERSION -replace '\.', '_')/innosetup-$env:INNO_VERSION.exe" -OutFile $installer
+        $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne $env:INNO_SHA256) { throw "innosetup sha256 mismatch: $actual" }
+        $dir = Join-Path $env:RUNNER_TEMP 'inno-setup'
+        Start-Process $installer -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CURRENTUSER', "/DIR=$dir"
+        if (-not (Test-Path (Join-Path $dir 'ISCC.exe'))) { throw 'ISCC.exe missing after install' }
+        Add-Content -Path $env:GITHUB_PATH -Value $dir

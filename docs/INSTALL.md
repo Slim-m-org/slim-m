@@ -14,7 +14,7 @@ Ask them for both before you start.
 | Anything with a browser | Open the space's web address, if it has one. No install at all. |
 | Fedora | `sudo dnf copr enable nc1107/slim-m` then `sudo dnf install slim-m-client` |
 | Other Linux | The `.flatpak` or the `.tar.gz` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
-| Windows | The `-windows-x64.zip` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
+| Windows | `slim-m-setup-<version>.exe`, or the `-windows-x64.zip`, from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | macOS | The `-macos.zip` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | Android | The `-android.apk` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | iPhone | Ask the space's owner for a TestFlight invite |
@@ -61,9 +61,12 @@ It needs `libayatana-appindicator3.so.1` for the tray icon and will not start wi
 
 ## Windows
 
-Download `slim-m-client-<version>-windows-x64.zip`, unzip it anywhere, and double-click `install.cmd`.
-That installs slim-m for your own account only, under `%LOCALAPPDATA%\slim-m`, adds a Start menu shortcut and asks for no administrator rights.
-Run the app from there, not from the unzipped folder: a copy run straight from the zip is never updated.
+Download `slim-m-setup-<version>.exe` from Releases and run it.
+That installs slim-m for your own account only, under `%LOCALAPPDATA%\slim-m`, adds a Start menu shortcut (and a desktop one if you tick it), registers an uninstaller in Apps & Features and asks for no administrator rights.
+Run a newer setup over it to upgrade; the app also updates itself.
+
+The other way is `slim-m-client-<version>-windows-x64.zip`: unzip it anywhere and double-click `install.cmd`, which lays out the same install.
+Run the app from there, not from the unzipped folder: a copy run straight from the zip is never updated, though Settings > About offers to install it for automatic updates.
 [packaging/windows/README.md](../packaging/windows/README.md) has the layout.
 
 **Windows will try to stop you, and this is expected.**
@@ -124,8 +127,9 @@ Per-user installs keep their own update path.
 | Flatpak | Download the new bundle and install it over the old one; there is no remote | `flatpak uninstall top.npcserver.slimm` |
 | Linux tarball, run in place | Not updated; download the next one | Delete the folder |
 | Linux tarball via `install.sh` | In the app, from a signed manifest | Delete `~/.local/share/slim-m`, `~/.local/bin/slim-m`, `~/.local/share/applications/top.npcserver.slimm.desktop` and the `top.npcserver.slimm` icons under `~/.local/share/icons/hicolor` |
-| Windows via `install.cmd` | In the app, from a signed manifest | Delete `%LOCALAPPDATA%\slim-m` and the Start menu shortcut |
-| Windows, run from the unzipped folder | Not updated | Delete the folder |
+| Windows via setup or `install.cmd` | In the app, from a signed manifest | Uninstall in Apps & Features (setup), or delete `%LOCALAPPDATA%\slim-m` and the Start menu shortcut |
+
+| Windows, run from the unzipped folder | Not updated until you choose "Install for automatic updates" in Settings > About | Delete the folder |
 | macOS app in `~/Applications` | In the app, from a signed manifest; never run on a real Mac yet, so treat it as unconfirmed | Drag the app to the bin |
 | Android apk | Not updated by the app as far as the client tree shows; check the releases page | Uninstall as any app |
 | iPhone | TestFlight | Delete the app |
