@@ -48,7 +48,7 @@ def main(argv) -> None:
     job = argv[2] if len(argv) > 2 and argv[2] else "server-image"
     try:
         runs = json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         runs = None
     # An unreadable or unexpected answer is "cannot tell", and the caller falls back.
     print(base_sha(runs, skip, job) or "" if isinstance(runs, list) else "")

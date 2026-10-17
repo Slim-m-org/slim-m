@@ -146,7 +146,7 @@ def scrape(api):
     """The server's own view, or None when this caller may not read it."""
     try:
         payload = api.call("GET", "/metrics")
-    except (urllib.error.HTTPError, urllib.error.URLError):
+    except urllib.error.URLError:
         return None
     if isinstance(payload, bytes):
         payload = payload.decode("utf-8", "replace")

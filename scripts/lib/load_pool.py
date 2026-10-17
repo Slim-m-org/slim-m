@@ -46,7 +46,7 @@ async def _run_slice(specs, base_url, ws_url, ready, stop, results):
         "pid": os.getpid(),
         "connected": len(live),
         "attempted": len(subscribers),
-        "seen": {mid: times for mid, times in seen.items()},
+        "seen": dict(seen),
         "resyncs": sum(s.resync for s in subscribers),
         "failures": [f"{s.name}: {s.failure}" for s in subscribers
                      if s.failure],

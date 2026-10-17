@@ -11,6 +11,8 @@ import urllib.error
 
 from e2e_api import Api
 
+PUSH_PREVIEW = "/push/preview"
+
 
 def _refused(api, path, body):
     try:
@@ -55,19 +57,19 @@ def push_preview_is_account_wide(server, secret):
     """A second device sees the choice the first one made, and on by default."""
     first = Api(server)
     first.login("bob", secret, device="e2e-preview-1")
-    assert first.call("GET", "/push/preview") == {"include_content": True}, \
+    assert first.call("GET", PUSH_PREVIEW) == {"include_content": True}, \
         "the preview is not on by default"
     try:
-        saved = first.call("PUT", "/push/preview", {"include_content": False})
+        saved = first.call("PUT", PUSH_PREVIEW, {"include_content": False})
         assert saved == {"include_content": False}, saved
         second = Api(server)
         second.login("bob", secret, device="e2e-preview-2")
-        assert second.call("GET", "/push/preview") == \
+        assert second.call("GET", PUSH_PREVIEW) == \
             {"include_content": False}, \
             "a second device did not inherit the choice"
         print("  turning the preview off on one device showed off on another")
     finally:
-        first.call("PUT", "/push/preview", {"include_content": True})
-    assert Api(server, second.token).call("GET", "/push/preview") == \
+        first.call("PUT", PUSH_PREVIEW, {"include_content": True})
+    assert Api(server, second.token).call("GET", PUSH_PREVIEW) == \
         {"include_content": True}, "the choice did not follow back on"
     print("  and turning it back on reached the other device too")
