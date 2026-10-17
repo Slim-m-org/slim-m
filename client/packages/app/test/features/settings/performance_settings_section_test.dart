@@ -28,8 +28,8 @@ void main() {
     expect(find.text('Attachment preview quality'), findsOneWidget);
     expect(find.text('Image cache'), findsOneWidget);
     // Each row states its current value, and every current is the default.
-    expect(find.text('Always (default)'), findsOneWidget);
-    expect(find.text('On hover or tap (default)'), findsOneWidget);
+    // Auto-download media and Autoplay GIFs both default to always.
+    expect(find.text('Always (default)'), findsNWidgets(2));
     expect(find.text('Sharp (default)'), findsOneWidget);
     expect(find.text('100 MB (default)'), findsOneWidget);
     // App behaviour lives on the General pane, not here.

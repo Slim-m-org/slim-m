@@ -82,10 +82,10 @@ void main() {
       tester,
     ) async {
       final c = await _pump(tester, const PerformanceSettingsSection());
-      await _choose<GifAutoplay>(tester, 'Always');
-      expect(c.read(gifAutoplayControllerProvider), GifAutoplay.autoplay);
+      await _choose<GifAutoplay>(tester, 'On hover or tap');
+      expect(c.read(gifAutoplayControllerProvider), GifAutoplay.tapToPlay);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(gifAutoplayKey), 'autoplay');
+      expect(prefs.getString(gifAutoplayKey), 'tapToPlay');
     });
 
     testWidgets('Attachment preview quality writes the controller', (
