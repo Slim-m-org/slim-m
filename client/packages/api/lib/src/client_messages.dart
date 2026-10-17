@@ -389,13 +389,6 @@ extension SlimmApiMessages on SlimmApi {
         .toList(growable: false);
   }
 
-  /// How many messages are pinned in a channel. Cheap: a single indexed
-  /// count, never a fetch of every pinned message.
-  Future<int> pinnedMessageCount(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/pins/count');
-    return (json as Map<String, dynamic>)['count'] as int;
-  }
-
   /// Sends a message that carries a poll. Idempotent by [id] exactly like
   /// [SlimmApi.sendMessage], and gated the same way (view plus send in this
   /// channel). [options] needs between 2 and 4 entries. [closeAt] (unix

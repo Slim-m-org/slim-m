@@ -9,6 +9,8 @@
 /// rather than dependent on a real network fetch settling in time.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,6 +58,88 @@ class _ScriptedSource implements AttachmentVideoSource {
 
   @override
   void dispose() => disposed = true;
+}
+
+/// A [Player] that records its lifecycle and lets a test fire stream events.
+///
+/// Only what the widget and its token reopener touch is real; anything else
+/// throws, so a new dependency on the player fails loudly here.
+class _FakePlayer implements Player {
+  final errors = StreamController<String>.broadcast();
+  final playing = StreamController<bool>.broadcast();
+  final buffering = StreamController<bool>.broadcast();
+  final opened = <Playable>[];
+  final autoplay = <bool>[];
+  bool disposed = false;
+
+  @override
+  late final PlayerStream stream = _FakeStream(this);
+
+  @override
+  PlayerState get state => const PlayerState();
+
+  @override
+  Future<void> open(Playable playable, {bool play = true}) async {
+    opened.add(playable);
+    autoplay.add(play);
+  }
+
+  @override
+  Future<void> dispose({bool synchronized = true}) async {
+    disposed = true;
+    await errors.close();
+    await playing.close();
+    await buffering.close();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+class _FakeStream implements PlayerStream {
+  _FakeStream(this._player);
+
+  final _FakePlayer _player;
+
+  @override
+  Stream<String> get error => _player.errors.stream;
+
+  @override
+  Stream<bool> get playing => _player.playing.stream;
+
+  @override
+  Stream<bool> get buffering => _player.buffering.stream;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+Future<void> _pumpFaked(
+  WidgetTester tester,
+  _ScriptedSource source,
+  _FakePlayer player,
+) {
+  return tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        apiProvider.overrideWithValue(
+          api.SlimmApi(baseUrl: Uri.parse('http://localhost:1')),
+        ),
+        attachmentVideoSourceProvider.overrideWithValue(() => source),
+        attachmentPlayerProvider.overrideWithValue(() => player),
+        attachmentVideoSurfaceProvider.overrideWithValue(
+          (player, controller, onToggleFullscreen) =>
+              const SizedBox(key: Key('ready-surface')),
+        ),
+      ],
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: const Scaffold(body: AttachmentVideoPlayer(attachment: _video)),
+      ),
+    ),
+  );
 }
 
 Future<void> _pumpPlayer(WidgetTester tester, _ScriptedSource source) {
@@ -143,5 +227,81 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(Video), findsNothing);
+  });
+
+  group('with a fake player', () {
+    final media = Media('http://localhost:1/clip.mp4');
+
+    testWidgets('a loaded source is opened on the player, paused', (
+      tester,
+    ) async {
+      final player = _FakePlayer();
+      await _pumpFaked(tester, _ScriptedSource([media]), player);
+      await tester.pump();
+      await tester.pump();
+
+      expect(player.opened.single, media);
+      expect(player.autoplay.single, isFalse);
+      expect(find.byKey(const Key('ready-surface')), findsOneWidget);
+      expect(find.text('Loading video…'), findsNothing);
+    });
+
+    testWidgets('a failure while playing is shown as an error', (tester) async {
+      final player = _FakePlayer();
+      await _pumpFaked(tester, _ScriptedSource([media]), player);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Could not play ${_video.filename}.'), findsNothing);
+
+      player.errors.add('decode failed');
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Could not play ${_video.filename}.'), findsOneWidget);
+    });
+
+    testWidgets('a failed load does not open the player', (tester) async {
+      final player = _FakePlayer();
+      await _pumpFaked(tester, _ScriptedSource([Exception('boom')]), player);
+      await tester.pump();
+      await tester.pump();
+
+      expect(player.opened, isEmpty);
+      expect(find.byKey(const Key('ready-surface')), findsNothing);
+      expect(find.text('Could not load ${_video.filename}.'), findsOneWidget);
+    });
+
+    testWidgets('a retry after a failed load opens the player once it works', (
+      tester,
+    ) async {
+      final player = _FakePlayer();
+      final source = _ScriptedSource([Exception('boom'), media]);
+      await _pumpFaked(tester, source, player);
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(source.opens, 2);
+      expect(player.opened.single, media);
+      expect(find.text('Could not load ${_video.filename}.'), findsNothing);
+      expect(find.byKey(const Key('ready-surface')), findsOneWidget);
+    });
+
+    testWidgets('disposing disposes the player and the source', (tester) async {
+      final player = _FakePlayer();
+      final source = _ScriptedSource([media]);
+      await _pumpFaked(tester, source, player);
+      await tester.pump();
+      await tester.pump();
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(player.disposed, isTrue);
+      expect(source.disposed, isTrue);
+      expect(player.errors.hasListener, isFalse);
+    });
   });
 }

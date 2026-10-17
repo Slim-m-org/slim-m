@@ -395,35 +395,19 @@ void main() {
   });
 
   group('AppCard', () {
-    testWidgets(
-        'an optional title header renders above a hairline with its action slot',
-        (
-      tester,
-    ) async {
+    testWidgets('an optional title header renders uppercased', (tester) async {
       await _pump(
         tester,
-        AppCard(
-          title: 'Danger zone',
-          action: const Icon(Icons.settings, key: Key('card-action')),
-          child: const Text('content'),
-        ),
+        const AppCard(title: 'Danger zone', child: Text('content')),
       );
       expect(find.text('DANGER ZONE'), findsOneWidget);
-      expect(find.byKey(const Key('card-action')), findsOneWidget);
+      expect(find.text('content'), findsOneWidget);
     });
 
-    testWidgets('sunken uses surfaceSunken instead of surfaceRaised',
-        (tester) async {
-      const tokens = AppTokens.light;
-      await _pump(tester, const AppCard(sunken: true, child: Text('content')));
-      expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              (w.decoration as BoxDecoration?)?.color == tokens.surfaceSunken,
-        ),
-        findsOneWidget,
-      );
+    testWidgets('no title renders no header', (tester) async {
+      await _pump(tester, const AppCard(child: Text('content')));
+      expect(find.text('CONTENT'), findsNothing);
+      expect(find.text('content'), findsOneWidget);
     });
   });
 

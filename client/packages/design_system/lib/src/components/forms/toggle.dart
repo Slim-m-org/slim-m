@@ -24,14 +24,12 @@ class AppToggle extends StatelessWidget {
     required this.value,
     this.onChanged,
     this.locked = false,
-    this.focusNode,
     this.semanticLabel,
   });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
   final bool locked;
-  final FocusNode? focusNode;
   final String? semanticLabel;
 
   /// Exact design constants (track 40x22, thumb 16 on and 14 off, padding 2),
@@ -51,7 +49,6 @@ class AppToggle extends StatelessWidget {
     return Opacity(
       opacity: locked ? 0.6 : 1,
       child: FocusableTapTarget(
-        focusNode: focusNode,
         enabled: interactive,
         isButton: false,
         onTap: () => onChanged?.call(!value),

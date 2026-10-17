@@ -42,6 +42,32 @@ final attachmentVideoSourceProvider =
       (ref) => createAttachmentVideoSource,
     );
 
+/// The player each widget plays through, injectable because the real one
+/// needs libmpv and a GL texture that a headless test cannot give it.
+final attachmentPlayerProvider = Provider<Player Function()>(
+  (ref) => Player.new,
+);
+
+/// Builds the picture and controls once the player is ready, injectable for
+/// the same reason as [attachmentPlayerProvider]: a `Video` needs a GL texture.
+typedef AttachmentVideoSurfaceBuilder =
+    Widget Function(
+      Player player,
+      VideoController Function() controller,
+      VoidCallback onToggleFullscreen,
+    );
+
+final attachmentVideoSurfaceProvider = Provider<AttachmentVideoSurfaceBuilder>(
+  (ref) =>
+      (player, controller, onToggleFullscreen) => VideoPlaybackControls(
+        player: player,
+        isFullscreen: false,
+        onToggleFullscreen: onToggleFullscreen,
+        // No default media_kit chrome; see video_playback_controls.dart's doc.
+        child: Video(controller: controller(), controls: null),
+      ),
+);
+
 class AttachmentVideoPlayer extends ConsumerStatefulWidget {
   const AttachmentVideoPlayer({super.key, required this.attachment});
 
@@ -54,7 +80,7 @@ class AttachmentVideoPlayer extends ConsumerStatefulWidget {
 
 class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     with GuardedActionState<AttachmentVideoPlayer> {
-  final Player _player = Player();
+  late final Player _player = ref.read(attachmentPlayerProvider)();
   late final VideoController _videoController = VideoController(_player);
   late final AttachmentVideoSource _source = ref.read(
     attachmentVideoSourceProvider,
@@ -165,15 +191,10 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
                   border: Border.all(color: tokens.borderSubtle),
                 ),
                 child: _ready
-                    ? VideoPlaybackControls(
-                        player: _player,
-                        isFullscreen: false,
-                        onToggleFullscreen: _openFullscreen,
-                        // No default media_kit chrome; see video_playback_controls.dart's doc.
-                        child: Video(
-                          controller: _videoController,
-                          controls: null,
-                        ),
+                    ? ref.watch(attachmentVideoSurfaceProvider)(
+                        _player,
+                        () => _videoController,
+                        _openFullscreen,
                       )
                     : _VideoLoading(progress: _fetchProgress, tokens: tokens),
               ),

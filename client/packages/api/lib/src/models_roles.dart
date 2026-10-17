@@ -95,9 +95,9 @@ enum OverwriteTarget {
 
 /// One permission overwrite already set on a channel: the current allow/deny
 /// pair for one role or member, as `GET /channels/{channelId}/overwrites`
-/// returns it. This is the read [SlimmApiRoles.setChannelOverwrite] never
-/// had - without it, a routine edit could only replace an overwrite sight
-/// unseen, silently re-granting a deliberate denial.
+/// returns it. Without this read, an edit could only
+/// replace an overwrite sight unseen, silently re-granting a deliberate
+/// denial.
 class ChannelOverwrite {
   const ChannelOverwrite({
     required this.kind,

@@ -95,24 +95,6 @@ extension SlimmApiRoles on SlimmApi {
         .toList(growable: false);
   }
 
-  /// Sets (or replaces) a channel permission overwrite for a role or member.
-  /// Requires MANAGE_ROLES in this channel specifically. [allow] must be a
-  /// subset of the caller's own effective permissions in this channel;
-  /// [deny] is a restriction and carries no such check.
-  Future<void> setChannelOverwrite({
-    required String channelId,
-    required OverwriteTarget kind,
-    required String id,
-    int allow = 0,
-    int deny = 0,
-  }) =>
-      _send(
-        'PUT',
-        '/channels/$channelId/overwrites/${kind.wire}/$id',
-        body: {'allow': allow, 'deny': deny},
-        expectNoContent: true,
-      );
-
   /// Clears a channel permission overwrite. Requires MANAGE_ROLES in this
   /// channel. Idempotent: clearing one that was never set still succeeds.
   Future<void> deleteChannelOverwrite({
