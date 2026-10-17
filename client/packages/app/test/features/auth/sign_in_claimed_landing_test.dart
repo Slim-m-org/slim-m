@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/mock_app_version.dart';
+import '../../support/mock_app_version.dart';
 
 const _phone = Size(390, 844);
 const _desktop = Size(1280, 800);

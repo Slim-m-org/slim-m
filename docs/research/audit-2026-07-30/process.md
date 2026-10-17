@@ -273,7 +273,7 @@ The loop covers all five presence states, so a failure cannot say which one, and
 
 ### The onboarding test hardcodes the server-identity pin handle (low)
 
-`client/packages/app/test/onboarding_screen_test.dart:54`
+`client/packages/app/test/features/auth/onboarding_screen_test.dart:54`
 
 The test defines `String _handleFor(String server) => 'server_identity:$server';` and uses it at lines 161, 185, 192, 220, 255, 267 and 288, while production is server_identity_confirmation.dart:19, `'server_identity:${address.origin}'`.
 They agree only because the fixture's server string is already an origin.

@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/mock_app_version.dart';
+import '../../support/mock_app_version.dart';
 
 /// Pumps [SignInScreen] whose `/auth/login` hangs on [gate] - long enough for
 /// a test to inspect the button mid-submit - then answers with a refusal, no

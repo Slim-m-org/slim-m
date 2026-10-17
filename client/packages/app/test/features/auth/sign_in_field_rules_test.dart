@@ -29,7 +29,7 @@ import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/onboarding_error_strings.dart';
+import '../../support/onboarding_error_strings.dart';
 
 http.Client _quietProbe() => MockClient((request) async {
   if (request.method == 'GET' && request.url.path == '/version') {

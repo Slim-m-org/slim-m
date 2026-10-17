@@ -24,7 +24,7 @@ It pins the server's public key under `server_identity:<origin>` in the existing
 - The compiled-in official server pins silently on first connect, and a later mismatch still stops.
 
 This behaviour predates the decision; the audit's premise that the screen fires on every invite join was wrong for any device that had joined the server before.
-The decision confirms it as intended and adds tests that pin it down on the invite path (`client/packages/app/test/invite_join_tofu_test.dart`).
+The decision confirms it as intended and adds tests that pin it down on the invite path (`client/packages/app/test/features/auth/invite_join_tofu_test.dart`).
 
 ## Web and cleared storage
 

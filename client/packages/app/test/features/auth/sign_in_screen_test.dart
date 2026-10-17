@@ -22,7 +22,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/mock_app_version.dart';
+import '../../support/mock_app_version.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
