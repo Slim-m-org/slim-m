@@ -139,9 +139,9 @@ class ChannelSearchResults extends ConsumerWidget {
           : 'Search failed.';
     }
     final count = results?.length ?? 0;
-    return count == 0
-        ? 'No matches.'
-        : '$count ${count == 1 ? 'result' : 'results'} found.';
+    if (count == 0) return 'No matches.';
+    final noun = count == 1 ? 'result' : 'results';
+    return '$count $noun found.';
   }
 
   Widget _body(BuildContext context, WidgetRef ref, AppTokens tokens) {

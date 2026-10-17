@@ -29,23 +29,29 @@ class ClientRelease {
 ClientRelease? latestClientRelease(List<dynamic> releases) {
   ClientRelease? best;
   for (final entry in releases) {
-    if (entry is! Map<String, dynamic>) continue;
-    if (entry['draft'] == true || entry['prerelease'] == true) continue;
-    final tag = entry['tag_name'];
-    if (tag is! String || !tag.startsWith(_tagPrefix)) continue;
-    final version = tag.substring(_tagPrefix.length);
-    if (!isPlainVersion(version) || !_hasSignedManifest(entry['assets'])) {
-      continue;
-    }
-    if (best != null && !isNewer(version, best.version)) continue;
-    final url = entry['html_url'];
-    best = ClientRelease(
-      tag: tag,
-      version: version,
-      htmlUrl: url is String ? url : null,
-    );
+    final candidate = _finishedRelease(entry);
+    if (candidate == null) continue;
+    if (best != null && !isNewer(candidate.version, best.version)) continue;
+    best = candidate;
   }
   return best;
+}
+
+ClientRelease? _finishedRelease(Object? entry) {
+  if (entry is! Map<String, dynamic>) return null;
+  if (entry['draft'] == true || entry['prerelease'] == true) return null;
+  final tag = entry['tag_name'];
+  if (tag is! String || !tag.startsWith(_tagPrefix)) return null;
+  final version = tag.substring(_tagPrefix.length);
+  if (!isPlainVersion(version) || !_hasSignedManifest(entry['assets'])) {
+    return null;
+  }
+  final url = entry['html_url'];
+  return ClientRelease(
+    tag: tag,
+    version: version,
+    htmlUrl: url is String ? url : null,
+  );
 }
 
 bool _hasSignedManifest(Object? assets) {

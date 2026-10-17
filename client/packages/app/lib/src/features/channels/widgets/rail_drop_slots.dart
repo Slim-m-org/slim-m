@@ -73,28 +73,32 @@ DropSlot? channelSlotAt(
   double pointerY,
 ) {
   final sections = {for (final b in boxes) b.section}.toList()..sort();
-  final slots = <DropSlot>[];
-  for (final section in sections) {
-    if (closedSections.contains(section)) continue;
-    final header = boxes.where(
-      (b) => b.section == section && b.kind == RailBoxKind.header,
-    );
-    final rows = boxes
-        .where((b) => b.section == section && b.kind == RailBoxKind.channel)
-        .toList();
-    final headerVisible = header.isNotEmpty && header.first.visible;
-    if (header.isEmpty && rows.isEmpty) continue;
-    final start = headerVisible
-        ? header.first.bottom
-        : rows.isEmpty
-        ? header.first.top
-        : rows.first.top;
-    slots.add(DropSlot(section, 0, start));
-    for (var k = 1; k <= rows.length; k++) {
-      slots.add(DropSlot(section, k, rows[k - 1].bottom));
-    }
-  }
+  final slots = <DropSlot>[
+    for (final section in sections)
+      if (!closedSections.contains(section)) ..._sectionSlots(boxes, section),
+  ];
   return _nearest(slots, pointerY);
+}
+
+List<DropSlot> _sectionSlots(List<RailBox> boxes, int section) {
+  final header = boxes.where(
+    (b) => b.section == section && b.kind == RailBoxKind.header,
+  );
+  final rows = boxes
+      .where((b) => b.section == section && b.kind == RailBoxKind.channel)
+      .toList();
+  if (header.isEmpty && rows.isEmpty) return const [];
+  return [
+    DropSlot(section, 0, _firstGapY(header, rows)),
+    for (var k = 1; k <= rows.length; k++)
+      DropSlot(section, k, rows[k - 1].bottom),
+  ];
+}
+
+double _firstGapY(Iterable<RailBox> header, List<RailBox> rows) {
+  if (header.isNotEmpty && header.first.visible) return header.first.bottom;
+  if (rows.isEmpty) return header.first.top;
+  return rows.first.top;
 }
 
 /// The gap between category blocks nearest [pointerY]; [named] are the
