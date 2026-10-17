@@ -23,12 +23,7 @@ const Map<String, String> _unreadableKeys = {};
 
 /// Body or query keys the client sends that the spec does not declare, by
 /// `METHOD /path key`. Each is a deliberate exception with its reason.
-const Map<String, String> _allowedUndeclared = {
-  'GET /reports after_id': 'the server requires `after_id` with `after` '
-      '(crates/slimm-server/src/http/reports.rs) but the spec omits it; the '
-      'spec needs the parameter added, which is a schema change outside '
-      'this gate',
-};
+const Map<String, String> _allowedUndeclared = {};
 
 /// Which class declares the `toJson()` passed as the body at each route.
 const ToJsonOwners _toJsonOwners = {
