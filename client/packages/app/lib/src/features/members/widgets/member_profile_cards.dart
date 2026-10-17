@@ -191,8 +191,6 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
   Widget build(BuildContext context) {
     final profile = widget.profile;
     final gates = widget.gates;
-    final host = widget.host;
-    final run = widget.run;
     final hasNote =
         ref.watch(userNoteProvider(profile.id)).valueOrNull?.body?.isNotEmpty ??
         false;
@@ -229,46 +227,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             onLift: gates.canTimeOut ? widget.onLiftTimeout : null,
           ),
         if (profile.isBot) MemberProfileBotCommands(botId: profile.id),
-        if (canMessage || !hasNote)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s16,
-            ),
-            child: Row(
-              spacing: AppSpacing.s8,
-              children: [
-                if (canMessage)
-                  Expanded(
-                    child: AppButton(
-                      label: 'Message',
-                      icon: AppIcons.chat,
-                      variant: AppButtonVariant.primary,
-                      full: true,
-                      onPressed: () {
-                        widget.memberPaneScaffold?.closeEndDrawer();
-                        run(
-                          (container) =>
-                              messageMember(host, container, profile),
-                        );
-                      },
-                    ),
-                  ),
-                if (!hasNote)
-                  Expanded(
-                    child: AppButton(
-                      label: 'Add note',
-                      icon: AppIcons.note,
-                      variant: AppButtonVariant.secondary,
-                      full: true,
-                      onPressed: () => setState(() => _noteRevealed = true),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+        if (canMessage || !hasNote) _messageRow(canMessage, hasNote),
         if (hasNote || _noteRevealed)
           MemberProfileNoteField(
             subjectId: profile.id,
@@ -277,52 +236,103 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         const _Rule(),
         if (widget.localAudio case final audio?) ...[audio, const _Rule()],
         if (channelName != null) ...[
-          _Section([
-            AppMenuLabel('In #$channelName'),
-            MemberRemoveFromChannelItem(
-              channelId: channelId!,
-              profile: profile,
-              host: host,
-              guard: widget.guard,
-              onDone: widget.onDone,
-            ),
-          ]),
+          _channelSection(channelName),
           const _Rule(),
         ],
-        _Section([
-          MemberNotifyOffHoursItem(host: host, profile: profile, run: run),
-          if (widget.actions.contains(ParticipantAction.moderate))
-            AppMenuItem(
-              label: 'Moderate...',
-              leading: AppIcons.shield,
-              submenu: true,
-              onTap: widget.onModerate,
-            ),
-          AppMenuItem(
-            label: 'Report user',
-            leading: AppIcons.report,
-            onTap: () =>
-                run((container) => reportMember(host, container, profile)),
-          ),
-          // Offering Block again to a blocked member reads as the block failing.
-          if (blocked)
-            AppMenuItem(
-              label: 'Unblock',
-              leading: AppIcons.restoreAccess,
-              onTap: () =>
-                  run((container) => unblockMember(host, container, profile)),
-            )
-          else
-            AppMenuItem(
-              label: 'Block',
-              leading: AppIcons.revoke,
-              tone: AppMenuItemTone.danger,
-              onTap: () =>
-                  run((container) => blockMember(host, container, profile)),
-            ),
-        ]),
+        _menuSection(blocked: blocked),
       ],
     );
+  }
+
+  Widget _messageRow(bool canMessage, bool hasNote) {
+    final profile = widget.profile;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        0,
+        AppSpacing.s16,
+        AppSpacing.s16,
+      ),
+      child: Row(
+        spacing: AppSpacing.s8,
+        children: [
+          if (canMessage)
+            Expanded(
+              child: AppButton(
+                label: 'Message',
+                icon: AppIcons.chat,
+                variant: AppButtonVariant.primary,
+                full: true,
+                onPressed: () {
+                  widget.memberPaneScaffold?.closeEndDrawer();
+                  widget.run(
+                    (container) =>
+                        messageMember(widget.host, container, profile),
+                  );
+                },
+              ),
+            ),
+          if (!hasNote)
+            Expanded(
+              child: AppButton(
+                label: 'Add note',
+                icon: AppIcons.note,
+                variant: AppButtonVariant.secondary,
+                full: true,
+                onPressed: () => setState(() => _noteRevealed = true),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _channelSection(String channelName) => _Section([
+    AppMenuLabel('In #$channelName'),
+    MemberRemoveFromChannelItem(
+      channelId: widget.channelId!,
+      profile: widget.profile,
+      host: widget.host,
+      guard: widget.guard,
+      onDone: widget.onDone,
+    ),
+  ]);
+
+  Widget _menuSection({required bool blocked}) {
+    final host = widget.host;
+    final profile = widget.profile;
+    final run = widget.run;
+    return _Section([
+      MemberNotifyOffHoursItem(host: host, profile: profile, run: run),
+      if (widget.actions.contains(ParticipantAction.moderate))
+        AppMenuItem(
+          label: 'Moderate...',
+          leading: AppIcons.shield,
+          submenu: true,
+          onTap: widget.onModerate,
+        ),
+      AppMenuItem(
+        label: 'Report user',
+        leading: AppIcons.report,
+        onTap: () => run((container) => reportMember(host, container, profile)),
+      ),
+      // Offering Block again to a blocked member reads as the block failing.
+      if (blocked)
+        AppMenuItem(
+          label: 'Unblock',
+          leading: AppIcons.restoreAccess,
+          onTap: () =>
+              run((container) => unblockMember(host, container, profile)),
+        )
+      else
+        AppMenuItem(
+          label: 'Block',
+          leading: AppIcons.revoke,
+          tone: AppMenuItemTone.danger,
+          onTap: () =>
+              run((container) => blockMember(host, container, profile)),
+        ),
+    ]);
   }
 }
 

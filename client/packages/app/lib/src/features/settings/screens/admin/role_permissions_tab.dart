@@ -140,40 +140,23 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
 
   @override
   Widget build(BuildContext context) {
-    final myPermissions = ref.watch(myPermissionsProvider);
-    final catalog =
-        ref.watch(modulePermissionsProvider).valueOrNull ?? const [];
     final granted = ref
         .watch(roleModulePermissionsProvider(widget.role.id))
         .valueOrNull;
-    final grantedKeys = {
-      for (final g in granted ?? const <api.GrantedModulePermission>[])
-        '${g.moduleId}:${g.permKey}',
-    };
-    final held = widget.role.permissions;
-
     final showAdministrator = _matchesFilter(
       'Administrator',
       _administratorDescription,
     );
-    final groups = [
-      for (final group in Perm.groups)
-        (
-          group,
-          [
-            for (final spec in group.permissions)
-              if (_matchesFilter(spec.label, spec.description)) spec,
-          ],
-        ),
-    ].where((g) => g.$2.isNotEmpty).toList();
-    final modules = granted == null
-        ? const <api.ModulePermission>[]
-        : [
-            for (final perm in catalog)
-              if (_matchesFilter(perm.name, perm.description)) perm,
-          ];
+    final groups = _matchingGroups();
+    final catalog =
+        ref.watch(modulePermissionsProvider).valueOrNull ?? const [];
+    final modules = _matchingModules(granted, catalog);
     final nothingMatches =
         !showAdministrator && groups.isEmpty && modules.isEmpty;
+    final grantedKeys = {
+      for (final g in granted ?? const <api.GrantedModulePermission>[])
+        '${g.moduleId}:${g.permKey}',
+    };
 
     return Column(
       children: [
@@ -207,44 +190,8 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
                   title: 'No permissions match',
                   detail: 'Try a different word.',
                 ),
-              if (showAdministrator)
-                SettingsSectionCard(
-                  children: [
-                    PermissionToggleRow(
-                      title: 'Administrator',
-                      description: _administratorDescription,
-                      semanticLabel: 'Administrator',
-                      held: myPermissions.hasPermission(Perm.administrator),
-                      value:
-                          _bitOverrides[Perm.administrator] ??
-                          held.hasPermission(Perm.administrator),
-                      onChanged: (v) => _setBit(
-                        Perm.administrator,
-                        v,
-                        held.hasPermission(Perm.administrator),
-                      ),
-                    ),
-                  ],
-                ),
-              for (final (group, specs) in groups)
-                SettingsSectionCard(
-                  title: group.title,
-                  children: [
-                    for (final spec in specs)
-                      PermissionToggleRow(
-                        title: spec.label,
-                        description: spec.description,
-                        semanticLabel: spec.label,
-                        elevated: spec.elevated,
-                        held: myPermissions.hasPermission(spec.bit),
-                        value:
-                            _bitOverrides[spec.bit] ??
-                            held.hasPermission(spec.bit),
-                        onChanged: (v) =>
-                            _setBit(spec.bit, v, held.hasPermission(spec.bit)),
-                      ),
-                  ],
-                ),
+              if (showAdministrator) _administratorCard(),
+              for (final (group, specs) in groups) _groupCard(group, specs),
               if (modules.isNotEmpty)
                 SettingsSectionCard(
                   title: 'Modules',
@@ -269,6 +216,67 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
               onDiscard: _discard,
               onSave: _save,
             ),
+          ),
+      ],
+    );
+  }
+
+  List<(PermGroup, List<PermSpec>)> _matchingGroups() => [
+    for (final group in Perm.groups)
+      (
+        group,
+        [
+          for (final spec in group.permissions)
+            if (_matchesFilter(spec.label, spec.description)) spec,
+        ],
+      ),
+  ].where((g) => g.$2.isNotEmpty).toList();
+
+  List<api.ModulePermission> _matchingModules(
+    List<api.GrantedModulePermission>? granted,
+    List<api.ModulePermission> catalog,
+  ) {
+    if (granted == null) return const [];
+    return [
+      for (final perm in catalog)
+        if (_matchesFilter(perm.name, perm.description)) perm,
+    ];
+  }
+
+  Widget _administratorCard() {
+    final held = widget.role.permissions.hasPermission(Perm.administrator);
+    return SettingsSectionCard(
+      children: [
+        PermissionToggleRow(
+          title: 'Administrator',
+          description: _administratorDescription,
+          semanticLabel: 'Administrator',
+          held: ref
+              .watch(myPermissionsProvider)
+              .hasPermission(Perm.administrator),
+          value: _bitOverrides[Perm.administrator] ?? held,
+          onChanged: (v) => _setBit(Perm.administrator, v, held),
+        ),
+      ],
+    );
+  }
+
+  Widget _groupCard(PermGroup group, List<PermSpec> specs) {
+    final myPermissions = ref.watch(myPermissionsProvider);
+    final roleBits = widget.role.permissions;
+    return SettingsSectionCard(
+      title: group.title,
+      children: [
+        for (final spec in specs)
+          PermissionToggleRow(
+            title: spec.label,
+            description: spec.description,
+            semanticLabel: spec.label,
+            elevated: spec.elevated,
+            held: myPermissions.hasPermission(spec.bit),
+            value: _bitOverrides[spec.bit] ?? roleBits.hasPermission(spec.bit),
+            onChanged: (v) =>
+                _setBit(spec.bit, v, roleBits.hasPermission(spec.bit)),
           ),
       ],
     );

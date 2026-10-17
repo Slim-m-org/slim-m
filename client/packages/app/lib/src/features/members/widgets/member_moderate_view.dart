@@ -99,8 +99,6 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final roles = ref.watch(rolesProvider).valueOrNull ?? const <api.Role>[];
-    final mine = ref.watch(myPermissionsProvider);
     // Re-read live, or a toggle just above keeps reading a stale snapshot.
     final live = ref
         .watch(membersProvider)
@@ -109,27 +107,87 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
         .firstOrNull;
     final heldIds = live?.roleIds ?? widget.profile.roleIds;
 
-    final header = _header(tokens);
-    final rolesSection = widget.canManageRoles
-        ? MemberModerateRoles(
-            roles: roles,
-            heldIds: heldIds,
-            myPermissions: mine,
-            memberName: widget.profile.displayName,
-            compact: widget.compact,
-            onChanged: _toggleRole,
-          )
-        : null;
-    final timeOut = widget.canOfferTimeoutChips
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppMenuLabel('TIME OUT'),
-              TimeoutDurationChips(onChosen: widget.onTimeOut),
-            ],
-          )
-        : null;
-    final sections = <Widget?>[
+    final sections = _sections(
+      live: live,
+      rolesSection: _rolesSection(heldIds),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _header(tokens),
+        for (var i = 0; i < sections.length; i++) ...[
+          sections[i],
+          if (i < sections.length - 1 || (widget.compact && widget.canRemove))
+            const AppMenuDivider(),
+        ],
+        if (actionError != null) _actionError(),
+        if (widget.canRemove) _removeButton(),
+      ],
+    );
+  }
+
+  Widget? _rolesSection(List<String> heldIds) {
+    if (!widget.canManageRoles) return null;
+    return MemberModerateRoles(
+      roles: ref.watch(rolesProvider).valueOrNull ?? const <api.Role>[],
+      heldIds: heldIds,
+      myPermissions: ref.watch(myPermissionsProvider),
+      memberName: widget.profile.displayName,
+      compact: widget.compact,
+      onChanged: _toggleRole,
+    );
+  }
+
+  Widget? _timeOutSection() {
+    if (!widget.canOfferTimeoutChips) return null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const AppMenuLabel('TIME OUT'),
+        TimeoutDurationChips(onChosen: widget.onTimeOut),
+      ],
+    );
+  }
+
+  Widget _renameSection(api.UserProfile? live) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const AppMenuLabel('NAME'),
+      RenameMemberMenuItem(
+        host: widget.host,
+        profile: live ?? widget.profile,
+        onDone: widget.onDone,
+      ),
+    ],
+  );
+
+  Widget _accountSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const AppMenuLabel('ACCOUNT'),
+      ResetCodeMenuItem(
+        host: widget.host,
+        subjectId: widget.profile.id,
+        subjectName: widget.profile.displayName,
+        onDone: widget.onDone,
+      ),
+      ClearTotpMenuItem(
+        host: widget.host,
+        subjectId: widget.profile.id,
+        subjectName: widget.profile.displayName,
+        onDone: widget.onDone,
+      ),
+    ],
+  );
+
+  List<Widget> _sections({
+    api.UserProfile? live,
+    required Widget? rolesSection,
+  }) {
+    final timeOut = _timeOutSection();
+    return <Widget?>[
       if (widget.compact) ...[
         timeOut,
         rolesSection,
@@ -138,18 +196,7 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
         null,
       ],
       if (widget.outranked) _outrankedCaption(),
-      if (widget.canRename)
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AppMenuLabel('NAME'),
-            RenameMemberMenuItem(
-              host: widget.host,
-              profile: live ?? widget.profile,
-              onDone: widget.onDone,
-            ),
-          ],
-        ),
+      if (widget.canRename) _renameSection(live),
       if (!widget.compact) timeOut,
       if (widget.canEject)
         AppMenuItem(
@@ -158,63 +205,29 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
           tone: AppMenuItemTone.danger,
           onTap: widget.onEject,
         ),
-      if (widget.canIssueReset)
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AppMenuLabel('ACCOUNT'),
-            ResetCodeMenuItem(
-              host: widget.host,
-              subjectId: widget.profile.id,
-              subjectName: widget.profile.displayName,
-              onDone: widget.onDone,
-            ),
-            ClearTotpMenuItem(
-              host: widget.host,
-              subjectId: widget.profile.id,
-              subjectName: widget.profile.displayName,
-              onDone: widget.onDone,
-            ),
-          ],
-        ),
+      if (widget.canIssueReset) _accountSection(),
     ].whereType<Widget>().toList();
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        header,
-        for (var i = 0; i < sections.length; i++) ...[
-          sections[i],
-          if (i < sections.length - 1 || (widget.compact && widget.canRemove))
-            const AppMenuDivider(),
-        ],
-        if (actionError != null)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            child: AppErrorState(
-              message: actionError!,
-              onDismiss: clearActionError,
-            ),
-          ),
-        if (widget.canRemove)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s12,
-              AppSpacing.s8,
-              AppSpacing.s12,
-              AppSpacing.s12,
-            ),
-            child: AppButton(
-              label: ActionLabels.removeFromSpace,
-              variant: AppButtonVariant.danger,
-              full: true,
-              onPressed: widget.onRemove,
-            ),
-          ),
-      ],
-    );
   }
+
+  Widget _actionError() => Padding(
+    padding: const EdgeInsets.all(AppSpacing.s8),
+    child: AppErrorState(message: actionError!, onDismiss: clearActionError),
+  );
+
+  Widget _removeButton() => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.s12,
+      AppSpacing.s8,
+      AppSpacing.s12,
+      AppSpacing.s12,
+    ),
+    child: AppButton(
+      label: ActionLabels.removeFromSpace,
+      variant: AppButtonVariant.danger,
+      full: true,
+      onPressed: widget.onRemove,
+    ),
+  );
 
   Widget _outrankedCaption() => Padding(
     padding: const EdgeInsets.symmetric(

@@ -256,20 +256,20 @@ class _CommandPaletteContentState
           // The category names ride a second stream so a rename shows live.
           return StreamBuilder<List<ChannelCategoryRow>>(
             stream: store.watchCategories(),
-            builder: (context, categorySnapshot) => _animatedResults(
-              tokens,
-              channels,
-              {
+            builder: (context, categorySnapshot) => _animatedResults((
+              tokens: tokens,
+              channels: channels,
+              categoryNames: {
                 for (final c
                     in categorySnapshot.data ?? const <ChannelCategoryRow>[])
                   c.id: c.name,
               },
-              members,
-              me,
-              permissions,
-              personalSpaceHidden,
-              compact,
-            ),
+              members: members,
+              me: me,
+              permissions: permissions,
+              personalSpaceHidden: personalSpaceHidden,
+              compact: compact,
+            )),
           );
         },
       ),
@@ -304,16 +304,7 @@ class _CommandPaletteContentState
     return CallbackShortcuts(bindings: _bindings(), child: shell);
   }
 
-  Widget _animatedResults(
-    AppTokens tokens,
-    List<Channel> channels,
-    Map<String, String> categoryNames,
-    List<api.UserProfile> members,
-    api.Me? me,
-    int permissions,
-    bool personalSpaceHidden,
-    bool compact,
-  ) {
+  Widget _animatedResults(_ResultInputs inputs) {
     // Keyed on the query alone: arrow keys and late-arriving message hits update in place, only typing crossfades.
     return MaybeAnimatedSize(
       duration: AppMotion.fast,
@@ -325,64 +316,95 @@ class _CommandPaletteContentState
         switchOutCurve: AppMotion.exit,
         child: KeyedSubtree(
           key: ValueKey(_query),
-          child: _buildResults(
-            tokens,
-            channels,
-            categoryNames,
-            members,
-            me,
-            permissions,
-            personalSpaceHidden,
-            compact,
-          ),
+          child: _buildResults(inputs),
         ),
       ),
     );
   }
 
-  Widget _buildResults(
-    AppTokens tokens,
-    List<Channel> channels,
-    Map<String, String> categoryNames,
-    List<api.UserProfile> members,
-    api.Me? me,
-    int permissions,
-    bool personalSpaceHidden,
-    bool compact,
+  List<(String, List<PaletteResultItem>)> _groups(
+    _ResultInputs inputs,
+    PaletteScope scope,
+    String query,
   ) {
-    resolveAuthorProfiles(ref, _messageResults.map((m) => m.authorId));
-    final (:scope, text: query) = parsePaletteQuery(_query);
     final everything = scope == PaletteScope.all;
-    final groups = <(String, List<PaletteResultItem>)>[
+    return <(String, List<PaletteResultItem>)>[
       if (everything || scope == PaletteScope.channels)
         (
           'Channels',
           buildChannelItems(
-            channels,
+            inputs.channels,
             query,
-            selfDisplayName: me?.displayName,
-            personalSpaceHidden: personalSpaceHidden,
-            categoryNames: categoryNames,
+            selfDisplayName: inputs.me?.displayName,
+            personalSpaceHidden: inputs.personalSpaceHidden,
+            categoryNames: inputs.categoryNames,
             currentChannelId: widget.currentChannelId,
           ),
         ),
       if (everything || scope == PaletteScope.people)
-        ('People', buildMemberItems(members, query, me?.id)),
+        ('People', buildMemberItems(inputs.members, query, inputs.me?.id)),
       if (everything && !_messagesForbidden)
         (
           'Messages',
           buildMessageItems(
             _messageResults,
             currentChannelId: widget.currentChannelId,
-            channelsById: {for (final c in channels) c.id: c},
+            channelsById: {for (final c in inputs.channels) c.id: c},
           ),
         ),
-      if (everything) ('Actions', buildActionItems(query, permissions)),
+      if (everything) ('Actions', buildActionItems(query, inputs.permissions)),
     ].where((g) => g.$2.isNotEmpty).toList();
+  }
+
+  List<Widget> _rows(
+    List<(String, List<PaletteResultItem>)> groups,
+    String query,
+    bool compact,
+  ) {
+    final rows = <Widget>[];
+    var index = 0;
+    for (final group in groups) {
+      rows.add(PaletteSectionHeader(label: group.$1, count: group.$2.length));
+      for (final item in group.$2) {
+        final at = index;
+        index++;
+        rows.add(
+          PaletteResultRow(
+            item: item,
+            query: query,
+            highlighted: at == _highlighted,
+            touch: compact,
+            onTap: () => _run(item),
+          ),
+        );
+      }
+    }
+    return rows;
+  }
+
+  List<Widget> _forbiddenNotice(AppTokens tokens) => [
+    const PaletteSectionHeader(label: 'Messages', count: 0),
+    Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
+      child: Text(
+        'You do not have permission to search this channel.',
+        style: AppText.micro.copyWith(color: tokens.textSecondary),
+      ),
+    ),
+  ];
+
+  Widget _buildResults(_ResultInputs inputs) {
+    final tokens = inputs.tokens;
+    resolveAuthorProfiles(ref, _messageResults.map((m) => m.authorId));
+    final (:scope, text: query) = parsePaletteQuery(_query);
+    final groups = _groups(inputs, scope, query);
 
     // An empty result and a refusal are different things; so says search too.
     final showForbiddenNotice =
-        everything && _messagesForbidden && query.isNotEmpty;
+        scope == PaletteScope.all && _messagesForbidden && query.isNotEmpty;
 
     final flat = [for (final group in groups) ...group.$2];
     _visible = flat;
@@ -404,43 +426,14 @@ class _CommandPaletteContentState
       );
     }
 
-    final rows = <Widget>[];
-    var index = 0;
-    for (final group in groups) {
-      rows.add(PaletteSectionHeader(label: group.$1, count: group.$2.length));
-      for (final item in group.$2) {
-        final at = index;
-        index++;
-        rows.add(
-          PaletteResultRow(
-            item: item,
-            query: query,
-            highlighted: at == _highlighted,
-            touch: compact,
-            onTap: () => _run(item),
-          ),
-        );
-      }
-    }
-    if (showForbiddenNotice) {
-      rows.add(const PaletteSectionHeader(label: 'Messages', count: 0));
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s16,
-            vertical: AppSpacing.s8,
-          ),
-          child: Text(
-            'You do not have permission to search this channel.',
-            style: AppText.micro.copyWith(color: tokens.textSecondary),
-          ),
-        ),
-      );
-    }
+    final rows = [
+      ..._rows(groups, query, inputs.compact),
+      if (showForbiddenNotice) ..._forbiddenNotice(tokens),
+    ];
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: compact
+        maxHeight: inputs.compact
             ? MediaQuery.sizeOf(context).height * 0.7
             : _resultsMaxHeight,
       ),
@@ -451,3 +444,15 @@ class _CommandPaletteContentState
     );
   }
 }
+
+/// Everything the results list is built from, bundled so two builders share it.
+typedef _ResultInputs = ({
+  AppTokens tokens,
+  List<Channel> channels,
+  Map<String, String> categoryNames,
+  List<api.UserProfile> members,
+  api.Me? me,
+  int permissions,
+  bool personalSpaceHidden,
+  bool compact,
+});

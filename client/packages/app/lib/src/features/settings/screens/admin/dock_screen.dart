@@ -51,6 +51,8 @@ class DockScreen extends StatelessWidget {
 /// it from (null for the official one).
 typedef _Outdated = ({api.DockIndexEntry entry, String? source});
 
+enum _UpdateOutcome { updated, needsReview, needsApproval, failed }
+
 /// The host capability a new build of a module has to be approved for again.
 const _postMessages = 'message.post';
 
@@ -97,17 +99,25 @@ class _DockPaneState extends ConsumerState<DockPane>
   /// it is updated from there.
   static List<_Outdated> _outdated(DockCatalog catalog) => [
     for (final entry in catalog.entries)
-      if (catalog.installedFor(entry.id) case final installed?)
-        if (installed.sourceRepo == null && installed.version != entry.version)
-          (entry: entry, source: null),
+      if (_isBehind(catalog, entry, null)) (entry: entry, source: null),
     for (final section in catalog.sections)
       if (!section.failed)
         for (final entry in section.entries)
-          if (catalog.installedFor(entry.id) case final installed?)
-            if (installed.sourceRepo == section.source.repo &&
-                installed.version != entry.version)
-              (entry: entry, source: section.source.id),
+          if (_isBehind(catalog, entry, section.source.repo))
+            (entry: entry, source: section.source.id),
   ];
+
+  /// Installed from [repo] (null for the official source) at another version.
+  static bool _isBehind(
+    DockCatalog catalog,
+    api.DockIndexEntry entry,
+    String? repo,
+  ) {
+    final installed = catalog.installedFor(entry.id);
+    return installed != null &&
+        installed.sourceRepo == repo &&
+        installed.version != entry.version;
+  }
 
   /// Updates every outdated module, one at a time, and reports what did not
   /// take rather than stopping at the first failure.
@@ -124,37 +134,10 @@ class _DockPaneState extends ConsumerState<DockPane>
   Future<void> _updateAll(List<_Outdated> outdated) async {
     clearActionError();
     setState(() => _updatingAll = true);
-    final failed = <String>[];
-    final needApproval = <String>[];
-    final needReview = <String>[];
+    final outcomes = <_UpdateOutcome, List<String>>{};
     for (final (:entry, :source) in outdated) {
-      final current = ref
-          .read(dockCatalogProvider)
-          .valueOrNull
-          ?.installedFor(entry.id);
-      final before = current?.approvedHostCapabilities;
-      try {
-        final manifest = await ref.read(
-          dockManifestFor(entry.id, source).future,
-        );
-        if (newConsentCapabilities(manifest, current).isNotEmpty) {
-          needReview.add(entry.name);
-          continue;
-        }
-        final updated = await ref
-            .read(apiProvider)
-            .installDockModule(
-              moduleId: entry.id,
-              version: entry.version,
-              source: source,
-            );
-        if ((before?.contains(_postMessages) ?? false) &&
-            !updated.approvedHostCapabilities.contains(_postMessages)) {
-          needApproval.add(entry.name);
-        }
-      } catch (_) {
-        failed.add(entry.name);
-      }
+      final outcome = await _updateOne(entry, source);
+      outcomes.putIfAbsent(outcome, () => []).add(entry.name);
     }
     if (!mounted) return;
     setState(() => _updatingAll = false);
@@ -164,11 +147,48 @@ class _DockPaneState extends ConsumerState<DockPane>
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
+    _reportUpdateAll(outdated.length, outcomes);
+  }
+
+  Future<_UpdateOutcome> _updateOne(
+    api.DockIndexEntry entry,
+    String? source,
+  ) async {
+    final current = ref
+        .read(dockCatalogProvider)
+        .valueOrNull
+        ?.installedFor(entry.id);
+    final before = current?.approvedHostCapabilities;
+    try {
+      final manifest = await ref.read(dockManifestFor(entry.id, source).future);
+      if (newConsentCapabilities(manifest, current).isNotEmpty) {
+        return _UpdateOutcome.needsReview;
+      }
+      final updated = await ref
+          .read(apiProvider)
+          .installDockModule(
+            moduleId: entry.id,
+            version: entry.version,
+            source: source,
+          );
+      final lostPost =
+          (before?.contains(_postMessages) ?? false) &&
+          !updated.approvedHostCapabilities.contains(_postMessages);
+      return lostPost ? _UpdateOutcome.needsApproval : _UpdateOutcome.updated;
+    } catch (_) {
+      return _UpdateOutcome.failed;
+    }
+  }
+
+  void _reportUpdateAll(int total, Map<_UpdateOutcome, List<String>> outcomes) {
+    final failed = outcomes[_UpdateOutcome.failed] ?? const [];
+    final needReview = outcomes[_UpdateOutcome.needsReview] ?? const [];
+    final needApproval = outcomes[_UpdateOutcome.needsApproval] ?? const [];
     if (failed.isEmpty && needApproval.isEmpty && needReview.isEmpty) return;
-    final updated = outdated.length - failed.length - needReview.length;
+    final updated = total - failed.length - needReview.length;
     setActionError(
       [
-        'Updated $updated of ${outdated.length}.',
+        'Updated $updated of $total.',
         if (failed.isNotEmpty) 'Could not update ${failed.join(', ')}.',
         if (needReview.isNotEmpty)
           '${needReview.join(', ')} asks for new access. Open it to review.',
@@ -233,28 +253,7 @@ class _DockPaneState extends ConsumerState<DockPane>
               ),
             ),
             const SizedBox(height: AppSpacing.s12),
-            if (shown.isEmpty)
-              SettingsSectionCard(
-                children: [
-                  SettingsEmptyState(
-                    icon: AppIcons.dock,
-                    title: catalog.entries.isEmpty
-                        ? 'No modules are published in the marketplace yet.'
-                        : 'No module matches "${_query.text.trim()}".',
-                  ),
-                ],
-              )
-            else
-              SettingsSectionCard(
-                title: catalog.sections.isEmpty ? null : 'Official modules',
-                children: [
-                  for (final entry in shown)
-                    DockModuleRow(
-                      entry: entry,
-                      installed: catalog.installedFor(entry.id),
-                    ),
-                ],
-              ),
+            _officialModules(catalog, shown),
             for (final section in catalog.sections)
               DockCommunitySection(
                 section: section,
@@ -280,6 +279,31 @@ class _DockPaneState extends ConsumerState<DockPane>
           ],
         );
       },
+    );
+  }
+
+  Widget _officialModules(DockCatalog catalog, List<api.DockIndexEntry> shown) {
+    if (shown.isEmpty) {
+      return SettingsSectionCard(
+        children: [
+          SettingsEmptyState(
+            icon: AppIcons.dock,
+            title: catalog.entries.isEmpty
+                ? 'No modules are published in the marketplace yet.'
+                : 'No module matches "${_query.text.trim()}".',
+          ),
+        ],
+      );
+    }
+    return SettingsSectionCard(
+      title: catalog.sections.isEmpty ? null : 'Official modules',
+      children: [
+        for (final entry in shown)
+          DockModuleRow(
+            entry: entry,
+            installed: catalog.installedFor(entry.id),
+          ),
+      ],
     );
   }
 }

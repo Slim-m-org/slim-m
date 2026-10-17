@@ -79,7 +79,6 @@ class AppMemberPane extends ConsumerWidget {
     ref.watch(presenceSeedProvider(channelId));
     // Purely a side-effect subscription: a join, a timeout or a moderation event makes a row on screen wrong.
     ref.watch(memberModerationWatcherProvider);
-    final myId = ref.watch(meProvider).valueOrNull?.id;
     final mine = ref.watch(myPermissionsProvider);
     final canTimeOut = mine.hasPermission(Perm.kickMembers);
     final canRemove = mine.hasPermission(Perm.banMembers);
@@ -115,54 +114,13 @@ class AppMemberPane extends ConsumerWidget {
               loading: () => const Center(
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              error: (error, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Could not load members.',
-                        style: TextStyle(color: tokens.textSecondary),
-                        textAlign: TextAlign.center,
-                      ),
-                      // A 403 means a lost permission, not a fault: retrying would only fail the same way.
-                      if (error is! api.ForbiddenException) ...[
-                        const SizedBox(height: AppSpacing.s12),
-                        TextButton(
-                          onPressed: () => channelId == null
-                              ? ref.invalidate(membersProvider)
-                              : ref.invalidate(
-                                  channelMembersProvider(channelId),
-                                ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+              error: (error, _) => _MembersError(
+                error: error,
+                onRetry: () => channelId == null
+                    ? ref.invalidate(membersProvider)
+                    : ref.invalidate(channelMembersProvider(channelId)),
               ),
-              data: (_) {
-                final entries = ref.watch(rosterEntriesProvider(channelId));
-                // Lazy, so a large roster builds only the rows on screen.
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s8,
-                    vertical: AppSpacing.s8,
-                  ),
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) => switch (entries[index]) {
-                    RosterGroupLabel(:final text) => MemberGroupLabel(text),
-                    RosterMember(:final profile, :final sectionRoleId) =>
-                      MemberRow(
-                        profile: profile,
-                        sectionRoleId: sectionRoleId,
-                        isSelf: profile.id == myId,
-                        channelId: channelId,
-                      ),
-                  },
-                );
-              },
+              data: (_) => _RosterList(channelId: channelId),
             ),
           ),
           // Outside the async branches on purpose: a roster refetch that fails
@@ -177,6 +135,67 @@ class AppMemberPane extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _MembersError extends StatelessWidget {
+  const _MembersError({required this.error, required this.onRetry});
+
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.s16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Could not load members.',
+              style: TextStyle(color: tokens.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            // A 403 means a lost permission, not a fault: retrying would only fail the same way.
+            if (error is! api.ForbiddenException) ...[
+              const SizedBox(height: AppSpacing.s12),
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RosterList extends ConsumerWidget {
+  const _RosterList({required this.channelId});
+
+  final String? channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myId = ref.watch(meProvider).valueOrNull?.id;
+    final entries = ref.watch(rosterEntriesProvider(channelId));
+    // Lazy, so a large roster builds only the rows on screen.
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s8,
+        vertical: AppSpacing.s8,
+      ),
+      itemCount: entries.length,
+      itemBuilder: (context, index) => switch (entries[index]) {
+        RosterGroupLabel(:final text) => MemberGroupLabel(text),
+        RosterMember(:final profile, :final sectionRoleId) => MemberRow(
+          profile: profile,
+          sectionRoleId: sectionRoleId,
+          isSelf: profile.id == myId,
+          channelId: channelId,
+        ),
+      },
     );
   }
 }

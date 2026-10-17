@@ -28,11 +28,11 @@ final statusTextProvider = Provider.autoDispose.family<String?, StatusTextKey>((
   final own = isSelf
       ? ref.watch(meProvider.select((me) => me.valueOrNull))
       : null;
-  final text = edited != null
-      ? edited.statusText
-      : own != null
-      ? own.statusText
-      : key.snapshot;
+  final text = switch ((edited, own)) {
+    (final e?, _) => e.statusText,
+    (_, final o?) => o.statusText,
+    _ => key.snapshot,
+  };
   return text == null || text.isEmpty ? null : text;
 });
 
