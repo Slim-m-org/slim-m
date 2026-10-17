@@ -39,6 +39,7 @@ import 'composer_bot_mention_help.dart';
 import 'composer_bot_mentions.dart';
 import 'composer_clipboard_image.dart';
 import 'composer_clipboard_paste.dart';
+import 'composer_send_focus.dart';
 import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
 import 'composer_list_keys.dart';
@@ -517,7 +518,7 @@ class _ComposerState extends ConsumerState<Composer> {
   /// Re-focuses first so a soft keyboard stays up across the send, matching
   /// what the field's own submit action does.
   void _sendFromButton() {
-    _focus.requestFocus();
+    reattachFieldAfterButtonSend(context, _focus);
     unawaited(_send());
   }
 
