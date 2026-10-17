@@ -151,7 +151,7 @@ class _PaletteRowShellState extends State<PaletteRowShell> {
                   spacing: AppSpacing.s12,
                   children: [
                     Expanded(child: ExcludeSemantics(child: widget.child)),
-                    if (keycap) const AppKbd('↵'),
+                    if (keycap) const PaletteEnterKeycap(),
                   ],
                 ),
               ),
@@ -243,7 +243,9 @@ class PaletteResultRow extends StatelessWidget {
             style: AppText.caption.copyWith(color: tokens.accent),
           ),
         if (item.categoryName != null)
-          Flexible(
+          // Capped rather than flexible, so it sits at the row's right edge.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
             child: Text(
               item.categoryName!,
               maxLines: 1,
@@ -271,18 +273,26 @@ class PaletteResultRow extends StatelessWidget {
           size: AppAvatarSize.s28,
           presence: true,
         ),
-        Flexible(
-          child: _highlighted(
-            item.label,
-            query,
-            AppText.ui.copyWith(color: tokens.textPrimary),
+        // The name and badge take the slack, so the reason sits at the right edge.
+        Expanded(
+          child: Row(
+            spacing: AppSpacing.s12,
+            children: [
+              Flexible(
+                child: _highlighted(
+                  item.label,
+                  query,
+                  AppText.ui.copyWith(color: tokens.textPrimary),
+                ),
+              ),
+              if (member.isBot)
+                const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot'),
+            ],
           ),
         ),
-        if (member.isBot)
-          const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot'),
-        const Spacer(),
         if (reason != null)
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
             child: Text.rich(
               TextSpan(
                 children: [
@@ -384,6 +394,32 @@ class PaletteMessageMeta extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The Enter keycap on the highlighted row, drawn like [AppKbd].
+class PaletteEnterKeycap extends StatelessWidget {
+  const PaletteEnterKeycap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      label: 'Enter',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        decoration: BoxDecoration(
+          border: Border.all(color: tokens.borderSubtle),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+        ),
+        child: Icon(
+          AppIcons.enterKey,
+          // Sized to the keycap text beside it, as AppKbd's label is.
+          size: AppText.micro.fontSize,
+          color: tokens.textSecondary,
+        ),
+      ),
     );
   }
 }

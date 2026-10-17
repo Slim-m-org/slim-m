@@ -76,6 +76,9 @@ abstract final class AppIcons {
   static const IconData moveUp = LucideIcons.arrowUp300;
   static const IconData moveDown = LucideIcons.arrowDown300;
 
+  /// The Enter key on a keycap; the mono font has no return-arrow glyph.
+  static const IconData enterKey = LucideIcons.cornerDownLeft300;
+
   /// Folding a category's channels out of the way, and the reverse.
   static const IconData fold = LucideIcons.foldVertical300;
   static const IconData unfold = LucideIcons.unfoldVertical300;

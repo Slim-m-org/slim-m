@@ -21,6 +21,7 @@ import 'package:slimm_app/src/widgets/command_palette.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'ui_snapshot_fonts.dart';
 import 'ui_snapshot_support.dart';
 
 api.UserProfile _person(
@@ -103,6 +104,7 @@ Future<void> _openPalette(WidgetTester tester) async {
 }
 
 void main() {
+  setUpAll(loadRealFonts);
   for (final theme in const ['dark', 'light']) {
     for (final viewport in const ['phone-portrait', 'desktop']) {
       testWidgets('command palette at $viewport ($theme) fits its viewport', (

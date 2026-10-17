@@ -237,10 +237,28 @@ void main() {
     final setup = _setup();
     await _open(tester, setup, type: 'mod');
 
-    expect(find.text('↵'), findsOneWidget);
+    Finder rowWithKeycap() => find.ancestor(
+      of: find.byType(PaletteEnterKeycap),
+      matching: find.byType(PaletteRowShell),
+    );
+    expect(find.byType(PaletteEnterKeycap), findsOneWidget);
+    expect(
+      find.descendant(
+        of: rowWithKeycap(),
+        matching: find.textContaining('automod-log', findRichText: true),
+      ),
+      findsOneWidget,
+    );
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
-    expect(find.text('↵'), findsOneWidget);
+    expect(find.byType(PaletteEnterKeycap), findsOneWidget);
+    expect(
+      find.descendant(
+        of: rowWithKeycap(),
+        matching: find.textContaining('automod-log', findRichText: true),
+      ),
+      findsNothing,
+    );
 
     await teardown(tester, setup.container, setup.db);
   });
