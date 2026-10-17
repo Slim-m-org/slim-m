@@ -39,20 +39,12 @@ import 'support/code_only.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
-  'pinnedMessageCount':
-      'the pins sheet lists pinned messages and shows no count beside the '
-          'header, so nothing asks for one (2026-07-30)',
   'bulkDeleteMessagesByAuthor': 'the author-plus-window sibling of '
       'bulkDeleteMessages: the server route and its index exist so a raid '
       'response is not "select 64 ids by hand", but no transcript UI offers '
       '"delete this author\'s recent messages" as a single action yet. Same '
       'shape bulkDeleteMessages itself carried in this allowlist until MOD13 '
       'built the multi-select that finally called it',
-  'setChannelOverwrite': 'the single-target sibling of '
-      'batchSetChannelOverwrites: the permissions grid always saves through '
-      'the batch route now, even for one changed column, so this binding has '
-      'no in-app caller. The server route stays for any caller that wants to '
-      'set exactly one overwrite without touching the rest',
   'uploadAttachmentStream': 'the single-request half of '
       'uploadAttachmentAuto, which is what the composer calls: it picks this '
       'for small files and for servers without upload sessions, so the app '

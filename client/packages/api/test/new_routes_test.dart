@@ -424,16 +424,6 @@ void main() {
       expect(pins.single.pinnedBy, 'u');
     });
 
-    test('pinnedMessageCount unwraps the count', () async {
-      final api = SlimmApi(
-        baseUrl: _base,
-        session: SessionStore(tokens: _tokens()),
-        httpClient: MockClient(
-            (_) async => http.Response(jsonEncode({'count': 7}), 200)),
-      );
-      expect(await api.pinnedMessageCount('c'), 7);
-    });
-
     test('sendPollMessage sends options in order and parses the poll back',
         () async {
       Map<String, dynamic>? sentBody;
