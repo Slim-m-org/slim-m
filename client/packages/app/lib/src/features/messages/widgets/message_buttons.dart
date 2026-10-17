@@ -118,6 +118,11 @@ class _ButtonView extends StatelessWidget {
   final bool disabled;
   final VoidCallback? onPressed;
 
+  VoidCallback? _linkPressed(String? url) {
+    if (url == null) return null;
+    return () => unawaited(openExternalHttpUrl(url));
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLink = button.style == api.ComponentButtonStyle.link;
@@ -129,9 +134,7 @@ class _ButtonView extends StatelessWidget {
       icon: isLink ? AppIcons.externalLink : null,
       disabled: disabled,
       busy: busy,
-      onPressed: isLink
-          ? (url == null ? null : () => unawaited(openExternalHttpUrl(url)))
-          : onPressed,
+      onPressed: isLink ? _linkPressed(url) : onPressed,
     );
     if (isLink) return _WithHost(host: _hostOf(url), child: build(busy: false));
     if (!pending) return build(busy: false);
@@ -153,8 +156,10 @@ class _ButtonView extends StatelessWidget {
 
 /// The destination a link button opens, read off the url rather than the label.
 String? _hostOf(String? url) {
-  final host = url == null ? null : Uri.tryParse(url)?.host;
-  return host == null || host.isEmpty ? null : host;
+  if (url == null) return null;
+  final host = Uri.tryParse(url)?.host;
+  if (host == null || host.isEmpty) return null;
+  return host;
 }
 
 /// Puts the destination host under a link button, so a label cannot pose as another site.

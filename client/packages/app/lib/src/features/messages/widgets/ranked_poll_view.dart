@@ -59,81 +59,100 @@ class _RankedPollBodyState extends State<RankedPollBody> {
   @override
   Widget build(BuildContext context) {
     final poll = widget.poll;
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final ranking = _ranking;
     final draft = _draft ?? const <int>[];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ..._optionRows(ranking: ranking, draft: draft),
+        _footer(context, ranking: ranking),
+        if (ranking && (draft.isNotEmpty || poll.votedRanking != null)) ...[
+          const SizedBox(height: AppSpacing.s8),
+          _submitRow(draft),
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _optionRows({required bool ranking, required List<int> draft}) {
+    final poll = widget.poll;
     final runoff = poll.runoff;
     final rounds = runoff?.rounds ?? const <Map<int, int>>[];
     final last = rounds.isEmpty ? const <int, int>{} : rounds.last;
     final total = last.values.fold<int>(0, (sum, v) => sum + v);
     final ranks = ranking ? draft : (poll.votedRanking ?? const <int>[]);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final option in poll.options) ...[
-          PollOptionRow(
-            option: option,
-            votes: last[option.position] ?? 0,
-            totalVotes: total,
-            selected: ranks.contains(option.position),
-            rank: ranks.contains(option.position)
-                ? ranks.indexOf(option.position) + 1
-                : null,
-            leading: total > 0 && runoff?.winner == option.position,
-            note: rounds.length > 1 && !last.containsKey(option.position)
-                ? 'Out'
-                : null,
-            onTap: ranking ? () => _toggle(option.position) : null,
-          ),
-          const SizedBox(height: AppSpacing.s4),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                rankedFooterText(
-                  poll,
-                  ranking: ranking,
-                  closed: widget.closed,
-                  now: widget.now,
-                ),
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-            if (!ranking && _canRank)
-              AppButton(
-                label: 'Change ranking',
-                size: AppButtonSize.sm,
-                variant: AppButtonVariant.ghost,
-                onPressed: () => setState(() => _draft = const []),
-              ),
-          ],
+    return [
+      for (final option in poll.options) ...[
+        PollOptionRow(
+          option: option,
+          votes: last[option.position] ?? 0,
+          totalVotes: total,
+          selected: ranks.contains(option.position),
+          rank: _rankOf(ranks, option.position),
+          leading: total > 0 && runoff?.winner == option.position,
+          note: _noteFor(rounds.length, last, option.position),
+          onTap: ranking ? () => _toggle(option.position) : null,
         ),
-        if (ranking && (draft.isNotEmpty || poll.votedRanking != null)) ...[
-          const SizedBox(height: AppSpacing.s8),
-          Row(
-            children: [
-              AppButton(
-                label: 'Submit ranking',
-                size: AppButtonSize.sm,
-                variant: AppButtonVariant.primary,
-                disabled: draft.isEmpty,
-                onPressed: () => _submit(draft),
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              AppButton(
-                label: poll.votedRanking != null ? 'Cancel' : 'Clear',
-                size: AppButtonSize.sm,
-                variant: AppButtonVariant.ghost,
-                onPressed: () => setState(
-                  () => _draft = poll.votedRanking != null ? null : const [],
-                ),
-              ),
-            ],
+        const SizedBox(height: AppSpacing.s4),
+      ],
+    ];
+  }
+
+  int? _rankOf(List<int> ranks, int position) {
+    final index = ranks.indexOf(position);
+    return index < 0 ? null : index + 1;
+  }
+
+  String? _noteFor(int roundCount, Map<int, int> last, int position) {
+    if (roundCount > 1 && !last.containsKey(position)) return 'Out';
+    return null;
+  }
+
+  Widget _footer(BuildContext context, {required bool ranking}) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            rankedFooterText(
+              widget.poll,
+              ranking: ranking,
+              closed: widget.closed,
+              now: widget.now,
+            ),
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
-        ],
+        ),
+        if (!ranking && _canRank)
+          AppButton(
+            label: 'Change ranking',
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.ghost,
+            onPressed: () => setState(() => _draft = const []),
+          ),
+      ],
+    );
+  }
+
+  Widget _submitRow(List<int> draft) {
+    final voted = widget.poll.votedRanking != null;
+    return Row(
+      children: [
+        AppButton(
+          label: 'Submit ranking',
+          size: AppButtonSize.sm,
+          variant: AppButtonVariant.primary,
+          disabled: draft.isEmpty,
+          onPressed: () => _submit(draft),
+        ),
+        const SizedBox(width: AppSpacing.s8),
+        AppButton(
+          label: voted ? 'Cancel' : 'Clear',
+          size: AppButtonSize.sm,
+          variant: AppButtonVariant.ghost,
+          onPressed: () => setState(() => _draft = voted ? null : const []),
+        ),
       ],
     );
   }
