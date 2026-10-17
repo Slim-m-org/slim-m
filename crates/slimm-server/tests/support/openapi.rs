@@ -244,9 +244,37 @@ pub fn http_source_files(manifest_dir: &Path) -> Vec<PathBuf> {
         .map(|entry| entry.expect("readable dir entry").path())
         .filter(|p| p.extension().is_some_and(|ext| ext == "rs"))
         .collect();
+    submodules.extend(family_files(&http_dir));
     submodules.sort();
     files.extend(submodules);
     files
+}
+
+/// Modules grouped under their parent, `http/canvas/canvas_ops.rs`: named with
+/// the folder's prefix, unlike the nested routers some folders also hold.
+fn family_files(http_dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for dir in fs::read_dir(http_dir).into_iter().flatten().flatten() {
+        let dir = dir.path();
+        let Some(stem) = dir.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !dir.is_dir() {
+            continue;
+        }
+        let plural = format!("{stem}_");
+        let singular = format!("{}_", stem.strip_suffix('s').unwrap_or(stem));
+        for file in fs::read_dir(&dir).into_iter().flatten().flatten() {
+            let file = file.path();
+            let named = file.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if named.ends_with(".rs")
+                && (named.starts_with(&plural) || named.starts_with(&singular))
+            {
+                found.push(file);
+            }
+        }
+    }
+    found
 }
 
 /// Extracts every `(method, path, handler)` the axum router actually
