@@ -43,6 +43,8 @@ mod account_frames;
 mod authorization;
 mod authorization_bits;
 mod canvas_frames;
+mod channel_scope;
+mod deployment_frames;
 mod ephemeral_frames;
 mod frames;
 mod interaction_frames;
