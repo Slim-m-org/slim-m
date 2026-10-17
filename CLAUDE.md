@@ -66,7 +66,7 @@ Server (`crates/slimm-server/src/`):
 Client (`client/packages/`), layered bottom-up:
 
 - `api` (wire types and transport, no Flutter) -> `data` (drift local store and sync) -> feature packages (`design_system`, `platform`, `rtc`, `voice_canvas`) -> `app` (screens, routing, providers).
-- `app` uses riverpod for state and go_router for routing; `app/lib/src/` is grouped by `screens/`, `widgets/`, `providers/`, `routing/`.
+- `app` uses riverpod for state and go_router for routing. `app/lib/src/features/<feature>/{widgets,providers,screens}` holds each feature (auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings, voice); the top-level `widgets/`, `providers/` and `screens/` are the shared layer (shell, sync, push, app lock, generic UI), next to `routing/`, `desktop/` and the other platform folders. A new file goes in its feature; it goes in the shared layer only when two or more features use it.
 - `data` commits drift's generated `database.g.dart`; regenerate it rather than hand-editing.
 
 ## Critical rules
