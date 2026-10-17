@@ -168,8 +168,9 @@ void main() {
     final swatches = find.byWidgetPredicate(
       (w) => w.runtimeType.toString() == '_ColorSwatch',
     );
-    expect(swatches, findsNWidgets(AppCanvasColors.cursors.length));
-    for (var i = 0; i < AppCanvasColors.cursors.length; i++) {
+    final count = AppCanvasColors.cursors.length + 1;
+    expect(swatches, findsNWidgets(count));
+    for (var i = 0; i < count; i++) {
       expectTouchTarget(tester, swatches.at(i), reason: 'swatch $i');
     }
   });

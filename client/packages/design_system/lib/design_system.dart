@@ -14,6 +14,8 @@ export 'src/app_motion.dart';
 export 'src/app_theme.dart';
 export 'src/app_tokens.dart';
 export 'src/app_typography.dart';
+export 'src/colour_contrast.dart';
+export 'src/colour_hex.dart';
 export 'src/components/core.dart';
 export 'src/components/forms.dart';
 export 'src/components/surfaces.dart';

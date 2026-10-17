@@ -18,6 +18,7 @@ import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/member_profile_identity.dart';
 import 'settings_section_header.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../../members/widgets/profile_colour.dart';
 
 const double _bannerHeight = 56;
 const double _avatarSize = AppAvatarSize.s72;
@@ -37,10 +38,9 @@ class SettingsProfilePreview extends ConsumerWidget {
         ref.watch(userProfileProvider(me.id)).valueOrNull?.roles ?? const [];
     final pronouns = (draft.pronouns ?? me.pronouns ?? '').trim();
     final about = (draft.about ?? me.about ?? '').trim();
-    final colour = me.profileColor;
-    final banner = colour == null
-        ? tokens.surfaceSunken
-        : AppCanvasColors.cursors[colour % AppCanvasColors.cursors.length];
+    final banner =
+        profileColourOf(index: me.profileColor, rgb: me.profileColorRgb) ??
+        tokens.surfaceSunken;
 
     return SettingsSectionCard(
       title: 'How others see you',
