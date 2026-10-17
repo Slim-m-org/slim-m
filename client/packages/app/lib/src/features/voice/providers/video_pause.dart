@@ -9,7 +9,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
-import 'package:slimm_rtc/rtc.dart' show VoiceParticipant;
 
 import '../../../providers/app_lifecycle.dart';
 import 'picture_in_picture.dart';
@@ -34,34 +33,23 @@ bool shouldPauseLocalPreview({
   };
 }
 
+/// The member asked to keep their own preview showing while unfocused; lasts until the app closes.
+final localPreviewResumedProvider = StateProvider<bool>((ref) => false);
+
 final localPreviewPausedProvider = Provider<bool>((ref) {
   final unfocusedSetting = ref.watch(
     voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenUnfocused),
   );
+  final lifecycle = ref.watch(appLifecycleProvider);
+  // Only a focus loss is overridable: a hidden or minimised window has nobody to draw for.
+  if (lifecycle == AppLifecycleState.inactive &&
+      ref.watch(localPreviewResumedProvider)) {
+    return false;
+  }
   return shouldPauseLocalPreview(
-    lifecycle: ref.watch(appLifecycleProvider),
+    lifecycle: lifecycle,
     pauseWhenUnfocused:
         unfocusedSetting && ref.watch(pauseOnUnfocusedAppliesProvider),
     pictureInPicture: ref.watch(inPictureInPictureProvider),
   );
 });
-
-/// Wraps the member's own preview; draws nothing while the preview is paused.
-class LocalPreviewGate extends ConsumerWidget {
-  const LocalPreviewGate({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) =>
-      ref.watch(localPreviewPausedProvider) ? const SizedBox.shrink() : child;
-}
-
-/// Pauses [view] with the rest of the local preview when [identity] is the member.
-Widget gateLocalPreview(
-  List<VoiceParticipant> participants,
-  String identity,
-  Widget view,
-) => participants.any((p) => p.isLocal && p.identity == identity)
-    ? LocalPreviewGate(child: view)
-    : view;

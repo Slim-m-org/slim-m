@@ -37,6 +37,7 @@ export 'src/screen_share_audio.dart';
 export 'src/screen_share_control.dart';
 export 'src/video_publish_options.dart';
 export 'src/video_quality.dart';
+export 'src/screen_share_status.dart';
 export 'src/video_stall_watchdog.dart' show VideoTileHealth;
 export 'src/video_subscription_culler.dart';
 export 'src/voice_models.dart';
