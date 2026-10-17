@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_hairline.dart';
+import 'settings_search.dart';
 
 /// The default space above a section's title.
 const double kSettingsSectionTopGap = 28;
@@ -88,7 +89,10 @@ class SettingsSectionCard extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SettingsHighlightTarget(label: title, child: _content(context));
+
+  Widget _content(BuildContext context) {
     // A description with no title had nowhere to render and no test caught it; this catches it instead.
     assert(
       title != null || description == null,

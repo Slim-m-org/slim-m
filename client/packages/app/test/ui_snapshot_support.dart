@@ -47,7 +47,6 @@ import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dar
 import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/personal_settings_screen.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_app/src/routing/settings_pages.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
@@ -218,11 +217,7 @@ GoRouter fixtureRouter(String location) => GoRouter(
       path: '/sign-in',
       builder: (context, state) => const SignInScreen(),
     ),
-    GoRoute(
-      path: '/settings',
-      pageBuilder: (context, state) =>
-          modalPage(context, const PersonalSettingsScreen()),
-    ),
+    GoRoute(path: '/settings', pageBuilder: personalSettingsPage),
     GoRoute(path: '/settings/space', pageBuilder: spaceSettingsPage),
     GoRoute(
       path: '/settings/reports',

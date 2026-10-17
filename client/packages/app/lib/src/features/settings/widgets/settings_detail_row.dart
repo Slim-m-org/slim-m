@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_section_header.dart';
+import 'settings_search.dart';
 
 /// The 32px sunken rounded square a row's glyph sits on.
 class SettingsIconTile extends StatelessWidget {
@@ -94,7 +95,10 @@ class SettingsDetailRow extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SettingsHighlightTarget(label: title, child: _content(context));
+
+  Widget _content(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final metrics = SettingsRowMetrics.of(context);
     final detailLine = _detailLine(tokens);

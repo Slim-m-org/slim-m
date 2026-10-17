@@ -29,6 +29,7 @@ import '../widgets/troubleshooting_pane.dart';
 import '../../auth/widgets/change_password_section.dart';
 import '../../voice/screens/voice_settings_screen.dart';
 import '../../../action_labels.dart';
+import '../providers/settings_index.dart';
 
 class PersonalSettingsScreen extends StatelessWidget {
   const PersonalSettingsScreen({
@@ -46,6 +47,7 @@ class PersonalSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsPanesScaffold(
+      searchEntries: personalSettingsIndex,
       initialPaneId: initialPaneId,
       onPaneChanged: onPaneChanged,
       title: 'Settings',
