@@ -76,7 +76,7 @@ void main() {
 
       overrides.setRect(
         'camera:a',
-        Rect.fromLTWH(worldLimit + 500, 0, 220, 160),
+        const Rect.fromLTWH(worldLimit + 500, 0, 220, 160),
       );
 
       expect(overrides.worldEdgeHit.value, isTrue);
@@ -87,7 +87,7 @@ void main() {
       addTearDown(overrides.dispose);
       overrides.setRect(
         'camera:a',
-        Rect.fromLTWH(worldLimit + 500, 0, 220, 160),
+        const Rect.fromLTWH(worldLimit + 500, 0, 220, 160),
       );
       expect(overrides.worldEdgeHit.value, isTrue);
 

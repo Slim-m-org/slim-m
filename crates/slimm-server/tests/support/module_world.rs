@@ -104,7 +104,10 @@ impl World {
             approved_host,
         } = module;
         let sha256 = sha256_hex(&wasm);
-        let declared: Vec<String> = declared.iter().map(|c| c.to_string()).collect();
+        let declared: Vec<String> = declared
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         let permissions = [ModulePermissionSpec {
             key: "run",
             name: "Run",
@@ -134,7 +137,10 @@ impl World {
         )
         .await
         .unwrap();
-        let approved: Vec<String> = approved_host.iter().map(|c| c.to_string()).collect();
+        let approved: Vec<String> = approved_host
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         s.set_module_host_capabilities(id, &approved).await.unwrap();
         s.set_module_enabled(id, true).await.unwrap();
         let role = s

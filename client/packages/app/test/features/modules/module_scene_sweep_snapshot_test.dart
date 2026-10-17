@@ -58,7 +58,7 @@ Future<void> _frames(WidgetTester tester, String label, Size size) async {
               child: ModuleSceneView(
                 initial: _scene,
                 runCommand: (_) async =>
-                    api.RunModuleCommandResult(ok: true, output: ''),
+                    const api.RunModuleCommandResult(ok: true, output: ''),
               ),
             ),
           ),

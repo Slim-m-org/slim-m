@@ -317,7 +317,7 @@ void main() {
       threadParentResponse: _parentJson(),
     );
 
-    final tokens = AppTokens.light;
+    const tokens = AppTokens.light;
     expect(
       tester.widget<Scaffold>(find.byType(Scaffold).last).backgroundColor,
       tokens.surfaceRaised,

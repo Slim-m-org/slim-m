@@ -16,7 +16,7 @@ Widget _harness({required bool enabled, required VoidCallback onDismiss}) {
         enabled: enabled,
         onDismiss: onDismiss,
         // A bare ColoredBox under Scaffold's loose constraints lays out at zero size.
-        child: SizedBox.expand(child: ColoredBox(color: Colors.black)),
+        child: const SizedBox.expand(child: ColoredBox(color: Colors.black)),
       ),
     ),
   );

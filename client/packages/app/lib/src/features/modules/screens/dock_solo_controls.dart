@@ -94,7 +94,7 @@ bool callRowFits(
   // mic, [speaker], camera, [switch camera], share, leave, and the extras.
   final controlCount =
       (switchCameraShown ? 5 : 4) + (speakerShown ? 1 : 0) + extraCount;
-  final cardPadding = AppSpacing.s12 * 2 + 2;
+  const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
   // Measured, not derived: the caret's width less what the share half gives back, at pointer density only.

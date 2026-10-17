@@ -89,7 +89,10 @@ void main() {
       await tester.pump();
       expect(
         container.read(voiceSettingsControllerProvider).screenShareQuality,
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+        const ScreenShareQuality(
+          ScreenShareResolution.p1440,
+          ScreenShareFps.fps15,
+        ),
       );
 
       await tester.tap(
@@ -103,7 +106,10 @@ void main() {
       expect(session.screenShareCalls, hasLength(1));
       expect(
         session.screenShareCalls.single.quality,
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+        const ScreenShareQuality(
+          ScreenShareResolution.p1440,
+          ScreenShareFps.fps15,
+        ),
       );
     },
   );

@@ -359,7 +359,7 @@ void main() {
 
   group('choosing single request or sessions', () {
     const withSessions = ['upload_sessions'];
-    final big = kUploadSessionThreshold + 1;
+    const big = kUploadSessionThreshold + 1;
 
     test('uses sessions above the threshold when advertised', () {
       expect(

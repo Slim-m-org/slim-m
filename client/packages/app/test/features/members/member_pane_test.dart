@@ -437,7 +437,7 @@ void main() {
       expect(fetchCount, 1);
 
       built.events.add(
-        MessageCreated(
+        const MessageCreated(
           Message(
             id: 'm1',
             channelId: 'c1',

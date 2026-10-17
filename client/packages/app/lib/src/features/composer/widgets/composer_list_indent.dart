@@ -64,9 +64,14 @@ int _numberAt(List<String> lines, int index, int depth) {
   return 1;
 }
 
-({int first, int last, List<String> lines, List<int> starts}) _selectedLines(
-  TextEditingValue value,
-) {
+typedef _SelectedLines = ({
+  int first,
+  int last,
+  List<String> lines,
+  List<int> starts,
+});
+
+_SelectedLines _selectedLines(TextEditingValue value) {
   final lines = value.text.split('\n');
   final starts = <int>[];
   var offset = 0;
@@ -98,6 +103,31 @@ int _numberAt(List<String> lines, int index, int depth) {
 TextEditingValue? _shiftLines(TextEditingValue value, int delta) {
   final sel = _selectedLines(value);
   final lines = List.of(sel.lines);
+  final prefixChange = _shiftSelectedLines(lines, sel, delta);
+  if (prefixChange.isEmpty) return null;
+
+  final selection = value.selection;
+  return TextEditingValue(
+    text: lines.join('\n'),
+    selection: selection.isValid
+        ? TextSelection(
+            baseOffset: _movedOffset(selection.baseOffset, sel, prefixChange),
+            extentOffset: _movedOffset(
+              selection.extentOffset,
+              sel,
+              prefixChange,
+            ),
+          )
+        : selection,
+  );
+}
+
+/// Rewrites [lines] in place and returns each list line's prefix length before and after.
+Map<int, ({int before, int after})> _shiftSelectedLines(
+  List<String> lines,
+  _SelectedLines sel,
+  int delta,
+) {
   final prefixChange = <int, ({int before, int after})>{};
   for (var i = sel.first; i <= sel.last; i++) {
     final item = ListLine.parse(lines[i]);
@@ -113,32 +143,25 @@ TextEditingValue? _shiftLines(TextEditingValue value, int delta) {
       after: ListLine.parse(lines[i])!.prefixLength,
     );
   }
-  if (prefixChange.isEmpty) return null;
+  return prefixChange;
+}
 
-  int moved(int offset) {
-    var shift = 0;
-    for (var i = 0; i < sel.starts.length; i++) {
-      final change = prefixChange[i];
-      if (change == null) continue;
-      final start = sel.starts[i];
-      if (offset < start) break;
-      final grown = change.after - change.before;
-      final into = offset - start;
-      shift += into >= change.before ? grown : (into + grown).clamp(0, grown);
-    }
-    return offset + shift;
+int _movedOffset(
+  int offset,
+  _SelectedLines sel,
+  Map<int, ({int before, int after})> prefixChange,
+) {
+  var shift = 0;
+  for (var i = 0; i < sel.starts.length; i++) {
+    final change = prefixChange[i];
+    if (change == null) continue;
+    final start = sel.starts[i];
+    if (offset < start) break;
+    final grown = change.after - change.before;
+    final into = offset - start;
+    shift += into >= change.before ? grown : (into + grown).clamp(0, grown);
   }
-
-  final selection = value.selection;
-  return TextEditingValue(
-    text: lines.join('\n'),
-    selection: selection.isValid
-        ? TextSelection(
-            baseOffset: moved(selection.baseOffset),
-            extentOffset: moved(selection.extentOffset),
-          )
-        : selection,
-  );
+  return offset + shift;
 }
 
 /// Tab: one level deeper for each list line in the selection.

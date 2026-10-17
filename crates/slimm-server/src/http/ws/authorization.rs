@@ -14,6 +14,7 @@ use super::permission_cache::PermissionCache;
 use super::signals;
 use crate::http::link_preview::LinkPreviews;
 use crate::hub::{Event, Hub};
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
 
@@ -74,10 +75,8 @@ pub(super) async fn authorize(
 
 /// Filters an event down to a wire frame, or the reason it is not delivered.
 ///
-/// Presence is handled up front rather than folded into the channel-scoped
-/// match: it has no channel to check view permission against (it is
-/// deployment-wide, like the member list) and needs the receiving connection's
-/// own user id to resolve the right answer for it.
+/// Events with no channel to check go first (`deployment_frames`); the rest
+/// pass the view check, the canvas bit and the presence rules, in that order.
 pub(super) async fn authorize_unstamped(
     store: &Store,
     hub: &Hub,
@@ -86,200 +85,12 @@ pub(super) async fn authorize_unstamped(
     cache: &mut PermissionCache,
     event: Event,
 ) -> Authorization {
-    // Ahead of the channel-scoped match below; see the note on this function.
-    if let Event::PresenceChanged(target_id) = event {
-        // A gone account and a store blip both mean silence here, unlike below.
-        let Ok(Some(status)) = signals::presence_status(store, hub, ctx.user_id, target_id).await
-        else {
-            return Authorization::Withhold;
-        };
-        let frame = signals::presence_frame(hub, target_id, status);
-        return Authorization::Deliver(Box::new(frame));
-    }
-    if let Some(decision) = super::account_frames::authorize(ctx, &event) {
-        return decision;
-    }
-    if let Event::EphemeralMessage {
-        recipient_id,
-        message,
-    } = &event
-    {
-        return super::ephemeral_frames::authorize(store, ctx, *recipient_id, message).await;
-    }
-    if let Some(decision) = super::interaction_frames::authorize(store, ctx, &event).await {
-        return decision;
-    }
-    // Private to one account and never to the device that just signed in.
-    if let Event::NewDeviceSignIn {
-        user_id,
-        device_id,
-        device_name,
-        client_kind,
-        signed_in_at,
-    } = event
-    {
-        return if user_id == ctx.user_id && device_id != ctx.device_id {
-            Authorization::Deliver(Box::new(ServerFrame::NewDeviceSignIn {
-                device_id: device_id.to_string(),
-                device_name,
-                client_kind,
-                signed_in_at,
-            }))
-        } else {
-            Authorization::Withhold
-        };
-    }
-    // A security boundary, not a visibility nicety; see `Event::ReportsChanged`'s own doc for why a failed permission read withholds rather than delivers.
-    if let Event::ReportsChanged = event {
-        let is_moderator = matches!(
-            store.base_permissions(ctx.user_id).await,
-            Ok(permissions) if permissions.contains(Permissions::MANAGE_MESSAGES)
-        );
-        return if is_moderator {
-            Authorization::Deliver(Box::new(ServerFrame::ReportsChanged))
-        } else {
-            Authorization::Withhold
-        };
-    }
-    // Deployment-wide like presence, but with nothing per-viewer to resolve.
-    match event {
-        Event::MemberTimeoutChanged { user_id, until } => {
-            return Authorization::Deliver(Box::new(ServerFrame::MemberTimeoutChanged {
-                seq: None,
-                user_id: user_id.to_string(),
-                until,
-            }));
-        }
-        Event::JoinGateChanged { user_id } => {
-            return Authorization::Deliver(Box::new(ServerFrame::JoinGateChanged {
-                user_id: user_id.map(|id| id.to_string()),
-            }));
-        }
-        Event::MemberRemoved(user_id) => {
-            return Authorization::Deliver(Box::new(ServerFrame::MemberRemoved {
-                seq: None,
-                user_id: user_id.to_string(),
-            }));
-        }
-        Event::MemberRestored(user_id) => {
-            return Authorization::Deliver(Box::new(ServerFrame::MemberRestored {
-                seq: None,
-                user_id: user_id.to_string(),
-            }));
-        }
-        Event::MemberJoined(user_id) => {
-            return Authorization::Deliver(Box::new(ServerFrame::MemberJoined {
-                user_id: user_id.to_string(),
-            }));
-        }
-        Event::RoleChanged { role_id } => {
-            return Authorization::Deliver(Box::new(ServerFrame::RoleChanged {
-                seq: None,
-                role_id: role_id.to_string(),
-            }));
-        }
-        Event::MemberRoleChanged { user_id, role_id } => {
-            return Authorization::Deliver(Box::new(ServerFrame::MemberRoleChanged {
-                seq: None,
-                user_id: user_id.to_string(),
-                role_id: role_id.to_string(),
-            }));
-        }
-        Event::ProfileChanged(user_id) => {
-            return Authorization::Deliver(Box::new(ServerFrame::ProfileChanged {
-                user_id: user_id.to_string(),
-            }));
-        }
-        Event::BotUiChanged(bot_user_id) => {
-            return Authorization::Deliver(Box::new(ServerFrame::BotUiChanged {
-                bot_user_id: bot_user_id.to_string(),
-            }));
-        }
-        Event::CategoryChanged => {
-            return Authorization::Deliver(Box::new(ServerFrame::CategoryChanged));
-        }
-        _ => {}
-    }
-
-    // Special-cased; see `Event::ChannelDeleted`'s doc comment for why.
-    if let Event::ChannelDeleted { channel_id } = event {
-        let viewed = match store
-            .viewed_channel_before_delete(ctx.user_id, channel_id)
-            .await
-        {
-            Ok(viewed) => viewed,
-            Err(_) => return Authorization::Unknown,
-        };
-        return if viewed {
-            Authorization::Deliver(Box::new(ServerFrame::ChannelDeleted {
-                channel_id: channel_id.to_string(),
-            }))
-        } else {
-            Authorization::Withhold
-        };
-    }
-
-    let channel_id = match super::canvas_frames::channel_id(&event) {
-        Some(channel_id) => channel_id,
-        None => match &event {
-            Event::MessageCreated { message, .. } => message.channel_id,
-            Event::MessageEdited { message, .. } => message.channel_id,
-            Event::MessageDeleted { channel_id, .. } => *channel_id,
-            Event::ReactionsChanged { channel_id, .. } => *channel_id,
-            Event::CodeRunChanged { channel_id, .. } => *channel_id,
-            Event::CodeRunsCleared { channel_id, .. } => *channel_id,
-            Event::ThreadUpdated { channel_id, .. } => *channel_id,
-            Event::MessagePinned { channel_id, .. } => *channel_id,
-            Event::MessageUnpinned { channel_id, .. } => *channel_id,
-            Event::PollVoted { channel_id, .. } => *channel_id,
-            Event::MessageComponentsChanged { channel_id, .. } => *channel_id,
-            Event::MessageEmbedsChanged { channel_id, .. } => *channel_id,
-            Event::TypingStarted { channel_id, .. } | Event::TypingStopped { channel_id, .. } => {
-                *channel_id
-            }
-            Event::ChannelCreated(channel, _) | Event::ChannelUpdated(channel, _) => channel.id,
-            Event::OverwriteChanged { channel_id, .. } => *channel_id,
-            Event::VoiceActivityChanged { channel_id } => *channel_id,
-            Event::VoiceParticipantJoined { channel_id, .. } => *channel_id,
-            Event::VoiceParticipantLeft { channel_id, .. } => *channel_id,
-            Event::VoiceScreenShareChanged { channel_id, .. } => *channel_id,
-            Event::WatchTick { channel_id, .. } => *channel_id,
-            Event::CallRinging { channel_id, .. } => *channel_id,
-            Event::CallRingEnded { channel_id, .. } => *channel_id,
-            // canvas_frames::channel_id already answered Some for any of these.
-            Event::CanvasObjectPlaced { .. }
-            | Event::CanvasObjectsRemoved { .. }
-            | Event::CanvasCleared { .. }
-            | Event::CanvasObjectsRestored { .. }
-            | Event::CanvasCursorMoved { .. }
-            | Event::CanvasStrokePreview { .. }
-            | Event::CanvasObjectMoved { .. }
-            | Event::CanvasObjectReordered { .. }
-            | Event::CanvasMediaSlotChanged { .. }
-            | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::channel_id"),
-            // Control events are handled in the loop; the rest already returned above.
-            Event::SessionRevoked(_)
-            | Event::PresenceChanged(_)
-            | Event::MemberTimeoutChanged { .. }
-            | Event::JoinGateChanged { .. }
-            | Event::MemberRemoved(_)
-            | Event::MemberRestored(_)
-            | Event::MemberJoined(_)
-            | Event::ProfileChanged(_)
-            | Event::BotUiChanged(_)
-            | Event::RoleChanged { .. }
-            | Event::MemberRoleChanged { .. }
-            | Event::ChannelDeleted { .. }
-            | Event::CategoryChanged
-            | Event::ReportsChanged
-            | Event::ReadStateChanged { .. }
-            | Event::NotificationOverrideChanged { .. }
-            | Event::EphemeralMessage { .. }
-            | Event::InteractionCreated { .. }
-            | Event::InteractionAnswered { .. }
-            | Event::NewDeviceSignIn { .. }
-            | Event::Stamped { .. } => return Authorization::Withhold,
-        },
+    let event = match super::deployment_frames::authorize(store, hub, ctx, event).await {
+        Ok(decision) => return decision,
+        Err(event) => *event,
+    };
+    let Some(channel_id) = super::channel_scope::channel_of(&event) else {
+        return Authorization::Withhold;
     };
     // The one event whose subject may have just lost this very view.
     let held_it_before = matches!(
@@ -287,28 +98,9 @@ pub(super) async fn authorize_unstamped(
         Event::OverwriteChanged { previously_visible_to, .. }
             if previously_visible_to.contains(&ctx.user_id)
     );
-    // Read before the query, never after; see `PermissionCache::insert`.
-    let epoch = hub.permissions_epoch();
-    let permissions = match cache.get(channel_id, Instant::now(), epoch) {
-        Some(cached) => cached,
-        None => {
-            let resolved = match store.permissions_in_channel(ctx.user_id, channel_id).await {
-                Ok(answer) => Ok(answer),
-                // Retried once: the alternative is every connection dropping together.
-                Err(_) => {
-                    tokio::time::sleep(RESOLVE_RETRY_DELAY).await;
-                    store.permissions_in_channel(ctx.user_id, channel_id).await
-                }
-            };
-            match resolved {
-                Ok(answer) => {
-                    cache.insert(channel_id, answer, Instant::now(), epoch);
-                    answer
-                }
-                // Unresolved rather than remembered; see `Authorization::Unknown`.
-                Err(_) => return Authorization::Unknown,
-            }
-        }
+    let Some(permissions) = resolve_permissions(store, hub, ctx, cache, channel_id).await else {
+        // Unresolved rather than remembered; see `Authorization::Unknown`.
+        return Authorization::Unknown;
     };
     let visible = permissions.contains(Permissions::VIEW_CHANNEL);
     if !visible && !held_it_before {
@@ -320,32 +112,72 @@ pub(super) async fn authorize_unstamped(
     {
         return Authorization::Withhold;
     }
+    if !passes_presence_gates(store, hub, ctx, &event).await {
+        return Authorization::Withhold;
+    }
+    channel_frame(store, link_previews, ctx, event).await
+}
 
+/// This connection's permissions in `channel_id`, from the cache or the store, or `None` when the store could not answer.
+async fn resolve_permissions(
+    store: &Store,
+    hub: &Hub,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+    channel_id: ChannelId,
+) -> Option<Permissions> {
+    // Read before the query, never after; see `PermissionCache::insert`.
+    let epoch = hub.permissions_epoch();
+    match cache.get(channel_id, Instant::now(), epoch) {
+        Some(cached) => Some(cached),
+        None => {
+            let resolved = match store.permissions_in_channel(ctx.user_id, channel_id).await {
+                Ok(answer) => Ok(answer),
+                // Retried once: the alternative is every connection dropping together.
+                Err(_) => {
+                    tokio::time::sleep(RESOLVE_RETRY_DELAY).await;
+                    store.permissions_in_channel(ctx.user_id, channel_id).await
+                }
+            };
+            let answer = resolved.ok()?;
+            cache.insert(channel_id, answer, Instant::now(), epoch);
+            Some(answer)
+        }
+    }
+}
+
+/// Whether the per-viewer presence rules let a typing, cursor, stroke or voice event through.
+async fn passes_presence_gates(
+    store: &Store,
+    hub: &Hub,
+    ctx: &SessionContext,
+    event: &Event,
+) -> bool {
     // Typing, a cursor and a stroke preview all leak presence and must fail closed on a blip.
     if let Event::TypingStarted { user_id, .. }
     | Event::CanvasCursorMoved { user_id, .. }
-    | Event::CanvasStrokePreview { user_id, .. } = event
+    | Event::CanvasStrokePreview { user_id, .. } = *event
     {
         let confirmed_visible = matches!(
             signals::presence_status(store, hub, ctx.user_id, user_id).await,
             Ok(Some(status)) if status != crate::presence::Status::Offline
         );
         if !confirmed_visible {
-            return Authorization::Withhold;
+            return false;
         }
     }
 
     // A stop fires after the typer may have left, so offline must not withhold it; only a chosen Hidden does.
-    if let Event::TypingStopped { user_id, .. } = event
+    if let Event::TypingStopped { user_id, .. } = *event
         && !signals::may_hear_typing_stop(store, hub, ctx.user_id, user_id).await
     {
-        return Authorization::Withhold;
+        return false;
     }
 
     // Gated on chosen VISIBILITY, not live connection; see decision 0032.
     if let Event::VoiceParticipantJoined { user_id, .. }
     | Event::VoiceParticipantLeft { user_id, .. }
-    | Event::VoiceScreenShareChanged { user_id, .. } = event
+    | Event::VoiceScreenShareChanged { user_id, .. } = *event
         && user_id != ctx.user_id
     {
         let hidden = matches!(
@@ -353,10 +185,19 @@ pub(super) async fn authorize_unstamped(
             Ok(Some(crate::presence::Visibility::Hidden))
         );
         if hidden {
-            return Authorization::Withhold;
+            return false;
         }
     }
+    true
+}
 
+/// The wire frame for a channel-scoped event that has passed every check above.
+async fn channel_frame(
+    store: &Store,
+    link_previews: &LinkPreviews,
+    ctx: &SessionContext,
+    event: Event,
+) -> Authorization {
     let event = match super::canvas_frames::to_frame(event) {
         Ok(frame) => return Authorization::Deliver(Box::new(frame)),
         Err(event) => *event,
@@ -405,40 +246,10 @@ pub(super) async fn authorize_unstamped(
             channel_id,
             message_id,
             reactors,
-        } => {
-            let reactor_ids: Vec<_> = reactors
-                .iter()
-                .flat_map(|(_, entries)| entries.iter().map(|(id, _)| *id))
-                .collect::<std::collections::HashSet<_>>()
-                .into_iter()
-                .collect();
-            let blocked = match store.blocked_among(ctx.user_id, &reactor_ids).await {
-                Ok(blocked) => blocked,
-                Err(_) => return Authorization::Unknown,
-            };
-            // This viewer's own `first_at` per emoji, reduced only from unblocked reactors - same as the old `reactions_for_messages` query did.
-            let mut visible: Vec<(String, i64, i64)> = reactors
-                .iter()
-                .filter_map(|(emoji, entries)| {
-                    let unblocked_at: Vec<i64> = entries
-                        .iter()
-                        .filter(|(id, _)| !blocked.contains(id))
-                        .map(|(_, created_at)| *created_at)
-                        .collect();
-                    let first_at = unblocked_at.iter().copied().min()?;
-                    Some((emoji.clone(), unblocked_at.len() as i64, first_at))
-                })
-                .collect();
-            visible.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.0.cmp(&b.0)));
-            ServerFrame::ReactionsChanged {
-                channel_id: channel_id.to_string(),
-                message_id: message_id.to_string(),
-                reactions: visible
-                    .into_iter()
-                    .map(|(emoji, count, _)| ReactionCountDto { emoji, count })
-                    .collect(),
-            }
-        }
+        } => match reactions_frame(store, ctx, channel_id, message_id, &reactors).await {
+            Ok(frame) => frame,
+            Err(()) => return Authorization::Unknown,
+        },
         // No per-viewer derivation: the output is the same for everyone past the VIEW_CHANNEL gate above, so it is delivered as-is.
         Event::CodeRunChanged {
             channel_id,
@@ -652,4 +463,46 @@ pub(super) async fn authorize_unstamped(
         | Event::NewDeviceSignIn { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,
     }))
+}
+
+/// The reaction counts this viewer sees: blocked reactors left out, ordered by this viewer's own first reaction per emoji.
+async fn reactions_frame(
+    store: &Store,
+    ctx: &SessionContext,
+    channel_id: ChannelId,
+    message_id: MessageId,
+    reactors: &[(String, Vec<(UserId, i64)>)],
+) -> Result<ServerFrame, ()> {
+    let reactor_ids: Vec<_> = reactors
+        .iter()
+        .flat_map(|(_, entries)| entries.iter().map(|(id, _)| *id))
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    let blocked = match store.blocked_among(ctx.user_id, &reactor_ids).await {
+        Ok(blocked) => blocked,
+        Err(_) => return Err(()),
+    };
+    // This viewer's own `first_at` per emoji, reduced only from unblocked reactors - same as the old `reactions_for_messages` query did.
+    let mut visible: Vec<(String, i64, i64)> = reactors
+        .iter()
+        .filter_map(|(emoji, entries)| {
+            let unblocked_at: Vec<i64> = entries
+                .iter()
+                .filter(|(id, _)| !blocked.contains(id))
+                .map(|(_, created_at)| *created_at)
+                .collect();
+            let first_at = unblocked_at.iter().copied().min()?;
+            Some((emoji.clone(), unblocked_at.len() as i64, first_at))
+        })
+        .collect();
+    visible.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.0.cmp(&b.0)));
+    Ok(ServerFrame::ReactionsChanged {
+        channel_id: channel_id.to_string(),
+        message_id: message_id.to_string(),
+        reactions: visible
+            .into_iter()
+            .map(|(emoji, count, _)| ReactionCountDto { emoji, count })
+            .collect(),
+    })
 }

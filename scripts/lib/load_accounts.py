@@ -95,7 +95,7 @@ def _revive(base_url, entry):
     try:
         api.me()
         return api, entry.get("refresh")
-    except (urllib.error.HTTPError, urllib.error.URLError):
+    except urllib.error.URLError:
         pass
     if not entry.get("refresh"):
         return None, None
@@ -105,7 +105,7 @@ def _revive(base_url, entry):
                 "POST", "/auth/refresh",
                 {"refresh_token": entry["refresh"]}),
             max_attempts=10, base_delay=2.0, max_delay=30.0)
-    except (urllib.error.HTTPError, urllib.error.URLError):
+    except urllib.error.URLError:
         return None, None
     api.token = got["access_token"]
     return api, got["refresh_token"]
@@ -168,7 +168,7 @@ def _mint_invite(api, uses):
         got = seed_backoff.call_with_backoff(
             lambda: api.call("POST", "/invites", {"max_uses": uses}))
         return got.get("code")
-    except (urllib.error.HTTPError, urllib.error.URLError):
+    except urllib.error.URLError:
         return None
 
 

@@ -51,7 +51,10 @@ pub struct EphemeralBudget {
 impl EphemeralBudget {
     /// Spends one message of `bot`'s budget for `anchor`, or says it is spent.
     pub fn try_charge(&self, bot: UserId, anchor: Uuid, expires_at: i64, now: i64) -> bool {
-        let mut used = self.used.lock().unwrap_or_else(|e| e.into_inner());
+        let mut used = self
+            .used
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if used.len() > SWEEP_ABOVE {
             used.retain(|_, (_, expires)| *expires > now);
         }

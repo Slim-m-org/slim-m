@@ -102,7 +102,7 @@ void main() {
       ProviderScope(
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: SizedBox(
               width: 342,
               child: AttachmentView(attachment: longName),
@@ -221,7 +221,7 @@ void main() {
         overrides: [apiProvider.overrideWithValue(signedOut)],
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(body: AttachmentView(attachment: video)),
+          home: const Scaffold(body: AttachmentView(attachment: video)),
         ),
       ),
     );

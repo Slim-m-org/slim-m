@@ -184,7 +184,10 @@ struct SharedReading(Arc<Mutex<MemoryReading>>);
 
 impl MemorySource for SharedReading {
     fn read(&self) -> MemoryReading {
-        *self.0.lock().unwrap_or_else(|poison| poison.into_inner())
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 
@@ -215,7 +218,7 @@ impl MemoryGuard {
         let mut cache = self
             .cache
             .lock()
-            .unwrap_or_else(|poison| poison.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if cache.read_at.elapsed() >= CACHE_TTL {
             cache.reading = self.source.read();
             cache.read_at = Instant::now();

@@ -85,7 +85,10 @@ void main() {
       ),
     );
 
-    overrides.setRect('camera:a', Rect.fromLTWH(worldLimit + 500, 0, 220, 160));
+    overrides.setRect(
+      'camera:a',
+      const Rect.fromLTWH(worldLimit + 500, 0, 220, 160),
+    );
     await tester.pump();
 
     expect(_opacity(tester), 1);

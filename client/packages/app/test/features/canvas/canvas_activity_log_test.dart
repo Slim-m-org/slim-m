@@ -92,12 +92,12 @@ void main() {
       addTearDown(log.dispose);
 
       log.recordOp(
-        api.CanvasRemoveOp(
+        const api.CanvasRemoveOp(
           seq: 2,
           id: 'op-2',
           actorId: null,
           createdAt: 0,
-          objectIds: const ['a', 'b', 'c'],
+          objectIds: ['a', 'b', 'c'],
         ),
       );
 
@@ -114,7 +114,7 @@ void main() {
         addTearDown(log.dispose);
 
         log.recordOp(
-          api.CanvasClearOp(
+          const api.CanvasClearOp(
             seq: 3,
             id: 'op-3',
             actorId: null,
@@ -137,7 +137,7 @@ void main() {
       addTearDown(log.dispose);
 
       log.recordOp(
-        api.CanvasMoveOp(
+        const api.CanvasMoveOp(
           seq: 4,
           id: 'op-4',
           actorId: 'mod',
@@ -158,13 +158,13 @@ void main() {
       addTearDown(log.dispose);
 
       log.recordOp(
-        api.CanvasRestoreOp(
+        const api.CanvasRestoreOp(
           seq: 5,
           id: 'op-5',
           actorId: 'mod',
           createdAt: 0,
           targetOp: 'op-2',
-          objectIds: const ['a', 'b'],
+          objectIds: ['a', 'b'],
         ),
       );
 
@@ -177,7 +177,7 @@ void main() {
       addTearDown(log.dispose);
 
       log.recordOp(
-        api.CanvasReorderOp(
+        const api.CanvasReorderOp(
           seq: 7,
           id: 'op-7',
           actorId: 'mod',
@@ -196,7 +196,12 @@ void main() {
       addTearDown(log.dispose);
 
       log.recordOp(
-        api.CanvasUnknownOp(seq: 6, id: 'op-6', actorId: null, createdAt: 0),
+        const api.CanvasUnknownOp(
+          seq: 6,
+          id: 'op-6',
+          actorId: null,
+          createdAt: 0,
+        ),
       );
 
       expect(log.entries, isEmpty);
@@ -265,12 +270,12 @@ void main() {
       addTearDown(log.dispose);
 
       log.recordOp(
-        api.CanvasRemoveOp(
+        const api.CanvasRemoveOp(
           seq: 1,
           id: 'op-1',
           actorId: 'blocked-mod',
           createdAt: 0,
-          objectIds: const ['a'],
+          objectIds: ['a'],
         ),
       );
 

@@ -58,16 +58,42 @@ class _PrivateAudiencePickerState extends ConsumerState<PrivateAudiencePicker> {
         onTap: () => widget.onToggle(key),
       );
 
+  String _emptyText({required bool loading}) =>
+      loading ? 'Loading...' : 'No roles or members match.';
+
+  List<Widget> _audienceRows(
+    List<api.Role> roles,
+    List<api.UserProfile> members,
+    String? selfId,
+  ) {
+    final needle = _search.text.trim().toLowerCase();
+    bool shows(String text) =>
+        needle.isEmpty || text.toLowerCase().contains(needle);
+    return [
+      for (final role in roles)
+        if (!role.isEveryone && shows(role.name))
+          _row(
+            audienceKey(api.OverwriteTarget.role, role.id),
+            AppIcons.shield,
+            role.name,
+          ),
+      for (final m in members)
+        if (m.id != selfId && shows('${m.displayName} ${m.username}'))
+          _row(
+            audienceKey(api.OverwriteTarget.member, m.id),
+            AppIcons.account,
+            m.displayName,
+            meta: '@${m.username}',
+          ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final roles = ref.watch(rolesProvider);
     final members = ref.watch(membersProvider);
     final selfId = ref.watch(sessionProvider).tokens?.userId;
-    final needle = _search.text.trim().toLowerCase();
-    bool shows(String text) =>
-        needle.isEmpty || text.toLowerCase().contains(needle);
-
     if (roles.hasError || members.hasError) {
       return AppErrorState(
         message: 'Could not load roles and members.',
@@ -77,23 +103,11 @@ class _PrivateAudiencePickerState extends ConsumerState<PrivateAudiencePicker> {
         },
       );
     }
-    final rows = <Widget>[
-      for (final role in roles.valueOrNull ?? const <api.Role>[])
-        if (!role.isEveryone && shows(role.name))
-          _row(
-            audienceKey(api.OverwriteTarget.role, role.id),
-            AppIcons.shield,
-            role.name,
-          ),
-      for (final m in members.valueOrNull ?? const <api.UserProfile>[])
-        if (m.id != selfId && shows('${m.displayName} ${m.username}'))
-          _row(
-            audienceKey(api.OverwriteTarget.member, m.id),
-            AppIcons.account,
-            m.displayName,
-            meta: '@${m.username}',
-          ),
-    ];
+    final rows = _audienceRows(
+      roles.valueOrNull ?? const <api.Role>[],
+      members.valueOrNull ?? const <api.UserProfile>[],
+      selfId,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -120,9 +134,7 @@ class _PrivateAudiencePickerState extends ConsumerState<PrivateAudiencePicker> {
               ? Padding(
                   padding: const EdgeInsets.all(AppSpacing.s12),
                   child: Text(
-                    roles.isLoading || members.isLoading
-                        ? 'Loading...'
-                        : 'No roles or members match.',
+                    _emptyText(loading: roles.isLoading || members.isLoading),
                     style: AppText.caption.copyWith(
                       color: tokens.textSecondary,
                     ),

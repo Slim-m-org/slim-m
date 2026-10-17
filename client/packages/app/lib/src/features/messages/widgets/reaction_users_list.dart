@@ -84,39 +84,49 @@ class ReactionUsersBody extends ConsumerWidget {
         else if (ids.isEmpty)
           const SizedBox(height: 96, child: _Empty())
         else
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.5,
-            ),
-            child: SheetItemList(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s8,
-                0,
-                AppSpacing.s8,
-                AppSpacing.s8,
-              ),
-              itemCount: ids.length + (state.hasMore || state.failed ? 1 : 0),
-              itemBuilder: (context, i) {
-                if (i < ids.length) {
-                  // A failed page waits for Retry; loading it again from here is a loop.
-                  if (i == ids.length - 1 && state.hasMore && !state.failed) {
-                    scheduleMicrotask(controller.loadMore);
-                  }
-                  return ReactionUserRow(userId: ids[i]);
-                }
-                return state.failed
-                    ? Padding(
-                        padding: const EdgeInsets.all(AppSpacing.s8),
-                        child: AppErrorState(
-                          message: 'Could not load more.',
-                          onRetry: controller.loadMore,
-                        ),
-                      )
-                    : const _LoadingMore();
-              },
-            ),
-          ),
+          _userList(context, ids, state, controller),
       ],
+    );
+  }
+
+  Widget _userList(
+    BuildContext context,
+    List<String> ids,
+    ReactionUsersState state,
+    ReactionUsersController controller,
+  ) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+      ),
+      child: SheetItemList(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s8,
+          0,
+          AppSpacing.s8,
+          AppSpacing.s8,
+        ),
+        itemCount: ids.length + (state.hasMore || state.failed ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i >= ids.length) return _footer(state, controller);
+          // A failed page waits for Retry; loading it again from here is a loop.
+          if (i == ids.length - 1 && state.hasMore && !state.failed) {
+            scheduleMicrotask(controller.loadMore);
+          }
+          return ReactionUserRow(userId: ids[i]);
+        },
+      ),
+    );
+  }
+
+  Widget _footer(ReactionUsersState state, ReactionUsersController controller) {
+    if (!state.failed) return const _LoadingMore();
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s8),
+      child: AppErrorState(
+        message: 'Could not load more.',
+        onRetry: controller.loadMore,
+      ),
     );
   }
 }

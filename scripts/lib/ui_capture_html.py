@@ -153,9 +153,11 @@ def _render_category(category_id, info, entry):
             f'<td>{summary["total"]}</td><td>{summary["passed"]}</td>'
             f'<td>{job["images"]}</td></tr>'
         )
-    parts.append("</table>")
-    parts.append(f'<p class=count>{len(entry["images"])} image(s)</p>')
-    parts.append("<div class=grid>")
+    parts.extend([
+        "</table>",
+        f'<p class=count>{len(entry["images"])} image(s)</p>',
+        "<div class=grid>",
+    ])
     for name in entry["images"]:
         src = f"images/{category_id}/{name}"
         caption = name[:-4] if name.endswith(".png") else name

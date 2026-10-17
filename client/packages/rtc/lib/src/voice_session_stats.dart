@@ -9,33 +9,48 @@ extension VoiceSessionStats on VoiceSession {
   List<CallStatsTarget> _callStatsTargets() {
     final room = _room;
     if (room == null || _disposed) return const [];
-    final local = room.localParticipant;
     return [
-      if (local != null)
-        for (final pub in local.videoTrackPublications)
-          if (_statsSource(pub.source) case final source?)
-            if (pub.track case final lk.LocalVideoTrack track)
-              if (track.sender case final sender?)
-                CallStatsTarget(
-                  identity: local.identity,
-                  name: local.name,
-                  source: source,
-                  local: true,
-                  fetch: () async => _entriesOf(await sender.getStats()),
-                ),
+      ..._localStatsTargets(room.localParticipant),
       for (final peer in room.remoteParticipants.values)
-        for (final pub in peer.videoTrackPublications)
-          if (_statsSource(pub.source) case final source?)
-            if (pub.track case final lk.RemoteVideoTrack track)
-              if (track.receiver case final receiver?)
-                CallStatsTarget(
-                  identity: peer.identity,
-                  name: peer.name,
-                  source: source,
-                  local: false,
-                  fetch: () async => _entriesOf(await receiver.getStats()),
-                ),
+        ..._remoteStatsTargets(peer),
     ];
+  }
+
+  Iterable<CallStatsTarget> _localStatsTargets(
+    lk.LocalParticipant? local,
+  ) sync* {
+    if (local == null) return;
+    for (final pub in local.videoTrackPublications) {
+      final source = _statsSource(pub.source);
+      final track = pub.track;
+      final sender = track is lk.LocalVideoTrack ? track.sender : null;
+      if (source == null || sender == null) continue;
+      yield CallStatsTarget(
+        identity: local.identity,
+        name: local.name,
+        source: source,
+        local: true,
+        fetch: () async => _entriesOf(await sender.getStats()),
+      );
+    }
+  }
+
+  Iterable<CallStatsTarget> _remoteStatsTargets(
+    lk.RemoteParticipant peer,
+  ) sync* {
+    for (final pub in peer.videoTrackPublications) {
+      final source = _statsSource(pub.source);
+      final track = pub.track;
+      final receiver = track is lk.RemoteVideoTrack ? track.receiver : null;
+      if (source == null || receiver == null) continue;
+      yield CallStatsTarget(
+        identity: peer.identity,
+        name: peer.name,
+        source: source,
+        local: false,
+        fetch: () async => _entriesOf(await receiver.getStats()),
+      );
+    }
   }
 
   CallStatsSource? _statsSource(lk.TrackSource source) => switch (source) {

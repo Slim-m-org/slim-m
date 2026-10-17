@@ -416,7 +416,7 @@ void main() {
       () async {
     final session = VoiceSession(
       roomFactory: _EmptyRoom.new,
-      desktopSources: _FakeSources(const [
+      desktopSources: const _FakeSources([
         ScreenShareSource(id: '1', name: 'Screen 1'),
       ]),
     );
@@ -431,7 +431,7 @@ void main() {
       'session unchanged', () async {
     final session = VoiceSession(
       roomFactory: _EmptyRoom.new,
-      desktopSources: _FakeSources(const [], sourcePickerUseful: false),
+      desktopSources: const _FakeSources([], sourcePickerUseful: false),
     );
     addTearDown(session.dispose);
 

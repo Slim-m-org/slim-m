@@ -181,22 +181,46 @@ class _AppInputState extends State<AppInput> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final hasError = (widget.errorText ?? '').isNotEmpty;
 
+    return Semantics(
+      label: widget.semanticLabel,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ring(tokens, _field(tokens, hasError)),
+          if (widget.counterMax case final max?) ...[
+            const SizedBox(height: AppSpacing.s4),
+            // Its own node, so the count never merges into the field's label.
+            Semantics(container: true, child: _counter(tokens, max)),
+          ],
+          if (hasError) ...[
+            const SizedBox(height: AppSpacing.s4),
+            Text(
+              widget.errorText!,
+              style: AppText.caption.copyWith(
+                  color: tokens.dangerText, fontFamily: AppFonts.sans),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Accent-fill on focus, not `focusRing`: this control authors its own focus
+  // treatment. See the library doc at the top of the file.
+  Color _borderColor(AppTokens tokens, bool hasError) {
+    if (!widget.enabled) return tokens.borderSubtle;
+    if (hasError) return tokens.dangerBorder;
+    return _focused ? tokens.accentFill : tokens.borderStrong;
+  }
+
+  Widget _field(AppTokens tokens, bool hasError) {
     final textStyle = AppText.body.copyWith(
       color: tokens.textPrimary,
       fontFamily: widget.mono ? AppFonts.mono : AppFonts.sans,
     );
 
-    // Accent-fill on focus, not `focusRing`: this control authors its own focus
-    // treatment. See the library doc at the top of the file.
-    final borderColor = !widget.enabled
-        ? tokens.borderSubtle
-        : hasError
-            ? tokens.dangerBorder
-            : _focused
-                ? tokens.accentFill
-                : tokens.borderStrong;
-
-    final field = Container(
+    return Container(
       // A floor, not a fixed height: at a large text scale the line outgrows 38.
       constraints: _multiline ? null : BoxConstraints(minHeight: _height),
       padding: EdgeInsets.symmetric(
@@ -206,7 +230,7 @@ class _AppInputState extends State<AppInput> {
       decoration: BoxDecoration(
         color: widget.enabled ? tokens.surfaceRaised : tokens.surfaceSunken,
         borderRadius: BorderRadius.circular(AppRadii.control),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: _borderColor(tokens, hasError)),
       ),
       child: Row(
         children: [
@@ -214,43 +238,7 @@ class _AppInputState extends State<AppInput> {
             widget.icon!,
             const SizedBox(width: AppSpacing.s8)
           ],
-          Expanded(
-            child: TextField(
-              controller: widget.controller,
-              focusNode: _focusNode,
-              // Live Text is noise in every field here; see its own library.
-              contextMenuBuilder: textContextMenuWithoutScanText,
-              enabled: widget.enabled,
-              obscureText: widget.obscureText,
-              minLines: widget.minLines,
-              maxLines: _multiline ? widget.maxLines : 1,
-              autofocus: widget.autofocus,
-              keyboardType: widget.keyboardType,
-              textInputAction: widget.textInputAction,
-              inputFormatters: [
-                ...?widget.inputFormatters,
-                if (widget.maxLength case final max?) CodePointLengthLimit(max),
-              ],
-              autofillHints: widget.autofillHints,
-              autocorrect: widget.autocorrect,
-              onChanged: _onChanged,
-              onSubmitted: widget.onSubmitted,
-              style: textStyle,
-              cursorColor: tokens.accentFill,
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                // The inner field opts out of the global boxed-input theme
-                // entirely: this component draws its own chrome.
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
-                hintText: widget.placeholder,
-                hintStyle: textStyle.copyWith(color: tokens.textSecondary),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
+          Expanded(child: _textField(tokens, textStyle)),
           if (widget.trailing != null) ...[
             const SizedBox(width: AppSpacing.s8),
             widget.trailing!
@@ -258,10 +246,50 @@ class _AppInputState extends State<AppInput> {
         ],
       ),
     );
+  }
 
-    // The 2px ring is reserved space regardless of focus, coloured only when
-    // focused, so gaining focus never shifts layout.
-    final ring = Container(
+  Widget _textField(AppTokens tokens, TextStyle textStyle) {
+    return TextField(
+      controller: widget.controller,
+      focusNode: _focusNode,
+      // Live Text is noise in every field here; see its own library.
+      contextMenuBuilder: textContextMenuWithoutScanText,
+      enabled: widget.enabled,
+      obscureText: widget.obscureText,
+      minLines: widget.minLines,
+      maxLines: _multiline ? widget.maxLines : 1,
+      autofocus: widget.autofocus,
+      keyboardType: widget.keyboardType,
+      textInputAction: widget.textInputAction,
+      inputFormatters: [
+        ...?widget.inputFormatters,
+        if (widget.maxLength case final max?) CodePointLengthLimit(max),
+      ],
+      autofillHints: widget.autofillHints,
+      autocorrect: widget.autocorrect,
+      onChanged: _onChanged,
+      onSubmitted: widget.onSubmitted,
+      style: textStyle,
+      cursorColor: tokens.accentFill,
+      decoration: InputDecoration(
+        isDense: true,
+        border: InputBorder.none,
+        // The inner field opts out of the global boxed-input theme
+        // entirely: this component draws its own chrome.
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        filled: false,
+        hintText: widget.placeholder,
+        hintStyle: textStyle.copyWith(color: tokens.textSecondary),
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  // The 2px ring is reserved space regardless of focus, coloured only when
+  // focused, so gaining focus never shifts layout.
+  Widget _ring(AppTokens tokens, Widget field) {
+    return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         border: Border.all(
@@ -282,30 +310,6 @@ class _AppInputState extends State<AppInput> {
           onTap: widget.enabled ? _focusNode.requestFocus : null,
           child: field,
         ),
-      ),
-    );
-
-    return Semantics(
-      label: widget.semanticLabel,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ring,
-          if (widget.counterMax case final max?) ...[
-            const SizedBox(height: AppSpacing.s4),
-            // Its own node, so the count never merges into the field's label.
-            Semantics(container: true, child: _counter(tokens, max)),
-          ],
-          if (hasError) ...[
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              widget.errorText!,
-              style: AppText.caption.copyWith(
-                  color: tokens.dangerText, fontFamily: AppFonts.sans),
-            ),
-          ],
-        ],
       ),
     );
   }

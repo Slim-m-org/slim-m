@@ -28,7 +28,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = Channel(
+const _channel = Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -61,7 +61,7 @@ Widget _grid({List<api.ChannelOverwrite> overwrites = const []}) {
     container: container,
     child: MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(body: ChannelPermissionsGrid(channel: _channel)),
+      home: const Scaffold(body: ChannelPermissionsGrid(channel: _channel)),
     ),
   );
 }
@@ -108,7 +108,7 @@ void main() {
   testWidgets('a group header folds its rows and the next group moves up by '
       'exactly those rows', (tester) async {
     await _open(tester, _desktop);
-    final groups = Perm.groups;
+    const groups = Perm.groups;
     final rows = groups.first.permissions.length;
     final nextHeader = find.text(groups[1].title.toUpperCase());
     final open = tester.getTopLeft(nextHeader).dy;

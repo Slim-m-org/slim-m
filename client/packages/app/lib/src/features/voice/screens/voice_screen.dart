@@ -186,65 +186,33 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     context.go(last == null ? Routes.channels : Routes.channel(last));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    ref.listen<VoiceFlags>(voiceFlagsProvider, _returnAfterHangUp);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final voice = ref.watch(voiceFlagsProvider);
-    final controller = ref.read(voiceControllerProvider.notifier);
+  bool _justLeftThis(VoiceFlags voice) {
+    final leftAt = voice.justLeftAt;
+    return voice.justLeftChannelId == widget.channelId &&
+        leftAt != null &&
+        DateTime.now().difference(leftAt) < VoiceState.rejoinGuardWindow;
+  }
+
+  String _waitingStage({
+    required bool connecting,
+    required bool busyElsewhere,
+    required bool attempted,
+  }) {
+    if (connecting) return 'connecting';
+    if (busyElsewhere) return 'switch';
+    return attempted ? 'left' : 'joining';
+  }
+
+  Widget _callBody(
+    String stage, {
+    required VoiceFlags voice,
+    required VoiceController controller,
+    required bool connectingHere,
+    required String? errorMessage,
+    required bool canRetry,
+  }) {
     final channelId = widget.channelId;
-    final inThisChannel = voice.channelId == channelId;
-    final connectedHere =
-        inThisChannel && voice.state == VoiceSessionState.connected;
-    final connectingHere =
-        inThisChannel && voice.state == VoiceSessionState.connecting;
-    // Without this, `join`'s own in-flight window (see its own comment) reads as `attemptedThis` and briefly flashes the rejoin screen.
-    final joiningHere = inThisChannel && voice.joining;
-    final busyElsewhere = _busyElsewhere(voice, channelId);
-    // The same canvas-pane remount that connectedHere guards against also
-    // wipes this memory when the user hung up *before* closing the canvas:
-    // `leave()` nulls `voice.channelId`, so the remounted screen cannot read
-    // connectedHere at all. `justLeftChannelId` is what survives that instead
-    // - see VoiceState.rejoinGuardWindow for how long it is trusted.
-    final justLeftThis =
-        voice.justLeftChannelId == channelId &&
-        voice.justLeftAt != null &&
-        DateTime.now().difference(voice.justLeftAt!) <
-            VoiceState.rejoinGuardWindow;
-    // Mounting already connected is not a fresh arrival, and this screen is
-    // remounted with an empty [_autoJoinedFor] every time the canvas pane
-    // swaps in and back out - without this, hanging up after that round trip
-    // reads as an arrival and auto-joins the call straight back. Latching
-    // justLeftThis in here too means a widget that stays mounted past
-    // VoiceState.rejoinGuardWindow keeps reading as already attempted,
-    // rather than flipping to a fresh arrival once the window lapses under it.
-    if (connectedHere || justLeftThis) _autoJoinedFor = channelId;
-    final attemptedThis = _autoJoinedFor == channelId;
-
-    // `join` never clears `channelId` on error, so an error only ever belongs here.
-    final errorMessage =
-        inThisChannel && voice.state == VoiceSessionState.failed
-        ? voice.error
-        : null;
-    final canRetry = errorMessage == null || voice.retryable;
-
-    // A rejoin in progress stays on the call stage rather than the full-screen
-    // connecting spinner: the bounded auto-rejoin behind it is still trying,
-    // and the grid, filmstrip and controls it already had are worth more
-    // than a blank screen while that happens. See _InCall's own banner.
-    final stage = voice.inCallStageFor(channelId)
-        ? 'call'
-        : (connectingHere || joiningHere)
-        ? 'connecting'
-        : busyElsewhere
-        ? 'switch'
-        : attemptedThis
-        ? 'left'
-        : 'joining';
-
-    if (stage == 'joining') _maybeAutoJoin(controller);
-
-    final callBody = AppFadeIn(
+    return AppFadeIn(
       // 'joining' reads as 'connecting' here, so a fresh arrival never fades through a stage nobody would see.
       key: ValueKey('voice-${stage == 'joining' ? 'connecting' : stage}'),
       child: switch (stage) {
@@ -275,6 +243,68 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           recap: recapForChannel(voice, channelId),
         ),
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<VoiceFlags>(voiceFlagsProvider, _returnAfterHangUp);
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final voice = ref.watch(voiceFlagsProvider);
+    final controller = ref.read(voiceControllerProvider.notifier);
+    final channelId = widget.channelId;
+    final inThisChannel = voice.channelId == channelId;
+    final connectedHere =
+        inThisChannel && voice.state == VoiceSessionState.connected;
+    final connectingHere =
+        inThisChannel && voice.state == VoiceSessionState.connecting;
+    // Without this, `join`'s own in-flight window (see its own comment) reads as `attemptedThis` and briefly flashes the rejoin screen.
+    final joiningHere = inThisChannel && voice.joining;
+    final busyElsewhere = _busyElsewhere(voice, channelId);
+    // The same canvas-pane remount that connectedHere guards against also
+    // wipes this memory when the user hung up *before* closing the canvas:
+    // `leave()` nulls `voice.channelId`, so the remounted screen cannot read
+    // connectedHere at all. `justLeftChannelId` is what survives that instead
+    // - see VoiceState.rejoinGuardWindow for how long it is trusted.
+    final justLeftThis = _justLeftThis(voice);
+    // Mounting already connected is not a fresh arrival, and this screen is
+    // remounted with an empty [_autoJoinedFor] every time the canvas pane
+    // swaps in and back out - without this, hanging up after that round trip
+    // reads as an arrival and auto-joins the call straight back. Latching
+    // justLeftThis in here too means a widget that stays mounted past
+    // VoiceState.rejoinGuardWindow keeps reading as already attempted,
+    // rather than flipping to a fresh arrival once the window lapses under it.
+    if (connectedHere || justLeftThis) _autoJoinedFor = channelId;
+    final attemptedThis = _autoJoinedFor == channelId;
+
+    // `join` never clears `channelId` on error, so an error only ever belongs here.
+    final errorMessage =
+        inThisChannel && voice.state == VoiceSessionState.failed
+        ? voice.error
+        : null;
+    final canRetry = errorMessage == null || voice.retryable;
+
+    // A rejoin in progress stays on the call stage rather than the full-screen
+    // connecting spinner: the bounded auto-rejoin behind it is still trying,
+    // and the grid, filmstrip and controls it already had are worth more
+    // than a blank screen while that happens. See _InCall's own banner.
+    final stage = voice.inCallStageFor(channelId)
+        ? 'call'
+        : _waitingStage(
+            connecting: connectingHere || joiningHere,
+            busyElsewhere: busyElsewhere,
+            attempted: attemptedThis,
+          );
+
+    if (stage == 'joining') _maybeAutoJoin(controller);
+
+    final callBody = _callBody(
+      stage,
+      voice: voice,
+      controller: controller,
+      connectingHere: connectingHere,
+      errorMessage: errorMessage,
+      canRetry: canRetry,
     );
 
     // DmCallPane's own conversation already covers text for a DM's call; only a real voice channel gets the docked/tabbed pane below.

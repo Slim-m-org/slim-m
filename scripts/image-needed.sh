@@ -23,7 +23,7 @@ done
 base=$(jq -c 'map(select(. != null))' <<<"$detailed" \
   | python3 "$here/lib/server_image_base.py" "$current_sha" "$job")
 
-if [ -z "$base" ]; then
+if [[ -z "$base" ]]; then
   echo "no published $job in recent history; the push diff decides alone"
   exit 0
 fi

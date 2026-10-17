@@ -51,7 +51,7 @@ class LoadToolsRefuseProductionTest(unittest.TestCase):
     def test_both_tools_refuse_the_live_host(self):
         for name, module in self.tools():
             with patch.object(module.asyncio, "run") as run, \
-                 patch.object(module, "run", new=lambda args: None), \
+                 patch.object(module, "run", return_value=None), \
                  patch.object(loadtest, "find_server_pid", return_value=1):
                 with self.assertRaises(SystemExit, msg=name) as caught:
                     module.main(["--base-url", "https://slim.npc-server.top"])
@@ -61,7 +61,7 @@ class LoadToolsRefuseProductionTest(unittest.TestCase):
     def test_a_query_naming_the_domain_on_another_host_is_not_refused(self):
         for name, module in self.tools():
             with patch.object(module.asyncio, "run") as run, \
-                 patch.object(module, "run", new=lambda args: None), \
+                 patch.object(module, "run", return_value=None), \
                  patch.object(loadtest, "find_server_pid", return_value=1):
                 self.assertEqual(
                     module.main(["--base-url", "http://example.com/?x=npc-server.top",

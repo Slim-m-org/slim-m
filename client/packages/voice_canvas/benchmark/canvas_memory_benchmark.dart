@@ -41,19 +41,23 @@ void main() {
         document.applyPlaced(_strokeAt(i, rng));
       }
       final afterKb = _rssKb();
-      final perObjectBytes = afterKb == null || previousKb == null
-          ? null
-          : ((afterKb - previousKb) * 1024) / count;
+      final deltaKb = _deltaKb(afterKb, previousKb);
+      final perObject =
+          deltaKb == null ? 'n/a' : (deltaKb * 1024 / count).toStringAsFixed(0);
       // ignore: avoid_print
       print(
         'n=$count  rss ${_fmt(afterKb)} kB '
-        '(+${_fmt(afterKb == null || previousKb == null ? null : afterKb - previousKb)} kB, '
-        '${perObjectBytes == null ? "n/a" : perObjectBytes.toStringAsFixed(0)} bytes/object)',
+        '(+${_fmt(deltaKb)} kB, $perObject bytes/object)',
       );
       previousKb = afterKb;
       document.dispose();
     }
   });
+}
+
+int? _deltaKb(int? afterKb, int? previousKb) {
+  if (afterKb == null || previousKb == null) return null;
+  return afterKb - previousKb;
 }
 
 CanvasStrokeInput _strokeAt(int i, math.Random rng) {

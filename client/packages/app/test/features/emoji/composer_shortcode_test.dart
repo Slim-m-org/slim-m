@@ -12,7 +12,7 @@ import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 import '../composer/composer_harness.dart' hide custom;
 import '../composer/composer_harness.dart' as harness show custom;
 
-final emoji = harness.custom;
+const emoji = harness.custom;
 
 const _bug = '\u{1F41B}';
 

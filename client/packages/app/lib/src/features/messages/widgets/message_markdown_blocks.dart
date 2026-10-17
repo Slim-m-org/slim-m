@@ -61,7 +61,7 @@ final RegExp _heading = RegExp(r'^(#{1,3})[ \t]+(.*)$');
 /// that a second forward would requote; forwards are modelled now
 /// (`forwarded_message_card.dart`) and no longer produce these, but ordinary
 /// hand-typed nested quotes still do.
-final RegExp _quote = RegExp(r'^(?:>[ \t]?)+(.*)$');
+final RegExp _quoteMarker = RegExp(r'^(?:>[ \t]?)+(.*)$');
 final RegExp _bullet = RegExp(r'^( {0,5})[-*][ \t]+(.*)$');
 final RegExp _ordered = RegExp(r'^( {0,5})\d+\.[ \t]+(.*)$');
 
@@ -74,77 +74,88 @@ int _depthOf(String indent) => (indent.length ~/ 2).clamp(0, kMaxListDepth - 1);
 /// this file existed: a plain message with no markdown at all still becomes
 /// exactly one block holding the whole text, unchanged.
 List<MarkdownBlock> splitMarkdownBlocks(String text) {
-  final blocks = <MarkdownBlock>[];
-  final paragraph = <String>[];
-  final quote = <String>[];
-  var listOrdered = false;
-  final listItems = <ListItem>[];
+  final splitter = _BlockSplitter();
+  text.split('\n').forEach(splitter.addLine);
+  return splitter.finish();
+}
 
-  void flushParagraph() {
-    if (paragraph.isNotEmpty) {
-      final text = paragraph.join('\n');
-      // A blank line between two other blocks lands here as an empty paragraph; drop it, not a real block.
-      if (text.trim().isNotEmpty) blocks.add(ParagraphBlock(text));
-      paragraph.clear();
-    }
+class _BlockSplitter {
+  final List<MarkdownBlock> _blocks = [];
+  final List<String> _paragraph = [];
+  final List<String> _quote = [];
+  final List<ListItem> _listItems = [];
+  bool _listOrdered = false;
+
+  void addLine(String line) {
+    if (_takeHeading(line) || _takeQuote(line)) return;
+    _flushQuote();
+    if (_takeListItem(line)) return;
+    _flushList();
+    _paragraph.add(line);
   }
 
-  void flushQuote() {
-    if (quote.isNotEmpty) {
-      blocks.add(QuoteBlock(quote.join('\n')));
-      quote.clear();
-    }
+  List<MarkdownBlock> finish() {
+    _flushParagraph();
+    _flushQuote();
+    _flushList();
+    return _blocks;
   }
 
-  void flushList() {
-    if (listItems.isNotEmpty) {
-      blocks.add(ListBlock(listOrdered, List.of(listItems)));
-      listItems.clear();
-    }
-  }
-
-  for (final line in text.split('\n')) {
+  bool _takeHeading(String line) {
     final heading = _heading.firstMatch(line);
-    if (heading != null) {
-      flushParagraph();
-      flushQuote();
-      flushList();
-      blocks.add(HeadingBlock(heading.group(1)!.length, heading.group(2)!));
-      continue;
-    }
+    if (heading == null) return false;
+    _flushParagraph();
+    _flushQuote();
+    _flushList();
+    _blocks.add(HeadingBlock(heading.group(1)!.length, heading.group(2)!));
+    return true;
+  }
 
-    final quoteMatch = _quote.firstMatch(line);
-    if (quoteMatch != null) {
-      flushParagraph();
-      flushList();
-      quote.add(quoteMatch.group(1)!);
-      continue;
-    }
-    flushQuote();
+  bool _takeQuote(String line) {
+    final match = _quoteMarker.firstMatch(line);
+    if (match == null) return false;
+    _flushParagraph();
+    _flushList();
+    _quote.add(match.group(1)!);
+    return true;
+  }
 
+  bool _takeListItem(String line) {
     final bullet = _bullet.firstMatch(line);
     final ordered = _ordered.firstMatch(line);
     final item = ordered ?? bullet;
-    if (item != null) {
-      flushParagraph();
-      final isOrdered = ordered != null;
-      final depth = _depthOf(item.group(1)!);
-      // Only a change of marker at the top level starts a new list; a nested one belongs to its parent.
-      if (listItems.isNotEmpty && depth == 0 && listOrdered != isOrdered) {
-        flushList();
-      }
-      if (listItems.isEmpty) listOrdered = isOrdered;
-      listItems.add(ListItem(depth, item.group(2)!, ordered: isOrdered));
-      continue;
+    if (item == null) return false;
+    _flushParagraph();
+    final isOrdered = ordered != null;
+    final depth = _depthOf(item.group(1)!);
+    // Only a change of marker at the top level starts a new list; a nested one belongs to its parent.
+    if (_listItems.isNotEmpty && depth == 0 && _listOrdered != isOrdered) {
+      _flushList();
     }
-    flushList();
-
-    paragraph.add(line);
+    if (_listItems.isEmpty) _listOrdered = isOrdered;
+    _listItems.add(ListItem(depth, item.group(2)!, ordered: isOrdered));
+    return true;
   }
-  flushParagraph();
-  flushQuote();
-  flushList();
-  return blocks;
+
+  void _flushParagraph() {
+    if (_paragraph.isEmpty) return;
+    final text = _paragraph.join('\n');
+    // A blank line between two other blocks lands here as an empty paragraph; drop it, not a real block.
+    if (text.trim().isNotEmpty) _blocks.add(ParagraphBlock(text));
+    _paragraph.clear();
+  }
+
+  void _flushQuote() {
+    if (_quote.isEmpty) return;
+    _blocks.add(QuoteBlock(_quote.join('\n')));
+    _quote.clear();
+  }
+
+  void _flushList() {
+    if (_listItems.isEmpty) return;
+    _blocks.add(ListBlock(_listOrdered, List.of(_listItems)));
+    _listItems.clear();
+  }
 }
 
 /// A block quote: a left rule beside the quoted content, matching Discord's

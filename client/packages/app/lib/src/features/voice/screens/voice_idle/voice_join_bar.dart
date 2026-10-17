@@ -42,29 +42,9 @@ class VoiceJoinBar extends ConsumerWidget {
     final roster = ref.watch(voiceRosterProvider(channelId));
     final here = roster.valueOrNull ?? const [];
     final online = _online(ref, {for (final p in here) p.userId});
-    // Not checked and checked-empty must read differently: an empty room is a claim.
-    final title = switch (roster) {
-      AsyncData(value: final people) when people.isNotEmpty => _joinNames(
-        [for (final p in people) p.displayName],
-        'is here',
-        'are here',
-      ),
-      AsyncData() => compact ? "Nobody's here" : "Nobody's here right now",
-      AsyncError() => 'Could not check who is here.',
-      _ => "Can't tell who else is here right now.",
-    };
-    final subtitle = [
-      // An empty room is already said by the title; who is online adds nothing there.
-      if (here.isNotEmpty && online.isNotEmpty)
-        _joinNames(online, 'is online', 'are online'),
-      if (!compact) 'joining starts you muted',
-    ].join(' · ');
-    final label = compact
-        ? 'Join'
-        : here.isEmpty
-        ? 'Join muted'
-        : 'Join · ${here.length} here';
-    final last = lastCallAt;
+    final title = _title(roster);
+    final subtitle = _subtitle(here, online);
+    final label = _joinLabel(here);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.s16),
       decoration: BoxDecoration(
@@ -79,11 +59,7 @@ class VoiceJoinBar extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s8),
               child: Text(
-                [
-                  if (roster.hasValue)
-                    here.isEmpty ? 'empty' : '${here.length} in the call',
-                  if (last != null) 'last call ${callDayLabel(last, now: now)}',
-                ].join(' · '),
+                _statusLine(roster.hasValue, here),
                 style: AppText.code.copyWith(color: tokens.textSecondary),
               ),
             ),
@@ -111,15 +87,7 @@ class VoiceJoinBar extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.s12),
-              if (errorMessage == null || canRetry)
-                AppButton(
-                  label: errorMessage == null ? label : 'Try again',
-                  semanticLabel: here.isEmpty
-                      ? 'Join the call muted'
-                      : 'Join the call muted, ${here.length} here',
-                  variant: AppButtonVariant.primary,
-                  onPressed: onJoin,
-                ),
+              if (errorMessage == null || canRetry) _joinButton(label, here),
             ],
           ),
           if (errorMessage != null) ...[
@@ -128,6 +96,52 @@ class VoiceJoinBar extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+
+  // Not checked and checked-empty must read differently: an empty room is a claim.
+  String _title(AsyncValue<List<api.VoiceRosterParticipant>> roster) =>
+      switch (roster) {
+        AsyncData(value: final people) when people.isNotEmpty => _joinNames(
+          [for (final p in people) p.displayName],
+          'is here',
+          'are here',
+        ),
+        AsyncData() => compact ? "Nobody's here" : "Nobody's here right now",
+        AsyncError() => 'Could not check who is here.',
+        _ => "Can't tell who else is here right now.",
+      };
+
+  String _subtitle(List<api.VoiceRosterParticipant> here, List<String> online) {
+    return [
+      // An empty room is already said by the title; who is online adds nothing there.
+      if (here.isNotEmpty && online.isNotEmpty)
+        _joinNames(online, 'is online', 'are online'),
+      if (!compact) 'joining starts you muted',
+    ].join(' · ');
+  }
+
+  String _joinLabel(List<api.VoiceRosterParticipant> here) {
+    if (compact) return 'Join';
+    return here.isEmpty ? 'Join muted' : 'Join · ${here.length} here';
+  }
+
+  String _statusLine(bool checked, List<api.VoiceRosterParticipant> here) {
+    final last = lastCallAt;
+    return [
+      if (checked) here.isEmpty ? 'empty' : '${here.length} in the call',
+      if (last != null) 'last call ${callDayLabel(last, now: now)}',
+    ].join(' · ');
+  }
+
+  Widget _joinButton(String label, List<api.VoiceRosterParticipant> here) {
+    return AppButton(
+      label: errorMessage == null ? label : 'Try again',
+      semanticLabel: here.isEmpty
+          ? 'Join the call muted'
+          : 'Join the call muted, ${here.length} here',
+      variant: AppButtonVariant.primary,
+      onPressed: onJoin,
     );
   }
 

@@ -76,10 +76,6 @@ async fn nonexistent_channel_refuses_identically_for_everyone() {
     );
 }
 
-// --- Escalation ---
-
-/// A MANAGE_ROLES holder in a channel cannot force-allow a permission they do
-/// not themselves hold there, even for themselves.
 // --- Validation ---
 
 #[tokio::test]

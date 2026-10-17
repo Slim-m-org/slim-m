@@ -10,6 +10,8 @@
 /// pdf has nothing to show in a zoomable viewer.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -145,47 +147,39 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
   }
 
   Widget _body(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-
     final autoDownload = ref.watch(mediaAutoDownloadControllerProvider);
     final downloadGated =
         autoDownload == MediaAutoDownload.manual && !_revealed;
+    if (isVideo(attachment.contentType)) return _video(downloadGated);
+    if (!_isImage) return AttachmentChip(attachment: attachment);
+    return _image(context, downloadGated: downloadGated);
+  }
 
-    if (isVideo(attachment.contentType)) {
-      // A player opens its source on mount, so the manual setting holds it back too.
-      if (downloadGated) {
-        return AttachmentRevealTile(
-          icon: AppIcons.play,
-          line: 'Tap to load',
-          caption:
-              '${attachment.filename} · ${formatByteSize(attachment.size)}',
-          maxEdge: kInlineVideoMax,
-          onReveal: () => setState(() => _revealed = true),
-        );
-      }
-      return AttachmentVideoPlayer(attachment: attachment);
-    }
+  String get _caption =>
+      '${attachment.filename} · ${formatByteSize(attachment.size)}';
 
-    if (!_isImage) {
-      return AttachmentChip(attachment: attachment);
-    }
+  void _reveal() => setState(() => _revealed = true);
 
+  Widget _video(bool downloadGated) {
+    // A player opens its source on mount, so the manual setting holds it back too.
+    if (!downloadGated) return AttachmentVideoPlayer(attachment: attachment);
+    return AttachmentRevealTile(
+      icon: AppIcons.play,
+      line: 'Tap to load',
+      caption: _caption,
+      maxEdge: kInlineVideoMax,
+      onReveal: _reveal,
+    );
+  }
+
+  Widget _image(BuildContext context, {required bool downloadGated}) {
     final tile = widget.tileEdge;
     final gifAutoplay = ref.watch(gifAutoplayControllerProvider);
-    final hoverPlays =
+    final playGated =
         _isGif && gifAutoplay == GifAutoplay.tapToPlay && !_revealed;
-    final playGated = hoverPlays;
     // Whatever the setting, a gif nobody is looking at holds its first frame.
     final still = _isGif && !ref.watch(appFocusedProvider);
-    Widget hoverToPlay(Widget child) => hoverPlays
-        ? MouseRegion(
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: child,
-          )
-        : child;
-    final caption =
-        '${attachment.filename} · ${formatByteSize(attachment.size)}';
+    final caption = _caption;
 
     // Held for download: nothing fetches until the tap, the point when metered.
     if (downloadGated) {
@@ -194,7 +188,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         line: 'Tap to load',
         caption: caption,
         maxEdge: tile ?? kInlineImageMax,
-        onReveal: () => setState(() => _revealed = true),
+        onReveal: _reveal,
       );
     }
 
@@ -228,142 +222,192 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       data: (bytes) {
         // A gif held from autoplay shows its first frame, animating on hover or tap.
         if (playGated) {
-          return hoverToPlay(
-            AttachmentRevealTile(
-              caption: caption,
-              maxEdge: tile ?? kInlineImageMax,
-              onReveal: () => setState(() => _revealed = true),
-              // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
-              showBadge: !_hovered,
-              preview: ViewportFreeze(
-                child: Stack(
-                  fit: StackFit.passthrough,
-                  children: [
-                    AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
-                    if (_hovered)
-                      Positioned.fill(
-                        child: Image.memory(
-                          bytes,
-                          fit: BoxFit.contain,
-                          cacheWidth: decodeWidth,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          );
+          return _gatedGif(bytes, caption: caption, decodeWidth: decodeWidth);
         }
-        final image = _tappable(
-          label: 'Open ${attachment.filename} fullscreen',
-          onTap: () {
-            // Paging must never land on a spoiler nobody chose to look at.
-            final images = widget.siblings.isEmpty
-                ? [attachment]
-                : widget.siblings
-                      .where((a) => !a.spoiler || a.id == attachment.id)
-                      .toList();
-            final index = images.indexWhere((a) => a.id == attachment.id);
-            showFullscreenImage(
-              context,
-              images: images,
-              // A list somehow lacking this attachment would open at -1.
-              index: index < 0 ? 0 : index,
-              bytes: bytes,
-              heroTag: _heroTag,
-            );
-          },
-          // Bordered like the chip and error states beside it (border-first
-          // elevation), and captioned: a bare rectangle with no name or size
-          // read as decoration rather than a file anyone could open.
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Hero(
-                tag: _heroTag,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: tokens.borderSubtle),
-                    borderRadius: BorderRadius.circular(AppRadii.control),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadii.control),
-                    child: ConstrainedBox(
-                      constraints: tile == null
-                          ? const BoxConstraints(
-                              maxWidth: kInlineImageMax,
-                              maxHeight: kInlineImageMax,
-                            )
-                          // The tile's 1px border sits outside the image, so the image gives it back.
-                          : BoxConstraints.tight(Size.square(tile - 2)),
-                      // Never decodes wider than the transcript can draw it.
-                      child: ViewportFreeze(
-                        child: still
-                            ? AttachmentFirstFrame(
-                                bytes: bytes,
-                                cacheWidth: decodeWidth,
-                              )
-                            : Image.memory(
-                                bytes,
-                                fit: tile == null
-                                    ? BoxFit.contain
-                                    : BoxFit.cover,
-                                semanticLabel: attachment.filename,
-                                cacheWidth: decodeWidth,
-                                // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
-                                errorBuilder: (context, error, stackTrace) =>
-                                    AttachmentFailureBox(
-                                      filename: attachment.filename,
-                                      width: kInlineImageMax,
-                                      tileEdge: tile,
-                                      message: 'Could not open',
-                                      onRetry: _refetch,
-                                    ),
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (tile == null) ...[
-                const SizedBox(height: AppSpacing.s4),
-                Text(
-                  caption,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ],
-            ],
-          ),
-        );
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ImageActionsMenuRegion(
-              image: attachment,
-              loadBytes: () =>
-                  ref.read(attachmentBytesProvider(attachment.id).future),
-              onFailure: setActionError,
-              child: widget.moreCount > 0
-                  ? Stack(
-                      children: [
-                        image,
-                        Positioned.fill(
-                          child: _MoreOverlay(count: widget.moreCount),
-                        ),
-                      ],
-                    )
-                  : image,
-            ),
-            if (actionError != null) ...[
-              const SizedBox(height: AppSpacing.s4),
-              AppErrorState(message: actionError!, onDismiss: clearActionError),
-            ],
-          ],
+        return _openableImage(
+          bytes,
+          caption: caption,
+          decodeWidth: decodeWidth,
+          still: still,
         );
       },
+    );
+  }
+
+  Widget _gatedGif(
+    Uint8List bytes, {
+    required String caption,
+    required int decodeWidth,
+  }) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AttachmentRevealTile(
+        caption: caption,
+        maxEdge: widget.tileEdge ?? kInlineImageMax,
+        onReveal: _reveal,
+        // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
+        showBadge: !_hovered,
+        preview: ViewportFreeze(
+          child: Stack(
+            fit: StackFit.passthrough,
+            children: [
+              AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth),
+              if (_hovered)
+                Positioned.fill(
+                  child: Image.memory(
+                    bytes,
+                    fit: BoxFit.contain,
+                    cacheWidth: decodeWidth,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _openableImage(
+    Uint8List bytes, {
+    required String caption,
+    required int decodeWidth,
+    required bool still,
+  }) {
+    final image = _tappable(
+      label: 'Open ${attachment.filename} fullscreen',
+      onTap: () => _openFullscreen(bytes),
+      child: _imageColumn(
+        bytes,
+        caption: caption,
+        decodeWidth: decodeWidth,
+        still: still,
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ImageActionsMenuRegion(
+          image: attachment,
+          loadBytes: () =>
+              ref.read(attachmentBytesProvider(attachment.id).future),
+          onFailure: setActionError,
+          child: _withMoreOverlay(image),
+        ),
+        if (actionError != null) ...[
+          const SizedBox(height: AppSpacing.s4),
+          AppErrorState(message: actionError!, onDismiss: clearActionError),
+        ],
+      ],
+    );
+  }
+
+  Widget _withMoreOverlay(Widget image) {
+    if (widget.moreCount <= 0) return image;
+    return Stack(
+      children: [
+        image,
+        Positioned.fill(child: _MoreOverlay(count: widget.moreCount)),
+      ],
+    );
+  }
+
+  void _openFullscreen(Uint8List bytes) {
+    // Paging must never land on a spoiler nobody chose to look at.
+    final images = widget.siblings.isEmpty
+        ? [attachment]
+        : widget.siblings
+              .where((a) => !a.spoiler || a.id == attachment.id)
+              .toList();
+    final index = images.indexWhere((a) => a.id == attachment.id);
+    showFullscreenImage(
+      context,
+      images: images,
+      // A list somehow lacking this attachment would open at -1.
+      index: index < 0 ? 0 : index,
+      bytes: bytes,
+      heroTag: _heroTag,
+    );
+  }
+
+  // Bordered like the chip and error states beside it, and captioned: a bare rectangle read as decoration.
+  Widget _imageColumn(
+    Uint8List bytes, {
+    required String caption,
+    required int decodeWidth,
+    required bool still,
+  }) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final tile = widget.tileEdge;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Hero(
+          tag: _heroTag,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: tokens.borderSubtle),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              child: ConstrainedBox(
+                constraints: _imageConstraints(tile),
+                // Never decodes wider than the transcript can draw it.
+                child: ViewportFreeze(
+                  child: _bitmap(bytes, decodeWidth: decodeWidth, still: still),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (tile == null) ...[
+          const SizedBox(height: AppSpacing.s4),
+          Text(
+            caption,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ],
+      ],
+    );
+  }
+
+  BoxConstraints _imageConstraints(double? tile) {
+    if (tile == null) {
+      return const BoxConstraints(
+        maxWidth: kInlineImageMax,
+        maxHeight: kInlineImageMax,
+      );
+    }
+    // The tile's 1px border sits outside the image, so the image gives it back.
+    return BoxConstraints.tight(Size.square(tile - 2));
+  }
+
+  Widget _bitmap(
+    Uint8List bytes, {
+    required int decodeWidth,
+    required bool still,
+  }) {
+    if (still) {
+      return AttachmentFirstFrame(bytes: bytes, cacheWidth: decodeWidth);
+    }
+    final tile = widget.tileEdge;
+    return Image.memory(
+      bytes,
+      fit: tile == null ? BoxFit.contain : BoxFit.cover,
+      semanticLabel: attachment.filename,
+      cacheWidth: decodeWidth,
+      // Bytes can decode-fail after a successful fetch; without this it paints as Flutter's raw error box.
+      errorBuilder: (context, error, stackTrace) => AttachmentFailureBox(
+        filename: attachment.filename,
+        width: kInlineImageMax,
+        tileEdge: tile,
+        message: 'Could not open',
+        onRetry: _refetch,
+      ),
     );
   }
 

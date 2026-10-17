@@ -193,7 +193,10 @@ mod tests {
 
     fn enabled(approved: &[&str]) -> CapabilitySurface {
         CapabilitySurface::enabled(
-            approved.iter().map(|s| s.to_string()).collect(),
+            approved
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
             "m",
             Arc::new(InMemoryKv::default()),
         )

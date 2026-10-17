@@ -216,7 +216,7 @@ class _StartupScreenState extends State<StartupScreen>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = AppTokens.dark;
+    const tokens = AppTokens.dark;
     final port = widget.windowPort;
     final prompt = widget.prompt;
     final word = _reduced

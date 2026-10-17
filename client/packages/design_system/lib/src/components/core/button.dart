@@ -172,7 +172,114 @@ class _AppButtonState extends State<AppButton> {
     final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
     final height = metrics.height > hitTarget ? metrics.height : hitTarget;
 
-    final labelRow = Row(
+    final button = _surface(tokens, metrics, look, height);
+
+    final control = Semantics(
+      label: widget.semanticLabel ?? widget.label,
+      button: true,
+      enabled: enabled,
+      child: Opacity(
+        opacity: enabled || widget.busy ? 1 : 0.45,
+        child: FocusableActionDetector(
+          enabled: enabled,
+          focusNode: widget.focusNode,
+          mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+          onShowFocusHighlight: (v) => setState(() => _focused = v),
+          actions: _activateActions(enabled),
+          child: _gestures(enabled, button),
+        ),
+      ),
+    );
+
+    return widget.full ? control : IntrinsicWidth(child: control);
+  }
+
+  Map<Type, Action<Intent>> _activateActions(bool enabled) {
+    if (!enabled) return const <Type, Action<Intent>>{};
+    return <Type, Action<Intent>>{
+      ActivateIntent:
+          CallbackAction<ActivateIntent>(onInvoke: (_) => widget.onPressed!()),
+    };
+  }
+
+  Widget _gestures(bool enabled, Widget button) {
+    return GestureDetector(
+      onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+      onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+      onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+      onTap: enabled
+          ? () {
+              AppHaptics.selection();
+              widget.onPressed!();
+            }
+          : null,
+      child: AnimatedScale(
+        scale: _pressed ? AppMotion.pressScale : 1,
+        duration: AppMotion.reduced(context, AppMotion.fast),
+        curve: AppMotion.entrance,
+        child: button,
+      ),
+    );
+  }
+
+  Widget _surface(
+    AppTokens tokens,
+    _Metrics metrics,
+    _Look look,
+    double height,
+  ) {
+    return Container(
+      height: widget.wrapLabel ? null : height,
+      constraints: widget.wrapLabel ? BoxConstraints(minHeight: height) : null,
+      width: widget.full ? double.infinity : null,
+      padding: EdgeInsets.symmetric(
+          horizontal: metrics.horizontalPadding,
+          vertical: widget.wrapLabel ? AppSpacing.s4 : 0),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: look.background,
+        border: Border.all(color: look.border),
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      foregroundDecoration: _focused
+          ? BoxDecoration(
+              border: Border.all(color: tokens.focusRing, width: 2),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            )
+          : null,
+      // The label and icon are purely visual: without this their own semantics
+      // merge with the explicit label below into a doubled "Save\nSave".
+      child: ExcludeSemantics(child: _content(metrics, look)),
+    );
+  }
+
+  Widget _content(_Metrics metrics, _Look look) {
+    // The label keeps its place while busy, so the button never changes width under the spinner.
+    final fade = AppMotion.reduced(context, AppMotion.fast);
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        AnimatedOpacity(
+          opacity: widget.busy ? 0 : 1,
+          duration: fade,
+          child: _labelRow(metrics, look),
+        ),
+        if (widget.busy)
+          SizedBox(
+            key: const ValueKey('busy'),
+            width: AppSizes.icon16,
+            height: AppSizes.icon16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: look.foreground,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _labelRow(_Metrics metrics, _Look look) {
+    return Row(
       key: const ValueKey('label'),
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -197,93 +304,5 @@ class _AppButtonState extends State<AppButton> {
         ),
       ],
     );
-
-    // The label keeps its place while busy, so the button never changes width under the spinner.
-    final fade = AppMotion.reduced(context, AppMotion.fast);
-    final content = Stack(
-      alignment: Alignment.center,
-      children: [
-        AnimatedOpacity(
-          opacity: widget.busy ? 0 : 1,
-          duration: fade,
-          child: labelRow,
-        ),
-        if (widget.busy)
-          SizedBox(
-            key: const ValueKey('busy'),
-            width: AppSizes.icon16,
-            height: AppSizes.icon16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: look.foreground,
-            ),
-          ),
-      ],
-    );
-
-    final button = Container(
-      height: widget.wrapLabel ? null : height,
-      constraints: widget.wrapLabel ? BoxConstraints(minHeight: height) : null,
-      width: widget.full ? double.infinity : null,
-      padding: EdgeInsets.symmetric(
-          horizontal: metrics.horizontalPadding,
-          vertical: widget.wrapLabel ? AppSpacing.s4 : 0),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: look.background,
-        border: Border.all(color: look.border),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      foregroundDecoration: _focused
-          ? BoxDecoration(
-              border: Border.all(color: tokens.focusRing, width: 2),
-              borderRadius: BorderRadius.circular(AppRadii.control),
-            )
-          : null,
-      // The label and icon are purely visual: without this their own semantics
-      // merge with the explicit label below into a doubled "Save\nSave".
-      child: ExcludeSemantics(child: content),
-    );
-
-    final control = Semantics(
-      label: widget.semanticLabel ?? widget.label,
-      button: true,
-      enabled: enabled,
-      child: Opacity(
-        opacity: enabled || widget.busy ? 1 : 0.45,
-        child: FocusableActionDetector(
-          enabled: enabled,
-          focusNode: widget.focusNode,
-          mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
-          onShowFocusHighlight: (v) => setState(() => _focused = v),
-          actions: !enabled
-              ? const <Type, Action<Intent>>{}
-              : <Type, Action<Intent>>{
-                  ActivateIntent: CallbackAction<ActivateIntent>(
-                      onInvoke: (_) => widget.onPressed!()),
-                },
-          child: GestureDetector(
-            onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-            onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-            onTapCancel:
-                enabled ? () => setState(() => _pressed = false) : null,
-            onTap: enabled
-                ? () {
-                    AppHaptics.selection();
-                    widget.onPressed!();
-                  }
-                : null,
-            child: AnimatedScale(
-              scale: _pressed ? AppMotion.pressScale : 1,
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              curve: AppMotion.entrance,
-              child: button,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    return widget.full ? control : IntrinsicWidth(child: control);
   }
 }

@@ -268,7 +268,7 @@ void main() {
   ) async {
     await _pumpReportCard(
       tester,
-      api.Report(
+      const api.Report(
         id: 'report-2',
         reporterId: null,
         subjectKind: api.ReportSubject.user,
@@ -296,7 +296,7 @@ void main() {
   ) async {
     await _pumpReportCard(
       tester,
-      api.Report(
+      const api.Report(
         id: 'report-3',
         reporterId: 'user-maya',
         subjectKind: api.ReportSubject.user,

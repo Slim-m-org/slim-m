@@ -49,9 +49,9 @@ Widget _wrap(List<api.UserProfile> members) {
     container: container,
     child: MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(
+      home: const Scaffold(
         body: RoleMembersTab(
-          role: const api.Role(
+          role: api.Role(
             id: _roleId,
             name: 'mod',
             permissions: 0,

@@ -47,42 +47,71 @@ extension SyncControllerCatchUp on SyncController {
     SlimmApi api,
     MessageStore store,
   ) async {
-    bool isCurrent() => generation == _generation;
     final cursors = await store.allCursors();
     if (cursors.isEmpty) return false;
 
     final deltas = await api.sync(cursors);
     var more = false;
     for (final delta in deltas) {
-      if (!isCurrent()) return false;
-      if (delta.reset) {
-        // Either cursor is too far behind to stream: local state is untrusted.
-        await _resetScope(generation, api, store, delta.channelId);
-        if (!isCurrent()) return false;
-        continue;
-      }
-      await store.applyMessages(delta.messages);
-
-      // After the messages: an edit cannot precede the message it names.
-      if (delta.opLatestSeq != null) {
-        final cursor = await store.opCursorFor(delta.channelId);
-        if (!isCurrent()) return false;
-        if (cursor == null) {
-          // Adopt the head; asking from zero replays every edit ever made.
-          await store.setOpCursor(delta.channelId, delta.opLatestSeq);
-        } else if (delta.ops.isNotEmpty) {
-          final outcome = await applyOps(store, delta.channelId, delta.ops);
-          if (!isCurrent()) return false;
-          if (outcome == OpsOutcome.needsReset) {
-            await _resetScope(generation, api, store, delta.channelId);
-            continue;
-          }
-        }
-      }
-
-      more = more || delta.hasMore || delta.opsHasMore;
+      if (generation != _generation) return false;
+      final deltaMore = await _applyDelta(generation, api, store, delta);
+      if (deltaMore == null) return false;
+      more = more || deltaMore;
     }
     return more;
+  }
+
+  /// Applies one scope's delta. Answers whether it has more to fetch, or null
+  /// when the generation moved on underneath it.
+  Future<bool?> _applyDelta(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    ScopeDelta delta,
+  ) async {
+    bool isCurrent() => generation == _generation;
+    if (delta.reset) {
+      // Either cursor is too far behind to stream: local state is untrusted.
+      await _resetScope(generation, api, store, delta.channelId);
+      return isCurrent() ? false : null;
+    }
+    await store.applyMessages(delta.messages);
+
+    // After the messages: an edit cannot precede the message it names.
+    if (delta.opLatestSeq != null) {
+      switch (await _applyDeltaOps(generation, api, store, delta)) {
+        case _OpsStep.stale:
+          return null;
+        case _OpsStep.reset:
+          return false;
+        case _OpsStep.proceed:
+          break;
+      }
+    }
+    return delta.hasMore || delta.opsHasMore;
+  }
+
+  /// Applies a scope's edit ops after its messages, adopting the head on a first sync.
+  Future<_OpsStep> _applyDeltaOps(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    ScopeDelta delta,
+  ) async {
+    bool isCurrent() => generation == _generation;
+    final cursor = await store.opCursorFor(delta.channelId);
+    if (!isCurrent()) return _OpsStep.stale;
+    if (cursor == null) {
+      // Adopt the head; asking from zero replays every edit ever made.
+      await store.setOpCursor(delta.channelId, delta.opLatestSeq);
+      return _OpsStep.proceed;
+    }
+    if (delta.ops.isEmpty) return _OpsStep.proceed;
+    final outcome = await applyOps(store, delta.channelId, delta.ops);
+    if (!isCurrent()) return _OpsStep.stale;
+    if (outcome != OpsOutcome.needsReset) return _OpsStep.proceed;
+    await _resetScope(generation, api, store, delta.channelId);
+    return _OpsStep.reset;
   }
 
   /// Runs a catch-up against the current generation.
@@ -120,3 +149,6 @@ extension SyncControllerCatchUp on SyncController {
     }
   }
 }
+
+/// What applying a scope's edit ops leaves the catch-up to do.
+enum _OpsStep { proceed, stale, reset }

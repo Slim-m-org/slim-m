@@ -242,7 +242,7 @@ void main() {
 
       testWidgets('the last rail ends in a rounded cap', (tester) async {
         await _pump(tester, ContinuationMarker.clean, width: width);
-        final tokens = AppTokens.dark;
+        const tokens = AppTokens.dark;
         final last = tester.renderObject(_rail('m3'));
         expect(
           last,

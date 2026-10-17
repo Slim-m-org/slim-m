@@ -33,7 +33,7 @@ Widget _app(Widget home, {bool custom = true}) => ProviderScope(
     if (custom)
       customEmojiProvider.overrideWith(
         (ref) => [
-          api.CustomEmoji(
+          const api.CustomEmoji(
             id: 'e-tada',
             name: 'tada',
             uploaderId: 'u1',
@@ -64,7 +64,7 @@ void main() {
   testWidgets('a custom shortcode in the question and an option is an image', (
     tester,
   ) async {
-    final poll = api.Poll(
+    const poll = api.Poll(
       question: 'ship it :tada:',
       options: [
         api.PollOption(position: 0, label: 'yes :tada:', votes: 0),
@@ -88,7 +88,7 @@ void main() {
     final poll = api.Poll(
       question: '# 1',
       options: [
-        api.PollOption(position: 0, label: '- yes', votes: 0),
+        const api.PollOption(position: 0, label: '- yes', votes: 0),
         api.PollOption(position: 1, label: 'long ' * 40, votes: 0),
       ],
       totalVotes: 0,

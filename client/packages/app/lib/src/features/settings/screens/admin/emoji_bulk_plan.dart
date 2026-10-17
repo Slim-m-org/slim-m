@@ -195,70 +195,49 @@ EmojiZipPlan planEmojiZip(
   final usedNames = {...existingNames};
 
   for (final entry in entries) {
-    if (!entry.isFile) continue;
-    if (_isMacosJunk(entry.path)) continue;
-
-    final fileName = _baseName(entry.path);
-    if (fileName.isEmpty || fileName.startsWith('.')) continue;
-
-    final ext = _extension(fileName);
-    if (!acceptedEmojiExtensions.contains(ext)) {
-      skipped.add(
-        SkippedZipEntry(
-          fileName: fileName,
-          reason: 'not a PNG, JPEG, GIF or WEBP image',
-        ),
-      );
-      continue;
-    }
-
-    if (uploads.length >= maxPlannedEmojiCount) {
-      skipped.add(
-        SkippedZipEntry(
-          fileName: fileName,
-          reason: 'more than $maxPlannedEmojiCount images at once',
-        ),
-      );
-      continue;
-    }
-    if (entry.size == 0) {
-      skipped.add(
-        SkippedZipEntry(fileName: fileName, reason: 'the file is empty'),
-      );
-      continue;
-    }
-    if (entry.size > maxPlannedEmojiBytes) {
-      skipped.add(
-        SkippedZipEntry(fileName: fileName, reason: 'larger than 1 MB'),
-      );
-      continue;
-    }
+    final fileName = _candidateFileName(entry);
+    if (fileName == null) continue;
 
     final name = normalizeEmojiName(_stem(fileName));
-    if (!isUsableEmojiName(name)) {
-      skipped.add(
-        SkippedZipEntry(
-          fileName: fileName,
-          reason: 'no usable name after sanitizing',
-        ),
-      );
+    final reason = _rejection(entry, fileName, name, uploads.length, usedNames);
+    if (reason != null) {
+      skipped.add(SkippedZipEntry(fileName: fileName, reason: reason));
       continue;
     }
-    if (!usedNames.add(name)) {
-      skipped.add(
-        SkippedZipEntry(
-          fileName: fileName,
-          reason: '${emojiShortcode(name)} is already used',
-        ),
-      );
-      continue;
-    }
-
     uploads.add(
       PlannedEmojiUpload(fileName: fileName, name: name, bytes: entry.bytes),
     );
   }
   return EmojiZipPlan(uploads: uploads, skipped: skipped);
+}
+
+/// The entry's file name, or null for directories and hidden or sidecar files that are not worth reporting.
+String? _candidateFileName(ZipEntryData entry) {
+  if (!entry.isFile || _isMacosJunk(entry.path)) return null;
+  final fileName = _baseName(entry.path);
+  if (fileName.isEmpty || fileName.startsWith('.')) return null;
+  return fileName;
+}
+
+/// Why the entry cannot become an upload, or null; claims [name] in [usedNames] when it can.
+String? _rejection(
+  ZipEntryData entry,
+  String fileName,
+  String name,
+  int plannedCount,
+  Set<String> usedNames,
+) {
+  if (!acceptedEmojiExtensions.contains(_extension(fileName))) {
+    return 'not a PNG, JPEG, GIF or WEBP image';
+  }
+  if (plannedCount >= maxPlannedEmojiCount) {
+    return 'more than $maxPlannedEmojiCount images at once';
+  }
+  if (entry.size == 0) return 'the file is empty';
+  if (entry.size > maxPlannedEmojiBytes) return 'larger than 1 MB';
+  if (!isUsableEmojiName(name)) return 'no usable name after sanitizing';
+  if (!usedNames.add(name)) return '${emojiShortcode(name)} is already used';
+  return null;
 }
 
 /// Whether [path] is macOS's own AppleDouble sidecar junk (`__MACOSX/` and

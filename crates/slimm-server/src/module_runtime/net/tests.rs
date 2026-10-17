@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use super::*;
 
 fn hosts(list: &[&str]) -> Vec<String> {
-    list.iter().map(|h| h.to_string()).collect()
+    list.iter().map(std::string::ToString::to_string).collect()
 }
 
 fn url(s: &str) -> Url {

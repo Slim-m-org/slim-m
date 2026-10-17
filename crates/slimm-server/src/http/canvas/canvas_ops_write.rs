@@ -158,108 +158,116 @@ impl From<SubmittedOp> for CanvasOpResultDto {
 /// five kinds this slice accepts.
 fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     match params.kind.as_str() {
-        "remove" => {
-            if params.before_seq.is_some() {
-                return Err(ApiError::BadRequest("before_seq is not valid for remove"));
-            }
-            let ids = params
-                .object_ids
-                .ok_or(ApiError::BadRequest("remove needs object_ids"))?;
-            if ids.is_empty() || ids.len() > MAX_REMOVE_IDS_PER_OP {
-                return Err(ApiError::BadRequest(
-                    "object_ids must hold between 1 and 64 ids",
-                ));
-            }
-            let object_ids = ids
-                .iter()
-                .map(|raw| parse_uuid(raw).map(CanvasObjectId))
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(CanvasOpRequest::Remove(object_ids))
-        }
-        "clear" => {
-            if params.object_ids.is_some() {
-                return Err(ApiError::BadRequest("object_ids is not valid for clear"));
-            }
-            let before_seq = params
-                .before_seq
-                .ok_or(ApiError::BadRequest("clear needs before_seq"))?;
-            if before_seq < 0 {
-                return Err(ApiError::BadRequest("before_seq must not be negative"));
-            }
-            Ok(CanvasOpRequest::Clear { before_seq })
-        }
-        "restore" => {
-            if params.object_ids.is_some() {
-                return Err(ApiError::BadRequest("object_ids is not valid for restore"));
-            }
-            if params.before_seq.is_some() {
-                return Err(ApiError::BadRequest("before_seq is not valid for restore"));
-            }
-            let target_op = params
-                .target_op
-                .ok_or(ApiError::BadRequest("restore needs target_op"))?;
-            let target_op = CanvasOpId(parse_uuid(&target_op)?);
-            Ok(CanvasOpRequest::Restore { target_op })
-        }
-        "move" => {
-            if params.object_ids.is_some() {
-                return Err(ApiError::BadRequest("object_ids is not valid for move"));
-            }
-            if params.before_seq.is_some() {
-                return Err(ApiError::BadRequest("before_seq is not valid for move"));
-            }
-            if params.target_op.is_some() {
-                return Err(ApiError::BadRequest("target_op is not valid for move"));
-            }
-            if params.z_index.is_some() {
-                return Err(ApiError::BadRequest("z_index is not valid for move"));
-            }
-            let object_id = params
-                .object_id
-                .ok_or(ApiError::BadRequest("move needs object_id"))?;
-            let object_id = CanvasObjectId(parse_uuid(&object_id)?);
-            let (Some(x), Some(y), Some(w), Some(h)) = (params.x, params.y, params.w, params.h)
-            else {
-                return Err(ApiError::BadRequest("move needs x, y, w and h"));
-            };
-            Ok(CanvasOpRequest::Move {
-                object_id,
-                x,
-                y,
-                w,
-                h,
-            })
-        }
-        "reorder" => {
-            if params.object_ids.is_some() {
-                return Err(ApiError::BadRequest("object_ids is not valid for reorder"));
-            }
-            if params.before_seq.is_some() {
-                return Err(ApiError::BadRequest("before_seq is not valid for reorder"));
-            }
-            if params.target_op.is_some() {
-                return Err(ApiError::BadRequest("target_op is not valid for reorder"));
-            }
-            if params.x.is_some() || params.y.is_some() || params.w.is_some() || params.h.is_some()
-            {
-                return Err(ApiError::BadRequest(
-                    "x, y, w and h are not valid for reorder",
-                ));
-            }
-            let object_id = params
-                .object_id
-                .ok_or(ApiError::BadRequest("reorder needs object_id"))?;
-            let object_id = CanvasObjectId(parse_uuid(&object_id)?);
-            let z_index = params
-                .z_index
-                .ok_or(ApiError::BadRequest("reorder needs z_index"))?;
-            if !(-Z_INDEX_LIMIT..=Z_INDEX_LIMIT).contains(&z_index) {
-                return Err(ApiError::BadRequest("z_index is out of range"));
-            }
-            Ok(CanvasOpRequest::Reorder { object_id, z_index })
-        }
+        "remove" => parse_remove(params),
+        "clear" => parse_clear(params),
+        "restore" => parse_restore(params),
+        "move" => parse_move(params),
+        "reorder" => parse_reorder(params),
         _ => Err(ApiError::BadRequest("unknown canvas op kind")),
     }
+}
+
+fn parse_remove(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.before_seq.is_some() {
+        return Err(ApiError::BadRequest("before_seq is not valid for remove"));
+    }
+    let ids = params
+        .object_ids
+        .ok_or(ApiError::BadRequest("remove needs object_ids"))?;
+    if ids.is_empty() || ids.len() > MAX_REMOVE_IDS_PER_OP {
+        return Err(ApiError::BadRequest(
+            "object_ids must hold between 1 and 64 ids",
+        ));
+    }
+    let object_ids = ids
+        .iter()
+        .map(|raw| parse_uuid(raw).map(CanvasObjectId))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(CanvasOpRequest::Remove(object_ids))
+}
+
+fn parse_clear(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.object_ids.is_some() {
+        return Err(ApiError::BadRequest("object_ids is not valid for clear"));
+    }
+    let before_seq = params
+        .before_seq
+        .ok_or(ApiError::BadRequest("clear needs before_seq"))?;
+    if before_seq < 0 {
+        return Err(ApiError::BadRequest("before_seq must not be negative"));
+    }
+    Ok(CanvasOpRequest::Clear { before_seq })
+}
+
+fn parse_restore(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.object_ids.is_some() {
+        return Err(ApiError::BadRequest("object_ids is not valid for restore"));
+    }
+    if params.before_seq.is_some() {
+        return Err(ApiError::BadRequest("before_seq is not valid for restore"));
+    }
+    let target_op = params
+        .target_op
+        .ok_or(ApiError::BadRequest("restore needs target_op"))?;
+    let target_op = CanvasOpId(parse_uuid(&target_op)?);
+    Ok(CanvasOpRequest::Restore { target_op })
+}
+
+fn parse_move(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.object_ids.is_some() {
+        return Err(ApiError::BadRequest("object_ids is not valid for move"));
+    }
+    if params.before_seq.is_some() {
+        return Err(ApiError::BadRequest("before_seq is not valid for move"));
+    }
+    if params.target_op.is_some() {
+        return Err(ApiError::BadRequest("target_op is not valid for move"));
+    }
+    if params.z_index.is_some() {
+        return Err(ApiError::BadRequest("z_index is not valid for move"));
+    }
+    let object_id = params
+        .object_id
+        .ok_or(ApiError::BadRequest("move needs object_id"))?;
+    let object_id = CanvasObjectId(parse_uuid(&object_id)?);
+    let (Some(x), Some(y), Some(w), Some(h)) = (params.x, params.y, params.w, params.h) else {
+        return Err(ApiError::BadRequest("move needs x, y, w and h"));
+    };
+    Ok(CanvasOpRequest::Move {
+        object_id,
+        x,
+        y,
+        w,
+        h,
+    })
+}
+
+fn parse_reorder(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.object_ids.is_some() {
+        return Err(ApiError::BadRequest("object_ids is not valid for reorder"));
+    }
+    if params.before_seq.is_some() {
+        return Err(ApiError::BadRequest("before_seq is not valid for reorder"));
+    }
+    if params.target_op.is_some() {
+        return Err(ApiError::BadRequest("target_op is not valid for reorder"));
+    }
+    if params.x.is_some() || params.y.is_some() || params.w.is_some() || params.h.is_some() {
+        return Err(ApiError::BadRequest(
+            "x, y, w and h are not valid for reorder",
+        ));
+    }
+    let object_id = params
+        .object_id
+        .ok_or(ApiError::BadRequest("reorder needs object_id"))?;
+    let object_id = CanvasObjectId(parse_uuid(&object_id)?);
+    let z_index = params
+        .z_index
+        .ok_or(ApiError::BadRequest("reorder needs z_index"))?;
+    if !(-Z_INDEX_LIMIT..=Z_INDEX_LIMIT).contains(&z_index) {
+        return Err(ApiError::BadRequest("z_index is out of range"));
+    }
+    Ok(CanvasOpRequest::Reorder { object_id, z_index })
 }
 
 fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: &SubmittedOp) {

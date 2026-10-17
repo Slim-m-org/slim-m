@@ -30,7 +30,7 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-final _channel = Channel(
+const _channel = Channel(
   id: 'c1',
   name: 'general',
   kind: 'text',
@@ -104,7 +104,7 @@ Widget _harness(int permissions) => UncontrolledProviderScope(
   ),
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
-    home: ChannelSettingsScreen(
+    home: const ChannelSettingsScreen(
       args: ChannelSettingsRouteArgs(channel: _channel, wasOpen: false),
     ),
   ),

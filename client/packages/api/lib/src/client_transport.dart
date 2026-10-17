@@ -39,24 +39,13 @@ extension SlimmApiTransport on SlimmApi {
     bool isRetry = false,
     void Function(int status)? onStatus,
   }) async {
-    final uri = _requestUri(path, query);
-    final request = http.Request(method, uri);
-    if (bytes != null) {
-      // An upload (an attachment or an avatar): the request body is the raw
-      // bytes, never JSON, though the response below still is.
-      request.headers['content-type'] = 'application/octet-stream';
-      request.bodyBytes = bytes;
-    } else if (body != null) {
-      request.headers['content-type'] = 'application/json';
-      request.body = jsonEncode(body);
-    }
-    if (authenticated) {
-      final token = session.tokens?.accessToken;
-      if (token == null) {
-        throw const UnauthorizedException('not signed in');
-      }
-      request.headers['authorization'] = 'Bearer $token';
-    }
+    final request = _buildRequest(
+      method,
+      _requestUri(path, query),
+      body: body,
+      bytes: bytes,
+      authenticated: authenticated,
+    );
 
     final response = await _perform(
       request,
@@ -86,21 +75,56 @@ extension SlimmApiTransport on SlimmApi {
 
     // Sign-in is the one call with two *successful* outcomes; see `SlimmApiAuth.login`.
     onStatus?.call(response.statusCode);
-    if (response.statusCode == 204 ||
-        (expectNoContent && response.statusCode < 300)) {
-      return null;
-    }
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (response.body.isEmpty) return null;
-      try {
-        return jsonDecode(response.body) as Object;
-      } catch (e) {
-        throw TransportException(
-          'could not decode the reply to $method $path: $e',
-        );
-      }
+    if (_isSuccess(response, expectNoContent)) {
+      if (response.statusCode == 204 || expectNoContent) return null;
+      return _decodeBody(response, method, path);
     }
     throw _errorFor(response);
+  }
+
+  http.Request _buildRequest(
+    String method,
+    Uri uri, {
+    Map<String, dynamic>? body,
+    List<int>? bytes,
+    required bool authenticated,
+  }) {
+    final request = http.Request(method, uri);
+    if (bytes != null) {
+      // An upload (an attachment or an avatar): the request body is the raw
+      // bytes, never JSON, though the response below still is.
+      request.headers['content-type'] = 'application/octet-stream';
+      request.bodyBytes = bytes;
+    } else if (body != null) {
+      request.headers['content-type'] = 'application/json';
+      request.body = jsonEncode(body);
+    }
+    if (authenticated) {
+      final token = session.tokens?.accessToken;
+      if (token == null) {
+        throw const UnauthorizedException('not signed in');
+      }
+      request.headers['authorization'] = 'Bearer $token';
+    }
+    return request;
+  }
+
+  bool _isSuccess(http.Response response, bool expectNoContent) {
+    final status = response.statusCode;
+    return status == 204 ||
+        (expectNoContent && status < 300) ||
+        (status >= 200 && status < 300);
+  }
+
+  Object? _decodeBody(http.Response response, String method, String path) {
+    if (response.body.isEmpty) return null;
+    try {
+      return jsonDecode(response.body) as Object;
+    } catch (e) {
+      throw TransportException(
+        'could not decode the reply to $method $path: $e',
+      );
+    }
   }
 
   /// Like [_send], for an authenticated GET whose response is raw bytes

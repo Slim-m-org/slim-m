@@ -218,7 +218,7 @@ def run(contexts, state, rng):
         _react_to(contexts, rng, stats, failures, reacted_ids, target)
         if rng.random() < SETTLE_REPLY_COVERAGE:
             ctx = _actor(contexts, rng, target["author"])
-            ok, msg = _try(failures, ctx, "settle_reply", lambda: _reply(ctx, rng, target))
+            ok, msg = _try(failures, ctx, "settle_reply", lambda ctx=ctx, target=target: _reply(ctx, rng, target))
             if ok:
                 stats["settle_reply"] += 1
                 created_replies.append(
@@ -236,7 +236,7 @@ def run(contexts, state, rng):
             ctx = _actor(contexts, rng)
             ok, _result = _try(
                 failures, ctx, "settle_reply_in_thread",
-                lambda: _reply_in_thread(ctx, rng, thread_channel_id))
+                lambda ctx=ctx, channel=thread_channel_id: _reply_in_thread(ctx, rng, channel))
             if ok:
                 stats["settle_reply_in_thread"] += 1
 

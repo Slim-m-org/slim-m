@@ -91,6 +91,28 @@ class _AppSliderState extends State<AppSlider> {
     return (fraction * (widget.ticks!.length - 1)).round();
   }
 
+  double get _opacity {
+    if (widget.muted) return 0.5;
+    return widget.onChanged == null ? 0.7 : 1;
+  }
+
+  Widget _tickLabels(AppTokens tokens) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (var i = 0; i < widget.ticks!.length; i++)
+          Text(
+            widget.ticks![i],
+            style: AppText.micro.copyWith(
+              color: i == _nearestTick ? tokens.accent : tokens.textSecondary,
+              fontFamily: AppFonts.mono,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -149,7 +171,7 @@ class _AppSliderState extends State<AppSlider> {
     // Silent on keyboard focus in the source design, same as the other form
     // controls; this package's own accessibility ring fills the gap.
     final ring = Opacity(
-      opacity: widget.muted ? 0.5 : (widget.onChanged == null ? 0.7 : 1),
+      opacity: _opacity,
       child: Container(
         padding: const EdgeInsets.all(focusRingGap),
         decoration: BoxDecoration(
@@ -175,22 +197,7 @@ class _AppSliderState extends State<AppSlider> {
           ring,
           if (widget.ticks != null) ...[
             const SizedBox(height: AppSpacing.s8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                for (var i = 0; i < widget.ticks!.length; i++)
-                  Text(
-                    widget.ticks![i],
-                    style: AppText.micro.copyWith(
-                      color: i == _nearestTick
-                          ? tokens.accent
-                          : tokens.textSecondary,
-                      fontFamily: AppFonts.mono,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-              ],
-            ),
+            _tickLabels(tokens),
           ],
         ],
       ),

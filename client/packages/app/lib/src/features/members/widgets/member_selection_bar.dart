@@ -173,15 +173,15 @@ class MemberSelectionBar extends ConsumerWidget {
     required bool canRemove,
   }) {
     if (selection.count == 0) {
-      final verb = canTimeOut && canRemove
-          ? 'time out or remove'
-          : canTimeOut
-          ? 'time out'
-          : 'remove';
-      return 'Tap members to $verb';
+      return 'Tap members to ${_verb(canTimeOut: canTimeOut, canRemove: canRemove)}';
     }
     final n = selection.count;
     final counted = n == 1 ? '1 selected' : '$n selected';
     return selection.atCap ? '$counted, the most at once' : counted;
+  }
+
+  String _verb({required bool canTimeOut, required bool canRemove}) {
+    if (canTimeOut && canRemove) return 'time out or remove';
+    return canTimeOut ? 'time out' : 'remove';
   }
 }

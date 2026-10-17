@@ -86,7 +86,7 @@ void main() {
 
   group('CameraFailure', () {
     test('toString reads as the raw cause, not the reason', () {
-      final failure = CameraFailure(
+      const failure = CameraFailure(
         'Unable to getUserMedia: NotFoundError',
         CameraFailureReason.noCameraDetected,
       );

@@ -75,9 +75,9 @@ void main() {
 
     await tester.pumpWidget(
       harness(
-        RepaintBoundary(
+        const RepaintBoundary(
           key: snapshotBoundary,
-          child: const BlockedDmNotice(userId: 'user-maya', name: 'Maya'),
+          child: BlockedDmNotice(userId: 'user-maya', name: 'Maya'),
         ),
         overrides: [
           blocksProvider.overrideWith(
@@ -101,9 +101,9 @@ void main() {
 
     await tester.pumpWidget(
       harness(
-        RepaintBoundary(
+        const RepaintBoundary(
           key: snapshotBoundary,
-          child: const BlockedDmNotice(userId: 'user-maya', name: 'Maya'),
+          child: BlockedDmNotice(userId: 'user-maya', name: 'Maya'),
         ),
         overrides: [
           sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),

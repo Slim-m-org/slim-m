@@ -204,12 +204,17 @@ String _footerText(
   required DateTime now,
 }) {
   final count = poll.totalVotes;
-  final votes = count == 0
-      ? (closed ? 'No one voted.' : 'No votes yet. Tap an option to vote.')
-      : '$count vote${count == 1 ? '' : 's'}';
+  final votes = _voteSummary(count, closed: closed);
   final closeAt = poll.closeAt;
   if (closed || closeAt == null) return votes;
   return '$votes ${count == 0 ? '' : '- '}${closesIn(closeAt, now)}'.trim();
+}
+
+String _voteSummary(int count, {required bool closed}) {
+  if (count == 0) {
+    return closed ? 'No one voted.' : 'No votes yet. Tap an option to vote.';
+  }
+  return '$count vote${count == 1 ? '' : 's'}';
 }
 
 /// Closed by the server, or past its `close_at` by this device's clock.

@@ -184,7 +184,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     final canAddOption = _options.length < _maxOptions;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,

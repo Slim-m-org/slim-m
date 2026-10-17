@@ -226,101 +226,114 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
       data: (store) => StreamBuilder<List<Channel>>(
         // Deduped to what the rail draws; see MessageStore.watchRailChannels.
         stream: store.watchRailChannels(),
-        builder: (context, channelSnapshot) {
-          return StreamBuilder<List<ChannelCategoryRow>>(
-            stream: store.watchCategories(),
-            builder: (context, categorySnapshot) {
-              final categories =
-                  categorySnapshot.data ?? const <ChannelCategoryRow>[];
-              final channels = _withPendingOrder(
-                channelSnapshot.data ?? const <Channel>[],
-                orderState.pendingOrder,
-              );
-              final nonDm = channels
-                  .where((c) => c.kind != dmChannelKind)
-                  .toList(growable: false);
-              // Only once the store has actually answered with nothing; a stream that has not delivered yet is still loading.
-              if (channelSnapshot.hasData && channels.isEmpty) {
-                final failure = emptyRailFailure(
-                  ref.watch(syncFailureProvider),
+        builder: (context, channelSnapshot) =>
+            StreamBuilder<List<ChannelCategoryRow>>(
+              stream: store.watchCategories(),
+              builder: (context, categorySnapshot) {
+                final channels = _withPendingOrder(
+                  channelSnapshot.data ?? const <Channel>[],
+                  orderState.pendingOrder,
                 );
-                // The stale failure under a live Retry reads as the tap doing nothing.
-                final retrying =
-                    ref.watch(syncControllerProvider) == SyncStatus.connecting;
-                if (failure != null && retrying) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (failure != null) {
-                  return RailFailureNotice(
-                    failure: failure,
-                    onRetry: () => unawaited(
-                      ref.read(syncControllerProvider.notifier).start(),
-                    ),
-                    onSignInAgain: () => unawaited(SignOutRow.signOut(ref)),
-                  );
-                }
-              }
-              // Slivers, not one column: the filler sliver gives touch a long-press target under the last row, however short the list is.
-              final list = CustomScrollView(
-                controller: widget.scrollController,
-                slivers: [
-                  SliverPadding(
-                    // The right inset is load-bearing beyond its own look: RailDragHandle's reach cap assumes a row's own edge sits exactly here.
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.s8,
-                      AppRhythm.headingBottom,
-                      AppSpacing.s8,
-                      0,
-                    ),
-                    // One box over both sections: the selection marker layer has to span them to slide between them.
-                    sliver: SliverToBoxAdapter(
-                      child: SelectionMarkerLayer(
-                        key: widget.markerLayerKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            DirectMessagesSection(
-                              channels: channels
-                                  .where((c) => c.kind == dmChannelKind)
-                                  .toList(),
-                              selectedId: selected,
-                            ),
-                            ChannelCategorySections(
-                              channels: nonDm,
-                              categories: categories,
-                              selectedId: selected,
-                              canManage: canManageChannels,
-                              onReorder: (groups) =>
-                                  unawaited(orderController.reorder(groups)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (canManageChannels)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _RailEmptySpace(),
-                    ),
-                ],
-              );
-              if (!canManageChannels) return list;
-              // Wraps the whole viewport so the space under the last row is a target too; a row's own menu sits deeper and wins the arena.
-              return ContextMenuRegion(
-                // False: child is the whole scrollable list, not one row - each row already owns a tab stop, and a second one here rang the whole rail.
-                ownsFocusNode: false,
-                // Right-click only: a held press here would race the rows; the band under the last row owns the touch long press.
-                enableLongPress: false,
-                itemsBuilder: railBackgroundMenuItems,
-                child: list,
-              );
-            },
-          );
-        },
+                // Only once the store has actually answered with nothing; a stream that has not delivered yet is still loading.
+                final empty = channelSnapshot.hasData && channels.isEmpty
+                    ? _emptyRail()
+                    : null;
+                if (empty != null) return empty;
+                final list = _railList(
+                  channels: channels,
+                  categories:
+                      categorySnapshot.data ?? const <ChannelCategoryRow>[],
+                  selected: selected,
+                  canManageChannels: canManageChannels,
+                  orderController: orderController,
+                );
+                return canManageChannels ? _backgroundMenu(list) : list;
+              },
+            ),
       ),
     );
   }
+
+  /// The failure or spinner for a rail the store answered empty, else null.
+  Widget? _emptyRail() {
+    final failure = emptyRailFailure(ref.watch(syncFailureProvider));
+    // The stale failure under a live Retry reads as the tap doing nothing.
+    final retrying = ref.watch(syncControllerProvider) == SyncStatus.connecting;
+    if (failure == null) return null;
+    if (retrying) return const Center(child: CircularProgressIndicator());
+    return RailFailureNotice(
+      failure: failure,
+      onRetry: () =>
+          unawaited(ref.read(syncControllerProvider.notifier).start()),
+      onSignInAgain: () => unawaited(SignOutRow.signOut(ref)),
+    );
+  }
+
+  // Slivers, not one column: the filler sliver gives touch a long-press target under the last row, however short the list is.
+  Widget _railList({
+    required List<Channel> channels,
+    required List<ChannelCategoryRow> categories,
+    required String? selected,
+    required bool canManageChannels,
+    required ChannelOrderController orderController,
+  }) {
+    return CustomScrollView(
+      controller: widget.scrollController,
+      slivers: [
+        SliverPadding(
+          // The right inset is load-bearing beyond its own look: RailDragHandle's reach cap assumes a row's own edge sits exactly here.
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s8,
+            AppRhythm.headingBottom,
+            AppSpacing.s8,
+            0,
+          ),
+          // One box over both sections: the selection marker layer has to span them to slide between them.
+          sliver: SliverToBoxAdapter(
+            child: SelectionMarkerLayer(
+              key: widget.markerLayerKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DirectMessagesSection(
+                    channels: channels
+                        .where((c) => c.kind == dmChannelKind)
+                        .toList(),
+                    selectedId: selected,
+                  ),
+                  ChannelCategorySections(
+                    channels: channels
+                        .where((c) => c.kind != dmChannelKind)
+                        .toList(growable: false),
+                    categories: categories,
+                    selectedId: selected,
+                    canManage: canManageChannels,
+                    onReorder: (groups) =>
+                        unawaited(orderController.reorder(groups)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (canManageChannels)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: _RailEmptySpace(),
+          ),
+      ],
+    );
+  }
+
+  // Wraps the whole viewport so the space under the last row is a target too; a row's own menu sits deeper and wins the arena.
+  Widget _backgroundMenu(Widget list) => ContextMenuRegion(
+    // False: child is the whole scrollable list, not one row - each row already owns a tab stop, and a second one here rang the whole rail.
+    ownsFocusNode: false,
+    // Right-click only: a held press here would race the rows; the band under the last row owns the touch long press.
+    enableLongPress: false,
+    itemsBuilder: railBackgroundMenuItems,
+    child: list,
+  );
 }
 
 /// Renders [pending] (a reorder this client is waiting on, or has just had

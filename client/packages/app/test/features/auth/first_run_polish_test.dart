@@ -94,12 +94,12 @@ void main() {
       _frame(
         MemberNotifyOffHoursItem(
           host: tester.binding.rootElement!,
-          profile: api.UserProfile(
+          profile: const api.UserProfile(
             id: 'u',
             username: 'u',
             displayName: 'u',
             createdAt: 0,
-            roles: const [],
+            roles: [],
             isBot: false,
           ),
           run: (_) {},

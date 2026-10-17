@@ -243,27 +243,37 @@ class UniformGrid {
       for (var cx = cx0; cx <= cx1; cx++) {
         out.cellsVisited++;
         final bucket = _cells[_key(cx, cy)];
-        if (bucket == null) {
-          continue;
-        }
-        for (var i = 0; i < bucket.length; i++) {
-          final slot = bucket[i];
-          if (_stamp[slot] == stamp) {
-            continue;
-          }
-          _stamp[slot] = stamp;
-          out.candidates++;
-          final base = slot << 2;
-          if (_bounds[base] > right ||
-              _bounds[base + 2] < left ||
-              _bounds[base + 1] > bottom ||
-              _bounds[base + 3] < top) {
-            continue;
-          }
-          out.slots.add(slot);
+        if (bucket != null) {
+          _scanBucket(bucket, stamp, left, top, right, bottom, out);
         }
       }
     }
+  }
+
+  void _scanBucket(
+    List<int> bucket,
+    int stamp,
+    double left,
+    double top,
+    double right,
+    double bottom,
+    CullResult out,
+  ) {
+    for (var i = 0; i < bucket.length; i++) {
+      final slot = bucket[i];
+      if (_stamp[slot] == stamp) continue;
+      _stamp[slot] = stamp;
+      out.candidates++;
+      if (_overlaps(slot << 2, left, top, right, bottom)) out.slots.add(slot);
+    }
+  }
+
+  bool _overlaps(
+      int base, double left, double top, double right, double bottom) {
+    return _bounds[base] <= right &&
+        _bounds[base + 2] >= left &&
+        _bounds[base + 1] <= bottom &&
+        _bounds[base + 3] >= top;
   }
 
   /// The control: every object tested once, straight down two typed arrays.
@@ -277,14 +287,7 @@ class UniformGrid {
     out.clear();
     out.candidates = _count;
     for (var slot = 0; slot < _count; slot++) {
-      final base = slot << 2;
-      if (_bounds[base] > right ||
-          _bounds[base + 2] < left ||
-          _bounds[base + 1] > bottom ||
-          _bounds[base + 3] < top) {
-        continue;
-      }
-      out.slots.add(slot);
+      if (_overlaps(slot << 2, left, top, right, bottom)) out.slots.add(slot);
     }
   }
 

@@ -56,9 +56,6 @@ class CategoryHeaderMenu extends ConsumerWidget {
       (c) => channelShowsUnread(c, overrides.overrideFor(c.id), isDm: false),
     );
     if (!canManage && !hasUnread) return label;
-    final categoryIndex = categories.indexWhere((c) => c.id == category.id);
-    final isCollapsed = collapsed.contains(category.id);
-    // Both verbs directly: deleting used to be a menu, a sheet, a danger zone and a confirmation.
     final menu = ContextMenuRegion(
       // A held press lifts the header on a pointer; touch opens this menu from it instead.
       enableLongPress: AppTouchTargets.of(context),
@@ -70,77 +67,83 @@ class CategoryHeaderMenu extends ConsumerWidget {
           close,
         ),
         if (canManage && hasUnread) const AppMenuDivider(),
-        if (canManage) ...[
-          AppMenuItem(
-            label: 'Rename category...',
-            leading: AppIcons.edit,
-            onTap: () {
-              close();
-              showManageCategorySheet(context, category);
-            },
-          ),
-          if (categoryIndex > 0)
-            AppMenuItem(
-              label: 'Move category up',
-              leading: AppIcons.moveUp,
-              onTap: () {
-                close();
-                unawaited(
-                  moveCategoryAndReport(context, ref, categories, category, -1),
-                );
-              },
-            ),
-          if (categoryIndex >= 0 && categoryIndex < categories.length - 1)
-            AppMenuItem(
-              label: 'Move category down',
-              leading: AppIcons.moveDown,
-              onTap: () {
-                close();
-                unawaited(
-                  moveCategoryAndReport(context, ref, categories, category, 1),
-                );
-              },
-            ),
-          AppMenuItem(
-            label: isCollapsed ? 'Expand category' : 'Collapse category',
-            leading: isCollapsed ? AppIcons.unfold : AppIcons.fold,
-            onTap: () {
-              close();
-              unawaited(
-                ref
-                    .read(collapsedCategoriesProvider.notifier)
-                    .toggle(category.id),
-              );
-            },
-          ),
-          if (ref.watch(myPermissionsProvider).hasPermission(Perm.manageRoles))
-            AppMenuItem(
-              label: 'Category permissions...',
-              leading: AppIcons.permissions,
-              onTap: () {
-                close();
-                unawaited(
-                  showCategoryPermissionsSheet(
-                    context,
-                    categoryId: category.id,
-                    categoryName: category.name,
-                  ),
-                );
-              },
-            ),
-          AppMenuItem(
-            label: 'Delete category...',
-            leading: AppIcons.delete,
-            tone: AppMenuItemTone.danger,
-            onTap: () {
-              close();
-              unawaited(confirmAndDeleteCategory(context, ref, category));
-            },
-          ),
-        ],
+        if (canManage) ..._manageItems(context, ref, close),
       ],
       child: label,
     );
     return menu;
   }
+
+  // Both verbs directly: deleting used to be a menu, a sheet, a danger zone and a confirmation.
+  List<Widget> _manageItems(
+    BuildContext context,
+    WidgetRef ref,
+    VoidCallback close,
+  ) {
+    final categoryIndex = categories.indexWhere((c) => c.id == category.id);
+    final isCollapsed = collapsed.contains(category.id);
+    return [
+      AppMenuItem(
+        label: 'Rename category...',
+        leading: AppIcons.edit,
+        onTap: () {
+          close();
+          showManageCategorySheet(context, category);
+        },
+      ),
+      if (categoryIndex > 0) _moveItem(context, ref, close, up: true),
+      if (categoryIndex >= 0 && categoryIndex < categories.length - 1)
+        _moveItem(context, ref, close, up: false),
+      AppMenuItem(
+        label: isCollapsed ? 'Expand category' : 'Collapse category',
+        leading: isCollapsed ? AppIcons.unfold : AppIcons.fold,
+        onTap: () {
+          close();
+          unawaited(
+            ref.read(collapsedCategoriesProvider.notifier).toggle(category.id),
+          );
+        },
+      ),
+      if (ref.watch(myPermissionsProvider).hasPermission(Perm.manageRoles))
+        AppMenuItem(
+          label: 'Category permissions...',
+          leading: AppIcons.permissions,
+          onTap: () {
+            close();
+            unawaited(
+              showCategoryPermissionsSheet(
+                context,
+                categoryId: category.id,
+                categoryName: category.name,
+              ),
+            );
+          },
+        ),
+      AppMenuItem(
+        label: 'Delete category...',
+        leading: AppIcons.delete,
+        tone: AppMenuItemTone.danger,
+        onTap: () {
+          close();
+          unawaited(confirmAndDeleteCategory(context, ref, category));
+        },
+      ),
+    ];
+  }
+
+  Widget _moveItem(
+    BuildContext context,
+    WidgetRef ref,
+    VoidCallback close, {
+    required bool up,
+  }) => AppMenuItem(
+    label: up ? 'Move category up' : 'Move category down',
+    leading: up ? AppIcons.moveUp : AppIcons.moveDown,
+    onTap: () {
+      close();
+      unawaited(
+        moveCategoryAndReport(context, ref, categories, category, up ? -1 : 1),
+      );
+    },
+  );
 }

@@ -148,49 +148,55 @@ class VideoStallWatchdog {
     for (final reading in readings) {
       seen.add(reading.key);
       final track = _tracks.putIfAbsent(reading.key, () => _Track(now));
-      if (reading.paused) {
-        track.progressed(now, reading.framesDecoded);
-        next[reading.key] = VideoTileHealth.paused;
-        continue;
-      }
-      final frames = reading.framesDecoded;
-      final last = track.frames;
-      final lastBytes = track.bytes;
-      track.bytes = reading.bytesReceived;
-      final idle = reading.needsTraffic &&
-          (reading.bytesReceived == null ||
-              lastBytes == null ||
-              reading.bytesReceived! <= lastBytes);
-      // One frame is what a recovery step's keyframe gives even a frozen source; flowing video gives dozens.
-      if (frames != null &&
-          last != null &&
-          frames - last >= minProgressFrames) {
-        track.progressed(now, frames);
-        continue;
-      }
-      // Stats missing twice running count as standing still; the grace period covers a fresh track.
-      if (!reading.expectPlaying || frames != last || idle) {
-        track.rebaseline(now, frames);
-        if (track.nextStep > 0 && reading.expectPlaying) {
-          next[reading.key] = VideoTileHealth.stalled;
-        }
-        continue;
-      }
-      next[reading.key] = _advance(reading.key, track, now);
+      final health = _classify(reading, track, now);
+      if (health != null) next[reading.key] = health;
     }
     _tracks.removeWhere((key, _) => !seen.contains(key));
     next.removeWhere((_, value) => value == VideoTileHealth.playing);
     if (!mapEquals(next, health.value)) health.value = Map.unmodifiable(next);
   }
 
+  /// The tile's health after [reading], or null when it needs no entry.
+  VideoTileHealth? _classify(
+    VideoStallReading reading,
+    _Track track,
+    DateTime now,
+  ) {
+    if (reading.paused) {
+      track.progressed(now, reading.framesDecoded);
+      return VideoTileHealth.paused;
+    }
+    final frames = reading.framesDecoded;
+    final last = track.frames;
+    final lastBytes = track.bytes;
+    track.bytes = reading.bytesReceived;
+    final idle =
+        reading.needsTraffic && _noNewBytes(reading.bytesReceived, lastBytes);
+    // One frame is what a recovery step's keyframe gives even a frozen source; flowing video gives dozens.
+    if (frames != null && last != null && frames - last >= minProgressFrames) {
+      track.progressed(now, frames);
+      return null;
+    }
+    // Stats missing twice running count as standing still; the grace period covers a fresh track.
+    if (!reading.expectPlaying || frames != last || idle) {
+      track.rebaseline(now, frames);
+      final stalled = track.nextStep > 0 && reading.expectPlaying;
+      return stalled ? VideoTileHealth.stalled : null;
+    }
+    return _advance(reading.key, track, now);
+  }
+
+  static bool _noNewBytes(num? bytes, num? lastBytes) =>
+      bytes == null || lastBytes == null || bytes <= lastBytes;
+
   VideoTileHealth _advance(String key, _Track track, DateTime now) {
-    final due = track.lastStepAt == null
+    final lastStepAt = track.lastStepAt;
+    final due = lastStepAt == null
         ? now.difference(track.since) >= stallAfter
-        : now.difference(track.lastStepAt!) >= stepGap;
+        : now.difference(lastStepAt) >= stepGap;
     if (!due) {
-      return track.nextStep == 0
-          ? VideoTileHealth.playing
-          : VideoTileHealth.stalled;
+      if (track.nextStep == 0) return VideoTileHealth.playing;
+      return VideoTileHealth.stalled;
     }
     if (track.nextStep >= VideoStallStep.values.length) {
       return VideoTileHealth.stopped;

@@ -93,7 +93,7 @@ String retentionCutoff(int days) =>
 /// The confirmation's body: how many messages go, and when. The sweep runs
 /// every few hours, so nothing is deleted the instant this is saved.
 String retentionConfirmMessage(int days, int? count) {
-  final when =
+  const when =
       'within the next few hours, for everyone. This cannot be undone.';
   if (count == null) {
     return 'Messages and attachments from before ${retentionCutoff(days)} '

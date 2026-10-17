@@ -36,7 +36,7 @@ from dart_source import strip_block_comments  # noqa: E402
 
 DATA_DART_REL = "client/packages/data/lib/data.dart"
 
-EXPORT_RE = re.compile(r"export\s+'([^']+)'\s+show\s+([^;]+);", re.DOTALL)
+EXPORT_RE = re.compile(r"export\s+'([^']+)'\s+show\s+([^;\s][^;]*);", re.DOTALL)
 
 # Any one match means the exported `Message` is drift-coupled, not a plain DTO.
 DRIFT_PATTERNS = (

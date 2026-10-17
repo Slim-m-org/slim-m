@@ -39,7 +39,7 @@ void main() {
 
     test('the encoder reads the encoding, not the capture params', () {
       // computeVideoEncodings only consults publish options, so these must agree.
-      final q = ScreenShareQuality.standard;
+      const q = ScreenShareQuality.standard;
       final capture =
           ScreenShareControl.captureOptionsFor(q, null, isIOS: false);
       final publish = screenSharePublishOptionsFor(q);

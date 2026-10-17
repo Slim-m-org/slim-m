@@ -76,7 +76,7 @@ void main() {
         children: [SettingsInfoLine('Heads up.', warn: true)],
       ),
     );
-    final tokens = AppTokens.dark;
+    const tokens = AppTokens.dark;
     final text = tester.widget<Text>(find.text('Heads up.'));
     expect(text.style?.color, tokens.warnText);
     final icon = find.byIcon(AppIcons.warning);

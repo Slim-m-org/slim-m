@@ -62,7 +62,7 @@ void main() {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('whatcha think A or B', style: AppText.body),
+                        const Text('whatcha think A or B', style: AppText.body),
                         const SizedBox(height: AppSpacing.s8),
                         loading(null),
                         const SizedBox(height: AppSpacing.s8),

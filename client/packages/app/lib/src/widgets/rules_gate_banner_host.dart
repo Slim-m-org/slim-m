@@ -115,7 +115,7 @@ class _RulesSheetState extends ConsumerState<RulesSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Rules', style: AppText.title),
+          const Text('Rules', style: AppText.title),
           const SizedBox(height: AppSpacing.s12),
           Flexible(
             child: SingleChildScrollView(

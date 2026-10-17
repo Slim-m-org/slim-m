@@ -40,7 +40,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = Channel(
+const _channel = Channel(
   id: 'c-secret',
   name: 'secret',
   kind: 'text',
@@ -146,7 +146,7 @@ Widget _pane(ProviderContainer container) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
-    home: Scaffold(
+    home: const Scaffold(
       body: SingleChildScrollView(
         child: ChannelPermissionsGrid(channel: _channel),
       ),
@@ -173,7 +173,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final cell = find.byKey(
-        ValueKey('cell:role:role-everyone:${Perm.viewChannel}'),
+        const ValueKey('cell:role:role-everyone:${Perm.viewChannel}'),
       );
       expect(tester.getTopLeft(cell).dx, labelWidth);
       expect(
@@ -227,7 +227,7 @@ void main() {
     await tester.tap(find.text('m-nadia'));
     await tester.pumpAndSettle();
     final cell = find.byKey(
-      ValueKey('cell:member:m-nadia:${Perm.viewChannel}'),
+      const ValueKey('cell:member:m-nadia:${Perm.viewChannel}'),
     );
     await tester.ensureVisible(cell);
     await tester.tap(cell);

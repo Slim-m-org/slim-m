@@ -59,26 +59,7 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
               : '${entries.length} caught, newest first.',
           trailing: entries.isEmpty
               ? null
-              : AppSegmentedControl.inline(
-                  semanticLabel: 'Show',
-                  options: [
-                    AppSegmentedOption(label: 'All ${entries.length}'),
-                    AppSegmentedOption(label: 'Errors $errors'),
-                    AppSegmentedOption(label: 'Warnings $warnings'),
-                  ],
-                  selectedIndex: switch (_filter) {
-                    null => 0,
-                    DiagnosticSeverity.error => 1,
-                    _ => 2,
-                  },
-                  onSegmentSelected: (i) => setState(
-                    () => _filter = switch (i) {
-                      1 => DiagnosticSeverity.error,
-                      2 => DiagnosticSeverity.warning,
-                      _ => null,
-                    },
-                  ),
-                ),
+              : _filterControl(entries.length, errors, warnings),
           children: [
             if (entries.isEmpty)
               const _AllClear()
@@ -91,6 +72,29 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
         ),
         const MemoryDiagnostics(),
       ],
+    );
+  }
+
+  Widget _filterControl(int total, int errors, int warnings) {
+    return AppSegmentedControl.inline(
+      semanticLabel: 'Show',
+      options: [
+        AppSegmentedOption(label: 'All $total'),
+        AppSegmentedOption(label: 'Errors $errors'),
+        AppSegmentedOption(label: 'Warnings $warnings'),
+      ],
+      selectedIndex: switch (_filter) {
+        null => 0,
+        DiagnosticSeverity.error => 1,
+        _ => 2,
+      },
+      onSegmentSelected: (i) => setState(
+        () => _filter = switch (i) {
+          1 => DiagnosticSeverity.error,
+          2 => DiagnosticSeverity.warning,
+          _ => null,
+        },
+      ),
     );
   }
 

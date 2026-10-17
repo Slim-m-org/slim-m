@@ -93,30 +93,19 @@ class _PollOptionRowState extends State<PollOptionRow> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final totalVotes = widget.totalVotes;
-    final option = widget.option;
     final selected = widget.selected;
     final leading = widget.leading;
-    final hasVotes = totalVotes > 0;
-    final votes = widget.votes;
     final rank = widget.rank;
-    final fraction = hasVotes ? votes / totalVotes : 0.0;
+    final fraction = totalVotes > 0 ? widget.votes / totalVotes : 0.0;
     final percent = (fraction * 100).round();
-    final emphasised = selected || leading;
     // controlMd (34px) clears the pointer floor, not the touch one.
     final touch = AppTouchTargets.of(context);
-
-    final note = widget.note;
-    final tally = note != null
-        ? note.toLowerCase()
-        : hasVotes
-        ? '$percent percent, $votes vote${votes == 1 ? '' : 's'}'
-        : 'no votes yet';
 
     return Semantics(
       button: widget.onTap != null,
       selected: selected,
       label:
-          '${option.label}, $tally'
+          '${widget.option.label}, ${_tally(percent)}'
           '${rank != null ? ', your choice $rank' : ''}'
           '${selected && rank == null ? ', your vote' : ''}'
           '${leading ? ', leading' : ''}',
@@ -167,67 +156,77 @@ class _PollOptionRowState extends State<PollOptionRow> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.s8,
                     ),
-                    child: Row(
-                      children: [
-                        // The vote is never colour alone: a check beside the label carries it too, like presence elsewhere.
-                        if (rank != null) ...[
-                          _RankMark(rank: rank, tokens: tokens),
-                          const SizedBox(width: AppSpacing.s4),
-                        ] else if (selected) ...[
-                          Icon(
-                            AppIcons.check,
-                            size: AppSizes.icon16,
-                            color: tokens.accentFill,
-                          ),
-                          const SizedBox(width: AppSpacing.s4),
-                        ],
-                        Expanded(
-                          child: PollText(
-                            option.label,
-                            maxLines: 1,
-                            style: AppText.ui.copyWith(
-                              fontWeight: emphasised
-                                  ? AppWeights.semi
-                                  : AppWeights.regular,
-                            ),
-                          ),
-                        ),
-                        // Hidden entirely rather than a silent "0%": every row shares one poll-level totalVotes, so this is all-or-nothing across the whole card.
-                        if (hasVotes || note != null)
-                          SizedBox(
-                            width: _percentColumnWidth,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                // Never colour alone: the icon and the label's own semibold weight both carry "leading", not just this row reading lighter than its neighbour.
-                                if (leading) ...[
-                                  Icon(
-                                    AppIcons.pollLeading,
-                                    size: AppSizes.icon16,
-                                    color: tokens.textSecondary,
-                                  ),
-                                  const SizedBox(width: AppSpacing.s4),
-                                ],
-                                Text(
-                                  note ?? '$percent%',
-                                  style: AppText.caption.copyWith(
-                                    color: tokens.textSecondary,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
+                    child: _content(tokens, percent),
                   ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  String _tally(int percent) {
+    final note = widget.note;
+    if (note != null) return note.toLowerCase();
+    if (widget.totalVotes <= 0) return 'no votes yet';
+    final votes = widget.votes;
+    return '$percent percent, $votes vote${votes == 1 ? '' : 's'}';
+  }
+
+  Widget _content(AppTokens tokens, int percent) {
+    final rank = widget.rank;
+    final emphasised = widget.selected || widget.leading;
+    return Row(
+      children: [
+        // The vote is never colour alone: a check beside the label carries it too, like presence elsewhere.
+        if (rank != null) ...[
+          _RankMark(rank: rank, tokens: tokens),
+          const SizedBox(width: AppSpacing.s4),
+        ] else if (widget.selected) ...[
+          Icon(AppIcons.check, size: AppSizes.icon16, color: tokens.accentFill),
+          const SizedBox(width: AppSpacing.s4),
+        ],
+        Expanded(
+          child: PollText(
+            widget.option.label,
+            maxLines: 1,
+            style: AppText.ui.copyWith(
+              fontWeight: emphasised ? AppWeights.semi : AppWeights.regular,
+            ),
+          ),
+        ),
+        // Hidden entirely rather than a silent "0%": every row shares one poll-level totalVotes, so this is all-or-nothing across the whole card.
+        if (widget.totalVotes > 0 || widget.note != null)
+          _percentColumn(tokens, percent),
+      ],
+    );
+  }
+
+  Widget _percentColumn(AppTokens tokens, int percent) {
+    return SizedBox(
+      width: _percentColumnWidth,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Never colour alone: the icon and the label's own semibold weight both carry "leading", not just this row reading lighter than its neighbour.
+          if (widget.leading) ...[
+            Icon(
+              AppIcons.pollLeading,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
+            ),
+            const SizedBox(width: AppSpacing.s4),
+          ],
+          Text(
+            widget.note ?? '$percent%',
+            style: AppText.caption.copyWith(
+              color: tokens.textSecondary,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }

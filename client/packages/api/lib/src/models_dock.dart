@@ -252,26 +252,29 @@ List<DockChangelogEntry> _newestFirst(List<DockChangelogEntry> entries) {
 /// Dot-separated integer parts compared left to right (missing parts are 0);
 /// null when either side is not purely numeric.
 int? compareDockVersions(String a, String b) {
-  List<int>? parts(String v) {
-    final out = <int>[];
-    for (final p in v.split('.')) {
-      final n = int.tryParse(p);
-      if (n == null) return null;
-      out.add(n);
-    }
-    return out;
-  }
-
-  final pa = parts(a);
-  final pb = parts(b);
+  final pa = _versionParts(a);
+  final pb = _versionParts(b);
   if (pa == null || pb == null) return null;
-  for (var i = 0; i < pa.length || i < pb.length; i++) {
-    final x = i < pa.length ? pa[i] : 0;
-    final y = i < pb.length ? pb[i] : 0;
+  final length = pa.length > pb.length ? pa.length : pb.length;
+  for (var i = 0; i < length; i++) {
+    final x = _partAt(pa, i);
+    final y = _partAt(pb, i);
     if (x != y) return x < y ? -1 : 1;
   }
   return 0;
 }
+
+List<int>? _versionParts(String v) {
+  final out = <int>[];
+  for (final p in v.split('.')) {
+    final n = int.tryParse(p);
+    if (n == null) return null;
+    out.add(n);
+  }
+  return out;
+}
+
+int _partAt(List<int> parts, int i) => i < parts.length ? parts[i] : 0;
 
 /// A module's full manifest, as `GET /space/dock/modules/{id}` returns it: the
 /// permissions it will add and the capabilities it asks for, shown before an

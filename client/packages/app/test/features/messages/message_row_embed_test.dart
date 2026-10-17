@@ -97,7 +97,7 @@ void main() {
     expect(stripeBox.width, greaterThan(0));
 
     final titleText = tester.widget<Text>(find.text('Build failed'));
-    final tokens = AppTokens.light;
+    const tokens = AppTokens.light;
     expect(
       titleText.style!.color,
       isNot(AppEmbedAccents.red),

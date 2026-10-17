@@ -310,84 +310,90 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
           const Center(child: Text('Could not open the local store.')),
       data: (store) => StreamBuilder<Channel?>(
         stream: _streams.channelRow(store, widget.channelId),
-        builder: (context, channelSnapshot) {
-          final channel = channelSnapshot.data;
-          final channelName = channel?.name ?? '';
-          final lastReadSeq = channel?.lastReadSeq ?? 0;
-          final manuallyUnread = channel?.manuallyUnread ?? false;
-          final dmPartnerId = channel?.dmParticipantId;
-          final blockedDm =
-              dmPartnerId != null && blocked.contains(dmPartnerId);
-          // Ored with the store's own answer; see isThread's doc comment.
-          final isThread = widget.isThread || channel?.parentMessageId != null;
-          // Only a real named channel gets "#name"; shared so the transcript and composer cannot drift.
-          final hashChannelName = channel?.kind == 'text' ? channelName : null;
-          final isVoice = channel?.kind == 'voice';
-          final isDm = channel?.kind == 'dm';
-          final isPersonalSpace = channel?.isPersonalSpace ?? false;
+        builder: (context, channelSnapshot) => _body(
+          store: store,
+          channel: channelSnapshot.data,
+          layout: layout,
+          search: search,
+          blocked: blocked,
+        ),
+      ),
+    );
+  }
 
-          // Local fn, not an inline wrapper, so the transcript keeps its indentation.
-          Widget content() => Column(
-            children: [
-              // A thread supplies its own bar at every width; see thread_screen.dart.
-              if (layout.showsBothPanes && !isThread && widget.showHeader)
-                ChannelHeader(
-                  channelId: widget.channelId,
-                  name: channelName,
-                  topic: channel?.topic,
-                  isVoice: isVoice,
-                  isDm: isDm,
-                  dmParticipantId: dmPartnerId,
-                  isPersonalSpace: isPersonalSpace,
-                  restricted: channel?.restricted ?? false,
-                  searchOpen: search.open,
-                  onToggleSearch: _toggleSearch,
-                ),
-              AppRevealBand(
-                child: search.open
-                    ? ChannelSearchBar(
-                        controller: _searchController,
-                        onChanged: _search,
-                      )
-                    : null,
-              ),
-              ChannelTranscriptPane(
-                channelId: widget.channelId,
-                store: store,
-                streams: _streams,
-                scrollTracker: _scrollTracker,
-                composer: _composer,
-                hashChannelName: isVoice ? channelName : hashChannelName,
-                isVoice: isVoice,
-                channelTopic: channel?.topic,
-                isThread: isThread,
-                lastReadSeq: lastReadSeq,
-                syncedSeq: channel?.cursor ?? 0,
-                manuallyUnread: manuallyUnread,
-                onMarkRead: _markReadUpToLatest,
-                onReply: _startReply,
-              ),
-              if (blockedDm)
-                BlockedDmNotice(userId: dmPartnerId, name: channelName)
-              else
-                ChannelComposerArea(
-                  channelId: widget.channelId,
-                  controller: _composer,
-                  channelName: hashChannelName ?? '',
-                  onSend: _send,
-                  replyingTo: _replyingTo,
-                  onCancelReply: _cancelReply,
-                  autofocus: widget.autofocusComposer,
-                  focusRequests: _composerFocusRequests,
-                ),
-            ],
-          );
-          return ChannelAttachmentDropZone(
+  Widget _body({
+    required MessageStore store,
+    required Channel? channel,
+    required LayoutClass layout,
+    required ChannelSearchState search,
+    required Set<String> blocked,
+  }) {
+    final channelName = channel?.name ?? '';
+    final dmPartnerId = channel?.dmParticipantId;
+    final blockedDm = dmPartnerId != null && blocked.contains(dmPartnerId);
+    // Ored with the store's own answer; see isThread's doc comment.
+    final isThread = widget.isThread || channel?.parentMessageId != null;
+    // Only a real named channel gets "#name"; shared so the transcript and composer cannot drift.
+    final hashChannelName = channel?.kind == 'text' ? channelName : null;
+    final isVoice = channel?.kind == 'voice';
+
+    return ChannelAttachmentDropZone(
+      channelId: widget.channelId,
+      blockedDm: blockedDm,
+      child: Column(
+        children: [
+          // A thread supplies its own bar at every width; see thread_screen.dart.
+          if (layout.showsBothPanes && !isThread && widget.showHeader)
+            ChannelHeader(
+              channelId: widget.channelId,
+              name: channelName,
+              topic: channel?.topic,
+              isVoice: isVoice,
+              isDm: channel?.kind == 'dm',
+              dmParticipantId: dmPartnerId,
+              isPersonalSpace: channel?.isPersonalSpace ?? false,
+              restricted: channel?.restricted ?? false,
+              searchOpen: search.open,
+              onToggleSearch: _toggleSearch,
+            ),
+          AppRevealBand(
+            child: search.open
+                ? ChannelSearchBar(
+                    controller: _searchController,
+                    onChanged: _search,
+                  )
+                : null,
+          ),
+          ChannelTranscriptPane(
             channelId: widget.channelId,
-            blockedDm: blockedDm,
-            child: content(),
-          );
-        },
+            store: store,
+            streams: _streams,
+            scrollTracker: _scrollTracker,
+            composer: _composer,
+            hashChannelName: isVoice ? channelName : hashChannelName,
+            isVoice: isVoice,
+            channelTopic: channel?.topic,
+            isThread: isThread,
+            lastReadSeq: channel?.lastReadSeq ?? 0,
+            syncedSeq: channel?.cursor ?? 0,
+            manuallyUnread: channel?.manuallyUnread ?? false,
+            onMarkRead: _markReadUpToLatest,
+            onReply: _startReply,
+          ),
+          if (blockedDm)
+            BlockedDmNotice(userId: dmPartnerId, name: channelName)
+          else
+            ChannelComposerArea(
+              channelId: widget.channelId,
+              controller: _composer,
+              channelName: hashChannelName ?? '',
+              onSend: _send,
+              replyingTo: _replyingTo,
+              onCancelReply: _cancelReply,
+              autofocus: widget.autofocusComposer,
+              focusRequests: _composerFocusRequests,
+            ),
+        ],
       ),
     );
   }

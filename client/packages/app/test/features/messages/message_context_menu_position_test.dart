@@ -23,8 +23,10 @@ import 'message_row_harness.dart';
 /// Tall and empty, so a click deep inside it cannot land on a nested
 /// recognizer (text, a button) that would swallow the gesture before this
 /// region's own long-press/secondary-tap ever sees it.
-Widget _tallRegion() =>
-    ColoredBox(color: Colors.black12, child: SizedBox(width: 400, height: 700));
+Widget _tallRegion() => const ColoredBox(
+  color: Colors.black12,
+  child: SizedBox(width: 400, height: 700),
+);
 
 Future<Rect> _pumpAndOpen(
   WidgetTester tester, {

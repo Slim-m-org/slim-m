@@ -148,163 +148,210 @@ class MessageRow extends ConsumerWidget {
     final inlineTime =
         marked && !_unsent && !editing && message.content.isNotEmpty;
     return HoverReveal(
-      builder: (context, hovered, menuOpen, focusWithin) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (context, hovered, menuOpen, focusWithin) {
+        final view = _RowView(
+          tokens: tokens,
+          density: density,
+          groupSpacing: groupSpacing,
+          compact: compact,
+          gutter: gutter,
+          marker: marker,
+          inlineTime: inlineTime,
+          hovered: hovered,
+          menuOpen: menuOpen,
+          focusWithin: focusWithin,
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (dayLabel != null) DayDivider(label: dayLabel!),
+            if (showNewDivider) const NewMessagesDivider(),
+            SwipeToReply(
+              enabled: compact && actions.canReply && !editing && !_unsent,
+              onReply: actions.onReply,
+              child: _contextRegion(context, view),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _contextRegion(BuildContext context, _RowView v) {
+    return MessageContextMenuRegion(
+      content: message.content,
+      actions: actions,
+      onAddReaction: () =>
+          showEmojiPickerSheet(context, onSelect: callbacks.onPickReaction),
+      onPickReaction: callbacks.onPickReaction,
+      reactedEmoji: {
+        for (final r in extras.reactions)
+          if (r.reacted) r.emoji,
+      },
+      // A failed row is marked by a red hairline down its left edge
+      // (error grammar 01) - the row itself stays at full strength,
+      // because its content is still the author's to act on.
+      child: Stack(
+        // The toolbar's shadow spills past the row; clipping it would cut the blur.
+        clipBehavior: Clip.none,
         children: [
-          if (dayLabel != null) DayDivider(label: dayLabel!),
-          if (showNewDivider) const NewMessagesDivider(),
-          SwipeToReply(
-            enabled: compact && actions.canReply && !editing && !_unsent,
-            onReply: actions.onReply,
-            child: MessageContextMenuRegion(
-              content: message.content,
-              actions: actions,
-              onAddReaction: () => showEmojiPickerSheet(
+          // Full-bleed, edge to edge; see this file's own doc comment.
+          Positioned.fill(
+            child: AnimatedContainer(
+              key: MessageRow.hoverFillKey,
+              duration: AppMotion.reduced(context, AppMotion.fast),
+              curve: AppMotion.entrance,
+              color: _fillColor(v),
+            ),
+          ),
+          if (v.marked)
+            ContinuationRail(
+              marker: v.marker,
+              geometry: ContinuationGeometry.of(
                 context,
-                onSelect: callbacks.onPickReaction,
+                gutter: v.gutter,
+                density: v.density,
               ),
-              onPickReaction: callbacks.onPickReaction,
-              reactedEmoji: {
-                for (final r in extras.reactions)
-                  if (r.reacted) r.emoji,
-              },
-              // A failed row is marked by a red hairline down its left edge
-              // (error grammar 01) - the row itself stays at full strength,
-              // because its content is still the author's to act on.
-              child: Stack(
-                // The toolbar's shadow spills past the row; clipping it would cut the blur.
-                clipBehavior: Clip.none,
-                children: [
-                  // Full-bleed, edge to edge; see this file's own doc comment.
-                  Positioned.fill(
-                    child: AnimatedContainer(
-                      key: MessageRow.hoverFillKey,
-                      duration: AppMotion.reduced(context, AppMotion.fast),
-                      curve: AppMotion.entrance,
-                      color: hovered || menuOpen || editing
-                          ? tokens.surfaceRaised
-                          : extras.mentionsMe
-                          ? tokens.accentSoft
-                          : Colors.transparent,
-                    ),
-                  ),
-                  if (marked)
-                    ContinuationRail(
-                      marker: marker,
-                      geometry: ContinuationGeometry.of(
-                        context,
-                        gutter: gutter,
-                        density: density,
-                      ),
-                      lastInGroup: !groupContinues,
-                    ),
-                  ConstrainedBox(
-                    // A row shorter than the toolbar would leave part of it painted but unhittable.
-                    constraints: BoxConstraints(
-                      minHeight: compact ? 0 : MessageHoverToolbar.height,
-                    ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: message.failed
-                            ? Border(
-                                left: BorderSide(
-                                  color: tokens.dangerBorder,
-                                  width: 2,
-                                ),
-                              )
-                            : extras.mentionsMe
-                            ? Border(
-                                left: BorderSide(
-                                  color: tokens.accent,
-                                  width: 2,
-                                ),
-                              )
-                            : const Border(),
-                      ),
-                      child: Padding(
-                        // Top-only: a bottom inset here doubled the next row's top inset.
-                        padding: EdgeInsets.fromLTRB(
-                          gutter,
-                          grouped
-                              ? density.groupedRowGap
-                              : density.rowGap + groupSpacing,
-                          gutter,
-                          0,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            MessageRowLeading(
-                              grouped: grouped,
-                              message: message,
-                              hovered: hovered && !inlineTime,
-                              railBacking: marked
-                                  ? hovered || menuOpen || editing
-                                        ? tokens.surfaceRaised
-                                        : tokens.surfaceBase
-                                  : null,
-                            ),
-                            const SizedBox(width: AppSpacing.s12),
-                            Expanded(
-                              // Align loosens Expanded's tight width so the cap can
-                              // bite: without it the max was silently a no-op and body
-                              // text ran the full pane on any monitor.
-                              child: Align(
-                                alignment: Alignment.topLeft,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: kMessageColumnMax,
-                                  ),
-                                  child: MessageRowColumn(
-                                    message: message,
-                                    grouped: grouped,
-                                    compact: compact,
-                                    editing: editing,
-                                    actions: actions,
-                                    knownUsernames: knownUsernames,
-                                    knownRoleNames: knownRoleNames,
-                                    customEmoji: customEmoji,
-                                    callbacks: callbacks,
-                                    extras: extras,
-                                    replyTo: replyTo,
-                                    replyParentAdjacent: replyParentAdjacent,
-                                    viewerIsCaller: viewerIsCaller,
-                                    hoverTime: inlineTime
-                                        ? _InlineHoverTime(
-                                            shown: hovered || menuOpen,
-                                            message: message,
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Outside layout, and never on compact, which reserves no clearance for it.
-                  if (!compact &&
-                      (hovered || focusWithin) &&
-                      !_unsent &&
-                      !editing)
-                    Positioned(
-                      top: 0,
-                      right: AppSizes.paneGutter,
-                      child: MessageHoverToolbar(
-                        actions: actions,
-                        onPickReaction: callbacks.onPickReaction,
-                      ),
-                    ),
-                ],
+              lastInGroup: !groupContinues,
+            ),
+          ConstrainedBox(
+            // A row shorter than the toolbar would leave part of it painted but unhittable.
+            constraints: BoxConstraints(
+              minHeight: v.compact ? 0 : MessageHoverToolbar.height,
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(border: _edgeBorder(v.tokens)),
+              child: Padding(
+                // Top-only: a bottom inset here doubled the next row's top inset.
+                padding: EdgeInsets.fromLTRB(
+                  v.gutter,
+                  grouped
+                      ? v.density.groupedRowGap
+                      : v.density.rowGap + v.groupSpacing,
+                  v.gutter,
+                  0,
+                ),
+                child: _rowContents(v),
               ),
             ),
           ),
+          // Outside layout, and never on compact, which reserves no clearance for it.
+          if (_showToolbar(v))
+            Positioned(
+              top: 0,
+              right: AppSizes.paneGutter,
+              child: MessageHoverToolbar(
+                actions: actions,
+                onPickReaction: callbacks.onPickReaction,
+              ),
+            ),
         ],
       ),
     );
   }
+
+  bool _lit(_RowView v) => v.hovered || v.menuOpen || editing;
+
+  bool _showToolbar(_RowView v) =>
+      !v.compact && (v.hovered || v.focusWithin) && !_unsent && !editing;
+
+  Color _fillColor(_RowView v) {
+    if (_lit(v)) return v.tokens.surfaceRaised;
+    if (extras.mentionsMe) return v.tokens.accentSoft;
+    return Colors.transparent;
+  }
+
+  Border _edgeBorder(AppTokens tokens) {
+    if (message.failed) {
+      return Border(left: BorderSide(color: tokens.dangerBorder, width: 2));
+    }
+    if (extras.mentionsMe) {
+      return Border(left: BorderSide(color: tokens.accent, width: 2));
+    }
+    return const Border();
+  }
+
+  Color? _railBacking(_RowView v) {
+    if (!v.marked) return null;
+    return _lit(v) ? v.tokens.surfaceRaised : v.tokens.surfaceBase;
+  }
+
+  Widget _rowContents(_RowView v) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MessageRowLeading(
+          grouped: grouped,
+          message: message,
+          hovered: v.hovered && !v.inlineTime,
+          railBacking: _railBacking(v),
+        ),
+        const SizedBox(width: AppSpacing.s12),
+        Expanded(
+          // Align loosens Expanded's tight width so the cap can
+          // bite: without it the max was silently a no-op and body
+          // text ran the full pane on any monitor.
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
+              child: _column(v),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _column(_RowView v) {
+    return MessageRowColumn(
+      message: message,
+      grouped: grouped,
+      compact: v.compact,
+      editing: editing,
+      actions: actions,
+      knownUsernames: knownUsernames,
+      knownRoleNames: knownRoleNames,
+      customEmoji: customEmoji,
+      callbacks: callbacks,
+      extras: extras,
+      replyTo: replyTo,
+      replyParentAdjacent: replyParentAdjacent,
+      viewerIsCaller: viewerIsCaller,
+      hoverTime: v.inlineTime
+          ? _InlineHoverTime(shown: v.hovered || v.menuOpen, message: message)
+          : null,
+    );
+  }
+}
+
+/// What one build of a row resolved from the theme, settings and hover state.
+class _RowView {
+  const _RowView({
+    required this.tokens,
+    required this.density,
+    required this.groupSpacing,
+    required this.compact,
+    required this.gutter,
+    required this.marker,
+    required this.inlineTime,
+    required this.hovered,
+    required this.menuOpen,
+    required this.focusWithin,
+  });
+
+  final AppTokens tokens;
+  final AppDensity density;
+  final int groupSpacing;
+  final bool compact;
+  final double gutter;
+  final ContinuationMarker marker;
+  final bool inlineTime;
+  final bool hovered;
+  final bool menuOpen;
+  final bool focusWithin;
+
+  bool get marked => marker != ContinuationMarker.none;
 }
 
 /// The sent time at the end of a continuation's text. Laid out whether shown

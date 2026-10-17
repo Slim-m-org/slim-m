@@ -298,37 +298,45 @@ class CanvasSync {
     if (_disposed || _catchingUp) return;
     _catchingUp = true;
     try {
-      var cursor = _asOfSeq ?? 0;
-      for (var page = 0; page < maxCatchUpPages; page++) {
-        final result = await _fetchPage(cursor);
-        if (_disposed) return;
-        if (result == null) return;
-        if (result.reset) {
-          await _hardReset();
-          return;
-        }
-        for (final op in result.ops) {
-          if (!_applyOp(op)) {
-            await _hardReset();
-            return;
-          }
-        }
-        if (!result.hasMore) {
-          final committed = _asOfSeq;
-          _asOfSeq = committed == null || result.latestSeq > committed
-              ? result.latestSeq
-              : committed;
-          document.refresh();
-          return;
-        }
-        // A page that claims more and carries nothing cannot be paged past.
-        if (result.ops.isEmpty) break;
-        cursor = result.ops.last.seq;
-      }
-      await _hardReset();
+      await _catchUpPages();
     } finally {
       _catchingUp = false;
     }
+  }
+
+  Future<void> _catchUpPages() async {
+    var cursor = _asOfSeq ?? 0;
+    for (var page = 0; page < maxCatchUpPages; page++) {
+      final result = await _fetchPage(cursor);
+      if (_disposed || result == null) return;
+      if (result.reset || !_applyOps(result.ops)) {
+        await _hardReset();
+        return;
+      }
+      if (!result.hasMore) {
+        _commitHead(result.latestSeq);
+        return;
+      }
+      // A page that claims more and carries nothing cannot be paged past.
+      if (result.ops.isEmpty) break;
+      cursor = result.ops.last.seq;
+    }
+    await _hardReset();
+  }
+
+  bool _applyOps(List<api.CanvasOp> ops) {
+    for (final op in ops) {
+      if (!_applyOp(op)) return false;
+    }
+    return true;
+  }
+
+  void _commitHead(int latestSeq) {
+    final committed = _asOfSeq;
+    _asOfSeq = committed == null || latestSeq > committed
+        ? latestSeq
+        : committed;
+    document.refresh();
   }
 
   /// Fetches one page, retrying a rate limit with backoff rather than
@@ -361,13 +369,7 @@ class CanvasSync {
   bool _applyOp(api.CanvasOp op) {
     switch (op) {
       case api.CanvasPlaceOp(:final object):
-        if (object != null) {
-          final input = canvasStrokeInputFrom(object);
-          if (input != null) {
-            document.applyPlaced(input);
-            onObjectPlaced?.call(object);
-          }
-        }
+        if (object != null) _applyPlaced(object);
       case api.CanvasRemoveOp(:final objectIds):
         for (final id in objectIds) {
           document.removeObject(id);
@@ -394,6 +396,13 @@ class CanvasSync {
     }
     onOpApplied?.call(op);
     return true;
+  }
+
+  void _applyPlaced(api.CanvasObject object) {
+    final input = canvasStrokeInputFrom(object);
+    if (input == null) return;
+    document.applyPlaced(input);
+    onObjectPlaced?.call(object);
   }
 
   /// Empties the document, drops the cursor, and cold-fetches - rate-limited

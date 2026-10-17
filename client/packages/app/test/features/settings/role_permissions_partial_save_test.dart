@@ -25,7 +25,7 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-final _role = api.Role(
+const _role = api.Role(
   id: 'role-mod',
   name: 'mod',
   permissions: 0,
@@ -110,7 +110,7 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(body: RolePermissionsTab(role: _role)),
+          home: const Scaffold(body: RolePermissionsTab(role: _role)),
         ),
       ),
     );

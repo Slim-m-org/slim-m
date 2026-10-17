@@ -343,13 +343,13 @@ void main() {
 
       await _pump(
         tester,
-        AppCodeBlock(
+        const AppCodeBlock(
           lines: [
             AppCodeLine([
-              const AppCodeSpan('let', AppCodeRole.keyword),
-              const AppCodeSpan(' x = ', AppCodeRole.plain),
-              const AppCodeSpan('1', AppCodeRole.number),
-              const AppCodeSpan(' // c', AppCodeRole.comment),
+              AppCodeSpan('let', AppCodeRole.keyword),
+              AppCodeSpan(' x = ', AppCodeRole.plain),
+              AppCodeSpan('1', AppCodeRole.number),
+              AppCodeSpan(' // c', AppCodeRole.comment),
             ]),
           ],
         ),

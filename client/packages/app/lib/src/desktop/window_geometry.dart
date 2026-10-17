@@ -252,7 +252,7 @@ WindowGeometry _capSizeToDisplays(
   List<DisplayArea> displays,
 ) {
   if (displays.isEmpty) return geometry;
-  final min = WindowGeometry.minimumWindowSize;
+  const min = WindowGeometry.minimumWindowSize;
   final maxWidth = displays.map((d) => d.width).reduce(math.max);
   final maxHeight = displays.map((d) => d.height).reduce(math.max);
   final size = geometry.windowedSize;
@@ -276,7 +276,7 @@ WindowGeometry _capSizeToDisplays(
 /// of whether the OS enforces its own minimum. Only ever enlarges an
 /// undersized window; a size already at or above the floor passes through.
 WindowGeometry clampSizeToMinimum(WindowGeometry geometry) {
-  final min = WindowGeometry.minimumWindowSize;
+  const min = WindowGeometry.minimumWindowSize;
   final size = geometry.windowedSize;
   if (size.width >= min.width && size.height >= min.height) return geometry;
   return geometry.copyWith(

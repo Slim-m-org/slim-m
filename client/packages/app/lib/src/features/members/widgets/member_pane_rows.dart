@@ -115,13 +115,7 @@ class MemberRow extends ConsumerWidget {
       statusTextProvider((userId: profile.id, snapshot: profile.statusText)),
     );
     // One slot only in a 236px pane; bot beats a role, whose names are a tap away.
-    final badge = displayed.isBot
-        ? 'Bot'
-        : displayed.roles.isEmpty ||
-              (sectionRoleId != null &&
-                  displayed.roleIds.firstOrNull == sectionRoleId)
-        ? null
-        : displayed.roles.first;
+    final badge = _badgeLabel(displayed);
 
     // Scoped to this row's two facts: the set is a new object per toggle, so watching it rebuilds every row.
     final (selecting, selected) = ref.watch(
@@ -142,6 +136,13 @@ class MemberRow extends ConsumerWidget {
           )
         : null;
 
+    final VoidCallback? onTap;
+    if (selectable) {
+      onTap = toggle;
+    } else {
+      onTap = selecting ? null : open;
+    }
+
     // The chip is capped to a share of the row so a long role name ellipsizes there and never takes the member's own name.
     final row = LayoutBuilder(
       builder: (context, box) => AppListRow(
@@ -154,17 +155,7 @@ class MemberRow extends ConsumerWidget {
         muted: status == AppPresence.offline,
         // On screen presence is only a dot and an opacity; this is how it is spoken.
         stateDescription: status.word,
-        trailing: badge == null
-            ? null
-            : ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: box.maxWidth * 0.4),
-                child: AppBadge(
-                  variant: displayed.isBot
-                      ? AppBadgeVariant.tag
-                      : AppBadgeVariant.role,
-                  label: badge,
-                ),
-              ),
+        trailing: _badge(badge, displayed.isBot, box.maxWidth),
         leading: UserAvatar.known(
           userId: profile.id,
           avatarUpdatedAt: displayed.avatarUpdatedAt,
@@ -174,11 +165,7 @@ class MemberRow extends ConsumerWidget {
         ),
         selected: selected,
         // Opens the profile, which is where every verb about a member lives now.
-        onTap: selectable
-            ? toggle
-            : selecting
-            ? null
-            : open,
+        onTap: onTap,
       ),
     );
 
@@ -192,6 +179,25 @@ class MemberRow extends ConsumerWidget {
                 Expanded(child: row),
               ],
             ),
+    );
+  }
+
+  String? _badgeLabel(api.UserProfile displayed) {
+    if (displayed.isBot) return 'Bot';
+    if (displayed.roles.isEmpty) return null;
+    final underOwnHeading =
+        sectionRoleId != null && displayed.roleIds.firstOrNull == sectionRoleId;
+    return underOwnHeading ? null : displayed.roles.first;
+  }
+
+  Widget? _badge(String? label, bool isBot, double rowWidth) {
+    if (label == null) return null;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: rowWidth * 0.4),
+      child: AppBadge(
+        variant: isBot ? AppBadgeVariant.tag : AppBadgeVariant.role,
+        label: label,
+      ),
     );
   }
 }

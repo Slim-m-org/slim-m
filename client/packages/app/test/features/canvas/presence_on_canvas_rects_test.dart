@@ -25,7 +25,7 @@ VoiceParticipant _p(String identity, {bool local = false}) => VoiceParticipant(
 );
 
 void main() {
-  final layout = const CanvasPresenceLayout();
+  const layout = CanvasPresenceLayout();
 
   test('a hidden tile is dropped, the rest keep their default rect', () {
     final me = _p('me');
@@ -97,7 +97,7 @@ void main() {
   test('a viewport big enough for every untouched tile keeps the layout\'s '
       'own margin-anchored default, unchanged', () {
     final camera = _p('camera-user');
-    final sharing = VoiceParticipant(
+    const sharing = VoiceParticipant(
       identity: 'screen-user',
       name: 'screen-user',
       isSpeaking: false,
@@ -130,7 +130,7 @@ void main() {
 
   test('a pane too narrow for every untouched tile shifts the whole block '
       'left so the block stops running past the pane edge', () {
-    final sharing = VoiceParticipant(
+    const sharing = VoiceParticipant(
       identity: 'screen-user',
       name: 'screen-user',
       isSpeaking: false,

@@ -39,8 +39,8 @@ Widget _row(List<String> tapped) => harness(
       onSubmitEdit: (_) {},
       onCancelEdit: () {},
     ),
-    extras: MessageExtras(
-      reactions: const [
+    extras: const MessageExtras(
+      reactions: [
         api.ReactionSummary(emoji: '\u{1F440}', count: 1, reacted: false),
       ],
     ),

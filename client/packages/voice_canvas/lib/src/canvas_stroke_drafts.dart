@@ -77,7 +77,7 @@ class RemoteStrokeDrafts extends ChangeNotifier {
     final merged = existing == null
         ? List<double>.from(points)
         : (List<double>.from(existing.points)..addAll(points));
-    final maxDoubles = maxDraftPreviewPoints * 2;
+    const maxDoubles = maxDraftPreviewPoints * 2;
     final capped = merged.length > maxDoubles
         ? merged.sublist(merged.length - maxDoubles)
         : merged;

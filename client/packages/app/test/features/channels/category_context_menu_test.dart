@@ -30,13 +30,13 @@ const _tokens = api.TokenPair(
 );
 
 ChannelCategoryRow _category() =>
-    ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0);
+    const ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0);
 
 /// One channel in the category, so the section renders for a non-manager too:
 /// an empty category is drawn only for somebody who could drop a channel into
 /// it, so without this the no-permission case would have no header to press
 /// and would pass for the wrong reason.
-Channel _channel() => Channel(
+Channel _channel() => const Channel(
   id: 'c1',
   name: 'general',
   kind: 'text',

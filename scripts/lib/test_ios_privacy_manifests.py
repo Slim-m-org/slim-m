@@ -133,7 +133,7 @@ class PrivacyManifests(unittest.TestCase):
 
     def test_no_stray_manifest_outside_the_declared_bundles(self):
         found = {p.parent.name for p in IOS.rglob(MANIFEST)}
-        self.assertTrue(found <= set(MANIFEST_BUNDLES) | set(EXTENSIONS), found)
+        self.assertLessEqual(found, set(MANIFEST_BUNDLES) | set(EXTENSIONS))
 
 
 if __name__ == "__main__":

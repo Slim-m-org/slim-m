@@ -39,7 +39,10 @@ class DockModuleRow extends StatelessWidget {
     api.InstalledDockModule installed,
   ) {
     if (installed.version != entry.version) {
-      return AppBadge(variant: AppBadgeVariant.warn, label: 'Update available');
+      return const AppBadge(
+        variant: AppBadgeVariant.warn,
+        label: 'Update available',
+      );
     }
     return AppBadge(
       variant: AppBadgeVariant.role,
@@ -55,13 +58,19 @@ class DockModuleRow extends StatelessWidget {
       ? 'v${entry.version}'
       : 'Installed v${installed.version}, latest v${entry.version}';
 
+  Widget? _stateOrBlockedBadge(
+    api.InstalledDockModule? installed,
+    bool blocked,
+  ) {
+    if (blocked) {
+      return const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken');
+    }
+    return installed == null ? null : _stateBadge(entry, installed);
+  }
+
   /// The Verified mark, then the install state, beside the name.
   Widget? _badges(api.InstalledDockModule? installed, bool blocked) {
-    final state = blocked
-        ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken')
-        : installed == null
-        ? null
-        : _stateBadge(entry, installed);
+    final state = _stateOrBlockedBadge(installed, blocked);
     final verified = dockIsVerified(source);
     if (state == null && !verified) return null;
     return Row(

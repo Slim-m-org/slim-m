@@ -46,14 +46,15 @@ def run(admin_api, member_api, channel_id, sample_object):
     `sample_object` is any still-live `CanvasObject` dict this run placed,
     used as a legitimate target for the probes that need one to exist.
     """
-    findings = []
-    findings.append(_oversized_props(admin_api, channel_id))
-    findings.append(_oversized_body(admin_api, channel_id))
-    findings.append(_over_extent_placement(admin_api, channel_id))
-    findings.append(_move_nonexistent_object(admin_api, channel_id))
-    findings.append(_remove_empty_object_ids(admin_api, channel_id))
-    findings.append(_restore_targeting_a_place_op(admin_api, channel_id))
-    findings.append(_replay_shows_no_fresh_flag(admin_api, channel_id, sample_object))
+    findings = [
+        _oversized_props(admin_api, channel_id),
+        _oversized_body(admin_api, channel_id),
+        _over_extent_placement(admin_api, channel_id),
+        _move_nonexistent_object(admin_api, channel_id),
+        _remove_empty_object_ids(admin_api, channel_id),
+        _restore_targeting_a_place_op(admin_api, channel_id),
+        _replay_shows_no_fresh_flag(admin_api, channel_id, sample_object),
+    ]
     if member_api is not None:
         findings.append(_clear_without_manage_canvas(member_api, channel_id))
     return findings

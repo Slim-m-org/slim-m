@@ -144,7 +144,7 @@ void main() {
     'a drag across two category sections reassigns the channel to the '
     'section it was dropped in',
     (tester) async {
-      final category = ChannelCategoryRow(
+      const category = ChannelCategoryRow(
         id: 'voice-cat',
         name: 'Voice',
         position: 0,
@@ -242,14 +242,14 @@ void main() {
       'the uncategorised group even when sections does not list one - the '
       'exact silent drop behind a real "Missing live channel(s)" server '
       'rejection', () {
-    final category = ChannelCategoryRow(
+    const category = ChannelCategoryRow(
       id: 'cat-1',
       name: 'General',
       position: 0,
     );
     final items = <RailItem>[
       ChannelRailItem(_channel('stray')),
-      HeaderRailItem(category),
+      const HeaderRailItem(category),
       ChannelRailItem(_channel('kept')),
     ];
     final sections = <ChannelSection>[
@@ -276,7 +276,7 @@ void main() {
     'gesture that produced a real "Missing live channel(s)" server '
     'rejection when sections held no uncategorised entry',
     (tester) async {
-      final category = ChannelCategoryRow(
+      const category = ChannelCategoryRow(
         id: 'cat-1',
         name: 'General',
         position: 0,

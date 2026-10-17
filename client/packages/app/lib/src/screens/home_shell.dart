@@ -84,6 +84,37 @@ class HomeShell extends ConsumerWidget {
     final width = MediaQuery.sizeOf(context).width;
     final selected = selectedChannelId(context);
     listenForHangUpRecap(context, ref, selectedChannelId: selected);
+    _holdSessionProviders(ref);
+    final facts = _shellFacts(ref, layout, width, selected);
+    final scaffold = _scaffold(context, ref, layout, facts);
+
+    return WhatsNewGate(
+      child: PushToTalkListener(
+        child: CallbackShortcuts(
+          bindings: _shortcutBindings(context, ref),
+          // CallbackShortcuts only fires for a focused descendant, so this
+          // default makes the shortcut work the instant the app opens.
+          child: Focus(
+            autofocus: true,
+            child: _LayoutBridge(
+              layout: layout,
+              child: NewDeviceBannerHost(
+                child: RulesGateBannerHost(
+                  child: UpdateBannerHost(
+                    child: TransfersBannerHost(
+                      child: DatabaseResetNotice(child: scaffold),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _holdSessionProviders(WidgetRef ref) {
     // Loaded with the shell so the first surface to consult it filters against none; selecting a constant keeps this mounted without rebuilding the whole shell on every block/unblock.
     ref.watch(blocksProvider.select((_) => null));
     // Same reasoning, including the constant select: a channel mute must not rebuild the whole shell either.
@@ -101,6 +132,14 @@ class HomeShell extends ConsumerWidget {
     ref.watch(notificationScheduleProvider.select((_) => null));
     // Same reasoning: the periodic local-store/extras sweep only needs to run for the session.
     ref.watch(retentionSweepControllerProvider);
+  }
+
+  _ShellFacts _shellFacts(
+    WidgetRef ref,
+    LayoutClass layout,
+    double width,
+    String? selected,
+  ) {
     // CanvasBar is the only header while open (ConversationPane's doc); the compact app bar below would otherwise stack a second one above it.
     final canvasOpen =
         selected != null && ref.watch(canvasOpenProvider) == selected;
@@ -124,108 +163,156 @@ class HomeShell extends ConsumerWidget {
     final channelRow = selected == null
         ? null
         : ref.watch(channelByIdProvider(selected));
+    final synced = ref.watch(initialSyncCompleteProvider);
     final notFound =
-        channelRow is AsyncData<Channel?> &&
-        channelRow.value == null &&
-        ref.watch(initialSyncCompleteProvider);
-    final rosterPending =
-        channelRow != null &&
-        !channelRow.hasValue &&
-        ref.watch(initialSyncCompleteProvider);
+        channelRow is AsyncData<Channel?> && channelRow.value == null && synced;
     final showMembers =
         membersFit &&
         !notFound &&
         !canvasFullscreen &&
         !showThread &&
         ref.watch(memberPaneVisibleProvider);
-    final railExpanded = ref.watch(channelRailExpandedProvider);
+    final dockedPane = switch ((showThread, showMembers)) {
+      (true, _) => kThreadPaneWidth,
+      (_, true) => AppMemberPane.width,
+      _ => 0.0,
+    };
+    return _ShellFacts(
+      selected: selected,
+      canvasOpen: canvasOpen,
+      dmCallOpen: dmCallOpen,
+      canvasFullscreen: canvasFullscreen,
+      membersFit: membersFit,
+      openThread: openThread,
+      threadFits: threadFits,
+      showThread: showThread,
+      showMembers: showMembers,
+      notFound: notFound,
+      rosterPending: channelRow != null && !channelRow.hasValue && synced,
+      railWidth: _railWidth(ref, layout, width, dockedPane),
+    );
+  }
 
+  double _railWidth(
+    WidgetRef ref,
+    LayoutClass layout,
+    double width,
+    double dockedPane,
+  ) {
     final defaultRailWidth = layout == LayoutClass.expanded
         ? ChannelRail.expandedWidth
         : ChannelRail.mediumWidth;
     // A dragged width wins, but never squeezes the conversation below its floor beside a docked pane.
-    final dockedPane = showThread && threadFits
-        ? kThreadPaneWidth
-        : showMembers
-        ? AppMemberPane.width
-        : 0.0;
     final railRoom =
         width - AppSizes.rowPointer - dockedPane - kMinTranscriptWidth;
-    final railWidth = math.min(
+    return math.min(
       ref.watch(railWidthControllerProvider) ?? defaultRailWidth,
       math.max(defaultRailWidth, railRoom),
     );
+  }
 
-    final Widget scaffold;
+  Widget _scaffold(
+    BuildContext context,
+    WidgetRef ref,
+    LayoutClass layout,
+    _ShellFacts facts,
+  ) {
+    final selected = facts.selected;
     if (layout.showsBothPanes) {
-      Widget wideScaffold(bool isDm) => Scaffold(
-        // Where no pane docks, the roster is the same end drawer compact uses.
-        onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
-        endDrawer: isDm || membersFit || selected == null
-            ? null
-            : Drawer(
-                width: AppMemberPane.width,
-                child: SafeArea(child: AppMemberPane(channelId: selected)),
-              ),
-        body: Row(
-          children: [
-            // The rail at full or compact width, or neither, plus its handle; see railSlot's own doc.
-            ...railSlot(
-              context: context,
-              expanded: railExpanded,
-              canvasFullscreen: canvasFullscreen,
-              railWidth: railWidth,
-              dragging: ref.watch(railDraggingProvider),
+      Widget wide(bool isDm) => _wideScaffold(context, ref, facts, isDm);
+      return selected == null
+          ? wide(false)
+          : _withChannelKind(ref, selected, wide);
+    }
+    if (selected == null) return const Scaffold(body: ChannelRail());
+    return _compactScaffold(context, ref, facts, selected);
+  }
+
+  Widget _wideScaffold(
+    BuildContext context,
+    WidgetRef ref,
+    _ShellFacts facts,
+    bool isDm,
+  ) {
+    final selected = facts.selected;
+    return Scaffold(
+      // Where no pane docks, the roster is the same end drawer compact uses.
+      onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
+      endDrawer: isDm || facts.membersFit || selected == null
+          ? null
+          : Drawer(
+              width: AppMemberPane.width,
+              child: SafeArea(child: AppMemberPane(channelId: selected)),
             ),
-            // Its own semantics node, or the modal barrier inside this pane's
-            // navigator blocks everything painted before it, which is the
-            // whole rail: no channel row, section or search field reached a
-            // screen reader at all. The member pane paints after it and so
-            // was never affected, which is what made this look like a rail bug.
-            Expanded(
-              child: Semantics(
-                container: true,
-                child: CallMiniPlayerHost(child: child),
-              ),
+      body: Row(
+        children: [
+          // The rail at full or compact width, or neither, plus its handle; see railSlot's own doc.
+          ...railSlot(
+            context: context,
+            expanded: ref.watch(channelRailExpandedProvider),
+            canvasFullscreen: facts.canvasFullscreen,
+            railWidth: facts.railWidth,
+            dragging: ref.watch(railDraggingProvider),
+          ),
+          // Its own semantics node, or the modal barrier inside this pane's
+          // navigator blocks everything painted before it, which is the
+          // whole rail: no channel row, section or search field reached a
+          // screen reader at all. The member pane paints after it and so
+          // was never affected, which is what made this look like a rail bug.
+          Expanded(
+            child: Semantics(
+              container: true,
+              child: CallMiniPlayerHost(child: child),
             ),
-            // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
-            if (threadFits)
-              _ThreadPaneSlot(channelId: openThread, requested: showThread),
-            // The pane comes from the edge it lives on: the slot's width
-            // animates while the content slides in and fades (motion spec
-            // 05). Hidden, the pane itself unmounts rather than sitting at
-            // opacity zero - it fetches while built, and home_shell_test pins
-            // exactly that - so the exit is the gap closing over the panel
-            // duration while the entrance gets the full slide.
-            if (membersFit)
-              // Once synced, unscoped until the row resolves, so no request names a channel not yet known to be visible.
-              _MemberPaneSlot(
-                channelId: rosterPending ? null : selected,
-                requested: showMembers,
-              ),
-          ],
-        ),
-      );
-      scaffold = selected == null
-          ? wideScaffold(false)
-          : _withChannelKind(ref, selected, wideScaffold);
-    } else if (selected != null) {
-      // No rail here to carry the strip, so a call elsewhere gets its own row.
-      final (voiceState, voiceChannelId) = ref.watch(
-        voiceControllerProvider.select((s) => (s.state, s.channelId)),
-      );
-      final showVoiceStrip =
-          voiceState == VoiceSessionState.connected &&
-          voiceChannelId != selected;
-      // Only the canvas (a drawing surface of its own) also claims the rail; see DmCallPane's own doc for why a DM call keeps it.
-      final hidesRailAccess = canvasOpen;
-      final channelId = selected;
-      // Above the transcript while typing, so the composer sits on the keyboard.
-      final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-      Widget compactScaffold(bool isDm) {
-        // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
-        final replacesHeader = canvasOpen || (dmCallOpen && isDm);
-        final compactBody = Column(
+          ),
+          // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
+          if (facts.threadFits)
+            _ThreadPaneSlot(
+              channelId: facts.openThread,
+              requested: facts.showThread,
+            ),
+          // The pane comes from the edge it lives on: the slot's width
+          // animates while the content slides in and fades (motion spec
+          // 05). Hidden, the pane itself unmounts rather than sitting at
+          // opacity zero - it fetches while built, and home_shell_test pins
+          // exactly that - so the exit is the gap closing over the panel
+          // duration while the entrance gets the full slide.
+          if (facts.membersFit)
+            // Once synced, unscoped until the row resolves, so no request names a channel not yet known to be visible.
+            _MemberPaneSlot(
+              channelId: facts.rosterPending ? null : selected,
+              requested: facts.showMembers,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactScaffold(
+    BuildContext context,
+    WidgetRef ref,
+    _ShellFacts facts,
+    String channelId,
+  ) {
+    // No rail here to carry the strip, so a call elsewhere gets its own row.
+    final (voiceState, voiceChannelId) = ref.watch(
+      voiceControllerProvider.select((s) => (s.state, s.channelId)),
+    );
+    final showVoiceStrip =
+        voiceState == VoiceSessionState.connected &&
+        voiceChannelId != channelId;
+    // Above the transcript while typing, so the composer sits on the keyboard.
+    final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return _withChannelKind(ref, channelId, (isDm) {
+      // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
+      final replacesHeader = facts.canvasOpen || (facts.dmCallOpen && isDm);
+      return CompactDrawerScaffold(
+        channelId: channelId,
+        showAppBar: !(replacesHeader || facts.notFound),
+        // Only the canvas (a drawing surface of its own) also claims the rail; see DmCallPane's own doc for why a DM call keeps it.
+        showRail: !facts.canvasOpen,
+        showMembers: !(isDm || facts.notFound),
+        body: Column(
           children: [
             const RailConnectionBar(),
             if (showVoiceStrip && keyboardUp)
@@ -239,30 +326,16 @@ class HomeShell extends ConsumerWidget {
             ),
             if (showVoiceStrip && !keyboardUp) const VoiceStripIndicator(),
           ],
-        );
-        return CompactDrawerScaffold(
-          channelId: channelId,
-          showAppBar: !(replacesHeader || notFound),
-          showRail: !hidesRailAccess,
-          showMembers: !(isDm || notFound),
-          body: compactBody,
-        );
-      }
-
-      final storeAsync = ref.watch(storeProvider);
-      scaffold = storeAsync.maybeWhen(
-        orElse: () => compactScaffold(false),
-        data: (store) => StreamBuilder<Channel?>(
-          stream: store.watchChannelRow(channelId),
-          builder: (context, snapshot) =>
-              compactScaffold(snapshot.data?.kind == 'dm'),
         ),
       );
-    } else {
-      scaffold = const Scaffold(body: ChannelRail());
-    }
+    });
+  }
 
-    // Binds the shared shortcut table's own keys, so a future remap reaches every one of these.
+  // Binds the shared shortcut table's own keys, so a future remap reaches every one of these.
+  Map<ShortcutActivator, VoidCallback> _shortcutBindings(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
     final quickSwitch = activatorFor(AppAction.quickSwitch);
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
@@ -274,47 +347,22 @@ class HomeShell extends ConsumerWidget {
     final leaveCall = activatorFor(AppAction.leaveCall);
     // Reads the row's handlers when a key arrives, so these are live only while a call row is on screen.
     CallShortcutHandlers? call() => ref.read(callShortcutHandlersProvider);
-    final body = WhatsNewGate(
-      child: PushToTalkListener(
-        child: CallbackShortcuts(
-          bindings: {
-            if (quickSwitch != null)
-              quickSwitch: () => openCommandPalette(context),
-            if (focusComposer != null)
-              focusComposer: () =>
-                  ref.read(composerFocusNodeProvider)?.requestFocus(),
-            if (openSettings != null)
-              openSettings: () => context.push(Routes.personalSettings),
-            if (nextChannel != null)
-              nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
-            if (previousChannel != null)
-              previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
-            if (muteCall != null) muteCall: () => call()?.toggleMute(),
-            if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
-            if (shareCall != null) shareCall: () => call()?.toggleShare(),
-            if (leaveCall != null) leaveCall: () => call()?.leave(),
-          },
-          // CallbackShortcuts only fires for a focused descendant, so this
-          // default makes the shortcut work the instant the app opens.
-          child: Focus(
-            autofocus: true,
-            child: _LayoutBridge(
-              layout: layout,
-              child: NewDeviceBannerHost(
-                child: RulesGateBannerHost(
-                  child: UpdateBannerHost(
-                    child: TransfersBannerHost(
-                      child: DatabaseResetNotice(child: scaffold),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    return body;
+    return {
+      if (quickSwitch != null) quickSwitch: () => openCommandPalette(context),
+      if (focusComposer != null)
+        focusComposer: () =>
+            ref.read(composerFocusNodeProvider)?.requestFocus(),
+      if (openSettings != null)
+        openSettings: () => context.push(Routes.personalSettings),
+      if (nextChannel != null)
+        nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
+      if (previousChannel != null)
+        previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
+      if (muteCall != null) muteCall: () => call()?.toggleMute(),
+      if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
+      if (shareCall != null) shareCall: () => call()?.toggleShare(),
+      if (leaveCall != null) leaveCall: () => call()?.leave(),
+    };
   }
 
   /// Moves selection to the channel [direction] (1 or -1) away from the one
@@ -360,4 +408,35 @@ class _LayoutBridge extends StatelessWidget {
     offset: 0,
     child: child,
   );
+}
+
+/// What one build of the shell resolved once, shared by its scaffolds.
+class _ShellFacts {
+  const _ShellFacts({
+    required this.selected,
+    required this.canvasOpen,
+    required this.dmCallOpen,
+    required this.canvasFullscreen,
+    required this.membersFit,
+    required this.openThread,
+    required this.threadFits,
+    required this.showThread,
+    required this.showMembers,
+    required this.notFound,
+    required this.rosterPending,
+    required this.railWidth,
+  });
+
+  final String? selected;
+  final bool canvasOpen;
+  final bool dmCallOpen;
+  final bool canvasFullscreen;
+  final bool membersFit;
+  final String? openThread;
+  final bool threadFits;
+  final bool showThread;
+  final bool showMembers;
+  final bool notFound;
+  final bool rosterPending;
+  final double railWidth;
 }

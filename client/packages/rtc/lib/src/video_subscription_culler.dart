@@ -159,35 +159,35 @@ class VideoSubscriptionCuller {
         continue;
       }
       seen.add(track.key);
-      final interest = _interest;
-      if (interest == null || interest.contains(track.key)) {
-        _cancel(track.key);
-        if (!track.subscribed) {
-          unawaited(track
-              .subscribe()
-              .catchError(_logRejection(track.key, 'subscribe')));
-        }
-        continue;
-      }
-      if (!track.subscribed) {
-        _cancel(track.key);
-        continue;
-      }
-      if (_due.remove(track.key)) {
-        unawaited(
-          track
-              .unsubscribe()
-              .catchError(_logRejection(track.key, 'unsubscribe')),
-        );
-        continue;
-      }
-      _pending[track.key] ??= Timer(dwell, () => _elapsed(track.key));
+      _reconcile(track);
     }
     // A key the room no longer carries at all keeps no timer of its own.
     for (final key in _pending.keys.toList(growable: false)) {
       if (!seen.contains(key)) _cancel(key);
     }
     _due.removeWhere((key) => !seen.contains(key));
+  }
+
+  void _reconcile(VideoSubscriptionRef track) {
+    final interest = _interest;
+    if (interest == null || interest.contains(track.key)) {
+      _cancel(track.key);
+      if (!track.subscribed) {
+        unawaited(
+          track.subscribe().catchError(_logRejection(track.key, 'subscribe')),
+        );
+      }
+    } else if (!track.subscribed) {
+      _cancel(track.key);
+    } else if (_due.remove(track.key)) {
+      unawaited(
+        track.unsubscribe().catchError(
+              _logRejection(track.key, 'unsubscribe'),
+            ),
+      );
+    } else {
+      _pending[track.key] ??= Timer(dwell, () => _elapsed(track.key));
+    }
   }
 
   void _elapsed(String key) {
