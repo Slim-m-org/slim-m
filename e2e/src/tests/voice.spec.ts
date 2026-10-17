@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-import { expect, test } from '../fixtures';
+import { expect, test, step } from '../fixtures';
+import { callCount, join, tile } from '../call';
 import { L } from '../labels';
 import { sfuParticipants } from '../livekit';
 
 test('both joining the voice channel see each other in the call', async ({ signedIn, stack }) => {
   const { alice, bob } = signedIn;
 
-  await test.step('alice joins the voice channel by clicking it', async () => {
-    await alice.click(L.VOICE_CHANNEL);
-    await alice.see(L.IN_CALL);
+  await step('alice joins the voice channel by clicking it and is alone in the call', async () => {
+    await join(alice, L.VOICE_CHANNEL, 'Alice');
+    await expect(callCount(alice, 1)).toBeAttached();
   });
-  await test.step('bob joins the same channel', async () => {
-    await bob.click(L.VOICE_CHANNEL);
-    await bob.see(L.IN_CALL);
+  await step('bob joins the same channel', () => join(bob, L.VOICE_CHANNEL, 'Bob'));
+  await step('each of them reports two people in the call', async () => {
+    await expect(callCount(alice, 2)).toBeAttached();
+    await expect(callCount(bob, 2)).toBeAttached();
   });
-  await test.step('each of them reports two people in the call', async () => {
-    await alice.see('2 in call');
-    await bob.see('2 in call');
+  await step('each sees the other in a participant tile, and not just in the member list', async () => {
+    await expect(tile(alice, 'Bob')).toBeAttached();
+    await expect(tile(bob, 'Alice')).toBeAttached();
   });
-  await test.step('each sees the other by name', async () => {
-    await alice.see('Bob');
-    await bob.see('Alice');
-  });
-  await test.step('the SFU agrees: two participants, each publishing a live microphone', async () => {
+  await step('the SFU agrees: two participants, each publishing a live microphone', async () => {
     await expect
       .poll(
         async () => {
@@ -33,9 +31,10 @@ test('both joining the voice channel see each other in the call', async ({ signe
       )
       .toBe(true);
   });
-  await test.step('both leave the call', async () => {
-    await alice.click(L.LEAVE_CALL);
+  await step('both leave the call', async () => {
     await bob.click(L.LEAVE_CALL);
-    await alice.seeNo('2 in call');
+    await alice.click(L.LEAVE_CALL);
+    await expect(tile(alice, 'Alice')).toHaveCount(0);
+    await expect(tile(bob, 'Bob')).toHaveCount(0);
   });
 });

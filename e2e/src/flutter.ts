@@ -152,6 +152,18 @@ export class FlutterApp {
     }).toPass({ timeout: 15_000 });
   }
 
+  /**
+   * Waits until what is on screen has been painted, not just built.
+   *
+   * The accessibility tree updates when a frame is built, and rasterising can lag far behind
+   * on a busy machine, so a state asserted from the tree may never reach the video. A
+   * screenshot cannot return before the compositor has drawn the latest frame.
+   */
+  async painted(): Promise<void> {
+    await this.flutterFrames();
+    await this.page.screenshot({ clip: { x: 0, y: 0, width: 1, height: 1 } });
+  }
+
   /** Lets the engine run a few frames, which is what a focus or a tap needs to be acted on. */
   async flutterFrames(count = 3): Promise<void> {
     await this.page.evaluate(async (n) => {

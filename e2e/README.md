@@ -51,6 +51,7 @@ The suite signs each user in once per run and restores that session for the othe
 | `E2E_STACK_UP` | unset | `1` means a stack is already up, so do not boot one |
 | `E2E_KEEP` | unset | `1` leaves the stack running afterwards |
 | `E2E_REBUILD` | unset | Rebuild the web client even if a build exists |
+| `E2E_LINGER_MS` | `700` | How long each step's end state stays on screen, so the video shows it |
 
 The suite refuses to run against anything that is not a local stack, and never against the live deployment (`scripts/lib/e2e_stack_guard.py`).
 
@@ -78,23 +79,23 @@ Change a label in the Python file, then regenerate.
 
 1. Pick or create a spec in `src/tests/`. One behavior per `test`, named for what a person sees.
 2. Take the `signedIn` fixture for two signed-in users, or `users` to drive sign-in yourself.
-3. Wrap each user-visible step in `test.step('...')`, so the report reads as a story.
-4. Assert on what the user sees, with `see` and `seeNo`, not on sleeps. If something is flaky, fix the wait.
+3. Wrap each user-visible step in `step('...', ...)` from `../fixtures`, so the report reads as a story. It also waits for the screen to be painted and holds it briefly, because the accessibility tree can be ahead of what the video records.
+4. Assert on what the user sees, scoped to the surface that proves it (a call tile, not a name that the member list also shows), not on sleeps. If something is flaky, fix the wait.
 5. Give messages unique text with `uniqueText`, since specs share one deployment.
 
 ```ts
-import { test } from '../fixtures';
+import { step, test } from '../fixtures';
 import { openChannel, send, uniqueText } from '../messages';
 
 test('bob sees what alice sends', async ({ signedIn }) => {
   const { alice, bob } = signedIn;
   const text = uniqueText('hello');
-  await test.step('both open #general', async () => {
+  await step('both open #general', async () => {
     await openChannel(alice, 'general');
     await openChannel(bob, 'general');
   });
-  await test.step('alice sends it', () => send(alice, text));
-  await test.step('bob sees it', () => bob.see(text));
+  await step('alice sends it', () => send(alice, text));
+  await step('bob sees it', () => bob.see(text));
 });
 ```
 
