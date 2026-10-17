@@ -62,7 +62,9 @@ jobs:
         id: merge-base
         env:
           GH_TOKEN: ${{ github.token }}
-        run: echo "sha=$(bash scripts/pr-merge-base.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")" >> "$GITHUB_OUTPUT"
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "sha=$(bash scripts/pr-merge-base.sh "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
 
       # `oasdiff breaking` flags only what breaks existing clients, which is what
       # makes this gate additive-only by construction; see docs/ci.md.
