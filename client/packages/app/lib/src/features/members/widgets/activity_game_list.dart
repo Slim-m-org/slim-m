@@ -49,15 +49,58 @@ class _ActivityGameListState extends State<ActivityGameList> {
           ),
         ),
         if (_open)
-          SettingsCardBlock(
-            children: [
-              Text(
-                gameAllowlist.map((game) => game.name).join(', '),
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ],
-          ),
+          for (final game in gameAllowlist) _GameRow(name: game.name),
       ],
+    );
+  }
+}
+
+class _GameRow extends StatelessWidget {
+  const _GameRow({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Container(
+      constraints: const BoxConstraints(minHeight: AppSpacing.s48),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
+      child: Row(
+        spacing: AppSpacing.s12,
+        children: [
+          Container(
+            width: AppSpacing.s32,
+            height: AppSpacing.s32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tokens.surfaceSunken,
+              border: Border.all(color: tokens.borderSubtle),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: ExcludeSemantics(
+              child: Text(
+                name.characters.first.toUpperCase(),
+                style: AppText.caption.copyWith(
+                  color: tokens.textSecondary,
+                  fontWeight: AppWeights.semi,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.ui.copyWith(color: tokens.textPrimary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

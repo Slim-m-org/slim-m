@@ -121,91 +121,138 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final me = ref.watch(meProvider).valueOrNull;
     if (me != null) _seed(me);
-    final label = AppText.caption.copyWith(
-      color: tokens.textPrimary,
-      fontWeight: AppWeights.medium,
+
+    final pronounsField = _Labelled(
+      label: 'Pronouns',
+      child: AppInput(
+        maxLength: api.InputLimits.pronouns,
+        controller: _pronouns,
+        focusNode: _pronounsFocus,
+        enabled: _seeded,
+        placeholder: 'e.g. she/her',
+        semanticLabel: 'Pronouns',
+        errorText: _pronounsError,
+        onChanged: (_) {
+          if (_pronounsError != null) setState(() => _pronounsError = null);
+          _publishDraft();
+        },
+        onSubmitted: (_) => _pronounsFocus.unfocus(),
+      ),
+    );
+    final colourField = _Labelled(
+      label: 'Profile colour',
+      child: ColorSwatchRow(
+        label: 'Profile colour',
+        colors: AppCanvasColors.cursors,
+        names: _colourNames,
+        selected: me?.profileColor,
+        onSelect: me == null ? null : _setColor,
+      ),
     );
 
     return SettingsSectionCard(
       title: 'About you',
+      topGap: kDenseSectionTopGap,
       children: [
         SettingsCardBlock(
-          gap: 18,
+          gap: 12,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 6,
-              children: [
-                Text('Pronouns', style: label),
-                AppInput(
-                  maxLength: api.InputLimits.pronouns,
-                  controller: _pronouns,
-                  focusNode: _pronounsFocus,
-                  enabled: _seeded,
-                  placeholder: 'e.g. she/her',
-                  semanticLabel: 'Pronouns',
-                  errorText: _pronounsError,
-                  onChanged: (_) {
-                    if (_pronounsError != null) {
-                      setState(() => _pronounsError = null);
-                    }
-                    _publishDraft();
-                  },
-                  onSubmitted: (_) => _pronounsFocus.unfocus(),
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 6,
-              children: [
-                Text('About', style: label),
-                AppInput(
-                  maxLength: api.InputLimits.about,
-                  minLines: 3,
-                  maxLines: 3,
-                  controller: _about,
-                  focusNode: _aboutFocus,
-                  enabled: _seeded,
-                  placeholder: 'Maintainer. If the build breaks, I broke it.',
-                  semanticLabel: 'About',
-                  errorText: _aboutError,
-                  onChanged: (_) {
-                    if (_aboutError != null) setState(() => _aboutError = null);
-                    _publishDraft();
-                  },
-                ),
-                ValueListenableBuilder(
-                  valueListenable: _about,
-                  builder: (context, value, _) => Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      '${value.text.runes.length} / ${api.InputLimits.about}',
-                      style: AppText.code.copyWith(
-                        fontSize: AppText.micro.fontSize,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
+            ProfileFieldPair(first: pronounsField, second: colourField),
+            _Labelled(
+              label: 'About',
+              trailing: ValueListenableBuilder(
+                valueListenable: _about,
+                builder: (context, value, _) => Text(
+                  '${value.text.runes.length} / ${api.InputLimits.about}',
+                  style: AppText.code.copyWith(
+                    fontSize: AppText.micro.fontSize,
+                    color: tokens.textSecondary,
                   ),
                 ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Profile colour', style: label),
-                const SizedBox(height: 6),
-                ColorSwatchRow(
-                  label: 'Profile colour',
-                  colors: AppCanvasColors.cursors,
-                  names: _colourNames,
-                  selected: me?.profileColor,
-                  onSelect: me == null ? null : _setColor,
-                ),
-              ],
+              ),
+              child: AppInput(
+                maxLength: api.InputLimits.about,
+                minLines: 3,
+                maxLines: 3,
+                controller: _about,
+                focusNode: _aboutFocus,
+                enabled: _seeded,
+                placeholder: 'Maintainer. If the build breaks, I broke it.',
+                semanticLabel: 'About',
+                errorText: _aboutError,
+                onChanged: (_) {
+                  if (_aboutError != null) setState(() => _aboutError = null);
+                  _publishDraft();
+                },
+              ),
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+/// Two fields side by side where there is room, stacked below [kPairMinWidth].
+class ProfileFieldPair extends StatelessWidget {
+  const ProfileFieldPair({
+    super.key,
+    required this.first,
+    required this.second,
+  });
+
+  static const double kPairMinWidth = 480;
+
+  final Widget first;
+  final Widget second;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < kPairMinWidth) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
+          children: [first, second],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.s16,
+        children: [
+          Expanded(child: first),
+          Expanded(child: second),
+        ],
+      );
+    },
+  );
+}
+
+class _Labelled extends StatelessWidget {
+  const _Labelled({required this.label, required this.child, this.trailing});
+
+  final String label;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final style = AppText.caption.copyWith(
+      color: tokens.textPrimary,
+      fontWeight: AppWeights.medium,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(label, style: style)),
+            ?trailing,
+          ],
+        ),
+        child,
       ],
     );
   }
