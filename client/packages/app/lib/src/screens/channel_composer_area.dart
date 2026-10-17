@@ -27,7 +27,6 @@ import '../providers/providers.dart';
 import '../widgets/composer.dart';
 import '../widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/composer_autofocus.dart';
-import '../widgets/ephemeral_tray.dart';
 import '../widgets/message_selection_bar.dart';
 import '../widgets/reply_banner.dart';
 import '../widgets/timeout_banner.dart';
@@ -143,7 +142,6 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
                   onCancel: widget.onCancelReply,
                 ),
         ),
-        EphemeralTray(channelId: channelId),
         ComposerAutofocus(
           channelId: channelId,
           focusOnMount: widget.autofocus,

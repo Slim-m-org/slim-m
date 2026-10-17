@@ -301,9 +301,13 @@ class MessageRowHeader extends ConsumerWidget {
     required this.message,
     this.webhookUsername,
     this.editing = false,
+    this.assumeBot = false,
   });
 
   final Message message;
+
+  /// For an author the server guarantees is a bot before its profile resolves.
+  final bool assumeBot;
 
   /// Adds the EDITING tag, so a row being edited says so on its first line.
   final bool editing;
@@ -334,7 +338,7 @@ class MessageRowHeader extends ConsumerWidget {
             cachedDisplayName: message.authorDisplayName,
             resolution: resolution,
           );
-    final isBot = resolution.profile?.isBot ?? false;
+    final isBot = assumeBot || (resolution.profile?.isBot ?? false);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s4),
       child: Row(
