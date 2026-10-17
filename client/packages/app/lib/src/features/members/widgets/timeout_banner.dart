@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_preferences.dart';
 
 class TimeoutBanner extends ConsumerWidget {
   const TimeoutBanner({super.key, required this.until, this.reason});

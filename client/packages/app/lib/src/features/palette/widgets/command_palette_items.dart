@@ -12,12 +12,12 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/dms.dart';
-import '../../../providers/personal_space_visibility.dart';
+import '../../settings/providers/personal_space_visibility.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_jump.dart';
-import '../../../widgets/space_settings_section.dart';
+import '../../settings/widgets/space_settings_section.dart';
 
 /// Which row layout a [PaletteResultItem] draws with.
 enum PaletteKind { channel, person, message, action }

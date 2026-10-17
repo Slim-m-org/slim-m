@@ -24,8 +24,8 @@ import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../emoji/widgets/emoji_picker.dart';
 import 'poll_view.dart';
-import '../../../widgets/settings_select_row.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 import '../../../widgets/text_insert.dart';
 
 /// Mirrors `store::polls::MIN_OPTIONS`: below this a poll is not a choice.

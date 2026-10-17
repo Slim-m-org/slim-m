@@ -13,8 +13,8 @@ import '../providers/channel_by_id_provider.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/settings_toggle_row.dart';
-import '../../../widgets/settings_save_feedback.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_save_feedback.dart';
 
 class ChannelJoinMutedSection extends ConsumerStatefulWidget {
   const ChannelJoinMutedSection({super.key, required this.channel});

@@ -27,7 +27,7 @@ It is that the design system's guarantees are opt-in at the call site, the snaps
 
 This is the theme that produced the two highest-severity findings, and it was reached independently by five specialists.
 
-**The report card identifies nobody** (high) - `client/packages/app/lib/src/screens/admin/reports_screen.dart:97`.
+**The report card identifies nobody** (high) - `client/packages/app/lib/src/features/settings/screens/admin/reports_screen.dart:97`.
 `reporterId`, `subjectId` and `channelId` are all on the model and all served, and the screen reads none of them; a user report has no snapshot either, so nothing on screen names the account being judged.
 The moderator is asked for an irreversible close on a subject they cannot name, and three members reporting one account renders identically to one member settling a grudge.
 Shape: resolve the ids through the batch profile fetch that already exists and put the subject, reporter and channel at the top of the card.
@@ -42,10 +42,10 @@ Shape: render the chosen bytes at the two sizes the app actually draws, plus a c
 Three other defects on that screen - the blind replace, the phantom Clear, the unexplainable 403 - are downstream of this one gap, and the screen's own callout states the limitation as a fact about the world rather than about the HTTP surface.
 Shape: add the read route with its schema and contract-test entries, then hydrate the form from it.
 
-**The Blocked pane lists raw user ids** (medium) - `client/packages/app/lib/src/widgets/personal_account_sections.dart:130`.
+**The Blocked pane lists raw user ids** (medium) - `client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart:130`.
 A whole top-level settings category renders a column of UUIDs, so its only purpose - unblocking a specific person - requires guessing.
 
-**An invite's role grant is on the wire and never shown** (medium) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:250`.
+**An invite's role grant is on the wire and never shown** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:250`.
 An outstanding code that makes every redeemer a moderator is visually identical to a plain one, so the invite list cannot be audited.
 Note the project's own notes are stale here and claim role-granting invites have no HTTP surface; they do, and it is unaudited.
 
@@ -59,7 +59,7 @@ The recorded gap is pagination; the part worth acting on independently is that `
 
 ## 2. Labels that contradict the state, or assert something never checked
 
-**A spent invite is labelled "Expired"** (high) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:292`.
+**A spent invite is labelled "Expired"** (high) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:292`.
 The badge falls back to the server's single `usable` bool, which collapses revoked, spent and expired, so a used-up code renders "EXPIRED" directly above "10/10 uses · Never expires".
 An admin debugging why a friend cannot join is told a different problem with a different fix, and every field needed to say which is already on the model.
 
@@ -84,7 +84,7 @@ Clear is always offered and the server is idempotent, so on the one screen that 
 This is the fourth instance of the same dead-feature shape (`markRead`, `Routes.settings`, `report`/`blockUser`), and `route_reachability_test.dart` cannot see it because the gap is an uncalled API method rather than an unnavigated route.
 It compounds with the missing password reveal and the never-committed autofill on the same screen.
 
-**"Assign" is offered on the @everyone row** (medium) - `client/packages/app/lib/src/screens/admin/roles_screen.dart:138`.
+**"Assign" is offered on the @everyone row** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/roles_screen.dart:138`.
 Profiles never carry the everyone role, so every member reads as switched off and a grant springs back on refetch; `member_roles_sheet.dart` filters it out with a comment saying exactly why, and has a test named for it.
 
 **The "Administrator" overwrite row is inert** (medium) - `client/packages/app/lib/src/permissions.dart:30`.
@@ -97,9 +97,9 @@ The first of sixteen rows on the hardest screen in the product is a control that
 **The collapsed call strip is not a way back into the call, and never names the channel** (medium) - `client/packages/app/lib/src/features/voice/widgets/voice_strip_indicator.dart:37`.
 The only affordance on it hangs up, and its label is a bare participant count while `voice.channelId` sits in the same state object.
 
-**Revoke is offered on an invite nobody can redeem** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:309`, gated on `!revoked` rather than `usable`.
+**Revoke is offered on an invite nobody can redeem** (low) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:309`, gated on `!revoked` rather than `usable`.
 
-**The Notifications pane is a read-only dead end** (low) - `client/packages/app/lib/src/widgets/personal_status_sections.dart:85`.
+**The Notifications pane is a read-only dead end** (low) - `client/packages/app/lib/src/features/settings/widgets/personal_status_sections.dart:85`.
 One of seven top-level entries opens onto a single non-tappable line that looks tappable, and in the blocked state it names the problem in the danger colour and offers nothing.
 
 **Add-reaction is revealed by mouse hover only** (low) - `client/packages/app/lib/src/widgets/hover_reveal.dart:35`.
@@ -117,10 +117,10 @@ Sends do fail visibly, so the loss is inbound: the user cannot tell whether nobo
 **The report queue never refreshes and has no affordance to ask it to** (low) - `client/packages/app/lib/src/providers/admin_providers.dart:30`.
 Fetched once on mount, no report event exists in the wire protocol, no refresh action and no pull-to-refresh - which is also what makes the two state bugs below inescapable without closing the panel.
 
-**Nothing at the entry point says reports are waiting** (low) - `client/packages/app/lib/src/widgets/space_settings_section.dart:57`.
+**Nothing at the entry point says reports are waiting** (low) - `client/packages/app/lib/src/features/settings/widgets/space_settings_section.dart:57`.
 Manual reporting is the whole safety model, and the only way to learn something was filed is to speculatively open the queue.
 
-**No expiry urgency anywhere in the invite list** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:253`.
+**No expiry urgency anywhere in the invite list** (low) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:253`.
 An invite expiring in ten minutes reads exactly like one expiring in thirty days, in one 12px secondary caption, while `warnText`'s own doc names "an expiring invite" as its purpose.
 
 ## 5. Failures are still events, not states
@@ -131,7 +131,7 @@ Confirmed independently by six specialists.
 **The channel screen and composer carry seven vanishing failures** (medium) - `client/packages/app/lib/src/features/channels/screens/channel_message_actions.dart:45`, plus `composer.dart:238` and `:265`.
 The attachment upload is the sharpest: the file did not attach and four seconds later the only explanation is gone with no verb to act on.
 
-**Invite creation flashes a Dart exception, and a non-API throw wedges the button** (medium) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:113`.
+**Invite creation flashes a Dart exception, and a non-API throw wedges the button** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:113`.
 The catch covers `ApiException` only, so any other throw skips the handler and leaves `_submitting` true at "Creating..." until the modal is closed.
 The row 120 lines below in the same file already uses the guarded inline state.
 
@@ -141,7 +141,7 @@ Including the 403 that a genuinely unchanged submit can produce, on a screen whe
 **Role assignment fails as a toast with the server's fragment in it** (medium) - `client/packages/app/lib/src/screens/admin/role_assign_sheet.dart:45`.
 Compounded by no client-side grant check: `myPermissionsProvider` is not read in that file, so every row looks actionable and grants of a role carrying bits the caller lacks round-trip and spring back.
 
-**Devices and Blocked render a load failure as one dead sentence with no retry** (medium) - `client/packages/app/lib/src/widgets/personal_account_sections.dart:47`, while the same file uses the real inline error state 80 lines later.
+**Devices and Blocked render a load failure as one dead sentence with no retry** (medium) - `client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart:47`, while the same file uses the real inline error state 80 lines later.
 
 **A raw exception object is interpolated into the voice join preview's visible copy** (medium) - `client/packages/app/lib/src/features/voice/providers/voice_controller.dart:177`.
 `lastError` is the caught object, centre-aligned under a heading on the screen a self-hoster hits when their SFU is misconfigured.
@@ -149,7 +149,7 @@ Note the sibling path in the same file interpolates it deliberately with a comme
 
 ## 6. Write paths that mishandle their own state
 
-**Resolving a report leaves `_busy` true and disables the next report's buttons** (medium) - `client/packages/app/lib/src/screens/admin/reports_screen.dart:77`.
+**Resolving a report leaves `_busy` true and disables the next report's buttons** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/reports_screen.dart:77`.
 The flag is cleared only in the catch, and the list has no keys, so when the queue shortens the retained state is handed the next report, whose Dismiss and Resolve then render dimmed and take no taps with nothing said about why.
 
 **"Set overwrite" is an unconfirmed blind replace; the strictly safer "Clear" gets the dialog** (medium) - `client/packages/app/lib/src/screens/admin/channel_overwrites_screen.dart:95`.
@@ -158,25 +158,25 @@ The form always opens at all-inherit, so submitting after touching one row repla
 **A submit that changes nothing can be refused as a privilege escalation** (medium) - `crates/slimm-server/src/http/overwrites.rs:125`.
 Because the form always sends deny=0, an existing deny of a bit the caller does not hold in that channel makes an untouched form a 403, explained only by a vanishing toast.
 
-**Non-numeric text in "Uses allowed" silently produces an unlimited invite** (medium) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:91`.
+**Non-numeric text in "Uses allowed" silently produces an unlimited invite** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:91`.
 `int.tryParse` returns null, the client omits the key, and the server reads that as unlimited; the field has no formatter and never uses the input component's own error slot.
 The failure is silent and lands on the most permissive setting, on the screen that controls who gets into the Space.
 Zero and negative values are correctly refused server-side.
 
-**Revoking another device and unblocking a user have no error handling at all** (medium) - `client/packages/app/lib/src/widgets/personal_account_sections.dart:74` and `:134`.
+**Revoking another device and unblocking a user have no error handling at all** (medium) - `client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart:74` and `:134`.
 No try/catch on either, so a failure escapes into the unhandled-async path and the row stays exactly as it was - indistinguishable from "it worked but the list did not refresh", on a security action.
 
-**A long role name is clipped mid-glyph under the action icons** (medium) - `client/packages/app/lib/src/screens/admin/roles_screen.dart:108`.
+**A long role name is clipped mid-glyph under the action icons** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/roles_screen.dart:108`.
 A bare `Text` as a non-flex `Row` child never elides, and the card clips, so the name is cut hard with no ellipsis; the server accepts 64 characters and about 26 fit on a phone.
 The design system documents this exact trap for its own row.
 
-**The emoji list is non-lazy** (medium) - `client/packages/app/lib/src/screens/admin/emoji_screen.dart:48`.
+**The emoji list is non-lazy** (medium) - `client/packages/app/lib/src/features/settings/screens/admin/emoji_screen.dart:48`.
 A `Column` inside a single-child `ListView`, so at the server's own 500 cap opening the screen builds 500 rows and issues 500 image fetches in one frame.
 
 **An operator can lock themselves out of the overwrites screen in one channel** (low) - `crates/slimm-server/src/http/overwrites.rs:73`.
 Both verbs are gated on channel-scoped MANAGE_ROLES and the administrator bypass is base-scoped, so a deny against oneself as a member, or against @everyone, is unrecoverable without an administrator - offered as one of sixteen identical-looking rows with no warning.
 
-**Losing the two-moderator race reads as a failure** (low) - `client/packages/app/lib/src/screens/admin/reports_screen.dart:83`.
+**Losing the two-moderator race reads as a failure** (low) - `client/packages/app/lib/src/features/settings/screens/admin/reports_screen.dart:83`.
 The one concurrency case the server deliberately designed for surfaces as a generic error, and the stale card stays with live buttons that will 404 forever.
 
 ## 7. The theme does not carry the palette
@@ -236,7 +236,7 @@ A 4dp inset on all four sides means a field's drawn edge sits inside every sibli
 **The autocomplete popup is silent** (medium) - `client/packages/app/lib/src/features/composer/widgets/composer_autocomplete.dart:113`.
 No live region anywhere in the file and focus never moves into it, so up to eight suggestions open above the caret with no announcement that offers exist and none when the selection changes - meaning Enter substitutes text the user never heard about.
 
-**Nav group labels are their own accessible name, uppercased** (medium) - `client/packages/app/lib/src/widgets/settings_panes.dart:239`.
+**Nav group labels are their own accessible name, uppercased** (medium) - `client/packages/app/lib/src/features/settings/widgets/settings_panes.dart:239`.
 The rail and the member pane both do the opposite, with a comment explaining that some screen readers spell such a word out; the new settings nav is the one site that regressed, on the only structure a screen-reader user has for navigating it.
 
 **Nothing announces or focuses a field-scoped failure** (low) - `client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:342`.
@@ -246,7 +246,7 @@ The form-scoped error is a live region and announces at once; the three field er
 The `hint` slot is cards-only, so a screen reader hears "Allow, button, disabled" with no reason, and a sighted user sees a slightly paler word among sixteen rows.
 The row already knows the reason.
 
-**Every invite row's destructive button reports the same name** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:312`.
+**Every invite row's destructive button reports the same name** (low) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:312`.
 "Revoke invite" with no code in it, and the card carries no group label, so control-by-control navigation gives N identical buttons; the confirmation dialog does quote the code, which is the mitigation.
 
 **A message timestamp carries no full date on hover or in semantics** (low) - `client/packages/app/lib/src/features/messages/widgets/message_row_identity.dart:105`.
@@ -268,14 +268,14 @@ Note three of the seven personal-settings panes hold one row each, so the emptin
 The height reserves 14% for scrim and the width reserves nothing, so a half-screen desktop window gets a modal flush against both edges but inset top and bottom.
 No viewport in the matrix covers that band.
 
-**Compact drill-down in settings is local state, not a route** (medium) - `client/packages/app/lib/src/widgets/settings_panes.dart:108`.
+**Compact drill-down in settings is local state, not a route** (medium) - `client/packages/app/lib/src/features/settings/widgets/settings_panes.dart:108`.
 The visible arrow goes up one level while Android back, the iOS edge swipe and a barrier tap dismiss the whole panel from any depth - two affordances in the same position with different destinations - and the pane change is invisible to a screen reader because the navigation stack never changed.
 
-**The space-settings list is ragged against its own title at both widths, in opposite directions** (medium) - `client/packages/app/lib/src/screens/space_settings_screen.dart:24`.
+**The space-settings list is ragged against its own title at both widths, in opposite directions** (medium) - `client/packages/app/lib/src/features/settings/screens/space_settings_screen.dart:24`.
 16pt on a phone and 53.5pt on desktop, because this is the one admin screen that passes `EdgeInsets.zero` and never re-applies the inset; the first row is also flush against the app bar.
 A milder version of the desktop half exists on every screen using the shared scaffold, where the app bar sits outside the capped content column.
 
-**Personal settings and space settings are two different settings designs in the same panel** (medium) - `client/packages/app/lib/src/screens/space_settings_screen.dart:19`.
+**Personal settings and space settings are two different settings designs in the same panel** (medium) - `client/packages/app/lib/src/features/settings/screens/space_settings_screen.dart:19`.
 One is a centred capped column of iconned rows with descriptions; the other is a flush-left 240px nav of bare labels.
 Every future settings change is made twice, and the two frames have already diverged on content width.
 
@@ -311,7 +311,7 @@ Six of seven rows are asserted in both directions; showing that one to a CREATE_
 
 ## 12. Copy, naming and information architecture
 
-**"Delete account" is filed inside the pane labelled "About slim-m", beside the version number** (medium) - `client/packages/app/lib/src/screens/personal_settings_screen.dart:95`, one group below a group called YOU, with the pane's own title and its section header disagreeing.
+**"Delete account" is filed inside the pane labelled "About slim-m", beside the version number** (medium) - `client/packages/app/lib/src/features/settings/screens/personal_settings_screen.dart:95`, one group below a group called YOU, with the pane's own title and its section header disagreeing.
 
 **Nothing in the UI states the overwrite precedence rules** (low) - `client/packages/app/lib/src/screens/admin/channel_overwrites_screen.dart:212`.
 Role and Member are tiers, not flavours, and deny wins across roles - a deliberate deviation from the convention operators arrive with - so a role Allow with no effect reads as a broken screen.
@@ -319,7 +319,7 @@ Role and Member are tiers, not flavours, and deny wins across roles - a delibera
 **Sixteen tri-state rows with no card, no grouping and no heading, and voice permissions offered on text channels** (medium) - `channel_overwrites_screen.dart:245`.
 Surface weight runs opposite to consequence: the two least consequential controls sit in titled cards and the sixteen consequential ones sit loose in a column with nothing saying what the block is.
 
-**"Anyone with the address" is offered as a neutral peer with no caveat** (low) - `client/packages/app/lib/src/widgets/join_policy_row.dart:105`.
+**"Anyone with the address" is offered as a neutral peer with no caveat** (low) - `client/packages/app/lib/src/features/settings/widgets/join_policy_row.dart:105`.
 The picker it uses takes a footnote for exactly this and has a working precedent two files away; nothing anywhere in the client explains what an open Space means.
 The same setting is called "Who can join" on the row and "Who can create an account" in the sheet it opens.
 
@@ -329,10 +329,10 @@ The checkbox is a recorded Play compliance requirement and should stay; the gap 
 **A settings cog is the icon for "Connect to a Space"** (low) - `client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart:77`, the only one of three entry glyphs that actively misdescribes its row.
 Similarly, "Removed members" is drawn with the sign-out glyph (`space_settings_section.dart:91`), which means signing out one screen away, and "Delete account" uses the alert-circle (`personal_account_sections.dart:170`) while a trash glyph exists - so when a delete fails the pane shows two red alert glyphs meaning two different things in one column.
 
-**Copy hands over half of what the recipient needs** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:194`.
+**Copy hands over half of what the recipient needs** (low) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:194`.
 The clipboard gets a bare 10-character code; the redeeming side needs a server address in a separate field, and the clipboard is the one moment the screen knows both halves.
 
-**Delete confirmation is a filled danger button** (medium) - `client/packages/app/lib/src/widgets/personal_account_sections.dart:234`.
+**Delete confirmation is a filled danger button** (medium) - `client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart:234`.
 The single place in the app that fills a control with the danger colour, in a hand-rolled copy of a shared dialog whose replacement grew a `cancelLabel` parameter specifically for this caller, with a comment saying so.
 Conversely, resolving a report goes through the same danger helper (`reports_screen.dart:65`), so the desired outcome is re-presented as destructive one tap after being offered as the accent primary.
 
@@ -340,7 +340,7 @@ Conversely, resolving a report goes through the same danger helper (`reports_scr
 
 ## 13. Cleanup, and notes that have gone stale
 
-**Five stale or orphaned doc comments left by the settings redesign** - `client/packages/app/lib/src/screens/personal_settings_screen.dart:11` ("five panes" for seven), an orphaned block at the end of `personal_status_sections.dart` arguing for the design the redesign reversed, and two files claiming "Reached with `go()`, so there is no stack to pop" when every call site pushes - which is the exact reasoning the drill-down navigation finding turns on.
+**Five stale or orphaned doc comments left by the settings redesign** - `client/packages/app/lib/src/features/settings/screens/personal_settings_screen.dart:11` ("five panes" for seven), an orphaned block at the end of `personal_status_sections.dart` arguing for the design the redesign reversed, and two files claiming "Reached with `go()`, so there is no stack to pop" when every call site pushes - which is the exact reasoning the drill-down navigation finding turns on.
 
 **`_PinPill`'s doc comment describes a gap that closed two passes ago** - `client/packages/app/lib/src/features/channels/widgets/channel_header.dart:121`, pointing the reader at a known-gaps note that has since been struck.
 

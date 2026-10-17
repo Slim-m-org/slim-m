@@ -25,8 +25,8 @@ import '../../../api_failure.dart';
 import '../../../format.dart';
 import '../providers/filed_reports.dart';
 import '../../../providers/providers.dart';
-import '../../../widgets/settings_empty.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_empty.dart';
+import '../../settings/widgets/settings_section_header.dart';
 
 class ReportStatusSection extends ConsumerWidget {
   const ReportStatusSection({super.key});

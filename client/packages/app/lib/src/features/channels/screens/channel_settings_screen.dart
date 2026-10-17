@@ -20,8 +20,8 @@ import 'package:slimm_data/data.dart' show Channel;
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../../../routing/routes.dart';
-import '../../../widgets/settings_notice.dart';
-import '../../../screens/admin/channel_permissions_screen.dart';
+import '../../settings/widgets/settings_notice.dart';
+import '../../settings/screens/admin/channel_permissions_screen.dart';
 import 'channel_settings_danger_zone.dart';
 import 'channel_settings_general_section.dart';
 import 'channel_settings_join_muted_section.dart';
@@ -29,7 +29,7 @@ import 'channel_settings_private_row.dart';
 import 'channel_settings_retention_row.dart';
 import 'channel_settings_rooms_section.dart';
 import 'channel_settings_slow_mode_section.dart';
-import '../../../screens/settings_screen_scaffold.dart';
+import '../../settings/screens/settings_screen_scaffold.dart';
 
 /// What the row's kebab hands the route: the channel, and whether it was the
 /// currently open one at the moment the menu opened.

@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_section_header.dart';
 
 /// Keys that already mean something while choosing, so they cannot be bound.
 final _unbindable = {

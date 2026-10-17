@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_preferences.dart';
 import '../providers/edit_history_provider.dart';
 import 'edit_history_diff.dart';
 import 'message_code_lexer.dart';

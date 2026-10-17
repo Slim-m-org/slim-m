@@ -9,8 +9,8 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/auth/widgets/reauth_sheet.dart';
-import 'package:slimm_app/src/widgets/settings_section_header.dart';
-import 'package:slimm_app/src/widgets/totp_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
+import 'package:slimm_app/src/features/settings/widgets/totp_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

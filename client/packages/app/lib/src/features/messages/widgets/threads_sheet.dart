@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/threads.dart';
 import '../../../routing/breakpoints.dart';
-import '../../../providers/display_density.dart';
+import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import 'author_label.dart';

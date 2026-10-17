@@ -7,7 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/totp_code_sheet.dart';
+import 'package:slimm_app/src/features/settings/widgets/totp_code_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 void main() {

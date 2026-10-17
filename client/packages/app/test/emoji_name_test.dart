@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/admin/emoji_name.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_name.dart';
 
 void main() {
   test('a name is reduced to what can be typed between colons', () {

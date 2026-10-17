@@ -82,7 +82,7 @@ Client-side, the reply quote is resolved purely from messages already loaded int
 
 ## 5. The report queue's quick actions reuse the dedicated moderation routes exactly
 
-`client/packages/app/lib/src/screens/admin/report_card_actions.dart`, `crates/slimm-server/src/http/members.rs:259-280`
+`client/packages/app/lib/src/features/settings/screens/admin/report_card_actions.dart`, `crates/slimm-server/src/http/members.rs:259-280`
 
 This PR (#304) is client-only - it added no server route and no server-side authorization logic.
 Confirmed against the diff (`git show 2733e0d --stat`): every file it touched is under `client/`.

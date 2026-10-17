@@ -16,8 +16,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart';
-import '../../../widgets/settings_detail_row.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_detail_row.dart';
+import '../../settings/widgets/settings_section_header.dart';
 
 enum _CheckStatus { idle, running, done, unknown }
 

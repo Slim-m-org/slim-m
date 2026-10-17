@@ -13,8 +13,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show supportsBiometricLock;
 
 import '../providers/app_lock_preference.dart';
-import 'settings_section_header.dart';
-import 'settings_detail_row.dart';
+import '../features/settings/widgets/settings_section_header.dart';
+import '../features/settings/widgets/settings_detail_row.dart';
 
 class AppLockSection extends ConsumerWidget {
   const AppLockSection({super.key, this.supported});

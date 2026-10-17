@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../invite_link.dart';
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_preferences.dart';
 import '../../../providers/providers.dart';
 import '../../../server_address_reduction.dart';
 import '../../../server_scheme_policy.dart';

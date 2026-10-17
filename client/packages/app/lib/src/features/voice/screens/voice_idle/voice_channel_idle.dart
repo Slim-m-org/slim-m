@@ -12,7 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../format.dart';
 import '../../../channels/providers/channel_by_id_provider.dart';
-import '../../../../providers/display_preferences.dart';
+import '../../../settings/providers/display_preferences.dart';
 import '../../providers/voice_call_history.dart';
 import '../../../../routing/breakpoints.dart';
 import 'call_history_rows.dart';

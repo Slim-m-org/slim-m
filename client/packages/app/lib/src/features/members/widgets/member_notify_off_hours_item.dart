@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/notification_schedule_controller.dart';
+import '../../settings/providers/notification_schedule_controller.dart';
 import 'member_actions.dart';
 
 class MemberNotifyOffHoursItem extends ConsumerWidget {

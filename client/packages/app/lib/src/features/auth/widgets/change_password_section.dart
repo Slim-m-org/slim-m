@@ -12,9 +12,9 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../providers/providers.dart';
 import 'change_password_sheet.dart';
 import 'reauth_sheet.dart' show reauthFailure;
-import '../../../widgets/settings_detail_row.dart';
-import '../../../widgets/settings_notice.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_detail_row.dart';
+import '../../settings/widgets/settings_notice.dart';
+import '../../settings/widgets/settings_section_header.dart';
 
 class ChangePasswordSection extends ConsumerStatefulWidget {
   const ChangePasswordSection({super.key, this.embedded = false});

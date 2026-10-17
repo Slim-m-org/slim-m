@@ -6,7 +6,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/audio/notification_sound.dart';
-import 'package:slimm_app/src/providers/notification_sound_rules.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_sound_rules.dart';
 
 void main() {
   group('channelEarnsASound', () {

@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../features/channels/providers/channel_permissions.dart';
-import 'join_gate_providers.dart';
+import '../features/settings/providers/join_gate_providers.dart';
 import 'live_events.dart';
 import '../features/members/providers/member_presence.dart'
     show channelMembersProvider;

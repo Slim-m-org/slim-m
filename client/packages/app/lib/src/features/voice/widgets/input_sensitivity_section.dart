@@ -11,8 +11,8 @@ import 'package:slimm_rtc/rtc.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../../widgets/settings_info_line.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_info_line.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 
 class InputSensitivityMeter extends ConsumerWidget {
   const InputSensitivityMeter({super.key});

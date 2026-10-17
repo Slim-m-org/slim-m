@@ -21,10 +21,10 @@ import '../../../permissions.dart';
 import '../widgets/message_mentions.dart' show messageMentionsMe;
 import '../../members/providers/blocks_controller.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
-import '../../../providers/notification_preference_controller.dart';
-import '../../../providers/notification_schedule_controller.dart';
-import '../../../providers/notification_schedule_rules.dart';
-import '../../../providers/notification_sound_rules.dart';
+import '../../settings/providers/notification_preference_controller.dart';
+import '../../settings/providers/notification_schedule_controller.dart';
+import '../../settings/providers/notification_schedule_rules.dart';
+import '../../settings/providers/notification_sound_rules.dart';
 import '../../../providers/providers.dart';
 
 /// What an alert needs to know about a message it was allowed to raise.

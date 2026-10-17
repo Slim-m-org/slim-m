@@ -14,7 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
-import 'package:slimm_app/src/providers/notification_sound_controller.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';

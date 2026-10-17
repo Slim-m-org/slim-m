@@ -12,7 +12,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/pins_controller.dart';
-import '../../../providers/display_density.dart';
+import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;

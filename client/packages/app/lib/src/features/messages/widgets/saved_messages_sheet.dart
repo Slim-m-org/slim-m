@@ -22,7 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../../providers/providers.dart';
 import '../providers/saved_messages_controller.dart';
-import '../../../providers/display_density.dart';
+import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
 import '../../channels/widgets/channel_label.dart';

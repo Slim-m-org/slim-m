@@ -14,7 +14,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
-import '../../../providers/notification_schedule_controller.dart';
+import '../../settings/providers/notification_schedule_controller.dart';
 import '../providers/dms.dart' show dmChannelKind;
 import '../../../providers/providers.dart';
 import '../../../widgets/app_snackbar.dart';

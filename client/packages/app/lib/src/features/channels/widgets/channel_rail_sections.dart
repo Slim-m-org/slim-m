@@ -31,7 +31,7 @@ import 'channel_rail_section_label.dart';
 import 'channel_rail_selection_marker.dart';
 import '../../../widgets/context_menu_region.dart' show ContextMenuRegionState;
 import 'dm_row.dart';
-import '../../../widgets/personal_space_row.dart';
+import '../../settings/widgets/personal_space_row.dart';
 
 /// A DM is stored locally as an ordinary [Channel] under `kind == 'dm'` (see
 /// `providers/dms.dart`), so this reads the same channel stream the

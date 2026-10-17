@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The screen-share resolution ceiling control on the Space performance
+/// screen. Split from `performance_screen.dart`, which is at its file-size
+/// ceiling; the two share the screen but not a file, the same split
+/// `canvas_cap_section.dart` already uses.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show ScreenShareResolution;
+
+import '../../../../preset_options.dart';
+import '../../../../providers/admin_providers.dart';
+import '../../../../providers/providers.dart';
+import '../../../../widgets/optimistic_setting_state.dart';
+import '../../../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_feedback.dart';
+import '../../widgets/settings_section_header.dart';
+import '../../widgets/settings_segmented_block.dart';
+
+/// The screen-share resolution ceiling; index-matched to the segmented
+/// options below. All lie inside the server's settable range (360 to 2160),
+/// and 2160 is the default a deployment keeps until an admin sets one.
+const _screenShareCapOptions = <(String, int)>[
+  ('720p', 720),
+  ('1080p', 1080),
+  ('1440p', 1440),
+  ('2160p', 2160),
+];
+
+/// What choosing [maxHeight] actually bounds: this setting scales the
+/// captured dimensions down, but leaves the bitrate ceiling alone.
+String screenShareCapConsequence(int maxHeight) {
+  final tier = ScreenShareResolution.values
+      .cast<ScreenShareResolution?>()
+      .firstWhere((r) => r!.height == maxHeight, orElse: () => null);
+  if (tier != null) {
+    return 'Shares are capped at ${tier.width}x${tier.height}.';
+  }
+  final maxTierHeight = ScreenShareResolution.values.last.height;
+  if (maxHeight < maxTierHeight) return 'Shares are capped at ${maxHeight}p.';
+  return 'No cap: every resolution already tops out at ${maxTierHeight}p.';
+}
+
+/// The screen-share resolution ceiling: client-advertised, so this is the
+/// only enforcement there is - a client reads it and caps its own capture
+/// parameters before starting a share, rather than the server inspecting
+/// published tracks. Applies to every client, independent of the analytics
+/// toggle above, so it stays visible and usable whether or not Space
+/// analytics recording is on.
+class ScreenShareCapSection extends ConsumerStatefulWidget {
+  const ScreenShareCapSection({super.key});
+
+  @override
+  ConsumerState<ScreenShareCapSection> createState() =>
+      _ScreenShareCapSectionState();
+}
+
+class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
+    with
+        GuardedActionState<ScreenShareCapSection>,
+        OptimisticSettingState<ScreenShareCapSection, int> {
+  Future<void> _setMaxHeight(int maxHeight) => saveOptimistic(
+    maxHeight,
+    whatFailed: 'change the screen-share resolution ceiling',
+    action: () => ref.read(apiProvider).setSpaceScreenShareMaxHeight(maxHeight),
+    refresh: spaceScreenShareCeilingProvider,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final ceiling = ref.watch(spaceScreenShareCeilingProvider);
+    ref.listen(
+      spaceScreenShareCeilingProvider,
+      (_, next) => retireOptimistic(next),
+    );
+    // Null until the server has answered: an unknown ceiling selects nothing rather than posing as the default.
+    final current = optimistic ?? ceiling.valueOrNull;
+    final options = current == null
+        ? _screenShareCapOptions
+        : presetsIncluding(_screenShareCapOptions, current, (h) => '${h}p');
+    final selectedIndex = options.indexWhere((o) => o.$2 == current);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsSectionCard(
+          title: 'Screen share quality',
+          description: 'The tallest resolution a share may use.',
+          children: [
+            SettingsSegmentedBlock(
+              semanticLabel: 'Screen share resolution ceiling',
+              labels: [for (final option in options) option.$1],
+              selectedIndex: selectedIndex,
+              disabled: saving,
+              onSelected: (i) => _setMaxHeight(options[i].$2),
+            ),
+            if (current != null)
+              SettingsSubRow(label: screenShareCapConsequence(current)),
+            if (ceiling.hasError && current == null)
+              SettingsCardBlock(
+                children: [
+                  AppErrorState(
+                    message: 'Could not load the current ceiling.',
+                    onRetry: () =>
+                        ref.invalidate(spaceScreenShareCeilingProvider),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
+      ],
+    );
+  }
+}

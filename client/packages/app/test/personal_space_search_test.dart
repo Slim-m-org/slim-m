@@ -21,7 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
-import 'package:slimm_app/src/providers/personal_space_visibility.dart';
+import 'package:slimm_app/src/features/settings/providers/personal_space_visibility.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';

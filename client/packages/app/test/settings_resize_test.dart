@@ -12,7 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/routing/settings_pages.dart';
-import 'package:slimm_app/src/widgets/settings_panes.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_harness.dart';

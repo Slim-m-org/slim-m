@@ -19,7 +19,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

@@ -18,15 +18,15 @@ import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
-import '../../../widgets/settings_info_line.dart';
-import '../../../widgets/settings_hairline.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_info_line.dart';
+import '../../settings/widgets/settings_hairline.dart';
+import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
 import '../../../audio/lounge_tracks.dart';
 import '../widgets/push_to_talk_key_row.dart';
-import '../../../widgets/settings_select_row.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 
 /// Everything about a call this device controls, as a pane body.
 ///

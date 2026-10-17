@@ -23,7 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/display_density.dart';
+import '../../settings/providers/display_density.dart';
 import '../providers/message_extras.dart' show MessageExtras;
 import '../../../routing/breakpoints.dart';
 

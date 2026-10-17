@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_preferences.dart';
 import '../providers/member_presence.dart';
 import '../../../providers/providers.dart';
 import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
@@ -22,11 +22,11 @@ import '../../messages/widgets/image_downscale.dart';
 import '../../messages/widgets/image_drop_zone.dart';
 import 'invite_landing_card.dart';
 import 'invite_landing_view.dart';
-import '../../../widgets/join_policy_row.dart';
+import '../../settings/widgets/join_policy_row.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/settings_detail_row.dart';
-import '../../../widgets/settings_field.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_detail_row.dart';
+import '../../settings/widgets/settings_field.dart';
+import '../../settings/widgets/settings_section_header.dart';
 import '../../../widgets/space_icon.dart';
 import '../../../widgets/space_name_field.dart';
 

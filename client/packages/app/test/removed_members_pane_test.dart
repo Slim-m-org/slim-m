@@ -15,7 +15,7 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart'
     show membersProvider;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/admin/removed_members_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/removed_members_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

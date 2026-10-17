@@ -5,9 +5,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/push_status.dart';
-import 'package:slimm_app/src/widgets/notification_status_banner.dart';
-import 'package:slimm_app/src/widgets/settings_segmented_row.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/notification_status_banner.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_segmented_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<int?> _pump(WidgetTester tester, double width) async {

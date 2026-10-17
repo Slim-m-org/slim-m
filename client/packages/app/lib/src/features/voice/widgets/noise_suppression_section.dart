@@ -8,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/noise_suppression.dart';
 import '../providers/strong_noise_status.dart';
-import '../../../widgets/settings_segmented_row.dart';
-import '../../../widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_segmented_row.dart';
+import '../../settings/widgets/settings_select_row.dart';
 
 class NoiseSuppressionSection extends ConsumerWidget {
   const NoiseSuppressionSection({super.key});

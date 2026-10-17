@@ -8,12 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_quality.dart';
-import 'package:slimm_app/src/providers/display_density.dart';
+import 'package:slimm_app/src/features/settings/providers/display_density.dart';
 import 'package:slimm_app/src/features/messages/providers/image_cache_preference.dart';
 import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
-import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/widgets/performance_settings_section.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/performance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<ProviderContainer> _pump(WidgetTester tester, Widget pane) async {

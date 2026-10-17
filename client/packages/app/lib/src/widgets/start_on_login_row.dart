@@ -5,8 +5,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/autostart_setting.dart';
-import 'settings_toggle_row.dart';
+import '../features/settings/providers/autostart_setting.dart';
+import '../features/settings/widgets/settings_toggle_row.dart';
 
 class StartOnLoginRow extends ConsumerStatefulWidget {
   const StartOnLoginRow({super.key});

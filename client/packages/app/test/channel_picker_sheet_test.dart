@@ -5,7 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/admin/overwrite_target_picker_sheets.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/overwrite_target_picker_sheets.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 

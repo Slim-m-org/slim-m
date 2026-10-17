@@ -12,7 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../external_link.dart';
 import '../../../format.dart';
 import '../providers/attachment_preview_quality.dart';
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_preferences.dart';
 import '../providers/link_preview.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';

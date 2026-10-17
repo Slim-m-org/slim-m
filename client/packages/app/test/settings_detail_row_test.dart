@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/settings_detail_row.dart';
-import 'package:slimm_app/src/widgets/settings_empty.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_detail_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_empty.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<void> _pump(WidgetTester tester, Widget child) => tester.pumpWidget(

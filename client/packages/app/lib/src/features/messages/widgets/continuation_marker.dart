@@ -10,7 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/display_density.dart';
+import '../../settings/providers/display_density.dart';
 
 /// Where a continuation row's marker sits, derived from its own layout.
 class ContinuationGeometry {

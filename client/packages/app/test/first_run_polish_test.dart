@@ -7,7 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/notification_schedule_controller.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_dialogs.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_alternatives.dart';
 import 'package:slimm_app/src/features/members/widgets/member_notify_off_hours_item.dart';

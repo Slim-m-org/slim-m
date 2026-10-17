@@ -9,11 +9,11 @@ library;
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/admin/bots_screen.dart';
-import 'package:slimm_app/src/screens/admin/dock_module_access_screen.dart';
-import 'package:slimm_app/src/screens/admin/dock_module_screen.dart';
-import 'package:slimm_app/src/screens/admin/dock_screen.dart';
-import 'package:slimm_app/src/screens/admin/webhooks_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/bots_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/webhooks_screen.dart';
 
 final dockFixtureRoutes = [
   GoRoute(

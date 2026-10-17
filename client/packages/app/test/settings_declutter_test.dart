@@ -6,9 +6,9 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
-import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/widgets/display_settings_section.dart';
-import 'package:slimm_app/src/widgets/settings_section_header.dart';
+import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/display_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 
 import 'voice_settings_screen_harness.dart';
 

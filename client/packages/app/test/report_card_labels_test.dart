@@ -9,7 +9,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/admin/report_card_labels.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/report_card_labels.dart';
 
 api.UserProfile _alice() => const api.UserProfile(
   id: 'u1',

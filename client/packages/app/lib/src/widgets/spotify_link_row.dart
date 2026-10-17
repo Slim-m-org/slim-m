@@ -10,7 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../spotify/spotify_link.dart';
 import '../spotify/spotify_link_status.dart';
-import 'settings_section_header.dart';
+import '../features/settings/widgets/settings_section_header.dart';
 
 class SpotifyLinkRow extends ConsumerWidget {
   const SpotifyLinkRow({super.key});

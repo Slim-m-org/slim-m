@@ -9,8 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/messages/providers/message_page_size.dart';
-import 'package:slimm_app/src/widgets/general_settings_section.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/general_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_harness.dart';

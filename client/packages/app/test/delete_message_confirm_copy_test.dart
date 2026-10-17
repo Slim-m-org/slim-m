@@ -15,7 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/admin/report_card_actions.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/report_card_actions.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_message_actions.dart';
 import 'package:slimm_app/src/widgets/confirm_dialog.dart';
 import 'package:slimm_data/data.dart';

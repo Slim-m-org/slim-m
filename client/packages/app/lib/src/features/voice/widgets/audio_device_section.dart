@@ -20,9 +20,9 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../../widgets/settings_hairline.dart';
-import '../../../widgets/settings_section_header.dart';
-import '../../../widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_hairline.dart';
+import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_select_row.dart';
 
 /// [SettingsSelectRow] reserves null for "no choice known yet"; this sentinel
 /// stands in for the system default so a real, known choice can still be

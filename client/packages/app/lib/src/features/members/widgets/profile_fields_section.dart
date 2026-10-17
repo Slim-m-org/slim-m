@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/profile_draft.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/color_swatch_row.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_section_header.dart';
 
 /// Spoken names for [AppCanvasColors.cursors], in the same order.
 const _colourNames = ['Pink', 'Purple', 'Blue', 'Orange', 'Green', 'Magenta'];

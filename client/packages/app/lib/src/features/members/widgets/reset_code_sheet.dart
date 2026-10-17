@@ -25,7 +25,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_preferences.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../auth/widgets/reauth_sheet.dart';

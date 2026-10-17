@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/video_pause.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 
 class PauseVideoRow extends ConsumerWidget {
   const PauseVideoRow({super.key});

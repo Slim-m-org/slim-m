@@ -12,8 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/display_density.dart';
-import '../../../providers/display_preferences.dart';
+import '../../settings/providers/display_density.dart';
+import '../../settings/providers/display_preferences.dart';
 import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
 import 'author_profile_tap_target.dart';

@@ -19,8 +19,8 @@ import '../../channels/screens/channel_settings_rooms_section.dart'
     show userLimitLabel, userLimitOptions;
 import '../../../entity_name.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/settings_select_row.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 
 Future<void> showVoiceRoomSettingsSheet(
   BuildContext context, {

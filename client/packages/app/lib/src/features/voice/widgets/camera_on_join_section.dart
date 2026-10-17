@@ -24,8 +24,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/voice_settings_controller.dart';
-import '../../../widgets/settings_section_header.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 
 class CameraOnJoinSection extends ConsumerWidget {
   const CameraOnJoinSection({super.key, this.embedded = false});

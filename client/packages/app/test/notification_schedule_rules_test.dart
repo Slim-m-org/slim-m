@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/notification_schedule_rules.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_schedule_rules.dart';
 
 api.NotificationSchedule _schedule({
   required List<api.NotificationScheduleDay> days,

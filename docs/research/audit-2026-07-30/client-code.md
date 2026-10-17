@@ -357,7 +357,7 @@ Measured on this branch, `.g.dart` and `.freezed.dart` excluded.
 | 349 | `app/lib/src/providers/providers.dart` | `AppThemeChoice` + `ThemeController` + `themeChoiceKey` (269-318), a self-contained 50 lines |
 | 338 | `api/lib/src/models.dart` | three, along seams the file already draws with section comments: `models_session` (TokenPair, Ticket), `models_voice` (VoiceToken, VoiceRosterParticipant), `models_sync` (ReadState, ScopeCursor, ScopeDelta). Nine siblings already carry a "split out of models.dart purely to stay under this repo's line budget" header, so this is the file whose own header explains the splitting |
 | 334 | `design_system/lib/src/components/surfaces/list_row.dart` | the two animated marks (unread dot, selection marker) as private widgets. Also the highest comment-cap debt in the design system at 11 runs, where the next highest is 4, so splitting moves several of those onto exempt doc comments |
-| 322 | `app/lib/src/screens/admin/invites_screen.dart` | none named |
+| 322 | `app/lib/src/features/settings/screens/admin/invites_screen.dart` | none named |
 | 309 | `app/lib/src/features/channels/widgets/channel_rail_frame.dart` | none named |
 | 303 | `app/lib/src/widgets/composer_extras.dart` | none named |
 

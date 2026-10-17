@@ -14,10 +14,10 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../../routing/routes.dart';
 import 'pause_video_section.dart';
-import '../../../widgets/settings_section_header.dart';
-import '../../../widgets/settings_segmented_row.dart';
-import '../../../widgets/settings_select_row.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_segmented_row.dart';
+import '../../settings/widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 import 'video_quality_labels.dart';
 
 class VideoQualitySection extends ConsumerWidget {

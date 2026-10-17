@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../format.dart';
-import '../../../../providers/display_preferences.dart';
+import '../../../settings/providers/display_preferences.dart';
 import '../../../members/providers/user_profiles.dart';
 import 'call_timeline_model.dart';
 

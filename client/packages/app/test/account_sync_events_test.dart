@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/channels/providers/channel_notification_o
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/devices_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/devices_section.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/platform.dart';
 

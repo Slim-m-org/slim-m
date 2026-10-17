@@ -19,7 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../providers/member_moderation_error.dart';
 import '../../channels/providers/dms.dart' show openDirectMessage;
 import '../providers/member_presence.dart' show membersProvider;
-import '../../../providers/notification_schedule_controller.dart';
+import '../../settings/providers/notification_schedule_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/app_snackbar.dart';

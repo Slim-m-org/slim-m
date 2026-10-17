@@ -17,7 +17,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/admin/reports_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dart';
 import 'package:slimm_data/data.dart' hide Channel, Message;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

@@ -16,8 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../members/providers/blocks_controller.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
-import '../../../providers/notification_preference_controller.dart';
-import '../../../providers/notification_schedule_controller.dart';
+import '../../settings/providers/notification_preference_controller.dart';
+import '../../settings/providers/notification_schedule_controller.dart';
 
 /// Refetches the block list, the channel overrides, the schedule and the
 /// account preference.

@@ -21,8 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
-import 'package:slimm_app/src/screens/debug_log_screen.dart';
-import 'package:slimm_app/src/screens/settings_screen_scaffold.dart';
+import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/settings_screen_scaffold.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness(DebugLog Function() build) => ProviderScope(

@@ -6,8 +6,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
-import '../screens/personal_settings_screen.dart';
-import '../screens/space_settings_screen.dart';
+import '../features/settings/screens/personal_settings_screen.dart';
+import '../features/settings/screens/space_settings_screen.dart';
 import 'modal_page.dart';
 import 'routes.dart';
 

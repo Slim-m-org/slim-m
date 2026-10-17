@@ -17,8 +17,8 @@ import '../../../spotify/spotify_link.dart';
 import '../../../spotify/spotify_link_status.dart';
 import 'activity_card.dart';
 import 'activity_game_list.dart';
-import '../../../widgets/settings_section_header.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 import '../../../widgets/spotify_link_row.dart';
 
 class ActivitySharingSection extends ConsumerWidget {

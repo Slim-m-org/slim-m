@@ -8,7 +8,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/admin/emoji_bulk_plan.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_bulk_plan.dart';
 
 import 'emoji_add_harness.dart' show buildEmojiZip;
 

@@ -9,9 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/widgets/bot_permission_toggles.dart';
-import 'package:slimm_app/src/widgets/settings_info_line.dart';
-import 'package:slimm_app/src/widgets/settings_secret_reveal.dart';
-import 'package:slimm_app/src/widgets/settings_section_header.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_info_line.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_secret_reveal.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 AppToggle _toggle(WidgetTester tester, String label) => tester

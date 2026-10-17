@@ -9,8 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/notification_status_banner.dart';
-import 'package:slimm_app/src/widgets/personal_status_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/notification_status_banner.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

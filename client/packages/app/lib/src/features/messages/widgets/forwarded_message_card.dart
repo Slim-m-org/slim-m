@@ -26,7 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
-import '../../../providers/display_preferences.dart' show watchUse24Hour;
+import '../../settings/providers/display_preferences.dart' show watchUse24Hour;
 import '../../members/providers/user_profiles.dart';
 import 'attachment_gallery.dart';
 import 'author_label.dart';

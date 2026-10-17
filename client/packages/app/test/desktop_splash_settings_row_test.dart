@@ -16,8 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/desktop_splash_preference.dart';
-import 'package:slimm_app/src/widgets/general_settings_section.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/general_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _wrap() => ProviderScope(

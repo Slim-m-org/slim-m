@@ -35,11 +35,14 @@ import 'support/code_only.dart';
 /// real `itemBuilder`/`itemCount` a single wrapped child cannot express, so
 /// it owns its own scroll and pads it to match the frame's own AppSpacing.s16
 /// by hand rather than by inheritance.
-const _exceptions = {'lib/src/screens/admin/reports_screen.dart'};
+const _exceptions = {
+  'lib/src/features/settings/screens/admin/reports_screen.dart',
+};
 
 /// The file the widget itself is declared in: its own default parameter
 /// value is not a caller passing an override.
-const _declaringFile = 'lib/src/screens/settings_screen_scaffold.dart';
+const _declaringFile =
+    'lib/src/features/settings/screens/settings_screen_scaffold.dart';
 
 /// Finds the substring from [start] (the character right after an opening
 /// `(`) to its matching close paren, so a check can look only inside one

@@ -28,7 +28,7 @@ import '../../palette/widgets/command_palette.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
-import '../../../widgets/personal_account_sections.dart';
+import '../../settings/widgets/personal_account_sections.dart';
 
 /// The channel id in [path], or null when [path] is not a channel route.
 ///

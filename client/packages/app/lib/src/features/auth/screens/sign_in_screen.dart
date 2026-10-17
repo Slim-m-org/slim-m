@@ -26,7 +26,7 @@ import '../../../providers/whats_new_controller.dart';
 import 'reset_password_sheet.dart';
 import 'sign_in_alternatives.dart';
 import 'sign_in_credential_fields.dart';
-import '../../../widgets/totp_sign_in_prompt.dart';
+import '../../settings/widgets/totp_sign_in_prompt.dart';
 import 'sign_in_error.dart';
 import 'sign_in_invite_notice.dart';
 import 'sign_in_invite_redeem.dart';

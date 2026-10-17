@@ -13,9 +13,9 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../providers/providers.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/settings_select_row.dart';
-import '../../../widgets/settings_save_feedback.dart';
-import '../../../screens/admin/performance_screen.dart'
+import '../../settings/widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_save_feedback.dart';
+import '../../settings/screens/admin/performance_screen.dart'
     show retentionConfirmMessage, retentionDeletesHistory;
 
 /// The channel's own window and the Space's, refetched each time settings open.

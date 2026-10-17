@@ -14,7 +14,7 @@ import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/admin/invites_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/invites_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

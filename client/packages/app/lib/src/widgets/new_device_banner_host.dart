@@ -14,7 +14,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../format.dart';
-import '../providers/display_preferences.dart';
+import '../features/settings/providers/display_preferences.dart';
 import '../providers/new_device_alert.dart';
 import '../routing/routes.dart';
 import 'banner_host_layout.dart';

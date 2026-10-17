@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/desktop_splash_preference.dart';
-import 'package:slimm_app/src/providers/display_preferences.dart';
+import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/startup_restores.dart';
 

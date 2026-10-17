@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/display_density.dart';
+import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_text.dart';

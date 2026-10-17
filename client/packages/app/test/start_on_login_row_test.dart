@@ -5,7 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/autostart_setting.dart';
+import 'package:slimm_app/src/features/settings/providers/autostart_setting.dart';
 import 'package:slimm_app/src/widgets/start_on_login_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

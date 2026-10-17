@@ -15,8 +15,8 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/admin/emoji_add_card.dart';
-import 'package:slimm_app/src/screens/admin/emoji_intake.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_add_card.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_intake.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const emojiTestTokens = api.TokenPair(

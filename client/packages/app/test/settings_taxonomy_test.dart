@@ -16,8 +16,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/personal_account_sections.dart';
-import 'package:slimm_app/src/widgets/settings_section_header.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_harness.dart';

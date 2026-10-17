@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_section_header.dart';
 
 class ActivityGameList extends StatefulWidget {
   const ActivityGameList({super.key});

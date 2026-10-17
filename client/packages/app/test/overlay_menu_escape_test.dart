@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/personal_space_menu.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_space_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
 import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';

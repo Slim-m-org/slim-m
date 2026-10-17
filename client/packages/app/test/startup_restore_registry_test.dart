@@ -10,7 +10,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/display_preferences.dart';
+import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/startup_restores.dart';
 
 /// Restored by `restoreSplashFloor`, which needs the floor it answers.

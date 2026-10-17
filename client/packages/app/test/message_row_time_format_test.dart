@@ -21,7 +21,7 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/display_preferences.dart';
+import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';

@@ -17,8 +17,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/admin/dock_module_screen.dart';
-import 'package:slimm_app/src/screens/admin/dock_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

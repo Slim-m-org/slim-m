@@ -18,12 +18,12 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/admin/analytics_screen.dart';
-import 'package:slimm_app/src/screens/admin/performance_screen.dart';
-import 'package:slimm_app/src/screens/admin/server_metrics_screen.dart';
-import 'package:slimm_app/src/screens/admin/space_voice_screen.dart';
-import 'package:slimm_app/src/screens/admin/storage_screen.dart';
-import 'package:slimm_app/src/screens/space_settings_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/analytics_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/performance_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/server_metrics_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/space_voice_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/space_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

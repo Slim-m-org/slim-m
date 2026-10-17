@@ -25,7 +25,7 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
-import 'package:slimm_app/src/screens/admin/report_card.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/report_card.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

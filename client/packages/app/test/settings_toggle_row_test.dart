@@ -12,7 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/settings_toggle_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _sentence = 'Play a sound when someone joins or leaves a call';

@@ -22,7 +22,7 @@ import 'avatar_crop_sheet.dart';
 import 'avatar_photo_menu.dart';
 import 'edit_display_name_sheet.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_section_header.dart';
 import 'user_avatar.dart';
 
 const double _avatarSize = AppAvatarSize.s40;

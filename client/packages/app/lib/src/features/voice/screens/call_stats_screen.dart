@@ -13,11 +13,11 @@ import 'package:slimm_rtc/rtc.dart';
 import '../providers/voice_controller.dart';
 import '../../../routing/routes.dart';
 import '../widgets/call_stats_lines.dart';
-import '../../../widgets/settings_empty.dart';
-import '../../../widgets/settings_section_header.dart';
-import '../../../widgets/settings_detail_row.dart';
-import '../../../widgets/settings_toggle_row.dart';
-import '../../../screens/settings_screen_scaffold.dart';
+import '../../settings/widgets/settings_empty.dart';
+import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/widgets/settings_detail_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
+import '../../settings/screens/settings_screen_scaffold.dart';
 
 class CallStatsScreen extends ConsumerWidget {
   const CallStatsScreen({super.key});

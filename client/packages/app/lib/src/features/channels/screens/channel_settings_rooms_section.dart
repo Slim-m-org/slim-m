@@ -15,10 +15,10 @@ import '../providers/channel_by_id_provider.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/settings_hairline.dart';
-import '../../../widgets/settings_select_row.dart';
-import '../../../widgets/settings_toggle_row.dart';
-import '../../../widgets/settings_save_feedback.dart';
+import '../../settings/widgets/settings_hairline.dart';
+import '../../settings/widgets/settings_select_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_save_feedback.dart';
 
 /// The user limits offered, 0 for none; the server takes 0 to 99.
 const List<(String, int)> userLimitOptions = [

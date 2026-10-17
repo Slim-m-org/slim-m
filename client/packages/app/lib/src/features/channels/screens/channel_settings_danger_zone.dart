@@ -16,7 +16,7 @@ import '../../../providers/providers.dart';
 import '../../../routing/close_screen.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/confirm_dialog.dart';
-import '../../../widgets/settings_danger_card.dart';
+import '../../settings/widgets/settings_danger_card.dart';
 
 class ChannelDangerZoneSection extends ConsumerStatefulWidget {
   const ChannelDangerZoneSection({

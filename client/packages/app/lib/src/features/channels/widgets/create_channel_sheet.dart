@@ -37,7 +37,7 @@ import '../../../routing/routes.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
 import 'private_audience_picker.dart';
-import '../../../widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_toggle_row.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
 /// changeable inside the sheet, since it is only a starting guess, not a
