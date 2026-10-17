@@ -124,7 +124,7 @@ void main() {
 
   test('a copy keeps every other entry, which is why it is a copy at all', () {
     final cache = _cache(50);
-    final replaced = const MessageExtras(
+    const replaced = MessageExtras(
       reactions: [
         api.ReactionSummary(emoji: '\u{1F440}', count: 1, reacted: true),
       ],

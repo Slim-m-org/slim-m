@@ -46,7 +46,7 @@ void main() {
   });
 
   test('art that is not a Spotify cover is dropped on read and on write', () {
-    final id = 'ab67616d0000b273bc2dd68b840b1d4b7c9e5ad9';
+    const id = 'ab67616d0000b273bc2dd68b840b1d4b7c9e5ad9';
     for (final url in [
       'http://i.scdn.co/image/$id',
       'https://evil.example/image/$id',

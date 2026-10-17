@@ -82,7 +82,7 @@ void main() {
   testWidgets('turning off a held permission clears only its bit', (
     tester,
   ) async {
-    final both = Perm.sendMessages | Perm.manageMessages;
+    const both = Perm.sendMessages | Perm.manageMessages;
     final h = await _open(tester, _role(both));
     await tester.tap(_toggle('Manage messages'));
     await tester.pumpAndSettle();

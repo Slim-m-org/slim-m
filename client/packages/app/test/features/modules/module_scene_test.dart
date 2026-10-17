@@ -210,7 +210,7 @@ void main() {
   });
 
   group('resolveSceneColor', () {
-    final tokens = AppTokens.light;
+    const tokens = AppTokens.light;
     test('parses hex literals', () {
       expect(
         resolveSceneColor('#ff0000', tokens, tokens.accent),

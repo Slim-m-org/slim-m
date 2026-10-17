@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../members/roles_config_harness.dart';
 
-final _channel = const Channel(
+const _channel = Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -113,7 +113,10 @@ void main() {
     testWidgets('${entry.value}: an inherit cell becomes allow', (
       tester,
     ) async {
-      final h = await _open(tester, ChannelPermissionsGrid(channel: _channel));
+      final h = await _open(
+        tester,
+        const ChannelPermissionsGrid(channel: _channel),
+      );
       await tester.tap(_cell(key, _react));
       await tester.pumpAndSettle();
       final edit = await _save(tester, h);
@@ -123,7 +126,10 @@ void main() {
     });
 
     testWidgets('${entry.value}: a second tap makes it deny', (tester) async {
-      final h = await _open(tester, ChannelPermissionsGrid(channel: _channel));
+      final h = await _open(
+        tester,
+        const ChannelPermissionsGrid(channel: _channel),
+      );
       await tester.tap(_cell(key, _react));
       await tester.tap(_cell(key, _react));
       await tester.pumpAndSettle();
@@ -136,7 +142,7 @@ void main() {
     testWidgets('${entry.value}: a third tap returns to inherit', (
       tester,
     ) async {
-      await _open(tester, ChannelPermissionsGrid(channel: _channel));
+      await _open(tester, const ChannelPermissionsGrid(channel: _channel));
       for (var i = 0; i < 3; i++) {
         await tester.tap(_cell(key, _react));
       }
@@ -148,7 +154,10 @@ void main() {
   testWidgets('an existing allow cycled to inherit saves it cleared', (
     tester,
   ) async {
-    final h = await _open(tester, ChannelPermissionsGrid(channel: _channel));
+    final h = await _open(
+      tester,
+      const ChannelPermissionsGrid(channel: _channel),
+    );
     await tester.tap(_cell('role:mod', _send));
     await tester.tap(_cell('role:mod', _send));
     await tester.pumpAndSettle();
@@ -161,7 +170,7 @@ void main() {
   testWidgets('the pane shows the chosen channel with an All channels button', (
     tester,
   ) async {
-    await _open(tester, ChannelPermissionsPane(initialChannel: _channel));
+    await _open(tester, const ChannelPermissionsPane(initialChannel: _channel));
     expect(find.text('general'), findsWidgets);
     expect(find.text('Permission overwrites'), findsOneWidget);
     expect(find.widgetWithText(AppButton, 'All channels'), findsOneWidget);
@@ -172,7 +181,7 @@ void main() {
   ) async {
     await _open(
       tester,
-      ChannelPermissionsPane(initialChannel: _channel, lockChannel: true),
+      const ChannelPermissionsPane(initialChannel: _channel, lockChannel: true),
     );
     expect(find.text('Permission overwrites'), findsNothing);
     expect(find.text('All channels'), findsNothing);

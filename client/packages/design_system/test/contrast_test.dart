@@ -231,7 +231,7 @@ void main() {
   test('canvas cursor hues are a closed set of six distinct values', () {
     // Categorical identity for remote participants: no two may read as the same
     // colour, which is the property worth pinning rather than any hex.
-    final cursors = AppCanvasColors.cursors;
+    const cursors = AppCanvasColors.cursors;
     expect(cursors, hasLength(6));
     expect(cursors.toSet(), hasLength(6), reason: 'no duplicate cursor hues');
   });

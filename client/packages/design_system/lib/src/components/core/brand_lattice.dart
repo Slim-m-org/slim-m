@@ -112,7 +112,7 @@ class _LatticePainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     final columns = (size.width / _pitch).ceil() + 1;
     final rows = (size.height / _pitch).ceil() + 1;
-    final home = const Offset(_homeColumn * _pitch, _homeRow * _pitch);
+    const home = Offset(_homeColumn * _pitch, _homeRow * _pitch);
     final rest = home + const Offset(_pitch / 2, _pitch / 2);
     final square = Offset.lerp(home, rest, progress)!;
 
@@ -131,7 +131,7 @@ class _LatticePainter extends CustomPainter {
       }
     }
 
-    final side = _pitch * 0.62;
+    const side = _pitch * 0.62;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(center: square, width: side, height: side),

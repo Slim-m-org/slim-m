@@ -37,7 +37,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final tokens = AppTokens.light;
+    const tokens = AppTokens.light;
     final slider = tester.widget<AppSlider>(
       find.byWidgetPredicate(
         (w) =>

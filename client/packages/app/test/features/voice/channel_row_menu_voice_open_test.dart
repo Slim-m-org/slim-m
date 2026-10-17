@@ -19,7 +19,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
 
-final _channel = const Channel(
+const _channel = Channel(
   id: 'ch-1',
   name: 'General voice',
   kind: 'voice',
@@ -40,7 +40,7 @@ GoRouter _router(String initialLocation) => GoRouter(
       path: '/channels/:channelId',
       builder: (context, state) => Scaffold(
         body: ChannelCategorySections(
-          channels: [_channel],
+          channels: const [_channel],
           categories: const [],
           selectedId: state.pathParameters['channelId'],
           canManage: false,

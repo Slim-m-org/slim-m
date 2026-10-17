@@ -69,7 +69,7 @@ void main() {
       const pad = 8.0;
       const fontSize = 12.0;
       const lineHeightMultiple = 1.3;
-      final lineHeight = fontSize * lineHeightMultiple;
+      const lineHeight = fontSize * lineHeightMultiple;
 
       final texts = <String>[
         for (var n = 1; n <= 150; n++)

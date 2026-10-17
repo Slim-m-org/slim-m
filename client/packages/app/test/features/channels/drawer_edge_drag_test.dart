@@ -100,7 +100,7 @@ void main() {
           kind: kind,
         );
         var travelled = 0.0;
-        final width = 304.0;
+        const width = 304.0;
         for (final mark in [20.0, 80.0, 200.0]) {
           while (travelled < mark) {
             await gesture.moveBy(const Offset(4, 0));
