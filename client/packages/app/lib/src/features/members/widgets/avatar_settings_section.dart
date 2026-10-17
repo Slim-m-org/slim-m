@@ -133,6 +133,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
       onRejected: setActionError,
       child: SettingsSectionCard(
         title: 'Identity',
+        topGap: kDenseSectionTopGap,
         children: [
           _IdentityRow(
             leading: ExcludeSemantics(

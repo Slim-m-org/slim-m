@@ -30,25 +30,34 @@ class ActivitySharingSection extends ConsumerWidget {
     if (feeds.isEmpty) return const SizedBox.shrink();
     final spotifyShown =
         ref.watch(spotifyLinkStatusProvider) is! SpotifyUnlinked;
-    return SettingsSectionCard(
-      title: 'Activity',
-      description:
-          'Shown to people who see your status, never when appearing offline.',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SharingNow(),
-        for (final feed in feeds) ...[
-          SettingsToggleRow(
-            label: feed.label,
-            description: feed.description,
-            value: ref.watch(feed.enabled),
-            onChanged: (value) =>
-                ref.read(feed.enabled.notifier).setEnabled(value),
-            semanticLabel: feed.label,
-          ),
-          if (feed.enabled == shareSpotifyProvider && spotifyShown)
-            const SpotifyLinkRow(),
-          if (feed.enabled == shareGameProvider) const ActivityGameList(),
-        ],
+        const SettingsSectionCard(
+          title: 'Activity',
+          description:
+              'Shown to people who see your status, never when appearing offline.',
+          topGap: kDenseSectionTopGap,
+          children: [_SharingNow()],
+        ),
+        SettingsSectionCard(
+          topGap: AppSpacing.s12,
+          children: [
+            for (final feed in feeds) ...[
+              SettingsToggleRow(
+                label: feed.label,
+                description: feed.description,
+                value: ref.watch(feed.enabled),
+                onChanged: (value) =>
+                    ref.read(feed.enabled.notifier).setEnabled(value),
+                semanticLabel: feed.label,
+              ),
+              if (feed.enabled == shareSpotifyProvider && spotifyShown)
+                const SpotifyLinkRow(),
+              if (feed.enabled == shareGameProvider) const ActivityGameList(),
+            ],
+          ],
+        ),
       ],
     );
   }
@@ -88,7 +97,7 @@ class _SharingNow extends ConsumerWidget {
             ),
             if (shared != null) ...[
               const SizedBox(height: AppSpacing.s8),
-              ActivityCard(activity: shared),
+              ActivityCard(activity: shared, boxed: true),
             ],
           ],
         ),

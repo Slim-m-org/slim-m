@@ -9,18 +9,32 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_hairline.dart';
 
+/// The default space above a section's title.
+const double kSettingsSectionTopGap = 28;
+
+/// For a pane of many short cards, like Profile.
+const double kDenseSectionTopGap = 18;
+
 /// A section's title and optional one-line description, above its card.
 class SettingsSectionHeader extends StatelessWidget {
-  const SettingsSectionHeader(this.title, {super.key, this.description});
+  const SettingsSectionHeader(
+    this.title, {
+    super.key,
+    this.description,
+    this.topGap = kSettingsSectionTopGap,
+  });
 
   final String title;
   final String? description;
+
+  /// Space above the title; a pane that stacks many cards tightens it.
+  final double topGap;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: const EdgeInsets.only(top: 28, bottom: 10),
+      padding: EdgeInsets.only(top: topGap, bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -57,8 +71,12 @@ class SettingsSectionCard extends StatelessWidget {
     this.title,
     this.description,
     this.trailing,
+    this.topGap = kSettingsSectionTopGap,
     required this.children,
   });
+
+  /// See [SettingsSectionHeader.topGap].
+  final double topGap;
 
   /// Null when the pane holds only this group and its heading already names it.
   final String? title;
@@ -78,8 +96,12 @@ class SettingsSectionCard extends StatelessWidget {
     );
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final header = title == null
-        ? const SizedBox(height: 28)
-        : SettingsSectionHeader(title!, description: description);
+        ? SizedBox(height: topGap)
+        : SettingsSectionHeader(
+            title!,
+            description: description,
+            topGap: topGap,
+          );
     final radius = BorderRadius.circular(AppRadii.card);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
