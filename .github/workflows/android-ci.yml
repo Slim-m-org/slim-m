@@ -23,6 +23,8 @@ on:
       - "scripts/android-verification-metadata.sh"
       - ".github/workflows/android-ci.yml"
       - ".github/workflows/main-builds.yml"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
   pull_request:
     paths:
       - "client/pubspec.lock"
@@ -32,6 +34,8 @@ on:
       - "scripts/android-verification-metadata.sh"
       - ".github/workflows/android-ci.yml"
       - ".github/workflows/main-builds.yml"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
   workflow_dispatch:
 
 permissions:
@@ -72,3 +76,5 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter build apk --release
           flutter build appbundle --release
+
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
