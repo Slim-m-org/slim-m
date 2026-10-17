@@ -76,6 +76,7 @@ def replay(conversation, accounts_by_display, main_channel_id, state, rng,
             continue
         ctx = accounts_by_display.get(turn.speaker)
         if ctx is None:
+            stats["conversation_skipped_speaker"] += 1
             continue
 
         target_channel = main_channel_id
