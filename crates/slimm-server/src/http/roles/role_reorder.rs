@@ -22,11 +22,11 @@ use axum::http::request::Parts;
 use axum::routing::patch;
 use serde::Deserialize;
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_roles};
-use super::messages::parse_uuid;
-use super::roles::{RoleDto, caller_granted};
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce, require_manage_roles};
+use super::super::messages::parse_uuid;
+use super::{RoleDto, caller_granted};
 use crate::hub::Event;
 use crate::ids::RoleId;
 use crate::permissions::Permissions;
@@ -36,7 +36,7 @@ use crate::store::ReorderRolesError;
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
 
-/// The role-ordering route, mounted by [`super::router`].
+/// The role-ordering route, mounted by [`super::super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/roles/reorder", patch(reorder))
