@@ -9,10 +9,16 @@ const PRODUCTION = /(^|\.)npc-server\.top$|^10\.0\.0\.100$/;
 const PROTOCOL = 1;
 const HELLO_TIMEOUT_MS = 10000;
 
+function trimTrailingSlashes(url) {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end -= 1;
+  return url.slice(0, end);
+}
+
 // Second line of defence: scripts/load-run.sh already refuses via scripts/lib/load_target.py.
 export function baseUrl() {
-  const raw = (__ENV.BASE_URL || 'http://127.0.0.1:8195').replace(/\/+$/, '');
-  const host = (raw.match(/^https?:\/\/([^/:]+|\[[^\]]+\])/) || [])[1] || '';
+  const raw = trimTrailingSlashes(__ENV.BASE_URL || 'http://127.0.0.1:8195');
+  const host = (raw.match(/^https?:\/\/([^/:[]+|\[[^\]]+\])/) || [])[1] || '';
   if (PRODUCTION.test(host) || !LOOPBACK.test(host)) {
     throw new Error(`refusing load target ${raw}: only a local disposable server is allowed`);
   }
@@ -20,7 +26,7 @@ export function baseUrl() {
 }
 
 export function intEnv(name, fallback) {
-  const parsed = parseInt(__ENV[name], 10);
+  const parsed = Number.parseInt(__ENV[name], 10);
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 

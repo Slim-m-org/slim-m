@@ -81,7 +81,7 @@ function request(op, stage, call) {
   return res;
 }
 
-export default function (world) {
+export default function httpMix(world) {
   const base = baseUrl();
   const token = world.users[exec.scenario.iterationInTest % world.users.length].token;
   const channel = pick(world.channels);

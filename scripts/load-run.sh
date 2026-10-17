@@ -17,7 +17,7 @@ BUILD=1
 MUSL_IMAGE=""
 BINARY_OVERRIDE=""
 
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --profile) PROFILE=1; shift ;;
     --no-build) BUILD=0; shift ;;
@@ -30,12 +30,12 @@ while [ $# -gt 0 ]; do
 done
 SCENARIO="${1:?usage: load-run.sh [--profile] [--musl IMAGE] <scenario> [k6 args]}"
 shift
-[ -f "$ROOT/perf/load/$SCENARIO.js" ] || { echo "no scenario perf/load/$SCENARIO.js" >&2; exit 2; }
-if [ -n "$MUSL_IMAGE" ] && [ -n "$BINARY_OVERRIDE" ]; then
+[[ -f "$ROOT/perf/load/$SCENARIO.js" ]] || { echo "no scenario perf/load/$SCENARIO.js" >&2; exit 2; }
+if [[ -n "$MUSL_IMAGE" && -n "$BINARY_OVERRIDE" ]]; then
   echo "--musl and --binary are alternatives" >&2
   exit 2
 fi
-if [ "$PROFILE" = 1 ] && [ -n "$MUSL_IMAGE" ]; then
+if [[ "$PROFILE" = 1 && -n "$MUSL_IMAGE" ]]; then
   echo "--profile needs a binary with symbols, not the stripped --musl one" >&2
   exit 2
 fi
@@ -53,11 +53,11 @@ mkdir -p "$WORK/data"
 
 build_binary() {
   local target
-  if [ -n "$BINARY_OVERRIDE" ]; then
+  if [[ -n "$BINARY_OVERRIDE" ]]; then
     echo "$BINARY_OVERRIDE"
     return
   fi
-  if [ -n "$MUSL_IMAGE" ]; then
+  if [[ -n "$MUSL_IMAGE" ]]; then
     local cid
     cid=$(docker create "$MUSL_IMAGE")
     docker cp "$cid:/usr/local/bin/slimm-server" "$WORK/slimm-server-musl"
@@ -67,8 +67,8 @@ build_binary() {
   fi
   target=$(cd "$ROOT" && cargo metadata --format-version 1 --no-deps |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
-  if [ "$PROFILE" = 1 ]; then
-    if [ "$BUILD" = 1 ]; then
+  if [[ "$PROFILE" = 1 ]]; then
+    if [[ "$BUILD" = 1 ]]; then
       (cd "$ROOT" &&
         CARGO_PROFILE_PROFILING_INHERITS=release CARGO_PROFILE_PROFILING_DEBUG=line-tables-only \
           CARGO_PROFILE_PROFILING_STRIP=none SQLX_OFFLINE=true CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}" \
@@ -76,7 +76,7 @@ build_binary() {
     fi
     echo "$target/profiling/slimm-server"
   else
-    if [ "$BUILD" = 1 ]; then
+    if [[ "$BUILD" = 1 ]]; then
       (cd "$ROOT" && SQLX_OFFLINE=true CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}" \
         cargo build --release --bin slimm-server) >&2
     fi
@@ -85,13 +85,13 @@ build_binary() {
 }
 
 BINARY=$(build_binary)
-[ -x "$BINARY" ] || { echo "no server binary at $BINARY" >&2; exit 1; }
+[[ -x "$BINARY" ]] || { echo "no server binary at $BINARY" >&2; exit 1; }
 KIND="glibc, release"
-if [ -n "$MUSL_IMAGE" ]; then
+if [[ -n "$MUSL_IMAGE" ]]; then
   KIND="musl from $MUSL_IMAGE $(docker image inspect -f '{{index .RepoDigests 0}}' "$MUSL_IMAGE" 2>/dev/null || true)"
-elif [ -n "$BINARY_OVERRIDE" ]; then
+elif [[ -n "$BINARY_OVERRIDE" ]]; then
   KIND="prebuilt binary"
-elif [ "$PROFILE" = 1 ]; then
+elif [[ "$PROFILE" = 1 ]]; then
   KIND="glibc, profiling profile (release plus symbols)"
 fi
 {
@@ -106,9 +106,9 @@ SERVER_PID=""
 SAMPLER_PID=""
 LAUNCHER_PID=""
 stop_server() {
-  [ -z "${K6_NAME:-}" ] || docker rm -f "$K6_NAME" >/dev/null 2>&1 || true
-  [ -n "$SAMPLER_PID" ] && kill "$SAMPLER_PID" 2>/dev/null || true
-  if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+  [[ -z "${K6_NAME:-}" ]] || docker rm -f "$K6_NAME" >/dev/null 2>&1 || true
+  [[ -n "$SAMPLER_PID" ]] && kill "$SAMPLER_PID" 2>/dev/null || true
+  if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill -TERM "$SERVER_PID" 2>/dev/null || true
     for _ in $(seq 1 100); do
       kill -0 "$SERVER_PID" 2>/dev/null || break
@@ -116,7 +116,7 @@ stop_server() {
     done
     kill -KILL "$SERVER_PID" 2>/dev/null || true
   fi
-  [ -n "$LAUNCHER_PID" ] && wait "$LAUNCHER_PID" 2>/dev/null || true
+  [[ -n "$LAUNCHER_PID" ]] && wait "$LAUNCHER_PID" 2>/dev/null || true
   SERVER_PID=""
   SAMPLER_PID=""
   LAUNCHER_PID=""
@@ -132,22 +132,22 @@ ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
 
 SAMPLY="${SAMPLY:-samply}"
 # samply opens one perf buffer per cpu per thread, which exceeds the default mlock budget on a wide machine.
-if [ "$PROFILE" = 1 ] && [ -z "${LOAD_SERVER_CPUS:-}" ] && [ "$(nproc)" -gt 8 ]; then
+if [[ "$PROFILE" = 1 && -z "${LOAD_SERVER_CPUS:-}" && "$(nproc)" -gt 8 ]]; then
   LOAD_SERVER_CPUS=0-7
 fi
 PIN=()
-[ -z "${LOAD_SERVER_CPUS:-}" ] || PIN=(taskset -c "$LOAD_SERVER_CPUS")
+[[ -z "${LOAD_SERVER_CPUS:-}" ]] || PIN=(taskset -c "$LOAD_SERVER_CPUS")
 K6_PIN=()
-[ -z "${LOAD_K6_CPUS:-}" ] || K6_PIN=(--cpuset-cpus "$LOAD_K6_CPUS")
+[[ -z "${LOAD_K6_CPUS:-}" ]] || K6_PIN=(--cpuset-cpus "$LOAD_K6_CPUS")
 
-if [ "$PROFILE" = 1 ]; then
+if [[ "$PROFILE" = 1 ]]; then
   command -v "$SAMPLY" >/dev/null || { echo "samply missing: cargo install --locked samply" >&2; exit 1; }
   "${PIN[@]}" "$SAMPLY" record --save-only --unstable-presymbolicate -r 1000 -o "$RESULTS/profile.json.gz" -- "$BINARY" \
     >"$RESULTS/server.log" 2>&1 &
   LAUNCHER_PID=$!
   for _ in $(seq 1 100); do
     SERVER_PID=$(pgrep -P "$LAUNCHER_PID" -x slimm-server || true)
-    [ -n "$SERVER_PID" ] && break
+    [[ -n "$SERVER_PID" ]] && break
     sleep 0.1
   done
 else
@@ -155,7 +155,7 @@ else
   SERVER_PID=$!
   LAUNCHER_PID=$SERVER_PID
 fi
-[ -n "$SERVER_PID" ] || { echo "server did not start" >&2; exit 1; }
+[[ -n "$SERVER_PID" ]] || { echo "server did not start" >&2; exit 1; }
 
 for _ in $(seq 1 150); do
   curl -fsS -m 1 "$BASE/healthz" >/dev/null 2>&1 && break
@@ -177,10 +177,10 @@ sample_k6() {
   local pid=""
   for _ in $(seq 1 100); do
     pid=$(docker inspect -f '{{.State.Pid}}' "$K6_NAME" 2>/dev/null || true)
-    [ -n "$pid" ] && [ "$pid" != 0 ] && break
+    [[ -n "$pid" && "$pid" != 0 ]] && break
     sleep 0.1
   done
-  [ -z "$pid" ] || python3 "$ROOT/scripts/lib/load_resource.py" sample "$pid" "$RESULTS/k6-resources.csv"
+  [[ -z "$pid" ]] || python3 "$ROOT/scripts/lib/load_resource.py" sample "$pid" "$RESULTS/k6-resources.csv"
 }
 sample_k6 &
 K6_SAMPLER_PID=$!
@@ -206,7 +206,7 @@ rm -rf "$WORK/data"
 
 echo
 echo "results   $RESULTS"
-if [ "$PROFILE" = 1 ] && [ -f "$RESULTS/profile.json.gz" ]; then
+if [[ "$PROFILE" = 1 && -f "$RESULTS/profile.json.gz" ]]; then
   LOAD_START=$(sed -n 's/.*load-start \([0-9]*\).*/\1/p' "$RESULTS/k6.log" | head -1)
   python3 "$ROOT/scripts/lib/load_profile.py" "$RESULTS/profile.json.gz" 30 "${LOAD_START:-0}" >"$RESULTS/profile-top.txt" || true
   echo "top       $RESULTS/profile-top.txt   (samples from after seeding only)"

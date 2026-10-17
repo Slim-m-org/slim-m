@@ -8,7 +8,6 @@ to k6 rather than letting a scenario's first virtual user do it.
 import json
 import os
 import sys
-import urllib.error
 import urllib.request
 
 import load_target
@@ -58,7 +57,7 @@ def main(argv, environ=os.environ):
     except seed_guard.GuardError as exc:
         print(f"refusing: {exc}", file=sys.stderr)
         return 1
-    except (urllib.error.URLError, OSError, KeyError, ValueError) as exc:
+    except (OSError, KeyError, ValueError) as exc:
         print(f"load_admin failed: {exc}", file=sys.stderr)
         return 1
     return 0

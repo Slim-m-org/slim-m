@@ -85,7 +85,7 @@ function connect(base, ticket) {
   });
 }
 
-export default async function (world) {
+export default async function connectStorm(world) {
   const base = baseUrl();
   const token = world.users[exec.scenario.iterationInTest % world.users.length].token;
   const origin = world.epoch;

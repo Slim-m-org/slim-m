@@ -85,7 +85,7 @@ function onFrame(raw) {
   if (sentAt !== null) {
     deliveryMs.add(Date.now() - Number(sentAt[1]));
     deliveries.add(1);
-  } else if (raw.length < 200 && raw.indexOf('"type":"error"') !== -1) {
+  } else if (raw.length < 200 && raw.includes('"type":"error"')) {
     resyncFrames.add(1);
   }
 }
@@ -96,13 +96,15 @@ export async function send(world) {
   const token = world.users[index % world.users.length].token;
   const gapMs = 1000 / RATE;
   const stopAt = Date.now() + DURATION * 1000;
-  for (let n = 0; Date.now() < stopAt; n += 1) {
+  let n = 0;
+  while (Date.now() < stopAt) {
     const started = Date.now();
     const res = sendMessage(base, token, world.channel, `lt:${started}:${index}:${n}`, { op: 'send' });
     if (res.status === 429) sendsLimited.add(1);
     else if (res.status === 200 || res.status === 201) sendsOk.add(1);
     else sendsFailed.add(1);
     await sleepMs(Math.max(0, gapMs - (Date.now() - started)));
+    n += 1;
   }
 }
 
