@@ -43,10 +43,8 @@ def change_theme(client):
     """
     _open_personal(client)
     client.click(L.APPEARANCE_PANE, settle=2)
-    client.click(L.THEME, settle=2)
-    client.wait_for('Dark')
-    client.click('Dark', settle=2)
-    client.wait_for('Theme, currently Dark')
+    client.wait_for(L.THEME_DARK)
+    client.click(L.THEME_DARK, settle=2)
 
     stored = client.ev(
         "JSON.parse(localStorage.getItem('flutter.slimm.appearance.theme') "

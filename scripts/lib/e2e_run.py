@@ -250,7 +250,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
 
 def main():
     server, room_id, secret = sys.argv[1], sys.argv[2], sys.argv[3]
-    only = os.environ.get("E2E_ONLY")
+    # One name fragment, or several split by |.
+    only = [o for o in os.environ.get("E2E_ONLY", "").split("|") if o]
 
     a = Client("alice", 9801)
     b = Client("bob", 9802)
@@ -258,6 +259,9 @@ def main():
     admin.login("alice", secret, device="e2e-admin")
     member = Api(server)
     member.login("bob", secret, device="e2e-member")
+    # The run outlasts a 15 minute access token; revoked-session checks use their own Api.
+    admin.keep_signed_in("alice", secret, "e2e-admin")
+    member.keep_signed_in("bob", secret, "e2e-member")
 
     print("== sign in ==")
     sign_in(a, server, "alice", secret)
@@ -265,7 +269,7 @@ def main():
 
     failures = []
     for name, run in scenarios(a, b, admin, member, room_id, server, secret):
-        if only and only not in name:
+        if only and not any(o in name for o in only):
             continue
         print(f"\n== {name} ==")
         try:

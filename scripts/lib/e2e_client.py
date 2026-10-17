@@ -207,6 +207,28 @@ class Client:
         self.shot(f"missing-{label[:20].replace(' ', '-')}")
         raise AssertionError(f"{self.name}: never saw {label!r}")
 
+    def wheel_until(self, anchor, target, step=300, tries=8):
+        """Scrolls the pane under `anchor` until `target` is inside the window.
+
+        A settings pane keeps semantics for rows below the fold, so being found
+        is not being reachable: a tap at an off-screen row lands on whatever
+        sits there instead.
+        """
+        at = self.wait_for(anchor)
+        height = self.ev("window.innerHeight")
+        # The anchor can sit below the fold too, so wheel over the visible part of its pane.
+        y = min(at["y"], height * 0.6)
+        for _ in range(tries):
+            n = self.find(target)
+            if n and 0 < n["y"] < height - 40:
+                return n
+            self.send("Input.dispatchMouseEvent",
+                      {"type": "mouseWheel", "x": at["x"], "y": y,
+                       "deltaX": 0, "deltaY": step})
+            time.sleep(0.8)
+        self.shot(f"unreachable-{target[:20].replace(' ', '-')}")
+        raise AssertionError(f"{self.name}: never scrolled {target!r} into view")
+
     def tap(self, x, y):
         for kind in ("mousePressed", "mouseReleased"):
             self.send(_MOUSE,

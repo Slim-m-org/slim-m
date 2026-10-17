@@ -40,6 +40,8 @@ def admin_sets_the_landing_page(admin_client, admin_api, picture):
     """Returns the description saved, after the server confirms it and both pictures."""
     text = f"A small corner for e2e {int(time.time())}"
     _open_invites(admin_client)
+    # The landing page card sits below Joining and Join gate.
+    admin_client.wheel_until(L.WHO_CAN_JOIN_ROW, L.SAVE_DESCRIPTION)
     admin_client.type_into(L.DESCRIPTION_FIELD, text)
     admin_client.click(L.SAVE_DESCRIPTION, settle=3)
     wait_until(admin_api.space_settings,

@@ -19,6 +19,18 @@ JSON.stringify(Array.from(document.querySelectorAll('flt-semantics'))
                            (e.getAttribute('aria-label') || e.textContent || '').trim()];})
   .sort(function(a, b){return a[0] - b[0];})
   .map(function(p){return p[1];}))"""
+_CLICK_LOWEST = """
+(function(){
+  var want=%s, best=null, bestY=-1;
+  document.querySelectorAll('flt-semantics').forEach(function(e){
+    var t=(e.getAttribute('aria-label')||e.textContent||'').trim().toLowerCase();
+    var y=e.getBoundingClientRect().y;
+    if (t===want && !e.querySelector('flt-semantics') && y>bestY) { best=e; bestY=y; }
+  });
+  if (!best) return false;
+  best.click();
+  return true;
+})()"""
 _STORE_KEY = "flutter.slimm.voice.screen_share_quality"
 
 
@@ -27,31 +39,11 @@ def _stored_quality(client):
         f"JSON.parse(localStorage.getItem('{_STORE_KEY}') || 'null')")
 
 
-def _wheel_until(client, anchor, target, step=300, tries=6):
-    """Scrolls the pane under `anchor` until `target` is on screen.
-
-    Flutter web builds no semantics for a row scrolled out of view, so the
-    frame rate row at the bottom of the card is invisible until it is reached.
-    """
-    at = client.wait_for(anchor)
-    # The anchor can already have semantics below the fold, so wheel over the visible part of its pane.
-    y = min(at["y"], client.ev("window.innerHeight") * 0.6)
-    for _ in range(tries):
-        if client.find(target):
-            return
-        client.send("Input.dispatchMouseEvent",
-                    {"type": "mouseWheel", "x": at["x"], "y": y,
-                     "deltaX": 0, "deltaY": step})
-        time.sleep(0.8)
-    client.wait_for(target)
-
-
 def _tap_lowest(client, label, settle=1.5):
     """Taps the lowest exact `label` on screen: camera and share rows both offer 1080p, and the share row is last."""
-    hits = [n for n in client.nodes() if n["t"].strip().lower() == label.lower()]
-    assert hits, f"never saw {label!r}"
-    lowest = max(hits, key=lambda n: n["y"])
-    client.tap(lowest["x"], lowest["y"])
+    # Clicked through semantics, not at its coordinates: the lowest can sit below the fold.
+    hit = client.ev(_CLICK_LOWEST % json.dumps(label.lower()))
+    assert hit, f"never saw {label!r}"
     time.sleep(settle)
 
 
@@ -75,7 +67,7 @@ def share_quality_from_the_share_menu(client, room_id):
 
     client.click(L.PERSONAL_SETTINGS, settle=3)
     client.click(L.VOICE_PANE, settle=2)
-    _wheel_until(client, L.SHARE_RESOLUTION_ROW, L.FPS_60)
+    client.wheel_until(L.SHARE_RESOLUTION_ROW, L.FPS_60)
     client.shot("quality-in-voice-settings")
     picked = json.loads(client.ev(_SELECTED_SEGMENTS))
     rows = [p for p in picked if p in ("Auto", "Balanced", "Data saver",
