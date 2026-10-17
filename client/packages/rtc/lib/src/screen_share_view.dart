@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'first_frame_gate.dart';
+import 'screen_share_status.dart';
 import 'track_tile_state.dart';
 
 /// Test-only build counter, keyed by identity; see the twin in
@@ -107,6 +108,44 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
     return null;
   }
 
+  static lk.TrackPublication<lk.VideoTrack>? _sharePublicationFrom(
+    List<lk.TrackPublication<lk.VideoTrack>> publications,
+  ) {
+    for (final pub in publications) {
+      if (pub.source == lk.TrackSource.screenShareVideo) return pub;
+    }
+    return null;
+  }
+
+  bool _sawPublication = false;
+
+  ScreenShareStatus _status() {
+    final lk.TrackPublication<lk.VideoTrack>? pub = _currentPublication();
+    if (pub == null) {
+      return _sawPublication
+          ? ScreenShareStatus.ended
+          : ScreenShareStatus.loading;
+    }
+    _sawPublication = true;
+    return pub.muted ? ScreenShareStatus.paused : ScreenShareStatus.loading;
+  }
+
+  lk.TrackPublication<lk.VideoTrack>? _currentPublication() {
+    final local = widget.room.localParticipant;
+    if (local != null && local.identity == widget.identity) {
+      return _sharePublicationFrom(local.videoTrackPublications);
+    }
+    for (final p in widget.room.remoteParticipants.values) {
+      if (p.identity != widget.identity) continue;
+      return _sharePublicationFrom(p.videoTrackPublications);
+    }
+    return null;
+  }
+
+  Widget _placeholderFor(BuildContext context, ScreenShareStatus status) =>
+      ScreenShareStatusScope.maybeOf(context)?.call(context, status) ??
+      _placeholder;
+
   @override
   Widget build(BuildContext context) {
     assert(() {
@@ -115,14 +154,16 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
       return true;
     }());
     final track = currentTrack();
+    final status = _status();
     // Honest about the beat between "sharing" and the track arriving.
-    if (track == null) return _placeholder;
+    if (track == null) return _placeholderFor(context, status);
     // And the further beat between the track arriving and a real frame.
     final owned = ownedRenderer;
-    if (owned == null) return _placeholder;
+    final loading = _placeholderFor(context, ScreenShareStatus.loading);
+    if (owned == null) return loading;
     return FirstFrameReveal(
       tracker: owned.tracker,
-      placeholder: _placeholder,
+      placeholder: loading,
       child: OwnedRendererView(
         owned: owned,
         builder: (renderer) => lk.VideoTrackRenderer(

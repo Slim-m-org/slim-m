@@ -46,6 +46,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../voice/widgets/bot_call_controls.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 import '../../voice/widgets/voice_call_controls.dart';
@@ -61,10 +62,17 @@ import 'canvas_tools_row.dart';
 
 /// The call half of the dock: exactly what `CallControls` already needs.
 class CallDockData {
-  const CallDockData({required this.voice, required this.controller});
+  const CallDockData({
+    required this.voice,
+    required this.controller,
+    required this.channelId,
+  });
 
   final VoiceFlags voice;
   final VoiceController controller;
+
+  /// The call's channel, whose bots may add a row of controls.
+  final String channelId;
 }
 
 // CanvasHiddenTile lives in canvas_tools_row.dart, imported below - defining it there rather than here avoids a two-way import with CanvasOverflowMenu, its only other user.
@@ -161,7 +169,11 @@ CallDockData? callDockDataFor(
   String channelId,
 ) {
   if (!voice.inCallStageFor(channelId)) return null;
-  return CallDockData(voice: voice, controller: controller);
+  return CallDockData(
+    voice: voice,
+    controller: controller,
+    channelId: channelId,
+  );
 }
 
 /// Measured at desktop density (every pane the non-compact dock draws is in a
@@ -210,19 +222,23 @@ class CanvasCallDock extends ConsumerWidget {
       );
     }
     final leave = CallLeaveButton(controller: call.controller);
+    final bots = botCallControlsFor(ref, call.channelId);
     if (canvas == null) {
       return LayoutBuilder(
         // Distinct from the canvas branch below, or the open/close swap reuses a stale layout.
         key: const ValueKey('call-only'),
         builder: (context, constraints) => FloatingDockCard(
           trailing: leave,
-          rows: callRowsWithExtras(
-            context,
-            ref,
-            width: constraints.maxWidth,
-            controller: call.controller,
-            voice: call.voice,
-          ),
+          rows: [
+            ?bots,
+            ...callRowsWithExtras(
+              context,
+              ref,
+              width: constraints.maxWidth,
+              controller: call.controller,
+              voice: call.voice,
+            ),
+          ],
         ),
       );
     }
@@ -234,25 +250,28 @@ class CanvasCallDock extends ConsumerWidget {
         final width = constraints.maxWidth;
         return FloatingDockCard(
           trailing: leave,
-          rows: width >= _oneRowMinWidth + extra
-              ? [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(child: CanvasDockToolsRow(canvas: canvas)),
-                      const SizedBox(width: AppSpacing.s8),
-                      const DockVerticalDivider(),
-                      const SizedBox(width: AppSpacing.s8),
-                      _callRow(call, toggle: _toggle(canvas), alone: alone),
-                    ],
-                  ),
-                ]
-              : width >= _twoRowMinWidth + extra
-              ? [
-                  CanvasDockToolsRow(canvas: canvas),
-                  _callRow(call, toggle: _toggle(canvas), alone: alone),
-                ]
-              : [..._stackedCanvasRows(canvas), _callRow(call)],
+          rows: [
+            ?bots,
+            ...width >= _oneRowMinWidth + extra
+                ? [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: CanvasDockToolsRow(canvas: canvas)),
+                        const SizedBox(width: AppSpacing.s8),
+                        const DockVerticalDivider(),
+                        const SizedBox(width: AppSpacing.s8),
+                        _callRow(call, toggle: _toggle(canvas), alone: alone),
+                      ],
+                    ),
+                  ]
+                : width >= _twoRowMinWidth + extra
+                ? [
+                    CanvasDockToolsRow(canvas: canvas),
+                    _callRow(call, toggle: _toggle(canvas), alone: alone),
+                  ]
+                : [..._stackedCanvasRows(canvas), _callRow(call)],
+          ],
         );
       },
     );

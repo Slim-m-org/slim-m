@@ -19,6 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/bot_ui_uses.dart';
+import '../providers/voice_controller.dart';
 import 'call_dock_button.dart';
 import '../../../widgets/context_menu_region.dart';
 
@@ -40,6 +41,20 @@ List<BotCallGroup> botCallGroups(
     if (bot.callControls.isNotEmpty && participantIds.contains(bot.botUserId))
       BotCallGroup(bot: bot, controls: bot.callControls),
 ];
+
+/// [channelId]'s bot controls for every dock a call shows in, or null when no
+/// bot on the call offers any.
+Widget? botCallControlsFor(WidgetRef ref, String channelId) {
+  final participants = ref.watch(
+    voiceControllerProvider.select((voice) => voice.participants),
+  );
+  final groups = botCallGroups(
+    ref.watch(channelBotUiProvider(channelId)).valueOrNull ?? const [],
+    {for (final p in participants) p.identity},
+  );
+  if (groups.isEmpty) return null;
+  return BotCallControls(channelId: channelId, groups: groups);
+}
 
 /// A control used, with the option chosen when it offers a choice.
 typedef _OnUse = void Function(api.BotUiEntry control, String? optionId);

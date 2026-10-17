@@ -21,7 +21,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/voice_controller.dart';
 import '../../members/widgets/member_profile_popover.dart';
-import 'participant_audio_controls.dart' show ParticipantVolumeControl;
+import 'participant_audio_controls.dart'
+    show ParticipantScreenAudioSection, ParticipantVolumeControl;
 
 const double _popoverWidth = 260;
 
@@ -110,6 +111,13 @@ class _ParticipantVolumePopoverBody extends StatelessWidget {
             controller: controller,
             showLabel: false,
           ),
+          if (controller.hasScreenAudio(identity)) ...[
+            const SizedBox(height: AppSpacing.s8),
+            ParticipantScreenAudioSection(
+              identity: identity,
+              controller: controller,
+            ),
+          ],
         ],
       ),
     );
@@ -154,6 +162,13 @@ class _ParticipantVolumeSheetBody extends StatelessWidget {
               controller: controller,
               showLabel: false,
             ),
+            if (controller.hasScreenAudio(identity)) ...[
+              const SizedBox(height: AppSpacing.s8),
+              ParticipantScreenAudioSection(
+                identity: identity,
+                controller: controller,
+              ),
+            ],
           ],
         ),
       ),

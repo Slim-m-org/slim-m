@@ -5,7 +5,7 @@
 library;
 
 import 'package:fake_async/fake_async.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
@@ -133,12 +134,18 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: r.container,
-          child: Column(
-            children: [
-              controller.screenShareViewFor('u-ada'),
-              controller.cameraViewFor('u-ada'),
-              controller.cameraViewFor('u-me'),
-            ],
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: Column(
+              children: [
+                for (final tile in [
+                  controller.screenShareViewFor('u-ada'),
+                  controller.cameraViewFor('u-ada'),
+                  controller.cameraViewFor('u-me'),
+                ])
+                  SizedBox(width: 320, height: 160, child: tile),
+              ],
+            ),
           ),
         ),
       );
@@ -161,6 +168,7 @@ void main() {
         expect(remoteShare, findsOneWidget);
         expect(remoteCamera, findsOneWidget);
         expect(localCamera, findsNothing);
+        expect(find.text('Resume'), findsOneWidget);
       },
     );
 

@@ -25,6 +25,8 @@ Widget _wrap(Widget child) => MaterialApp(
 );
 
 void main() {
+  _registerFailureTests();
+
   testWidgets(
     'the reset button is absent at the default volume, appears once moved '
     'and resets back to 100% on tap',
@@ -119,5 +121,53 @@ void main() {
     await tester.pump();
 
     expect(done, 1);
+  });
+}
+
+class _RefusingSession extends FakeSession {
+  @override
+  Object? volumeFailureFor(String identity, {bool screen = false}) =>
+      StateError('refused');
+
+  @override
+  bool hasScreenAudio(String identity) => true;
+}
+
+void _registerFailureTests() {
+  testWidgets('a refused volume change shows inline', (tester) async {
+    final harness = VoiceHarness();
+    addTearDown(harness.dispose);
+    final controller = harness.controllerWith(_RefusingSession(), voiceApi());
+    await tester.pumpWidget(
+      _wrap(
+        ParticipantVolumeControl(identity: 'user-1', controller: controller),
+      ),
+    );
+    expect(find.text("Volume can't be changed on this device"), findsNothing);
+
+    tester.widget<AppSlider>(find.byType(AppSlider)).onChanged!(150);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text("Volume can't be changed on this device"), findsOneWidget);
+  });
+
+  testWidgets('the screen audio section keeps its own volume and mute', (
+    tester,
+  ) async {
+    final harness = VoiceHarness();
+    addTearDown(harness.dispose);
+    final controller = harness.controllerWith(_RefusingSession(), voiceApi());
+    await tester.pumpWidget(
+      _wrap(
+        ParticipantScreenAudioSection(
+          identity: 'user-1',
+          controller: controller,
+        ),
+      ),
+    );
+
+    expect(find.text('Screen audio'), findsOneWidget);
+    expect(find.text('Mute screen audio'), findsOneWidget);
   });
 }

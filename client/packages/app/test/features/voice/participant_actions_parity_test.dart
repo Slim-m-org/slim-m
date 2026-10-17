@@ -307,6 +307,21 @@ void main() {
     );
   });
 
+  testWidgets('screen audio volume is saved under its own key', (tester) async {
+    final wired = _wire();
+    final controller = wired.container.read(voiceControllerProvider.notifier);
+
+    await controller.setScreenVolumeFor('user-bot', 0.6);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      jsonDecode(prefs.getString('slimm.voice.participant_screen_volumes')!),
+      {'user-bot': 0.6},
+    );
+    expect(prefs.getString('slimm.voice.participant_volumes'), isNull);
+  });
+
   testWidgets('a saved volume is applied to the session on restore', (
     tester,
   ) async {

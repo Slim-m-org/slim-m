@@ -50,9 +50,7 @@ class _NativePopOutWindow
       title: title,
       delegate: this,
     );
-    if (!decorated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _drag.undecorate());
-    }
+    if (!decorated) _drag.claimFrame();
   }
 
   final VoidCallback onCloseRequested;

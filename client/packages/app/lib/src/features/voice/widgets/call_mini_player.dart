@@ -21,6 +21,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../providers/call_mini_player.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/popout_window.dart';
+import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../../../routing/breakpoints.dart';
@@ -221,6 +222,15 @@ class _MiniPlayerCard extends ConsumerWidget {
       tooltip: 'Hide the mini-player',
       onPressed: onHide,
     );
+    final stop = feed.kind == FeedKind.screenShare
+        ? AppIconButton(
+            icon: AppIcons.tileHide,
+            semanticLabel: 'Stop watching',
+            tooltip: 'Stop watching',
+            onPressed: () =>
+                ref.read(shareWatchProvider.notifier).stop(feed.identity),
+          )
+        : null;
     final label = switch (feed.kind) {
       FeedKind.screenShare => "${feed.name}'s screen",
       FeedKind.camera => feed.name,
@@ -252,7 +262,15 @@ class _MiniPlayerCard extends ConsumerWidget {
                         color: Colors.black,
                         child: IgnorePointer(child: view),
                       ),
-                      if (compact) Positioned(top: 0, right: 0, child: hide),
+                      if (compact)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [?stop, hide],
+                          ),
+                        ),
                       Positioned(
                         left: AppSpacing.s8,
                         right: AppSpacing.s8,
@@ -294,6 +312,7 @@ class _MiniPlayerCard extends ConsumerWidget {
                       onPressed: () =>
                           ref.read(popOutFeedProvider.notifier).state = feed,
                     ),
+                  ?stop,
                   hide,
                 ],
               ),

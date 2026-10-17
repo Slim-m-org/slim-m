@@ -9,17 +9,47 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-/// [view] (a remote tile for [identity]) with its [VideoHealthOverlay].
-Widget withVideoHealth(
-  ValueListenable<Map<String, VideoTileHealth>> health,
-  String identity,
-  Widget view, {
+import 'local_preview_gate.dart';
+import 'video_state_card.dart';
+
+/// [view] (a tile for [identity]) with its status cards: a share's stall and
+/// pause states, the health chip, and the paused card over the member's own preview.
+Widget voiceVideoView({
+  required List<VoiceParticipant> participants,
+  required ValueListenable<Map<String, VideoTileHealth>> health,
+  required String identity,
+  required Widget view,
   required bool screenShare,
-}) => VideoHealthOverlay(
-  health: health,
-  tileKey: videoSubscriptionKey(identity: identity, screenShare: screenShare),
-  child: view,
-);
+}) {
+  final who = participants.where((p) => p.identity == identity).firstOrNull;
+  final name = who?.name ?? 'Someone';
+  if (screenShare) {
+    view = ScreenShareStatusScope(
+      builder: (context, status) => screenShareStatusCard(
+        context: context,
+        status: status,
+        identity: identity,
+        name: name,
+      ),
+      child: view,
+    );
+  }
+  view = VideoHealthOverlay(
+    health: health,
+    tileKey: videoSubscriptionKey(identity: identity, screenShare: screenShare),
+    sharerName: screenShare ? name : null,
+    sharerIdentity: identity,
+    child: view,
+  );
+  return who?.isLocal == true
+      ? LocalPreviewGate(
+          identity: identity,
+          name: name,
+          screenShare: screenShare,
+          child: view,
+        )
+      : view;
+}
 
 class VideoHealthOverlay extends StatelessWidget {
   const VideoHealthOverlay({
@@ -27,7 +57,13 @@ class VideoHealthOverlay extends StatelessWidget {
     required this.health,
     required this.tileKey,
     required this.child,
+    this.sharerName,
+    this.sharerIdentity,
   });
+
+  /// Set for a screen share: a stalled one then gets a card over its dimmed last frame.
+  final String? sharerName;
+  final String? sharerIdentity;
 
   /// [VoiceSession.videoHealth].
   final ValueListenable<Map<String, VideoTileHealth>> health;
@@ -53,12 +89,28 @@ class VideoHealthOverlay extends StatelessWidget {
             child!,
             // Centred: the tile's corners hold its name, mic badge and pop-out button.
             if (state != VideoTileHealth.playing)
-              Positioned.fill(
-                child: Center(child: _HealthLabel(state: state)),
-              ),
+              Positioned.fill(child: _overlayFor(state)),
           ],
         );
       },
+    );
+  }
+
+  Widget _overlayFor(VideoTileHealth state) {
+    final name = sharerName;
+    final stalled = state == VideoTileHealth.stalled;
+    if (name == null || (!stalled && state != VideoTileHealth.stopped)) {
+      return Center(child: _HealthLabel(state: state));
+    }
+    return VideoStateCard(
+      icon: stalled ? AppIcons.screenShare : AppIcons.screenShareStop,
+      title: stalled ? 'Reconnecting screen share' : 'Not being captured',
+      subtitle: stalled
+          ? "$name's screen stopped sending frames"
+          : "$name's screen is not producing frames",
+      identity: sharerIdentity ?? '',
+      name: name,
+      dimsVideoBehind: true,
     );
   }
 }

@@ -134,7 +134,12 @@ void main() {
         final semantics = tester.ensureSemantics();
         final s = await pumpCallScreen(tester, size);
 
-        const labels = ['Play or pause', 'Back 30s', 'Forward 30s', 'Stop'];
+        const labels = [
+          'Play or pause',
+          'Back 30s',
+          'Forward 30s',
+          'Stop(?! watching)',
+        ];
         final rects = [
           for (final l in labels)
             tester.getRect(find.bySemanticsLabel(RegExp('^$l')).first),

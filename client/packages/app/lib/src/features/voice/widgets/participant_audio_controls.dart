@@ -5,11 +5,9 @@
 /// menu (`participant_call_menu.dart`, reached from a call tile or a canvas
 /// bubble) needed the same controls the full member card already had.
 ///
-/// The volume slider is present only where the platform can actually change
-/// gain: on Linux, Windows and web the underlying call either throws or
-/// quietly does nothing (see `audio_gain.dart` in the rtc package), and a
-/// control that does nothing between its ends is worse than no control. The
-/// mute half works everywhere, so it always shows.
+/// The volume slider shows wherever gain can be changed, which is every
+/// platform now (the web through Web Audio, see `audio_gain.dart` in the rtc
+/// package). A change the platform refuses shows inline under the slider.
 ///
 /// **Mute for me is a separate flag, not volume 0.** [VoiceController
 /// .isLocallyMuted] disables the track outright (`LocalAudioState.muted`);
@@ -26,6 +24,8 @@
 /// own doc): a mute is a decision about the person for this call, gain is a
 /// decision about how loud they generally are.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -67,6 +67,11 @@ class MemberLocalAudioSection extends StatelessWidget {
               controller: controller,
             ),
           ),
+        if (showVolume && controller.hasScreenAudio(identity))
+          ParticipantScreenAudioSection(
+            identity: identity,
+            controller: controller,
+          ),
         ParticipantMuteForMeMenuItem(
           identity: identity,
           controller: controller,
@@ -82,8 +87,7 @@ class MemberLocalAudioSection extends StatelessWidget {
 /// menu itself would fight that menu's own outside-tap-to-dismiss model.
 ///
 /// Caller's job to gate this on [VoiceController.supportsParticipantVolume]
-/// first - this widget renders unconditionally once asked to, the same
-/// "absent, never disabled" split every caller of it already makes.
+/// first, the same "absent, never disabled" split every caller makes.
 /// How close to normal, as a fraction of it, a drag snaps to normal.
 const double _snapToNormal = 0.04;
 
@@ -96,10 +100,14 @@ class ParticipantVolumeControl extends StatefulWidget {
     required this.identity,
     required this.controller,
     this.showLabel = true,
+    this.channel = LocalAudioChannel.voice,
   });
 
   final String identity;
   final VoiceController controller;
+
+  /// Whose sound this slider sets: their voice, or their shared screen's.
+  final LocalAudioChannel channel;
 
   /// Off where a title above already names whose volume this is.
   final bool showLabel;
@@ -110,36 +118,67 @@ class ParticipantVolumeControl extends StatefulWidget {
 }
 
 class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
+  bool get _screen => widget.channel == LocalAudioChannel.screen;
+
+  String get _label => _screen ? 'Screen audio' : 'Volume for you';
+
   /// The slider owns its position while it is being dragged. Reading it back
   /// from the session on every frame would make the drag depend on a round
   /// trip through the platform channel.
-  late double _volume = widget.controller.volumeFor(widget.identity);
+  late double _volume = _screen
+      ? widget.controller.screenVolumeFor(widget.identity)
+      : widget.controller.volumeFor(widget.identity);
 
-  /// Reaches the live LiveKit track on every move, the same round trip
-  /// [VoiceController.setVolumeFor] already makes for the full member card -
-  /// see `local_audio.dart`'s own `applyToRefs`, which this ends up calling.
-  void _setVolume(double volume) {
+  /// Whether the platform refused the last gain change for this person.
+  bool _failed = false;
+
+  /// A drag frame is throttled and unsaved; a release or reset is applied and
+  /// saved at once.
+  void _setVolume(double volume, {bool commit = false}) {
     // Within a few points of normal snaps to it, so normal is easy to find again by feel.
     if ((volume - kDefaultParticipantVolume).abs() < _snapToNormal) {
       volume = kDefaultParticipantVolume;
     }
     setState(() => _volume = volume);
-    widget.controller.setVolumeFor(widget.identity, volume);
+    final controller = widget.controller;
+    final applied = !commit
+        ? controller.dragVolumeFor(
+            widget.identity,
+            volume,
+            channel: widget.channel,
+          )
+        : _screen
+        ? controller.setScreenVolumeFor(widget.identity, volume)
+        : controller.setVolumeFor(widget.identity, volume);
+    unawaited(applied.then((_) => _syncFailure()));
+  }
+
+  void _syncFailure() {
+    if (!mounted) return;
+    final failed =
+        widget.controller.volumeFailureFor(
+          widget.identity,
+          channel: widget.channel,
+        ) !=
+        null;
+    if (failed != _failed) setState(() => _failed = failed);
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final muted = widget.controller.isLocallyMuted(widget.identity);
+    final muted = _screen
+        ? widget.controller.isScreenAudioMuted(widget.identity)
+        : widget.controller.isLocallyMuted(widget.identity);
     final atDefault = _volume == kDefaultParticipantVolume;
 
     final touch = AppTouchTargets.of(context);
-    return Row(
+    final row = Row(
       children: [
         if (widget.showLabel) ...[
           Flexible(
             child: Text(
-              'Volume for you',
+              _label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: tokens.textSecondary),
@@ -152,9 +191,10 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
             value: _volume * 100,
             min: 0,
             max: kMaxParticipantVolume * 100,
-            semanticLabel: 'Volume for you',
+            semanticLabel: _label,
             muted: muted,
             onChanged: (next) => _setVolume(next / 100),
+            onChangeEnd: (next) => _setVolume(next / 100, commit: true),
           ),
         ),
         SizedBox(
@@ -182,8 +222,69 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
                   size: AppIconButtonSize.sm,
                   iconSize: AppSizes.icon16,
                   touch: touch,
-                  onPressed: () => _setVolume(kDefaultParticipantVolume),
+                  onPressed: () =>
+                      _setVolume(kDefaultParticipantVolume, commit: true),
                 ),
+        ),
+      ],
+    );
+    if (!_failed) return row;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        row,
+        Text(
+          "Volume can't be changed on this device",
+          style: AppText.caption.copyWith(color: tokens.dangerText),
+        ),
+      ],
+    );
+  }
+}
+
+/// The screen audio half of a person's volume popover: its own slider and
+/// mute, present only while they are sharing sound.
+class ParticipantScreenAudioSection extends StatefulWidget {
+  const ParticipantScreenAudioSection({
+    super.key,
+    required this.identity,
+    required this.controller,
+  });
+
+  final String identity;
+  final VoiceController controller;
+
+  @override
+  State<ParticipantScreenAudioSection> createState() =>
+      _ParticipantScreenAudioSectionState();
+}
+
+class _ParticipantScreenAudioSectionState
+    extends State<ParticipantScreenAudioSection> {
+  @override
+  Widget build(BuildContext context) {
+    final muted = widget.controller.isScreenAudioMuted(widget.identity);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ParticipantVolumeControl(
+          identity: widget.identity,
+          controller: widget.controller,
+          channel: LocalAudioChannel.screen,
+        ),
+        AppMenuItem(
+          label: muted ? 'Unmute screen audio' : 'Mute screen audio',
+          leading: muted ? AppIcons.speakerOff : AppIcons.speaker,
+          selected: muted,
+          onTap: () async {
+            await widget.controller.setScreenAudioMuted(
+              widget.identity,
+              !muted,
+            );
+            if (mounted) setState(() {});
+          },
         ),
       ],
     );

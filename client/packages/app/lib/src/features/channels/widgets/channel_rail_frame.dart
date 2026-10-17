@@ -17,6 +17,7 @@ import '../../members/providers/status_text.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/sync_failure.dart';
 import '../../voice/providers/voice_controller.dart';
+import '../../voice/providers/mic_status.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
@@ -196,14 +197,22 @@ class RailConnectionBar extends ConsumerWidget {
 List<Widget> railVoiceToggleButtons({
   required VoiceFlags voice,
   required VoiceController voiceController,
+  MicStatus micStatus = MicStatus.ok,
 }) {
   final inCall = voice.state == VoiceSessionState.connected;
+  final trouble = voice.microphoneEnabled ? micStatus.trouble : null;
   return [
     AppIconButton(
-      icon: voice.microphoneEnabled ? AppIcons.mic : AppIcons.micOff,
-      semanticLabel: voice.microphoneEnabled ? 'Mute' : 'Unmute',
-      tooltip: inCall ? null : 'Not in a call',
-      onPressed: inCall ? voiceController.toggleMicrophone : null,
+      icon: voice.microphoneEnabled && trouble == null
+          ? AppIcons.mic
+          : AppIcons.micOff,
+      semanticLabel: trouble ?? (voice.microphoneEnabled ? 'Mute' : 'Unmute'),
+      tooltip: inCall ? trouble : 'Not in a call',
+      onPressed: !inCall
+          ? null
+          : micStatus == MicStatus.unavailable && trouble != null
+          ? voiceController.resetMicrophone
+          : voiceController.toggleMicrophone,
     ),
     // Same icon either way, the toggle carried by `active`: there is no
     // dedicated "deafened" glyph in AppIcons.
@@ -306,6 +315,7 @@ class RailUserFooter extends ConsumerWidget {
     final selfId = ref.watch(sessionProvider).tokens?.userId;
     final voice = ref.watch(voiceFlagsProvider);
     final voiceController = ref.read(voiceControllerProvider.notifier);
+    final micStatus = ref.watch(micStatusProvider).valueOrNull ?? MicStatus.ok;
     final inCall = voice.state == VoiceSessionState.connected;
     // A call in the channel already on screen has its own full call UI.
     final callChannelId = voice.channelId;
@@ -344,6 +354,7 @@ class RailUserFooter extends ConsumerWidget {
                 ...railVoiceToggleButtons(
                   voice: voice,
                   voiceController: voiceController,
+                  micStatus: micStatus,
                 ),
                 if (inCallElsewhere) railLeaveCallButton(voiceController.leave),
                 railSettingsButton(context),

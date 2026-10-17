@@ -3,6 +3,8 @@
 /// drive capture restarts without a native audio stack behind livekit.
 library;
 
+import 'dart:async';
+
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 abstract interface class MicPort {
@@ -20,12 +22,44 @@ abstract interface class MicPort {
   /// Makes [options] what the track's next reopen, such as a device switch,
   /// uses.
   void adoptOptions(lk.AudioCaptureOptions options);
+
+  /// Fires when the published track ended or was unpublished by something
+  /// other than [discard].
+  Stream<void> get lost;
+
+  /// Hands the port every room event, so it can tell when the track is lost.
+  void onRoomEvent(lk.RoomEvent event);
+
+  /// Unpublishes the track without announcing it as a loss, so a fresh one
+  /// can take its place.
+  Future<void> discard();
 }
 
 class LiveKitMicPort implements MicPort {
-  const LiveKitMicPort(this._room);
+  LiveKitMicPort(this._room);
 
   final lk.Room? Function() _room;
+  final _lost = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get lost => _lost.stream;
+
+  @override
+  void onRoomEvent(lk.RoomEvent event) {
+    if (event is lk.LocalTrackUnpublishedEvent &&
+        event.publication.source == lk.TrackSource.microphone) {
+      _lost.add(null);
+    }
+  }
+
+  @override
+  Future<void> discard() async {
+    final publication = _publication;
+    if (publication == null) return;
+    await _room()
+        ?.localParticipant
+        ?.removePublishedTrack(publication.sid, notify: false);
+  }
 
   lk.LocalTrackPublication<lk.LocalAudioTrack>? get _publication {
     final all = _room()?.localParticipant?.audioTrackPublications;

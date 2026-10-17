@@ -27,7 +27,7 @@ mixin VoiceSessionAudioDevices {
   MicPort get _mic;
   bool get supportsInputGate;
 
-  final AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
+  AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
     const HardwareAudioDevices(),
   );
 

@@ -21,6 +21,7 @@ extension VoiceSessionTracks on VoiceSession {
   void _listen(lk.Room room) {
     _cancelEvents?.call();
     _cancelEvents = room.events.listen((event) {
+      _mic.onRoomEvent(event);
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }
@@ -74,6 +75,7 @@ extension VoiceSessionTracks on VoiceSession {
     final room = _room;
     _room = null;
     _stopStallWatch();
+    _stopMicWatch();
     _capture.reset();
     final cancelEvents = _cancelEvents;
     _cancelEvents = null;
@@ -92,6 +94,8 @@ extension VoiceSessionTracks on VoiceSession {
   Future<bool> _trySetMicrophone(bool enabled) async {
     final room = _room;
     if (room == null) return false;
+    final intent = _micWanted;
+    _micWanted = enabled;
     try {
       final hadTrack = _mic.hasTrack;
       final options = _micCaptureOptions();
@@ -104,8 +108,10 @@ extension VoiceSessionTracks on VoiceSession {
       }
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
+      _micRecovery.reset();
       return true;
     } catch (e) {
+      _micWanted = intent;
       _lastError = e;
       _refreshParticipants();
       return false;
@@ -175,6 +181,7 @@ extension VoiceSessionTracks on VoiceSession {
   void _setState(VoiceSessionState next) {
     if (_state == next || _disposed) return;
     _state = next;
+    _syncMicWatch(next);
     if (next == VoiceSessionState.connected) {
       unawaited(_applyInputGate());
       _gate.start(_refreshParticipants);

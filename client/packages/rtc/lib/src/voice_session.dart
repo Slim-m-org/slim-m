@@ -14,7 +14,8 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, debugPrint, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -23,6 +24,7 @@ import 'audio_gain.dart' as rtc_gain;
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'input_gate.dart';
+import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
 import 'local_audio.dart';
@@ -53,6 +55,7 @@ import 'voice_roster_snapshot.dart';
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_listener_audio.dart';
+part 'voice_session_mic_recovery.dart';
 part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
@@ -71,6 +74,7 @@ class VoiceSession
     with
         VoiceSessionAudioDevices,
         VoiceSessionInputGate,
+        VoiceSessionMicRecovery,
         VoiceSessionListenerAudio {
   VoiceSession({
     RoomFactory? roomFactory,
@@ -80,18 +84,32 @@ class VoiceSession
     InputGateMonitor? inputGate,
     MicPort? micPort,
     Duration? captureRestartDebounce,
+    void Function(String line)? audioLog,
+    AudioDevices? audioDevices,
+    MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
         ) {
     _roomFactory = roomFactory ?? _buildRoom;
+    _audio.log = audioLog;
     // An injected room has no native capture behind it to gate.
     _gate = inputGate ??
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
-    _initCapture(micPort, captureRestartDebounce, _followPreferredDevices);
+    _initCapture(micPort, captureRestartDebounce, _restartCapture);
+    if (audioDevices != null) {
+      _audioSwitching = AudioDeviceSwitching(audioDevices);
+    }
+    _initMicRecovery(
+      timing: micRecoveryTiming,
+      // An injected room has no sound stack to watch unless a test brings one.
+      watchDevices: audioDevices != null || roomFactory == null,
+      enable: () => _trySetMicrophone(true),
+      afterRestart: _followPreferredDevices,
+    );
     _screenShare = ScreenShareControl(_broadcast);
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
@@ -303,10 +321,12 @@ class VoiceSession
     _participants = const [];
     _audio.deafened = false;
     _audio.muted.clear();
+    _audio.screenMuted.clear();
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
     // Whatever a canvas last asked for was about the call that just ended.
     _videoCuller.setInterest(null);
+    _videoCuller.setBlocked(const {});
     if (!_participantsController.isClosed) {
       _participantsController.add(_participants);
     }
@@ -434,6 +454,14 @@ class VoiceSession
     _applyVideoInterest();
   }
 
+  /// Keeps the screen-share (or camera) tiles named by [tileKeys] unsubscribed
+  /// whatever the interest says, along with a share's own audio, so a viewer
+  /// who stopped watching pays no bandwidth or decode for it.
+  void setVideoBlocked(Set<String> tileKeys) {
+    _videoCuller.setBlocked(tileKeys);
+    _applyVideoInterest();
+  }
+
   /// Whether flipping needs no chosen device; see [CameraSwitching.canFlip].
   bool get canFlipCamera => _cameraSwitching.canFlip;
 
@@ -492,6 +520,7 @@ class VoiceSession
     await _teardown();
     _cameraSwitching.dispose();
     await _disposeCapture();
+    await _disposeMicRecovery();
     await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();

@@ -175,7 +175,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('secret'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(AppButton, 'Dismiss'));
+    await tester.tap(find.text('Dismiss'));
     await tester.pumpAndSettle();
 
     expect(find.text('secret'), findsNothing);

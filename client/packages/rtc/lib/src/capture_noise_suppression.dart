@@ -68,6 +68,14 @@ class CaptureNoiseSuppression {
   /// Call [retry] once the switch has settled.
   void deviceChanged() => _resetFallback();
 
+  /// Strong could not reopen the capture, so stay on libwebrtc's suppressor
+  /// until the device changes.
+  void fallBack() {
+    if (_fallback) return;
+    _fallback = true;
+    _tracker.reset();
+  }
+
   /// A new call opens a new track; nothing about the last one carries over.
   void reset() {
     _generation++;

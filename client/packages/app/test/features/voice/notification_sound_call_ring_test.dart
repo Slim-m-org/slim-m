@@ -50,6 +50,24 @@ class _DeadSession with VideoQualityRecorder implements VoiceSession {
   bool deafened = false;
   @override
   bool get supportsParticipantVolume => false;
+
+  @override
+  double screenVolumeFor(String identity) => 1.0;
+
+  @override
+  Future<void> setScreenVolumeFor(String identity, double volume) async {}
+
+  @override
+  bool isScreenAudioMuted(String identity) => false;
+
+  @override
+  Future<void> setScreenAudioMuted(String identity, bool muted) async {}
+
+  @override
+  bool hasScreenAudio(String identity) => false;
+
+  @override
+  Object? volumeFailureFor(String identity, {bool screen = false}) => null;
   @override
   bool get supportsScreenShareAudio => false;
   @override
@@ -72,6 +90,9 @@ class _DeadSession with VideoQualityRecorder implements VoiceSession {
   Widget cameraViewFor(String identity) => throw UnimplementedError();
   @override
   void setVideoInterest(Set<String>? tileKeys) {}
+
+  @override
+  void setVideoBlocked(Set<String> tileKeys) {}
   @override
   bool get supportsInputGate => false;
 

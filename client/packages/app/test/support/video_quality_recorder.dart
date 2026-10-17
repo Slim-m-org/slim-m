@@ -3,6 +3,8 @@
 /// the session does not grow every fake past the file budget.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -29,4 +31,16 @@ mixin VideoQualityRecorder {
 
   void setStrongNoiseSuppression(bool enabled) =>
       lastStrongNoiseSuppression = enabled;
+
+  MicStatus micStatus = MicStatus.ok;
+  final micStatusChanges = StreamController<MicStatus>.broadcast();
+  int microphoneResets = 0;
+  bool microphoneResetWorks = true;
+
+  Stream<MicStatus> get micStatuses => micStatusChanges.stream;
+
+  Future<bool> resetMicrophone() async {
+    microphoneResets++;
+    return microphoneResetWorks;
+  }
 }

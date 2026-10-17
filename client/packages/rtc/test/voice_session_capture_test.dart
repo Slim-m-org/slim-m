@@ -44,6 +44,15 @@ class _FakeMic implements MicPort {
 
   @override
   void adoptOptions(lk.AudioCaptureOptions options) {}
+
+  @override
+  Stream<void> get lost => const Stream.empty();
+
+  @override
+  void onRoomEvent(lk.RoomEvent event) {}
+
+  @override
+  Future<void> discard() async => published = false;
 }
 
 class _FakeGate {

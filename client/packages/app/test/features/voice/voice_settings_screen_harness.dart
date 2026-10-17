@@ -68,6 +68,24 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   bool get supportsParticipantVolume => true;
 
   @override
+  double screenVolumeFor(String identity) => 1.0;
+
+  @override
+  Future<void> setScreenVolumeFor(String identity, double volume) async {}
+
+  @override
+  bool isScreenAudioMuted(String identity) => false;
+
+  @override
+  Future<void> setScreenAudioMuted(String identity, bool muted) async {}
+
+  @override
+  bool hasScreenAudio(String identity) => false;
+
+  @override
+  Object? volumeFailureFor(String identity, {bool screen = false}) => null;
+
+  @override
   final bool supportsScreenShareAudio;
 
   @override
@@ -179,6 +197,9 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
       SizedBox.shrink(key: Key('fake-camera-view-$identity'));
   @override
   void setVideoInterest(Set<String>? tileKeys) {}
+
+  @override
+  void setVideoBlocked(Set<String> tileKeys) {}
 
   /// The last sensitivity this session was handed, so a test can assert it
   /// reached the session rather than only the controller's own copy.

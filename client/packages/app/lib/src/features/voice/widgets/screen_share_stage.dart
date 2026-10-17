@@ -15,6 +15,8 @@ import '../../../widgets/double_click_detector.dart';
 import 'fullscreen_video_overlay.dart';
 import '../../messages/widgets/media_label.dart';
 import 'popout_video_button.dart';
+import 'share_stage_controls.dart';
+import '../../../widgets/context_menu_region.dart';
 
 /// A dark stage with the share inside it, labelled on hover.
 ///
@@ -41,7 +43,21 @@ class ScreenShareStage extends StatelessWidget {
     this.isLocal = false,
     this.onExpand,
     this.popOutIdentity,
+    this.onStopWatching,
+    this.onFocus,
+    this.focused = false,
+    this.showCaption = true,
   });
+
+  /// Off where a caption under the tile already names the sharer, as in the share grid.
+  final bool showCaption;
+
+  /// Stops watching this share; null where the tile is not a choosable share.
+  final VoidCallback? onStopWatching;
+
+  /// Gives this share the room, or returns to the grid when [focused]; null with one share.
+  final VoidCallback? onFocus;
+  final bool focused;
 
   final String sharerName;
 
@@ -63,7 +79,8 @@ class ScreenShareStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return PointerRevealed(
+    final icons = MediaQuery.sizeOf(context).width >= shareStageIconsMinWidth;
+    final stage = PointerRevealed(
       builder: (context, revealed) => DoubleClickDetector(
         onDoubleClick: onExpand,
         child: ClipRRect(
@@ -104,27 +121,67 @@ class ScreenShareStage extends StatelessWidget {
                     ),
                   ),
                 ),
-              Positioned(
-                left: 6,
-                bottom: 6,
-                right: 6,
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: RevealFade(
-                    revealed: revealed,
-                    child: MediaLabelChip(
-                      icon: AppIcons.screenShare,
-                      label: isLocal
-                          ? 'You are sharing your screen'
-                          : "$sharerName's screen",
+              if (icons && (onStopWatching != null || onFocus != null))
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onFocus != null)
+                        ShareStageButton(
+                          icon: focused
+                              ? AppIcons.collapse
+                              : AppIcons.shareFocus,
+                          label: focused
+                              ? 'Show all shares'
+                              : 'Focus this share',
+                          onTap: onFocus!,
+                        ),
+                      if (onFocus != null && onStopWatching != null)
+                        const SizedBox(width: 4),
+                      if (onStopWatching != null)
+                        ShareStageButton(
+                          icon: AppIcons.tileHide,
+                          label: 'Stop watching',
+                          onTap: onStopWatching!,
+                        ),
+                    ],
+                  ),
+                ),
+              if (showCaption)
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  right: 6,
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: RevealFade(
+                      revealed: revealed,
+                      child: MediaLabelChip(
+                        icon: AppIcons.screenShare,
+                        label: isLocal
+                            ? 'You are sharing your screen'
+                            : "$sharerName's screen",
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
       ),
+    );
+    if (onStopWatching == null && onFocus == null) return stage;
+    return ContextMenuRegion(
+      itemsBuilder: (context, close) => shareStageMenuItems(
+        close,
+        sharerName: sharerName,
+        onStopWatching: onStopWatching,
+        onFocus: onFocus,
+        focused: focused,
+      ),
+      child: stage,
     );
   }
 }

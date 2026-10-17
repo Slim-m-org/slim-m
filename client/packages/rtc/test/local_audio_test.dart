@@ -20,6 +20,8 @@
 /// nothing about whether it ran on the right track with the right value.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -30,9 +32,10 @@ import 'package:slimm_rtc/rtc.dart';
 /// says "this track resubscribed": that is precisely what LiveKit does, since
 /// `addSubscribedMediaTrack` builds a new `MediaStreamTrack` every time.
 class _FakeTrack {
-  _FakeTrack(this.identity);
+  _FakeTrack(this.identity, {this.channel = LocalAudioChannel.voice});
 
   final String identity;
+  final LocalAudioChannel channel;
   Object key = Object();
 
   bool enabled = true;
@@ -80,6 +83,8 @@ class _FakeTrack {
 
   LocalAudioRef get ref => (
         identity: identity,
+        channel: channel,
+        trackId: identity,
         track: key,
         isAudible: () => enabled,
         enable: () async {
@@ -376,5 +381,150 @@ void main() {
       isFalse,
       reason: 'a track re-enabled behind our back is still corrected',
     );
+  });
+
+  group('keyed by source', () {
+    test('screen audio takes its own gain, apart from the voice', () async {
+      final state = LocalAudioState();
+      final voice = _FakeTrack('maya');
+      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      state.setVolumeFor('maya', 0.4);
+      state.setVolumeFor('maya', 1.8, channel: LocalAudioChannel.screen);
+
+      await _pumpEvents(state, [voice, screen]);
+
+      expect(voice.volume, closeTo(0.4, 0.0001));
+      expect(screen.volume, closeTo(1.8, 0.0001));
+      expect(state.volumeFor('maya'), closeTo(0.4, 0.0001));
+      expect(
+        state.volumeFor('maya', channel: LocalAudioChannel.screen),
+        closeTo(1.8, 0.0001),
+      );
+    });
+
+    test('muting the screen audio leaves the voice audible', () async {
+      final state = LocalAudioState();
+      final voice = _FakeTrack('maya');
+      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      state.setScreenMuted('maya', true);
+
+      await _pumpEvents(state, [voice, screen]);
+
+      expect(voice.enabled, isTrue);
+      expect(screen.enabled, isFalse);
+
+      state.setScreenMuted('maya', false);
+      await _pumpEvents(state, [voice, screen]);
+      expect(screen.enabled, isTrue);
+    });
+
+    test('muting the person still silences both', () async {
+      final state = LocalAudioState();
+      final voice = _FakeTrack('maya');
+      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      state.setMuted('maya', true);
+
+      await _pumpEvents(state, [voice, screen]);
+
+      expect(voice.enabled, isFalse);
+      expect(screen.enabled, isFalse);
+    });
+  });
+
+  group('failures', () {
+    test('a failed gain push is reported and not remembered', () async {
+      final state = LocalAudioState();
+      final track = _FakeTrack('maya');
+      state.setVolumeFor('maya', 1.5);
+      track.failure = StateError('no such track');
+
+      final failure = await state.applyToRefs([track.ref]);
+
+      expect(failure, isNotNull);
+      expect(state.failureFor('maya'), isNotNull);
+
+      track.failure = null;
+      final before = track.volumeCalls;
+      expect(await state.applyToRefs([track.ref]), isNull);
+      expect(
+        track.volumeCalls,
+        greaterThan(before),
+        reason: 'the failure was never cached as applied, so it is retried',
+      );
+      expect(track.volume, closeTo(1.5, 0.0001));
+      expect(state.failureFor('maya'), isNull);
+    });
+
+    test('a failure is held against the channel that failed', () async {
+      final state = LocalAudioState();
+      final voice = _FakeTrack('maya');
+      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      screen.failure = StateError('nope');
+
+      await state.applyToRefs([voice.ref, screen.ref]);
+
+      expect(state.failureFor('maya'), isNull);
+      expect(
+        state.failureFor('maya', channel: LocalAudioChannel.screen),
+        isNotNull,
+      );
+    });
+  });
+
+  test('a slow push never lets a stale volume land last', () async {
+    final state = LocalAudioState();
+    final landed = <double>[];
+    final gate = <Completer<void>>[];
+    final track = _FakeTrack('maya');
+    final ref = (
+      identity: 'maya',
+      channel: LocalAudioChannel.voice,
+      trackId: 'maya',
+      track: Object(),
+      isAudible: () => true,
+      enable: () async {},
+      disable: () async {},
+      setVolume: (double v) async {
+        final c = Completer<void>();
+        gate.add(c);
+        await c.future;
+        landed.add(v);
+        return null;
+      },
+    );
+    expect(track, isNotNull);
+
+    state.setVolumeFor('maya', 0.5);
+    final first = state.applyToRefs([ref]);
+    await Future<void>.delayed(Duration.zero);
+    state.setVolumeFor('maya', 1.0);
+    state.setVolumeFor('maya', 1.7);
+    final second = state.applyToRefs([ref]);
+    final third = state.applyToRefs([ref]);
+
+    gate.first.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(gate, hasLength(2), reason: 'one follow-up pass, none overlapping');
+    gate.last.complete();
+    await Future.wait([first, second, third]);
+
+    expect(landed, [0.5, 1.7]);
+  });
+
+  test('every push is logged with identity, source, gain, track and result',
+      () async {
+    final lines = <String>[];
+    final state = LocalAudioState()..log = lines.add;
+    final track = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+    state.setVolumeFor('maya', 1.5, channel: LocalAudioChannel.screen);
+
+    await state.applyToRefs([track.ref]);
+    track.failure = StateError('boom');
+    state.setVolumeFor('maya', 0.5, channel: LocalAudioChannel.screen);
+    await state.applyToRefs([track.ref]);
+
+    expect(lines.first, 'gain screen maya x1.5 track=maya ok');
+    expect(lines.last, contains('x0.5'));
+    expect(lines.last, contains('failed: Bad state: boom'));
   });
 }

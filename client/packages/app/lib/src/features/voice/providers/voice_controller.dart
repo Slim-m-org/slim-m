@@ -26,9 +26,9 @@ import 'voice_call_lifecycle_report.dart';
 import 'voice_camera_failure.dart';
 import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
-import 'video_pause.dart' show gateLocalPreview;
 import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
+import 'volume_drag_throttle.dart';
 import 'voice_settings_controller.dart';
 import 'voice_sfu_security.dart';
 import 'voice_state.dart';
@@ -58,7 +58,12 @@ class VoiceController extends StateNotifier<VoiceState>
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
     DateTime Function()? now,
-  }) : _session = session ?? VoiceSession(),
+  }) : _session =
+           session ??
+           VoiceSession(
+             audioLog: (line) =>
+                 _ref.read(debugLogProvider.notifier).record('voice', line),
+           ),
        _callLifecycle = callLifecycle ?? CallLifecycleChannel(),
        _heartbeat = VoiceCallHeartbeat(
          _ref,
@@ -445,27 +450,21 @@ class VoiceController extends StateNotifier<VoiceState>
       _session.screenShareSources();
 
   /// [identity]'s shared screen; see [VoiceSession.screenShareViewFor].
-  Widget screenShareViewFor(String identity) => gateLocalPreview(
-    state.participants,
-    identity,
-    withVideoHealth(
-      _session.videoHealth,
-      identity,
-      _session.screenShareViewFor(identity),
-      screenShare: true,
-    ),
+  Widget screenShareViewFor(String identity) => voiceVideoView(
+    participants: state.participants,
+    health: _session.videoHealth,
+    identity: identity,
+    view: _session.screenShareViewFor(identity),
+    screenShare: true,
   );
 
   /// [identity]'s camera feed; see [VoiceSession.cameraViewFor].
-  Widget cameraViewFor(String identity) => gateLocalPreview(
-    state.participants,
-    identity,
-    withVideoHealth(
-      _session.videoHealth,
-      identity,
-      _session.cameraViewFor(identity),
-      screenShare: false,
-    ),
+  Widget cameraViewFor(String identity) => voiceVideoView(
+    participants: state.participants,
+    health: _session.videoHealth,
+    identity: identity,
+    view: _session.cameraViewFor(identity),
+    screenShare: false,
   );
 
   /// Declares which presence tiles a surface currently wants video for, so
@@ -473,6 +472,10 @@ class VoiceController extends StateNotifier<VoiceState>
   /// Null hands the decision back, and is what a surface says on unmount.
   void setVideoInterest(Set<String>? tileKeys) =>
       _session.setVideoInterest(tileKeys);
+
+  /// Keeps these tiles unsubscribed whatever the interest says; see [VoiceSession.setVideoBlocked].
+  void setVideoBlocked(Set<String> tileKeys) =>
+      _session.setVideoBlocked(tileKeys);
 
   /// Whether switching cameras is a bare flip (mobile) rather than a picker.
   bool get canFlipCamera => _session.canFlipCamera;

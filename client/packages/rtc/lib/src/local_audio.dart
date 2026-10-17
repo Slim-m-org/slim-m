@@ -9,15 +9,24 @@
 /// asked for is in docs/research/mic-handling.md.
 library;
 
+import 'dart:async';
+
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart';
+
+/// Which of one person's audio a gain or mute is about: their microphone, or
+/// the sound of the screen they are sharing. Keyed apart because they are
+/// separate publications that a listener balances separately.
+enum LocalAudioChannel { voice, screen }
 
 /// One subscribed remote audio track as plain closures, so tests can see
 /// which calls are made. [track] keys the volume cache and must be the
 /// object the closures act on; [isAudible] reads its current state cheaply.
 typedef LocalAudioRef = ({
   String identity,
+  LocalAudioChannel channel,
+  String trackId,
   Object track,
   bool Function() isAudible,
   Future<void> Function() enable,
@@ -36,13 +45,19 @@ class _AppliedAudio {
 }
 
 class LocalAudioState {
+  /// Receives one line per gain push, for the app's debug log.
+  void Function(String line)? log;
+
   /// Silences every remote participant.
   bool deafened = false;
 
-  /// Identities silenced individually.
+  /// Identities silenced individually, microphone and screen audio together.
   final Set<String> muted = {};
 
-  /// Per-identity gain, absent meaning [kDefaultParticipantVolume].
+  /// Identities whose screen share audio alone is silenced.
+  final Set<String> screenMuted = {};
+
+  /// Per-identity microphone gain, absent meaning [kDefaultParticipantVolume].
   ///
   /// Deliberately not carried on the participant value type: that list is
   /// compared by value to decide whether to push a new roster to every
@@ -50,11 +65,24 @@ class LocalAudioState {
   /// full roster rebuild.
   final Map<String, double> volumes = {};
 
-  double volumeFor(String identity) =>
-      volumes[identity] ?? kDefaultParticipantVolume;
+  /// Per-identity screen share audio gain, kept apart from [volumes].
+  final Map<String, double> screenVolumes = {};
 
-  void setVolumeFor(String identity, double volume) {
-    volumes[identity] = clampParticipantVolume(volume);
+  Map<String, double> _volumesOf(LocalAudioChannel channel) =>
+      channel == LocalAudioChannel.screen ? screenVolumes : volumes;
+
+  double volumeFor(
+    String identity, {
+    LocalAudioChannel channel = LocalAudioChannel.voice,
+  }) =>
+      _volumesOf(channel)[identity] ?? kDefaultParticipantVolume;
+
+  void setVolumeFor(
+    String identity,
+    double volume, {
+    LocalAudioChannel channel = LocalAudioChannel.voice,
+  }) {
+    _volumesOf(channel)[identity] = clampParticipantVolume(volume);
   }
 
   void setMuted(String identity, bool value) {
@@ -63,7 +91,23 @@ class LocalAudioState {
 
   bool isMuted(String identity) => muted.contains(identity);
 
-  /// Applies all three to every remote audio track currently subscribed,
+  void setScreenMuted(String identity, bool value) {
+    value ? screenMuted.add(identity) : screenMuted.remove(identity);
+  }
+
+  bool isScreenMuted(String identity) => screenMuted.contains(identity);
+
+  /// The last gain failure for one person's channel, or null when its most
+  /// recent apply went through (or nothing was subscribed to apply to).
+  Object? failureFor(
+    String identity, {
+    LocalAudioChannel channel = LocalAudioChannel.voice,
+  }) =>
+      _failures[(identity, channel)];
+
+  final Map<(String, LocalAudioChannel), Object> _failures = {};
+
+  /// Applies all of it to every remote audio track currently subscribed,
   /// returning the last failure or null.
   ///
   /// Failures are returned rather than thrown because the caller fires this
@@ -84,6 +128,10 @@ class LocalAudioState {
         if (track == null) continue;
         yield (
           identity: participant.identity,
+          channel: publication.source == lk.TrackSource.screenShareAudio
+              ? LocalAudioChannel.screen
+              : LocalAudioChannel.voice,
+          trackId: track.mediaStreamTrack.id ?? '',
           track: track.mediaStreamTrack,
           isAudible: () => track.mediaStreamTrack.enabled,
           enable: track.enable,
@@ -94,34 +142,79 @@ class LocalAudioState {
     }
   }
 
+  /// Whether [identity] publishes screen share audio at all, subscribed or not.
+  bool hasScreenAudio(lk.Room room, String identity) =>
+      room.remoteParticipants[identity]?.audioTrackPublications.any(
+        (p) => p.source == lk.TrackSource.screenShareAudio,
+      ) ??
+      false;
+
+  bool _busy = false;
+  Completer<Object?>? _queued;
+  Iterable<LocalAudioRef> _latestRefs = const [];
+
   /// The half of [applyTo] worth testing, over an explicit track list.
-  Future<Object?> applyToRefs(Iterable<LocalAudioRef> refs) async {
+  ///
+  /// One pass runs at a time. A call made mid-pass does not overlap it: it
+  /// queues one follow-up pass that reads the stored state afresh, so however
+  /// fast a slider is dragged the last value set is the last one applied.
+  Future<Object?> applyToRefs(Iterable<LocalAudioRef> refs) {
+    _latestRefs = refs;
+    if (_busy) return (_queued ??= Completer<Object?>()).future;
+    return _drain();
+  }
+
+  Future<Object?> _drain() async {
+    _busy = true;
+    Object? result;
+    try {
+      do {
+        final waiting = _queued;
+        _queued = null;
+        result = await _pass(_latestRefs);
+        waiting?.complete(result);
+      } while (_queued != null);
+    } finally {
+      _busy = false;
+    }
+    return result;
+  }
+
+  Future<Object?> _pass(Iterable<LocalAudioRef> refs) async {
     Object? failure;
     for (final ref in refs) {
-      // Deafened silences everyone; otherwise only the individually muted.
-      final silence = deafened || muted.contains(ref.identity);
-      final here = silence ? await _silence(ref) : await _restore(ref);
-      failure = here ?? failure;
+      try {
+        failure = await _applyOne(ref) ?? failure;
+      } catch (e) {
+        failure = e;
+      }
     }
     return failure;
   }
 
-  Future<Object?> _silence(LocalAudioRef ref) async {
-    if (!ref.isAudible()) return null;
-    Object? failure;
-    try {
-      await ref.disable();
-    } catch (e) {
-      failure = e;
-    }
-    // Whatever was believed about gain stops being true once it is silent.
-    _applied[ref.track] = null;
-    return failure;
-  }
-
-  Future<Object?> _restore(LocalAudioRef ref) async {
+  Future<Object?> _applyOne(LocalAudioRef ref) async {
+    final key = (ref.identity, ref.channel);
+    final silence = deafened ||
+        muted.contains(ref.identity) ||
+        (ref.channel == LocalAudioChannel.screen &&
+            screenMuted.contains(ref.identity));
     final audible = ref.isAudible();
-    final volume = volumeFor(ref.identity);
+
+    if (silence) {
+      Object? failure;
+      if (audible) {
+        try {
+          await ref.disable();
+        } catch (e) {
+          failure = e;
+        }
+      }
+      // Whatever was believed about gain stops being true once it is silent.
+      _applied[ref.track] = null;
+      return failure;
+    }
+
+    final volume = volumeFor(ref.identity, channel: ref.channel);
     final last = _applied[ref.track];
     if (audible && last != null && last.volume == volume) return null;
 
@@ -133,10 +226,15 @@ class LocalAudioState {
     }
     // After the enable, never before: re-enabling can reset source volume.
     here = await ref.setVolume(volume) ?? here;
+    log?.call(
+      'gain ${ref.channel.name} ${ref.identity} x$volume '
+      'track=${ref.trackId} ${here == null ? 'ok' : 'failed: $here'}',
+    );
 
     // Remembered only if it both went cleanly and can be seen to have landed.
     _applied[ref.track] =
         here == null && ref.isAudible() ? _AppliedAudio(volume: volume) : null;
+    here == null ? _failures.remove(key) : _failures[key] = here;
     return here;
   }
 

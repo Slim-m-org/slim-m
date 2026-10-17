@@ -9,6 +9,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'share_watch.dart';
 import 'voice_flags.dart';
 
 enum MiniPlayerCorner { topLeft, topRight, bottomLeft, bottomRight }
@@ -28,11 +29,16 @@ typedef MiniPlayerFeed = ({String identity, String name, FeedKind kind});
 /// nothing to look at, which is also when the player stays away.
 ///
 /// The local participant is excluded: previewing your own share inside the app
-/// that is sharing it is a hall of mirrors. There is no per-user "watching"
-/// state to consult, so this is the first remote publisher in roster order.
-MiniPlayerFeed? pickMiniPlayerFeed(List<VoiceParticipant> participants) {
+/// that is sharing it is a hall of mirrors. It is the first remote publisher in
+/// roster order whose share the viewer has not stopped watching.
+MiniPlayerFeed? pickMiniPlayerFeed(
+  List<VoiceParticipant> participants, {
+  Set<String> stoppedShares = const {},
+}) {
   for (final p in participants) {
-    if (!p.isLocal && p.isScreenSharing) {
+    if (!p.isLocal &&
+        p.isScreenSharing &&
+        !stoppedShares.contains(p.identity)) {
       return (identity: p.identity, name: p.name, kind: FeedKind.screenShare);
     }
   }
@@ -47,7 +53,10 @@ MiniPlayerFeed? pickMiniPlayerFeed(List<VoiceParticipant> participants) {
 /// The feed for the current roster; records compare by value, so a listener
 /// only rebuilds when the pick itself changes.
 final miniPlayerFeedProvider = Provider<MiniPlayerFeed?>(
-  (ref) => pickMiniPlayerFeed(ref.watch(voiceParticipantsProvider)),
+  (ref) => pickMiniPlayerFeed(
+    ref.watch(voiceParticipantsProvider),
+    stoppedShares: ref.watch(shareWatchProvider.select((s) => s.stopped)),
+  ),
 );
 
 /// Space the player must never enter, measured in from each edge of the pane

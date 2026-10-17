@@ -36,7 +36,8 @@ extension VoiceSessionStall on VoiceSession {
     final publications = <StallPublication>[
       for (final peer in room.remoteParticipants.values)
         for (final pub in peer.videoTrackPublications)
-          if (_stallKey(peer.identity, pub.source) case final key?)
+          if (_stallKey(peer.identity, pub.source) case final key?
+              when !_videoCuller.blocked.contains(key))
             (
               key: key,
               subscribed: pub.subscribed,
@@ -110,7 +111,7 @@ extension VoiceSessionStall on VoiceSession {
     for (final peer in room.remoteParticipants.values) {
       for (final pub in peer.videoTrackPublications) {
         if (_stallKey(peer.identity, pub.source) != key) continue;
-        debugPrint('video stall: $key, trying ${step.name}');
+        _diag('video stall: $key, trying ${step.name}');
         unawaited(_runStallStep(room, key, pub, step));
         return;
       }
@@ -144,16 +145,13 @@ extension VoiceSessionStall on VoiceSession {
         case VideoStallStep.resubscribe:
           await pub.unsubscribe();
           await Future<void>.delayed(const Duration(milliseconds: 500));
-          final interest = _videoCuller.interest;
           // The culler may have resubscribed already, or stopped wanting it meanwhile.
-          if (!_disposed &&
-              identical(room, _room) &&
-              (interest == null || interest.contains(key))) {
+          if (!_disposed && identical(room, _room) && _videoCuller.wants(key)) {
             await pub.subscribe();
           }
       }
     } catch (e) {
-      debugPrint('video stall: ${step.name} failed: $e');
+      _diag('video stall: ${step.name} failed: $e');
     }
   }
 }

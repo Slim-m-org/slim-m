@@ -186,7 +186,7 @@ final callWithErrorState = gridCallState.copyWith(
 );
 
 /// The local device sharing its own screen with nobody else sharing:
-/// `stageSharer` falls back to the local participant, so this is both the
+/// `activeShares` includes the local participant, so this is both the
 /// local screen-share banner and the stage-with-filmstrip's local-sharer
 /// branch, and the controls row's own lit share button.
 final localSharingCallState = VoiceState(

@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/features/members/providers/avatar_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
@@ -114,6 +115,7 @@ Future<void> renderCanvasAssembledPane(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      channelBotUiProvider.overrideWith((ref, _) async => const []),
       userProfileProvider.overrideWith((ref, id) async => null),
       avatarBytesProvider.overrideWith((ref, key) async => null),
       if (session != null)
@@ -226,6 +228,7 @@ Future<void> renderCanvasAssembledPane(
                         state: VoiceSessionState.connected,
                       ),
                       controller: controller,
+                      channelId: 'c1',
                     ),
             ),
           ),

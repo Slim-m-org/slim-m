@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Starts a compositor-driven move or resize on an undecorated GTK window.
+/// Starts a compositor-driven move or resize on an undecorated GTK window, and
+/// keeps KWin from framing it.
 ///
 /// The framework's window controller hides its GTK handle behind `windowHandle`
 /// and offers no drag call, and an undecorated window has no border to grab, so
@@ -23,9 +24,13 @@ class GtkWindowDrag {
     _beginMove(_window, 1, at.x, at.y, at.time);
   }
 
-  /// Asks GTK again for no decorations once the window is mapped, for
-  /// compositors that kept a server-side title bar from the first request.
-  void undecorate() => _setDecorated(_window, 0);
+  /// Tells a Wayland compositor the app draws its own frame; must run before the
+  /// window first maps, since GTK only announces the mode then.
+  void claimFrame() {
+    if (!_gdk.providesSymbol('gdk_wayland_window_announce_csd')) return;
+    if (_isInstanceOf(_defaultDisplay(), _waylandDisplayType()) == 0) return;
+    _announceCsd(_widgetWindow(_window));
+  }
 
   void resize(ResizeEdge edge) {
     final at = _PointerState.read();
@@ -67,6 +72,7 @@ class _PointerState {
 final _gtk = ffi.DynamicLibrary.open('libgtk-3.so.0');
 final _gdk = ffi.DynamicLibrary.open('libgdk-3.so.0');
 final _glib = ffi.DynamicLibrary.open('libglib-2.0.so.0');
+final _gobject = ffi.DynamicLibrary.open('libgobject-2.0.so.0');
 
 final _beginMove = _gtk
     .lookupFunction<
@@ -85,11 +91,23 @@ final _beginResize = _gtk
       ),
       void Function(_Ptr, int, int, int, int, int)
     >('gtk_window_begin_resize_drag');
-final _setDecorated = _gtk
+final _widgetWindow = _gtk
+    .lookupFunction<_Ptr Function(_Ptr), _Ptr Function(_Ptr)>(
+      'gtk_widget_get_window',
+    );
+final _waylandDisplayType = _gdk
+    .lookupFunction<ffi.Size Function(), int Function()>(
+      'gdk_wayland_display_get_type',
+    );
+final _announceCsd = _gdk
+    .lookupFunction<ffi.Void Function(_Ptr), void Function(_Ptr)>(
+      'gdk_wayland_window_announce_csd',
+    );
+final _isInstanceOf = _gobject
     .lookupFunction<
-      ffi.Void Function(_Ptr, ffi.Int32),
-      void Function(_Ptr, int)
-    >('gtk_window_set_decorated');
+      ffi.Int32 Function(_Ptr, ffi.Size),
+      int Function(_Ptr, int)
+    >('g_type_check_instance_is_a');
 final _defaultDisplay = _gdk.lookupFunction<_Ptr Function(), _Ptr Function()>(
   'gdk_display_get_default',
 );

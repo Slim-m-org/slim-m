@@ -53,6 +53,28 @@ extension VoiceSessionVideo on VoiceSession {
     _videoCuller.apply(
       mapVideoSubscriptionRefs(_remoteVideoPublications(room)),
     );
+    _applyShareAudioBlock(room);
     _syncStallWatch();
+  }
+
+  /// A share's audio is its own publication, which the culler never sees, so a blocked share's is unsubscribed here and only here.
+  void _applyShareAudioBlock(lk.Room room) {
+    for (final participant in room.remoteParticipants.values) {
+      final blocked = _videoCuller.blocked.contains(
+        videoSubscriptionKey(
+          identity: participant.identity,
+          screenShare: true,
+        ),
+      );
+      for (final pub in participant.audioTrackPublications) {
+        if (pub.source != lk.TrackSource.screenShareAudio) continue;
+        if (blocked == !pub.subscribed) continue;
+        unawaited(
+          (blocked ? pub.unsubscribe() : pub.subscribe()).catchError(
+            (Object e) => _diag('share audio block: $e'),
+          ),
+        );
+      }
+    }
   }
 }

@@ -13,11 +13,18 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../providers/providers.dart';
 
 const _volumesKey = 'slimm.voice.participant_volumes';
+const _screenVolumesKey = 'slimm.voice.participant_screen_volumes';
+
+String _keyFor(LocalAudioChannel channel) =>
+    channel == LocalAudioChannel.screen ? _screenVolumesKey : _volumesKey;
 
 /// Every saved volume, empty when none were saved or the value is unreadable.
-Future<Map<String, double>> loadParticipantVolumes(Ref ref) async {
+Future<Map<String, double>> loadParticipantVolumes(
+  Ref ref, {
+  LocalAudioChannel channel = LocalAudioChannel.voice,
+}) async {
   final prefs = await ref.read(preferencesProvider.future);
-  final raw = prefs.getString(_volumesKey);
+  final raw = prefs.getString(_keyFor(channel));
   if (raw == null) return {};
   try {
     final decoded = jsonDecode(raw);
@@ -34,18 +41,19 @@ Future<Map<String, double>> loadParticipantVolumes(Ref ref) async {
   }
 }
 
-/// Saves [volume] for [identity], dropping the entry at the default.
+/// Saves [volume] for one of [identity]'s channels, dropping the entry at the default.
 Future<void> saveParticipantVolume(
   Ref ref,
   String identity,
-  double volume,
-) async {
-  final saved = await loadParticipantVolumes(ref);
+  double volume, {
+  LocalAudioChannel channel = LocalAudioChannel.voice,
+}) async {
+  final saved = await loadParticipantVolumes(ref, channel: channel);
   if (volume == kDefaultParticipantVolume) {
     saved.remove(identity);
   } else {
     saved[identity] = volume;
   }
   final prefs = await ref.read(preferencesProvider.future);
-  await prefs.setString(_volumesKey, jsonEncode(saved));
+  await prefs.setString(_keyFor(channel), jsonEncode(saved));
 }

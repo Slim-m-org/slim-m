@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// Per-track playback gain in a browser, through Web Audio.
+///
+/// livekit_client plays each remote audio track through an `HTMLAudioElement`
+/// it names `livekit_audio_<cid>` and does not expose. Its stream is routed
+/// through a `GainNode` and the element is muted, so the context is the only
+/// thing heard. Chrome only feeds a remote stream to Web Audio while an
+/// element is playing it, which the muted element still is.
+library;
+
+import 'dart:js_interop';
+
+import 'gain_graph_registry.dart';
+
+const _elementPrefix = 'livekit_audio_';
+
+@JS('document')
+external _Document get _document;
+
+extension type _Document._(JSObject _) implements JSObject {
+  external _AudioElement? getElementById(String id);
+}
+
+extension type _AudioElement._(JSObject _) implements JSObject {
+  external JSObject? get srcObject;
+  external set muted(bool value);
+}
+
+@JS('AudioContext')
+extension type _AudioContext._(JSObject _) implements JSObject {
+  external _AudioContext();
+  external JSObject get destination;
+  external _Node createMediaStreamSource(JSObject stream);
+  external _GainNode createGain();
+  external JSPromise<JSAny?> resume();
+}
+
+extension type _Node._(JSObject _) implements JSObject {
+  external void connect(JSObject destination);
+  external void disconnect();
+}
+
+extension type _GainNode._(JSObject _) implements _Node {
+  external _GainParam get gain;
+}
+
+extension type _GainParam._(JSObject _) implements JSObject {
+  external set value(double value);
+}
+
+class _Graph {
+  _Graph(this.element, this.stream, this.source, this.gain);
+
+  final _AudioElement element;
+  final JSObject stream;
+  final _Node source;
+  final _GainNode gain;
+}
+
+_AudioContext? _context;
+
+_AudioContext get _ctx => _context ??= _AudioContext();
+
+_Graph? _attach(String id) {
+  final element = _document.getElementById(id);
+  final stream = element?.srcObject;
+  if (element == null || stream == null) return null;
+  final context = _ctx;
+  final source = context.createMediaStreamSource(stream);
+  final gain = context.createGain();
+  source.connect(gain);
+  gain.connect(context.destination);
+  element.muted = true;
+  return _Graph(element, stream, source, gain);
+}
+
+bool _isCurrent(String id, _Graph graph) {
+  final now = _document.getElementById(id);
+  return now != null &&
+      now.strictEquals(graph.element).toDart &&
+      now.srcObject?.strictEquals(graph.stream).toDart == true;
+}
+
+void _release(_Graph graph) {
+  graph.source.disconnect();
+  graph.gain.disconnect();
+  graph.element.muted = false;
+}
+
+final _registry = GainGraphRegistry<_Graph>(
+  attach: _attach,
+  isCurrent: _isCurrent,
+  release: _release,
+  setGain: (graph, gain) {
+    graph.gain.gain.value = gain;
+    _ctx.resume();
+  },
+);
+
+Object? applyWebGain(String trackCid, double gain) =>
+    _registry.apply('$_elementPrefix$trackCid', gain);

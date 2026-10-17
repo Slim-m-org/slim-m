@@ -30,6 +30,7 @@ class AppSlider extends StatefulWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.onChangeEnd,
     this.min = 0,
     this.max = 100,
     this.divisions,
@@ -42,6 +43,9 @@ class AppSlider extends StatefulWidget {
 
   final double value;
   final ValueChanged<double>? onChanged;
+
+  /// Fired once when a drag is released, with the value it ended on.
+  final ValueChanged<double>? onChangeEnd;
   final double min;
   final double max;
   final int? divisions;
@@ -165,6 +169,7 @@ class _AppSliderState extends State<AppSlider> {
         divisions: widget.divisions,
         focusNode: _focusNode,
         onChanged: widget.onChanged,
+        onChangeEnd: widget.onChangeEnd,
       ),
     );
 

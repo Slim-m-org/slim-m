@@ -43,11 +43,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+import 'package:slimm_rtc/rtc.dart' show MicStatus, VoiceSessionState;
 
 import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
 import '../../../providers/providers.dart' show apiProvider;
+import '../providers/mic_status.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart'
@@ -192,20 +193,28 @@ class _CallControlsState extends ConsumerState<CallControls> {
 
   Widget _micButton(VoiceFlags voice, String? listenOnly) {
     return Consumer(
-      builder: (context, ref, _) => CallDockButton(
-        icon: voice.microphoneEnabled && listenOnly == null
-            ? AppIcons.mic
-            : AppIcons.micOff,
-        tooltip: listenOnly ?? _micTooltip(voice),
-        // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
-        active: false,
-        unavailable: listenOnly != null,
-        destructive: !voice.microphoneEnabled && listenOnly == null,
-        level: voice.microphoneEnabled
-            ? ref.watch(localMicLevelProvider)
-            : null,
-        onPressed: widget.controller.toggleMicrophone,
-      ),
+      builder: (context, ref, _) {
+        final micStatus =
+            ref.watch(micStatusProvider).valueOrNull ?? MicStatus.ok;
+        final speaking = voice.microphoneEnabled && listenOnly == null;
+        final trouble = speaking ? micStatus.trouble : null;
+        final lost = micStatus == MicStatus.unavailable;
+        return CallDockButton(
+          icon: speaking && !lost ? AppIcons.mic : AppIcons.micOff,
+          tooltip: listenOnly ?? trouble ?? _micTooltip(voice),
+          // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
+          active: false,
+          pending: micStatus == MicStatus.reconnecting && trouble != null,
+          unavailable: listenOnly != null,
+          destructive: (!voice.microphoneEnabled || lost) && listenOnly == null,
+          level: voice.microphoneEnabled
+              ? ref.watch(localMicLevelProvider)
+              : null,
+          onPressed: trouble != null && lost
+              ? () => unawaited(widget.controller.resetMicrophone())
+              : widget.controller.toggleMicrophone,
+        );
+      },
     );
   }
 
