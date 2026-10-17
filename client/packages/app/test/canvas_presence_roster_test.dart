@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/avatar_bytes.dart';
 import 'package:slimm_app/src/providers/user_profiles.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_roster.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_roster.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';

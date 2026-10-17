@@ -7,7 +7,7 @@ library;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/canvas/canvas_activity_log.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_activity_log.dart';
 
 api.CanvasObject _object({
   String id = 'obj-1',

@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_forbidden_message.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
 
 void main() {
   test('no timeout at all falls back to the plain permission wording', () {

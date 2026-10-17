@@ -17,7 +17,7 @@ import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import '../widgets/compact_channel_app_bar.dart';
 import '../widgets/channel_header.dart';
-import 'canvas/canvas_pane.dart';
+import '../features/canvas/screens/canvas_pane.dart';
 import 'unlisted_channel.dart';
 import 'channel_screen.dart';
 import 'dm_call_pane.dart';

@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'canvas_pane_harness.dart';

@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_cursor_relay.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_cursor_relay.dart';
 
 void main() {
   test(

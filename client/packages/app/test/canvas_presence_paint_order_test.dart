@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_geometry.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_geometry.dart';
 
 void main() {
   test('a sent-to-back tile paints beneath a front tile even with a higher '

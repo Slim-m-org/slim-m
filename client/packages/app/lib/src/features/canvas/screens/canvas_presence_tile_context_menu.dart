@@ -32,8 +32,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/context_menu_focus.dart';
-import '../../widgets/message_context_menu_layout.dart';
+import '../../../widgets/context_menu_focus.dart';
+import '../../../widgets/message_context_menu_layout.dart';
 
 /// Opens [CanvasPresenceTileContextMenu] from wherever the right-click that
 /// should open it actually happens - `canvas_presence_tile.dart`'s own

@@ -7,7 +7,7 @@ library;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_selection_semantics.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_selection_semantics.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 CanvasStrokeInput _note(String id, String text) => CanvasStrokeInput(

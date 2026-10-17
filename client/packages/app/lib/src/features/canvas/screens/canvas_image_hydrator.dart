@@ -21,8 +21,8 @@ import 'dart:ui' as ui;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../providers/rate_limit_retry.dart';
-import '../../widgets/bounded_image_decode.dart';
+import '../../../providers/rate_limit_retry.dart';
+import '../../../widgets/bounded_image_decode.dart';
 
 /// A crude bound on total decoded pixel bytes, not a byte-accurate cache.
 ///

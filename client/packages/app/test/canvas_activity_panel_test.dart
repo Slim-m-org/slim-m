@@ -15,8 +15,8 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_activity_log.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_activity_panel.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_activity_log.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_activity_panel.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _tokens = api.TokenPair(

@@ -13,7 +13,7 @@
 /// wire field for a distinction the client can already tell apart.
 library;
 
-import '../../format.dart';
+import '../../../format.dart';
 
 /// [timedOutUntil] is the caller's own `Me.timedOutUntil` as read at the
 /// moment the refusal is being explained, Unix milliseconds or null. Read

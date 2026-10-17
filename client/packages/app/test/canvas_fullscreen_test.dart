@@ -17,8 +17,8 @@ library;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_bar.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_fullscreen.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 

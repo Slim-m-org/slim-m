@@ -40,9 +40,9 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../widgets/floating_dock_card.dart';
-import 'canvas/canvas_pane.dart';
+import '../features/canvas/screens/canvas_pane.dart';
 import 'call_leave_button.dart';
-import 'canvas/canvas_dock_toggle.dart';
+import '../features/canvas/screens/canvas_dock_toggle.dart';
 import '../features/modules/screens/dock_solo_controls.dart';
 
 class VoiceCallDock extends StatefulWidget {

@@ -10,7 +10,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 const canvasCamerasKey = 'slimm.canvas.cameras.v1';
 

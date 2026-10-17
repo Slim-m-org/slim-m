@@ -10,9 +10,9 @@ library;
 
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_note_sheet.dart'
+import 'package:slimm_app/src/features/canvas/screens/canvas_note_sheet.dart'
     show maxNoteTextBytes;
-import 'package:slimm_app/src/screens/canvas/canvas_note_sizing.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_note_sizing.dart';
 // ignore: implementation_imports
 import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart' show maxObjectExtent;

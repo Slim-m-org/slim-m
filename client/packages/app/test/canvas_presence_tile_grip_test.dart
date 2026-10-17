@@ -7,7 +7,7 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_tile_controls.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _host({required bool touch, required VoidCallback onEnd, Key? key}) =>

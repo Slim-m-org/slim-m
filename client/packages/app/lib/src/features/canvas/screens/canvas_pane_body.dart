@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../features/modules/widgets/dock_height_reporter.dart';
+import '../../modules/widgets/dock_height_reporter.dart';
 import 'canvas_activity_log.dart';
 import 'canvas_activity_panel.dart';
 import 'canvas_bar.dart';

@@ -36,7 +36,7 @@ import '../providers/dm_call.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import '../widgets/voice_strip_indicator.dart' show CallChannelName;
-import 'canvas/canvas_open_button.dart';
+import '../features/canvas/screens/canvas_open_button.dart';
 import 'voice_screen.dart';
 
 export '../providers/dm_call.dart' show dmCallOpenProvider;

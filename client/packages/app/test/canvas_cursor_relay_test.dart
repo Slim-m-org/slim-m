@@ -5,7 +5,7 @@ library;
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_cursor_relay.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_cursor_relay.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 void main() {

@@ -179,11 +179,11 @@ content it wraps.
   touch-order z-index - keyed by an opaque `'camera:<identity>'` /
   `'screen:<identity>'` string, with `prune` closing the "reset on rejoin"
   loop.
-- `CanvasPresenceLayer` (`client/packages/app/lib/src/screens/canvas/canvas_presence_layer.dart`,
+- `CanvasPresenceLayer` (`client/packages/app/lib/src/features/canvas/screens/canvas_presence_layer.dart`,
   rewritten): renders self and remote, camera and screen share, all through
   one world-anchored list. `CanvasSelfPresenceOverlay`, the screen-anchored
   self-only layer, is deleted outright rather than kept alongside.
-- `CanvasPresenceManipulableTile` (`client/packages/app/lib/src/screens/canvas/canvas_presence_tile.dart`,
+- `CanvasPresenceManipulableTile` (`client/packages/app/lib/src/features/canvas/screens/canvas_presence_tile.dart`,
   new): the drag/resize/lock/hide interaction, self-contained rather than
   routed through the tool-based gesture state machine real canvas objects
   use, since a tile's manipulation has never depended on which tool is

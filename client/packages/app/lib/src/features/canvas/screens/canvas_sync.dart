@@ -24,7 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../providers/op_adjacency.dart';
+import '../../../providers/op_adjacency.dart';
 
 /// Past this many pages, replaying the feed costs no less than a cold
 /// viewport re-read, and the re-read is strictly better: it also drops

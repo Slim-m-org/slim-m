@@ -11,8 +11,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_fullscreen.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_pane.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'canvas_pane_harness.dart';

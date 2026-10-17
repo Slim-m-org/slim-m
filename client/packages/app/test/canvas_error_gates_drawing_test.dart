@@ -7,8 +7,8 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_engine.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_forbidden_message.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'canvas_pane_harness.dart';

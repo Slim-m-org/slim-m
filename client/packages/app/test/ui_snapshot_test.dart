@@ -25,7 +25,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart'
     show SyncStatus, initialSyncCompleteProvider, syncControllerProvider;
 import 'package:slimm_app/src/providers/threads.dart' show openThreadProvider;
 import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_pane.dart'
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart'
     show canvasOpenProvider;
 import 'package:slimm_app/src/widgets/channel_rail.dart'
     show channelRailExpandedProvider;

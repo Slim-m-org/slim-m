@@ -12,9 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../providers/user_profiles.dart';
-import '../../format.dart';
-import '../../widgets/author_label.dart';
+import '../../../providers/user_profiles.dart';
+import '../../../format.dart';
+import '../../../widgets/author_label.dart';
 import 'canvas_activity_log.dart';
 
 /// Renders nothing visible, but its `Semantics` label changes on every

@@ -87,8 +87,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../widgets/call_roster_motion.dart';
-import '../../widgets/fullscreen_video_overlay.dart';
+import '../../../widgets/call_roster_motion.dart';
+import '../../../widgets/fullscreen_video_overlay.dart';
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';

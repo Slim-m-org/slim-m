@@ -18,7 +18,7 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../ids.dart';
+import '../../../ids.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_note_sizing.dart';
 import 'canvas_sync.dart';

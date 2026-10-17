@@ -15,7 +15,7 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../ids.dart';
+import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 
 /// Bring-to-front/send-to-back: split out once resize joined this file and

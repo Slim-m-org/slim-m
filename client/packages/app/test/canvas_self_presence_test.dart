@@ -8,7 +8,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/canvas_self_presence.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_self_presence.dart';
 
 /// A second container over the same mocked prefs store, modelling a
 /// relaunch (or reopening the canvas): nothing carries state forward except

@@ -40,7 +40,7 @@ import '../features/modules/widgets/dock_height_reporter.dart';
 import '../widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
-import 'canvas/canvas_pane.dart' show canvasOpenProvider;
+import '../features/canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import 'voice_idle/voice_channel_idle.dart';
 import 'voice_join_preview.dart';
 import 'voice_text_pane.dart';

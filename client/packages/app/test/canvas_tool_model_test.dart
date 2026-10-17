@@ -4,7 +4,7 @@ library;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_tool_model.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_tool_model.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 void main() {

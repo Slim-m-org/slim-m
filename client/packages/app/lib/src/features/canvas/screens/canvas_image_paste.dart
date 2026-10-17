@@ -19,9 +19,9 @@ import 'package:flutter/foundation.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../ids.dart';
-import '../../features/composer/widgets/composer_clipboard_image.dart';
-import '../../features/composer/widgets/composer_clipboard_paste.dart';
+import '../../../ids.dart';
+import '../../composer/widgets/composer_clipboard_image.dart';
+import '../../composer/widgets/composer_clipboard_paste.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_sync.dart';
 

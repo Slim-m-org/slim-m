@@ -24,12 +24,12 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../providers/blocks_controller.dart';
-import '../../providers/canvas_camera_memory.dart';
-import '../../providers/live_events.dart';
-import '../../providers/providers.dart';
-import '../../providers/sync_controller.dart';
-import '../../providers/user_profiles.dart';
+import '../../../providers/blocks_controller.dart';
+import '../providers/canvas_camera_memory.dart';
+import '../../../providers/live_events.dart';
+import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
+import '../../../providers/user_profiles.dart';
 import 'canvas_activity_log.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';

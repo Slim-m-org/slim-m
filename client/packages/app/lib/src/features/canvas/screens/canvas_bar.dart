@@ -24,7 +24,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/call_header_facts.dart';
+import '../../../widgets/call_header_facts.dart';
 
 class CanvasBar extends StatelessWidget {
   const CanvasBar({super.key, required this.channelId, this.trailing});

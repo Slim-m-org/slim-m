@@ -24,7 +24,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 /// The `SharedPreferences` key, in [preferencesProvider], following the
 /// existing `slimm.<area>.<thing>` convention.

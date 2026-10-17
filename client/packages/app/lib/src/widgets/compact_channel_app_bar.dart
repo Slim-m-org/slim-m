@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/channel_search_controller.dart';
 import '../providers/pins_controller.dart';
-import '../screens/canvas/canvas_open_button.dart';
+import '../features/canvas/screens/canvas_open_button.dart';
 import '../screens/dm_call_button.dart';
 import '../screens/voice_text_pane.dart'
     show VoiceChatAction, voiceChatPaneVisibleProvider;

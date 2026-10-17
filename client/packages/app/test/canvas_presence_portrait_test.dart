@@ -17,8 +17,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_layer.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_tile.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 
 import 'support/geometry.dart';
 import 'visual/canvas_assembled_scene.dart';

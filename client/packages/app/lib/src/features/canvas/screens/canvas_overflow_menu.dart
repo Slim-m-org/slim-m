@@ -20,8 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../widgets/confirm_dialog.dart';
-import '../../widgets/context_menu_focus.dart';
+import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/context_menu_focus.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 

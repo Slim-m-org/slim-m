@@ -26,7 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../features/modules/providers/dock_reservation.dart';
+import '../../modules/providers/dock_reservation.dart';
 
 /// The widest pane where the centred dock can still reach this corner.
 const _beside = 900.0;

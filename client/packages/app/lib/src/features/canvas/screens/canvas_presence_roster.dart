@@ -41,7 +41,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../widgets/user_avatar.dart';
+import '../../../widgets/user_avatar.dart';
 
 /// One entry in the face-pile: a name, an id to key the avatar's colour and
 /// its animation identity, and a stable sort key.

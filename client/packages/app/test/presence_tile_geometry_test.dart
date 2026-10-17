@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_geometry.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_geometry.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 VoiceParticipant _p(

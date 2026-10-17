@@ -8,7 +8,7 @@ library;
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_stroke_preview_relay.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_stroke_preview_relay.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 typedef _Sent = (String objectId, List<double> points, bool ended);

@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../screens/canvas/canvas_open_button.dart';
+import '../features/canvas/screens/canvas_open_button.dart';
 import '../screens/dm_call_button.dart';
 import '../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';

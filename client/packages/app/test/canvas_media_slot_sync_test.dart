@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/canvas/canvas_media_slot_sync.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 api.SlimmApi _apiWith(Future<http.Response> Function(http.Request) handler) =>

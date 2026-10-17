@@ -12,10 +12,10 @@ import 'dart:math' as math;
 
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/canvas/canvas_live_event_dispatch.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_media_slot_sync.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_object_locks.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_sync.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_convergence_model.dart';

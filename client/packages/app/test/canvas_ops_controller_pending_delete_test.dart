@@ -13,9 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/canvas/canvas_commit_queue.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_ops_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_sync.dart'
+import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart'
     show canvasStrokeInputFrom;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 

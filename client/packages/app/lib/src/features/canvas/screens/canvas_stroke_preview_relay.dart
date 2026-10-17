@@ -14,7 +14,7 @@ import 'dart:ui';
 import 'package:clock/clock.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../ids.dart';
+import '../../../ids.dart';
 import 'canvas_cursor_relay.dart' show canvasParticipantColorIndex;
 
 /// How often this device's own buffered draft points are flushed at most.

@@ -6,7 +6,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../call_dock_button.dart';
+import '../../../screens/call_dock_button.dart';
 
 class CanvasDockToggle extends StatelessWidget {
   const CanvasDockToggle({
