@@ -12,7 +12,7 @@ import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart'
 import 'package:slimm_app/src/features/composer/widgets/composer_code_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 final _filterField = find.descendant(
   of: find.byType(CodeInsertPicker),

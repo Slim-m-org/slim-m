@@ -23,7 +23,7 @@ import 'package:slimm_app/src/features/members/widgets/avatar_settings_section.d
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'composer_harness.dart' show usePicker;
+import 'features/composer/composer_harness.dart' show usePicker;
 
 /// The Change button, found by its text rather than its `Semantics` label:
 /// once `AppErrorState` is also on screen, `tester.tap(find.bySemanticsLabel(...))`

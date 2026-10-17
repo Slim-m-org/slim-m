@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_picker_panel.dart';
 
 import 'composer_harness.dart';
-import 'composer_picker_api.dart';
+import '../../composer_picker_api.dart';
 
 bool _focusInsidePanel() {
   final focus = FocusManager.instance.primaryFocus;

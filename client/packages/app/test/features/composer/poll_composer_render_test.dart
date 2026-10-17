@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/composer/widgets/poll_composer_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_support.dart';
+import '../../ui_snapshot_support.dart';
 
 Finder _questionField() => find.byWidgetPredicate(
   (w) => w is AppInput && w.placeholder == 'Ask a question',

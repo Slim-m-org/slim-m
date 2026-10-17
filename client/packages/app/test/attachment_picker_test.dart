@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_picker.dart';
 
-import 'composer_harness.dart' show usePicker;
+import 'features/composer/composer_harness.dart' show usePicker;
 
 void main() {
   test('the photo library route asks the plugin for FileType.image', () async {

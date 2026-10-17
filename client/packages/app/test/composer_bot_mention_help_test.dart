@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/bot_commands.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 final _helperCommands = [
   const api.ChannelBotCommand(

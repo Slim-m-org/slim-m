@@ -32,7 +32,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/sync_harness.dart';
+import '../../support/sync_harness.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',

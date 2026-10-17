@@ -16,7 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/poll_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_support.dart';
+import '../../ui_snapshot_support.dart';
 
 api.Poll _poll({
   required String question,

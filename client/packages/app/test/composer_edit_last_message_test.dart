@@ -16,7 +16,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_data/data.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 api.Message _message(String id, String authorId, int seq) => api.Message(
   id: id,

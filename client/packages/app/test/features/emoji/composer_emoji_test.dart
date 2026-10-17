@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
 
-import '../../composer_harness.dart';
+import '../composer/composer_harness.dart';
 
 /// The cell, not the image: a RenderImage has no children and does not hit
 /// test itself, so the tap target is the detector wrapping it.

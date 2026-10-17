@@ -29,7 +29,7 @@ import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.d
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sync.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',

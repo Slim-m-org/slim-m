@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/channels/providers/threads.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 const _hintKey = Key('composer-hint');
 

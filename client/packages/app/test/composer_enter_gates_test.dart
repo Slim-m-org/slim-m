@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/channels/providers/slow_mode_controller.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 void main() {
   late TextEditingController controller;

@@ -28,7 +28,7 @@ import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 
 import 'composer_harness.dart';
-import 'ui_snapshot_support.dart';
+import '../../ui_snapshot_support.dart';
 
 const _desktop = Size(1000, 600);
 const _phone = Size(390, 700);

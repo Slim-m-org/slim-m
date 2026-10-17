@@ -77,10 +77,10 @@ app/test/channel_grouping_test.dart
 app/test/channel_permissions_provider_test.dart
 app/test/channel_search_controller_test.dart
 app/test/collapsed_categories_preference_test.dart
-app/test/composer_attachments_test.dart
-app/test/composer_autocomplete_items_test.dart
-app/test/composer_autocomplete_query_test.dart
-app/test/composer_bot_mentions_test.dart
+app/test/features/composer/composer_attachments_test.dart
+app/test/features/composer/composer_autocomplete_items_test.dart
+app/test/features/composer/composer_autocomplete_query_test.dart
+app/test/features/composer/composer_bot_mentions_test.dart
 app/test/features/emoji/custom_emoji_id_test.dart
 app/test/desktop/first_run_tray_notice_test.dart
 app/test/desktop/minimum_window_size_test.dart
@@ -163,7 +163,7 @@ app/test/retention_policy_test.dart
 app/test/run_guarded_test.dart
 app/test/server_scheme_policy_test.dart
 app/test/sign_out_stops_the_ring_test.dart
-app/test/slash_command_test.dart
+app/test/features/composer/slash_command_test.dart
 app/test/slow_mode_controller_test.dart
 app/test/spec_for_language_test.dart
 app/test/spotify/spotify_client_test.dart

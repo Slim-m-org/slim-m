@@ -22,7 +22,7 @@ import 'package:slimm_app/src/features/channels/providers/slow_mode_controller.d
     show slowModeLastSentProvider;
 import 'dart:async';
 
-import 'composer_harness.dart' show sendButton;
+import 'features/composer/composer_harness.dart' show sendButton;
 import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
