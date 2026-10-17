@@ -18,7 +18,7 @@ import 'package:slimm_app/src/providers/ephemeral_messages.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/ephemeral_report.dart';
-import 'package:slimm_app/src/widgets/ephemeral_tray.dart';
+import 'package:slimm_app/src/widgets/ephemeral_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -96,7 +96,27 @@ Future<List<http.Request>> _pump(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(body: EphemeralTray(channelId: 'c1')),
+        home: Scaffold(
+          body: Consumer(
+            builder: (context, ref, _) {
+              final shown = ref.watch(channelEphemeralMessagesProvider('c1'));
+              return Column(
+                children: [
+                  for (final m in shown)
+                    EphemeralRow(
+                      message: m,
+                      knownUsernames: const {},
+                      knownRoleNames: const {},
+                      customEmoji: const {},
+                      onDismiss: () {},
+                      onReport: () =>
+                          unawaited(reportEphemeralMessage(context, m)),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     ),
   );
@@ -121,7 +141,7 @@ void main() {
     await _pump(tester, _message(content: ''));
 
     expect(find.text('Balance'), findsOneWidget);
-    expect(find.byType(SelectableText), findsNothing);
+    expect(find.text('you have 500 chips'), findsNothing);
   });
 
   testWidgets('reporting sends the card text, the bot and the channel', (
@@ -129,11 +149,11 @@ void main() {
   ) async {
     final sent = await _pump(tester, _message());
 
-    await tester.tap(find.byTooltip('Report'));
+    await tester.tap(find.widgetWithText(AppButton, 'Report'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'it asked for a password');
     await tester.pump();
-    await tester.tap(find.widgetWithText(AppButton, 'Report'));
+    await tester.tap(find.widgetWithText(AppButton, 'Report').last);
     await tester.pumpAndSettle();
 
     final post = sent.singleWhere((r) => r.url.path == '/reports');

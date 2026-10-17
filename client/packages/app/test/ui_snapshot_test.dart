@@ -97,22 +97,30 @@ VoiceState _callFor({int hours = 0, int minutes = 0, int seconds = 0}) =>
 /// voice channel pinned to its connecting state rather than left to a real,
 /// unmocked auto-join.
 EphemeralMessagesController _privateAnswers(Ref ref) {
-  api.EphemeralMessage answer(String id, String text) => api.EphemeralMessage(
-    id: id,
-    channelId: 'c-general',
-    authorId: 'u-bot',
-    authorDisplayName: 'Helper',
-    content: text,
-    inReplyToId: 'm-1',
-    createdAt: 1785000000000,
-  );
+  api.EphemeralMessage answer(String id, int at, String text) =>
+      api.EphemeralMessage(
+        id: id,
+        channelId: 'c-general',
+        authorId: 'u-bot',
+        authorDisplayName: 'Helper',
+        content: text,
+        inReplyToId: 'm-1',
+        createdAt: at,
+      );
   return EphemeralMessagesController(ref)
-    ..add(answer('e-1', 'You need Manage Messages to run that.'))
+    ..add(
+      answer(
+        'e-1',
+        1753600000000 + 3 * 60000 + 30000,
+        'You need Manage Messages to run that.',
+      ),
+    )
     ..add(
       answer(
         'e-2',
+        1753600000000 + 60 * 60000,
         'Your balance is 500 chips.\n'
-            '${List.filled(12, 'Recent hands: win, loss, win, push.').join('\n')}',
+            '${List.filled(3, 'Recent hands: win, loss, win, push.').join('\n')}',
       ),
     );
 }

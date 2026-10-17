@@ -25,6 +25,8 @@ import 'message_row.dart';
 import 'message_row_callbacks.dart';
 import 'message_selectable.dart';
 import 'message_transcript_extent.dart';
+import 'ephemeral_row.dart';
+import 'transcript_items.dart';
 import 'transcript_selection.dart';
 import 'message_row_identity.dart';
 import 'message_transcript_widgets.dart';
@@ -76,7 +78,15 @@ class MessageTranscript extends StatefulWidget {
     this.jumpTargetId,
     this.jumpToken,
     this.onJumpArrived,
+    this.privateAnswers = const [],
+    this.onDismissPrivate,
+    this.onReportPrivate,
   });
+
+  /// The viewer's private bot answers for this channel, drawn among [messages] by arrival time.
+  final List<api.EphemeralMessage> privateAnswers;
+  final void Function(api.EphemeralMessage message)? onDismissPrivate;
+  final void Function(api.EphemeralMessage message)? onReportPrivate;
 
   /// The message a thread hangs off, shown as the transcript's first item once
   /// history reaches its start; null for a channel.
@@ -337,12 +347,13 @@ class _MessageTranscriptState extends State<MessageTranscript> {
 
   Widget _transcript(BuildContext context) {
     final messages = widget.messages;
+    final items = mergePrivateAnswers(messages, widget.privateAnswers);
     final start = _topSlot();
     // Shrink-wrapped, a thread lays out every row: affordable only while it is short.
     final shrinkWrap =
-        widget.channelIsThread && messages.length <= _shrinkWrapThreadMax;
+        widget.channelIsThread && items.length <= _shrinkWrapThreadMax;
 
-    if (messages.isEmpty) {
+    if (items.isEmpty) {
       // Reverse-anchored like the populated list below, so the welcome sits above the composer, not at the top of an empty pane.
       if (widget.syncStatus == SyncStatus.live) {
         return ListView(
@@ -370,10 +381,10 @@ class _MessageTranscriptState extends State<MessageTranscript> {
 
     _checkAfterLayout();
     _estimateJumpScroll();
-    final newestId = messages.last.id;
+    final newestId = items.last.id;
     final animateNewest = _hydrated && !_seen.contains(newestId);
     // Everything on screen counts as seen, so a recycle never replays.
-    _seen.addAll(messages.map((m) => m.id));
+    _seen.addAll(items.map((item) => item.id));
     _hydrated = true;
 
     // A reply's parent, built from the same already-filtered list this transcript renders; see `reply_quote.dart`.
@@ -387,21 +398,39 @@ class _MessageTranscriptState extends State<MessageTranscript> {
         reverse: true,
         shrinkWrap: shrinkWrap,
         padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-        semanticChildCount: messages.length + 1,
+        semanticChildCount: items.length + 1,
         childrenDelegate: TranscriptChildDelegate(
           (context, i) {
-            if (i == messages.length) return start;
+            if (i == items.length) return start;
             // Index 0 is the newest; `previous` stays the row visually above,
             // so grouping still reads right.
-            final index = messages.length - 1 - i;
-            final message = messages[index];
-            final previous = index == 0 ? null : messages[index - 1];
-            final next = index == messages.length - 1
-                ? null
-                : messages[index + 1];
+            final index = items.length - 1 - i;
+            final item = items[index];
+            if (item is PrivateItem) {
+              final row = EphemeralRow(
+                key: ValueKey(item.id),
+                message: item.message,
+                knownUsernames: widget.knownUsernames,
+                knownRoleNames: widget.knownRoleNames,
+                customEmoji: widget.customEmoji,
+                onDismiss: () => widget.onDismissPrivate?.call(item.message),
+                onReport: () => widget.onReportPrivate?.call(item.message),
+              );
+              if (i != 0) return row;
+              return MessageEntrance(
+                key: ValueKey('entrance-$newestId'),
+                animateOnMount: animateNewest,
+                child: row,
+              );
+            }
+            final message = (item as StoredItem).message;
+            // A private answer between two stored messages ends the group on both sides.
+            final previous = storedAt(items, index - 1);
+            final next = storedAt(items, index + 1);
+            final above = storedAbove(items, index);
             final newDay = isNewDay(
               message,
-              previous,
+              above,
               historyKnown: widget.historyKnown,
             );
             final row = MessageRowExtras(
@@ -434,7 +463,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
                           !newDay,
                       showNewDivider: startsUnread(
                         message,
-                        previous,
+                        above,
                         widget.lastReadSeq,
                         widget.selfId,
                       ),
@@ -513,7 +542,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
               child: content,
             );
           },
-          childCount: messages.length + 1,
+          childCount: items.length + 1,
           estimator: _extent,
         ),
       ),
