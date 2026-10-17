@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.109.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.108.0...client-v0.109.0) (2026-10-17)
+
+
+### Features
+
+* show a plug when connected over the LAN, card the phone settings menu, simplify the theme picker ([#2219](https://github.com/Slim-m-org/slim-m/issues/2219)) ([b414348](https://github.com/Slim-m-org/slim-m/commit/b414348af16915696759a5cda6bf7dccb31e0e6a))
+
 ## [0.108.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.107.0...client-v0.108.0) (2026-10-17)
 
 
