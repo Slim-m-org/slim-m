@@ -17,11 +17,14 @@
 /// focus.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
+import 'desktop_window_shell.dart' show DesktopWindowShell;
 
 class DesktopQuitShortcut {
   DesktopQuitShortcut._();
@@ -65,7 +68,8 @@ class DesktopQuitShortcut {
         keyboard.isMetaPressed) {
       return false;
     }
-    _port?.destroy();
+    final port = _port;
+    if (port != null) unawaited(DesktopWindowShell.quit(port));
     return true;
   }
 }

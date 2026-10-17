@@ -38,6 +38,7 @@ import '../../routing/routes.dart';
 import '../../features/members/widgets/presence_menu.dart' show presenceOptions;
 import '../../widgets/run_guarded.dart';
 import '../desktop_window_port.dart';
+import '../desktop_window_shell.dart' show DesktopWindowShell;
 import 'tray_menu_actions.dart';
 
 const trayIconAssetPath = 'assets/icons/tray_icon.png';
@@ -173,7 +174,7 @@ class DesktopTrayController with TrayListener {
     ),
     TrayMenuActionKind.quit => MenuItem(
       label: 'Quit slim-m',
-      onClick: (_) => port.destroy(),
+      onClick: (_) => unawaited(DesktopWindowShell.quit(port)),
     ),
   };
 

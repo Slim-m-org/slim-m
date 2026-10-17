@@ -108,6 +108,7 @@ void main() {
         store: store,
         platform: DesktopPlatform.linux,
         trayAvailable: () async => true,
+        positionSupported: () => true,
         geometryPersistenceEnabled: true,
       )..start();
 

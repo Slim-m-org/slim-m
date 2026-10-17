@@ -10,6 +10,7 @@ import 'dart:math' as math;
 
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
+import 'display_server.dart';
 import 'window_geometry.dart';
 import 'window_geometry_store.dart';
 
@@ -34,7 +35,9 @@ class DesktopWindowController {
     this.onShow,
     this.debounce = desktopGeometryDebounce,
     bool geometryPersistenceEnabled = false,
-  }) : _geometryPersistenceEnabled = geometryPersistenceEnabled;
+    bool Function()? positionSupported,
+  }) : _geometryPersistenceEnabled = geometryPersistenceEnabled,
+       _positionSupported = positionSupported ?? windowPositionSupported;
 
   final DesktopWindowPort port;
   final WindowGeometryStore store;
@@ -55,6 +58,7 @@ class DesktopWindowController {
   final void Function(CloseAction? lastCloseAction)? onShow;
 
   final Duration debounce;
+  final bool Function() _positionSupported;
 
   /// Gates every actual write, checked inside [_writeNow] rather than
   /// [_scheduleWrite]: a debounced write is left free to schedule at any
@@ -74,14 +78,17 @@ class DesktopWindowController {
   CloseAction? _lastCloseAction;
 
   /// Flips [_geometryPersistenceEnabled] on, permanently, for the rest of
-  /// this controller's life. [DesktopWindowShell.prepareHandoff] is the one
-  /// caller, once the real window has actually been resized to its real
-  /// geometry - not [DesktopWindowShell.revealAfterHandoff], which only
-  /// shows a window that is by then already correctly sized. Before this
-  /// runs, the window is either still the splash or mid-handoff to its real
-  /// shape, and nothing observed before this call is the user's real
-  /// windowed size.
+  /// this controller's life. [DesktopWindowShell.revealAfterHandoff] is the
+  /// one caller, once the real geometry is applied and the view has settled
+  /// at it. Before this runs, the window is the splash or mid-handoff to its
+  /// real shape, and nothing observed before is the user's real size.
   void enableGeometryPersistence() => _geometryPersistenceEnabled = true;
+
+  /// Writes a pending debounced move or resize now, for a quit that would
+  /// otherwise drop it with the process.
+  Future<void> flush() async {
+    if (_debounceTimer?.isActive ?? false) await _writeNow();
+  }
 
   void start() {
     _subscription = port.events.listen(_onEvent);
@@ -157,7 +164,8 @@ class DesktopWindowController {
   Future<void> _writeNow() async {
     _debounceTimer?.cancel();
     if (!_geometryPersistenceEnabled) return;
-    await store.write(await _currentGeometry());
+    final geometry = await _currentGeometry();
+    if (geometry != null) await store.write(geometry);
   }
 
   /// While maximized or fullscreen, [DesktopWindowPort.getBounds] answers
@@ -165,8 +173,14 @@ class DesktopWindowController {
   /// that as [WindowGeometry.windowedSize] would overwrite the very value a
   /// later "return to windowed" needs, so only [WindowRunState] moves and the
   /// previously stored windowed size and position are kept untouched.
-  Future<WindowGeometry> _currentGeometry() async {
-    final previous = store.read() ?? WindowGeometry.fallback;
+  ///
+  /// Null when the window is still at the splash's size: that is never a size
+  /// the user chose, and saving it would overwrite the real one.
+  Future<WindowGeometry?> _currentGeometry() async {
+    final keepPosition = _positionSupported();
+    final previous = (store.read() ?? WindowGeometry.fallback).copyWith(
+      clearPosition: !keepPosition,
+    );
     final maximized = await port.isMaximized();
     final fullscreen = await port.isFullScreen();
     if (maximized || fullscreen) {
@@ -177,9 +191,11 @@ class DesktopWindowController {
       );
     }
     final bounds = await port.getBounds();
+    final size = WindowSize(width: bounds.width, height: bounds.height);
+    if (looksLikeSplashSize(size)) return null;
     return WindowGeometry(
-      windowedSize: WindowSize(width: bounds.width, height: bounds.height),
-      position: bounds,
+      windowedSize: size,
+      position: keepPosition ? bounds : null,
       runState: WindowRunState.windowed,
     );
   }
