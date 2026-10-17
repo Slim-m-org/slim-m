@@ -15,8 +15,8 @@ import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_support.dart';
-import 'support/fake_blocks.dart';
+import '../../ui_snapshot_support.dart';
+import '../../support/fake_blocks.dart';
 
 const _other = api.UserProfile(
   id: 'user-maya',

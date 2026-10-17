@@ -73,7 +73,7 @@ client/packages/app/lib/src/features/members/widgets/presence_menu.dart 2
 client/packages/app/lib/src/widgets/server_fingerprint_step.dart 1
 client/packages/app/pubspec.yaml 9
 client/packages/app/test/features/channels/channel_management_test.dart 1
-client/packages/app/test/channel_rail_test.dart 2
+client/packages/app/test/features/members/channel_rail_test.dart 2
 client/packages/app/test/features/channels/channel_screen_attachment_send_test.dart 3
 client/packages/app/test/features/composer/channel_screen_test.dart 4
 client/packages/app/test/features/palette/command_palette_test.dart 3
@@ -89,7 +89,7 @@ client/packages/app/test/fullscreen_image_viewer_test.dart 1
 client/packages/app/test/features/channels/home_shell_test.dart 1
 client/packages/app/test/invite_role_grant_test.dart 3
 client/packages/app/test/live_features_test.dart 1
-client/packages/app/test/member_pane_test.dart 1
+client/packages/app/test/features/members/member_pane_test.dart 1
 client/packages/app/test/message_context_menu_scroll_test.dart 1
 client/packages/app/test/message_context_menu_test.dart 4
 client/packages/app/test/message_row_empty_body_test.dart 2

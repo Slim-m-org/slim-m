@@ -11,7 +11,7 @@ import 'package:slimm_app/src/features/members/providers/presence_view.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/call_header_fixture.dart' show FakePresence;
+import '../../support/call_header_fixture.dart' show FakePresence;
 
 void main() {
   group('someone else', () {

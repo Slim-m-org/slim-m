@@ -24,8 +24,8 @@ import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/call_header_fixture.dart' show FakePresence;
-import 'ui_snapshot_support.dart';
+import '../../support/call_header_fixture.dart' show FakePresence;
+import '../../ui_snapshot_support.dart';
 
 const _channelId = 'channel-voice';
 

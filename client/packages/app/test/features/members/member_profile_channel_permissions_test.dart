@@ -26,8 +26,8 @@ import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'support/reduced_motion_harness.dart';
-import 'voice_controller_harness.dart' show FakeSession, tokens;
+import '../../support/reduced_motion_harness.dart';
+import '../../voice_controller_harness.dart' show FakeSession, tokens;
 
 const _channelId = 'channel-shared';
 

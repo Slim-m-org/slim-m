@@ -26,8 +26,8 @@ import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/reduced_motion_harness.dart';
-import 'support/fake_sync.dart';
+import '../../support/reduced_motion_harness.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',

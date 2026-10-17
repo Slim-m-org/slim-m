@@ -12,7 +12,7 @@ import 'package:slimm_app/src/features/members/providers/presence_controller.dar
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/call_header_fixture.dart' show FakePresence;
+import '../../support/call_header_fixture.dart' show FakePresence;
 
 api.UserProfile _profile(int until) => api.UserProfile(
   id: 'user-maya',

@@ -10,7 +10,7 @@ import 'package:slimm_app/src/features/members/widgets/member_moderate_roles.dar
 import 'package:slimm_app/src/features/members/widgets/member_profile_bot_commands.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'touch_hit_support.dart';
+import '../../touch_hit_support.dart';
 
 Widget _app(Widget child, {List<Override> overrides = const []}) =>
     ProviderScope(

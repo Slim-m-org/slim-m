@@ -22,7 +22,7 @@ import 'package:slimm_app/src/widgets/space_icon.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'features/composer/composer_harness.dart' show FakePlatformFile;
+import '../composer/composer_harness.dart' show FakePlatformFile;
 
 const _tokens = TokenPair(
   userId: 'user-1',

@@ -9,7 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_members_tab.dart';
 
-import 'roles_config_harness.dart';
+import 'features/members/roles_config_harness.dart';
 
 const _role = api.Role(
   id: 'role-mod',

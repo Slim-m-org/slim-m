@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/channel_permission
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'roles_config_harness.dart';
+import 'features/members/roles_config_harness.dart';
 
 final _channel = Channel(
   id: 'c-general',

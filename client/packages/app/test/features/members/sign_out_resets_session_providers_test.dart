@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/members/providers/presence_controller.dar
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sync.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',

@@ -28,7 +28,7 @@ import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sync.dart';
+import '../../support/fake_sync.dart';
 
 /// The insets of an iPhone with a notch, in logical points, matching
 /// `rail_safe_area_test.dart`: 59 for the status bar, 34 for the home
