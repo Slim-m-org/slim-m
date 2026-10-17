@@ -73,48 +73,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
-    _states = _session.states.listen((s) {
-      reportCallLifecycle(_callLifecycle, s, channelId: state.channelId);
-      // A drop the SFU decided on: the reason is the only thing that can tell
-      // "you joined elsewhere" from "your network went". A `removed` that
-      // arrives while this client's own heartbeat has been failing is far
-      // more likely the server's stale-heartbeat sweep than a moderator, so
-      // it is reclassified before anything downstream reads it.
-      final rawDropped = _session.lastDisconnect;
-      final dropped =
-          rawDropped == VoiceDisconnect.removed && _heartbeat.isLagging
-          ? VoiceDisconnect.heartbeatLagEviction
-          : rawDropped;
-      if (s == VoiceSessionState.failed && dropped != null) {
-        _heartbeat.stop();
-        _log('Call ended: ${dropped.name}', detail: dropped.message);
-        _endCallForDrop(dropped);
-        return;
-      }
-      switch (s) {
-        case VoiceSessionState.connected:
-          // Not gated on lifecycle: only termination may let this lapse.
-          _heartbeat.start(state.channelId);
-          _autoRejoin.connected();
-          if (state.rejoining) state = state.copyWith(rejoining: false);
-        case VoiceSessionState.idle:
-        case VoiceSessionState.failed:
-          _heartbeat.stop();
-        default:
-          break;
-      }
-      // The clock starts at the connected transition only; see VoiceCallClock.
-      state = switch (s) {
-        VoiceSessionState.connected when state.connectedAt == null =>
-          state.copyWith(state: s, connectedAt: _callClock.beginHere()),
-        VoiceSessionState.idle || VoiceSessionState.failed => state.copyWith(
-          state: s,
-          clearConnectedAt: true,
-        ),
-        _ => state.copyWith(state: s),
-      };
-      if (s == VoiceSessionState.connected) unawaited(_adoptServerCallStart());
-    });
+    _states = _session.states.listen(_onSessionState);
     _participants = _session.participantChanges.listen((p) {
       _activity.observe(p);
       unawaited(_adoptServerCallStart());
@@ -194,6 +153,54 @@ class VoiceController extends StateNotifier<VoiceState>
 
   bool _muteNextJoin = false;
 
+  void _onSessionState(VoiceSessionState s) {
+    reportCallLifecycle(_callLifecycle, s, channelId: state.channelId);
+    final dropped = _classifiedDisconnect();
+    if (s == VoiceSessionState.failed && dropped != null) {
+      _heartbeat.stop();
+      _log('Call ended: ${dropped.name}', detail: dropped.message);
+      _endCallForDrop(dropped);
+      return;
+    }
+    _syncHeartbeat(s);
+    // The clock starts at the connected transition only; see VoiceCallClock.
+    state = switch (s) {
+      VoiceSessionState.connected when state.connectedAt == null =>
+        state.copyWith(state: s, connectedAt: _callClock.beginHere()),
+      VoiceSessionState.idle || VoiceSessionState.failed => state.copyWith(
+        state: s,
+        clearConnectedAt: true,
+      ),
+      _ => state.copyWith(state: s),
+    };
+    if (s == VoiceSessionState.connected) unawaited(_adoptServerCallStart());
+  }
+
+  /// A drop the SFU decided on: the reason is the only thing that can tell
+  /// "you joined elsewhere" from "your network went". A `removed` that
+  /// arrives while this client's own heartbeat has been failing is far
+  /// more likely the server's stale-heartbeat sweep than a moderator.
+  VoiceDisconnect? _classifiedDisconnect() {
+    final raw = _session.lastDisconnect;
+    final lagging = raw == VoiceDisconnect.removed && _heartbeat.isLagging;
+    return lagging ? VoiceDisconnect.heartbeatLagEviction : raw;
+  }
+
+  void _syncHeartbeat(VoiceSessionState s) {
+    switch (s) {
+      case VoiceSessionState.connected:
+        // Not gated on lifecycle: only termination may let this lapse.
+        _heartbeat.start(state.channelId);
+        _autoRejoin.connected();
+        if (state.rejoining) state = state.copyWith(rejoining: false);
+      case VoiceSessionState.idle:
+      case VoiceSessionState.failed:
+        _heartbeat.stop();
+      default:
+        break;
+    }
+  }
+
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:
   /// reproduced without it, an abandoned join's belated failure landed as
@@ -222,75 +229,82 @@ class VoiceController extends StateNotifier<VoiceState>
       clearJustLeft: true,
     );
     try {
-      final token = await _ref.read(apiProvider).voiceToken(channelId);
-      final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
-      if (superseded()) return;
-      final insecureReason = insecureSfuReason(token.url);
-      if (insecureReason != null) {
-        state = state.copyWith(
-          state: VoiceSessionState.failed,
-          error: insecureReason,
-          retryable: false,
-        );
-        return;
-      }
-      state = state.copyWith(canPublish: token.canPublish);
-      if (mutedByChannel || mutedByCaller) state = _joinMuted.showMuted(state);
-      // Push-to-talk joins closed: it opens only while the key is held; see setPushToTalkPreference.
-      final microphoneAtJoin =
-          state.microphoneEnabled && token.canPublish && !_pushToTalkEnabled;
-      await _session.join(
-        url: token.url,
-        token: token.token,
-        // Asking for a microphone or camera a token cannot publish just
-        // produces a failure to report; not asking is the honest thing.
-        microphoneEnabled: microphoneAtJoin,
-        cameraEnabled: state.cameraEnabled && token.canPublish,
-      );
-      if (superseded()) return;
-      // Show the push-to-talk-closed mic in the button; scoped to PTT so the canPublish path is untouched.
-      if (_pushToTalkEnabled && state.microphoneEnabled) {
-        state = state.copyWith(microphoneEnabled: false);
-      }
-      if (_session.state == VoiceSessionState.failed) {
-        state = state.copyWith(
-          error: 'Could not connect to the call. ${_session.lastError ?? ''}'
-              .trim(),
-        );
-      }
+      await _connect(channelId, mutedByCaller, superseded);
     } on api.NotConfiguredException {
-      if (superseded()) return;
-      state = state.copyWith(
-        state: VoiceSessionState.failed,
-        error: 'This Space has no voice configured.',
-        retryable: false,
-      );
+      _failJoin(superseded, 'This Space has no voice configured.');
     } on api.ForbiddenException {
-      if (superseded()) return;
-      state = state.copyWith(
-        state: VoiceSessionState.failed,
-        error: 'You do not have permission to join this channel.',
-        retryable: false,
-      );
+      _failJoin(superseded, 'You do not have permission to join this channel.');
     } on api.ApiException catch (e) {
-      if (superseded()) return;
-      state = state.copyWith(
-        state: VoiceSessionState.failed,
-        error: describeApiFailure('join the call', e),
+      _failJoin(
+        superseded,
+        describeApiFailure('join the call', e),
         retryable: true,
       );
     } catch (e) {
       // Joining is automatic now, so nothing asks first; an exception no other clause names must still fail cleanly.
-      if (superseded()) return;
-      _log('Join failed with an unexpected error', detail: e);
-      state = state.copyWith(
-        state: VoiceSessionState.failed,
-        error: 'Could not join the call.',
-        retryable: true,
-      );
+      if (!superseded()) {
+        _log('Join failed with an unexpected error', detail: e);
+      }
+      _failJoin(superseded, 'Could not join the call.', retryable: true);
     } finally {
       if (!superseded()) state = state.copyWith(joining: false);
     }
+  }
+
+  Future<void> _connect(
+    String channelId,
+    bool mutedByCaller,
+    bool Function() superseded,
+  ) async {
+    final token = await _ref.read(apiProvider).voiceToken(channelId);
+    final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
+    if (superseded()) return;
+    final insecureReason = insecureSfuReason(token.url);
+    if (insecureReason != null) {
+      state = state.copyWith(
+        state: VoiceSessionState.failed,
+        error: insecureReason,
+        retryable: false,
+      );
+      return;
+    }
+    state = state.copyWith(canPublish: token.canPublish);
+    if (mutedByChannel || mutedByCaller) state = _joinMuted.showMuted(state);
+    // Push-to-talk joins closed: it opens only while the key is held; see setPushToTalkPreference.
+    final microphoneAtJoin =
+        state.microphoneEnabled && token.canPublish && !_pushToTalkEnabled;
+    await _session.join(
+      url: token.url,
+      token: token.token,
+      // Asking for a microphone or camera a token cannot publish just
+      // produces a failure to report; not asking is the honest thing.
+      microphoneEnabled: microphoneAtJoin,
+      cameraEnabled: state.cameraEnabled && token.canPublish,
+    );
+    if (superseded()) return;
+    // Show the push-to-talk-closed mic in the button; scoped to PTT so the canPublish path is untouched.
+    if (_pushToTalkEnabled && state.microphoneEnabled) {
+      state = state.copyWith(microphoneEnabled: false);
+    }
+    if (_session.state == VoiceSessionState.failed) {
+      state = state.copyWith(
+        error: 'Could not connect to the call. ${_session.lastError ?? ''}'
+            .trim(),
+      );
+    }
+  }
+
+  void _failJoin(
+    bool Function() superseded,
+    String error, {
+    bool retryable = false,
+  }) {
+    if (superseded()) return;
+    state = state.copyWith(
+      state: VoiceSessionState.failed,
+      error: error,
+      retryable: retryable,
+    );
   }
 
   /// Also supersedes any in-flight [join]; see its own doc comment.
@@ -348,12 +362,14 @@ class VoiceController extends StateNotifier<VoiceState>
     // never claims a microphone is open when the SFU refused the track.
     state = state.copyWith(
       microphoneEnabled: got ? want : state.microphoneEnabled,
-      error: got
-          ? null
-          : 'Could not ${want ? 'unmute' : 'mute'} the microphone.',
+      error: got ? null : 'Could not ${_micVerb(want)} the microphone.',
       clearError: got,
     );
   }
+
+  static String _micVerb(bool want) => want ? 'unmute' : 'mute';
+
+  static String _deafenVerb(bool want) => want ? 'deafen' : 'undeafen';
 
   /// Enables or disables the local camera mid-call, [toggleMicrophone]'s
   /// exact counterpart. The participant listener above corrects this from
@@ -411,7 +427,7 @@ class VoiceController extends StateNotifier<VoiceState>
     if (generation != _callGeneration) return;
     state = state.copyWith(
       deafened: got ? want : state.deafened,
-      error: got ? null : 'Could not ${want ? 'deafen' : 'undeafen'}.',
+      error: got ? null : 'Could not ${_deafenVerb(want)}.',
       clearError: got,
     );
   }
