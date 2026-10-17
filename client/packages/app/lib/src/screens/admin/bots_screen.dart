@@ -17,7 +17,7 @@ import '../../providers/providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/labeled_field.dart';
-import '../../widgets/bot_permission_toggles.dart';
+import '../../features/members/widgets/bot_permission_toggles.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_disclosure.dart';
 import '../../widgets/settings_detail_row.dart';

@@ -13,11 +13,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
-import '../../providers/member_presence.dart';
+import '../../features/members/providers/member_presence.dart';
 import '../../providers/providers.dart';
 import '../../widgets/color_swatch_row.dart';
 import '../../widgets/confirm_dialog.dart';
-import '../../widgets/role_color.dart';
+import '../../features/members/widgets/role_color.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';

@@ -11,14 +11,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/presence_view.dart';
+import '../features/members/providers/presence_view.dart';
 import '../providers/reaction_users.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import 'author_label.dart';
 import '../features/emoji/widgets/custom_emoji_image.dart';
 import 'sheet_item_list.dart';
 import '../features/emoji/widgets/standard_emoji.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// "Ada", "Ada and Bob", "Ada, Bob and Cy", then "Ada, Bob and 3 others": the
 /// first names, and how many more there are, for a hover summary.

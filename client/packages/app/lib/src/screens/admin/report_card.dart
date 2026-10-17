@@ -28,16 +28,17 @@ import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/display_preferences.dart';
 import '../../features/emoji/providers/emoji_catalog_provider.dart';
-import '../../providers/member_presence.dart' show membersProvider;
+import '../../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../../providers/providers.dart';
-import '../../providers/reports_controller.dart';
-import '../../providers/user_profiles.dart';
+import '../../features/members/providers/reports_controller.dart';
+import '../../features/members/providers/user_profiles.dart';
 import '../../features/channels/widgets/channel_rail.dart'
     show selectedChannelId;
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/message_jump.dart';
 import '../../widgets/message_text.dart';
-import '../../widgets/moderation_unavailable_caption.dart';
+import '../../features/members/widgets/moderation_unavailable_caption.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_value_row.dart';

@@ -10,8 +10,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../format.dart';
 import '../../providers/display_preferences.dart';
-import '../../providers/user_profiles.dart';
-import '../../widgets/user_avatar.dart';
+import '../../features/members/providers/user_profiles.dart';
+import '../../features/members/widgets/user_avatar.dart';
 import 'call_timeline_model.dart';
 
 class CallHistoryRows extends StatelessWidget {

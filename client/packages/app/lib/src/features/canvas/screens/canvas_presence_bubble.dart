@@ -14,7 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../widgets/media_label.dart';
-import '../../../widgets/user_avatar.dart';
+import '../../members/widgets/user_avatar.dart';
 import 'canvas_presence_geometry.dart' show presenceScreenLabel;
 
 /// One participant's camera tile: their live camera when it is on, or -

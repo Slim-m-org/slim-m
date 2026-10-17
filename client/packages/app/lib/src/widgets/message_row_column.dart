@@ -17,7 +17,7 @@ import '../providers/message_extras.dart' show MessageExtras;
 import '../providers/providers.dart' show sessionProvider;
 import 'app_surface_view.dart';
 import 'attachment_gallery.dart';
-import 'bot_ui_failure.dart';
+import '../features/members/widgets/bot_ui_failure.dart';
 import 'call_record_view.dart';
 import 'embed_card.dart';
 import 'forwarded_message_card.dart';

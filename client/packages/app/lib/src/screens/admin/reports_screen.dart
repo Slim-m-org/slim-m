@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart' show myPermissionsProvider;
-import '../../providers/reports_controller.dart';
+import '../../features/members/providers/reports_controller.dart';
 import '../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
 import 'report_card.dart';

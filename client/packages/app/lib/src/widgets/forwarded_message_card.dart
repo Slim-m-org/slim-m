@@ -27,13 +27,13 @@ import 'package:go_router/go_router.dart';
 
 import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/display_preferences.dart' show watchUse24Hour;
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import 'attachment_gallery.dart';
 import 'author_label.dart';
 import '../features/channels/widgets/channel_label.dart';
 import 'message_jump.dart';
 import 'message_row_identity.dart' show formatMessageTime;
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// The avatar beside a forwarded original, deliberately smaller than a
 /// message row's own: this is a quoted author, not the one speaking.

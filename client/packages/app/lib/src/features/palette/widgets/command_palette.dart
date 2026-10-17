@@ -22,11 +22,11 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../../providers/admin_providers.dart';
 import '../../../routing/modal_page.dart';
-import '../../../providers/member_presence.dart' show membersProvider;
+import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../../providers/message_search.dart';
 import '../../../providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/user_profiles.dart';
+import '../../members/providers/user_profiles.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';

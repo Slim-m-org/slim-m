@@ -13,13 +13,13 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../features/channels/providers/pins_controller.dart';
 import '../providers/display_density.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import 'author_label.dart';
 import '../features/channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'message_jump.dart';
 import 'reply_target_summary.dart' show previewLine;
 import 'sheet_item_list.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// Marks the sizing box around the sheet's body, so a test can measure it
 /// directly rather than inferring the fix from a screenshot.

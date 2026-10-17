@@ -12,12 +12,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/profile_draft.dart';
+import '../features/members/providers/profile_draft.dart';
 import '../providers/providers.dart';
-import '../providers/user_profiles.dart';
-import 'member_profile_identity.dart';
+import '../features/members/providers/user_profiles.dart';
+import '../features/members/widgets/member_profile_identity.dart';
 import 'settings_section_header.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 const double _bannerHeight = 56;
 const double _avatarSize = AppAvatarSize.s72;

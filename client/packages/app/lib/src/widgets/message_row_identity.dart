@@ -14,10 +14,10 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/display_density.dart';
 import '../providers/display_preferences.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import 'author_label.dart';
 import 'author_profile_tap_target.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// `HH:mm` or a 12-hour equivalent, following [use24Hour]. Fixed width
 /// matters here: a grouped message puts its time in the avatar-wide gutter, and a

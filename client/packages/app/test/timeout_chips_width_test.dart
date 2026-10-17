@@ -17,7 +17,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/member_profile_sections.dart';
+import 'package:slimm_app/src/features/members/widgets/member_profile_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// The member pane's own width, less the selection bar's horizontal padding:

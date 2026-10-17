@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/display_density.dart';
-import '../../../providers/user_profiles.dart';
+import '../../members/providers/user_profiles.dart';
 import '../../../widgets/author_label.dart';
 import '../../../widgets/message_text.dart';
 

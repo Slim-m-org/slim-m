@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../providers/user_profiles.dart';
+import '../../features/members/providers/user_profiles.dart';
 import '../../widgets/analytics_bar_chart.dart';
 import '../../widgets/attachment_format.dart' show formatByteSize;
 import '../../widgets/author_label.dart';

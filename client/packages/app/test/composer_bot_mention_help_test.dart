@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/bot_commands.dart';
+import 'package:slimm_app/src/features/members/providers/bot_commands.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';

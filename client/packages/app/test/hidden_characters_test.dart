@@ -9,7 +9,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/hidden_characters.dart';
-import 'package:slimm_app/src/providers/activity_feeds.dart';
+import 'package:slimm_app/src/features/members/providers/activity_feeds.dart';
 import 'package:slimm_platform/platform.dart';
 
 Directory _repoRoot() {

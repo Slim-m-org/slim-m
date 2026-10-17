@@ -51,7 +51,7 @@ import 'src/features/auth/widgets/server_identity_change_gate.dart';
 import 'src/widgets/incoming_call_overlay.dart';
 import 'src/widgets/picture_in_picture_gate.dart';
 import 'src/widgets/popout_host.dart';
-import 'src/widgets/moderation_error_host.dart';
+import 'src/features/members/widgets/moderation_error_host.dart';
 import 'src/widgets/toast_overlay.dart';
 
 /// Entry point.

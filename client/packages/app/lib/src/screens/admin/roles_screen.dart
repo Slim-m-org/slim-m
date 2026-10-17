@@ -25,7 +25,7 @@ import '../../providers/providers.dart';
 import '../../routing/breakpoints.dart';
 import '../../routing/routes.dart';
 import '../../widgets/hover_reveal.dart';
-import '../../widgets/role_color.dart';
+import '../../features/members/widgets/role_color.dart';
 import '../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
 import 'role_create_sheet.dart';

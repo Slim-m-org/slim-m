@@ -33,7 +33,7 @@ The same is true of a timeout, which is meant to be an immediate silencing.
 Reachable by anyone holding `KICK_MEMBERS` or `BAN_MEMBERS` (subject to the existing containment check), against any two other members having a DM call the moderator is not even part of.
 
 **Blocking - the milder, self-service version of the same gap.** `block` (`http/safety.rs:145`) only inserts a row into `user_blocks` and returns; it never looks up a live DM room and never calls `remove_participant`.
-Client-side, `blockUser` (`client/packages/app/lib/src/widgets/safety_actions.dart:73`) goes through `blocksProvider.notifier.block`, which only mutates the local block set and calls the same REST endpoint - nothing in that path touches `VoiceController` or the DM call pane.
+Client-side, `blockUser` (`client/packages/app/lib/src/features/members/widgets/safety_actions.dart:73`) goes through `blocksProvider.notifier.block`, which only mutates the local block set and calls the same REST endpoint - nothing in that path touches `VoiceController` or the DM call pane.
 This one is lower severity than removal/timeout because the blocker retains a full self-remedy: leaving the call ends it for both, since a DM call only ever has the two of them.
 It is still worth fixing for the same reason: the code comment on `BLOCKED_DENY` (`store/dms.rs:47`, "a blocked person must not be able to ring or join a call any more than they can send a message") states an intent the mechanism does not carry out for a call already underway, even though the user-facing copy after blocking (`safety_actions.dart:80`, "Blocked. You will not see what they post.") does not itself overclaim.
 

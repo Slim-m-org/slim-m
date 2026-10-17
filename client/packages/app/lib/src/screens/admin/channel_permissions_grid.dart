@@ -22,7 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../features/channels/providers/channel_permissions.dart';
-import '../../providers/member_presence.dart'
+import '../../features/members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
 import '../../providers/providers.dart';
 import '../../widgets/run_guarded.dart';

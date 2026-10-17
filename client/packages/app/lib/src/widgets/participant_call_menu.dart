@@ -23,11 +23,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../providers/member_presence.dart' show membersProvider;
+import '../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../providers/voice_controller.dart';
-import 'member_actions.dart' show messageMember;
-import 'member_moderation_gates.dart';
-import 'member_profile.dart';
+import '../features/members/widgets/member_actions.dart' show messageMember;
+import '../features/members/widgets/member_moderation_gates.dart';
+import '../features/members/widgets/member_profile.dart';
 import 'participant_actions.dart';
 import 'participant_audio_controls.dart' show ParticipantMuteForMeMenuItem;
 import 'participant_volume_popover.dart';

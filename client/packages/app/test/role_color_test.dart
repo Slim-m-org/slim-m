@@ -13,7 +13,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/role_display_tab.dart';
-import 'package:slimm_app/src/widgets/role_color.dart';
+import 'package:slimm_app/src/features/members/widgets/role_color.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

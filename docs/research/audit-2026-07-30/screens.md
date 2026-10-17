@@ -49,7 +49,7 @@ A whole top-level settings category renders a column of UUIDs, so its only purpo
 An outstanding code that makes every redeemer a moderator is visually identical to a plain one, so the invite list cannot be audited.
 Note the project's own notes are stale here and claim role-granting invites have no HTTP surface; they do, and it is unaudited.
 
-**The member roster and both of its counts truncate at one 50-member page** (medium) - `client/packages/app/lib/src/providers/member_presence.dart:20`.
+**The member roster and both of its counts truncate at one 50-member page** (medium) - `client/packages/app/lib/src/features/members/providers/member_presence.dart:20`.
 `listMembers()` is called with no paging, so on a 51+ member deployment the rail reads "50 members" and the member pane "MEMBERS · 50", both stated as real counts, and everyone past the first page is unreachable - which is also the only route to a DM.
 Invisible on the owner's two-member instance, which is why it will ship.
 

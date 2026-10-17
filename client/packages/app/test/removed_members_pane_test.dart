@@ -12,7 +12,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/providers/member_presence.dart'
+import 'package:slimm_app/src/features/members/providers/member_presence.dart'
     show membersProvider;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/removed_members_screen.dart';

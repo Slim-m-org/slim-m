@@ -8,7 +8,7 @@ import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'bot_menu_sections.dart' show BotMenuSection;
+import '../features/members/widgets/bot_menu_sections.dart' show BotMenuSection;
 import 'context_menu_region.dart';
 import 'hover_reveal.dart';
 import 'message_menu_body.dart';

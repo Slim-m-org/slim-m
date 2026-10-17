@@ -11,7 +11,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'blocks_controller.dart';
+import '../features/members/providers/blocks_controller.dart';
 import 'live_events.dart';
 import 'sync_controller.dart';
 

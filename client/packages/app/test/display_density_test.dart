@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/widgets/image_decode.dart';
 import 'package:slimm_app/src/providers/display_density.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/widgets/display_density_preview.dart';
 import 'package:slimm_app/src/widgets/appearance_settings_section.dart';

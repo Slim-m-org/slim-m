@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/dms.dart';
 import '../../../providers/personal_space_visibility.dart';
-import '../../../providers/user_profiles.dart';
+import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/author_label.dart';
 import '../../../widgets/message_jump.dart';

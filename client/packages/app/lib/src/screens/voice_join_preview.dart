@@ -24,7 +24,7 @@ import '../providers/voice_roster.dart';
 import '../routing/routes.dart';
 import '../widgets/call_recap_card.dart';
 import '../widgets/join_muted_note.dart';
-import '../widgets/user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 import '../widgets/voice_connecting_loader.dart';
 
 /// Leaves the ended call for wherever this channel's own conversation

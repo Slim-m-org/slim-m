@@ -39,7 +39,7 @@ None of reactions, pins or polls share that property, and the reason differs per
 That means there is structurally no shared fact an op stream could record.
 An edit op can carry the message's current content because content is the same for everyone; a reaction "op" would have to be either a global answer (reintroducing the blocking bug `tests/blocking_live.rs` already exists to catch) or a per-viewer answer, which cannot be written once and read by every future viewer the way a message op can.
 
-If reactions were ever persisted - for offline availability, or to avoid a re-fetch on every channel open - the reconciliation shape already exists in this codebase and does not need inventing: `BatchProfilesController` (`client/packages/app/lib/src/providers/user_profiles.dart`).
+If reactions were ever persisted - for offline availability, or to avoid a re-fetch on every channel open - the reconciliation shape already exists in this codebase and does not need inventing: `BatchProfilesController` (`client/packages/app/lib/src/features/members/providers/user_profiles.dart`).
 It keeps no cursor over renames because none could exist; instead `SyncController.start()` clears the whole cache on every reconnect, and a live `Event::ProfileChanged` evicts one id in between.
 A persisted reactions table would take the same two backstops: clear (or mark stale) on reconnect, since there is nothing to reconcile *from*, and let a live `ReactionsChanged` frame overwrite the one row it names, exactly as `MessageExtrasController._applyReactionsChanged` already overwrites the one map entry it names today.
 The `reacted` flag would need no new handling either: it is already computed locally against `ctx.user_id` and never trusted from any other viewer's copy.

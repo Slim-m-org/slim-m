@@ -152,13 +152,13 @@ GUARDED_EXCEPTIONS: dict[tuple[str, str], str] = {
         "a message's context menu has closed before the request answers",
     ("client/packages/app/lib/src/features/channels/widgets/manage_category_sheet.dart", "confirmAndDeleteCategory"):
         "the header context menu has closed before the request answers",
-    ("client/packages/app/lib/src/widgets/member_actions.dart", "toggleNotificationScheduleAllowedUser"):
+    ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "toggleNotificationScheduleAllowedUser"):
         "the member row's context menu has closed before the request answers",
-    ("client/packages/app/lib/src/widgets/member_actions.dart", "messageMember"):
+    ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "messageMember"):
         "the member card has closed before the request answers",
     ("client/packages/app/lib/src/features/channels/widgets/row_menu_notifications.dart", "_say"):
         "a row's context menu has closed before the request answers",
-    ("client/packages/app/lib/src/widgets/safety_actions.dart", "_tell"):
+    ("client/packages/app/lib/src/features/members/widgets/safety_actions.dart", "_tell"):
         "block and report run from a menu that has closed before the request answers",
 }
 

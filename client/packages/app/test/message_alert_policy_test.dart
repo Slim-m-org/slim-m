@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/providers/message_alert_policy.dart';
 import 'package:slimm_app/src/providers/notification_schedule_controller.dart';

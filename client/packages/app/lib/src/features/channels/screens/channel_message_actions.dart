@@ -33,13 +33,13 @@ import '../providers/threads.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/app_snackbar.dart';
-import '../../../providers/bot_ui_uses.dart';
-import '../../../widgets/bot_menu_sections.dart';
+import '../../members/providers/bot_ui_uses.dart';
+import '../../members/widgets/bot_menu_sections.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/forward_message.dart' show forwardMessage;
 import '../../../widgets/message_context_menu.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/safety_actions.dart';
+import '../../members/widgets/safety_actions.dart';
 
 /// Runs [action], and on a refusal from the server says so.
 ///

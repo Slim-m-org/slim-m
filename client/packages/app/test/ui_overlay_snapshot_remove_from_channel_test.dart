@@ -12,8 +12,8 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
-import 'package:slimm_app/src/providers/member_presence.dart';
-import 'package:slimm_app/src/widgets/member_profile.dart';
+import 'package:slimm_app/src/features/members/providers/member_presence.dart';
+import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 

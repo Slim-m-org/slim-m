@@ -9,7 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../format.dart';
 import '../../providers/display_preferences.dart';
-import '../../providers/user_profiles.dart';
+import '../../features/members/providers/user_profiles.dart';
 import 'call_timeline_model.dart';
 
 class CallMomentsView extends ConsumerStatefulWidget {

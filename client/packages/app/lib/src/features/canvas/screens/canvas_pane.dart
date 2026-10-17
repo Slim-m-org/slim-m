@@ -34,7 +34,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
 import '../../../permissions.dart';
-import '../../../providers/blocks_controller.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';

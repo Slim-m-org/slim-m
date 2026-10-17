@@ -29,7 +29,7 @@ import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../../composer/widgets/composer_autofocus.dart';
 import '../../../widgets/message_selection_bar.dart';
 import '../../../widgets/reply_banner.dart';
-import '../../../widgets/timeout_banner.dart';
+import '../../members/widgets/timeout_banner.dart';
 import 'channel_message_actions.dart';
 
 class ChannelComposerArea extends ConsumerStatefulWidget {

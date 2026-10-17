@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/bot_avatar_placeholder.dart';
-import '../../widgets/user_avatar.dart';
+import '../../features/members/widgets/bot_avatar_placeholder.dart';
+import '../../features/members/widgets/user_avatar.dart';
 import 'channel_permissions_grid_rows.dart';
 
 /// The principal columns' headers, kept in step with the body by

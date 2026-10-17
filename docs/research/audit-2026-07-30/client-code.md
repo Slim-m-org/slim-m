@@ -346,10 +346,10 @@ Measured on this branch, `.g.dart` and `.freezed.dart` excluded.
 | 461 | `app/lib/src/providers/push_controller.dart` | the lifecycle-reporting half (`_stateLabel`, `didChangeAppLifecycleState`, the foreground heartbeat, `_reportLifecycle`, 361-446), which shares nothing with registration but a status predicate. At 92% of the hard ceiling |
 | 446 | `design_system/lib/src/app_tokens.dart` | none, deliberately: a flat value catalogue with no seam |
 | 412 | `app/lib/src/features/composer/widgets/composer.dart` | none named; the duplicated action list (below) comes out of it |
-| 409 | `app/lib/src/widgets/member_profile.dart` | none named |
+| 409 | `app/lib/src/features/members/widgets/member_profile.dart` | none named |
 | 396 | `app/lib/src/features/auth/screens/onboarding_screen.dart` | none named; the three duplicated address validators are in it |
 | 388 | `app/lib/src/features/auth/screens/sign_in_screen.dart` | none named |
-| 385 | `app/lib/src/widgets/member_profile_sections.dart` | none named |
+| 385 | `app/lib/src/features/members/widgets/member_profile_sections.dart` | none named |
 | 374 | `app/lib/src/features/channels/screens/channel_screen.dart` | three: the read marker (`_markedReadSeq`, `_markReadUpToLatest`, `_markRead`, about 55 lines); permission gating and action wiring (`_actionsFor` 148-176 plus the five handlers 127-144), which `channel_message_actions.dart` already owns as a concern; and `_hydrateExtras` (84-94), which belongs to the extras controller. It has shed two pieces already without getting under budget |
 | 362 | `app/lib/src/providers/voice_controller.dart` | `VoiceState` plus `copyWith` (19-99), 80 lines with no behaviour, into `voice_state.dart` |
 | 357 | `app/lib/src/features/auth/widgets/onboarding_shell.dart` | none named |

@@ -26,7 +26,7 @@ import 'context_menu_region.dart';
 import 'double_click_detector.dart';
 import 'fullscreen_video_overlay.dart';
 import 'popout_video_button.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// The tile's size floor: the original fixed width, still right once a call
 /// is full enough that more room per tile would not help.

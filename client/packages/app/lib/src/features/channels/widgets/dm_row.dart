@@ -36,7 +36,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/blocks_controller.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../../providers/dm_call_activity.dart';
 import '../providers/dms.dart';
@@ -45,8 +45,8 @@ import '../../../routing/routes.dart';
 import '../../../screens/dm_call_pane.dart' show dmCallOpenProvider;
 import '../../../widgets/context_menu_region.dart';
 import 'row_menu_notifications.dart';
-import '../../../widgets/safety_actions.dart';
-import '../../../widgets/user_avatar.dart';
+import '../../members/widgets/safety_actions.dart';
+import '../../members/widgets/user_avatar.dart';
 
 /// [channel] is never the caller's own personal space: that DM-shaped row is
 /// [PersonalSpaceRow], reached separately, since a self-conversation has no

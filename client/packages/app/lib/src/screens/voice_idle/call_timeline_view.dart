@@ -11,8 +11,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../format.dart';
 import '../../providers/display_preferences.dart';
 import '../../providers/providers.dart';
-import '../../providers/user_profiles.dart';
-import '../../widgets/user_avatar.dart';
+import '../../features/members/providers/user_profiles.dart';
+import '../../features/members/widgets/user_avatar.dart';
 import 'call_timeline_model.dart';
 
 const double _laneHeight = 10;

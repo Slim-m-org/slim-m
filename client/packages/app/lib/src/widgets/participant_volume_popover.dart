@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/voice_controller.dart';
-import 'member_profile_popover.dart';
+import '../features/members/widgets/member_profile_popover.dart';
 import 'participant_audio_controls.dart' show ParticipantVolumeControl;
 
 const double _popoverWidth = 260;

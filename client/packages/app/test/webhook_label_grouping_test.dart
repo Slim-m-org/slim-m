@@ -15,7 +15,7 @@ import 'package:slimm_api/api.dart' hide Message;
 import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
 import 'package:slimm_app/src/providers/message_extras.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/message_transcript.dart';
 import 'package:slimm_data/data.dart';

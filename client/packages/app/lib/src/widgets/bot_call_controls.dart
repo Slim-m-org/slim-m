@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/bot_ui_uses.dart';
+import '../features/members/providers/bot_ui_uses.dart';
 import '../screens/call_dock_button.dart';
 import 'context_menu_region.dart';
 

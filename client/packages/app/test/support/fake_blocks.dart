@@ -2,7 +2,7 @@
 /// A blocks controller that holds a fixed state and never fetches.
 library;
 
-import 'package:slimm_app/src/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 
 class FixedBlocksController extends BlocksController {
   FixedBlocksController(super.ref, BlocksState fixed) {

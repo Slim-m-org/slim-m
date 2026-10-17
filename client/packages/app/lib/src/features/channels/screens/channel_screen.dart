@@ -17,7 +17,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../ids.dart';
-import '../../../providers/blocks_controller.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_drafts.dart';
 import '../providers/channel_search_controller.dart';
 import '../../../providers/message_actions.dart';
@@ -27,7 +27,7 @@ import '../providers/mounted_channels.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/reply_mention_preference.dart';
 import '../../../routing/breakpoints.dart';
-import '../../../widgets/blocked_dm_notice.dart';
+import '../../members/widgets/blocked_dm_notice.dart';
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;

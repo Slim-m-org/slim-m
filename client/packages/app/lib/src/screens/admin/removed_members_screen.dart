@@ -15,7 +15,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
-import '../../providers/member_presence.dart' show membersProvider;
+import '../../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../../permissions.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';

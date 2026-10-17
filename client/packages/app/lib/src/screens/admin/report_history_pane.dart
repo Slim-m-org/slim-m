@@ -20,8 +20,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../providers/moderation_history_controller.dart';
-import '../../providers/user_profiles.dart';
+import '../../features/members/providers/moderation_history_controller.dart';
+import '../../features/members/providers/user_profiles.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import 'report_history_row.dart';

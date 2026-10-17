@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../permissions.dart';
-import 'blocks_controller.dart';
+import '../features/members/providers/blocks_controller.dart';
 import '../features/channels/providers/dms.dart' show personalSpaceName;
 import 'providers.dart';
 

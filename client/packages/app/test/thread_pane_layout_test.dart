@@ -21,7 +21,7 @@ import 'package:slimm_app/src/screens/thread_screen.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/message_transcript_widgets.dart';
 import 'package:slimm_app/src/widgets/thread_parent_card.dart';
-import 'package:slimm_app/src/widgets/user_avatar.dart';
+import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

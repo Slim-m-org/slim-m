@@ -40,7 +40,7 @@ import '../providers/message_extras.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
 import '../features/channels/widgets/channel_kind_icon.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 import 'run_guarded.dart';
 import 'sheet_item_list.dart';
 

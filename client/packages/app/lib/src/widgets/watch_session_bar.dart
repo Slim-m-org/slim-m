@@ -14,7 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../format.dart' show formatPlaybackTime;
-import '../providers/member_presence.dart' show membersProvider;
+import '../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../providers/watch_room.dart';
 
 /// Mounts [WatchSessionBar] only while a bot is on the call.

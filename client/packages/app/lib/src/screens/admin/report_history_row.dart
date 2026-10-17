@@ -19,7 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../format.dart';
 import '../../providers/display_preferences.dart';
-import '../../providers/user_profiles.dart';
+import '../../features/members/providers/user_profiles.dart';
 import '../../widgets/settings_entity_row.dart';
 import 'report_card_labels.dart'
     show authorHeadline, reporterLabel, subjectHeadline;

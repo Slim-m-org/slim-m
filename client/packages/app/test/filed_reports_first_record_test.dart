@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/filed_reports.dart';
+import 'package:slimm_app/src/features/members/providers/filed_reports.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
 void main() {

@@ -8,7 +8,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/member_selection.dart';
+import 'package:slimm_app/src/features/members/providers/member_selection.dart';
 
 MemberSelectionController controller() => MemberSelectionController();
 

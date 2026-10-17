@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'bot_menu_sections.dart';
+import '../features/members/widgets/bot_menu_sections.dart';
 import 'message_context_menu.dart';
 import '../features/emoji/widgets/quick_reactions.dart';
 

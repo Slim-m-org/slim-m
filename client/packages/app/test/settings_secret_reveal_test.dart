@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/widgets/bot_permission_toggles.dart';
+import 'package:slimm_app/src/features/members/widgets/bot_permission_toggles.dart';
 import 'package:slimm_app/src/widgets/settings_info_line.dart';
 import 'package:slimm_app/src/widgets/settings_secret_reveal.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';

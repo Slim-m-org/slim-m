@@ -13,7 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/avatar_crop_sheet.dart';
+import 'package:slimm_app/src/features/members/widgets/avatar_crop_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A 1x1 PNG, which is all the sheet needs to lay itself out.

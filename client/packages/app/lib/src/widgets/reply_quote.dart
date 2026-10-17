@@ -21,7 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../message_preview.dart';
 import '../providers/message_extras.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import 'author_label.dart';
 import 'reply_target_summary.dart';
 

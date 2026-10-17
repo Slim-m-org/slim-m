@@ -14,7 +14,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/rate_limit_retry.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_platform/platform.dart';
 
 const _tokens = TokenPair(

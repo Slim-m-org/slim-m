@@ -24,11 +24,12 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'package:go_router/go_router.dart';
 
-import '../providers/bot_ui_uses.dart';
+import '../features/members/providers/bot_ui_uses.dart';
 import '../providers/call_recap.dart';
 import '../features/channels/providers/last_text_channel.dart';
 import '../providers/dm_call_ring_controller.dart';
-import '../providers/member_presence.dart' show membersProvider;
+import '../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_roster.dart';
@@ -37,7 +38,7 @@ import '../routing/routes.dart';
 import '../widgets/bot_call_controls.dart';
 import '../widgets/call_stage_layout.dart';
 import '../features/modules/widgets/dock_height_reporter.dart';
-import '../widgets/member_profile.dart';
+import '../features/members/widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
 import '../features/canvas/screens/canvas_pane.dart' show canvasOpenProvider;

@@ -34,7 +34,7 @@ import '../routing/routes.dart';
 import '../screens/dm_call_pane.dart';
 import 'call_participant_tiles.dart';
 import 'call_strip_press_area.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// Whether a call is live and worth surfacing, regardless of which channel is
 /// on screen. The caller decides *where* it renders; this decides *if*.

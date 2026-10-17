@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/user_profiles.dart';
-import 'member_profile.dart';
+import '../features/members/providers/user_profiles.dart';
+import '../features/members/widgets/member_profile.dart';
 import 'message_row_roving.dart';
 
 /// Wraps [child] so a tap (or its own accessible action) opens [authorId]'s

@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_roster.dart';
 import 'package:slimm_app/src/screens/voice_join_preview.dart';
-import 'package:slimm_app/src/widgets/user_avatar.dart';
+import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_app/src/widgets/voice_connecting_loader.dart';
 import 'package:slimm_design_system/design_system.dart';
 

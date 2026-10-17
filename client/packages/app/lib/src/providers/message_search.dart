@@ -21,7 +21,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'blocks_controller.dart';
+import '../features/members/providers/blocks_controller.dart';
 import 'message_search_query.dart';
 import 'providers.dart';
 

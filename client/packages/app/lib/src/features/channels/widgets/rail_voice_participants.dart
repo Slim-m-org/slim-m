@@ -14,11 +14,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../providers/user_profiles.dart';
+import '../../members/providers/user_profiles.dart';
 import '../../../widgets/context_menu_region.dart';
-import '../../../widgets/member_moderation_gates.dart';
-import '../../../widgets/member_profile.dart';
-import '../../../widgets/user_avatar.dart';
+import '../../members/widgets/member_moderation_gates.dart';
+import '../../members/widgets/member_profile.dart';
+import '../../members/widgets/user_avatar.dart';
 
 /// Left indent that puts the list under a channel row's *label* rather than
 /// its icon: the row's own padding, its icon and the gap after it.

@@ -15,11 +15,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/blocks_controller.dart';
+import '../features/members/providers/blocks_controller.dart';
 import '../providers/providers.dart';
 import '../providers/push_controller.dart';
 import '../providers/sync_controller.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import '../providers/voice_controller.dart';
 import 'confirm_dialog.dart';
 import '../features/auth/widgets/reauth_sheet.dart';

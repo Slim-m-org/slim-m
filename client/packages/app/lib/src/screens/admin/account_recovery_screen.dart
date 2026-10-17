@@ -29,7 +29,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../routing/routes.dart';
-import '../../widgets/reset_code_sheet.dart';
+import '../../features/members/widgets/reset_code_sheet.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';

@@ -12,7 +12,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/member_profile_sections.dart' show TimeoutDurationChips;
+import '../../features/members/widgets/member_profile_sections.dart'
+    show TimeoutDurationChips;
 import '../../action_labels.dart';
 
 class ReportQuickActions extends StatelessWidget {

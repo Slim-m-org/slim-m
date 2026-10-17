@@ -20,7 +20,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/personal_settings_screen.dart';
-import 'package:slimm_app/src/widgets/user_avatar.dart';
+import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/bot_commands.dart';
-import 'package:slimm_app/src/widgets/member_moderate_roles.dart';
-import 'package:slimm_app/src/widgets/member_profile_bot_commands.dart';
+import 'package:slimm_app/src/features/members/providers/bot_commands.dart';
+import 'package:slimm_app/src/features/members/widgets/member_moderate_roles.dart';
+import 'package:slimm_app/src/features/members/widgets/member_profile_bot_commands.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'touch_hit_support.dart';

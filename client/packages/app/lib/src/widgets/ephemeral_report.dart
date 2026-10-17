@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'safety_actions.dart';
+import '../features/members/widgets/safety_actions.dart';
 
 /// The server refuses a longer snapshot.
 const int maxEphemeralSnapshotChars = 4000;

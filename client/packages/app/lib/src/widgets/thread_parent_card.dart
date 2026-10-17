@@ -21,12 +21,12 @@ import 'package:slimm_design_system/design_system.dart';
 import '../message_preview.dart';
 import '../features/channels/providers/threads.dart';
 import '../providers/display_density.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import '../routing/breakpoints.dart';
 import 'attachment_view.dart';
 import 'author_label.dart';
 import 'message_jump.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// How much of the parent's own text is shown before it is cut off.
 const int _snippetMaxRunes = 600;

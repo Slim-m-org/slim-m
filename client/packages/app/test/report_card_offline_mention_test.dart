@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/member_presence.dart'
+import 'package:slimm_app/src/features/members/providers/member_presence.dart'
     show membersProvider;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/reports_screen.dart';

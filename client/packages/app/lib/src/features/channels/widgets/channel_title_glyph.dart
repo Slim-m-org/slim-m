@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'channel_kind_icon.dart';
-import '../../../widgets/user_avatar.dart';
+import '../../members/widgets/user_avatar.dart';
 
 /// A DM is a person, so it shows their avatar and presence like every other
 /// surface naming one; the personal space keeps its notebook, and a text or

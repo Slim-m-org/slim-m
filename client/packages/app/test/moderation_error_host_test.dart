@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
-import 'package:slimm_app/src/providers/member_moderation_error.dart';
+import 'package:slimm_app/src/features/members/providers/member_moderation_error.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 class _Screen extends StatefulWidget {

@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/avatar_bytes.dart';
+import 'package:slimm_app/src/features/members/providers/avatar_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
 const _tokens = TokenPair(

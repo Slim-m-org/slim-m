@@ -52,11 +52,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../desktop/desktop_window_shell.dart';
 import '../providers/dm_call_ring_controller.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import '../routing/router.dart';
 import '../screens/voice_call_controls.dart' show CallDockButton;
 import 'floating_dock_card.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 part 'incoming_call_overlay_surfaces.dart';
 

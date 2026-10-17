@@ -18,7 +18,7 @@ import '../../permissions.dart';
 import '../../providers/providers.dart';
 import '../../providers/toasts.dart';
 import '../../routing/routes.dart';
-import '../../widgets/invite_landing_section.dart';
+import '../../features/members/widgets/invite_landing_section.dart';
 import '../../widgets/join_gate_section.dart';
 import '../../widgets/join_policy_row.dart';
 import '../../widgets/totp_policy_row.dart';

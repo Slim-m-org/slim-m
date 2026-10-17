@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
-import '../../widgets/role_color.dart';
+import '../../features/members/widgets/role_color.dart';
 import 'role_display_tab.dart';
 import 'role_members_tab.dart';
 import 'role_permissions_tab.dart';

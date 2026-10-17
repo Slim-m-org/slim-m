@@ -12,11 +12,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/activity_feeds.dart';
-import 'package:slimm_app/src/providers/activity_publisher.dart';
-import 'package:slimm_app/src/providers/activity_sharing_settings.dart';
+import 'package:slimm_app/src/features/members/providers/activity_feeds.dart';
+import 'package:slimm_app/src/features/members/providers/activity_publisher.dart';
+import 'package:slimm_app/src/features/members/providers/activity_sharing_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
-import 'package:slimm_app/src/providers/presence_controller.dart';
+import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
 

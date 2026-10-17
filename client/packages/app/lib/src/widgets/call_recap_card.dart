@@ -12,7 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../format.dart';
 import '../providers/call_recap.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// `1 hr 4 min`-style, for a call that has already ended - unlike
 /// `CallDuration`, a fixed string rather than a ticking clock.

@@ -30,7 +30,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
 import '../../features/channels/providers/dms.dart' show dmChannelKind;
-import '../../providers/member_presence.dart' show membersProvider;
+import '../../features/members/providers/member_presence.dart'
+    show membersProvider;
 
 /// The ceiling a resolved list may grow to before it scrolls internally
 /// rather than pushing the sheet past the window - never a size the sheet

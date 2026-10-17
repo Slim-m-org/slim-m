@@ -22,7 +22,7 @@ import '../message_preview.dart';
 import '../providers/message_extras.dart';
 import '../providers/providers.dart';
 import '../providers/reply_mention_preference.dart';
-import '../providers/user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 import 'author_label.dart';
 import 'reply_target_summary.dart';
 

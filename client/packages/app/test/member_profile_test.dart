@@ -17,9 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/providers/member_presence.dart';
-import 'package:slimm_app/src/providers/presence_controller.dart';
-import 'package:slimm_app/src/widgets/member_profile.dart';
+import 'package:slimm_app/src/features/members/providers/member_presence.dart';
+import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
+import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'support/call_header_fixture.dart' show FakePresence;

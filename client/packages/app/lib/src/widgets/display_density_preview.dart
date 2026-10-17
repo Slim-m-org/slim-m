@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'continuation_marker.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 import '../providers/display_density.dart';
 

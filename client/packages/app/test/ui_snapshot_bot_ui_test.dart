@@ -16,7 +16,7 @@ import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/voice_flags.dart';
 import 'package:slimm_app/src/screens/voice_call_dock.dart';
 import 'package:slimm_app/src/widgets/bot_call_controls.dart';
-import 'package:slimm_app/src/widgets/bot_menu_sections.dart';
+import 'package:slimm_app/src/features/members/widgets/bot_menu_sections.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';

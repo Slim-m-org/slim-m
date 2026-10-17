@@ -14,12 +14,12 @@ import 'code_only.dart';
 const _statusDotHomes = {
   'design_system/lib/src/components/core/status_dot.dart',
   'design_system/lib/src/components/core/avatar.dart',
-  'app/lib/src/widgets/presence_indicator.dart',
+  'app/lib/src/features/members/widgets/presence_indicator.dart',
 };
 
 const _avatarHomes = {
   'design_system/lib/src/components/core/avatar.dart',
-  'app/lib/src/widgets/user_avatar.dart',
+  'app/lib/src/features/members/widgets/user_avatar.dart',
 };
 
 const _ringHomes = {
@@ -28,8 +28,8 @@ const _ringHomes = {
 };
 
 const _pictureHomes = {
-  'app/lib/src/providers/avatar_bytes.dart',
-  'app/lib/src/widgets/user_avatar.dart',
+  'app/lib/src/features/members/providers/avatar_bytes.dart',
+  'app/lib/src/features/members/widgets/user_avatar.dart',
 };
 
 /// The only code that may read the raw presence map; widgets and screens get a

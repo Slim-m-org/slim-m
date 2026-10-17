@@ -11,7 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/widgets/channel_kind_icon.dart';
 import 'command_palette_items.dart';
 import '../../../widgets/message_row_identity.dart' show formatMessageDay;
-import '../../../widgets/user_avatar.dart';
+import '../../members/widgets/user_avatar.dart';
 
 /// [text] with the first case-insensitive occurrence of [query] in bold.
 List<InlineSpan> paletteHighlightSpans(String text, String query) {

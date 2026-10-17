@@ -14,14 +14,15 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/member_presence.dart' show membersProvider;
+import '../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
 import '../screens/admin/overwrite_target_picker_sheets.dart';
 import 'run_guarded.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
-import 'user_avatar.dart';
+import '../features/members/widgets/user_avatar.dart';
 
 /// "Always notify me about" - People: the member card's own shortcut
 /// (`member_card_notification_schedule_action.dart`) writes to the same

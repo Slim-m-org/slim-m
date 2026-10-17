@@ -13,7 +13,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/confirm_dialog.dart';
-import 'package:slimm_app/src/widgets/report_dialog.dart';
+import 'package:slimm_app/src/features/members/widgets/report_dialog.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// Mounts a single button that opens whatever [onTap] starts, so a test can

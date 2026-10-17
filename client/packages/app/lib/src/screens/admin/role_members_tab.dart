@@ -12,13 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../providers/member_presence.dart' show membersProvider;
+import '../../features/members/providers/member_presence.dart'
+    show membersProvider;
 import '../../providers/providers.dart';
-import '../../widgets/bot_avatar_placeholder.dart';
+import '../../features/members/widgets/bot_avatar_placeholder.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/user_avatar.dart';
+import '../../features/members/widgets/user_avatar.dart';
 
 /// A group past this size collapses to this many rows plus a "+N more"
 /// summary, matching the design's own worked example.

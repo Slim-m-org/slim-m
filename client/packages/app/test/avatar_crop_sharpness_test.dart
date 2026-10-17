@@ -28,7 +28,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/avatar_crop_sheet.dart';
+import 'package:slimm_app/src/features/members/widgets/avatar_crop_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A PNG of [edge] square carrying rings at a fixed fraction of its width, so

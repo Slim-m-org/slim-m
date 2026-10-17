@@ -4,7 +4,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'user_profiles.dart';
+import '../features/members/providers/user_profiles.dart';
 
 final authorIsBotProvider = Provider.family<bool, String?>(
   (ref, authorId) => ref.watch(

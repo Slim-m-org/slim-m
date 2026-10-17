@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 
 import 'report_card_harness.dart';
 

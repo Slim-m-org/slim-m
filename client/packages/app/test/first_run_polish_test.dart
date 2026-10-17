@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_dialogs.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_alternatives.dart';
-import 'package:slimm_app/src/widgets/member_notify_off_hours_item.dart';
+import 'package:slimm_app/src/features/members/widgets/member_notify_off_hours_item.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _frame(Widget child, {double scale = 1, double width = 360}) =>

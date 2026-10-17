@@ -19,7 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_app/src/providers/dm_call_ring_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/presence_controller.dart';
+import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'support/fake_sync.dart';
 

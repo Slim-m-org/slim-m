@@ -14,11 +14,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
-import '../../../providers/bot_commands.dart';
+import '../../members/providers/bot_commands.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../providers/composer_attachment_drop.dart';
 import '../providers/composer_focus.dart';
-import '../../../providers/member_presence.dart' show membersProvider;
+import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../../providers/message_actions.dart' show lastOwnMessageInChannel;
 import '../../../providers/message_editing.dart';
 import '../../modules/providers/app_launch.dart';

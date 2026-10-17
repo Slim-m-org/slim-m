@@ -17,8 +17,8 @@ import '../../../providers/display_preferences.dart';
 import '../../../providers/providers.dart';
 import '../../../server_address_reduction.dart';
 import '../../../server_scheme_policy.dart';
-import '../../../widgets/invite_landing_card.dart';
-import '../../../widgets/invite_landing_view.dart';
+import '../../members/widgets/invite_landing_card.dart';
+import '../../members/widgets/invite_landing_view.dart';
 import '../../../widgets/space_icon.dart';
 
 /// Redeeming an invite: check the code against the server before asking anyone

@@ -22,7 +22,7 @@ import '../../canvas/screens/canvas_open_button.dart';
 import '../../../screens/dm_call_button.dart';
 import '../../../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';
-import '../../../widgets/member_pane.dart';
+import '../../members/widgets/member_pane.dart';
 import '../../../widgets/pinned_messages_sheet.dart';
 import '../../../widgets/threads_sheet.dart';
 
