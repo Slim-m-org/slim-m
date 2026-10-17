@@ -325,6 +325,14 @@ final apiProvider = Provider<SlimmApi>((ref) {
   final api = SlimmApi(
     baseUrl: ref.watch(serverUrlProvider),
     session: ref.watch(sessionProvider),
+  )..clientReport = (kind: deviceClientKind, version: null);
+  // The version arrives asynchronously; until then a refresh reports the kind alone.
+  unawaited(
+    PackageInfo.fromPlatform().then(
+      (info) =>
+          api.clientReport = (kind: deviceClientKind, version: info.version),
+      onError: (_) {},
+    ),
   );
   ref.onDispose(api.close);
   return api;

@@ -9624,6 +9624,14 @@ components:
       properties:
         refresh_token:
           type: string
+        client_kind:
+          type: string
+          nullable: true
+          description: What the app reports it is now (at most 16 characters), recorded on the device so the devices list follows it. Absent leaves the stored value.
+        client_version:
+          type: string
+          nullable: true
+          description: The app version refreshing (at most 32 characters), recorded the same way, so the devices list follows an app update.
 
     UserProfile:
       type: object

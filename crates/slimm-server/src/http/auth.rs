@@ -97,6 +97,10 @@ struct DeleteAccountRequest {
 #[derive(Deserialize)]
 struct RefreshRequest {
     refresh_token: String,
+    #[serde(default)]
+    client_kind: Option<String>,
+    #[serde(default)]
+    client_version: Option<String>,
 }
 
 /// Shared with [`super::totp`], which mints the same pair once a sign-in has
@@ -340,7 +344,13 @@ async fn refresh(
     State(state): State<AppState>,
     Json(req): Json<RefreshRequest>,
 ) -> Result<Json<TokenResponse>, ApiError> {
-    match state.store.rotate_refresh(&req.refresh_token).await? {
+    let (kind, version) =
+        parse_client_info(req.client_kind.as_deref(), req.client_version.as_deref())?;
+    let outcome = state
+        .store
+        .rotate_refresh_reporting(&req.refresh_token, kind.as_deref(), version.as_deref())
+        .await?;
+    match outcome {
         RefreshOutcome::Rotated(tokens) => Ok(Json(token_response(&tokens))),
         // A benign miss and a detected replay look identical to the client: the
         // only move either way is to log in again.

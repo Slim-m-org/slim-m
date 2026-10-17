@@ -205,6 +205,10 @@ class SlimmApi {
 
   final Uri baseUrl;
   final SessionStore session;
+
+  /// What each refresh reports about this app, so the server's devices list
+  /// follows an update instead of the version it signed in with.
+  ({String kind, String? version})? clientReport;
   final http.Client _http;
 
   /// Upload sessions a caller gave up on while they were still resumable,
