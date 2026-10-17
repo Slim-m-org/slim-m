@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'settings_search.dart';
 
 class SettingsSliderRow extends StatelessWidget {
   const SettingsSliderRow({
@@ -33,7 +34,10 @@ class SettingsSliderRow extends StatelessWidget {
   final ValueChanged<double> onChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SettingsHighlightTarget(label: label, child: _content(context));
+
+  Widget _content(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final mono = AppText.micro.copyWith(
       fontFamily: AppFonts.mono,

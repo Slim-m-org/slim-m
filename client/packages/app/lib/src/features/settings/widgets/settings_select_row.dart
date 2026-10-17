@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_section_header.dart';
+import 'settings_search.dart';
 
 /// One choice offered by a [SettingsSelectRow].
 class SettingsChoice<T> {
@@ -158,7 +159,10 @@ class SettingsSelectRow<T> extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SettingsHighlightTarget(label: label, child: _content(context));
+
+  Widget _content(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final desktop = MediaQuery.sizeOf(context).width >= kCompactWidth;
     final chevron = Icon(
