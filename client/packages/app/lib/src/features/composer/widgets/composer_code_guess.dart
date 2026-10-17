@@ -69,25 +69,30 @@ String? guessPastedCode(String text) {
   if (lines.length < 2) return null;
 
   final firstLine = lines.first.trim();
-  if (firstLine.startsWith('#!')) {
-    if (firstLine.contains('python')) return 'python';
-    if (firstLine.contains('node')) return 'javascript';
-    return 'bash';
-  }
+  if (firstLine.startsWith('#!')) return _shebangLanguage(firstLine);
   if (_isJson(text)) return 'json';
-  if (lines.where(_sqlStart.hasMatch).length * 2 >= lines.length &&
-      _sqlStart.hasMatch(firstLine)) {
-    return 'sql';
-  }
-
-  final endings = lines.where(_codeEnding.hasMatch).length / lines.length;
-  final indented = lines.where(_indented.hasMatch).length / lines.length;
-  final looksLikeCode = endings >= 0.5 || (indented >= 0.3 && endings >= 0.25);
-  if (!looksLikeCode) return null;
+  if (_isSql(lines, firstLine)) return 'sql';
+  if (!_looksLikeCode(lines)) return null;
   for (final (language, sign) in _languageSigns) {
     if (sign.hasMatch(text)) return language;
   }
   return '';
+}
+
+String _shebangLanguage(String firstLine) {
+  if (firstLine.contains('python')) return 'python';
+  if (firstLine.contains('node')) return 'javascript';
+  return 'bash';
+}
+
+bool _isSql(List<String> lines, String firstLine) =>
+    lines.where(_sqlStart.hasMatch).length * 2 >= lines.length &&
+    _sqlStart.hasMatch(firstLine);
+
+bool _looksLikeCode(List<String> lines) {
+  final endings = lines.where(_codeEnding.hasMatch).length / lines.length;
+  final indented = lines.where(_indented.hasMatch).length / lines.length;
+  return endings >= 0.5 || (indented >= 0.3 && endings >= 0.25);
 }
 
 bool _isJson(String text) {
