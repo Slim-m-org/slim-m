@@ -97,5 +97,7 @@ void main() {
       findsOneWidget,
       reason: 'far enough away is left alone',
     );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(controller.volumeFor('user-1'), 0.9, reason: 'the trailing apply');
   });
 }

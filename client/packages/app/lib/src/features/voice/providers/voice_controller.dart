@@ -28,6 +28,7 @@ import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
 import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
+import 'volume_drag_throttle.dart';
 import 'voice_settings_controller.dart';
 import 'voice_sfu_security.dart';
 import 'voice_state.dart';
@@ -57,7 +58,12 @@ class VoiceController extends StateNotifier<VoiceState>
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
     DateTime Function()? now,
-  }) : _session = session ?? VoiceSession(),
+  }) : _session =
+           session ??
+           VoiceSession(
+             audioLog: (line) =>
+                 _ref.read(debugLogProvider.notifier).record('voice', line),
+           ),
        _callLifecycle = callLifecycle ?? CallLifecycleChannel(),
        _heartbeat = VoiceCallHeartbeat(
          _ref,

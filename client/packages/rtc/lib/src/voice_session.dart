@@ -81,12 +81,14 @@ class VoiceSession
     InputGateMonitor? inputGate,
     MicPort? micPort,
     Duration? captureRestartDebounce,
+    void Function(String line)? audioLog,
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
         ) {
     _roomFactory = roomFactory ?? _buildRoom;
+    _audio.log = audioLog;
     // An injected room has no native capture behind it to gate.
     _gate = inputGate ??
         (roomFactory == null
@@ -304,6 +306,7 @@ class VoiceSession
     _participants = const [];
     _audio.deafened = false;
     _audio.muted.clear();
+    _audio.screenMuted.clear();
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
     // Whatever a canvas last asked for was about the call that just ended.

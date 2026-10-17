@@ -17,9 +17,8 @@ mixin VoiceSessionListenerAudio {
   /// Whether [identity] is silenced for this listener alone.
   bool isLocallyMuted(String identity) => _audio.isMuted(identity);
 
-  /// Whether this host can change one participant's volume at all. See
-  /// [supportsParticipantVolume]: on the platforms that answer false the call
-  /// would either throw or quietly do nothing, so the control is not offered.
+  /// Whether this host can change one participant's volume at all; see
+  /// [rtc_gain.supportsParticipantVolume].
   bool get supportsParticipantVolume => rtc_gain.supportsParticipantVolume;
 
   /// [identity]'s playback gain for this listener, 1.0 being unchanged.
@@ -38,6 +37,40 @@ mixin VoiceSessionListenerAudio {
     final room = _room;
     if (room != null) await _applyLocalAudioState(room);
   }
+
+  /// [identity]'s screen share audio gain, kept apart from their voice.
+  double screenVolumeFor(String identity) =>
+      _audio.volumeFor(identity, channel: LocalAudioChannel.screen);
+
+  /// Sets [identity]'s screen share audio gain for this listener only.
+  Future<void> setScreenVolumeFor(String identity, double volume) async {
+    _audio.setVolumeFor(identity, volume, channel: LocalAudioChannel.screen);
+    final room = _room;
+    if (room != null) await _applyLocalAudioState(room);
+  }
+
+  /// Whether [identity]'s screen share audio alone is silenced for you.
+  bool isScreenAudioMuted(String identity) => _audio.isScreenMuted(identity);
+
+  /// Silences (or restores) only [identity]'s screen share audio.
+  Future<void> setScreenAudioMuted(String identity, bool muted) async {
+    _audio.setScreenMuted(identity, muted);
+    final room = _room;
+    if (room != null) await _applyLocalAudioState(room);
+  }
+
+  /// Whether [identity] is publishing screen share audio right now.
+  bool hasScreenAudio(String identity) {
+    final room = _room;
+    return room != null && _audio.hasScreenAudio(room, identity);
+  }
+
+  /// Why the last gain change to [identity] did not land, or null if it did.
+  Object? volumeFailureFor(String identity, {bool screen = false}) =>
+      _audio.failureFor(
+        identity,
+        channel: screen ? LocalAudioChannel.screen : LocalAudioChannel.voice,
+      );
 
   /// Silences (or restores) one participant, for this listener only.
   ///

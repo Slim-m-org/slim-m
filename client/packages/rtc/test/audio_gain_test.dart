@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Per-participant volume is offered only where the underlying call actually
-/// does something: every native platform, measured on Linux against a real
-/// LiveKit room, and not the web, where it resolves having silently discarded
-/// a constraint no browser honours. Pinned to the platform, not a constant.
+/// Per-participant volume is offered on every platform: natively through the
+/// fork's `setVolume`, and on the web through a Web Audio gain graph.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -23,11 +21,8 @@ class _EmptyRoom extends lk.Room {
 }
 
 void main() {
-  test('support is derived from the platform, never hardcoded', () {
-    expect(
-      supportsParticipantVolume,
-      lk.lkPlatform() != lk.PlatformType.web,
-    );
+  test('every platform offers the control', () {
+    expect(supportsParticipantVolume, isTrue);
   });
 
   test('clamps into the range the design offers', () {
