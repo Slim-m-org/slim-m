@@ -136,42 +136,70 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final caption = AppText.caption.copyWith(color: tokens.textSecondary);
+    final dot = ExcludeSemantics(child: Text('\u00B7', style: caption));
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s4),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: AppSpacing.s8,
+        runSpacing: AppSpacing.s4,
         children: [
           ExcludeSemantics(
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              spacing: AppSpacing.s4,
               children: [
                 Icon(
                   AppIcons.privateReply,
                   size: AppSizes.icon16,
                   color: tokens.textSecondary,
                 ),
-                const SizedBox(width: AppSpacing.s4),
-                Text(
-                  ephemeralNotice,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
+                Text(ephemeralNotice, style: caption),
               ],
             ),
           ),
-          AppButton(
-            label: 'Dismiss',
-            variant: AppButtonVariant.ghost,
-            size: AppButtonSize.sm,
-            onPressed: onDismiss,
-          ),
-          AppButton(
-            label: 'Report',
-            variant: AppButtonVariant.ghost,
-            size: AppButtonSize.sm,
-            onPressed: onReport,
-          ),
+          dot,
+          _FooterLink(label: 'Dismiss', onTap: onDismiss),
+          dot,
+          _FooterLink(label: 'Report', onTap: onReport),
         ],
+      ),
+    );
+  }
+}
+
+/// A text action sized to the notice beside it; a ghost button there sat taller
+/// than the caption and wrapped onto a line of its own.
+class _FooterLink extends StatelessWidget {
+  const _FooterLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+            child: Text(
+              label,
+              style: AppText.caption.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.medium,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -149,7 +149,7 @@ void main() {
   ) async {
     final sent = await _pump(tester, _message());
 
-    await tester.tap(find.widgetWithText(AppButton, 'Report'));
+    await tester.tap(find.text('Report'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'it asked for a password');
     await tester.pump();
