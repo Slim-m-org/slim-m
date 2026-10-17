@@ -91,6 +91,10 @@ List<InlineSpan> _buildSpans(List<InlineNode> nodes, _InlineContext ctx) => [
                 child: _MentionChip('@$name'),
               )
             : TextSpan(text: '@[$name]'),
+      InlineChannelMention(:final channelId) => WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: ChannelMentionChip(channelId: channelId),
+      ),
       InlineEmoji(:final raw) => _emojiSpan(raw, ctx.customEmoji),
       InlineLink(:final url) => TextSpan(
         text: url,
@@ -206,6 +210,50 @@ class _MentionChip extends StatelessWidget {
         style: AppText.body.copyWith(
           color: tokens.accent,
           fontWeight: AppWeights.medium,
+        ),
+      ),
+    );
+  }
+}
+
+/// A `<#id>` channel mention: the channel's name as a tappable chip, or a
+/// plain "#unknown-channel" when the local store has no such channel, which is
+/// also what a channel this member cannot see looks like.
+class ChannelMentionChip extends ConsumerWidget {
+  const ChannelMentionChip({super.key, required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
+    final known = channel != null;
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: _mentionPillInset),
+      decoration: BoxDecoration(
+        color: known ? tokens.accentSoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: Text(
+        '#${channel?.name ?? 'unknown-channel'}',
+        style: AppText.body.copyWith(
+          color: known ? tokens.accent : tokens.textSecondary,
+          fontWeight: AppWeights.medium,
+        ),
+      ),
+    );
+    if (!known) return chip;
+    return Semantics(
+      link: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => GoRouter.of(
+            context,
+          ).go(Routes.channel(channelId, openChat: true)),
+          child: chip,
         ),
       ),
     );
