@@ -43,24 +43,23 @@ class _Cell {
   final double distance;
 }
 
-final List<_Cell> _cells = () {
-  final cells = <_Cell>[];
-  for (var i = -9; i <= 9; i++) {
-    for (var j = -5; j <= 8; j++) {
-      final at = Offset(226 + i * _pitch, 116 + j * _pitch);
-      if (at.dx < 10 || at.dx > kStartupCanvas.width - 10) continue;
-      if (at.dy < 10 || at.dy > kStartupCanvas.height - 10) continue;
-      // The four points the mark assembles from are drawn by the mark itself.
-      if ((i == 0 || i == 1) && (j == 0 || j == 1)) continue;
-      final distance = (at - _rippleCentre).distance;
-      final t = math.min(1.0, distance / _rippleReach);
-      final alpha = 0.55 * (1 - t) * (1 - t);
-      if (alpha < 0.06) continue;
-      cells.add(_Cell(at, alpha, distance));
-    }
-  }
-  return cells;
-}();
+final List<_Cell> _cells = [
+  for (var i = -9; i <= 9; i++)
+    for (var j = -5; j <= 8; j++)
+      if (_latticeCell(i, j) case final cell?) cell,
+];
+
+_Cell? _latticeCell(int i, int j) {
+  final at = Offset(226 + i * _pitch, 116 + j * _pitch);
+  if (at.dx < 10 || at.dx > kStartupCanvas.width - 10) return null;
+  if (at.dy < 10 || at.dy > kStartupCanvas.height - 10) return null;
+  // The four points the mark assembles from are drawn by the mark itself.
+  if ((i == 0 || i == 1) && (j == 0 || j == 1)) return null;
+  final distance = (at - _rippleCentre).distance;
+  final t = math.min(1.0, distance / _rippleReach);
+  final alpha = 0.55 * (1 - t) * (1 - t);
+  return alpha < 0.06 ? null : _Cell(at, alpha, distance);
+}
 
 final double _maxDistance = _cells.map((c) => c.distance).reduce(math.max);
 
