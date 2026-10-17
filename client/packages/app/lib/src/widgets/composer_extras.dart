@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_attachments.dart';
+import 'composer_code_fence.dart';
 import 'composer_context_menu.dart';
 import 'composer_markdown_shortcuts.dart';
 import 'composer_scrollbar.dart';
@@ -155,7 +156,12 @@ class _ComposerFieldState extends State<ComposerField> {
   /// Enter confirms an IME candidate while a composition is open, so it must
   /// not also send the half-composed text.
   void _sendUnlessComposing() {
-    if (widget.controller.value.composing.isValid) return;
+    final value = widget.controller.value;
+    if (value.composing.isValid) return;
+    if (caretInOpenFence(value)) {
+      widget.controller.value = newlineInFence(value);
+      return;
+    }
     unawaited(widget.onSend());
   }
 
@@ -188,6 +194,15 @@ class _ComposerFieldState extends State<ComposerField> {
               widget.controller.value = applyListAwareEnter(
                 widget.controller.value,
               ),
+        // Sends even from inside an open code block, where Enter types a newline.
+        if (!soft)
+          for (final modifier in const [(true, false), (false, true)])
+            SingleActivator(
+              LogicalKeyboardKey.enter,
+              control: modifier.$1,
+              meta: modifier.$2,
+            ): () =>
+                unawaited(widget.onSend()),
         ...emphasisShortcuts(widget.controller),
       },
       child: ConstrainedBox(
