@@ -74,68 +74,109 @@ class CallTimelineModel {
   ];
 
   /// [call] shaped into lanes and moments; an ongoing call ends at [now].
-  factory CallTimelineModel.from(api.VoiceCall call, {required int now}) {
-    final end = call.endedAt ?? now;
-    final order = <String>[];
-    final joinedAt = <String, int>{};
-    final shareFrom = <String, int>{};
-    final inCall = <String, List<Span>>{};
-    final sharing = <String, List<Span>>{};
-    final lastLeft = <String, int>{};
-    final moments = <CallMoment>[];
-    final starters = <String>[];
+  factory CallTimelineModel.from(api.VoiceCall call, {required int now}) =>
+      _TimelineBuilder(call, call.endedAt ?? now).build();
+}
 
-    void closeShare(String user, int at) {
-      final from = shareFrom.remove(user);
-      if (from == null) return;
-      sharing.putIfAbsent(user, () => []).add((from: from, to: at));
-      moments.add(
-        CallMoment(
-          at: from,
-          kind: CallMomentKind.shared,
-          userIds: [user],
-          durationMs: at - from,
-        ),
-      );
-    }
+class _TimelineBuilder {
+  _TimelineBuilder(this.call, this.end);
 
-    for (final event in call.events) {
-      final user = event.userId;
-      switch (event.kind) {
-        case api.VoiceCallEventKind.joined:
-          if (!order.contains(user)) order.add(user);
-          joinedAt[user] = event.at;
-          // Everyone who joined in the call's first minute started it together.
-          if (event.at - call.startedAt <= 60000) {
-            starters.add(user);
-          } else {
-            moments.add(
-              CallMoment(
-                at: event.at,
-                kind: CallMomentKind.joined,
-                userIds: [user],
-              ),
-            );
-          }
-        case api.VoiceCallEventKind.left:
-          closeShare(user, event.at);
-          final from = joinedAt.remove(user);
-          if (from != null) {
-            inCall.putIfAbsent(user, () => []).add((from: from, to: event.at));
-          }
-          lastLeft[user] = event.at;
-        case api.VoiceCallEventKind.shareStarted:
-          shareFrom[user] = event.at;
-        case api.VoiceCallEventKind.shareStopped:
-          closeShare(user, event.at);
-      }
+  final api.VoiceCall call;
+  final int end;
+  final order = <String>[];
+  final joinedAt = <String, int>{};
+  final shareFrom = <String, int>{};
+  final inCall = <String, List<Span>>{};
+  final sharing = <String, List<Span>>{};
+  final lastLeft = <String, int>{};
+  final moments = <CallMoment>[];
+  final starters = <String>[];
+
+  CallTimelineModel build() {
+    call.events.forEach(_apply);
+    _closeOpenSpans();
+    _addSummaryMoments();
+    moments.sort((a, b) => a.at.compareTo(b.at));
+    return CallTimelineModel(
+      startedAt: call.startedAt,
+      endedAt: end,
+      lanes: [for (final user in order) _laneFor(user)],
+      moments: moments,
+    );
+  }
+
+  void _closeShare(String user, int at) {
+    final from = shareFrom.remove(user);
+    if (from == null) return;
+    sharing.putIfAbsent(user, () => []).add((from: from, to: at));
+    moments.add(
+      CallMoment(
+        at: from,
+        kind: CallMomentKind.shared,
+        userIds: [user],
+        durationMs: at - from,
+      ),
+    );
+  }
+
+  void _apply(api.VoiceCallEvent event) {
+    final user = event.userId;
+    switch (event.kind) {
+      case api.VoiceCallEventKind.joined:
+        _onJoined(user, event.at);
+      case api.VoiceCallEventKind.left:
+        _onLeft(user, event.at);
+      case api.VoiceCallEventKind.shareStarted:
+        shareFrom[user] = event.at;
+      case api.VoiceCallEventKind.shareStopped:
+        _closeShare(user, event.at);
     }
+  }
+
+  void _onJoined(String user, int at) {
+    if (!order.contains(user)) order.add(user);
+    joinedAt[user] = at;
+    // Everyone who joined in the call's first minute started it together.
+    if (at - call.startedAt <= 60000) {
+      starters.add(user);
+      return;
+    }
+    moments.add(
+      CallMoment(at: at, kind: CallMomentKind.joined, userIds: [user]),
+    );
+  }
+
+  void _onLeft(String user, int at) {
+    _closeShare(user, at);
+    final from = joinedAt.remove(user);
+    if (from != null) {
+      inCall.putIfAbsent(user, () => []).add((from: from, to: at));
+    }
+    lastLeft[user] = at;
+  }
+
+  void _closeOpenSpans() {
     for (final user in [...shareFrom.keys]) {
-      closeShare(user, end);
+      _closeShare(user, end);
     }
     for (final entry in joinedAt.entries) {
       inCall.putIfAbsent(entry.key, () => []).add((from: entry.value, to: end));
     }
+  }
+
+  bool _leftEarly(String user) {
+    final at = lastLeft[user];
+    return at != null && at < end && !joinedAt.containsKey(user);
+  }
+
+  CallLane _laneFor(String user) => CallLane(
+    userId: user,
+    inCall: inCall[user] ?? const [],
+    sharing: sharing[user] ?? const [],
+    leftEarlyAt: _leftEarly(user) ? lastLeft[user] : null,
+  );
+
+  void _addSummaryMoments() {
     if (starters.isNotEmpty) {
       moments.add(
         CallMoment(
@@ -146,7 +187,7 @@ class CallTimelineModel {
       );
     }
     for (final entry in lastLeft.entries) {
-      if (entry.value < end && !joinedAt.containsKey(entry.key)) {
+      if (_leftEarly(entry.key)) {
         moments.add(
           CallMoment(
             at: entry.value,
@@ -170,26 +211,6 @@ class CallTimelineModel {
     if (call.endedAt != null) {
       moments.add(CallMoment(at: end, kind: CallMomentKind.ended));
     }
-    moments.sort((a, b) => a.at.compareTo(b.at));
-
-    final lanes = [
-      for (final user in order)
-        CallLane(
-          userId: user,
-          inCall: inCall[user] ?? const [],
-          sharing: sharing[user] ?? const [],
-          leftEarlyAt: switch (lastLeft[user]) {
-            final at? when at < end && !joinedAt.containsKey(user) => at,
-            _ => null,
-          },
-        ),
-    ];
-    return CallTimelineModel(
-      startedAt: call.startedAt,
-      endedAt: end,
-      lanes: lanes,
-      moments: moments,
-    );
   }
 }
 

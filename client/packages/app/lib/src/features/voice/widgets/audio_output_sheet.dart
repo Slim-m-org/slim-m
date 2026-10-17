@@ -34,10 +34,15 @@ Future<AudioDevice?> showAudioOutputSheet(
       title: 'Choose a speaker',
       icon: AppIcons.speaker,
       items: [_systemDefault, ...devices],
-      labelOf: (device) => isSystemDefaultAudioDevice(device)
-          ? device.label
-          : (device.label.isEmpty ? 'Unnamed device' : device.label),
+      labelOf: _deviceLabel,
       isSelected: (device) => device.id == (selectedId ?? _systemDefault.id),
     ),
   );
+}
+
+String _deviceLabel(AudioDevice device) {
+  if (isSystemDefaultAudioDevice(device) || device.label.isNotEmpty) {
+    return device.label;
+  }
+  return 'Unnamed device';
 }

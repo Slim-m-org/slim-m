@@ -62,18 +62,8 @@ class CallDockButton extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final joined = AppControlWithOptions.joinedOf(context);
     // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
-    final background = destructive
-        ? Colors.transparent
-        : active
-        ? tokens.accentSoft
-        : tokens.surfaceRaised;
-    final foreground = unavailable
-        ? tokens.textDisabled
-        : destructive
-        ? tokens.dangerText
-        : active
-        ? tokens.accent
-        : tokens.textSecondary;
+    final background = _background(tokens);
+    final foreground = _foreground(tokens);
     final border = destructive ? tokens.dangerBorder : tokens.borderSubtle;
 
     // AppIconButton's own split: a fixed chip, invisible tap area growing to AppSizes.rowTouch at touch density.
@@ -123,26 +113,10 @@ class CallDockButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: background,
                     borderRadius: radius,
-                    // The caret's left border is the seam, so this half has none.
-                    border: joined
-                        ? Border(
-                            top: BorderSide(color: border),
-                            left: BorderSide(color: border),
-                            bottom: BorderSide(color: border),
-                          )
-                        : Border.all(color: border),
+                    border: _border(border, joined: joined),
                   ),
                   child: pending
-                      ? Center(
-                          child: SizedBox(
-                            width: AppSizes.icon16,
-                            height: AppSizes.icon16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: tokens.textSecondary,
-                            ),
-                          ),
-                        )
+                      ? _spinner(tokens)
                       : _withLevel(
                           Icon(icon, size: AppSizes.icon16, color: foreground),
                           tokens,
@@ -155,6 +129,38 @@ class CallDockButton extends StatelessWidget {
       ),
     );
   }
+
+  Color _background(AppTokens tokens) {
+    if (destructive) return Colors.transparent;
+    return active ? tokens.accentSoft : tokens.surfaceRaised;
+  }
+
+  Color _foreground(AppTokens tokens) {
+    if (unavailable) return tokens.textDisabled;
+    if (destructive) return tokens.dangerText;
+    return active ? tokens.accent : tokens.textSecondary;
+  }
+
+  // The caret's left border is the seam, so the joined half has no right border.
+  static Border _border(Color color, {required bool joined}) {
+    if (!joined) return Border.all(color: color);
+    return Border(
+      top: BorderSide(color: color),
+      left: BorderSide(color: color),
+      bottom: BorderSide(color: color),
+    );
+  }
+
+  Widget _spinner(AppTokens tokens) => Center(
+    child: SizedBox(
+      width: AppSizes.icon16,
+      height: AppSizes.icon16,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: tokens.textSecondary,
+      ),
+    ),
+  );
 
   Widget _withLevel(Widget icon, AppTokens tokens) {
     final value = level;
