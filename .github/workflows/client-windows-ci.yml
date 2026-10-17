@@ -64,4 +64,17 @@ jobs:
           go test ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      # Proves the installer script compiles against the layout's file names; the debug bundle stands in for the release one.
+      - uses: ./.github/actions/install-inno-setup
+
+      - name: setup script compiles
+        run: |
+          $source = "$PWD/setup-source"
+          New-Item -ItemType Directory $source | Out-Null
+          Copy-Item client/packages/app/build/windows/x64/runner/Debug/* $source -Recurse
+          Set-Content -Path "$source/slim-m.exe" -Value 'launcher stand-in'
+          iscc /DAppVersion=0.0.0 "/DSourceDir=$source" "/O$PWD/setup-out" packaging/windows/slim-m.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path setup-out/slim-m-setup-0.0.0.exe)) { throw 'no setup exe produced' }
+
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
