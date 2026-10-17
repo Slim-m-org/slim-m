@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Placing one object on a channel's canvas.
 //!
-//! A sibling of [`super::canvas`] rather than part of it, so neither file
+//! A sibling of [`super`] rather than part of it, so neither file
 //! carries both halves of the surface past the review budget.
 //!
 //! This is the first caller of the direct timeout check `store::timeouts`
@@ -46,11 +46,11 @@ use axum::extract::{Path, State};
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::AppState;
-use super::canvas::CanvasObjectDto;
-use super::error::ApiError;
-use super::extract::{AuthedLimited, CANVAS, Json};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AuthedLimited, CANVAS, Json};
+use super::super::messages::parse_uuid;
+use super::CanvasObjectDto;
 use crate::hub::Event;
 use crate::ids::{CanvasObjectId, ChannelId};
 use crate::media;
@@ -64,10 +64,10 @@ use crate::store::PlaceError;
 /// of them, so this is what stops a canvas burst from costing more resident
 /// memory than the whole process budget. A stroke is split by the client on
 /// this byte budget, not on a point count.
-pub(super) const MAX_PROPS_BYTES: usize = 4 * 1024;
+pub(in crate::http) const MAX_PROPS_BYTES: usize = 4 * 1024;
 
 /// The whole request body, which is `props` plus a small fixed envelope.
-pub(super) const MAX_BODY_BYTES: usize = 8 * 1024;
+pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
 
 /// Object kinds this server accepts.
 ///
@@ -100,7 +100,7 @@ fn image_attachment(props: &Value) -> Result<Vec<u8>, ApiError> {
 }
 
 #[derive(Deserialize)]
-pub(super) struct PlaceParams {
+pub(in crate::http) struct PlaceParams {
     /// Client-generated UUIDv7, and the idempotency key.
     id: String,
     kind: String,
@@ -117,7 +117,7 @@ pub(super) struct PlaceParams {
 /// `seq` intact, writes nothing, and - the part worth stating - publishes
 /// nothing, so a retry after a lost response cannot fan a duplicate frame out
 /// to every viewer.
-pub(super) async fn place(
+pub(in crate::http) async fn place(
     AuthedLimited(ctx): AuthedLimited<CANVAS>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,

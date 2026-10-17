@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The canvas op stream's catch-up feed.
 //!
-//! A sibling of [`super::canvas`] rather than part of it, the way
+//! A sibling of [`super`] rather than part of it, the way
 //! [`super::canvas_write`] already is. Unlike the viewport read, this cursor
 //! is stable and paging is correct: every op has its own seq value and there
 //! are no ties, so a page boundary is never ambiguous the way a spatial
@@ -15,11 +15,11 @@
 use axum::extract::{Path, State};
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::canvas::CanvasObjectDto;
-use super::error::ApiError;
-use super::extract::{AuthedLimited, CANVAS, Json, Query};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AuthedLimited, CANVAS, Json, Query};
+use super::super::messages::parse_uuid;
+use super::CanvasObjectDto;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasOpBody, CanvasOpEntry};
@@ -35,13 +35,13 @@ const DEFAULT_LIMIT: i64 = 100;
 const MAX_LIMIT: i64 = 200;
 
 #[derive(Deserialize)]
-pub(super) struct ListOpsParams {
+pub(in crate::http) struct ListOpsParams {
     after_seq: i64,
     limit: Option<i64>,
 }
 
 #[derive(Serialize)]
-pub(super) struct CanvasOpsPageDto {
+pub(in crate::http) struct CanvasOpsPageDto {
     ops: Vec<CanvasOpDto>,
     latest_seq: i64,
     has_more: bool,
@@ -169,7 +169,7 @@ fn ids<T: std::fmt::Display>(values: Vec<T>) -> Vec<String> {
 /// Gate is byte-identical to the viewport read: `VIEW_CHANNEL` and
 /// `USE_CANVAS`, evaluated for this channel, no timeout check, since this is
 /// a read.
-pub(super) async fn list_ops(
+pub(in crate::http) async fn list_ops(
     AuthedLimited(ctx): AuthedLimited<CANVAS>,
     Path(channel_id): Path<String>,
     Query(params): Query<ListOpsParams>,

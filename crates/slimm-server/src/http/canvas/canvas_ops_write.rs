@@ -4,7 +4,7 @@
 //! `super::canvas_ops` only reads.
 //!
 //! A sibling of [`super::canvas_ops`] rather than part of it, the same split
-//! `super::canvas`/`super::canvas_write` already make: the read and write
+//! `super`/`super::canvas_write` already make: the read and write
 //! halves of one surface stay under the review budget separately.
 //!
 //! Three of the five kinds ask no timeout question at all: a timeout freezes
@@ -24,10 +24,10 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AuthedLimited, CANVAS, Json};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AuthedLimited, CANVAS, Json};
+use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq};
 use crate::permissions::Permissions;
@@ -37,7 +37,7 @@ use crate::store::{CanvasOpRequest, MAX_REMOVE_IDS_PER_OP, SubmitOpError, Submit
 const Z_INDEX_LIMIT: i64 = 1 << 52;
 
 #[derive(Deserialize)]
-pub(super) struct SubmitOpParams {
+pub(in crate::http) struct SubmitOpParams {
     /// Client-generated UUIDv7, and the idempotency key.
     id: String,
     kind: String,
@@ -55,7 +55,7 @@ pub(super) struct SubmitOpParams {
 }
 
 #[derive(Serialize)]
-pub(super) struct CanvasOpResultDto {
+pub(in crate::http) struct CanvasOpResultDto {
     op: CanvasOpResultOpDto,
     fresh: bool,
 }
@@ -73,7 +73,7 @@ struct CanvasOpResultOpDto {
 ///
 /// Idempotent by `id`, exactly the way `placeCanvasObject` is: a replay
 /// answers with the stored op, `fresh: false`, and publishes nothing.
-pub(super) async fn submit_op(
+pub(in crate::http) async fn submit_op(
     AuthedLimited(ctx): AuthedLimited<CANVAS>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,

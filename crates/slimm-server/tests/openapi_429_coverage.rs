@@ -389,7 +389,7 @@ fn resolve_handler_follows_a_cross_module_import() {
     };
     let (def_file, handler) =
         resolve_handler(manifest_dir, &route).expect("place resolves via canvas_write.rs");
-    assert_eq!(def_file, "src/http/canvas_write.rs");
+    assert_eq!(def_file, "src/http/canvas/canvas_write.rs");
     assert!(
         charges(&handler),
         "placeCanvasObject is expected to charge CANVAS"

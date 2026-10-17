@@ -15,7 +15,7 @@
 //! corrections. What it does not cover is objects removed while the caller was
 //! looking at them: a soft delete does not advance the row's `seq`, so no
 //! cursor over `canvas_objects` can observe one. That belongs to
-//! [`super::canvas_ops`], the ordered feed over the op stream this route's
+//! [`self::canvas_ops`], the ordered feed over the op stream this route's
 //! `latest_seq` is now a cursor into.
 
 use axum::Router;
@@ -24,16 +24,22 @@ use axum::routing::get;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use self::canvas_ops::list_ops;
+use self::canvas_ops_write::submit_op;
+use self::canvas_write::{MAX_BODY_BYTES, place};
 use super::AppState;
-use super::canvas_ops::list_ops;
-use super::canvas_ops_write::submit_op;
-use super::canvas_write::{MAX_BODY_BYTES, place};
 use super::error::ApiError;
 use super::extract::{AuthedLimited, CANVAS, Json, Query};
 use super::messages::parse_uuid;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasObject, Rect, ViewportQuery, WORLD_LIMIT};
+
+pub(super) mod canvas_media_slots;
+pub(super) mod canvas_object_locks;
+pub(super) mod canvas_ops;
+pub(super) mod canvas_ops_write;
+pub(super) mod canvas_write;
 
 /// Default and maximum objects returned for one viewport read. The ceiling is
 /// well above a screenful at any sane zoom, and is here so a client asking for

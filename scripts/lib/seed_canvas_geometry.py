@@ -12,7 +12,7 @@ split repeats the previous segment's last point so no seam shows.
 import json
 import math
 
-# Mirrors crates/slimm-server/src/http/canvas_write.rs's MAX_PROPS_BYTES.
+# Mirrors crates/slimm-server/src/http/canvas/canvas_write.rs's MAX_PROPS_BYTES.
 MAX_PROPS_BYTES = 4 * 1024
 # A cushion under the real ceiling for float-encoding differences.
 SPLIT_BUDGET = MAX_PROPS_BYTES - 64

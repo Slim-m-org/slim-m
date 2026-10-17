@@ -2,7 +2,7 @@
 //! Reading and moving the shared slots a channel's canvas keeps for its
 //! call participants' camera and screen-share tiles.
 //!
-//! A sibling of [`super::canvas`] rather than part of it, kept separate for
+//! A sibling of [`super`] rather than part of it, kept separate for
 //! the same file-budget reason `canvas_write.rs` already is. See migration
 //! `0040_canvas_media_slots.sql` for why a slot is its own table rather
 //! than a `canvas_objects` row or a `canvas_ops` kind.
@@ -19,10 +19,10 @@ use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AuthedLimited, CANVAS, Json};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AuthedLimited, CANVAS, Json};
+use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
