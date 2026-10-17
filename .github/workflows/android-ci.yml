@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Builds the Android release APK and app bundle with Gradle dependency
+# verification on, before a change reaches main. main-builds is the only other
+# Android build and it runs after the merge, so without this a stale
+# verification-metadata.xml would first show up as a red build on main.
+#
+# No secrets: a release build debug-signs without key.properties, and the
+# committed placeholder google-services.json makes the google-services plugin
+# apply, so the dependency graph matches the signed build's. When this fails
+# on verification, regenerate with scripts/android-verification-metadata.sh.
+# See docs/ci.md.
+name: android-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/pubspec.lock"
+      - "client/pubspec.yaml"
+      - "client/packages/*/pubspec.yaml"
+      - "client/packages/*/android/**"
+      - "scripts/android-verification-metadata.sh"
+      - ".github/workflows/android-ci.yml"
+      - ".github/workflows/main-builds.yml"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
+  pull_request:
+    paths:
+      - "client/pubspec.lock"
+      - "client/pubspec.yaml"
+      - "client/packages/*/pubspec.yaml"
+      - "client/packages/*/android/**"
+      - "scripts/android-verification-metadata.sh"
+      - ".github/workflows/android-ci.yml"
+      - ".github/workflows/main-builds.yml"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # On main, keyed per commit: a group shared across pushes lets GitHub cancel an older still-queued run outright; see docs/ci.md.
+  group: android-ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    name: android release build, dependencies verified
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: ./.github/actions/native-hooks-cache
+
+      - name: placeholder google-services.json
+        run: cp client/packages/app/android/app/google-services.placeholder.json client/packages/app/android/app/google-services.json
+
+      - name: build release apk and app bundle
+        working-directory: client/packages/app
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build apk --release
+          flutter build appbundle --release
+
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
