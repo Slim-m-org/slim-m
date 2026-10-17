@@ -246,9 +246,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       await showFullscreenVideo(
         context,
         identity: participant.identity,
-        label: isScreen
-            ? presenceScreenLabel(participant)
-            : (participant.isLocal ? 'Your camera' : participant.name),
+        label: _expandLabel(participant, isScreen),
         kind: isScreen
             ? FullscreenVideoKind.screenShare
             : FullscreenVideoKind.camera,
@@ -256,6 +254,44 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     } finally {
       if (mounted) setState(() => _expandedKey = null);
     }
+  }
+
+  static String _expandLabel(VoiceParticipant participant, bool isScreen) {
+    if (isScreen) return presenceScreenLabel(participant);
+    return participant.isLocal ? 'Your camera' : participant.name;
+  }
+
+  static String _semanticLabel(VoiceParticipant participant, bool isScreen) {
+    if (!isScreen) {
+      return '${participant.name}${participant.isLocal ? ', you' : ''}, '
+          "on this call's canvas";
+    }
+    if (participant.isLocal) return "Your screen share, on this call's canvas";
+    return "${participant.name}'s screen share, on this call's canvas";
+  }
+
+  Widget _tileContent(VoiceParticipant participant, bool isScreen) {
+    final identity = participant.identity;
+    if (isScreen) {
+      return CanvasScreenShareBubble(
+        participant: participant,
+        view: widget.screenShareViewFor(identity),
+      );
+    }
+    return CanvasPresenceBubble(
+      participant: participant,
+      cameraView: participant.isCameraOn
+          ? widget.cameraViewFor(identity)
+          : null,
+    );
+  }
+
+  List<Widget> Function(BuildContext, VoidCallback)? _participantItemsBuilder(
+    VoiceParticipant participant,
+  ) {
+    final builder = widget.participantMenuItemsBuilder;
+    if (builder == null) return null;
+    return (tileContext, close) => builder(tileContext, participant, close);
   }
 
   Widget? _tile(
@@ -304,40 +340,17 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
               commit();
             },
       onHide: () => widget.overrides.setHidden(key, true),
-      participantItemsBuilder: widget.participantMenuItemsBuilder == null
-          ? null
-          : (tileContext, close) => widget.participantMenuItemsBuilder!(
-              tileContext,
-              participant,
-              close,
-            ),
+      participantItemsBuilder: _participantItemsBuilder(participant),
       // A camera tile showing the avatar fallback has no feed to fill a screen with; a screen-share tile always does, since its key only exists while the share is up.
       onExpand: isScreen || participant.isCameraOn
           ? () => unawaited(_expand(key, participant, isScreen))
           : null,
-      semanticLabel: isScreen
-          ? (participant.isLocal
-                ? "Your screen share, on this call's canvas"
-                : "${participant.name}'s screen share, on this call's canvas")
-          : '${participant.name}${participant.isLocal ? ', you' : ''}, '
-                "on this call's canvas",
+      semanticLabel: _semanticLabel(participant, isScreen),
       // Real content moves to CanvasPresenceBackdrop when sent to back; .expand, not .shrink, or the wrapping GestureDetector's own opaque hit box shrinks with it.
       child: sentToBack
           ? const SizedBox.expand()
           // The pop plays once per tile mount (a participant arriving), never on pan or zoom, which only move the tile's slot.
-          : CallTilePop(
-              child: isScreen
-                  ? CanvasScreenShareBubble(
-                      participant: participant,
-                      view: widget.screenShareViewFor(identity),
-                    )
-                  : CanvasPresenceBubble(
-                      participant: participant,
-                      cameraView: participant.isCameraOn
-                          ? widget.cameraViewFor(identity)
-                          : null,
-                    ),
-            ),
+          : CallTilePop(child: _tileContent(participant, isScreen)),
     );
   }
 }

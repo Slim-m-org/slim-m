@@ -133,41 +133,49 @@ class CanvasCommitQueue {
       // Three tries backing off: a 429 while somebody scribbles must not lose ink already on their own screen.
       var delay = const Duration(milliseconds: 250);
       for (var attempt = 0; attempt < 3; attempt++) {
-        try {
-          final object = await client.placeCanvasObject(
-            channelId,
-            id: commit.id,
-            kind: 'stroke',
-            x: commit.x,
-            y: commit.y,
-            w: commit.w,
-            h: commit.h,
-            props: commit.props,
-          );
-          if (_closed) return;
-          if (_armedForRemoval.remove(commit.id)) {
-            onEraseOnConfirm(commit.id);
-          } else {
-            onPlaced(object);
-          }
-          return;
-        } on api.ApiException catch (error) {
-          if (_closed) return;
-          if (!_retryable(error) || attempt == 2) {
-            _armedForRemoval.remove(commit.id);
-            if (_isRemovedConflict(error)) {
-              onRemoved(commit.id);
-            } else {
-              onFailed(commit.id, _explain(error, timedOutUntil()));
-            }
-            return;
-          }
-          await Future<void>.delayed(delay);
-          delay *= 2;
-        }
+        final retry = await _attempt(commit, lastAttempt: attempt == 2);
+        if (!retry) return;
+        await Future<void>.delayed(delay);
+        delay *= 2;
       }
     } finally {
       if (_inFlightId == commit.id) _inFlightId = null;
+    }
+  }
+
+  /// Returns true when the placement failed in a way worth retrying.
+  Future<bool> _attempt(
+    CanvasCommit commit, {
+    required bool lastAttempt,
+  }) async {
+    try {
+      final object = await client.placeCanvasObject(
+        channelId,
+        id: commit.id,
+        kind: 'stroke',
+        x: commit.x,
+        y: commit.y,
+        w: commit.w,
+        h: commit.h,
+        props: commit.props,
+      );
+      if (_closed) return false;
+      if (_armedForRemoval.remove(commit.id)) {
+        onEraseOnConfirm(commit.id);
+      } else {
+        onPlaced(object);
+      }
+      return false;
+    } on api.ApiException catch (error) {
+      if (_closed) return false;
+      if (_retryable(error) && !lastAttempt) return true;
+      _armedForRemoval.remove(commit.id);
+      if (_isRemovedConflict(error)) {
+        onRemoved(commit.id);
+      } else {
+        onFailed(commit.id, _explain(error, timedOutUntil()));
+      }
+      return false;
     }
   }
 

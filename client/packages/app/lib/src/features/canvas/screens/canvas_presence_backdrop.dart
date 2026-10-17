@@ -152,19 +152,25 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
       top: screen.top,
       width: screen.width,
       height: screen.height,
-      child: isScreen
-          ? CanvasScreenShareBubble(
-              participant: participant,
-              view: widget.screenShareViewFor(identity),
-              // This subtree is IgnorePointer-wrapped end to end, so a hover can never reach it to reveal the badge - keep it always-on.
-              interactive: false,
-            )
-          : CanvasPresenceBubble(
-              participant: participant,
-              cameraView: participant.isCameraOn
-                  ? widget.cameraViewFor(identity)
-                  : null,
-            ),
+      child: _content(participant, isScreen),
+    );
+  }
+
+  Widget _content(VoiceParticipant participant, bool isScreen) {
+    final identity = participant.identity;
+    if (isScreen) {
+      return CanvasScreenShareBubble(
+        participant: participant,
+        view: widget.screenShareViewFor(identity),
+        // This subtree is IgnorePointer-wrapped end to end, so a hover can never reach it to reveal the badge - keep it always-on.
+        interactive: false,
+      );
+    }
+    return CanvasPresenceBubble(
+      participant: participant,
+      cameraView: participant.isCameraOn
+          ? widget.cameraViewFor(identity)
+          : null,
     );
   }
 }

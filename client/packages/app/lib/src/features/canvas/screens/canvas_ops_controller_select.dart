@@ -95,27 +95,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     required String? selfId,
     bool touch = false,
   }) {
-    final selected = document.selectedObjectId.value;
-    if (selected != null &&
-        document.kindOf(selected) != CanvasObjectKind.stroke) {
-      final owns =
-          !isLocked(selected) &&
-          (manageCanvas || document.authorIdOf(selected) == selfId);
-      final bounds = document.objectBounds(selected);
-      if (owns && bounds != null && !_isDeepInterior(bounds, world)) {
-        final corner = hitTestResizeHandle(
-          bounds,
-          world,
-          document.camera.zoom,
-          hitRadius: touch ? touchResizeHandleHitRadius : resizeHandleHitRadius,
-        );
-        if (corner != null) {
-          _resize = _ResizeState(selected, corner, bounds);
-          document.elevatedObjectId.value = selected;
-          return;
-        }
-      }
-    }
+    if (_beginResize(world, manageCanvas, selfId, touch)) return;
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||
@@ -129,6 +109,34 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     if (bounds == null) return;
     _drag = _DragState(id, bounds.x, bounds.y, bounds.w, bounds.h, world);
     document.elevatedObjectId.value = id;
+  }
+
+  bool _beginResize(
+    Offset world,
+    bool manageCanvas,
+    String? selfId,
+    bool touch,
+  ) {
+    final selected = document.selectedObjectId.value;
+    if (selected == null ||
+        document.kindOf(selected) == CanvasObjectKind.stroke) {
+      return false;
+    }
+    final owns =
+        !isLocked(selected) &&
+        (manageCanvas || document.authorIdOf(selected) == selfId);
+    final bounds = document.objectBounds(selected);
+    if (!owns || bounds == null || _isDeepInterior(bounds, world)) return false;
+    final corner = hitTestResizeHandle(
+      bounds,
+      world,
+      document.camera.zoom,
+      hitRadius: touch ? touchResizeHandleHitRadius : resizeHandleHitRadius,
+    );
+    if (corner == null) return false;
+    _resize = _ResizeState(selected, corner, bounds);
+    document.elevatedObjectId.value = selected;
+    return true;
   }
 
   /// Whether [world] lands in the innermost half of [bounds] - the zone a

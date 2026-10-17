@@ -255,93 +255,113 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             onDismiss: _controller.hide,
             child: ValueListenableBuilder<String?>(
               valueListenable: widget.selection,
-              builder: (context, selected, _) => AppMenu(
-                width: 280,
-                children: [
-                  AppMenuItem(
-                    label: 'Paste image',
-                    leading: AppIcons.clipboardPaste,
-                    // Ctrl+V already works from anywhere in the pane (see canvas_pane.dart's CallbackShortcuts); nothing said so until this hint, and a touch layout drops it, the same "no finger can press it" rule the channel search field's own Ctrl+K hint already follows. Dropped entirely while canDraw is false: a shortcut hint for an action that would fail is not worth keeping.
-                    trailing: !widget.canDraw || AppTouchTargets.of(context)
-                        ? null
-                        : _shortcutHint(context),
-                    onTap: widget.canDraw ? _paste : null,
-                  ),
-                  // The way in only: the way out is the dock's own button, since this menu is part of the tool strip fullscreen folds away.
-                  AppMenuItem(
-                    label: 'Enter fullscreen',
-                    leading: AppIcons.expand,
-                    onTap: _enterFullscreen,
-                  ),
-                  const AppMenuDivider(),
-                  AppMenuItem(
-                    label: widget.activityLogOpen
-                        ? 'Hide activity log'
-                        : 'Show activity log',
-                    leading: AppIcons.activityLog,
-                    onTap: _toggleActivityLog,
-                  ),
-                  if (widget.hasSelfBubble)
-                    AppMenuItem(
-                      label: widget.selfBubbleHidden
-                          ? 'Show my camera bubble'
-                          : 'Hide my camera bubble',
-                      leading: AppIcons.camera,
-                      onTap: _toggleSelfBubble,
-                    ),
-                  if (widget.hiddenTiles.isNotEmpty) ...[
-                    const AppMenuDivider(),
-                    for (final tile in widget.hiddenTiles)
-                      AppMenuItem(
-                        label: 'Show ${tile.label}',
-                        leading: AppIcons.tileHide,
-                        onTap: () => _showTile(tile.key),
-                      ),
-                  ],
-                  if (widget.tool == CanvasTool.shape) ...[
-                    const AppMenuDivider(),
-                    for (final kind in CanvasShapeKind.values)
-                      AppMenuItem(
-                        label: canvasShapeKindLabel(kind),
-                        leading: canvasShapeKindIcon(kind),
-                        selected: widget.shapeKind == kind,
-                        onTap: () => _pickShapeKind(kind),
-                      ),
-                  ],
-                  if (selected != null) ...[
-                    const AppMenuDivider(),
-                    AppMenuItem(
-                      label: 'Bring to front',
-                      leading: AppIcons.bringToFront,
-                      onTap: () => _bringToFront(selected),
-                    ),
-                    AppMenuItem(
-                      label: 'Send to back',
-                      leading: AppIcons.sendToBack,
-                      onTap: () => _sendToBack(selected),
-                    ),
-                    AppMenuItem(
-                      label: 'Delete',
-                      leading: AppIcons.delete,
-                      tone: AppMenuItemTone.danger,
-                      onTap: () => _delete(selected),
-                    ),
-                  ],
-                  if (widget.canManage) ...[
-                    const AppMenuDivider(),
-                    AppMenuItem(
-                      label: 'Clear canvas',
-                      leading: AppIcons.delete,
-                      tone: AppMenuItemTone.danger,
-                      onTap: () => unawaited(_requestClear()),
-                    ),
-                  ],
-                ],
-              ),
+              builder: (context, selected, _) =>
+                  AppMenu(width: 280, children: _menuItems(context, selected)),
             ),
           ),
         ),
       ),
     );
+  }
+
+  List<Widget> _menuItems(BuildContext context, String? selected) {
+    return [
+      AppMenuItem(
+        label: 'Paste image',
+        leading: AppIcons.clipboardPaste,
+        // Ctrl+V already works from anywhere in the pane (see canvas_pane.dart's CallbackShortcuts); nothing said so until this hint, and a touch layout drops it, the same "no finger can press it" rule the channel search field's own Ctrl+K hint already follows. Dropped entirely while canDraw is false: a shortcut hint for an action that would fail is not worth keeping.
+        trailing: !widget.canDraw || AppTouchTargets.of(context)
+            ? null
+            : _shortcutHint(context),
+        onTap: widget.canDraw ? _paste : null,
+      ),
+      // The way in only: the way out is the dock's own button, since this menu is part of the tool strip fullscreen folds away.
+      AppMenuItem(
+        label: 'Enter fullscreen',
+        leading: AppIcons.expand,
+        onTap: _enterFullscreen,
+      ),
+      const AppMenuDivider(),
+      AppMenuItem(
+        label: widget.activityLogOpen
+            ? 'Hide activity log'
+            : 'Show activity log',
+        leading: AppIcons.activityLog,
+        onTap: _toggleActivityLog,
+      ),
+      if (widget.hasSelfBubble) _selfBubbleItem(),
+      ..._hiddenTileItems(),
+      ..._shapeKindItems(),
+      if (selected != null) ..._selectionItems(selected),
+      ..._manageItems(),
+    ];
+  }
+
+  Widget _selfBubbleItem() => AppMenuItem(
+    label: widget.selfBubbleHidden
+        ? 'Show my camera bubble'
+        : 'Hide my camera bubble',
+    leading: AppIcons.camera,
+    onTap: _toggleSelfBubble,
+  );
+
+  List<Widget> _hiddenTileItems() {
+    if (widget.hiddenTiles.isEmpty) return const [];
+    return [
+      const AppMenuDivider(),
+      for (final tile in widget.hiddenTiles)
+        AppMenuItem(
+          label: 'Show ${tile.label}',
+          leading: AppIcons.tileHide,
+          onTap: () => _showTile(tile.key),
+        ),
+    ];
+  }
+
+  List<Widget> _shapeKindItems() {
+    if (widget.tool != CanvasTool.shape) return const [];
+    return [
+      const AppMenuDivider(),
+      for (final kind in CanvasShapeKind.values)
+        AppMenuItem(
+          label: canvasShapeKindLabel(kind),
+          leading: canvasShapeKindIcon(kind),
+          selected: widget.shapeKind == kind,
+          onTap: () => _pickShapeKind(kind),
+        ),
+    ];
+  }
+
+  List<Widget> _selectionItems(String selected) => [
+    const AppMenuDivider(),
+    AppMenuItem(
+      label: 'Bring to front',
+      leading: AppIcons.bringToFront,
+      onTap: () => _bringToFront(selected),
+    ),
+    AppMenuItem(
+      label: 'Send to back',
+      leading: AppIcons.sendToBack,
+      onTap: () => _sendToBack(selected),
+    ),
+    AppMenuItem(
+      label: 'Delete',
+      leading: AppIcons.delete,
+      tone: AppMenuItemTone.danger,
+      onTap: () => _delete(selected),
+    ),
+  ];
+
+  List<Widget> _manageItems() {
+    if (!widget.canManage) return const [];
+    return [
+      const AppMenuDivider(),
+      AppMenuItem(
+        label: 'Clear canvas',
+        leading: AppIcons.delete,
+        tone: AppMenuItemTone.danger,
+        onTap: () => unawaited(_requestClear()),
+      ),
+    ];
   }
 }

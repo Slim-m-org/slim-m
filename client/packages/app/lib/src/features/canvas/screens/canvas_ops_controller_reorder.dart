@@ -41,10 +41,20 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
     if (current == null) return;
     final range = document.zIndexRange;
     final target = toFront
-        ? (range != null && range.$2 > current ? range.$2 + 1 : null)
-        : (range != null && range.$1 < current ? range.$1 - 1 : null);
+        ? _frontTarget(range, current)
+        : _backTarget(range, current);
     if (target == null) return;
     await _submitReorder(objectId, current, target);
+  }
+
+  int? _frontTarget((int, int)? range, int current) {
+    if (range == null || range.$2 <= current) return null;
+    return range.$2 + 1;
+  }
+
+  int? _backTarget((int, int)? range, int current) {
+    if (range == null || range.$1 >= current) return null;
+    return range.$1 - 1;
   }
 
   Future<void> _submitReorder(String objectId, int fromZ, int toZ) async {

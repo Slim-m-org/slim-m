@@ -111,74 +111,22 @@ class CanvasImagePaste {
   /// directly - no second fetch and decode of what this call already holds.
   Future<api.CanvasObject?> _place(Uint8List bytes, {ui.Offset? at}) async {
     onError(null);
-    final ui.Image decoded;
-    try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      decoded = frame.image;
-      codec.dispose();
-    } catch (_) {
-      if (!_stopped) onError('That image could not be read.');
-      return null;
-    }
+    final decoded = await _decode(bytes);
+    if (decoded == null) return null;
     if (_stopped) {
       decoded.dispose();
       return null;
     }
 
-    final api.Attachment attachment;
-    try {
-      attachment = await client.uploadAttachment(
-        bytes,
-        filename: 'pasted-image.png',
-      );
-    } on api.ApiException catch (e) {
-      decoded.dispose();
-      if (!_stopped) {
-        onError(switch (e) {
-          api.ServerException(statusCode: 413) =>
-            'That image is too big to upload.',
-          api.ServerException(statusCode: 507) =>
-            'This server has no storage left. Tell an admin.',
-          _ => 'That image could not be uploaded.',
-        });
-      }
-      return null;
-    }
+    final attachment = await _upload(bytes, decoded);
+    if (attachment == null) return null;
     if (_stopped) {
       decoded.dispose();
       return null;
     }
 
-    final scale = _fitScale(decoded.width, decoded.height);
-    final w = decoded.width * scale;
-    final h = decoded.height * scale;
-    final center = at ?? document.worldView.center;
-    final x = center.dx - w / 2;
-    final y = center.dy - h / 2;
-
-    final api.CanvasObject placed;
-    try {
-      placed = await client.placeCanvasObject(
-        channelId,
-        id: newCanvasObjectId(),
-        kind: 'image',
-        x: x,
-        y: y,
-        w: w,
-        h: h,
-        props: {
-          'attachment': attachment.id,
-          'content_type': attachment.contentType,
-          'width': decoded.width,
-          'height': decoded.height,
-        },
-      );
-    } on api.ApiException catch (error) {
-      decoded.dispose();
-      if (!_stopped) onError(_explain(error, timedOutUntil()));
-      return null;
-    }
+    final placed = await _placeObject(decoded, attachment, at);
+    if (placed == null) return null;
     if (_stopped) {
       decoded.dispose();
       return null;
@@ -195,6 +143,68 @@ class CanvasImagePaste {
       ..setImageBitmap(placed.id, decoded)
       ..refresh();
     return placed;
+  }
+
+  Future<ui.Image?> _decode(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      codec.dispose();
+      return frame.image;
+    } catch (_) {
+      if (!_stopped) onError('That image could not be read.');
+      return null;
+    }
+  }
+
+  Future<api.Attachment?> _upload(Uint8List bytes, ui.Image decoded) async {
+    try {
+      return await client.uploadAttachment(bytes, filename: 'pasted-image.png');
+    } on api.ApiException catch (e) {
+      decoded.dispose();
+      if (!_stopped) {
+        onError(switch (e) {
+          api.ServerException(statusCode: 413) =>
+            'That image is too big to upload.',
+          api.ServerException(statusCode: 507) =>
+            'This server has no storage left. Tell an admin.',
+          _ => 'That image could not be uploaded.',
+        });
+      }
+      return null;
+    }
+  }
+
+  Future<api.CanvasObject?> _placeObject(
+    ui.Image decoded,
+    api.Attachment attachment,
+    ui.Offset? at,
+  ) async {
+    final scale = _fitScale(decoded.width, decoded.height);
+    final w = decoded.width * scale;
+    final h = decoded.height * scale;
+    final center = at ?? document.worldView.center;
+    try {
+      return await client.placeCanvasObject(
+        channelId,
+        id: newCanvasObjectId(),
+        kind: 'image',
+        x: center.dx - w / 2,
+        y: center.dy - h / 2,
+        w: w,
+        h: h,
+        props: {
+          'attachment': attachment.id,
+          'content_type': attachment.contentType,
+          'width': decoded.width,
+          'height': decoded.height,
+        },
+      );
+    } on api.ApiException catch (error) {
+      decoded.dispose();
+      if (!_stopped) onError(_explain(error, timedOutUntil()));
+      return null;
+    }
   }
 
   static double _fitScale(int naturalWidth, int naturalHeight) {

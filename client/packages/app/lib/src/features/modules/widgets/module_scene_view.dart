@@ -175,67 +175,74 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
       _error = null;
     });
     try {
-      final result = await widget.runCommand(
-        jsonEncode({'action': action, 'state': _scene.state ?? ''}),
-      );
-      if (!mounted) return;
-      final next = result.ok && result.output != null
-          ? parseModuleScene(result.output!)
-          : null;
-      if (next != null) {
-        _rememberOwn(next.state);
-        _pacing.succeeded();
-      }
-      setState(() {
-        _busy = false;
-        if (next != null) {
-          _scene = keepCropStable(_scene, next);
-          _playNotes(next);
-          if (!next.live) _stop();
-        } else {
-          _stop();
-          _error = result.error ?? 'The module returned nothing to draw.';
-        }
-      });
+      await _runAction(action);
     } on api.RateLimitedException catch (e) {
-      if (!mounted) return;
-      _backOff(e.retryAfter);
-      if (_playing && !_pacing.exhausted) {
-        setState(() => _busy = false);
-        return;
-      }
-      if (queued && !_pacing.exhausted) {
-        // Put it back and hold: see _drain on why not just drop it.
-        _queue.putBack(action);
-        await Future<void>.delayed(_pacing.interval);
-        if (!mounted) return;
-        setState(() => _busy = false);
-        return;
-      }
-      _queue.clear();
-      setState(() {
-        _busy = false;
-        _stop();
-        _error = describeApiFailure('run this', e);
-      });
+      await _onRateLimited(e, action, queued: queued);
     } on api.ApiException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _stop();
-        _error = describeApiFailure('run this', e);
-      });
+      _failWith(describeApiFailure('run this', e));
     } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _stop();
-        _error = 'Could not run this.';
-      });
+      _failWith('Could not run this.');
     } finally {
       // A drag queued behind play's own step has nothing else to restart it.
       if (mounted && !_busy && _queue.isNotEmpty) unawaited(_drain());
     }
+  }
+
+  Future<void> _runAction(String action) async {
+    final result = await widget.runCommand(
+      jsonEncode({'action': action, 'state': _scene.state ?? ''}),
+    );
+    if (!mounted) return;
+    final next = result.ok && result.output != null
+        ? parseModuleScene(result.output!)
+        : null;
+    if (next != null) {
+      _rememberOwn(next.state);
+      _pacing.succeeded();
+    }
+    setState(() {
+      _busy = false;
+      if (next != null) {
+        _scene = keepCropStable(_scene, next);
+        _playNotes(next);
+        if (!next.live) _stop();
+      } else {
+        _stop();
+        _error = result.error ?? 'The module returned nothing to draw.';
+      }
+    });
+  }
+
+  Future<void> _onRateLimited(
+    api.RateLimitedException e,
+    String action, {
+    required bool queued,
+  }) async {
+    if (!mounted) return;
+    _backOff(e.retryAfter);
+    if (_playing && !_pacing.exhausted) {
+      setState(() => _busy = false);
+      return;
+    }
+    if (queued && !_pacing.exhausted) {
+      // Put it back and hold: see _drain on why not just drop it.
+      _queue.putBack(action);
+      await Future<void>.delayed(_pacing.interval);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      return;
+    }
+    _queue.clear();
+    _failWith(describeApiFailure('run this', e));
+  }
+
+  void _failWith(String message) {
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _stop();
+      _error = message;
+    });
   }
 
   /// The one call site that may ever trigger [widget.onNotes]: right where
