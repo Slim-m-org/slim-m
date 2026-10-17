@@ -102,6 +102,15 @@ flutter:
     - assets/audio/notifications/member_join.wav
     - assets/audio/notifications/member_leave.wav
     - assets/audio/notifications/mention.wav
+    - assets/audio/notifications/deafen_off.wav
+    - assets/audio/notifications/deafen_on.wav
+    - assets/audio/notifications/message_received_in_view.wav
+    - assets/audio/notifications/message_sent.wav
+    - assets/audio/notifications/mute_off.wav
+    - assets/audio/notifications/mute_on.wav
+    - assets/audio/notifications/ringback.wav
+    - assets/audio/notifications/self_join.wav
+    - assets/audio/notifications/self_leave.wav
     # Music while alone in a call: CC0 tracks, credited in assets/audio/music/CREDITS.md.
     - assets/audio/music/lofi.mp3
     - assets/audio/music/jazz.mp3

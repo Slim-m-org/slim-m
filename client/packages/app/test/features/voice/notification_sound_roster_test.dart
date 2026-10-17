@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/audio/notification_sound.dart';
+import 'package:slimm_app/src/features/settings/providers/ui_sound_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -197,6 +198,7 @@ Future<_Setup> _wire() async {
   container.read(notificationSoundControllerProvider);
   // Settles the join/leave and call-ring toggle loads (both default true).
   container.read(voiceSettingsControllerProvider);
+  container.read(uiSoundSettingsProvider);
   await pumpEventQueue();
 
   return _Setup(container, session, player);
@@ -204,7 +206,10 @@ Future<_Setup> _wire() async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  // This file is about other members' cues, so the self cues are switched off.
+  setUp(
+    () => SharedPreferences.setMockInitialValues({uiSoundsEnabledKey: false}),
+  );
 
   test('connecting to a room that already has people plays nothing', () async {
     final setup = await _wire();

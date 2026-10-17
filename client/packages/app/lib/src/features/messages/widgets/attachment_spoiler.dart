@@ -7,7 +7,6 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const double _minWidth = 160;
@@ -47,7 +46,7 @@ class AttachmentSpoilerCover extends StatelessWidget {
         },
         child: GestureDetector(
           onTap: () {
-            HapticFeedback.selectionClick();
+            AppHaptics.selection();
             onReveal();
           },
           child: ClipRRect(

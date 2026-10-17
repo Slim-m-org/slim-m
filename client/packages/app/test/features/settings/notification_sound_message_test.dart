@@ -17,6 +17,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
+import 'package:slimm_app/src/features/settings/providers/ui_sound_settings.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_sound_settings.dart';
@@ -72,7 +75,10 @@ class _Setup {
 /// A container wired at two channels - a DM and a text channel - with `me`
 /// answering as user `me`/username `nick`, and [blocked] as the server's
 /// answer to `GET /blocks`.
-Future<_Setup> _wire({List<String> blocked = const []}) async {
+Future<_Setup> _wire({
+  List<String> blocked = const [],
+  List<Override> extra = const [],
+}) async {
   final db = SlimmDatabase(NativeDatabase.memory());
   final store = MessageStore(db);
   await store.upsertChannels([
@@ -118,6 +124,7 @@ Future<_Setup> _wire({List<String> blocked = const []}) async {
       notificationSoundControllerProvider.overrideWith(
         (ref) => NotificationSoundController(ref, player: player),
       ),
+      ...extra,
     ],
   );
   // Forces creation, and lets the block-list fetch (if any) settle.
@@ -231,5 +238,85 @@ void main() {
 
     expect(setup.player.played, isEmpty);
     await setup.dispose();
+  });
+
+  group('in the channel on screen', () {
+    Future<_Setup> viewing({bool focused = true}) async {
+      final setup = await _wire(
+        extra: [appFocusedProvider.overrideWithValue(focused)],
+      );
+      setup.container.read(mountedChannelsProvider).register('group-1');
+      setup.container.read(uiSoundSettingsProvider);
+      await pumpEventQueue();
+      return setup;
+    }
+
+    void say(_Setup setup, String content) => setup.events.add(
+      api.MessageCreated(
+        _message(
+          id: 'm1',
+          authorId: 'alice',
+          channelId: 'group-1',
+          content: content,
+        ),
+      ),
+    );
+
+    test('a plain message plays the soft cue, never the group chime', () async {
+      final setup = await viewing();
+      say(setup, 'hello');
+      await pumpEventQueue();
+
+      expect(setup.player.played, [NotificationSound.messageReceivedInView]);
+      await setup.dispose();
+    });
+
+    test('an unfocused window keeps the notification chime', () async {
+      final setup = await viewing(focused: false);
+      say(setup, 'hello');
+      await pumpEventQueue();
+
+      expect(setup.player.played, [NotificationSound.groupMessage]);
+      await setup.dispose();
+    });
+
+    test('a mention still gets the mention chime', () async {
+      final setup = await viewing();
+      say(setup, 'hey @nick');
+      await pumpEventQueue();
+
+      expect(setup.player.played, [NotificationSound.mention]);
+      await setup.dispose();
+    });
+
+    test('interface sounds off falls back to the group chime', () async {
+      final setup = await viewing();
+      await setup.container
+          .read(uiSoundSettingsProvider.notifier)
+          .setEnabled(false);
+      say(setup, 'hello');
+      await pumpEventQueue();
+
+      expect(setup.player.played, [NotificationSound.groupMessage]);
+      await setup.dispose();
+    });
+
+    test('a different channel keeps the group chime', () async {
+      final setup = await viewing();
+      setup.events.add(
+        api.MessageCreated(
+          _message(
+            id: 'm2',
+            authorId: 'alice',
+            channelId: 'dm-1',
+            content: 'hi',
+          ),
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(setup.player.played, [NotificationSound.directMessage]);
+      await setup.dispose();
+    });
   });
 }

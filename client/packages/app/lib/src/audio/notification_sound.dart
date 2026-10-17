@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The seven synthesised notification sounds (`assets/audio/notifications/`,
+/// The synthesised notification sounds (`assets/audio/notifications/`,
 /// see that directory's own `sounds.py` for what each one is for) and the
 /// seam a fake stands in for, so nothing that plays one ever touches real
 /// audio hardware in a test.
@@ -24,7 +24,16 @@ enum NotificationSound {
   callRing('call_ring'),
   memberJoin('member_join'),
   memberLeave('member_leave'),
-  error('error');
+  error('error'),
+  messageSent('message_sent'),
+  messageReceivedInView('message_received_in_view'),
+  selfJoin('self_join'),
+  selfLeave('self_leave'),
+  muteOn('mute_on'),
+  muteOff('mute_off'),
+  deafenOn('deafen_on'),
+  deafenOff('deafen_off'),
+  ringback('ringback');
 
   const NotificationSound(this._fileName);
   final String _fileName;
