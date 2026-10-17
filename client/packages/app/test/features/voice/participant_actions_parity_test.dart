@@ -153,6 +153,10 @@ const _labels = <ParticipantAction, Map<ParticipantSurface, String>>{
     ParticipantSurface.card: 'Message',
     ParticipantSurface.menu: 'Message',
   },
+  ParticipantAction.call: {
+    ParticipantSurface.card: 'Call',
+    ParticipantSurface.menu: 'Call',
+  },
   ParticipantAction.viewProfile: {ParticipantSurface.menu: 'View profile'},
   ParticipantAction.moderate: {
     ParticipantSurface.card: 'Moderate...',
@@ -228,6 +232,42 @@ void main() {
       await wired.container.read(voiceControllerProvider.notifier).leave();
     });
   }
+
+  group('call', () {
+    List<ParticipantAction> list({
+      required bool inCallTogether,
+      required bool canCall,
+    }) => participantActions(
+      surface: ParticipantSurface.card,
+      isSelf: false,
+      inCallTogether: inCallTogether,
+      supportsVolume: true,
+      hasProfile: true,
+      showModeration: false,
+      canCall: canCall,
+    );
+
+    test('is offered to someone you are not in a call with', () {
+      expect(
+        list(inCallTogether: false, canCall: true),
+        contains(ParticipantAction.call),
+      );
+    });
+
+    test('is not offered while you are already in a call together', () {
+      expect(
+        list(inCallTogether: true, canCall: true),
+        isNot(contains(ParticipantAction.call)),
+      );
+    });
+
+    test('is not offered where the caller says calling is impossible', () {
+      expect(
+        list(inCallTogether: false, canCall: false),
+        isNot(contains(ParticipantAction.call)),
+      );
+    });
+  });
 
   test('no action is offered against yourself', () {
     final list = participantActions(

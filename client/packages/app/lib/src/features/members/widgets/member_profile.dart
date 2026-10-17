@@ -209,6 +209,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
       supportsVolume: controller.supportsParticipantVolume,
       hasProfile: true,
       showModeration: gates.showModeration,
+      canCall: !profile.isBot,
     );
 
     // Captured before onDone, whose Navigator.pop disposes this element.

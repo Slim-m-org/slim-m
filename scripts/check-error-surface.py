@@ -156,6 +156,8 @@ GUARDED_EXCEPTIONS: dict[tuple[str, str], str] = {
         "the member row's context menu has closed before the request answers",
     ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "messageMember"):
         "the member card has closed before the request answers",
+    ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "callMember"):
+        "the member card or call menu has closed before the request answers",
     ("client/packages/app/lib/src/features/channels/widgets/row_menu_notifications.dart", "_say"):
         "a row's context menu has closed before the request answers",
     ("client/packages/app/lib/src/features/members/widgets/safety_actions.dart", "_tell"):

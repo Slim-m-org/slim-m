@@ -8,14 +8,23 @@
 /// place, the menu as a row opening a popover.
 library;
 
-enum ParticipantAction { volume, muteForMe, message, viewProfile, moderate }
+enum ParticipantAction {
+  volume,
+  muteForMe,
+  message,
+  call,
+  viewProfile,
+  moderate,
+}
 
 enum ParticipantSurface { card, menu }
 
 /// The actions [surface] offers, in the order both show them.
 ///
 /// The card is itself the profile, so it never lists [ParticipantAction
-/// .viewProfile]. Volume and mute are call-only and local to this listener.
+/// .viewProfile]. Volume and mute are call-only and local to this listener;
+/// Call is the reverse, offered only to someone you are not already in a call
+/// with, and only where the caller says calling them is possible.
 List<ParticipantAction> participantActions({
   required ParticipantSurface surface,
   required bool isSelf,
@@ -23,12 +32,14 @@ List<ParticipantAction> participantActions({
   required bool supportsVolume,
   required bool hasProfile,
   required bool showModeration,
+  bool canCall = false,
 }) {
   if (isSelf) return const [];
   return [
     if (inCallTogether && supportsVolume) ParticipantAction.volume,
     if (inCallTogether) ParticipantAction.muteForMe,
     if (hasProfile) ParticipantAction.message,
+    if (hasProfile && canCall && !inCallTogether) ParticipantAction.call,
     if (hasProfile && surface == ParticipantSurface.menu)
       ParticipantAction.viewProfile,
     if (hasProfile && showModeration) ParticipantAction.moderate,
