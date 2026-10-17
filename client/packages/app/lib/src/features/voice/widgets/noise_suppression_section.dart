@@ -32,9 +32,7 @@ class NoiseSuppressionSection extends ConsumerWidget {
     return SettingsSegmentedRow<NoiseSuppressionChoice>(
       label: 'Noise suppression',
       description: description,
-      footnote: strongInactive
-          ? "Strong isn't running on this mic."
-          : null,
+      footnote: strongInactive ? "Strong isn't running on this mic." : null,
       value: choice,
       choices: [
         for (final value in NoiseSuppressionChoice.values)
