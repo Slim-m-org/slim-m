@@ -53,12 +53,12 @@ void main() {
       'cameraToFit falls back to the origin with no bounds or no measured '
       'viewport', () {
     expect(cameraToFit(null, const Size(800, 600)), const Camera());
-    final bounds = Rect.fromLTWH(100, 100, 40, 40);
+    final bounds = const Rect.fromLTWH(100, 100, 40, 40);
     expect(cameraToFit(bounds, Size.zero), const Camera());
   });
 
   test('cameraToFit brings distant content into the resulting world view', () {
-    final bounds = Rect.fromLTWH(5000, -3000, 40, 40);
+    final bounds = const Rect.fromLTWH(5000, -3000, 40, 40);
 
     final camera = cameraToFit(bounds, const Size(1000, 800));
 
@@ -76,7 +76,7 @@ void main() {
       'cameraToFit clamps zoom rather than zooming in past maxZoom for a '
       'single small object', () {
     final camera = cameraToFit(
-      Rect.fromLTWH(0, 0, 2, 2),
+      const Rect.fromLTWH(0, 0, 2, 2),
       const Size(1000, 800),
     );
 

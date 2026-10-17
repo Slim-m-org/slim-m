@@ -49,7 +49,7 @@ Widget _row(String content) => harness(
       onSubmitEdit: (_) {},
       onCancelEdit: () {},
     ),
-    extras: MessageExtras(attachments: const [_attachment]),
+    extras: const MessageExtras(attachments: [_attachment]),
   ),
 );
 

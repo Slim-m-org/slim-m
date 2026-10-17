@@ -38,7 +38,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = Channel(
+final _channel = const Channel(
   id: 'c-plans',
   name: 'plans',
   kind: 'text',
@@ -132,7 +132,7 @@ void main() {
     expect(server.requests, contains('GET /categories/cat-1/overwrites'));
 
     final cell = find.byKey(
-      ValueKey('cell:role:role-everyone:${Perm.viewChannel}'),
+      const ValueKey('cell:role:role-everyone:${Perm.viewChannel}'),
     );
     await tester.ensureVisible(cell);
     await tester.tap(cell);

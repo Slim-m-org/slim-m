@@ -217,9 +217,9 @@ void main() {
       message(id: 'm1', createdAt: 1000, content: 'first'),
     ]);
     h.events.add(
-      api.MessageEphemeral(
+      const api.MessageEphemeral(
         channelId: 'c1',
-        message: const api.EphemeralMessage(
+        message: api.EphemeralMessage(
           id: 'e1',
           channelId: 'c1',
           authorId: 'bot-1',

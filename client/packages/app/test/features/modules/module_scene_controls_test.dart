@@ -58,7 +58,7 @@ Future<List<String>> _pump(
               initial: scene,
               runCommand: (input) async {
                 sent.add(input);
-                return api.RunModuleCommandResult(
+                return const api.RunModuleCommandResult(
                   ok: true,
                   output: '',
                   error: null,

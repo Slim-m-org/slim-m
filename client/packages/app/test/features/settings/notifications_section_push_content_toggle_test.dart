@@ -65,7 +65,9 @@ Widget _shell(ProviderContainer container) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
-    home: Scaffold(body: SingleChildScrollView(child: NotificationsSection())),
+    home: const Scaffold(
+      body: SingleChildScrollView(child: NotificationsSection()),
+    ),
   ),
 );
 

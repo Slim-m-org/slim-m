@@ -129,7 +129,7 @@ void main() {
 
     expect(
       document.worldView,
-      Rect.fromLTWH(500, 400, 800 / 2, 600 / 2),
+      const Rect.fromLTWH(500, 400, 800 / 2, 600 / 2),
       reason: 'the scene must be culled to where the camera actually ended up',
     );
   });

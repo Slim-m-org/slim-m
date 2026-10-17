@@ -150,13 +150,13 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
+          home: const Scaffold(
             body: SizedBox(
               width: 360,
               child: ForwardedMessageCard(
                 forwarded: forwardedFromWebhook,
-                body: const Text('the disk is nearly full'),
-                attachments: const [],
+                body: Text('the disk is nearly full'),
+                attachments: [],
                 currentChannelId: 'c-here',
               ),
             ),

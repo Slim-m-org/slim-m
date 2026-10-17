@@ -110,11 +110,11 @@ void main() {
 
   test('a live removal records with no actor - the frame carries none', () {
     dispatch(
-      api.CanvasObjectsRemoved(
+      const api.CanvasObjectsRemoved(
         channelId: 'c1',
         seq: 1,
         opId: 'op-1',
-        objectIds: const ['a', 'b'],
+        objectIds: ['a', 'b'],
       ),
     );
 
@@ -125,7 +125,12 @@ void main() {
 
   test('a live clear records with no actor', () {
     dispatch(
-      api.CanvasCleared(channelId: 'c1', seq: 1, opId: 'op-1', beforeSeq: 5),
+      const api.CanvasCleared(
+        channelId: 'c1',
+        seq: 1,
+        opId: 'op-1',
+        beforeSeq: 5,
+      ),
     );
 
     expect(log.entries.single.kind, CanvasActivityKind.cleared);
@@ -134,11 +139,11 @@ void main() {
 
   test('a live restore (non-empty ids) records with no actor', () {
     dispatch(
-      api.CanvasObjectsRestored(
+      const api.CanvasObjectsRestored(
         channelId: 'c1',
         seq: 1,
         opId: 'op-1',
-        objectIds: const ['a'],
+        objectIds: ['a'],
       ),
     );
 
@@ -159,11 +164,11 @@ void main() {
     );
 
     dispatchCanvasLiveEvent(
-      api.CanvasObjectsRestored(
+      const api.CanvasObjectsRestored(
         channelId: 'c1',
         seq: 1,
         opId: 'op-1',
-        objectIds: const ['a'],
+        objectIds: ['a'],
       ),
       paneChannelId: 'c1',
       sync: countingSync,
@@ -191,11 +196,11 @@ void main() {
   test('an empty-id restore defers to the feed and records nothing here - '
       'the feed will record it once it actually applies', () {
     dispatch(
-      api.CanvasObjectsRestored(
+      const api.CanvasObjectsRestored(
         channelId: 'c1',
         seq: 1,
         opId: 'op-1',
-        objectIds: const [],
+        objectIds: [],
       ),
     );
 
@@ -204,7 +209,7 @@ void main() {
 
   test('a live move records with no actor', () {
     dispatch(
-      api.CanvasObjectMoved(
+      const api.CanvasObjectMoved(
         channelId: 'c1',
         seq: 1,
         opId: 'op-1',
@@ -222,7 +227,7 @@ void main() {
 
   test('a live reorder records with no actor', () {
     document.applyPlaced(
-      CanvasStrokeInput(
+      const CanvasStrokeInput(
         id: 'a',
         seq: 1,
         zIndex: 1,
@@ -230,14 +235,14 @@ void main() {
         y: 0,
         w: 1,
         h: 1,
-        points: const [],
+        points: [],
         width: 0,
         colorKey: '',
         kind: CanvasObjectKind.image,
       ),
     );
     dispatch(
-      api.CanvasObjectReordered(
+      const api.CanvasObjectReordered(
         channelId: 'c1',
         seq: 1,
         opId: 'op-1',

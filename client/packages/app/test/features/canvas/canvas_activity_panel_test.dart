@@ -83,7 +83,7 @@ void main() {
     final log = CanvasActivityLog(isBlocked: (_) => false);
     log
       ..recordPlacedLive(
-        api.CanvasObject(
+        const api.CanvasObject(
           id: 'a',
           kind: 'stroke',
           zIndex: 1,
@@ -91,7 +91,7 @@ void main() {
           y: 0,
           w: 1,
           h: 1,
-          props: const {},
+          props: {},
           authorId: 'alice',
           seq: 1,
           createdAt: 0,

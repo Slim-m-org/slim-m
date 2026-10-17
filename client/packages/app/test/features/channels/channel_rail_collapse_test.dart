@@ -77,7 +77,7 @@ Future<ProviderContainer> _pump(
             inLabelledGroup,
             ChannelCategorySections(
               channels: channels,
-              categories: [
+              categories: const [
                 ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0),
               ],
               selectedId: selectedId,

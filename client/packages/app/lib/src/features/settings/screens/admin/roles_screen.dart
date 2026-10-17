@@ -36,12 +36,12 @@ class RolesScreen extends StatelessWidget {
   const RolesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => SettingsScreenScaffold(
+  Widget build(BuildContext context) => const SettingsScreenScaffold(
     title: 'Roles',
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     scrollable: false,
-    child: const RolesPane(),
+    child: RolesPane(),
   );
 }
 

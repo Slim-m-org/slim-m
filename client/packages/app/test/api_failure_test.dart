@@ -85,7 +85,7 @@ void main() {
   test('a forbidden that names missing permissions says which', () {
     final message = describeApiFailure(
       'save the permissions grid',
-      api.ForbiddenException(
+      const api.ForbiddenException(
         'cannot grant a permission you do not hold',
         missingPermissions: Perm.manageRoles,
       ),

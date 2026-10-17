@@ -51,8 +51,8 @@ Future<_Harness> _pump(
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => NewDeviceBannerHost(
-          child: const Scaffold(body: Center(child: Text('shell'))),
+        builder: (context, state) => const NewDeviceBannerHost(
+          child: Scaffold(body: Center(child: Text('shell'))),
         ),
       ),
       GoRoute(

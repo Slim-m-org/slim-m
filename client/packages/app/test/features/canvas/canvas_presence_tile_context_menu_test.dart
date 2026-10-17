@@ -79,7 +79,7 @@ void main() {
     (tester) async {
       final document = CanvasDocument()..setViewport(const Size(400, 400));
       document.applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 'a',
           seq: 1,
           zIndex: 1,
@@ -87,7 +87,7 @@ void main() {
           y: 50,
           w: 40,
           h: 40,
-          points: const [],
+          points: [],
           width: 0,
           colorKey: 'shape',
           kind: CanvasObjectKind.shape,
@@ -117,7 +117,7 @@ void main() {
     (tester) async {
       final document = CanvasDocument()..setViewport(const Size(400, 400));
       document.applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 'a',
           seq: 1,
           zIndex: 1,
@@ -125,7 +125,7 @@ void main() {
           y: 300,
           w: 40,
           h: 40,
-          points: const [],
+          points: [],
           width: 0,
           colorKey: 'shape',
           kind: CanvasObjectKind.shape,

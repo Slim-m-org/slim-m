@@ -10,7 +10,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.dart';
 import 'package:slimm_data/data.dart' show Channel;
 
-final _general = Channel(
+final _general = const Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',

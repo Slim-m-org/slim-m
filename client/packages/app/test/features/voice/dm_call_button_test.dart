@@ -72,7 +72,7 @@ void main() {
   testWidgets('an ordinary DM shows the call button', (tester) async {
     final setup = await _pumpButton(
       tester,
-      api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
+      const api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
     );
 
     expect(find.bySemanticsLabel('Call'), findsOneWidget);
@@ -82,7 +82,7 @@ void main() {
   testWidgets('a text channel shows no call button', (tester) async {
     final setup = await _pumpButton(
       tester,
-      api.Channel(id: 'c-1', name: 'general', kind: 'text', createdAt: 0),
+      const api.Channel(id: 'c-1', name: 'general', kind: 'text', createdAt: 0),
     );
 
     expect(find.bySemanticsLabel('Call'), findsNothing);
@@ -92,7 +92,12 @@ void main() {
   testWidgets('a voice channel shows no call button', (tester) async {
     final setup = await _pumpButton(
       tester,
-      api.Channel(id: 'c-1', name: 'general', kind: 'voice', createdAt: 0),
+      const api.Channel(
+        id: 'c-1',
+        name: 'general',
+        kind: 'voice',
+        createdAt: 0,
+      ),
     );
 
     expect(find.bySemanticsLabel('Call'), findsNothing);
@@ -102,7 +107,7 @@ void main() {
   testWidgets('a personal space shows no call button', (tester) async {
     final setup = await _pumpButton(
       tester,
-      api.Channel(
+      const api.Channel(
         id: 'dm-1',
         name: personalSpaceName,
         kind: 'dm',
@@ -124,7 +129,7 @@ void main() {
   ) async {
     final setup = await _pumpButton(
       tester,
-      api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
+      const api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
     );
 
     expect(setup.container.read(dmCallOpenProvider), isNull);

@@ -234,7 +234,7 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Crop your picture', style: AppText.title),
+            const Text('Crop your picture', style: AppText.title),
             const SizedBox(height: AppSpacing.s4),
             Text(
               'Drag to move, pinch to zoom.',

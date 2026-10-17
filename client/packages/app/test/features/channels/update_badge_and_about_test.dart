@@ -52,7 +52,7 @@ void main() {
   group('the rail gear badge', () {
     testWidgets('is absent while nothing is waiting', (tester) async {
       await tester.pumpWidget(
-        _hosting(Builder(builder: railSettingsButton), const []),
+        _hosting(const Builder(builder: railSettingsButton), const []),
       );
 
       expect(find.bySemanticsLabel('Personal settings'), findsOneWidget);
@@ -63,7 +63,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _hosting(Builder(builder: railSettingsButton), [
+        _hosting(const Builder(builder: railSettingsButton), [
           inSessionUpdateProvider.overrideWith((ref) => _update),
         ]),
       );
@@ -79,7 +79,7 @@ void main() {
     testWidgets('survives the banner being dismissed', (tester) async {
       // The state a dismissal leaves: update known, banner suppressed.
       await tester.pumpWidget(
-        _hosting(Builder(builder: railSettingsButton), [
+        _hosting(const Builder(builder: railSettingsButton), [
           inSessionUpdateProvider.overrideWith((ref) => _update),
           dismissedBannerVersionProvider.overrideWith((ref) => '0.79.0'),
         ]),

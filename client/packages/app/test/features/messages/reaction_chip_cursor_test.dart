@@ -22,12 +22,8 @@ Widget _inSelectionArea() => MaterialApp(
         children: [
           const Text('some selectable message text'),
           ReactionsRow(
-            reactions: [
-              const api.ReactionSummary(
-                emoji: '\u{1F44D}',
-                count: 1,
-                reacted: false,
-              ),
+            reactions: const [
+              api.ReactionSummary(emoji: '\u{1F44D}', count: 1, reacted: false),
             ],
             onReactionTap: (_) {},
           ),

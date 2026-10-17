@@ -32,7 +32,7 @@ final _png = Uint8List.fromList(
   ),
 );
 
-final _partyParrot = api.CustomEmoji(
+final _partyParrot = const api.CustomEmoji(
   id: 'e-party_parrot',
   name: 'party_parrot',
   uploaderId: 'u1',

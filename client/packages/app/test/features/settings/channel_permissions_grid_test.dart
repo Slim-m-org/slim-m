@@ -37,7 +37,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = Channel(
+final _channel = const Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -120,7 +120,7 @@ void main() {
             ),
           ],
           members: [
-            api.UserProfile(
+            const api.UserProfile(
               id: 'bot-1',
               username: 'sample_bot',
               displayName: 'sample_bot',

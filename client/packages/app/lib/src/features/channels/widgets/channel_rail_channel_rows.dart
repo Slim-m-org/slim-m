@@ -130,7 +130,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
     // slot keeps its width either way; nothing reflows.
     final shown = _hovered || _kebabFocused;
     final kebab = Padding(
-      padding: EdgeInsets.only(right: trailingPad),
+      padding: const EdgeInsets.only(right: trailingPad),
       child: SizedBox(
         height: AppListRow.heightFor(context),
         child: Center(

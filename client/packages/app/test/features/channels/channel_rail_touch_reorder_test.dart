@@ -44,8 +44,8 @@ Channel _channel(String id, String category, int position) => Channel(
 );
 
 final _categories = [
-  ChannelCategoryRow(id: 'cat-a', name: 'Alpha', position: 0),
-  ChannelCategoryRow(id: 'cat-b', name: 'Beta', position: 1),
+  const ChannelCategoryRow(id: 'cat-a', name: 'Alpha', position: 0),
+  const ChannelCategoryRow(id: 'cat-b', name: 'Beta', position: 1),
 ];
 
 final _channels = [
