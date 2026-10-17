@@ -248,7 +248,7 @@ impl Store {
         let mut included = page.len();
         for (i, row) in page.iter().enumerate() {
             let bytes = if row.kind == "place" {
-                row.obj_props.as_ref().map_or(0, |props| props.len())
+                row.obj_props.as_ref().map_or(0, std::string::String::len)
             } else {
                 target_counts.get(&row.seq).copied().unwrap_or(0) as usize
                     * CANVAS_OP_TARGET_BYTES_ESTIMATE

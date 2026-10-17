@@ -184,7 +184,7 @@ fn collapse_repeated_content(ops: &mut [MessageOpDto]) {
 fn trim_to_budget(ops: &mut Vec<MessageOpDto>, budget: &mut usize) -> bool {
     let mut kept = 0usize;
     for (i, op) in ops.iter().enumerate() {
-        let cost = op.content.as_ref().map_or(0, |c| c.len()) + 64;
+        let cost = op.content.as_ref().map_or(0, std::string::String::len) + 64;
         if i > 0 && cost > *budget {
             break;
         }
