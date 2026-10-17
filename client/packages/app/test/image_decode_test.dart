@@ -5,7 +5,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/image_decode.dart';
+import 'package:slimm_app/src/features/messages/widgets/image_decode.dart';
 
 Future<int> edgeAt(
   WidgetTester tester,

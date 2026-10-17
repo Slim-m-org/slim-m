@@ -16,9 +16,9 @@ import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/widgets/animated_menu_portal.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

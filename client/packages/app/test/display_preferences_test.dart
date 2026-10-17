@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/display_preferences.dart';
-import 'package:slimm_app/src/widgets/message_row_identity.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 ProviderContainer _container() {

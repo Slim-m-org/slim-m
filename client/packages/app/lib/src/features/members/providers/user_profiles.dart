@@ -26,7 +26,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../widgets/author_label.dart' show AuthorResolution;
+import '../../messages/widgets/author_label.dart' show AuthorResolution;
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/rate_limit_retry.dart';

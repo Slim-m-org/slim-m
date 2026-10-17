@@ -11,8 +11,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../features/members/providers/user_profiles.dart';
 import '../../widgets/analytics_bar_chart.dart';
-import '../../widgets/attachment_format.dart' show formatByteSize;
-import '../../widgets/author_label.dart';
+import '../../features/messages/widgets/attachment_format.dart'
+    show formatByteSize;
+import '../../features/messages/widgets/author_label.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_meter_row.dart';
 import '../../widgets/settings_section_header.dart';

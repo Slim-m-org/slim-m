@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/call_mini_player.dart';
 import 'double_click_detector.dart';
 import 'fullscreen_video_overlay.dart';
-import 'media_label.dart';
+import '../features/messages/widgets/media_label.dart';
 import 'popout_video_button.dart';
 
 /// A dark stage with the share inside it, labelled on hover.

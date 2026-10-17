@@ -19,7 +19,7 @@ import '../providers/channel_order_controller.dart'
     show categoryOrderControllerProvider;
 import '../providers/collapsed_categories_preference.dart';
 import '../../members/providers/member_presence.dart' show presenceSeedProvider;
-import '../../../providers/unread_indicator_rules.dart';
+import '../../messages/providers/unread_indicator_rules.dart';
 import '../../../routing/routes.dart';
 import 'category_header_menu.dart';
 import 'channel_grouping.dart';

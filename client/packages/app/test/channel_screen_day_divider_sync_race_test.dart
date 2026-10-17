@@ -35,7 +35,7 @@ import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dar
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

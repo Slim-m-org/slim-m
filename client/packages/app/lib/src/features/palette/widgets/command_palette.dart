@@ -23,7 +23,7 @@ import 'package:slimm_platform/platform.dart';
 import '../../../providers/admin_providers.dart';
 import '../../../routing/modal_page.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
-import '../../../providers/message_search.dart';
+import '../../messages/providers/message_search.dart';
 import '../../../providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
 import '../../members/providers/user_profiles.dart';

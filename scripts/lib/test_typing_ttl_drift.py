@@ -3,7 +3,7 @@
 
 `DEFAULT_TTL` in `crates/slimm-server/src/typing.rs` is how long a typing
 state survives without a refresh. `_serverTypingTtlSeconds` in
-`client/packages/app/lib/src/providers/typing_controller.dart` mirrors it by
+`client/packages/app/lib/src/features/messages/providers/typing_controller.dart` mirrors it by
 hand, and the client's `_refreshEvery` is derived from that mirror at compile
 time so there is one number to change on the Dart side.
 
@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SERVER_TYPING = REPO_ROOT / "crates/slimm-server/src/typing.rs"
 CLIENT_TYPING = (
     REPO_ROOT
-    / "client/packages/app/lib/src/providers/typing_controller.dart"
+    / "client/packages/app/lib/src/features/messages/providers/typing_controller.dart"
 )
 
 SERVER_TTL = re.compile(

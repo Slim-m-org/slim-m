@@ -36,7 +36,7 @@ import 'module_scene_pacing.dart';
 import 'module_scene_queue.dart';
 import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
-import '../../../widgets/swipe_to_reply.dart';
+import '../../messages/widgets/swipe_to_reply.dart';
 
 /// Runs one action against the module and returns its raw result. The action
 /// and the current scene state are already packed into [input] as

@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
-import 'package:slimm_app/src/widgets/jump_to_latest_button.dart';
+import 'package:slimm_app/src/features/messages/widgets/jump_to_latest_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

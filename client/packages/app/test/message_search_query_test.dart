@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/message_search_query.dart';
+import 'package:slimm_app/src/features/messages/providers/message_search_query.dart';
 
 void main() {
   test('a plain query with no operators is untouched free text', () {

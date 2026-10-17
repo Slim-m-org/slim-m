@@ -52,7 +52,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/message_extras.dart';
+import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 
 /// One cache entry of the shape a real one has: a couple of reactions, which is
 /// what most messages in a busy channel carry.

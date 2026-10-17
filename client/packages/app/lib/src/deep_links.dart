@@ -40,7 +40,7 @@ import 'providers/providers.dart';
 import 'routing/router.dart';
 import 'routing/routes.dart';
 import 'spotify/spotify_callback.dart';
-import 'widgets/message_jump.dart';
+import 'features/messages/widgets/message_jump.dart';
 
 /// The invite a tapped link carried, waiting for the onboarding screen to
 /// consume it (it opens the redeem dialog prefilled and resets this to

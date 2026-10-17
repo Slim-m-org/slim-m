@@ -17,7 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:slimm_app/src/widgets/attachment_video_fullscreen.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_video_fullscreen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness({required Player player, required bool touchGestures}) {

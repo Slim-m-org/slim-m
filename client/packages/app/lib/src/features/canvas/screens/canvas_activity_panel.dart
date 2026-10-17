@@ -14,7 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/user_profiles.dart';
 import '../../../format.dart';
-import '../../../widgets/author_label.dart';
+import '../../messages/widgets/author_label.dart';
 import 'canvas_activity_log.dart';
 
 /// Renders nothing visible, but its `Semantics` label changes on every

@@ -12,8 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/providers/display_density.dart';
 import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

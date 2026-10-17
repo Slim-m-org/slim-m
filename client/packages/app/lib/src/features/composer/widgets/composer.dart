@@ -19,16 +19,17 @@ import '../../channels/providers/channel_permissions.dart';
 import '../providers/composer_attachment_drop.dart';
 import '../providers/composer_focus.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
-import '../../../providers/message_actions.dart' show lastOwnMessageInChannel;
-import '../../../providers/message_editing.dart';
+import '../../messages/providers/message_actions.dart'
+    show lastOwnMessageInChannel;
+import '../../messages/providers/message_editing.dart';
 import '../../modules/providers/app_launch.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/breakpoints.dart';
 import '../providers/slash_command.dart';
 import '../../channels/providers/slow_mode_controller.dart';
-import '../../../providers/typing_controller.dart';
+import '../../messages/providers/typing_controller.dart';
 import '../../modules/widgets/app_launcher_sheet.dart';
-import '../../../widgets/attachment_picker.dart';
+import '../../messages/widgets/attachment_picker.dart';
 import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import 'composer_action_bar.dart';
 import 'composer_attachments.dart';
@@ -53,7 +54,7 @@ import 'composer_picker_panel.dart'
 import 'gif_picker.dart';
 import 'poll_composer_sheet.dart';
 import '../../../widgets/text_insert.dart';
-import '../../../widgets/typing_indicator.dart';
+import '../../messages/widgets/typing_indicator.dart';
 
 class Composer extends ConsumerStatefulWidget {
   const Composer({

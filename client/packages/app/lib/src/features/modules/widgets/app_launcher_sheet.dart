@@ -23,7 +23,7 @@ import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/app_launch.dart';
-import '../../../providers/message_extras.dart';
+import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 

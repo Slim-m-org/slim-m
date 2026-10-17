@@ -10,13 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
-import 'package:slimm_app/src/providers/ephemeral_messages.dart';
+import 'package:slimm_app/src/features/messages/providers/ephemeral_messages.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/ephemeral_row.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_transcript.dart';
+import 'package:slimm_app/src/features/messages/widgets/ephemeral_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_transcript.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

@@ -13,10 +13,10 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/display_density.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
-import 'package:slimm_app/src/widgets/pinned_messages_sheet.dart';
-import 'package:slimm_app/src/widgets/saved_messages_sheet.dart';
-import 'package:slimm_app/src/widgets/thread_parent_card.dart';
-import 'package:slimm_app/src/widgets/threads_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart';
+import 'package:slimm_app/src/features/messages/widgets/threads_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

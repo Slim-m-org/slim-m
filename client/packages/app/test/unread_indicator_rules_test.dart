@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/unread_indicator_rules.dart';
+import 'package:slimm_app/src/features/messages/providers/unread_indicator_rules.dart';
 
 UnreadIndicator _for(
   api.NotificationPreference? override, {

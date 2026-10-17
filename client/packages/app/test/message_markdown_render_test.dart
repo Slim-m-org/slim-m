@@ -7,9 +7,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_markdown_blocks.dart';
-import 'package:slimm_app/src/widgets/message_spoiler.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_markdown_blocks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_spoiler.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness(Widget child) => MaterialApp(

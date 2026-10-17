@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/attachment_image_states.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_image_states.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';

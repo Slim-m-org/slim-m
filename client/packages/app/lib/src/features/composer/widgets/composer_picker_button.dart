@@ -21,7 +21,7 @@ import '../../../widgets/animated_menu_portal.dart';
 import 'composer_gif_command.dart';
 import 'composer_picker_layout.dart';
 import 'composer_picker_panel.dart';
-import '../../../widgets/message_context_menu_layout.dart'
+import '../../messages/widgets/message_context_menu_layout.dart'
     show menuScreenMargin;
 
 class ComposerPickerButton extends StatefulWidget {

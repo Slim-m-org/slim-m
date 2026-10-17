@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_inline.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
 
 void main() {
   test('a message with no URL yields nothing', () {

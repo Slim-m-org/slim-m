@@ -9,7 +9,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/media_preferences.dart';
+import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
 void main() {

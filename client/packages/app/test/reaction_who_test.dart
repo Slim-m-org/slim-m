@@ -15,13 +15,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
+import 'package:slimm_app/src/features/messages/providers/message_extras.dart'
+    show MessageExtras;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_names.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/widgets/reaction_users_list.dart';
-import 'package:slimm_app/src/widgets/reactions_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/reaction_users_list.dart';
+import 'package:slimm_app/src/features/messages/widgets/reactions_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

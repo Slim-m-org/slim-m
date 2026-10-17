@@ -9,11 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
-import 'package:slimm_app/src/widgets/message_hover_toolbar.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/widgets/message_row_identity.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_hover_toolbar.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

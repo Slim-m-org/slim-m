@@ -44,7 +44,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 
-import 'message_extras.dart';
+import '../features/messages/providers/message_extras.dart';
 import '../features/channels/providers/mounted_channels.dart';
 import 'providers.dart';
 import 'retention_policy.dart';

@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_markdown_blocks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_markdown_blocks.dart';
 
 void main() {
   test('plain text with no markers is a single paragraph, unchanged', () {

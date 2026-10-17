@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_transcript_widgets.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_transcript_widgets.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness(Widget child) => MaterialApp(

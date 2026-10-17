@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/providers/message_actions.dart';
+import 'package:slimm_app/src/features/messages/providers/message_actions.dart';
 
 import 'message_row_harness.dart';
 

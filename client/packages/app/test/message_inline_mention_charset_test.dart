@@ -15,7 +15,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_inline.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
 
 void main() {
   final repoRoot = _findRepoRoot(Directory.current);

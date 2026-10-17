@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/image_downscale.dart';
+import '../../messages/widgets/image_downscale.dart';
 
 /// The edge of the encoded result, in pixels.
 ///

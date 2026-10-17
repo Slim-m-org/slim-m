@@ -8,7 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/jump_to_latest_button.dart';
+import 'package:slimm_app/src/features/messages/widgets/jump_to_latest_button.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A bound comfortably above the touch-target floor but nowhere near a

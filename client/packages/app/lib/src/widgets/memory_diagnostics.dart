@@ -18,7 +18,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import 'attachment_format.dart';
+import '../features/messages/widgets/attachment_format.dart';
 import 'settings_meter_row.dart';
 import 'settings_refresh_button.dart';
 import 'settings_section_header.dart';

@@ -14,11 +14,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/attachment_gallery.dart';
-import 'package:slimm_app/src/widgets/attachment_image_states.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_gallery.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_image_states.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'support/fake_sync.dart';
 

@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart'
     show spaceAnalyticsProvider;
-import 'package:slimm_app/src/providers/ephemeral_messages.dart'
+import 'package:slimm_app/src/features/messages/providers/ephemeral_messages.dart'
     show EphemeralMessagesController, ephemeralMessagesProvider;
 import 'package:slimm_app/src/providers/sync_controller.dart'
     show SyncStatus, initialSyncCompleteProvider, syncControllerProvider;

@@ -15,9 +15,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/attachment_bytes.dart';
-import 'package:slimm_app/src/widgets/attachment_view.dart';
-import 'package:slimm_app/src/widgets/fullscreen_image_viewer.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
+import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A 64x64 solid PNG. Real bytes, so `Image.memory` decodes them, and big

@@ -14,7 +14,7 @@ This record does two things: re-verifies that the precondition (nothing persists
 The third one is new since the debt note was last written, and it does not reopen anything: `client/packages/data/test/local_schema_reconciliation_test.dart` already names it and explains why in its own doc comment - a category is replaced wholesale on every channel refresh, the same shape `channels` itself already has, never reconciled incrementally the way a reaction, pin or poll vote would need to be.
 Nothing else has been added to that annotation.
 
-`MessageExtrasController` (`client/packages/app/lib/src/providers/message_extras.dart`) still holds reactions, attachments, polls and thread reply summaries in a plain Riverpod `Map`, rebuilt from whichever REST fetch most recently returned a message, and cleared only on sign-out.
+`MessageExtrasController` (`client/packages/app/lib/src/features/messages/providers/message_extras.dart`) still holds reactions, attachments, polls and thread reply summaries in a plain Riverpod `Map`, rebuilt from whichever REST fetch most recently returned a message, and cleared only on sign-out.
 `PinsController` (`client/packages/app/lib/src/features/channels/providers/pins_controller.dart`) is still `StateNotifierProvider.autoDispose.family`, refetching a channel's whole pin list on construction and on every live `MessagePinned`/`MessageUnpinned` event.
 `PollView` and the composer both read a message's `poll` field straight off `MessageExtras`; there is no separate poll controller and no separate local storage for a vote.
 

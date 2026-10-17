@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_api/api.dart' show InputLimits;
 
-import '../../widgets/image_decode.dart';
+import '../../features/messages/widgets/image_decode.dart';
 import '../../features/emoji/widgets/standard_emoji.dart';
 import 'emoji_bulk_plan.dart';
 import 'emoji_name.dart';

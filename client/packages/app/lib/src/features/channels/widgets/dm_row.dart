@@ -40,7 +40,7 @@ import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../../providers/dm_call_activity.dart';
 import '../providers/dms.dart';
-import '../../../providers/unread_indicator_rules.dart';
+import '../../messages/providers/unread_indicator_rules.dart';
 import '../../../routing/routes.dart';
 import '../../../screens/dm_call_pane.dart' show dmCallOpenProvider;
 import '../../../widgets/context_menu_region.dart';

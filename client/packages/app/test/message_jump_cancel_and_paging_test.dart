@@ -5,8 +5,8 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/message_jump.dart';
-import 'package:slimm_app/src/providers/message_page_size.dart';
+import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
+import 'package:slimm_app/src/features/messages/providers/message_page_size.dart';
 
 import 'channel_history_harness.dart';
 

@@ -12,10 +12,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
-import 'package:slimm_app/src/providers/message_page_size.dart';
+import 'package:slimm_app/src/features/messages/providers/message_page_size.dart';
 import 'package:slimm_app/src/providers/retention_policy.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/message_transcript_widgets.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_transcript_widgets.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

@@ -23,8 +23,8 @@ import '../../../screens/dm_call_button.dart';
 import '../../../screens/voice_text_pane.dart'
     show VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';
-import '../../../widgets/pinned_messages_sheet.dart';
-import '../../../widgets/threads_sheet.dart';
+import '../../messages/widgets/pinned_messages_sheet.dart';
+import '../../messages/widgets/threads_sheet.dart';
 
 /// The compact conversation app bar: back, the channel's name and topic, and
 /// the search, pins and members actions.

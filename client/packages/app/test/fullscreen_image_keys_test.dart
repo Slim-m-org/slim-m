@@ -12,8 +12,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/attachment_bytes.dart';
-import 'package:slimm_app/src/widgets/fullscreen_image_viewer.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 final _png = base64Decode(

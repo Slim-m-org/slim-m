@@ -16,10 +16,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/downloads/transfers_banner.dart';
-import 'package:slimm_app/src/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/attachment_video_player.dart';
-import 'package:slimm_app/src/widgets/attachment_view.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_video_player.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'downloads_harness.dart';

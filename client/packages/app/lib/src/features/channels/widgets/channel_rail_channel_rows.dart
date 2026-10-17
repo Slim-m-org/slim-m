@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
-import '../../../providers/unread_indicator_rules.dart';
+import '../../messages/providers/unread_indicator_rules.dart';
 import '../../../providers/voice_flags.dart';
 import '../../../providers/voice_roster.dart';
 import 'channel_kind_icon.dart';

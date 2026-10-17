@@ -14,13 +14,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../diagnostics/debug_log.dart';
 import 'app_lock_preference.dart';
-import 'attachment_preview_quality.dart';
+import '../features/messages/providers/attachment_preview_quality.dart';
 import 'desktop_splash_preference.dart';
 import 'display_density.dart';
 import 'display_preferences.dart';
-import 'image_cache_preference.dart';
-import 'media_preferences.dart';
-import 'message_page_size.dart';
+import '../features/messages/providers/image_cache_preference.dart';
+import '../features/messages/providers/media_preferences.dart';
+import '../features/messages/providers/message_page_size.dart';
 import 'preference_controller.dart';
 import 'providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';

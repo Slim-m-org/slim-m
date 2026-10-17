@@ -7,7 +7,7 @@ Date: 2026-09-23
 
 slim-m has no incoming webhooks.
 `webhook` appears zero times in `crates/slimm-server/src/` and zero times in `schema/openapi.yaml`.
-The only traces anywhere are aspirational: `docs/PRODUCT.md` names webhooks as "the sanctioned extension point instead of a plugin system", `docs/design/feature-exploration.md` calls a tightly scoped webhook surface one of the strongest additions, and `client/packages/app/lib/src/widgets/message_row.dart` carries a `isWebhook` flag with a `TODO(ui-backend)` saying in as many words that there is no webhook feature in the product at all, wired to an `AppBadge` labelled `Webhook` that no real call site can ever set true.
+The only traces anywhere are aspirational: `docs/PRODUCT.md` names webhooks as "the sanctioned extension point instead of a plugin system", `docs/design/feature-exploration.md` calls a tightly scoped webhook surface one of the strongest additions, and `client/packages/app/lib/src/features/messages/widgets/message_row.dart` carries a `isWebhook` flag with a `TODO(ui-backend)` saying in as many words that there is no webhook feature in the product at all, wired to an `AppBadge` labelled `Webhook` that no real call site can ever set true.
 
 The design has been promised for a year and the badge has been sitting there waiting for it.
 

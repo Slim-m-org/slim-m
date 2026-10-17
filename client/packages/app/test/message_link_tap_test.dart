@@ -18,10 +18,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/message_link.dart';
 import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
-import 'package:slimm_app/src/providers/message_jump.dart';
+import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _here = 'https://slim.example';

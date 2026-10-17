@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
 import '../providers/desktop_splash_preference.dart';
-import '../providers/message_page_size.dart';
+import '../features/messages/providers/message_page_size.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'start_on_login_row.dart';

@@ -25,7 +25,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../features/modules/providers/app_launches.dart';
-import '../providers/message_extras.dart';
+import '../features/messages/providers/message_extras.dart';
 import '../features/modules/widgets/module_command_output.dart';
 
 class AppSurfaceView extends ConsumerStatefulWidget {

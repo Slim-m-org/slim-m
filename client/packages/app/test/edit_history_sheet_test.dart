@@ -23,8 +23,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/edit_history_sheet.dart';
-import 'package:slimm_app/src/widgets/message_row_parts.dart';
+import 'package:slimm_app/src/features/messages/widgets/edit_history_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_parts.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _tokens = TokenPair(

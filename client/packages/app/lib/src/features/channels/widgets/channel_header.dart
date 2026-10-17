@@ -23,8 +23,8 @@ import '../../../screens/dm_call_button.dart';
 import '../../../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';
 import '../../members/widgets/member_pane.dart';
-import '../../../widgets/pinned_messages_sheet.dart';
-import '../../../widgets/threads_sheet.dart';
+import '../../messages/widgets/pinned_messages_sheet.dart';
+import '../../messages/widgets/threads_sheet.dart';
 
 /// How much of the header a channel name may take before it has to elide, so
 /// a long one cannot crowd the topic out entirely. Only applies when there is

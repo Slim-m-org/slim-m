@@ -17,7 +17,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/author_label.dart';
+import 'package:slimm_app/src/features/messages/widgets/author_label.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 api.UserProfile _profile({bool isBot = false, bool isWebhook = false}) =>

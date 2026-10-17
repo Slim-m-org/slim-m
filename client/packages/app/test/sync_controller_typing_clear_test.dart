@@ -21,7 +21,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/typing_controller.dart';
+import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
 import 'package:slimm_platform/platform.dart';
 
 const _tokens = TokenPair(

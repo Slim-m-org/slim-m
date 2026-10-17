@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../api_failure.dart';
-import 'pending_interactions.dart';
+import '../features/messages/providers/pending_interactions.dart';
 import 'providers.dart';
 
 /// How long a press waits for the bot before it is shown as failed.

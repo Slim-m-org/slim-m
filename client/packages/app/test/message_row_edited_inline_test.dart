@@ -10,9 +10,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

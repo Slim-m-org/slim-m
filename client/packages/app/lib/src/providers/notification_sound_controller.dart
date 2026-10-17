@@ -37,7 +37,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../audio/notification_sound.dart';
 import 'dm_call_ring_controller.dart';
 import 'live_events.dart';
-import 'message_alert_policy.dart';
+import '../features/messages/providers/message_alert_policy.dart';
 import 'notification_sound_rules.dart';
 import 'notification_sound_settings.dart';
 import 'providers.dart';

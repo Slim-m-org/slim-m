@@ -19,7 +19,7 @@ import '../providers/collapsed_categories_preference.dart';
 import 'category_permissions_sheet.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'manage_category_sheet.dart';
-import '../../../widgets/mark_read_action.dart';
+import '../../messages/widgets/mark_read_action.dart';
 import 'row_menu_notifications.dart';
 
 class CategoryHeaderMenu extends ConsumerWidget {

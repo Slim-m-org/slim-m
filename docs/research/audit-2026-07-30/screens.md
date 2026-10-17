@@ -53,7 +53,7 @@ Note the project's own notes are stale here and claim role-granting invites have
 `listMembers()` is called with no paging, so on a 51+ member deployment the rail reads "50 members" and the member pane "MEMBERS · 50", both stated as real counts, and everyone past the first page is unreachable - which is also the only route to a DM.
 Invisible on the owner's two-member instance, which is why it will ship.
 
-**Scrolling up stops at whatever the local store holds, and the UI asserts that is the beginning** (medium) - `client/packages/app/lib/src/widgets/message_transcript.dart:126`.
+**Scrolling up stops at whatever the local store holds, and the UI asserts that is the beginning** (medium) - `client/packages/app/lib/src/features/messages/widgets/message_transcript.dart:126`.
 `listMessages`'s `before` cursor has zero call sites and there is no scroll trigger.
 The recorded gap is pagination; the part worth acting on independently is that `ChannelStartHeader` and a day divider render past the oldest loaded row, so a truncated history states "This is the start of the #general channel."
 
@@ -249,7 +249,7 @@ The row already knows the reason.
 **Every invite row's destructive button reports the same name** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:312`.
 "Revoke invite" with no code in it, and the card carries no group label, so control-by-control navigation gives N identical buttons; the confirmation dialog does quote the code, which is the mitigation.
 
-**A message timestamp carries no full date on hover or in semantics** (low) - `client/packages/app/lib/src/widgets/message_row_identity.dart:105`.
+**A message timestamp carries no full date on hover or in semantics** (low) - `client/packages/app/lib/src/features/messages/widgets/message_row_identity.dart:105`.
 A bare `HH:mm` is unresolvable on its own, and the day divider that would resolve it may be many screens above.
 The 24-hour fixed-width format itself is a documented layout constraint and should not be changed.
 
@@ -346,10 +346,10 @@ Conversely, resolving a report goes through the same danger helper (`reports_scr
 
 **Header action order differs between desktop and phone** - `channel_header.dart:96` against `compact_channel_app_bar.dart:82`: pin/search/members against search/pin/members, for no reason either width motivates.
 
-**Day dividers, the unread divider and the start header ignore `kMessageColumnMax`** - `client/packages/app/lib/src/widgets/message_row_parts.dart:234`.
+**Day dividers, the unread divider and the start header ignore `kMessageColumnMax`** - `client/packages/app/lib/src/features/messages/widgets/message_row_parts.dart:234`.
 Three separators drawn wider than the column they divide, and the gap grows without bound on a wide monitor - the same bug the message body already had and fixed, in the widgets split out afterwards.
 
-**The transcript flips layout between zero and one message** - `client/packages/app/lib/src/widgets/message_transcript.dart:108`.
+**The transcript flips layout between zero and one message** - `client/packages/app/lib/src/features/messages/widgets/message_transcript.dart:108`.
 The empty case takes a scroll view and the non-empty case a reversed list, so sending the first message moves the welcome block from the top of the pane to the bottom.
 
 **Off-grid and doubled spacing**: two stacked spacers where the camera pre-toggle was removed (`voice_screen.dart:147`), two stacked s8 spacers straddling a conditional chip on sign-in (`sign_in_screen.dart:266`) - the shape `ServerNotice` was refactored to avoid - a 6px gap in a file otherwise on the 4dp grid (`onboarding_shell.dart:266`), 10/6 padding on nav group labels putting them 2px proud of every row they head (`settings_panes.dart:238`), a trailing spacer under the last emoji row (`emoji_screen.dart:50`), and three sites shrinking `AppText.code` by hand while keeping the letter-spacing computed for 13.5px (`onboarding_shell.dart:259`).

@@ -22,7 +22,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

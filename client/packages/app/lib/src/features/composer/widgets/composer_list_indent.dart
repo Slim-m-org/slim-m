@@ -9,7 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../../widgets/message_markdown_blocks.dart' show kMaxListDepth;
+import '../../messages/widgets/message_markdown_blocks.dart' show kMaxListDepth;
 
 final RegExp _listLine = RegExp(r'^( {0,5})(?:([-*])|(\d+)\.)([ \t]+)(.*)$');
 

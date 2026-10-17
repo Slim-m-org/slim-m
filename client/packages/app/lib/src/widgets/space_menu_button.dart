@@ -16,7 +16,7 @@ import '../routing/routes.dart';
 import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
 import '../features/channels/widgets/row_menu_notifications.dart';
-import 'saved_messages_sheet.dart';
+import '../features/messages/widgets/saved_messages_sheet.dart';
 import 'space_settings_section.dart';
 
 /// Every member gets it; "Space settings" only with a bit in [spaceSettingsReachable].

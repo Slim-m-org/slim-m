@@ -20,7 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../ids.dart';
-import '../../../providers/message_extras.dart';
+import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../emoji/widgets/emoji_picker.dart';
 import 'poll_view.dart';

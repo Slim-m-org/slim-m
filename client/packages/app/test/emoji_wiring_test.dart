@@ -34,7 +34,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

@@ -14,9 +14,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/attachment_preview_quality.dart';
-import '../providers/image_cache_preference.dart';
-import '../providers/media_preferences.dart';
+import '../features/messages/providers/attachment_preview_quality.dart';
+import '../features/messages/providers/image_cache_preference.dart';
+import '../features/messages/providers/media_preferences.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 

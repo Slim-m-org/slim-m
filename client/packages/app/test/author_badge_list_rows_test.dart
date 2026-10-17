@@ -22,9 +22,9 @@ import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
-import 'package:slimm_app/src/widgets/pinned_messages_sheet.dart';
-import 'package:slimm_app/src/widgets/saved_messages_sheet.dart';
-import 'package:slimm_app/src/widgets/threads_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dart';
+import 'package:slimm_app/src/features/messages/widgets/threads_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

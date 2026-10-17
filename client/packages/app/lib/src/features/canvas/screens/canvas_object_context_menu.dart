@@ -123,7 +123,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/context_menu_focus.dart';
 import 'canvas_object_locks.dart';
-import '../../../widgets/message_context_menu_layout.dart';
+import '../../messages/widgets/message_context_menu_layout.dart';
 
 /// A request to open [CanvasObjectContextMenu] for a specific object with no
 /// pointer position behind it - see this file's own doc for the keyboard and

@@ -16,8 +16,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
-import 'package:slimm_app/src/widgets/transcript_selection.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/transcript_selection.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// Drives the real `selectAll` + copy path a Ctrl+A/Ctrl+C would, through

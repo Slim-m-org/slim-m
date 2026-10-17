@@ -14,9 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/providers/message_selection.dart';
+import 'package:slimm_app/src/features/messages/providers/message_selection.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_message_actions.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

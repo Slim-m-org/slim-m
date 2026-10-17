@@ -11,7 +11,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../providers/message_search.dart';
+import '../../messages/providers/message_search.dart';
 
 /// Hits come straight from the server (`api.Message`), never the local store's
 /// own `Message`: a search result was not necessarily ever written locally.

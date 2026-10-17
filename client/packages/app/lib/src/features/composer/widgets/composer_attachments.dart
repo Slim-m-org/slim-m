@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../api_failure.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart';
-import '../../../widgets/attachment_format.dart';
+import '../../messages/widgets/attachment_format.dart';
 import '../../../widgets/transfer_meter.dart';
 
 /// What an upload reads from: held bytes for a small pick, or a re-openable

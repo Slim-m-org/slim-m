@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/reaction_users_list.dart';
+import 'package:slimm_app/src/features/messages/widgets/reaction_users_list.dart';
 
 void main() {
   test('fewer loaded names than the count never indexes past the list', () {

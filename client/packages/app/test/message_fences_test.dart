@@ -6,7 +6,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_fences.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_fences.dart';
 
 void main() {
   test('a message with no fence is a single text block', () {

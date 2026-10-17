@@ -27,7 +27,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
-import '../../widgets/attachment_format.dart' show formatByteSize;
+import '../../features/messages/widgets/attachment_format.dart'
+    show formatByteSize;
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_meter_row.dart';

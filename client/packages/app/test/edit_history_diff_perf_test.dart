@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/edit_history_diff.dart';
+import 'package:slimm_app/src/features/messages/widgets/edit_history_diff.dart';
 
 void main() {
   test('a one-word edit in a long message is diffed in a blink', () {

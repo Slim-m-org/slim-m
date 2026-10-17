@@ -13,8 +13,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/attachment_video_reopen.dart';
-import 'package:slimm_app/src/widgets/attachment_video_source_io.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_video_reopen.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_video_source_io.dart';
 
 const _video = api.Attachment(
   id: 'v1',

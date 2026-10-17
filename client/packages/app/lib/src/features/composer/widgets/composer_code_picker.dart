@@ -10,7 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../modules/providers/code_block_runner.dart';
 import 'composer_extras.dart' show usesSoftKeyboard;
-import '../../../widgets/message_code_langs.dart' show langSpecs;
+import '../../messages/widgets/message_code_langs.dart' show langSpecs;
 
 /// One row of the picker: [language] is null for inline code and `''` for a
 /// block with no language.

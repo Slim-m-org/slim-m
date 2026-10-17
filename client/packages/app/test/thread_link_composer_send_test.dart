@@ -19,7 +19,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/providers/threads.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/thread_screen.dart';
+import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

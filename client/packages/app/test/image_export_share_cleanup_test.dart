@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:slimm_app/src/widgets/image_export.dart';
+import 'package:slimm_app/src/features/messages/widgets/image_export.dart';
 
 void main() {
   late Directory root;

@@ -9,8 +9,8 @@
 /// in place; the composer previews it instead.
 library;
 
-import '../../../widgets/message_fences.dart';
-import '../../../widgets/message_inline.dart';
+import '../../messages/widgets/message_fences.dart';
+import '../../messages/widgets/message_inline.dart';
 import '../../emoji/widgets/standard_emoji.dart';
 
 final RegExp _nameChar = RegExp(r'[A-Za-z0-9_]');

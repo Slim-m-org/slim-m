@@ -8,7 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_fences.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_fences.dart';
 
 Directory _repoRoot() {
   var dir = Directory.current.absolute;

@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_transcript_dividers.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_transcript_dividers.dart';
 import 'package:slimm_data/data.dart';
 
 Message _msg({required String id, required int seq, required String? author}) =>

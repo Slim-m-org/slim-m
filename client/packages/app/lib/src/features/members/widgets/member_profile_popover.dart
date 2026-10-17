@@ -7,7 +7,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../widgets/message_context_menu_layout.dart'
+import '../../messages/widgets/message_context_menu_layout.dart'
     show menuScreenMargin;
 
 /// Places [child] beside [origin]/[anchorSize]: right of the anchor unless

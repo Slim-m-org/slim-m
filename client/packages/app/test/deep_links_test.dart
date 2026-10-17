@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/deep_links.dart';
 import 'package:slimm_app/src/invite_link.dart';
 import 'package:slimm_app/src/message_link.dart';
-import 'package:slimm_app/src/providers/message_jump.dart';
+import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_platform/platform.dart';

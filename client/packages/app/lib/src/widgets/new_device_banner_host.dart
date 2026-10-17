@@ -18,7 +18,8 @@ import '../providers/display_preferences.dart';
 import '../providers/new_device_alert.dart';
 import '../routing/routes.dart';
 import 'banner_host_layout.dart';
-import 'message_row_identity.dart' show formatMessageDay;
+import '../features/messages/widgets/message_row_identity.dart'
+    show formatMessageDay;
 
 class NewDeviceBannerHost extends ConsumerWidget {
   const NewDeviceBannerHost({super.key, required this.child});

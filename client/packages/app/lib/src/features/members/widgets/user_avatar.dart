@@ -12,7 +12,7 @@ import '../providers/presence_devices.dart';
 import '../providers/presence_view.dart';
 import '../../../providers/providers.dart';
 import '../providers/user_profiles.dart';
-import '../../../widgets/image_decode.dart';
+import '../../messages/widgets/image_decode.dart';
 
 /// A person's picture, or their initials when they have none (or no [userId]:
 /// a deleted account), at one of the [AppAvatarSize] steps.

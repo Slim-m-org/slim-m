@@ -15,7 +15,7 @@ import '../features/channels/providers/channel_notification_overrides_controller
 import '../features/channels/providers/dms.dart';
 import '../providers/personal_space_visibility.dart';
 import '../providers/providers.dart';
-import '../providers/unread_indicator_rules.dart';
+import '../features/messages/providers/unread_indicator_rules.dart';
 import '../routing/routes.dart';
 import 'personal_space_menu.dart';
 import 'run_guarded.dart';

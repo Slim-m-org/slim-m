@@ -5,8 +5,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/message_preview.dart';
-import 'package:slimm_app/src/widgets/reply_banner.dart';
-import 'package:slimm_app/src/widgets/reply_quote.dart';
+import 'package:slimm_app/src/features/messages/widgets/reply_banner.dart';
+import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 
 import 'message_row_harness.dart';
 

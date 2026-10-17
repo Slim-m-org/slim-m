@@ -16,8 +16,8 @@ import 'package:slimm_api/api.dart' show SlimmApiUsers;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
-import '../../../widgets/attachment_picker.dart';
-import '../../../widgets/image_drop_zone.dart';
+import '../../messages/widgets/attachment_picker.dart';
+import '../../messages/widgets/image_drop_zone.dart';
 import 'avatar_crop_sheet.dart';
 import 'avatar_photo_menu.dart';
 import 'edit_display_name_sheet.dart';

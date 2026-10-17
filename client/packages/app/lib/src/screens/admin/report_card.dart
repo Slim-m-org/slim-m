@@ -36,8 +36,8 @@ import '../../features/members/providers/user_profiles.dart';
 import '../../features/channels/widgets/channel_rail.dart'
     show selectedChannelId;
 import '../../widgets/confirm_dialog.dart';
-import '../../widgets/message_jump.dart';
-import '../../widgets/message_text.dart';
+import '../../features/messages/widgets/message_jump.dart';
+import '../../features/messages/widgets/message_text.dart';
 import '../../features/members/widgets/moderation_unavailable_caption.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';

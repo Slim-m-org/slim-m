@@ -2,7 +2,7 @@
 /// One-line previews of a message's text, for quotes and banners.
 library;
 
-import 'widgets/message_inline.dart';
+import 'features/messages/widgets/message_inline.dart';
 
 final _fence = RegExp(r'```[\s\S]*?(?:```|$)');
 final _whitespace = RegExp(r'\s+');

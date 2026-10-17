@@ -13,7 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
-import '../../../providers/pending_interactions.dart';
+import '../../messages/providers/pending_interactions.dart';
 import '../../../providers/providers.dart';
 
 /// Channel-scoped because a bot's visibility is per channel.

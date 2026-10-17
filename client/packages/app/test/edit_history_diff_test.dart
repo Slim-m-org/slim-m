@@ -6,7 +6,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/edit_history_diff.dart';
+import 'package:slimm_app/src/features/messages/widgets/edit_history_diff.dart';
 
 List<(String, DiffKind)> _shape(List<DiffSpan> spans) => [
   for (final s in spans) (s.text, s.kind),

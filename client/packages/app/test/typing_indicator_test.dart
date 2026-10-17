@@ -13,7 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/typing_indicator.dart';
+import 'package:slimm_app/src/features/messages/widgets/typing_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _tokens = api.TokenPair(

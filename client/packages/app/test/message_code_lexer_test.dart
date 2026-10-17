@@ -5,7 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_code_lexer.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_code_lexer.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// The (text, role) pairs of one lexed line, in order, for asserting on

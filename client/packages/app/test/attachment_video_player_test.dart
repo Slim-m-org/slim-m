@@ -18,8 +18,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/attachment_video_player.dart';
-import 'package:slimm_app/src/widgets/attachment_video_source.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_video_player.dart';
+import 'package:slimm_app/src/features/messages/widgets/attachment_video_source.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _video = api.Attachment(

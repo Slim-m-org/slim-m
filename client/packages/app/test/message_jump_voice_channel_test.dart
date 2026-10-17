@@ -11,7 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
-import 'package:slimm_app/src/widgets/message_jump.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 import 'package:slimm_data/data.dart';
 
 import 'home_shell_harness.dart';

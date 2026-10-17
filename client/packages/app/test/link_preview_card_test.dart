@@ -12,10 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/link_preview.dart';
-import 'package:slimm_app/src/providers/media_preferences.dart';
+import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
+import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/link_preview_card.dart';
+import 'package:slimm_app/src/features/messages/widgets/link_preview_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _url = 'https://example.com/article';

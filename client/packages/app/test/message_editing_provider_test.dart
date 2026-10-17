@@ -15,7 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/message_editing.dart';
+import 'package:slimm_app/src/features/messages/providers/message_editing.dart';
 
 /// Watches [channelId]'s own answer for message `m1` and renders it as plain
 /// text, so the test can assert on what is on screen rather than reaching

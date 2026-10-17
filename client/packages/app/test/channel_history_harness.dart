@@ -19,7 +19,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/message_page_size.dart';
+import 'package:slimm_app/src/features/messages/providers/message_page_size.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/rate_limit_retry.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';

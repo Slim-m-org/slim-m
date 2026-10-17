@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/link_preview.dart';
+import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
     show serverInfoProvider;

@@ -23,12 +23,12 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/typing_controller.dart';
+import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
 import 'package:slimm_app/src/features/members/widgets/blocked_dm_notice.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_image.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 
 import 'message_row_harness.dart' show harness, message, noActions;
 import 'support/mid_flight_capture.dart';

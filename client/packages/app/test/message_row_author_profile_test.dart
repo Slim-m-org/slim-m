@@ -19,9 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
-import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/author_profile_tap_target.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 
 import 'message_row_harness.dart';

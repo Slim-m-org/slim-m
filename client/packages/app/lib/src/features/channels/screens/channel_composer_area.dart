@@ -22,13 +22,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/message_selection.dart';
+import '../../messages/providers/message_selection.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../../composer/widgets/composer_autofocus.dart';
-import '../../../widgets/message_selection_bar.dart';
-import '../../../widgets/reply_banner.dart';
+import '../../messages/widgets/message_selection_bar.dart';
+import '../../messages/widgets/reply_banner.dart';
 import '../../members/widgets/timeout_banner.dart';
 import 'channel_message_actions.dart';
 

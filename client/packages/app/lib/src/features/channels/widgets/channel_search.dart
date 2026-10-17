@@ -11,8 +11,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
-import '../../../widgets/author_label.dart';
-import '../../../widgets/message_text.dart';
+import '../../messages/widgets/author_label.dart';
+import '../../messages/widgets/message_text.dart';
 
 class ChannelSearchBar extends StatelessWidget {
   const ChannelSearchBar({

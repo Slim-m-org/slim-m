@@ -9,8 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
-import 'package:slimm_app/src/widgets/message_inline.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

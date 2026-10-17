@@ -18,8 +18,8 @@ import '../../../providers/notification_schedule_controller.dart';
 import '../providers/dms.dart' show dmChannelKind;
 import '../../../providers/providers.dart';
 import '../../../widgets/app_snackbar.dart';
-import '../../../widgets/mark_read_action.dart';
-import '../../../widgets/mark_unread_action.dart';
+import '../../messages/widgets/mark_read_action.dart';
+import '../../messages/widgets/mark_unread_action.dart';
 import '../../../widgets/run_guarded.dart';
 
 Future<void> _say(

@@ -62,7 +62,7 @@ import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import 'dm_call_pane.dart';
 import 'hang_up_recap_toast.dart';
-import 'thread_screen.dart';
+import '../features/messages/screens/thread_screen.dart';
 
 part 'home_shell_pane_slots.dart';
 

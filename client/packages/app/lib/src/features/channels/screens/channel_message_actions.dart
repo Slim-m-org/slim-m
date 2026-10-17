@@ -24,8 +24,8 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../message_link.dart';
-import '../../../providers/message_actions.dart';
-import '../../../providers/message_selection.dart';
+import '../../messages/providers/message_actions.dart';
+import '../../messages/providers/message_selection.dart';
 import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
@@ -36,8 +36,8 @@ import '../../../widgets/app_snackbar.dart';
 import '../../members/providers/bot_ui_uses.dart';
 import '../../members/widgets/bot_menu_sections.dart';
 import '../../../widgets/confirm_dialog.dart';
-import '../../../widgets/forward_message.dart' show forwardMessage;
-import '../../../widgets/message_context_menu.dart';
+import '../../messages/widgets/forward_message.dart' show forwardMessage;
+import '../../messages/widgets/message_context_menu.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/widgets/safety_actions.dart';
 

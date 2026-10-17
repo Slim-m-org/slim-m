@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/image_downscale.dart';
+import 'package:slimm_app/src/features/messages/widgets/image_downscale.dart';
 
 Future<Uint8List> _png(int width, int height) async {
   final recorder = ui.PictureRecorder();

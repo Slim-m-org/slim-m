@@ -19,9 +19,9 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/bot_menu_sections.dart';
 import 'package:slimm_app/src/features/members/widgets/bot_ui_failure.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

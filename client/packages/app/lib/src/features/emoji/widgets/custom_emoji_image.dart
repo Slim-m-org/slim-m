@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/emoji_catalog_provider.dart';
-import '../../../widgets/image_decode.dart';
+import '../../messages/widgets/image_decode.dart';
 
 /// The emoji id a `:shortcode:` names, or null when [token] names none of the
 /// deployment's own. [index] is `customEmojiIndexProvider`'s name-to-id map.

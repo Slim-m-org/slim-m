@@ -44,7 +44,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../format.dart' show formatPlaybackTime;
-import 'swipe_to_reply.dart' show SwipeToReplyOptOut;
+import '../features/messages/widgets/swipe_to_reply.dart'
+    show SwipeToReplyOptOut;
 
 /// How long an idle, playing video keeps its controls up before fading them.
 const Duration kVideoControlsAutoHide = Duration(seconds: 3);

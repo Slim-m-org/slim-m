@@ -41,8 +41,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
-import '../../../providers/message_extras.dart';
-import '../../../providers/message_page_size.dart';
+import '../../messages/providers/message_extras.dart';
+import '../../messages/providers/message_page_size.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/rate_limit_retry.dart';
 import '../../../providers/retention_policy.dart';

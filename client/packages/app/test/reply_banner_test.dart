@@ -17,12 +17,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
-import 'package:slimm_app/src/providers/media_preferences.dart';
-import 'package:slimm_app/src/providers/message_extras.dart';
+import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
+import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/reply_banner.dart';
+import 'package:slimm_app/src/features/messages/widgets/reply_banner.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

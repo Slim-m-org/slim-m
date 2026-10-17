@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/author_label.dart';
+import 'package:slimm_app/src/features/messages/widgets/author_label.dart';
 
 api.UserProfile _profile(String id, String name) =>
     api.UserProfile(id: id, username: id, displayName: name, createdAt: 0);

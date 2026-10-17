@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/message_code_langs.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_code_langs.dart';
 
 void main() {
   test('a null or unknown tag has no spec, so the block stays plain', () {

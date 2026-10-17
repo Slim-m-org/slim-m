@@ -12,7 +12,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/message_link.dart';
-import 'package:slimm_app/src/widgets/message_inline.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
 
 String _link({String server = 'https://slim.example.top'}) => buildMessageLink(
   server: Uri.parse(server),

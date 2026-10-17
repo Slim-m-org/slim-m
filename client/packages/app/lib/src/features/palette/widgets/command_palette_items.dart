@@ -15,8 +15,8 @@ import '../../channels/providers/dms.dart';
 import '../../../providers/personal_space_visibility.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
-import '../../../widgets/author_label.dart';
-import '../../../widgets/message_jump.dart';
+import '../../messages/widgets/author_label.dart';
+import '../../messages/widgets/message_jump.dart';
 import '../../../widgets/space_settings_section.dart';
 
 /// Which row layout a [PaletteResultItem] draws with.
