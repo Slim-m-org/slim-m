@@ -6,11 +6,11 @@ use axum::extract::{DefaultBodyLimit, State};
 use axum::routing::get;
 use serde::Deserialize;
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AUTHED_READ, AuthedLimited, Json, Query};
-use super::messages::parse_uuid;
-use super::users::{UserDto, to_dtos};
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AUTHED_READ, AuthedLimited, Json, Query};
+use super::super::messages::parse_uuid;
+use super::super::users::{UserDto, to_dtos};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
@@ -20,7 +20,7 @@ const BODY_LIMIT: usize = 4 * 1024;
 const MEMBERS_DEFAULT_LIMIT: i64 = 50;
 const MEMBERS_MAX_LIMIT: i64 = 200;
 
-/// The member list route, mounted by [`super::router`].
+/// The member list route, mounted by [`super::super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/members", get(list_members))

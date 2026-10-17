@@ -40,6 +40,10 @@ use crate::store::{
 };
 use crate::voice::VoiceError;
 
+pub(super) mod member_nicknames;
+pub(super) mod members_bulk;
+pub(super) mod members_list;
+
 const BODY_LIMIT: usize = 4 * 1024;
 
 /// The member moderation routes, mounted by [`super::router`].

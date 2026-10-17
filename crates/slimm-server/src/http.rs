@@ -64,10 +64,8 @@ mod interactions;
 mod invites;
 mod join_gate;
 pub mod link_preview;
-mod member_nicknames;
 mod members;
-mod members_bulk;
-mod members_list;
+use members::{member_nicknames, members_bulk, members_list};
 mod messages;
 use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,

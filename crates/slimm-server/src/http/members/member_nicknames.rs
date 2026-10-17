@@ -12,12 +12,12 @@ use axum::http::request::Parts;
 use axum::routing::put;
 use serde::Deserialize;
 
-use super::AppState;
-use super::auth::validate_label;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
-use super::members::authorize;
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::auth::validate_label;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce};
+use super::super::messages::parse_uuid;
+use super::authorize;
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
