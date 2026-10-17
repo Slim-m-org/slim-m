@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 
+import '../features/accounts/providers/account_slot.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import 'live_events.dart';
@@ -65,10 +66,10 @@ class _DesktopMessageNotifier {
   }
 
   Future<void> _onMessageCreated(api.Message message) async {
-    // Skip while focused: a foreground app shows unread in the rail already.
+    // Skip while focused: a foreground app shows unread in the rail already, but only for the account on screen.
     final foreground =
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-    if (foreground) return;
+    if (foreground && _ref.read(accountActiveProvider)) return;
 
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
     if (alert == null) return;

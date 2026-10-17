@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../default_server.dart';
 import '../../../deep_links.dart';
 import '../../../providers/providers.dart';
+import '../../accounts/widgets/add_server_cancel.dart';
 import 'onboarding_dialogs.dart';
 import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';
@@ -91,6 +92,8 @@ class OnboardingScreen extends ConsumerWidget {
               onTap: () => _officialFlow(context, ref),
             ),
           ),
+          const SizedBox(height: AppSpacing.s12),
+          const Center(child: AddServerCancel()),
         ],
       ),
     );

@@ -20,6 +20,9 @@ const slimmDatabaseFileName = 'slimm.sqlite';
 /// Opens the on-disk database backing the local cache, encrypted with the key
 /// in [keys].
 ///
+/// [fileName] picks a different file for a further account; the default is
+/// the one every install has used.
+///
 /// [onReset] is told when the cache had to be cleared because its key was
 /// lost, so the app can say the data is being fetched again. Throws
 /// [LocalDatabaseKeyUnavailable] when the key store cannot be reached.
@@ -29,11 +32,12 @@ const slimmDatabaseFileName = 'slimm.sqlite';
 Future<QueryExecutor> openSlimmDatabase({
   required DatabaseKeyStore keys,
   String? directoryPath,
+  String? fileName,
   void Function(DatabaseResetReason reason)? onReset,
 }) async {
   final directory =
       directoryPath ?? (await getApplicationSupportDirectory()).path;
-  final file = File(p.join(directory, slimmDatabaseFileName));
+  final file = File(p.join(directory, fileName ?? slimmDatabaseFileName));
   final prepared = await prepareEncryptedDatabase(file: file, keys: keys);
   final reset = prepared.reset;
   if (reset != null) onReset?.call(reset);

@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../accounts/providers/account_services.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
@@ -298,17 +299,7 @@ class SignOutRow extends ConsumerWidget {
   /// is app-lifetime, not scoped to a session, so nothing else would ever
   /// stop it POSTing a heartbeat, on a cleared session, for the rest of the
   /// process's life.
-  static Future<void> signOut(WidgetRef ref) async {
-    await ref.read(voiceControllerProvider.notifier).leave();
-    await ref.read(syncControllerProvider.notifier).stop();
-    await ref.read(pushControllerProvider.notifier).unregister();
-    try {
-      await ref.read(apiProvider).logout();
-    } on api.ApiException {
-      // The session may already be gone; clear locally either way.
-      ref.read(sessionProvider).clear();
-    }
-  }
+  static Future<void> signOut(WidgetRef ref) => signOutVia(ref.read);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
