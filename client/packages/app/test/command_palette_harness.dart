@@ -101,6 +101,8 @@ http.Client fakeClient({
   List<String> blocked = const [],
   List<Map<String, dynamic>> hits = const [],
   bool searchForbidden = false,
+  List<api.UserProfile>? members,
+  List<Override> overrides = const [],
 }) {
   final db = SlimmDatabase(NativeDatabase.memory());
   final container = ProviderContainer(
@@ -121,8 +123,11 @@ http.Client fakeClient({
         return client;
       }),
       databaseProvider.overrideWith((ref) => db),
+      ...overrides,
       meProvider.overrideWith((ref) async => me(permissions)),
-      membersProvider.overrideWith((ref) async => [profile('other', 'Ren')]),
+      membersProvider.overrideWith(
+        (ref) async => members ?? [profile('other', 'Ren')],
+      ),
     ],
   );
   return (container: container, db: db);
