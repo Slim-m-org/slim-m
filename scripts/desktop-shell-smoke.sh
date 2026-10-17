@@ -51,7 +51,7 @@ splash_source="$(dirname "$0")/../client/packages/app/lib/src/desktop/window_geo
 SPLASH_WIDTH="$(sed -nE 's/^const kSplashWindowSize = WindowSize\(width: ([0-9]+), height: [0-9]+\);$/\1/p' "$splash_source")"
 SPLASH_HEIGHT="$(sed -nE 's/^const kSplashWindowSize = WindowSize\(width: [0-9]+, height: ([0-9]+)\);$/\1/p' "$splash_source")"
 readonly SPLASH_WIDTH SPLASH_HEIGHT
-if [ -z "$SPLASH_WIDTH" ] || [ -z "$SPLASH_HEIGHT" ]; then
+if [[ -z "$SPLASH_WIDTH" || -z "$SPLASH_HEIGHT" ]]; then
   echo "::error::could not read kSplashWindowSize from $splash_source" >&2
   exit 1
 fi

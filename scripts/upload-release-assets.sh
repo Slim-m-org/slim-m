@@ -22,9 +22,9 @@ for pattern in "$@"; do
   # Unquoted on purpose: the pattern is a glob.
   matches=()
   for f in $pattern; do
-    [ -e "$f" ] && matches+=("$f")
+    [[ -e "$f" ]] && matches+=("$f")
   done
-  if [ ${#matches[@]} -eq 0 ]; then
+  if [[ ${#matches[@]} -eq 0 ]]; then
     if $optional; then
       echo "::warning::no file matches $pattern; continuing"
       continue
@@ -35,7 +35,7 @@ for pattern in "$@"; do
   files+=("${matches[@]}")
 done
 
-if [ ${#files[@]} -eq 0 ]; then
+if [[ ${#files[@]} -eq 0 ]]; then
   echo "::error::nothing to upload"
   exit 1
 fi
@@ -46,7 +46,7 @@ for attempt in $(seq 1 "$attempts"); do
     exit 0
   fi
   echo "::warning::upload attempt $attempt of $attempts failed"
-  if [ "$attempt" -lt "$attempts" ]; then
+  if [[ "$attempt" -lt "$attempts" ]]; then
     sleep $((attempt * ${UPLOAD_RETRY_SLEEP:-15}))
   fi
 done
