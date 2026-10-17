@@ -124,11 +124,12 @@ class Version {
   final String? buildId;
 
   /// Whether this server offers reporting and blocking at all.
-  SafetyTools get safetyTools => capabilities == null
-      ? SafetyTools.unknown
-      : missingSafetyTools.isEmpty
-          ? SafetyTools.present
-          : SafetyTools.missing;
+  SafetyTools get safetyTools {
+    if (capabilities == null) return SafetyTools.unknown;
+    return missingSafetyTools.isEmpty
+        ? SafetyTools.present
+        : SafetyTools.missing;
+  }
 
   /// The names in [safetyCapabilities] this server does not advertise, in that
   /// list's order. Also empty on a server that advertised nothing at all, so

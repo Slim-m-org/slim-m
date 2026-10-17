@@ -235,64 +235,79 @@ extension SlimmApiUploadSessions on SlimmApi {
     required Duration stallLimit,
     required int partBytes,
   }) async {
-    var offset = session.offset;
-    var failures = 0;
-    DateTime? stalledSince;
-    void progressed() {
-      if (stalledSince != null) onRetrying?.call(false);
-      failures = 0;
-      stalledSince = null;
-    }
-
+    final progress = _DriveProgress(session.offset, onRetrying);
     while (true) {
       cancel?.throwIfCancelled();
       try {
-        if (offset >= length) {
+        if (progress.offset >= length) {
           final done = await _completeUploadSession(session.id, channelId);
-          progressed();
+          progress.progressed();
           return done;
         }
         final take = math.min(
           math.min(partBytes, session.partMaxBytes),
-          length - offset,
+          length - progress.offset,
         );
-        final from = offset;
-        final after = await _appendUploadPart(
-          session.id,
-          from,
-          () => source.part(from, take, cancel: cancel),
-          take,
-          (sent) => onProgress?.call(from + sent),
-        );
-        if (after.offset <= from) {
-          throw const TransportException('the server did not take the part');
-        }
-        offset = after.offset;
-        progressed();
+        await _sendNextPart(
+            session, source, progress, take, cancel, onProgress);
       } on ApiException catch (e) {
         cancel?.throwIfCancelled();
         if (_classify(e) != _PartFailure.transient) rethrow;
-        final now = DateTime.now();
-        if (stalledSince == null) onRetrying?.call(true);
-        stalledSince ??= now;
-        await source.close();
-        final held = await _heldBytes(session.id);
-        if (held != null && held > offset) {
-          offset = held;
-          stalledSince = now;
-          failures = 0;
-        } else if (held != null) {
-          offset = held;
-        }
-        if (now.difference(stalledSince!) > stallLimit) rethrow;
-        failures++;
-        await Future<void>.delayed(
-          e is RateLimitedException && e.retryAfter != null
-              ? e.retryAfter!
-              : backoff(failures),
+        final delay = await _waitOutTransient(
+          e,
+          session.id,
+          source,
+          progress,
+          stallLimit: stallLimit,
+          backoff: backoff,
         );
+        if (delay == null) rethrow;
+        await Future<void>.delayed(delay);
       }
     }
+  }
+
+  Future<void> _sendNextPart(
+    UploadSession session,
+    UploadSource source,
+    _DriveProgress progress,
+    int take,
+    UploadCancelToken? cancel,
+    void Function(int sent)? onProgress,
+  ) async {
+    final from = progress.offset;
+    final after = await _appendUploadPart(
+      session.id,
+      from,
+      () => source.part(from, take, cancel: cancel),
+      take,
+      (sent) => onProgress?.call(from + sent),
+    );
+    if (after.offset <= from) {
+      throw const TransportException('the server did not take the part');
+    }
+    progress.offset = after.offset;
+    progress.progressed();
+  }
+
+  /// The delay before the next attempt, or null once the stall limit is hit.
+  Future<Duration?> _waitOutTransient(
+    ApiException e,
+    String sessionId,
+    UploadSource source,
+    _DriveProgress progress, {
+    required Duration stallLimit,
+    required Duration Function(int attempt) backoff,
+  }) async {
+    final now = DateTime.now();
+    progress.markStalled(now);
+    await source.close();
+    final held = await _heldBytes(sessionId);
+    if (held != null) progress.adoptHeld(held, now);
+    if (now.difference(progress.stalledSince!) > stallLimit) return null;
+    progress.failures++;
+    if (e is RateLimitedException && e.retryAfter != null) return e.retryAfter;
+    return backoff(progress.failures);
   }
 
   /// Where the server's copy ends, or null when it cannot be asked right now.
@@ -372,5 +387,34 @@ extension SlimmApiUploadSessions on SlimmApi {
       'POST /attachments/uploads/$id/complete',
       Attachment.fromJson,
     );
+  }
+}
+
+/// Mutable bookkeeping for one upload drive loop.
+class _DriveProgress {
+  _DriveProgress(this.offset, this._onRetrying);
+
+  int offset;
+  int failures = 0;
+  DateTime? stalledSince;
+  final void Function(bool retrying)? _onRetrying;
+
+  void progressed() {
+    if (stalledSince != null) _onRetrying?.call(false);
+    failures = 0;
+    stalledSince = null;
+  }
+
+  void markStalled(DateTime now) {
+    if (stalledSince == null) _onRetrying?.call(true);
+    stalledSince ??= now;
+  }
+
+  void adoptHeld(int held, DateTime now) {
+    if (held > offset) {
+      stalledSince = now;
+      failures = 0;
+    }
+    offset = held;
   }
 }
