@@ -15,10 +15,10 @@
 use axum::extract::{Path, State};
 use serde::Serialize;
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AUTHED_READ, AuthedLimited, Json};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AUTHED_READ, AuthedLimited, Json};
+use super::super::messages::parse_uuid;
 use crate::store::ReporterOwnReport;
 
 /// A reporter's own view of a report they filed, from [`my_report_status`].
@@ -27,7 +27,7 @@ use crate::store::ReporterOwnReport;
 /// Nothing here names a moderator, an action taken, or any other reporter's
 /// report - see [`my_report_status`]'s own doc for why.
 #[derive(Serialize)]
-pub(super) struct MyReportStatusDto {
+pub(in crate::http) struct MyReportStatusDto {
     id: String,
     subject_kind: String,
     subject_id: String,
@@ -61,7 +61,7 @@ impl From<ReporterOwnReport> for MyReportStatusDto {
 /// that never existed: both come back `None` from
 /// [`crate::store::Store::reporter_own_report`], and both become this same
 /// 404, per decision 0011's status-code masking rule.
-pub(super) async fn my_report_status(
+pub(in crate::http) async fn my_report_status(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     Path(report_id): Path<String>,
     State(state): State<AppState>,

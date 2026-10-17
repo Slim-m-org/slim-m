@@ -3,14 +3,14 @@
 //! so it has a home to be unit-tested in and the handler file stays under its
 //! line budget. A pure function of its three string arguments.
 
-use super::error::ApiError;
-use super::messages::parse_uuid;
+use super::super::error::ApiError;
+use super::super::messages::parse_uuid;
 use crate::store::HistoryCursor;
 
 /// Parses a history cursor's `after_kind`/`after_id` pair against the
 /// `after` event time. `after_kind` says which id shape `after_id` must be:
 /// a UUID for a resolved report, a plain integer for an audit row's rowid.
-pub(super) fn parse_history_cursor(
+pub(in crate::http) fn parse_history_cursor(
     event_time: i64,
     kind: &str,
     id: &str,

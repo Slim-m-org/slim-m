@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Small checks shared by the report moderation routes.
 
-use super::AppState;
-use super::error::ApiError;
+use super::super::AppState;
+use super::super::error::ApiError;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 
 /// 409 for a report somebody already closed, 404 for one that never existed.
-pub(super) async fn missing_or_closed(
+pub(in crate::http) async fn missing_or_closed(
     state: &AppState,
     report_id: uuid::Uuid,
 ) -> Result<ApiError, ApiError> {
@@ -18,7 +18,7 @@ pub(super) async fn missing_or_closed(
     })
 }
 
-pub(super) async fn require_manage_messages(
+pub(in crate::http) async fn require_manage_messages(
     state: &AppState,
     user_id: UserId,
 ) -> Result<(), ApiError> {
