@@ -88,7 +88,7 @@ void main() {
       await pressCtrlK(tester);
 
       expect(inCompactPalette('CHANNELS'), findsOneWidget);
-      expect(inCompactPalette('MEMBERS'), findsOneWidget);
+      expect(inCompactPalette('PEOPLE'), findsOneWidget);
       expect(inCompactPalette('general'), findsOneWidget);
       expect(inCompactPalette('Ren'), findsOneWidget);
 
@@ -110,7 +110,7 @@ void main() {
       await pressCtrlK(tester);
 
       expect(inPalette('CHANNELS'), findsOneWidget);
-      expect(inPalette('MEMBERS'), findsOneWidget);
+      expect(inPalette('PEOPLE'), findsOneWidget);
       expect(inPalette('general'), findsOneWidget);
       expect(inPalette('Ren'), findsOneWidget);
 

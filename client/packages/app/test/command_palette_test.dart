@@ -61,7 +61,7 @@ void main() {
 
     // Scoped: the rail behind it has its own "CHANNELS" header now (item 55).
     expect(inPalette('CHANNELS'), findsOneWidget);
-    expect(inPalette('MEMBERS'), findsOneWidget);
+    expect(inPalette('PEOPLE'), findsOneWidget);
     expect(inPalette('ACTIONS'), findsOneWidget);
     expect(inPalette('general'), findsOneWidget);
     expect(inPalette('Ren'), findsOneWidget);
