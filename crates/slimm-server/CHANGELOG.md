@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.93.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.93.0...server-v0.93.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **modules:** a module's wall clock starts after it is compiled ([#2216](https://github.com/Slim-m-org/slim-m/issues/2216)) ([df885e8](https://github.com/Slim-m-org/slim-m/commit/df885e8115dc0fad4ac2ccebe527a1c648dd4872))
+
 ## [0.93.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.92.0...server-v0.93.0) (2026-10-17)
 
 
