@@ -131,7 +131,7 @@ void main() {
   });
 
   test('no SettingsScreenScaffold call overrides the frame\'s own inset', () {
-    final screensDir = Directory('lib/src/screens');
+    final screensDir = Directory('lib/src');
     expect(
       screensDir.existsSync(),
       isTrue,
@@ -142,7 +142,10 @@ void main() {
     final offenders = <String>[];
 
     for (final file in screensDir.listSync(recursive: true).whereType<File>()) {
-      if (!file.path.endsWith('.dart')) continue;
+      // Every screens folder: the shared one and each feature's.
+      if (!file.path.endsWith('.dart') || !file.path.contains('/screens/')) {
+        continue;
+      }
       final relative = file.path.replaceFirst(RegExp(r'^\./'), '');
       if (relative == _declaringFile) continue;
 

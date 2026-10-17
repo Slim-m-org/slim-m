@@ -25,8 +25,10 @@ Set<String> _restoringControllers() {
   final restores = RegExp(
     r'Future<void> restore\(\)|extends (Enum|Bool|Int)PreferenceController',
   );
-  for (final file in Directory('lib/src/providers').listSync()) {
+  // Every providers folder: the shared one and each feature's.
+  for (final file in Directory('lib/src').listSync(recursive: true)) {
     if (file is! File || !file.path.endsWith('.dart')) continue;
+    if (!file.path.contains('/providers/')) continue;
     if (file.path.endsWith('preference_controller.dart')) continue;
     final parts = _withoutComments(
       file.readAsStringSync(),
