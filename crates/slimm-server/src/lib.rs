@@ -31,7 +31,9 @@ pub mod notification_schedule;
 pub mod notifications;
 pub mod permissions;
 pub mod presence;
-pub mod presence_activity;
+pub use presence::presence_activity;
+pub use presence::typing;
+pub use presence::viewing;
 mod process_metrics;
 pub mod push;
 pub mod ratelimit;
@@ -40,8 +42,6 @@ mod sidecar_url;
 pub mod store;
 mod sweeps;
 pub mod totp;
-pub mod typing;
-pub mod viewing;
 pub mod voice;
 
 pub use sweeps::{

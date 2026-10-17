@@ -16,7 +16,7 @@ import '../../../providers/live_events.dart';
 import '../../../providers/sync_controller.dart';
 
 /// The server's own typing TTL: `DEFAULT_TTL` in
-/// `crates/slimm-server/src/typing.rs`, in seconds.
+/// `crates/slimm-server/src/presence/typing.rs`, in seconds.
 ///
 /// Named rather than folded into [_refreshEvery] as a bare 3, so the refresh
 /// is derived from it at compile time instead of the two being tied only by a

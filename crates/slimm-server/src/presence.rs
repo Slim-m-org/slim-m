@@ -37,6 +37,10 @@ mod devices;
 use devices::DeviceCounts;
 pub use devices::DeviceKind;
 
+pub mod presence_activity;
+pub mod typing;
+pub mod viewing;
+
 /// How long a connected user with no observed activity (a ping, a typing
 /// refresh, anything inbound) is shown as away rather than online, absent an
 /// explicit away/dnd/hidden preference. Only affects the `Online` preference;

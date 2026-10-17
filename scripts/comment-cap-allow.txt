@@ -204,7 +204,7 @@ crates/slimm-server/src/store/recovery.rs 2
 crates/slimm-server/src/store/roles.rs 3
 crates/slimm-server/src/store/sessions.rs 5
 crates/slimm-server/src/store/users.rs 1
-crates/slimm-server/src/typing.rs 1
+crates/slimm-server/src/presence/typing.rs 1
 crates/slimm-server/tests/account.rs 2
 crates/slimm-server/tests/attachment_sweep.rs 1
 crates/slimm-server/tests/attachments/filenames.rs 4
