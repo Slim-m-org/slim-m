@@ -2,10 +2,12 @@
 /// The routed conversation pane, split out of `home_shell.dart` for its line budget.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show isDesktopHost;
 import '../providers/channel_by_id_provider.dart';
 import '../../auth/providers/database_key_store.dart';
 import '../providers/last_text_channel.dart';
@@ -100,6 +102,10 @@ class ConversationPane extends ConsumerWidget {
         isLobby: isLobby,
         isVoice: isVoice,
         dmCallOpen: dmCallOpen,
+        // Not the first channel shown at launch: only one opened or switched to during the session.
+        caretOnOpen:
+            ref.read(lastTextChannelProvider) != null &&
+            composerTakesCaretOnOpen(context),
       ),
     );
 
@@ -151,12 +157,13 @@ class ConversationPane extends ConsumerWidget {
     required bool isLobby,
     required bool isVoice,
     required bool dmCallOpen,
+    required bool caretOnOpen,
   }) {
     if (canvasOpen) return CanvasPane(channelId: channelId);
     if (isLobby) return VoiceLobbyRedirect(lobbyId: channelId);
     if (isVoice) return VoiceScreen(channelId: channelId, openChat: openChat);
     if (dmCallOpen) return DmCallPane(channelId: channelId);
-    return ChannelScreen(channelId: channelId);
+    return ChannelScreen(channelId: channelId, autofocusComposer: caretOnOpen);
   }
 
   void _rememberTextChannel(WidgetRef ref) {
@@ -238,3 +245,8 @@ class _LeaveRemovedRoomState extends ConsumerState<_LeaveRemovedRoom> {
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
 }
+
+/// Whether opening a channel puts the caret in its composer: on a desktop build
+/// or a wide browser window, never where it would raise an on-screen keyboard.
+bool composerTakesCaretOnOpen(BuildContext context) =>
+    isDesktopHost || (kIsWeb && !AppTouchTargets.of(context));

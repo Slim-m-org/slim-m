@@ -263,6 +263,21 @@ void main() {
     await _teardown(tester, setup.container, setup.db);
   });
 
+  testWidgets('opening a channel on desktop puts the caret in its composer', (
+    tester,
+  ) async {
+    final setup = _setup();
+    await MessageStore(setup.db).upsertChannels(const [
+      api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
+    ]);
+    final router = _conversationRouter('/channels/c1');
+    await _pump(tester, setup.container, router);
+
+    final field = tester.widget<ComposerField>(find.byType(ComposerField));
+    expect(field.focusNode.hasFocus, isTrue);
+    await _teardown(tester, setup.container, setup.db);
+  });
+
   testWidgets('Ctrl+L focuses the open channel\'s composer', (tester) async {
     final setup = _setup();
     await MessageStore(setup.db).upsertChannels(const [
@@ -272,11 +287,9 @@ void main() {
     await _pump(tester, setup.container, router);
 
     final field = tester.widget<ComposerField>(find.byType(ComposerField));
-    expect(
-      field.focusNode.hasFocus,
-      isFalse,
-      reason: 'the shell itself holds focus on launch, not the composer',
-    );
+    field.focusNode.unfocus();
+    await tester.pumpAndSettle();
+    expect(field.focusNode.hasFocus, isFalse);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
