@@ -26,18 +26,21 @@ import 'participant_audio_controls.dart'
 
 const double _popoverWidth = 260;
 
-/// Opens the volume popover for [identity], anchored to [anchor].
+/// Opens the volume popover for [identity], anchored to [anchor]; with
+/// [screenOnly], just their shared screen's sound, as a share's own control.
 Future<void> showParticipantVolumePopover(
   BuildContext anchor, {
   required String identity,
   required String name,
   required VoiceController controller,
+  bool screenOnly = false,
 }) {
   final compact = MediaQuery.sizeOf(anchor).width < kCompactWidth;
   final content = _ParticipantVolumePopoverBody(
     name: name,
     identity: identity,
     controller: controller,
+    screenOnly: screenOnly,
   );
 
   // A sheet is already a surface, so on a phone the controls sit straight in it (desktop-vs-mobile.md rule 3).
@@ -48,6 +51,7 @@ Future<void> showParticipantVolumePopover(
         name: name,
         identity: identity,
         controller: controller,
+        screenOnly: screenOnly,
       ),
     );
   }
@@ -75,16 +79,42 @@ Future<void> showParticipantVolumePopover(
   );
 }
 
+String _title(String name, {required bool screenOnly}) =>
+    screenOnly ? "$name's screen audio" : 'Volume for $name';
+
+List<Widget> _controls(
+  String identity,
+  VoiceController controller, {
+  required bool screenOnly,
+}) => [
+  if (!screenOnly)
+    ParticipantVolumeControl(
+      identity: identity,
+      controller: controller,
+      showLabel: false,
+    ),
+  if (controller.hasScreenAudio(identity)) ...[
+    if (!screenOnly) const SizedBox(height: AppSpacing.s8),
+    ParticipantScreenAudioSection(
+      identity: identity,
+      controller: controller,
+      showLabel: !screenOnly,
+    ),
+  ],
+];
+
 class _ParticipantVolumePopoverBody extends StatelessWidget {
   const _ParticipantVolumePopoverBody({
     required this.name,
     required this.identity,
     required this.controller,
+    required this.screenOnly,
   });
 
   final String name;
   final String identity;
   final VoiceController controller;
+  final bool screenOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -102,22 +132,11 @@ class _ParticipantVolumePopoverBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Volume for $name',
+            _title(name, screenOnly: screenOnly),
             style: AppText.ui.copyWith(color: tokens.textPrimary),
           ),
           const SizedBox(height: AppSpacing.s8),
-          ParticipantVolumeControl(
-            identity: identity,
-            controller: controller,
-            showLabel: false,
-          ),
-          if (controller.hasScreenAudio(identity)) ...[
-            const SizedBox(height: AppSpacing.s8),
-            ParticipantScreenAudioSection(
-              identity: identity,
-              controller: controller,
-            ),
-          ],
+          ..._controls(identity, controller, screenOnly: screenOnly),
         ],
       ),
     );
@@ -130,11 +149,13 @@ class _ParticipantVolumeSheetBody extends StatelessWidget {
     required this.name,
     required this.identity,
     required this.controller,
+    required this.screenOnly,
   });
 
   final String name;
   final String identity;
   final VoiceController controller;
+  final bool screenOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -153,22 +174,11 @@ class _ParticipantVolumeSheetBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Volume for $name',
+              _title(name, screenOnly: screenOnly),
               style: AppText.ui.copyWith(color: tokens.textPrimary),
             ),
             const SizedBox(height: AppSpacing.s8),
-            ParticipantVolumeControl(
-              identity: identity,
-              controller: controller,
-              showLabel: false,
-            ),
-            if (controller.hasScreenAudio(identity)) ...[
-              const SizedBox(height: AppSpacing.s8),
-              ParticipantScreenAudioSection(
-                identity: identity,
-                controller: controller,
-              ),
-            ],
+            ..._controls(identity, controller, screenOnly: screenOnly),
           ],
         ),
       ),
