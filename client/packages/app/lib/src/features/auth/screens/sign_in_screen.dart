@@ -284,23 +284,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// This door onto that address used to ask anyway. A key that later changes
   /// is never silent either way, which is the case the check exists for.
   Future<void> _submit() async {
-    final address = Uri.tryParse(_server.text.trim());
-    if (address == null || !address.hasScheme || address.host.isEmpty) {
-      _badAddress();
-      return;
-    }
-
-    if (requireSecureScheme(address) case final schemeError?) {
-      setState(() => _error = (SignInErrorField.server, schemeError));
-      return;
-    }
-
-    if (_creatingAccount && !_targetsOfficial()) {
-      if (displayNameError(_displayName.text) case final tooLong?) {
-        setState(() => _error = (SignInErrorField.displayName, tooLong));
-        return;
-      }
-    }
+    final address = _submittableAddress();
+    if (address == null) return;
 
     setState(() {
       _busy = true;
@@ -332,44 +317,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         appInfo: ref.read(appInfoProvider.future),
       );
 
-      if (_creatingAccount) {
-        // Before the call: its session change is what starts the what's-new check.
-        justRegistered.state = true;
-        await api.register(
-          username: _username.text.trim(),
-          displayName: _displayName.text.trim().isEmpty
-              ? _username.text.trim()
-              : _displayName.text.trim(),
-          password: _password.text,
-          deviceName: identity.deviceName,
-          inviteCode: invite,
-          clientKind: identity.clientKind,
-          clientVersion: identity.clientVersion,
-          installId: identity.installId,
-        );
-      } else {
-        final outcome = await api.login(
-          username: _username.text.trim(),
-          password: _password.text,
-          deviceName: identity.deviceName,
-          clientKind: identity.clientKind,
-          clientVersion: identity.clientVersion,
-          installId: identity.installId,
-        );
-        // No session yet, so nothing below may run until one exists; abandoning the sheet leaves the screen as it was.
-        if (outcome case SignInChallenged(:final challenge)) {
-          if (!mounted) return;
-          final signedIn = await promptForTotpCode(
-            context,
-            ref,
-            challenge,
-            installId: identity.installId,
-          );
-          if (!signedIn) return;
-        }
-        // An existing account can still spend a code, for the role it grants.
-        if (invite != null) await redeemInviteQuietly(api, invite);
-      }
+      final completed = _creatingAccount
+          ? await _register(api, identity, invite, justRegistered)
+          : await _signIn(api, identity, invite);
+      if (!completed) return;
       if (invite != null) pendingInvite.state = null;
       unawaited(push.register());
     } on ApiException catch (e) {
@@ -382,6 +333,79 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// The typed address when it can be submitted; otherwise shows why not.
+  Uri? _submittableAddress() {
+    final address = Uri.tryParse(_server.text.trim());
+    if (address == null || !address.hasScheme || address.host.isEmpty) {
+      _badAddress();
+      return null;
+    }
+    if (requireSecureScheme(address) case final schemeError?) {
+      setState(() => _error = (SignInErrorField.server, schemeError));
+      return null;
+    }
+    if (_creatingAccount && !_targetsOfficial()) {
+      if (displayNameError(_displayName.text) case final tooLong?) {
+        setState(() => _error = (SignInErrorField.displayName, tooLong));
+        return null;
+      }
+    }
+    return address;
+  }
+
+  Future<bool> _register(
+    SlimmApi api,
+    SignInIdentity identity,
+    String? invite,
+    StateController<bool> justRegistered,
+  ) async {
+    // Before the call: its session change is what starts the what's-new check.
+    justRegistered.state = true;
+    final username = _username.text.trim();
+    final displayName = _displayName.text.trim();
+    await api.register(
+      username: username,
+      displayName: displayName.isEmpty ? username : displayName,
+      password: _password.text,
+      deviceName: identity.deviceName,
+      inviteCode: invite,
+      clientKind: identity.clientKind,
+      clientVersion: identity.clientVersion,
+      installId: identity.installId,
+    );
+    return true;
+  }
+
+  /// False when the user abandoned the second-factor sheet or left the screen.
+  Future<bool> _signIn(
+    SlimmApi api,
+    SignInIdentity identity,
+    String? invite,
+  ) async {
+    final outcome = await api.login(
+      username: _username.text.trim(),
+      password: _password.text,
+      deviceName: identity.deviceName,
+      clientKind: identity.clientKind,
+      clientVersion: identity.clientVersion,
+      installId: identity.installId,
+    );
+    // No session yet, so nothing below may run until one exists; abandoning the sheet leaves the screen as it was.
+    if (outcome case SignInChallenged(:final challenge)) {
+      if (!mounted) return false;
+      final signedIn = await promptForTotpCode(
+        context,
+        ref,
+        challenge,
+        installId: identity.installId,
+      );
+      if (!signedIn) return false;
+    }
+    // An existing account can still spend a code, for the role it grants.
+    if (invite != null) await redeemInviteQuietly(api, invite);
+    return true;
   }
 
   @override

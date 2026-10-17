@@ -117,6 +117,69 @@ const _stackActionsScale = 1.5;
 class _SettingsEntityRowState extends State<SettingsEntityRow> {
   bool _hovered = false;
 
+  double _verticalPadding(bool carded) {
+    if (carded) return 10;
+    return widget.dense ? AppSpacing.s4 : AppSpacing.s8;
+  }
+
+  bool _stackActions(BoxConstraints constraints) =>
+      widget.actions.isNotEmpty &&
+      constraints.maxWidth < _stackActionsBelowWidth &&
+      MediaQuery.textScalerOf(context).scale(1) >= _stackActionsScale;
+
+  Widget _headlineRow(AppTokens tokens) => Row(
+    children: [
+      Flexible(
+        child: Text(
+          widget.headline,
+          overflow: TextOverflow.ellipsis,
+          style: (widget.headlineStyle ?? AppText.body).copyWith(
+            color: tokens.textPrimary,
+            fontWeight: AppWeights.medium,
+          ),
+        ),
+      ),
+      if (widget.badge != null) ...[
+        const SizedBox(width: AppSpacing.s8),
+        widget.badge!,
+      ],
+    ],
+  );
+
+  Widget _layout(AppTokens tokens, {required bool stacked}) {
+    final actions = _SettingsEntityActions(children: widget.actions);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (widget.leading != null) ...[
+              widget.leading!,
+              const SizedBox(width: AppSpacing.s12),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _headlineRow(tokens),
+                  for (final detail in widget.details) ...[
+                    const SizedBox(height: AppSpacing.s4),
+                    detail,
+                  ],
+                ],
+              ),
+            ),
+            if (widget.actions.isNotEmpty && !stacked) actions,
+          ],
+        ),
+        if (stacked) Align(alignment: Alignment.centerRight, child: actions),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -125,75 +188,15 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
     final body = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: carded ? AppCardRowScope.inset : AppSpacing.s8,
-        vertical: carded
-            ? 10
-            : widget.dense
-            ? AppSpacing.s4
-            : AppSpacing.s8,
+        vertical: _verticalPadding(carded),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked =
-                  widget.actions.isNotEmpty &&
-                  constraints.maxWidth < _stackActionsBelowWidth &&
-                  MediaQuery.textScalerOf(context).scale(1) >=
-                      _stackActionsScale;
-              final actions = _SettingsEntityActions(children: widget.actions);
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      if (widget.leading != null) ...[
-                        widget.leading!,
-                        const SizedBox(width: AppSpacing.s12),
-                      ],
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    widget.headline,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        (widget.headlineStyle ?? AppText.body)
-                                            .copyWith(
-                                              color: tokens.textPrimary,
-                                              fontWeight: AppWeights.medium,
-                                            ),
-                                  ),
-                                ),
-                                if (widget.badge != null) ...[
-                                  const SizedBox(width: AppSpacing.s8),
-                                  widget.badge!,
-                                ],
-                              ],
-                            ),
-                            for (final detail in widget.details) ...[
-                              const SizedBox(height: AppSpacing.s4),
-                              detail,
-                            ],
-                          ],
-                        ),
-                      ),
-                      if (widget.actions.isNotEmpty && !stacked) actions,
-                    ],
-                  ),
-                  if (stacked)
-                    Align(alignment: Alignment.centerRight, child: actions),
-                ],
-              );
-            },
+            builder: (context, constraints) =>
+                _layout(tokens, stacked: _stackActions(constraints)),
           ),
           if (widget.error != null) ...[
             const SizedBox(height: AppSpacing.s8),

@@ -138,12 +138,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
   void _cycle(GridColumn column, int bit, bool grantable) {
     if (_saving) return;
     final (allow, deny) = _pending[column.key] ?? (0, 0);
-    final state = allow & bit != 0
-        ? CellState.allow
-        : deny & bit != 0
-        ? CellState.deny
-        : CellState.inherit;
-    final next = switch (state) {
+    final next = switch (CellState.resolve(allow, deny, bit)) {
       CellState.inherit => grantable ? CellState.allow : CellState.deny,
       CellState.allow => CellState.deny,
       CellState.deny => CellState.inherit,
@@ -335,35 +330,60 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     if (!overwritesAsync.hasValue ||
         !rolesAsync.hasValue ||
         !membersAsync.hasValue) {
-      if (overwritesAsync.hasError) {
-        return AppErrorState(
-          message: _categoryId == null
-              ? "Could not load this channel's overwrites."
-              : "Could not load this category's overwrites.",
-          onRetry: () => ref.invalidate(_overwrites),
-        );
-      }
-      if (rolesAsync.hasError) {
-        return AppErrorState(
-          message: 'Could not load roles.',
-          onRetry: () => ref.invalidate(rolesProvider),
-        );
-      }
-      if (membersAsync.hasError) {
-        return AppErrorState(
-          message: 'Could not load members.',
-          onRetry: () => ref.invalidate(membersProvider),
-        );
-      }
-      return const Center(child: CircularProgressIndicator());
+      return _loadFailure(overwritesAsync, rolesAsync, membersAsync) ??
+          const Center(child: CircularProgressIndicator());
     }
 
     _seedFrom(overwritesAsync.requireValue);
-    final roles = rolesAsync.requireValue;
-    final members = membersAsync.requireValue;
-    final everyone = roles.where((r) => r.isEveryone).firstOrNull;
+    final columns = _columns(
+      rolesAsync.requireValue,
+      membersAsync.requireValue,
+    );
 
-    final columns = <GridColumn>[
+    // Unbounded height means a scrolling pane hosts us: lay out at full height so that pane is the only vertical scroller.
+    return LayoutBuilder(
+      builder: (context, outer) => _buildGrid(
+        columns,
+        myPermissions,
+        shrinkWrap: !outer.hasBoundedHeight,
+      ),
+    );
+  }
+
+  Widget? _loadFailure(
+    AsyncValue<Object?> overwrites,
+    AsyncValue<Object?> roles,
+    AsyncValue<Object?> members,
+  ) {
+    if (overwrites.hasError) {
+      return AppErrorState(
+        message: _categoryId == null
+            ? "Could not load this channel's overwrites."
+            : "Could not load this category's overwrites.",
+        onRetry: () => ref.invalidate(_overwrites),
+      );
+    }
+    if (roles.hasError) {
+      return AppErrorState(
+        message: 'Could not load roles.',
+        onRetry: () => ref.invalidate(rolesProvider),
+      );
+    }
+    if (members.hasError) {
+      return AppErrorState(
+        message: 'Could not load members.',
+        onRetry: () => ref.invalidate(membersProvider),
+      );
+    }
+    return null;
+  }
+
+  List<GridColumn> _columns(
+    List<api.Role> roles,
+    List<api.UserProfile> members,
+  ) {
+    final everyone = roles.where((r) => r.isEveryone).firstOrNull;
+    return [
       if (everyone != null)
         GridColumn(
           kind: api.OverwriteTarget.role,
@@ -375,15 +395,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         if (everyone == null || key != 'role:${everyone.id}')
           if (_resolve(key, roles, members) case final column?) column,
     ].map(_withCounts).toList();
-
-    // Unbounded height means a scrolling pane hosts us: lay out at full height so that pane is the only vertical scroller.
-    return LayoutBuilder(
-      builder: (context, outer) => _buildGrid(
-        columns,
-        myPermissions,
-        shrinkWrap: !outer.hasBoundedHeight,
-      ),
-    );
   }
 
   Widget _buildGrid(
