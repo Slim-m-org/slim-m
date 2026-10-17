@@ -26,15 +26,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
 import 'voice_controller_harness.dart';
-
-class _NoFetchBlocks extends BlocksController {
-  _NoFetchBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'support/fake_blocks.dart';
 
 /// Camera on: this suite drives the depth control, which an avatar-only
 /// tile no longer exposes - see `canvas_presence_tile_kind_test.dart`.
@@ -87,7 +79,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );
@@ -135,7 +127,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );

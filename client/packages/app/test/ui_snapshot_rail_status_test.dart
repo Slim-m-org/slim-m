@@ -28,21 +28,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'ui_snapshot_support.dart';
-
-class _StubSync extends SyncController {
-  _StubSync(super.ref) {
-    state = SyncStatus.offline;
-  }
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 ProviderContainer _container(List<Override> overrides) => ProviderContainer(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: fixtureTokens)),
-    syncControllerProvider.overrideWith(_StubSync.new),
+    syncControllerProvider.overrideWith(StubSyncController.new),
     apiProvider.overrideWith((ref) {
       final client = api.SlimmApi(
         baseUrl: Uri.parse('http://localhost:8080'),

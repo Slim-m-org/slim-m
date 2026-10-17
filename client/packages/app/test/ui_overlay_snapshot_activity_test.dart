@@ -26,6 +26,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -60,16 +61,6 @@ Future<MemoryImage> _cover(WidgetTester tester) async {
     return (await image.toByteData(format: ui.ImageByteFormat.png))!;
   });
   return MemoryImage(bytes!.buffer.asUint8List());
-}
-
-/// Keeps the real controller's socket and retry timer out of the test.
-class _StubSyncController extends SyncController {
-  _StubSyncController(super.ref) {
-    state = SyncStatus.live;
-  }
-
-  @override
-  Future<void> start() async {}
 }
 
 api.UserProfile _profile(String id, String name, {String? statusText}) =>
@@ -149,7 +140,7 @@ Future<void> _pump(
       activityArtImageProvider.overrideWithValue((_) => cover),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      syncControllerProvider.overrideWith(_StubSyncController.new),
+      syncControllerProvider.overrideWith(StubSyncController.new),
       apiProvider.overrideWith((ref) {
         final client = _fakeApi(ref.watch(sessionProvider));
         ref.onDispose(client.close);

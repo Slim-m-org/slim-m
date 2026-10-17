@@ -20,15 +20,6 @@ import 'package:slimm_rtc/rtc.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
-/// A controller pinned to whatever state the test wants, so the shell can be
-/// driven without a real call ever connecting.
-class _FixedVoiceController extends VoiceController {
-  _FixedVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-}
-
 /// Pumps the real shell at [location] with the voice controller pinned to
 /// [voice], asserts whether the strip shows, and tears down before
 /// returning: the shell's debounced providers (the member roster keep-alive,
@@ -46,7 +37,7 @@ Future<void> _expectStrip(
   final fixture = await fixtureContainer(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => _FixedVoiceController(ref, voice),
+        (ref) => FixedVoiceController(ref, voice),
       ),
     ],
   );

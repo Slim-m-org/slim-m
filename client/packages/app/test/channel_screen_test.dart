@@ -25,21 +25,7 @@ import 'package:slimm_app/src/widgets/composer.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-/// Stands in for the real [SyncController] in this test. `ChannelScreen`
-/// watches it (transiently, through `_EmptyMessages`, on the very first
-/// frame before the local store's own stream has emitted anything) whether
-/// or not this test cares about it, and the real one tries to open a
-/// websocket to a server that does not exist here. `start` is called from
-/// the base constructor, but Dart dispatches virtually even there, so
-/// overriding it as a no-op keeps the real one from ever touching the
-/// network.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -123,9 +109,7 @@ void main() {
           /// Avoids constructing the real SyncController (and the websocket it
           /// would try, and fail, to open) purely to satisfy the pins/typing
           /// seams ChannelScreen builds alongside the message list.
-          syncControllerProvider.overrideWith(
-            (ref) => _NoopSyncController(ref),
-          ),
+          syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
           apiProvider.overrideWith((ref) {
             final client = api.SlimmApi(
               baseUrl: Uri.parse('http://localhost:8080'),
@@ -235,7 +219,7 @@ void main() {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
-        syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
         apiProvider.overrideWith((ref) {
           final client = api.SlimmApi(
             baseUrl: Uri.parse('http://localhost:8080'),

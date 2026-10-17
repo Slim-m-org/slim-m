@@ -33,6 +33,7 @@ import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'message_row_harness.dart' show harness, message, noActions;
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
+import 'support/fake_blocks.dart';
 
 const _viewport = Size(1400, 880);
 
@@ -49,15 +50,6 @@ class _NoopTyping extends StateNotifier<Set<String>>
 
   @override
   void notifyTyping() {}
-}
-
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
 }
 
 Future<void> _finish(
@@ -88,7 +80,7 @@ void main() {
         ),
         overrides: [
           blocksProvider.overrideWith(
-            (ref) => _FixedBlocks(
+            (ref) => FixedBlocksController(
               ref,
               const BlocksState(ids: {'user-maya'}, settled: true),
             ),
@@ -126,7 +118,7 @@ void main() {
             return client;
           }),
           blocksProvider.overrideWith(
-            (ref) => _FixedBlocks(
+            (ref) => FixedBlocksController(
               ref,
               const BlocksState(ids: {'user-maya'}, settled: true),
             ),

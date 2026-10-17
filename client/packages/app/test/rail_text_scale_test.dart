@@ -15,13 +15,6 @@ import 'package:slimm_rtc/rtc.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
-class _FixedVoiceController extends VoiceController {
-  _FixedVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-}
-
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpRail(
   WidgetTester tester, {
   double scale = 1,
@@ -31,7 +24,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpRail(
     extraOverrides: [
       if (call != null)
         voiceControllerProvider.overrideWith(
-          (ref) => _FixedVoiceController(ref, call),
+          (ref) => FixedVoiceController(ref, call),
         ),
     ],
   );

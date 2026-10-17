@@ -13,13 +13,7 @@ import 'package:slimm_app/src/widgets/attachment_image_states.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';
-
-class _Sync extends SyncController {
-  _Sync(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 Widget _tiles(double edge, Widget Function(double? edge) box) => Wrap(
   spacing: AppSpacing.s4,
@@ -51,7 +45,9 @@ void main() {
         );
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [syncControllerProvider.overrideWith(_Sync.new)],
+            overrides: [
+              syncControllerProvider.overrideWith(NoopSyncController.new),
+            ],
             child: RepaintBoundary(
               key: snapshotBoundary,
               child: MaterialApp(

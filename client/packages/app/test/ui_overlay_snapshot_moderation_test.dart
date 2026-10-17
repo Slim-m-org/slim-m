@@ -39,6 +39,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_controller_harness.dart' show FakeSession, tokens;
+import 'support/fake_blocks.dart';
 
 const _viewport = Size(1400, 880);
 const _channelId = 'channel-shared';
@@ -60,17 +61,6 @@ final _timedOut = api.UserProfile(
       .millisecondsSinceEpoch,
 );
 
-/// A fixed block set with no real fetch, the shape `member_profile_block_
-/// test.dart` already uses.
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
-
 Widget _body(api.UserProfile profile) =>
     MemberProfileBody(profile: profile, compact: false, onDone: () {});
 
@@ -87,7 +77,8 @@ Widget _harness(
     if (selfProfile != null)
       meProvider.overrideWith((ref) async => selfProfile),
     blocksProvider.overrideWith(
-      (ref) => _FixedBlocks(ref, BlocksState(ids: blocked, settled: true)),
+      (ref) =>
+          FixedBlocksController(ref, BlocksState(ids: blocked, settled: true)),
     ),
   ],
   child: MaterialApp(

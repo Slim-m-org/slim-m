@@ -21,10 +21,9 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart';
 
-import 'home_shell_harness.dart' show NoopSyncController;
-import 'voice_controller_harness.dart' show FakeSession;
+import 'support/fake_sync.dart';
+import 'voice_controller_harness.dart' show RecordingVoiceController;
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -41,21 +40,6 @@ class _RecordingJump extends MessageJumpController {
   @override
   Future<void> jumpTo(String channelId, String messageId) async {
     jumps.add((channelId, messageId));
-  }
-}
-
-class _RecordingVoiceController extends VoiceController {
-  _RecordingVoiceController(super.ref) : super(session: FakeSession());
-
-  final joins = <String>[];
-
-  @override
-  Future<void> join(String channelId) async {
-    joins.add(channelId);
-    state = VoiceState(
-      state: VoiceSessionState.connected,
-      channelId: channelId,
-    );
   }
 }
 
@@ -171,13 +155,13 @@ void main() {
   testWidgets('a link into a voice channel opens its chat and does not join', (
     tester,
   ) async {
-    late _RecordingVoiceController voice;
+    late RecordingVoiceController voice;
     final (:container, :db, router: _) = await _pump(
       tester,
       Routes.message('c1', 'm1'),
       extraOverrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => voice = _RecordingVoiceController(ref),
+          (ref) => voice = RecordingVoiceController(ref),
         ),
       ],
       seed: (db) => MessageStore(db).upsertChannels([

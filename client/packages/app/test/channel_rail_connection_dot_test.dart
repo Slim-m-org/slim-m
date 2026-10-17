@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/sync_failure.dart';
 import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -24,17 +25,6 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-/// Stands in for the real [SyncController]; see `channel_rail_test.dart`'s
-/// own copy of this same shape for why overriding `start` is enough.
-class _StubSyncController extends SyncController {
-  _StubSyncController(super.ref, SyncStatus status) {
-    state = status;
-  }
-
-  @override
-  Future<void> start() async {}
-}
 
 ProviderContainer _setup(
   SyncStatus status, {
@@ -46,7 +36,7 @@ ProviderContainer _setup(
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
     syncControllerProvider.overrideWith(
-      (ref) => _StubSyncController(ref, status),
+      (ref) => StubSyncController(ref, status),
     ),
     hasFailedSinceLiveProvider.overrideWith((ref) => hasFailedSinceLive),
     apiProvider.overrideWith((ref) {

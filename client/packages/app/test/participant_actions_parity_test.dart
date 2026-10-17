@@ -32,6 +32,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'support/reduced_motion_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession, tokens;
+import 'support/fake_sync.dart';
 
 const _channelId = 'channel-shared';
 
@@ -52,13 +53,6 @@ const _participant = VoiceParticipant(
   isScreenSharing: false,
 );
 
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
-
 ({ProviderContainer container, FakeSession session}) _wire({
   int permissions = 0,
 }) {
@@ -68,7 +62,7 @@ class _NoopSyncController extends SyncController {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
       myPermissionsProvider.overrideWithValue(permissions),
-      syncControllerProvider.overrideWith(_NoopSyncController.new),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       membersProvider.overrideWith((ref) async => [_bot]),
       rolesProvider.overrideWith((ref) async => const <api.Role>[]),
       apiProvider.overrideWith((ref) {

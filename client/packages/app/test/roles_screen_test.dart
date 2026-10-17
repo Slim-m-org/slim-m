@@ -20,6 +20,7 @@ import 'package:slimm_app/src/screens/admin/role_detail_screen.dart';
 import 'package:slimm_app/src/screens/admin/roles_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -27,15 +28,6 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-/// [RolesScreen] stays live to role changes through `roleChangeWatcherProvider`,
-/// which needs a [SyncController] to read; this one opens no real socket.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
 
 api.Role _role(
   String id,
@@ -66,7 +58,7 @@ Future<void> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      syncControllerProvider.overrideWith(_NoopSyncController.new),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       rolesProvider.overrideWith((ref) async => roles),
       myPermissionsProvider.overrideWithValue(Perm.manageRoles),
       membersProvider.overrideWith((ref) async => const []),

@@ -19,15 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'ui_snapshot_support.dart';
-
-class _StubSync extends SyncController {
-  _StubSync(super.ref, SyncStatus status) {
-    state = status;
-  }
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 final _icons = <String, List<int>>{
   'colour': base64Decode(
@@ -72,7 +64,9 @@ Future<void> _capture(
       sessionProvider.overrideWithValue(
         api.SessionStore(tokens: fixtureTokens),
       ),
-      syncControllerProvider.overrideWith((ref) => _StubSync(ref, status)),
+      syncControllerProvider.overrideWith(
+        (ref) => StubSyncController(ref, status),
+      ),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),

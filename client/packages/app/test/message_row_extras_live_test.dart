@@ -32,17 +32,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart';
-
-/// Same reason `message_transcript_start_header_test.dart` needs this: a
-/// signed-in session's real `SyncController` calls `start()` from its own
-/// constructor, which would open a websocket to a server that does not
-/// exist here.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -69,7 +59,7 @@ List<Override> _overrides(Stream<ServerEvent> events) => [
     ref.onDispose(api.close);
     return api;
   }),
-  syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+  syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
   // Overridden past the noop controller's own dead `liveEvents` getter.
   liveEventsProvider.overrideWithValue(events),
 ];

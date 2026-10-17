@@ -20,18 +20,7 @@ import 'package:slimm_app/src/widgets/personal_account_sections.dart';
 import 'package:slimm_app/src/widgets/settings_detail_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-/// A fixed block set with no real fetch, the same shape the canvas presence
-/// tests already use: a real [BlocksController.refresh] racing this test's
-/// pumps could resolve after the fixed state and quietly replace it.
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'support/fake_blocks.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -167,7 +156,7 @@ void main() {
             return api;
           }),
           blocksProvider.overrideWith(
-            (ref) => _FixedBlocks(
+            (ref) => FixedBlocksController(
               ref,
               const BlocksState(ids: {'user-blocked'}, settled: true),
             ),

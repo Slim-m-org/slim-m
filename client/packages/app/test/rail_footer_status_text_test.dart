@@ -23,6 +23,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -31,20 +32,11 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-class _StubSyncController extends SyncController {
-  _StubSyncController(super.ref) {
-    state = SyncStatus.live;
-  }
-
-  @override
-  Future<void> start() async {}
-}
-
 ProviderContainer _container({String? statusText}) => ProviderContainer(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-    syncControllerProvider.overrideWith(_StubSyncController.new),
+    syncControllerProvider.overrideWith(StubSyncController.new),
     apiProvider.overrideWith((ref) {
       final client = api.SlimmApi(
         baseUrl: Uri.parse('http://localhost:8080'),

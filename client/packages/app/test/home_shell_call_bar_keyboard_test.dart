@@ -17,13 +17,6 @@ import 'package:slimm_rtc/rtc.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
-class _FixedVoiceController extends VoiceController {
-  _FixedVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-}
-
 void main() {
   setUpAll(loadRealFonts);
 
@@ -33,7 +26,7 @@ void main() {
     final fixture = await fixtureContainer(
       extraOverrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => _FixedVoiceController(
+          (ref) => FixedVoiceController(
             ref,
             const VoiceState(
               channelId: 'c-main',

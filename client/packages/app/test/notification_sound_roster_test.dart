@@ -22,6 +22,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'support/video_quality_recorder.dart';
+import 'support/fake_sound_player.dart';
 
 /// The minimum [VoiceSession] surface the controller needs, the same shape
 /// `voice_settings_screen_test.dart`'s own fake already establishes.
@@ -151,22 +152,6 @@ class _FakeSession with VideoQualityRecorder implements VoiceSession {
   void emitParticipants(List<VoiceParticipant> next) => _participants.add(next);
 }
 
-class _FakePlayer implements SoundPlayer {
-  final played = <NotificationSound>[];
-
-  @override
-  Future<void> play(NotificationSound sound) async => played.add(sound);
-
-  @override
-  Future<void> loop(NotificationSound sound) async {}
-
-  @override
-  Future<void> stopLoop() async {}
-
-  @override
-  Future<void> dispose() async {}
-}
-
 const _tokens = api.TokenPair(
   userId: 'me',
   accessToken: 'access',
@@ -189,12 +174,12 @@ class _Setup {
 
   final ProviderContainer container;
   final _FakeSession session;
-  final _FakePlayer player;
+  final RecordingSoundPlayer player;
 }
 
 Future<_Setup> _wire() async {
   final session = _FakeSession();
-  final player = _FakePlayer();
+  final player = RecordingSoundPlayer();
 
   final container = ProviderContainer(
     overrides: [

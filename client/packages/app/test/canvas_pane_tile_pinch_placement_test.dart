@@ -20,15 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'canvas_pane_harness.dart';
 import 'voice_controller_harness.dart';
-
-class _NoFetchBlocks extends BlocksController {
-  _NoFetchBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'support/fake_blocks.dart';
 
 const _here = VoiceParticipant(
   identity: 'user-noor',
@@ -54,7 +46,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );

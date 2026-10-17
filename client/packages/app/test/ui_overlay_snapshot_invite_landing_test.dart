@@ -26,6 +26,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
+import 'support/fake_sync.dart';
 
 const _desktop = Size(1280, 800);
 const _phone = Size(390, 844);
@@ -61,15 +62,6 @@ Future<Uint8List> _iconPng() async {
   final image = await recorder.endRecording().toImage(96, 96);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
   return data!.buffer.asUint8List();
-}
-
-class _LiveSync extends SyncController {
-  _LiveSync(super.ref) {
-    state = SyncStatus.live;
-  }
-
-  @override
-  Future<void> start() async {}
 }
 
 const _tokens = api.TokenPair(
@@ -274,7 +266,7 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-          syncControllerProvider.overrideWith((ref) => _LiveSync(ref)),
+          syncControllerProvider.overrideWith((ref) => StubSyncController(ref)),
           apiProvider.overrideWith(
             (ref) => api.SlimmApi(
               baseUrl: Uri.parse('http://localhost:8080'),

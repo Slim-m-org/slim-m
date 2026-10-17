@@ -24,13 +24,6 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
-class _FixedVoiceController extends VoiceController {
-  _FixedVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-}
-
 /// Live in a different channel than the one whose canvas the tests open.
 const _callElsewhere = VoiceState(
   channelId: 'c-main',
@@ -49,7 +42,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _open(
     extraOverrides: [
       canvasOpenProvider.overrideWith((ref) => 'c-general'),
       voiceControllerProvider.overrideWith(
-        (ref) => _FixedVoiceController(ref, _callElsewhere),
+        (ref) => FixedVoiceController(ref, _callElsewhere),
       ),
     ],
   );

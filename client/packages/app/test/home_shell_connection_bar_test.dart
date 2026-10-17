@@ -18,18 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';
-
-/// Stands in for the real [SyncController]: `start` opens a websocket to a
-/// server that is not there, so it is overridden to a no-op, and [status]
-/// fixes the value the bar reads.
-class _FixedSyncController extends SyncController {
-  _FixedSyncController(super.ref, SyncStatus status) {
-    state = status;
-  }
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpOffline(
   WidgetTester tester,
@@ -40,7 +29,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpOffline(
   final fixture = await fixtureContainer(
     extraOverrides: [
       syncControllerProvider.overrideWith(
-        (ref) => _FixedSyncController(ref, status),
+        (ref) => StubSyncController(ref, status),
       ),
       hasFailedSinceLiveProvider.overrideWith((ref) => hasFailedSinceLive),
     ],
