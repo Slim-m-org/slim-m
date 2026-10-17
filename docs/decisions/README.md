@@ -77,3 +77,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0065](0065-temporary-voice-rooms.md) | Temporary voice rooms, as a voice channel setting | accepted |
 | [0066](0066-voice-call-history.md) | A voice channel's call history | accepted |
 | [0067](0067-module-install-consent.md) | Module install consent | accepted |
+| [0068](0068-multiple-servers-in-one-app.md) | One app, several servers, switched from the top left | accepted |
