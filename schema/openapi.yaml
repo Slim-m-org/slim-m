@@ -9738,6 +9738,13 @@ components:
             a stable default derived from its id, so a card is never
             colourless. Absent on servers older than this field, which a
             client must treat as unknown rather than defaulting to zero.
+        profile_color_rgb:
+          type: integer
+          nullable: true
+          description: >
+            A custom colour as 0xRRGGBB (0 to 16777215) that wins over
+            `profile_color`, or null for the preset. `profile_color` then holds
+            the nearest preset, for a client older than this field.
         is_bot:
           type: boolean
           description: >
@@ -9854,6 +9861,10 @@ components:
         profile_color:
           type: integer
           description: The caller's own profile colour index; see `UserProfile.profile_color`.
+        profile_color_rgb:
+          type: integer
+          nullable: true
+          description: The caller's own custom colour, or null; see `UserProfile.profile_color_rgb`.
         presence_visibility:
           type: string
           enum: [online, away, dnd, hidden]
@@ -9902,6 +9913,12 @@ components:
             There is no clearing this back to unset: every account always has
             one, defaulting to a stable value derived from its id. An index
             outside the set is a 400.
+        profile_color_rgb:
+          type: integer
+          description: >
+            A custom colour as 0xRRGGBB (0 to 16777215; outside it is a 400).
+            A `profile_color` sent without this drops any custom colour back to
+            that preset, which is also how an older client clears it.
 
     TotpChallenge:
       type: object

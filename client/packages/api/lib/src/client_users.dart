@@ -19,7 +19,7 @@ extension SlimmApiUsers on SlimmApi {
   /// Pass an empty string for [statusText]/[pronouns]/[about] to clear it
   /// back to none, the same "blank clears it" convention `updateChannel`'s
   /// `topic` uses. [profileColor] has no clearing case: every account always
-  /// has one. The username is not editable here: it backs the live
+  /// has one; sending it without [profileColorRgb] drops a custom colour. The username is not editable here: it backs the live
   /// per-account uniqueness index, so changing it needs a dedicated flow that
   /// can handle the resulting collision.
   Future<UserProfile> updateMe({
@@ -28,6 +28,7 @@ extension SlimmApiUsers on SlimmApi {
     String? pronouns,
     String? about,
     int? profileColor,
+    int? profileColorRgb,
   }) async {
     final json = await _send(
       'PATCH',
@@ -38,6 +39,7 @@ extension SlimmApiUsers on SlimmApi {
         if (pronouns != null) 'pronouns': pronouns,
         if (about != null) 'about': about,
         if (profileColor != null) 'profile_color': profileColor,
+        if (profileColorRgb != null) 'profile_color_rgb': profileColorRgb,
       },
     );
     return UserProfile.fromJson(json as Map<String, dynamic>);

@@ -331,6 +331,9 @@ pub struct User {
     /// a raw colour: an index keeps meaning a fixed hue in both themes. See
     /// migration 0075.
     pub profile_color: Option<i64>,
+    /// A custom colour as 0xRRGGBB, or `None` to use [`Self::profile_color`];
+    /// see migration 0120.
+    pub profile_color_rgb: Option<i64>,
     /// Whether this account is a bot rather than a person, so a reader can be
     /// told without inspecting anything. See
     /// `docs/decisions/0028-bot-accounts.md`; it changes how the account
@@ -480,6 +483,7 @@ impl Store {
             pronouns: None,
             about: None,
             profile_color: None,
+            profile_color_rgb: None,
             is_bot: false,
             is_webhook: false,
         })

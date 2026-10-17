@@ -26,6 +26,7 @@ class UserProfile {
     this.pronouns,
     this.about,
     this.profileColor,
+    this.profileColorRgb,
     this.isBot = false,
     this.isWebhook = false,
     this.inviteCode,
@@ -104,6 +105,10 @@ class UserProfile {
   /// one the server computes for an account that has not chosen one yet.
   final int? profileColor;
 
+  /// A custom colour as 0xRRGGBB that wins over [profileColor], or null for
+  /// the preset (and on a server older than this field).
+  final int? profileColorRgb;
+
   /// Whether this account is a bot rather than a person, which the interface
   /// draws a badge from. False on a server older than this field: an older
   /// deployment has no bots to mistake anyone for, so reading absent as "not a
@@ -146,6 +151,7 @@ class UserProfile {
         pronouns: json['pronouns'] as String?,
         about: json['about'] as String?,
         profileColor: json['profile_color'] as int?,
+        profileColorRgb: json['profile_color_rgb'] as int?,
         isBot: json['is_bot'] as bool? ?? false,
         isWebhook: json['is_webhook'] as bool? ?? false,
         inviteCode: json['invite_code'] as String?,
@@ -172,6 +178,7 @@ class UserProfile {
           pronouns == other.pronouns &&
           about == other.about &&
           profileColor == other.profileColor &&
+          profileColorRgb == other.profileColorRgb &&
           inviteCode == other.inviteCode &&
           _listEquals(roles, other.roles) &&
           _listEquals(roleIds, other.roleIds));
@@ -191,6 +198,7 @@ class UserProfile {
         pronouns,
         about,
         profileColor,
+        profileColorRgb,
         inviteCode,
         Object.hashAll(roles),
         Object.hashAll(roleIds),
@@ -229,6 +237,7 @@ class Me {
     this.pronouns,
     this.about,
     this.profileColor,
+    this.profileColorRgb,
     this.presenceVisibility,
   });
 
@@ -270,6 +279,9 @@ class Me {
   /// Same meaning as [UserProfile.profileColor].
   final int? profileColor;
 
+  /// Same meaning as [UserProfile.profileColorRgb].
+  final int? profileColorRgb;
+
   /// The caller's own stored presence choice: online, away, dnd or hidden.
   /// Null from a server that predates the field. Self-view only.
   final String? presenceVisibility;
@@ -287,6 +299,7 @@ class Me {
         pronouns: json['pronouns'] as String?,
         about: json['about'] as String?,
         profileColor: json['profile_color'] as int?,
+        profileColorRgb: json['profile_color_rgb'] as int?,
         presenceVisibility: json['presence_visibility'] as String?,
       );
 }

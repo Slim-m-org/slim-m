@@ -98,6 +98,14 @@ pub(super) fn validate_profile_color(color: i64) -> Result<i64, ApiError> {
     Ok(color)
 }
 
+/// A custom colour as 0xRRGGBB, with no alpha: a profile colour is always opaque.
+pub(super) fn validate_profile_color_rgb(rgb: i64) -> Result<i64, ApiError> {
+    if !(0..=0xFF_FF_FF).contains(&rgb) {
+        return Err(ApiError::BadRequest("profile_color_rgb is out of range"));
+    }
+    Ok(rgb)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
