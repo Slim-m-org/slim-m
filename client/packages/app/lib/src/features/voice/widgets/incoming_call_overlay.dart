@@ -54,7 +54,7 @@ import '../../../desktop/desktop_window_shell.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/router.dart';
-import '../screens/voice_call_controls.dart' show CallDockButton;
+import 'voice_call_controls.dart' show CallDockButton;
 import '../../../widgets/floating_dock_card.dart';
 import '../../members/widgets/user_avatar.dart';
 

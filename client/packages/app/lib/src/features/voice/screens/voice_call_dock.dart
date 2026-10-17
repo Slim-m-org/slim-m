@@ -41,7 +41,7 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
 import '../../canvas/screens/canvas_pane.dart';
-import 'call_leave_button.dart';
+import '../widgets/call_leave_button.dart';
 import '../../canvas/screens/canvas_dock_toggle.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 

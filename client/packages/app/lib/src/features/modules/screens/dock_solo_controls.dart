@@ -16,7 +16,7 @@ import '../../voice/providers/camera_switch.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/screens/hold_music_dock_toggle.dart';
-import '../../voice/screens/voice_call_controls.dart';
+import '../../voice/widgets/voice_call_controls.dart';
 
 /// One slot's width: the button with its focus-ring reserve, plus the gap before it.
 double dockExtraExtent(BuildContext context) {

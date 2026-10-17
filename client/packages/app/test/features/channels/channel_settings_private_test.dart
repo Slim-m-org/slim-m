@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/features/channels/screens/channel_settings_private_row.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_settings_private_row.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 
 import 'channel_management_harness.dart';

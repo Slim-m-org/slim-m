@@ -17,7 +17,7 @@ import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_jump.dart';
-import '../../settings/widgets/space_settings_section.dart';
+import '../../settings/screens/space_settings_section.dart';
 
 /// Which row layout a [PaletteResultItem] draws with.
 enum PaletteKind { channel, person, message, action }

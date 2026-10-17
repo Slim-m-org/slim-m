@@ -22,13 +22,13 @@ import '../../../providers/admin_providers.dart';
 import '../../../routing/routes.dart';
 import '../../settings/widgets/settings_notice.dart';
 import '../../settings/screens/admin/channel_permissions_screen.dart';
-import 'channel_settings_danger_zone.dart';
-import 'channel_settings_general_section.dart';
-import 'channel_settings_join_muted_section.dart';
-import 'channel_settings_private_row.dart';
-import 'channel_settings_retention_row.dart';
-import 'channel_settings_rooms_section.dart';
-import 'channel_settings_slow_mode_section.dart';
+import '../widgets/channel_settings_danger_zone.dart';
+import '../widgets/channel_settings_general_section.dart';
+import '../widgets/channel_settings_join_muted_section.dart';
+import '../widgets/channel_settings_private_row.dart';
+import '../widgets/channel_settings_retention_row.dart';
+import '../widgets/channel_settings_rooms_section.dart';
+import '../widgets/channel_settings_slow_mode_section.dart';
 import '../../settings/screens/settings_screen_scaffold.dart';
 
 /// What the row's kebab hands the route: the channel, and whether it was the

@@ -14,7 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
-import 'package:slimm_app/src/features/voice/screens/voice_call_controls.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';

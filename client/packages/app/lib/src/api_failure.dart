@@ -9,7 +9,7 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
-import 'features/settings/screens/admin/channel_permissions_escalation.dart';
+import 'features/settings/widgets/admin/channel_permissions_escalation.dart';
 
 /// Turns [e] into a plain sentence for [whatFailed] ("join the call"),
 /// never the raw transport string a [api.TransportException] carries.

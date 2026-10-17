@@ -18,7 +18,7 @@ import '../../../providers/admin_providers.dart';
 import '../../../routing/routes.dart';
 import '../widgets/settings_notice.dart';
 import '../widgets/settings_panes.dart';
-import '../widgets/space_settings_section.dart';
+import 'space_settings_section.dart';
 import 'settings_screen_scaffold.dart';
 
 class SpaceSettingsScreen extends ConsumerWidget {

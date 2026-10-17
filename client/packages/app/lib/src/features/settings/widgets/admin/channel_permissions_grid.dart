@@ -26,7 +26,7 @@ import '../../../members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
 import '../../../../providers/providers.dart';
 import '../../../../widgets/run_guarded.dart';
-import '../../widgets/settings_save_bar.dart';
+import '../settings_save_bar.dart';
 import 'category_sync_banner.dart';
 import 'channel_permissions_body.dart';
 import 'channel_permissions_escalation.dart';

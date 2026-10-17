@@ -8,8 +8,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:slimm_app/src/features/channels/screens/channel_settings_join_muted_section.dart';
-import 'package:slimm_app/src/features/channels/screens/channel_settings_slow_mode_section.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_settings_join_muted_section.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_settings_slow_mode_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 

@@ -46,9 +46,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../voice/screens/call_leave_button.dart';
+import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
-import '../../voice/screens/voice_call_controls.dart';
+import '../../voice/widgets/voice_call_controls.dart';
 import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';

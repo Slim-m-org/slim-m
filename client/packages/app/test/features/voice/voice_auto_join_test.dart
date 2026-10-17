@@ -7,7 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/voice/screens/voice_call_controls.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart'
     show VoiceSwitchPrompt;
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';

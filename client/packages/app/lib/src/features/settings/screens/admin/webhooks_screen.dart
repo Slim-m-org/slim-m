@@ -25,7 +25,7 @@ import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
-import 'overwrite_target_picker_sheets.dart';
+import '../../widgets/admin/overwrite_target_picker_sheets.dart';
 import '../../../../action_labels.dart';
 
 class WebhooksScreen extends StatelessWidget {

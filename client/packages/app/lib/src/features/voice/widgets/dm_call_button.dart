@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../providers/voice_controller.dart';
-import 'dm_call_pane.dart';
+import '../screens/dm_call_pane.dart';
 
 class DmCallButton extends ConsumerWidget {
   const DmCallButton({super.key, required this.channelId});

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
-import 'package:slimm_app/src/features/voice/screens/voice_call_controls.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';

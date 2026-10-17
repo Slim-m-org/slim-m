@@ -10,7 +10,7 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
-import 'package:slimm_app/src/features/settings/widgets/space_settings_section.dart';
+import 'package:slimm_app/src/features/settings/screens/space_settings_section.dart';
 
 Future<List<SettingsPaneGroup>> _groups(WidgetTester tester, int mine) async {
   late List<SettingsPaneGroup> groups;

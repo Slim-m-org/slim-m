@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/voice/screens/call_dock_button.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_dock_button.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 

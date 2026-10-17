@@ -13,7 +13,7 @@ import '../../../audio/lounge_tracks.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../../widgets/control_options_menu.dart';
-import 'call_dock_button.dart';
+import '../widgets/call_dock_button.dart';
 
 class HoldMusicDockToggle extends ConsumerWidget {
   const HoldMusicDockToggle({super.key});

@@ -17,7 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../providers/notification_schedule_controller.dart';
 import '../../../providers/providers.dart';
-import '../screens/admin/overwrite_target_picker_sheets.dart';
+import 'admin/overwrite_target_picker_sheets.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';

@@ -117,7 +117,7 @@ Sends do fail visibly, so the loss is inbound: the user cannot tell whether nobo
 **The report queue never refreshes and has no affordance to ask it to** (low) - `client/packages/app/lib/src/providers/admin_providers.dart:30`.
 Fetched once on mount, no report event exists in the wire protocol, no refresh action and no pull-to-refresh - which is also what makes the two state bugs below inescapable without closing the panel.
 
-**Nothing at the entry point says reports are waiting** (low) - `client/packages/app/lib/src/features/settings/widgets/space_settings_section.dart:57`.
+**Nothing at the entry point says reports are waiting** (low) - `client/packages/app/lib/src/features/settings/screens/space_settings_section.dart:57`.
 Manual reporting is the whole safety model, and the only way to learn something was filed is to speculatively open the queue.
 
 **No expiry urgency anywhere in the invite list** (low) - `client/packages/app/lib/src/features/settings/screens/admin/invites_screen.dart:253`.

@@ -52,11 +52,11 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
-import '../widgets/audio_output_sheet.dart';
-import '../widgets/camera_source_sheet.dart';
+import 'audio_output_sheet.dart';
+import 'camera_source_sheet.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
-import '../widgets/screen_source_sheet.dart';
+import 'screen_source_sheet.dart';
 import 'call_availability.dart';
 import 'call_dock_button.dart';
 import 'call_quality_options.dart';

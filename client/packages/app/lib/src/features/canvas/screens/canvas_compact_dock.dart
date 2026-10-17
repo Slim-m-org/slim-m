@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/floating_dock_card.dart';
-import '../../voice/screens/call_leave_button.dart';
+import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_toggle.dart';

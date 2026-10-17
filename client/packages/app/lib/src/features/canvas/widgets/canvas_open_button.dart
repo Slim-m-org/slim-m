@@ -31,7 +31,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../voice/providers/voice_flags.dart';
-import 'canvas_pane.dart';
+import '../screens/canvas_pane.dart';
 
 class CanvasOpenButton extends ConsumerWidget {
   const CanvasOpenButton({

@@ -18,8 +18,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/channel_search_controller.dart';
 import '../providers/pins_controller.dart';
-import '../../canvas/screens/canvas_open_button.dart';
-import '../../voice/screens/dm_call_button.dart';
+import '../../canvas/widgets/canvas_open_button.dart';
+import '../../voice/widgets/dm_call_button.dart';
 import '../../voice/screens/voice_text_pane.dart'
     show VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';

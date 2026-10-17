@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../preset_options.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../../providers/providers.dart';
-import '../../channels/screens/channel_settings_rooms_section.dart'
+import '../../channels/widgets/channel_settings_rooms_section.dart'
     show userLimitLabel, userLimitOptions;
 import '../../../entity_name.dart';
 import '../../../widgets/run_guarded.dart';

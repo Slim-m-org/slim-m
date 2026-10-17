@@ -6,7 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../settings/screens/admin/channel_permissions_grid.dart';
+import '../../settings/widgets/admin/channel_permissions_grid.dart';
 
 Future<void> showCategoryPermissionsSheet(
   BuildContext context, {

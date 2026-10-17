@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_open_button.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_open_button.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_header.dart';
 import 'package:slimm_data/data.dart';

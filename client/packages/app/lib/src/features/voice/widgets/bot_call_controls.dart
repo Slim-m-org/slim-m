@@ -19,7 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/bot_ui_uses.dart';
-import '../screens/call_dock_button.dart';
+import 'call_dock_button.dart';
 import '../../../widgets/context_menu_region.dart';
 
 /// One bot's controls for the call.
