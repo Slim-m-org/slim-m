@@ -38,7 +38,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = const Channel(
+const _channel = Channel(
   id: 'c-plans',
   name: 'plans',
   kind: 'text',
@@ -174,7 +174,11 @@ void main() {
     tester,
   ) async {
     final server = _Server()..synced = true;
-    await _pump(tester, server, ChannelPermissionsGrid(channel: _channel));
+    await _pump(
+      tester,
+      server,
+      const ChannelPermissionsGrid(channel: _channel),
+    );
     expect(find.byType(CategorySyncBanner), findsOneWidget);
     expect(find.text("Follows its category's permissions."), findsOneWidget);
   });

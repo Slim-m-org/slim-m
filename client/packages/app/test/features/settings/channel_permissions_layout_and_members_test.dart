@@ -40,7 +40,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = const Channel(
+const _channel = Channel(
   id: 'c-secret',
   name: 'secret',
   kind: 'text',
@@ -146,7 +146,7 @@ Widget _pane(ProviderContainer container) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
-    home: Scaffold(
+    home: const Scaffold(
       body: SingleChildScrollView(
         child: ChannelPermissionsGrid(channel: _channel),
       ),

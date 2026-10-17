@@ -53,12 +53,12 @@ void main() {
       'cameraToFit falls back to the origin with no bounds or no measured '
       'viewport', () {
     expect(cameraToFit(null, const Size(800, 600)), const Camera());
-    final bounds = const Rect.fromLTWH(100, 100, 40, 40);
+    const bounds = Rect.fromLTWH(100, 100, 40, 40);
     expect(cameraToFit(bounds, Size.zero), const Camera());
   });
 
   test('cameraToFit brings distant content into the resulting world view', () {
-    final bounds = const Rect.fromLTWH(5000, -3000, 40, 40);
+    const bounds = Rect.fromLTWH(5000, -3000, 40, 40);
 
     final camera = cameraToFit(bounds, const Size(1000, 800));
 

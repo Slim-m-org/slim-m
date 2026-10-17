@@ -239,7 +239,7 @@ class OnboardingStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final steps = OnboardingStep.values;
+    const steps = OnboardingStep.values;
 
     return Semantics(
       container: true,

@@ -41,7 +41,7 @@ void main() {
     });
 
     test('indents every list line a selection touches', () {
-      final value = const TextEditingValue(
+      const value = TextEditingValue(
         text: '- a\n- b\nplain\n- c',
         selection: TextSelection(baseOffset: 2, extentOffset: 16),
       );
@@ -49,7 +49,7 @@ void main() {
     });
 
     test('a selection ending at the start of a line leaves that line', () {
-      final value = const TextEditingValue(
+      const value = TextEditingValue(
         text: '- a\n- b',
         selection: TextSelection(baseOffset: 0, extentOffset: 4),
       );

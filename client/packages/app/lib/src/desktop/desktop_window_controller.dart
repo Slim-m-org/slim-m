@@ -136,7 +136,7 @@ class DesktopWindowController {
     try {
       if (await port.isMaximized() || await port.isFullScreen()) return;
       final bounds = await port.getBounds();
-      final floor = WindowGeometry.minimumWindowSize;
+      const floor = WindowGeometry.minimumWindowSize;
       if (bounds.width >= floor.width && bounds.height >= floor.height) return;
       await port.setSize(
         WindowSize(

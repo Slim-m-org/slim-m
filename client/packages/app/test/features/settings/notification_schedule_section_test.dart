@@ -251,7 +251,7 @@ void main() {
       reason: 'the heading leads the same row of buttons',
     );
 
-    final tokens = AppTokens.light;
+    const tokens = AppTokens.light;
     final caption = tester.widget<Text>(
       find.textContaining('Calls still ring'),
     );

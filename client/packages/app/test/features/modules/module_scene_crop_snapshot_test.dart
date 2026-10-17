@@ -19,7 +19,7 @@ Future<void> _shot(WidgetTester tester, String name, double width) async {
   tester.view.physicalSize = Size(width + 32, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final tokens = AppTokens.dark;
+  const tokens = AppTokens.dark;
   await tester.pumpWidget(
     MaterialApp(
       theme: buildTheme(Brightness.dark, tokens),

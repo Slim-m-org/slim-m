@@ -29,7 +29,7 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 4102444800000,
 );
 
-final _channel = const Channel(
+const _channel = Channel(
   id: 'ch-1',
   name: 'General voice',
   kind: 'voice',
@@ -73,7 +73,9 @@ Widget _harness(VoiceState voice) {
     ],
     child: MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(body: VoiceChannelRow(channel: _channel, selected: false)),
+      home: const Scaffold(
+        body: VoiceChannelRow(channel: _channel, selected: false),
+      ),
     ),
   );
 }
@@ -198,7 +200,7 @@ void main() {
           ],
           child: MaterialApp(
             theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(
+            home: const Scaffold(
               body: VoiceChannelRow(channel: _channel, selected: false),
             ),
           ),

@@ -64,7 +64,7 @@ void main() {
   testWidgets('a custom shortcode in the question and an option is an image', (
     tester,
   ) async {
-    final poll = const api.Poll(
+    const poll = api.Poll(
       question: 'ship it :tada:',
       options: [
         api.PollOption(position: 0, label: 'yes :tada:', votes: 0),

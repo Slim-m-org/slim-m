@@ -37,7 +37,7 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
-final _channel = const Channel(
+const _channel = Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -89,7 +89,7 @@ Widget _grid(int myPermissions, {bool withNadia = false}) {
     container: container,
     child: MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(body: ChannelPermissionsGrid(channel: _channel)),
+      home: const Scaffold(body: ChannelPermissionsGrid(channel: _channel)),
     ),
   );
 }

@@ -116,8 +116,8 @@ Uint8List encodeWav16(Float64List signal) {
     samples[i] = (clipped * 32767.0).round();
   }
   final dataBytes = samples.buffer.asUint8List();
-  final bytesPerSample = 2;
-  final byteRate = sampleRate * bytesPerSample;
+  const bytesPerSample = 2;
+  const byteRate = sampleRate * bytesPerSample;
   final out = BytesBuilder();
   out.add(_ascii('RIFF'));
   out.add(_uint32le(36 + dataBytes.length));

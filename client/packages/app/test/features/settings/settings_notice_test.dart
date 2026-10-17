@@ -98,7 +98,7 @@ void main() {
         _harness(const SettingsAbsentValue('No reason given.')),
       );
 
-      final tokens = AppTokens.light;
+      const tokens = AppTokens.light;
       final rendered = tester.widget<Text>(find.text('No reason given.'));
 
       expect(rendered.style?.color, tokens.textSecondary);

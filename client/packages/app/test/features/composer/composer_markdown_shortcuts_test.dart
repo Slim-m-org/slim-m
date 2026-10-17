@@ -64,7 +64,7 @@ void main() {
     });
 
     test('a non-collapsed selection is left alone', () {
-      final value = const TextEditingValue(
+      const value = TextEditingValue(
         text: '- one',
         selection: TextSelection(baseOffset: 0, extentOffset: 3),
       );
@@ -89,7 +89,7 @@ void main() {
 
   group('wrapSelectionWithMarker', () {
     test('wraps a selection in the marker on both sides', () {
-      final value = const TextEditingValue(
+      const value = TextEditingValue(
         text: 'say hello world',
         selection: TextSelection(baseOffset: 4, extentOffset: 9),
       );

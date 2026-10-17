@@ -20,7 +20,7 @@ import 'package:slimm_platform/platform.dart';
 
 void main() {
   test('channelFromDm carries the other user\'s name as the channel name', () {
-    final dm = const api.DmConversation(
+    const dm = api.DmConversation(
       channelId: 'dm-1',
       user: api.UserProfile(
         id: 'user-2',
@@ -47,7 +47,7 @@ void main() {
 
   test('channelFromDm names a personal space distinctly rather than with the '
       'caller\'s own display name', () {
-    final dm = const api.DmConversation(
+    const dm = api.DmConversation(
       channelId: 'dm-self',
       user: api.UserProfile(
         id: 'self',
@@ -77,7 +77,7 @@ void main() {
 
   test('a DM whose other participant chose the sentinel as their own display '
       'name is not marked as the personal space', () {
-    final dm = const api.DmConversation(
+    const dm = api.DmConversation(
       channelId: 'dm-imposter',
       user: api.UserProfile(
         id: 'user-2',
