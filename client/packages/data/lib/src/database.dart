@@ -284,6 +284,65 @@ class SlimmDatabase extends _$SlimmDatabase {
   @override
   int get schemaVersion => 23;
 
+  /// Each step runs when the upgrade starts below its version (and at or
+  /// above [_UpgradeStep.minFrom]); order matters, a step may rely on earlier ones.
+  List<_UpgradeStep> _upgradeSteps(Migrator m) => [
+        _UpgradeStep(
+            2, () => m.addColumn(messages, messages.authorDisplayName)),
+        // Channels are refetched whole on every sync, so this column can be
+        // added in place. See the doc comment above.
+        _UpgradeStep(4, () => m.addColumn(channels, channels.topic)),
+        _UpgradeStep(5, () => m.addColumn(channels, channels.isPersonalSpace)),
+        _UpgradeStep(6, () => m.addColumn(channels, channels.dmParticipantId)),
+        _UpgradeStep(7, () => m.addColumn(channels, channels.opCursor)),
+        _UpgradeStep(8, () => m.addColumn(channels, channels.position)),
+        _UpgradeStep(9, () => m.addColumn(messages, messages.replyToId)),
+        _UpgradeStep(10, () => m.addColumn(channels, channels.parentMessageId)),
+        _UpgradeStep(11, () => m.addColumn(messages, messages.failureReason)),
+        _UpgradeStep(12, () async {
+          await m.addColumn(channels, channels.categoryId);
+          await m.createTable(channelCategories);
+        }),
+        _UpgradeStep(13, () async {
+          await m.addColumn(messages, messages.forwardedMessageId);
+          await m.addColumn(messages, messages.forwardedChannelId);
+          await m.addColumn(messages, messages.forwardedAuthorId);
+          await m.addColumn(messages, messages.forwardedAuthorDisplayName);
+          await m.addColumn(messages, messages.forwardedAuthorAvatarUpdatedAt);
+          await m.addColumn(messages, messages.forwardedCreatedAt);
+          await m.addColumn(messages, messages.forwardedContent);
+        }),
+        _UpgradeStep(14, () => m.addColumn(channels, channels.mentionedSeq)),
+        _UpgradeStep(15, () => m.addColumn(channels, channels.slowModeSeconds)),
+        _UpgradeStep(16, () => m.addColumn(channels, channels.restricted)),
+        _UpgradeStep(17, () => m.addColumn(channels, channels.manuallyUnread)),
+        _UpgradeStep(18, () => m.createTable(channelDrafts)),
+        _UpgradeStep(19, () => m.addColumn(channels, channels.joinMuted)),
+        _UpgradeStep(
+            20, () => m.addColumn(messages, messages.forwardedRemoved)),
+        _UpgradeStep(21, () => m.createTable(pendingAttachments)),
+        _UpgradeStep(22, () async {
+          await m.addColumn(channels, channels.createsRooms);
+          await m.addColumn(channels, channels.userLimit);
+          await m.addColumn(channels, channels.roomOwnerId);
+          await m.addColumn(channels, channels.roomLocked);
+        }),
+        // A table made by the v21 step above already has the column.
+        _UpgradeStep(
+          23,
+          minFrom: 21,
+          () =>
+              m.addColumn(pendingAttachments, pendingAttachments.mentionReply),
+        ),
+        // v2's null display names and the pre-op-stream epoch are both
+        // unreachable by a keyset sync. See the doc comment above.
+        _UpgradeStep(7, () async {
+          await m.deleteTable(messages.actualTableName);
+          await m.createTable(messages);
+          await m.database.customStatement('UPDATE channels SET cursor = 0');
+        }),
+      ];
+
   /// How each schema version is reached. Most add a column in place that the
   /// next channel refresh fills in. v3 and v7 drop the message cache and rewind
   /// the cursor instead, because a keyset sync only pages forward and could
@@ -292,92 +351,8 @@ class SlimmDatabase extends _$SlimmDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(messages, messages.authorDisplayName);
-          }
-          // Channels are refetched whole on every sync, so this column can be
-          // added in place. See the doc comment above.
-          if (from < 4) {
-            await m.addColumn(channels, channels.topic);
-          }
-          if (from < 5) {
-            await m.addColumn(channels, channels.isPersonalSpace);
-          }
-          if (from < 6) {
-            await m.addColumn(channels, channels.dmParticipantId);
-          }
-          if (from < 7) {
-            await m.addColumn(channels, channels.opCursor);
-          }
-          if (from < 8) {
-            await m.addColumn(channels, channels.position);
-          }
-          if (from < 9) {
-            await m.addColumn(messages, messages.replyToId);
-          }
-          if (from < 10) {
-            await m.addColumn(channels, channels.parentMessageId);
-          }
-          if (from < 11) {
-            await m.addColumn(messages, messages.failureReason);
-          }
-          if (from < 12) {
-            await m.addColumn(channels, channels.categoryId);
-            await m.createTable(channelCategories);
-          }
-          if (from < 13) {
-            await m.addColumn(messages, messages.forwardedMessageId);
-            await m.addColumn(messages, messages.forwardedChannelId);
-            await m.addColumn(messages, messages.forwardedAuthorId);
-            await m.addColumn(messages, messages.forwardedAuthorDisplayName);
-            await m.addColumn(
-              messages,
-              messages.forwardedAuthorAvatarUpdatedAt,
-            );
-            await m.addColumn(messages, messages.forwardedCreatedAt);
-            await m.addColumn(messages, messages.forwardedContent);
-          }
-          if (from < 14) {
-            await m.addColumn(channels, channels.mentionedSeq);
-          }
-          if (from < 15) {
-            await m.addColumn(channels, channels.slowModeSeconds);
-          }
-          if (from < 16) {
-            await m.addColumn(channels, channels.restricted);
-          }
-          if (from < 17) {
-            await m.addColumn(channels, channels.manuallyUnread);
-          }
-          if (from < 18) {
-            await m.createTable(channelDrafts);
-          }
-          if (from < 19) {
-            await m.addColumn(channels, channels.joinMuted);
-          }
-          if (from < 20) {
-            await m.addColumn(messages, messages.forwardedRemoved);
-          }
-          if (from < 21) {
-            await m.createTable(pendingAttachments);
-          }
-          if (from < 22) {
-            await m.addColumn(channels, channels.createsRooms);
-            await m.addColumn(channels, channels.userLimit);
-            await m.addColumn(channels, channels.roomOwnerId);
-            await m.addColumn(channels, channels.roomLocked);
-          }
-          // A table made by the v21 step above already has the column.
-          if (from >= 21 && from < 23) {
-            await m.addColumn(
-                pendingAttachments, pendingAttachments.mentionReply);
-          }
-          // v2's null display names and the pre-op-stream epoch are both
-          // unreachable by a keyset sync. See the doc comment above.
-          if (from < 7) {
-            await m.deleteTable(messages.actualTableName);
-            await m.createTable(messages);
-            await m.database.customStatement('UPDATE channels SET cursor = 0');
+          for (final step in _upgradeSteps(m)) {
+            if (step.applies(from)) await step.run();
           }
         },
         beforeOpen: (details) async {
@@ -394,4 +369,15 @@ class SlimmDatabase extends _$SlimmDatabase {
           );
         },
       );
+}
+
+/// One schema upgrade: runs when the old version is below [before] and at least [minFrom].
+class _UpgradeStep {
+  _UpgradeStep(this.before, this.run, {this.minFrom = 0});
+
+  final int before;
+  final int minFrom;
+  final Future<void> Function() run;
+
+  bool applies(int from) => from < before && from >= minFrom;
 }
