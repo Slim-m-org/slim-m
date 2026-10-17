@@ -54,8 +54,8 @@ client/packages/app/lib/src/widgets/channel_rail.dart 2
 client/packages/app/lib/src/widgets/channel_rail_channel_rows.dart 3
 client/packages/app/lib/src/widgets/channel_rail_frame.dart 6
 client/packages/app/lib/src/widgets/channel_rail_sections.dart 2
-client/packages/app/lib/src/widgets/command_palette.dart 1
-client/packages/app/lib/src/widgets/command_palette_items.dart 1
+client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
+client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
 client/packages/app/lib/src/widgets/compact_channel_app_bar.dart 1
 client/packages/app/lib/src/widgets/composer.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer_extras.dart 4

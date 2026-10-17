@@ -17,7 +17,7 @@ import 'package:slimm_app/src/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/presence_view.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
-import 'package:slimm_app/src/widgets/command_palette.dart';
+import 'package:slimm_app/src/features/palette/widgets/command_palette.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

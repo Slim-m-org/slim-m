@@ -24,7 +24,7 @@ import 'channel_rail_failure.dart';
 import 'channel_rail_frame.dart';
 import 'channel_rail_selection_marker.dart';
 import 'channel_rail_sections.dart';
-import 'command_palette.dart';
+import '../features/palette/widgets/command_palette.dart';
 import 'context_menu_region.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';

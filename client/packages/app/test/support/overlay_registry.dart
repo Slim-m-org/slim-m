@@ -18,7 +18,7 @@ import 'package:slimm_app/src/screens/admin/role_create_sheet.dart';
 import 'package:slimm_app/src/whats_new/whats_new_content.dart';
 import 'package:slimm_app/src/widgets/avatar_crop_sheet.dart';
 import 'package:slimm_app/src/widgets/camera_source_sheet.dart';
-import 'package:slimm_app/src/widgets/command_palette.dart';
+import 'package:slimm_app/src/features/palette/widgets/command_palette.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_extras.dart';
 import 'package:slimm_app/src/widgets/confirm_dialog.dart';
 import 'package:slimm_app/src/widgets/create_channel_sheet.dart';

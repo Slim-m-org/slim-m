@@ -11,13 +11,13 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/dms.dart';
-import '../providers/personal_space_visibility.dart';
-import '../providers/user_profiles.dart';
-import '../routing/routes.dart';
-import 'author_label.dart';
-import 'message_jump.dart';
-import 'space_settings_section.dart';
+import '../../../providers/dms.dart';
+import '../../../providers/personal_space_visibility.dart';
+import '../../../providers/user_profiles.dart';
+import '../../../routing/routes.dart';
+import '../../../widgets/author_label.dart';
+import '../../../widgets/message_jump.dart';
+import '../../../widgets/space_settings_section.dart';
 
 /// Which row layout a [PaletteResultItem] draws with.
 enum PaletteKind { channel, person, message, action }

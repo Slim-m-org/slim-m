@@ -8,7 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/command_palette_items.dart';
+import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
 import 'package:slimm_data/data.dart' show Channel;
 
 Channel _channel(String name, {bool personal = false}) => Channel(

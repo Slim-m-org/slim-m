@@ -22,7 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
-import 'package:slimm_app/src/widgets/command_palette_items.dart';
+import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'support/fake_sync.dart';

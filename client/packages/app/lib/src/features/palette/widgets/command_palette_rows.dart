@@ -8,10 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'channel_kind_icon.dart';
+import '../../../widgets/channel_kind_icon.dart';
 import 'command_palette_items.dart';
-import 'message_row_identity.dart' show formatMessageDay;
-import 'user_avatar.dart';
+import '../../../widgets/message_row_identity.dart' show formatMessageDay;
+import '../../../widgets/user_avatar.dart';
 
 /// [text] with the first case-insensitive occurrence of [query] in bold.
 List<InlineSpan> paletteHighlightSpans(String text, String query) {
