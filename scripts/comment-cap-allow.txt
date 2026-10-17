@@ -36,7 +36,7 @@ client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
 client/packages/app/lib/src/providers/providers.dart 4
 client/packages/app/lib/src/providers/push_controller.dart 4
 client/packages/app/lib/src/features/emoji/providers/recent_emoji.dart 1
-client/packages/app/lib/src/features/voice/providers/voice_controller.dart 4
+client/packages/app/lib/src/features/voice/providers/voice_controller.dart 3
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
 client/packages/app/lib/src/features/settings/screens/admin/invite_role_grant_picker.dart 1

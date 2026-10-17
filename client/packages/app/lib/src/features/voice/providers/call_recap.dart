@@ -117,10 +117,7 @@ class CallActivityTracker {
     final present = <String>{};
     for (final p in participants) {
       present.add(p.identity);
-      final span = _spans[p.identity];
-      _spans[p.identity] = span == null
-          ? _Span(name: p.name, isLocal: p.isLocal, joinedAt: now)
-          : (span.leftAt == null ? span : span.rejoined());
+      _spans[p.identity] = _spanFor(p, now);
       if (p.isLocal && p.isScreenSharing) _sharedScreen = true;
       if (p.isLocal && p.isCameraOn) _usedCamera = true;
     }
@@ -129,6 +126,14 @@ class CallActivityTracker {
         _spans[entry.key] = entry.value.left(now);
       }
     }
+  }
+
+  _Span _spanFor(VoiceParticipant p, DateTime now) {
+    final span = _spans[p.identity];
+    if (span == null) {
+      return _Span(name: p.name, isLocal: p.isLocal, joinedAt: now);
+    }
+    return span.leftAt == null ? span : span.rejoined();
   }
 
   CallRecap summary({

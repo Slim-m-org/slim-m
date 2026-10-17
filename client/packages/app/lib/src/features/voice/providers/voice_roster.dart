@@ -78,65 +78,17 @@ final voiceRosterProvider = StreamProvider.autoDispose
     .family<List<api.VoiceRosterParticipant>, String>((ref, channelId) {
       final client = ref.watch(apiProvider);
       final controller = StreamController<List<api.VoiceRosterParticipant>>();
-      var consecutiveFailures = 0;
-
-      Future<void> poll(Timer? self) async {
-        try {
-          final roster = await client.voiceRoster(channelId);
-          consecutiveFailures = 0;
-          final selfId = client.session.tokens?.userId;
-          final visible = selfId == null
-              ? roster
-              : roster.where((p) => p.userId != selfId).toList(growable: false);
-          if (!controller.isClosed) controller.add(visible);
-        } on api.NotConfiguredException {
-          self?.cancel();
-          unawaited(controller.close());
-        } on api.ApiException catch (e) {
-          // Unavailable, forbidden, rate-limited: try again, unless this has gone on long enough to say so.
-          consecutiveFailures++;
-          if (consecutiveFailures >= persistentRosterFailureThreshold &&
-              !controller.isClosed) {
-            controller.addError(e);
-          }
-        }
-      }
-
-      var inFlight = false;
-      var askedAgain = false;
-
-      // Single-flight: a nudge mid-poll re-asks once after it, so answers cannot reorder.
-      Future<void> tick(Timer? self) async {
-        if (inFlight) {
-          askedAgain = true;
-          return;
-        }
-        inFlight = true;
-        try {
-          await poll(self);
-        } finally {
-          inFlight = false;
-        }
-        if (askedAgain && !controller.isClosed) {
-          askedAgain = false;
-          await tick(self);
-        }
-      }
-
+      final poller = _RosterPoller(client, channelId, controller);
       late final Timer timer;
-      timer = Timer.periodic(voiceRosterPollInterval, (_) => tick(timer));
-      unawaited(tick(timer));
+      timer = Timer.periodic(
+        voiceRosterPollInterval,
+        (_) => poller.tick(timer),
+      );
+      unawaited(poller.tick(timer));
 
       final liveSub = ref.read(liveEventsProvider).listen((event) {
-        final eventChannelId = switch (event) {
-          api.VoiceActivityChanged(:final channelId) => channelId,
-          api.VoiceParticipantJoined(:final channelId) => channelId,
-          api.VoiceParticipantLeft(:final channelId) => channelId,
-          api.VoiceScreenShareChanged(:final channelId) => channelId,
-          _ => null,
-        };
-        if (eventChannelId == channelId) {
-          unawaited(tick(timer));
+        if (_eventChannelId(event) == channelId) {
+          unawaited(poller.tick(timer));
         }
       });
 
@@ -148,3 +100,62 @@ final voiceRosterProvider = StreamProvider.autoDispose
 
       return controller.stream;
     });
+
+String? _eventChannelId(api.ServerEvent event) => switch (event) {
+  api.VoiceActivityChanged(:final channelId) => channelId,
+  api.VoiceParticipantJoined(:final channelId) => channelId,
+  api.VoiceParticipantLeft(:final channelId) => channelId,
+  api.VoiceScreenShareChanged(:final channelId) => channelId,
+  _ => null,
+};
+
+class _RosterPoller {
+  _RosterPoller(this._client, this._channelId, this._controller);
+
+  final api.SlimmApi _client;
+  final String _channelId;
+  final StreamController<List<api.VoiceRosterParticipant>> _controller;
+  int _consecutiveFailures = 0;
+  bool _inFlight = false;
+  bool _askedAgain = false;
+
+  Future<void> _poll(Timer? self) async {
+    try {
+      final roster = await _client.voiceRoster(_channelId);
+      _consecutiveFailures = 0;
+      final selfId = _client.session.tokens?.userId;
+      final visible = selfId == null
+          ? roster
+          : roster.where((p) => p.userId != selfId).toList(growable: false);
+      if (!_controller.isClosed) _controller.add(visible);
+    } on api.NotConfiguredException {
+      self?.cancel();
+      unawaited(_controller.close());
+    } on api.ApiException catch (e) {
+      // Unavailable, forbidden, rate-limited: try again, unless this has gone on long enough to say so.
+      _consecutiveFailures++;
+      if (_consecutiveFailures >= persistentRosterFailureThreshold &&
+          !_controller.isClosed) {
+        _controller.addError(e);
+      }
+    }
+  }
+
+  // Single-flight: a nudge mid-poll re-asks once after it, so answers cannot reorder.
+  Future<void> tick(Timer? self) async {
+    if (_inFlight) {
+      _askedAgain = true;
+      return;
+    }
+    _inFlight = true;
+    try {
+      await _poll(self);
+    } finally {
+      _inFlight = false;
+    }
+    if (_askedAgain && !_controller.isClosed) {
+      _askedAgain = false;
+      await tick(self);
+    }
+  }
+}
