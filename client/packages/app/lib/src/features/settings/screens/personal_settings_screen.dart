@@ -1,48 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Personal settings: what the account holder controls about themselves,
-/// plus the app's own build information.
-///
-/// This is the one settings screen every signed-in caller can always reach,
-/// regardless of permission; [SpaceSettingsScreen] is the deployment-level
-/// counterpart, reached separately from the rail's Space menu and hidden
-/// entirely for a caller holding none of its gating bits.
-///
-/// Nine sections used to sit in one scroll behind full-width dividers. They
-/// are five panes now; see [SettingsPanesScaffold] for why, and note the
-/// grouping rather than the count is the point: what you are, what a call
-/// does, and who you have shut out are three different questions.
-///
-/// Voice is folded in here rather than living on its own screen, so mic level,
-/// sensitivity, push-to-talk and share quality sit beside the account they
-/// belong to instead of behind a second route nothing linked to twice.
-///
-/// **Two headings over seven panes, not four.** `Calls` held one pane and
-/// `About` held one, so the nav alternated heading, row, heading, row down
-/// its whole length - a heading roughly as often as a thing to click, which
-/// is what made the list read as choppy rather than grouped.
-///
-/// Voice sits under `You` now, where a personal microphone and share-quality
-/// preference always belonged. `About slim-m` keeps its own run but drops the
-/// heading entirely: it is one pane, and naming a group of one is decoration.
-/// A heading here always marks more than one pane, which
-/// `settings_taxonomy_test.dart` holds as a rule rather than a habit.
-///
-/// `Delete account` moved with it, out of the pane labelled `About slim-m`
-/// and into `Account & devices`. It is permanent and irreversible, and it
-/// was reached by opening a pane whose name promises a version number. About
-/// is the app's own build information now and nothing else.
-///
-/// Who you are, and the rename affordance for it, used to float above the nav
-/// as its own unlabelled block - editable, yet outside every named section,
-/// so "rename yourself" read as belonging to nothing. It lives inside
-/// [AvatarSettingsSection]'s own "Profile" card, which is its own pane now:
-/// `Account & profile` used to also hold devices, app lock and account
-/// deletion in the same scroll, four unrelated questions (who you are, what
-/// signs in as you, whether opening this app needs a passcode, and how to
-/// leave) stacked under one name. `Profile` is who you are; `Account &
-/// devices` is everything about the account and what signs into it. Each
-/// pane in the nav carries a leading icon the way [SpaceSettingsSection]'s
-/// rows already do.
+/// Personal settings: what the account holder controls about themselves, open
+/// to every signed-in caller. The nav groups panes by what each follows (You,
+/// App, Safety, Help), per the addendum in
+/// docs/decisions/0013-settings-container-system.md.
 library;
 
 import 'package:flutter/material.dart';

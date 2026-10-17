@@ -262,3 +262,23 @@ The operators are parsed client-side (`message_search_query.dart`), which is why
 Channel and member search need no route here at all: both are already answered from data the client already holds permission-correctly.
 `GET /channels` only ever lists what [`crate::store::Store::visible_channels`] grants, so the client's local channel list is never wider than that; the member list (`GET /members`) is deployment-wide by design (see `http::users`'s own doc comment), not scoped to a channel, so there is no per-channel visibility question to get wrong there.
 The command palette (`command_palette_items.dart`) filters both lists by name locally.
+
+## Where secrets are stored on each platform
+
+`client/packages/platform/lib/src/persistent_key_store.dart`
+
+Persistent [KeyStore] backends.
+
+iOS, Android, macOS and Windows all get the platform keychain (Keychain, Keystore, Keychain Services, and DPAPI-backed Credential Locker in turn) through flutter_secure_storage: none of those four backends depends on a background service that might not be running, so the OS itself guarantees one is always present, on a laptop exactly as on a phone.
+
+Linux is the exception, even though flutter_secure_storage also ships a Linux backend: that backend talks to a Secret Service over D-Bus (gnome-keyring, kwallet plus ksecretsservice), and plenty of real sessions - a fresh install, a window manager with no keyring agent, a container - do not run one, so calls would fail unpredictably at runtime even on a machine where the build itself succeeds.
+
+Transport-only security is the project's v1 scope (see docs/decisions/0001-owner-decisions.md); this file is the Linux key-storage tradeoff that follows from that, not itself a recorded decision: a session token and a push key are not payment credentials, so a file only this OS account can open is a proportionate, always-available choice for Linux rather than one that depends on a keyring agent nobody promised would be running.
+It is weaker than a real keychain - no OS-enforced encryption at rest, and it does not resist another process already running as this same OS account - but it is not readable by a different account on a shared machine, which is the threat this Linux build actually faces today.
+
+macOS and Windows used to sit on that same file, back when this reasoning was written for "desktop" as a whole rather than for Linux specifically.
+Both ship a real OS-backed keychain with the same always-present guarantee as the phone platforms, so there is no longer a reason to leave them on the weaker fallback; [migrateLegacyFileSecretsIfNeeded] is the one-time move for an install that already has secrets sitting in that file from before this change.
+
+The web build does use flutter_secure_storage, because its browser backend is the only storage a browser has: values are AES-GCM encrypted under a key that itself lives in `localStorage`, so this is obfuscation against a casual look, not secrecy against script running on the same origin.
+It is also refused outright outside a secure context, so a plain-http LAN server gets no persisted session at all.
+The web build exists to drive this UI automatically; it is not a distribution target, and nothing here should be read as a claim that a browser stores secrets as well as a phone does.
