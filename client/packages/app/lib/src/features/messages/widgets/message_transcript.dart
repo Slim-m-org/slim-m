@@ -17,18 +17,15 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_history.dart';
 import '../../../providers/sync_controller.dart';
-import 'edit_history_sheet.dart';
 import 'message_context_menu.dart';
 import 'message_jump.dart';
 import 'message_transcript_dividers.dart';
-import 'message_row.dart';
-import 'message_row_callbacks.dart';
+import 'message_transcript_rows.dart';
 import 'message_selectable.dart';
 import 'message_transcript_extent.dart';
 import 'ephemeral_row.dart';
 import 'transcript_items.dart';
 import 'transcript_selection.dart';
-import 'message_row_identity.dart';
 import 'message_transcript_widgets.dart';
 
 /// What a viewer may do to one message, decided by the screen because it is
@@ -352,32 +349,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     // Shrink-wrapped, a thread lays out every row: affordable only while it is short.
     final shrinkWrap =
         widget.channelIsThread && items.length <= _shrinkWrapThreadMax;
-
-    if (items.isEmpty) {
-      // Reverse-anchored like the populated list below, so the welcome sits above the composer, not at the top of an empty pane.
-      if (widget.syncStatus == SyncStatus.live) {
-        return ListView(
-          controller: widget.scrollController,
-          reverse: true,
-          shrinkWrap: shrinkWrap,
-          padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-          children: [
-            if (widget.channelIsThread)
-              const ChannelStartHeader(name: null, isThread: true),
-            start,
-          ],
-        );
-      }
-      final waiting = EmptyMessages(syncStatus: widget.syncStatus);
-      if (!widget.channelIsThread) return waiting;
-      // The parent is known without the sync, so it shows even while the replies cannot.
-      return Column(
-        children: [
-          widget.threadParent ?? const SizedBox.shrink(),
-          Expanded(child: waiting),
-        ],
-      );
-    }
+    if (items.isEmpty) return _emptyTranscript(start, shrinkWrap);
 
     _checkAfterLayout();
     _estimateJumpScroll();
@@ -387,9 +359,15 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     _seen.addAll(items.map((item) => item.id));
     _hydrated = true;
 
-    // A reply's parent, built from the same already-filtered list this transcript renders; see `reply_quote.dart`.
-    final byId = {for (final m in messages) m.id: m};
-    final order = [for (final m in messages) m.id];
+    final frame = _Frame(
+      items: items,
+      start: start,
+      newestId: newestId,
+      animateNewest: animateNewest,
+      // A reply's parent, built from the same already-filtered list this transcript renders; see `reply_quote.dart`.
+      byId: {for (final m in messages) m.id: m},
+      order: [for (final m in messages) m.id],
+    );
 
     // Reversed so a short conversation sits against the composer; the start header rides one past the oldest message, which reverse puts at the top.
     return TranscriptSelection(
@@ -400,152 +378,135 @@ class _MessageTranscriptState extends State<MessageTranscript> {
         padding: const EdgeInsets.only(bottom: AppSpacing.s8),
         semanticChildCount: items.length + 1,
         childrenDelegate: TranscriptChildDelegate(
-          (context, i) {
-            if (i == items.length) return start;
-            // Index 0 is the newest; `previous` stays the row visually above,
-            // so grouping still reads right.
-            final index = items.length - 1 - i;
-            final item = items[index];
-            if (item is PrivateItem) {
-              final row = EphemeralRow(
-                key: ValueKey(item.id),
-                message: item.message,
-                knownUsernames: widget.knownUsernames,
-                knownRoleNames: widget.knownRoleNames,
-                customEmoji: widget.customEmoji,
-                onDismiss: () => widget.onDismissPrivate?.call(item.message),
-                onReport: () => widget.onReportPrivate?.call(item.message),
-              );
-              if (i != 0) return row;
-              return MessageEntrance(
-                key: ValueKey('entrance-$newestId'),
-                animateOnMount: animateNewest,
-                child: row,
-              );
-            }
-            final message = (item as StoredItem).message;
-            // A private answer between two stored messages ends the group on both sides.
-            final previous = storedAt(items, index - 1);
-            final next = storedAt(items, index + 1);
-            final above = storedAbove(items, index);
-            final newDay = isNewDay(
-              message,
-              above,
-              historyKnown: widget.historyKnown,
-            );
-            final row = MessageRowExtras(
-              // By message, not by slot: an arrival shifts every index by one.
-              key: ValueKey(message.id),
-              messageId: message.id,
-              channelId: widget.channelId,
-              previousMessageId: previous?.id,
-              nextMessageId: next?.id,
-              builder:
-                  (
-                    extras,
-                    editing,
-                    previousWebhookUsername,
-                    nextWebhookUsername,
-                  ) => MessageSelectable(
-                    channelId: widget.channelId,
-                    messageId: message.id,
-                    order: order,
-                    child: MessageRow(
-                      message: message,
-                      // A new day breaks a group so a continuation across midnight regains its avatar and header.
-                      grouped:
-                          isGrouped(
-                            message,
-                            previous,
-                            webhookUsername: extras.webhookUsername,
-                            previousWebhookUsername: previousWebhookUsername,
-                          ) &&
-                          !newDay,
-                      showNewDivider: startsUnread(
-                        message,
-                        above,
-                        widget.lastReadSeq,
-                        widget.selfId,
-                      ),
-                      groupContinues:
-                          next != null &&
-                          isGrouped(
-                            next,
-                            message,
-                            webhookUsername: nextWebhookUsername,
-                            previousWebhookUsername: extras.webhookUsername,
-                          ) &&
-                          !isNewDay(
-                            next,
-                            message,
-                            historyKnown: widget.historyKnown,
-                          ),
-                      dayLabel: newDay
-                          ? formatMessageDay(message.createdAt)
-                          : null,
-                      knownUsernames: widget.knownUsernames,
-                      knownRoleNames: widget.knownRoleNames,
-                      customEmoji: widget.customEmoji,
-                      callbacks: MessageRowCallbacks(
-                        onRetry: () => widget.onRetry(message),
-                        onDiscard: () => widget.onDiscard(message),
-                        onEditFailed: widget.onEditFailed == null
-                            ? null
-                            : () => widget.onEditFailed!(message),
-                        onPickReaction: (emoji) =>
-                            widget.onPickReaction(message, emoji),
-                        onReactionTap: (reaction) =>
-                            widget.onReactionTap(message, reaction),
-                        onVote: (option) => widget.onVote(message, option),
-                        onRank: widget.onRank == null
-                            ? null
-                            : (ranking) => widget.onRank!(message, ranking),
-                        onSubmitEdit: (content) =>
-                            widget.onSubmitEdit(message, content),
-                        onCancelEdit: widget.onCancelEdit,
-                        onViewEditHistory: () => showMessageEditHistorySheet(
-                          context,
-                          widget.channelId,
-                          message.id,
-                        ),
-                        onReplyTap: switch (message.replyToId) {
-                          final String id => () => widget.onJumpToReply(id),
-                          null => null,
-                        },
-                      ),
-                      extras: extras,
-                      viewerIsCaller:
-                          extras.call?.callerId != null &&
-                          extras.call?.callerId == widget.selfId,
-                      // A null replyToId is a null map key here, which is a null lookup - the same "no parent" the row renders as nothing.
-                      replyTo: byId[message.replyToId],
-                      replyParentAdjacent: message.replyToId == previous?.id,
-                      editing: editing,
-                      actions: widget.actionsFor(
-                        message,
-                        extras.threadChannelId != null,
-                      ),
-                    ),
-                  ),
-            );
-            final content = message.id == widget.jumpTargetId
-                ? MessageJumpHighlight(
-                    key: ValueKey('jump-${widget.jumpToken}'),
-                    onArrived: widget.onJumpArrived ?? () {},
-                    child: row,
-                  )
-                : row;
-            if (i != 0) return content;
-            return MessageEntrance(
-              key: ValueKey('entrance-$newestId'),
-              animateOnMount: animateNewest,
-              child: content,
-            );
-          },
+          (context, i) => _itemAt(context, frame, i),
           childCount: items.length + 1,
           estimator: _extent,
         ),
       ),
     );
   }
+
+  Widget _emptyTranscript(Widget start, bool shrinkWrap) {
+    // Reverse-anchored like the populated list, so the welcome sits above the composer, not at the top of an empty pane.
+    if (widget.syncStatus == SyncStatus.live) {
+      return ListView(
+        controller: widget.scrollController,
+        reverse: true,
+        shrinkWrap: shrinkWrap,
+        padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+        children: [
+          if (widget.channelIsThread)
+            const ChannelStartHeader(name: null, isThread: true),
+          start,
+        ],
+      );
+    }
+    final waiting = EmptyMessages(syncStatus: widget.syncStatus);
+    if (!widget.channelIsThread) return waiting;
+    // The parent is known without the sync, so it shows even while the replies cannot.
+    return Column(
+      children: [
+        widget.threadParent ?? const SizedBox.shrink(),
+        Expanded(child: waiting),
+      ],
+    );
+  }
+
+  Widget _itemAt(BuildContext context, _Frame frame, int i) {
+    if (i == frame.items.length) return frame.start;
+    // Index 0 is the newest; `previous` stays the row visually above, so grouping still reads right.
+    final index = frame.items.length - 1 - i;
+    final item = frame.items[index];
+    final content = switch (item) {
+      PrivateItem() => _privateRow(item),
+      StoredItem(:final message) => _storedRow(context, frame, message, index),
+    };
+    if (i != 0) return content;
+    return MessageEntrance(
+      key: ValueKey('entrance-${frame.newestId}'),
+      animateOnMount: frame.animateNewest,
+      child: content,
+    );
+  }
+
+  Widget _privateRow(PrivateItem item) {
+    return EphemeralRow(
+      key: ValueKey(item.id),
+      message: item.message,
+      knownUsernames: widget.knownUsernames,
+      knownRoleNames: widget.knownRoleNames,
+      customEmoji: widget.customEmoji,
+      onDismiss: () => widget.onDismissPrivate?.call(item.message),
+      onReport: () => widget.onReportPrivate?.call(item.message),
+    );
+  }
+
+  Widget _storedRow(
+    BuildContext context,
+    _Frame frame,
+    Message message,
+    int index,
+  ) {
+    // A private answer between two stored messages ends the group on both sides.
+    final previous = storedAt(frame.items, index - 1);
+    final next = storedAt(frame.items, index + 1);
+    final neighbours = TranscriptNeighbours(
+      previous: previous,
+      next: next,
+      above: storedAbove(frame.items, index),
+    );
+    final row = MessageRowExtras(
+      // By message, not by slot: an arrival shifts every index by one.
+      key: ValueKey(message.id),
+      messageId: message.id,
+      channelId: widget.channelId,
+      previousMessageId: previous?.id,
+      nextMessageId: next?.id,
+      builder:
+          (extras, editing, previousWebhookUsername, nextWebhookUsername) =>
+              MessageSelectable(
+                channelId: widget.channelId,
+                messageId: message.id,
+                order: frame.order,
+                child: transcriptMessageRow(
+                  context,
+                  widget,
+                  message,
+                  neighbours,
+                  byId: frame.byId,
+                  extras: extras,
+                  editing: editing,
+                  webhooks: (
+                    previous: previousWebhookUsername,
+                    next: nextWebhookUsername,
+                  ),
+                ),
+              ),
+    );
+    if (message.id != widget.jumpTargetId) return row;
+    return MessageJumpHighlight(
+      key: ValueKey('jump-${widget.jumpToken}'),
+      onArrived: widget.onJumpArrived ?? () {},
+      child: row,
+    );
+  }
+}
+
+/// What one build of the transcript resolved, shared by every row it lays out.
+class _Frame {
+  const _Frame({
+    required this.items,
+    required this.start,
+    required this.newestId,
+    required this.animateNewest,
+    required this.byId,
+    required this.order,
+  });
+
+  final List<TranscriptItem> items;
+  final Widget start;
+  final String newestId;
+  final bool animateNewest;
+  final Map<String, Message> byId;
+  final List<String> order;
 }
