@@ -19,7 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_lifecycle.dart';
-import 'mounted_channels.dart';
+import '../features/channels/providers/mounted_channels.dart';
 import 'sync_controller.dart';
 
 /// Comfortably inside the server's 60 second lapse.

@@ -11,8 +11,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -22,18 +20,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-member-bulk-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -135,7 +121,7 @@ async fn audit_actions(store: &Store, action: &str) -> usize {
 
 #[tokio::test]
 async fn removes_every_member_named() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -155,7 +141,7 @@ async fn removes_every_member_named() {
 /// an administrator by burying them in a list of ordinary members.
 #[tokio::test]
 async fn one_target_above_the_caller_refuses_the_whole_batch() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -177,7 +163,7 @@ async fn one_target_above_the_caller_refuses_the_whole_batch() {
 
 #[tokio::test]
 async fn times_out_every_member_named_to_the_same_deadline() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -211,7 +197,7 @@ async fn times_out_every_member_named_to_the_same_deadline() {
 /// One row per member, so the trail answers "what was done to this person".
 #[tokio::test]
 async fn writes_one_audit_row_per_member() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -229,7 +215,7 @@ async fn writes_one_audit_row_per_member() {
 /// A repeated id is one act, not two audit rows for the same person.
 #[tokio::test]
 async fn duplicate_ids_collapse() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -249,7 +235,7 @@ async fn duplicate_ids_collapse() {
 
 #[tokio::test]
 async fn refuses_an_empty_list_and_an_over_long_one() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -279,7 +265,7 @@ async fn refuses_an_empty_list_and_an_over_long_one() {
 /// Self-moderation is refused on the bulk path exactly as on the single one.
 #[tokio::test]
 async fn refuses_the_caller_in_their_own_batch() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
     let app = app(store.clone());
 
@@ -306,7 +292,7 @@ async fn refuses_the_caller_in_their_own_batch() {
 /// anything that reaches `bulk_remove_members` by another road.
 #[tokio::test]
 async fn a_batch_cannot_empty_the_space_of_administrators() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-bulk-test").await;
     let p = people(&store).await;
 
     let admin_role = store

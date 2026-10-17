@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   /// Undo is one op, not one per segment `splitStroke` might have minted:

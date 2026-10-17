@@ -20,11 +20,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_object_context_menu.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_object_context_menu.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -32,7 +32,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 

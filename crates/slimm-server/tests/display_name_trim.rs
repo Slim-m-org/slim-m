@@ -6,8 +6,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -16,18 +14,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-display-name-trim");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -86,7 +72,7 @@ async fn display_name_after_patch(app: &Router, token: &str, sent: &str) -> Stri
 
 #[tokio::test]
 async fn patching_a_padded_display_name_stores_it_trimmed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-display-name-trim").await;
     let app = app(store.clone());
     let account = store
         .create_account("alice", "Alice", "not-a-real-hash")
@@ -113,7 +99,7 @@ async fn patching_a_padded_display_name_stores_it_trimmed() {
 
 #[tokio::test]
 async fn registering_with_a_padded_display_name_stores_it_trimmed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-display-name-trim").await;
     let app = app(store.clone());
     let response = app
         .clone()

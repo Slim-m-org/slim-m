@@ -4,7 +4,8 @@
 /// ([LayoutClass.fitsMemberPane]).
 library;
 
-export 'conversation_pane.dart' show ConversationPane;
+export '../features/channels/screens/conversation_pane.dart'
+    show ConversationPane;
 export 'home_shell_empty_state.dart' show NoChannelSelected;
 
 import 'dart:async';
@@ -20,48 +21,48 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'package:go_router/go_router.dart';
 
-import '../providers/activity_publisher.dart';
+import '../features/members/providers/activity_publisher.dart';
 import '../providers/admin_providers.dart';
-import '../providers/blocks_controller.dart';
-import '../providers/call_shortcut_registry.dart';
-import '../providers/hold_music_controller.dart';
-import '../providers/channel_notification_overrides_controller.dart';
-import '../providers/channel_by_id_provider.dart';
-import '../providers/composer_focus.dart';
-import '../providers/database_key_store.dart';
-import '../providers/member_selection.dart';
-import '../providers/module_sound_settings.dart';
-import '../providers/notification_schedule_controller.dart';
-import '../providers/notification_sound_controller.dart';
+import '../features/members/providers/blocks_controller.dart';
+import '../features/voice/providers/call_shortcut_registry.dart';
+import '../features/voice/providers/hold_music_controller.dart';
+import '../features/channels/providers/channel_notification_overrides_controller.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
+import '../features/composer/providers/composer_focus.dart';
+import '../features/auth/providers/database_key_store.dart';
+import '../features/members/providers/member_selection.dart';
+import '../features/modules/providers/module_sound_settings.dart';
+import '../features/settings/providers/notification_schedule_controller.dart';
+import '../features/settings/providers/notification_sound_controller.dart';
 import '../providers/providers.dart';
-import '../providers/rail_width_preference.dart';
+import '../features/channels/providers/rail_width_preference.dart';
 import '../providers/retention_sweep.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
-import '../providers/threads.dart';
-import '../providers/voice_controller.dart';
+import '../features/channels/providers/threads.dart';
+import '../features/voice/providers/voice_controller.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import '../widgets/app_panel_reveal.dart';
-import '../widgets/channel_grouping.dart';
-import '../widgets/call_mini_player.dart';
-import '../widgets/channel_rail.dart';
-import '../widgets/channel_rail_frame.dart';
-import '../widgets/command_palette.dart';
+import '../features/channels/widgets/channel_grouping.dart';
+import '../features/voice/widgets/call_mini_player.dart';
+import '../features/channels/widgets/channel_rail.dart';
+import '../features/channels/widgets/channel_rail_frame.dart';
+import '../features/palette/widgets/command_palette.dart';
 import '../widgets/compact_drawer_scaffold.dart';
-import '../widgets/member_pane.dart';
+import '../features/members/widgets/member_pane.dart';
 import '../widgets/new_device_banner_host.dart';
 import '../widgets/rules_gate_banner_host.dart';
-import '../widgets/push_to_talk_listener.dart';
-import '../widgets/rail_slot.dart';
+import '../features/voice/widgets/push_to_talk_listener.dart';
+import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/transfers_banner.dart';
 import '../widgets/update_banner_host.dart';
-import '../widgets/voice_strip_indicator.dart';
+import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
-import 'canvas/canvas_fullscreen.dart';
-import 'canvas/canvas_pane.dart';
-import 'dm_call_pane.dart';
-import 'hang_up_recap_toast.dart';
-import 'thread_screen.dart';
+import '../features/canvas/screens/canvas_fullscreen.dart';
+import '../features/canvas/screens/canvas_pane.dart';
+import '../features/voice/screens/dm_call_pane.dart';
+import '../features/voice/screens/hang_up_recap_toast.dart';
+import '../features/messages/screens/thread_screen.dart';
 
 part 'home_shell_pane_slots.dart';
 

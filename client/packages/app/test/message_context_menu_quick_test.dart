@@ -11,11 +11,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/control_swatch_row.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
-import 'package:slimm_app/src/widgets/quick_reactions.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/emoji/widgets/quick_reactions.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 MessageActions _actions({
   VoidCallback? onBlock,

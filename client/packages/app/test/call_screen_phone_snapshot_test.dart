@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'home_shell_harness.dart' show teardown;
+import 'features/settings/home_shell_harness.dart' show teardown;
 import 'support/call_screen_phone_harness.dart';
 import 'ui_snapshot_support.dart';
 

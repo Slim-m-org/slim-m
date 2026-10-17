@@ -16,7 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_platform/platform.dart';
 
-import '../providers/activity_sharing_settings.dart';
+import '../features/members/providers/activity_sharing_settings.dart';
 import '../providers/providers.dart';
 import 'spotify_client.dart';
 import 'spotify_config.dart';

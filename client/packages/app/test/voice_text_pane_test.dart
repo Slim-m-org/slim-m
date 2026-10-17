@@ -20,24 +20,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/composer_attachments.dart'
+import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart'
     show StagedSend;
-import 'package:slimm_app/src/providers/mounted_channels.dart';
+import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/screens/channel_screen.dart';
-import 'package:slimm_app/src/screens/voice_text_pane.dart';
-import 'package:slimm_app/src/widgets/composer.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -91,7 +85,7 @@ Future<_Harness> _mount(WidgetTester tester, Widget child) async {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
-      syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+      syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),

@@ -19,8 +19,6 @@ use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -40,18 +38,6 @@ const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-voice-screen-share-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn enabled_voice() -> VoiceService {
     VoiceService::for_test("wss://livekit.example.com", API_KEY, API_SECRET)
@@ -218,7 +204,7 @@ async fn joined_channel_and_viewer() -> (
     String,
     Client,
 ) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-live-voice-screen-share-events-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await

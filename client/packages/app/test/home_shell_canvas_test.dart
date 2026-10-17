@@ -9,18 +9,18 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_fullscreen.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_pane.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/member_pane.dart';
-import 'package:slimm_app/src/widgets/rail_drag_handle.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drag_handle.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 /// A shell with one channel of [kind] open at [width], the canvas already
 /// open for it before the first frame - "mounted with the provider set",

@@ -23,8 +23,6 @@ use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -44,18 +42,6 @@ const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-voice-participant-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn enabled_voice() -> VoiceService {
     VoiceService::for_test("wss://livekit.example.com", API_KEY, API_SECRET)
@@ -220,7 +206,7 @@ fn left(room: &str, identity: &str) -> Value {
 /// file's own coverage.
 #[tokio::test]
 async fn a_delivery_with_a_bad_signature_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
     let app = http::router(state_for(&store));
     let body = joined("channel-does-not-matter", "someone");
     let bytes = serde_json::to_vec(&body).unwrap();
@@ -241,7 +227,7 @@ async fn a_delivery_with_a_bad_signature_is_refused() {
 /// A delivery signed with the wrong secret is refused the same way.
 #[tokio::test]
 async fn a_delivery_signed_with_the_wrong_secret_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
     let app = http::router(state_for(&store));
     let body = joined("channel-does-not-matter", "someone");
     let bytes = serde_json::to_vec(&body).unwrap();
@@ -263,7 +249,7 @@ async fn a_delivery_signed_with_the_wrong_secret_is_refused() {
 #[tokio::test]
 async fn a_join_reaches_a_channel_viewer_but_not_a_stranger() {
     // A DM, so VIEW_CHANNEL there is structurally limited to the two participants.
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
     let alice = store.create_user("alice", "alice").await.unwrap();
     let bob = store.create_user("bob", "bob").await.unwrap();
     let channel = store.open_dm(alice.id, bob.id).await.unwrap();
@@ -292,7 +278,7 @@ async fn a_join_reaches_a_channel_viewer_but_not_a_stranger() {
 
 #[tokio::test]
 async fn a_join_and_leave_are_delivered_with_the_participant_named() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -324,7 +310,7 @@ async fn a_join_and_leave_are_delivered_with_the_participant_named() {
 /// exactly-once) must not republish.
 #[tokio::test]
 async fn a_duplicate_join_webhook_does_not_republish() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -362,7 +348,7 @@ async fn a_duplicate_join_webhook_does_not_republish() {
 /// but themselves.
 #[tokio::test]
 async fn a_hidden_participants_join_reaches_only_themselves() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-participant-events-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await

@@ -1,82 +1,21 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What one listener has done about what reaches their own ears.
+/// What one listener has done about what reaches their own ears: deafen,
+/// silence one person, or turn one person up or down. All of it is local and
+/// never announced, so nobody learns they were muted.
 ///
-/// Three axes that all end in the same place, so they live together rather
-/// than as three fields on the session: deafen everyone, silence one person,
-/// and turn one person up or down. Split out of `voice_session.dart` when the
-/// third took that file past the 500-line ceiling.
-///
-/// **All of it is local and none of it is announced.** The SFU is never told,
-/// so somebody who has been muted or turned down cannot learn that they were
-/// - the same reason blocking is silent. Anything room-visible (a moderator's
-/// timeout, a kick) is a server call, not this.
-///
-/// **It is applied by reapplication, not by event.** [applyTo] runs on every
-/// room event rather than only when a control moves, which is what keeps a
-/// participant who joins mid-call, or whose track resubscribes after a
-/// network blip, in the state this listener chose. Gain needs that more than
-/// muting does: it lives on the platform track object, so a resubscribed
-/// track arrives back at full volume with nothing to say so.
-///
-/// **What it does not do is push a value a track already has.** The caller
-/// fires this from a catch-all room-event listener, and one of those events
-/// is `ActiveSpeakersChanged`, which arrives several times a second for as
-/// long as anybody is talking. Every push is a real platform round trip -
-/// flutter_webrtc's `enabled` setter invokes `mediaStreamTrackSetEnable`
-/// with no equality check of its own, and for an audio track it also fires
-/// that track's `onMute`/`onUnMute` - so reapplying unconditionally spends a
-/// method channel per remote track per event to set values that are already
-/// set.
-///
-/// **What it skips on is the track's own state, not a memory of what was
-/// asked for**, and the distinction is the whole safety of the thing. Whether
-/// a track is silenced is read back from it every time, which costs nothing:
-/// flutter_webrtc keeps `enabled` in a local field its setter maintains. So
-/// if anything at all leaves a track in a state this listener did not choose,
-/// the next event sees it and corrects it, exactly as unconditional
-/// reapplication did.
-///
-/// That matters because something does. `Track.enable`/`disable` do nothing
-/// when the track is not `_active`, silently and without throwing, and
-/// `addSubscribedMediaTrack` emits `TrackSubscribedEvent` *before* it awaits
-/// `track.start()`, which itself awaits `startCapture()` before setting
-/// `_active`. The emitter is asynchronous, so this runs on a resubscribed
-/// track while it is still inactive, the push is dropped with nothing said,
-/// and `RemoteTrack.start()` then calls `enable()` of its own accord. A cache
-/// that trusted the call would leave a muted participant audible for the rest
-/// of the call; reading the state back means the next event fixes it.
-///
-/// Gain is the exception, because there is nothing to read it back from -
-/// flutter_webrtc offers no getter. [_applied] remembers it, keyed on the
-/// platform track object rather than any id. A resubscribe reuses the
-/// publication and its sid, so an id-keyed cache would report a hit and skip
-/// the reapplication that exists precisely to catch a track that came back at
-/// source volume. It does not reuse the object: `addSubscribedMediaTrack`
-/// builds a new `RemoteAudioTrack` around the new `MediaStreamTrack`, so a
-/// resubscribed track misses, which is the point. The entry is also only
-/// written when the enable that precedes it can be seen to have landed.
+/// It is reapplied on every room event so a rejoined or resubscribed track
+/// keeps the listener's choice, skipping a push only when the track already
+/// has that state. Why it reads the track back rather than trusting what it
+/// asked for is in docs/research/mic-handling.md.
 library;
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart';
 
-/// One subscribed remote audio track, described with no LiveKit type in
-/// sight.
-///
-/// Plain closures on a record, the shape [VideoSubscriptionCuller] and
-/// [ScreenShareControl] already use and for the same reason: what is worth
-/// testing here is which calls are made and which are skipped, and a test
-/// that needs a signalling server to find that out is a test nobody writes.
-///
-/// [track] is the identity the volume cache is keyed on. It must be the object
-/// whose state these closures actually set, so that the object being replaced
-/// is what invalidates the entry.
-///
-/// [isAudible] reads that object's current state back rather than reporting
-/// what was last asked for. It must be cheap, and in production it is: it
-/// reads flutter_webrtc's own `enabled` field, which the setter maintains
-/// locally, with no platform call of its own.
+/// One subscribed remote audio track as plain closures, so tests can see
+/// which calls are made. [track] keys the volume cache and must be the
+/// object the closures act on; [isAudible] reads its current state cheaply.
 typedef LocalAudioRef = ({
   String identity,
   Object track,

@@ -160,7 +160,7 @@ Pulling in a general-purpose Dart D-Bus package for one boolean is heavier than 
 
 ### `archive`, for bulk emoji import
 
-Backlog #137 unzips an admin-picked `.zip` client-side and uploads one custom emoji per image inside it, one `POST /emoji` per file rather than a new server route: see `client/packages/app/lib/src/screens/admin/emoji_bulk_plan.dart`.
+Backlog #137 unzips an admin-picked `.zip` client-side and uploads one custom emoji per image inside it, one `POST /emoji` per file rather than a new server route: see `client/packages/app/lib/src/features/settings/screens/admin/emoji_bulk_plan.dart`.
 `archive` is the standard pure-Dart zip codec (no FFI, no bundled native decoder), already present transitively through `image` (a `livekit_client` dependency), so this adds no new supply-chain surface, only a direct declaration of a package already in the resolved tree.
 
 ### `desktop_drop`, for OS drag-and-drop

@@ -14,7 +14,7 @@ use url::Url;
 
 use super::{Enabled, fetch_index};
 use crate::http::AppState;
-use crate::http::dock_sources::OFFICIAL_ID;
+use crate::http::dock::dock_sources::OFFICIAL_ID;
 use crate::http::error::ApiError;
 
 /// Where a Dock call reads from: the bases its files live under, tried in

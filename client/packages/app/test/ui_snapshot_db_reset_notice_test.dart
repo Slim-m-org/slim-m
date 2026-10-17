@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/database_key_store.dart';
+import 'package:slimm_app/src/features/auth/providers/database_key_store.dart';
 import 'package:slimm_data/data.dart';
 
 import 'ui_snapshot_support.dart';

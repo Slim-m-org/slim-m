@@ -12,8 +12,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -22,18 +20,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-dm-open-event-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app_with_hub(store: Store, hub: Hub) -> Router {
     http::router(AppState {
@@ -72,7 +58,7 @@ async fn register(store: &Store, username: &str) -> (String, String) {
 /// drift - this test is what makes the drift loud.
 #[tokio::test]
 async fn opening_a_dm_publishes_no_hub_event() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dm-open-event-test").await;
     let hub = Hub::new();
     let app = app_with_hub(store.clone(), hub.clone());
     let mut rx = hub.subscribe();

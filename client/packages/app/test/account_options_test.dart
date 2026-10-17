@@ -11,13 +11,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/personal_account_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
+import 'support/fake_blocks.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -25,22 +27,6 @@ const _tokens = TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
-
-class _NoopSync extends SyncController {
-  _NoopSync(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
 
 class _NoopPush extends PushController {
   _NoopPush(super.ref);
@@ -58,11 +44,11 @@ Future<ProviderContainer> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      syncControllerProvider.overrideWith(_NoopSync.new),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       pushControllerProvider.overrideWith(_NoopPush.new),
       storeProvider.overrideWith((ref) async => throw StateError('n/a')),
       blocksProvider.overrideWith(
-        (ref) => _FixedBlocks(
+        (ref) => FixedBlocksController(
           ref,
           const BlocksState(ids: {'user-blocked'}, settled: true),
         ),

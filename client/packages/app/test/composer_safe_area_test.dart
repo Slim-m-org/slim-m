@@ -12,8 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/typing_controller.dart';
-import 'package:slimm_app/src/widgets/composer.dart';
+import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// An iPhone with a home indicator, in logical points.

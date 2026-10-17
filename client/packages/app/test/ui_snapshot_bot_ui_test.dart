@@ -12,22 +12,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/voice_flags.dart';
-import 'package:slimm_app/src/screens/voice_call_dock.dart';
-import 'package:slimm_app/src/widgets/bot_call_controls.dart';
-import 'package:slimm_app/src/widgets/bot_menu_sections.dart';
-import 'package:slimm_app/src/widgets/message_context_menu.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_call_dock.dart';
+import 'package:slimm_app/src/features/voice/widgets/bot_call_controls.dart';
+import 'package:slimm_app/src/features/members/widgets/bot_menu_sections.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
-import 'voice_call_controls_harness.dart' show InertSession;
+import 'features/voice/voice_call_controls_harness.dart' show InertSession;
 
 const _bots = [
   api.ChannelBotUi(

@@ -30,11 +30,11 @@ const _exceptions = {
   // AppCodeBlock's fenced-block body: its own doc comment names the literal.
   'lib/src/components/surfaces/code_block.dart',
   // A module command's result panel: matches AppCodeBlock's own body size exactly, so output reads as a continuation of the code; its own comment names it.
-  '../app/lib/src/widgets/module_command_output.dart',
+  '../app/lib/src/features/modules/widgets/module_command_output.dart',
   // FingerprintDisplay's read-aloud hex groups: ported as-is from the source design.
   '../app/lib/src/widgets/server_fingerprint_step.dart',
   // The member card's role chip: the design review's own spec names 10pt Mono for it.
-  '../app/lib/src/widgets/member_profile_identity.dart',
+  '../app/lib/src/features/members/widgets/member_profile_identity.dart',
 };
 
 final _fontSizeLiteral = RegExp(r'fontSize:\s*([0-9]+(?:\.[0-9]+)?)');

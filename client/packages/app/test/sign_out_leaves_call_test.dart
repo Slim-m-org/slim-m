@@ -16,12 +16,13 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/widgets/personal_account_sections.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',
@@ -29,18 +30,6 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-/// Stands in for the real `SyncController`, which opens a websocket from its
-/// own constructor as soon as a session is signed in; overriding `start`
-/// (which Dart dispatches virtually even from the base constructor) keeps
-/// this test off the network, the same stand-in `channel_rail_test.dart`
-/// already uses for the same reason.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
 
 /// `PushController`'s own constructor fires an unawaited `register()` the
 /// instant a signed-in session exists, which reaches real APNs/FCM platform
@@ -61,7 +50,7 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
         pushControllerProvider.overrideWith((ref) => _NoopPushController(ref)),
         // Sign-out clears the local store; that failure is already swallowed.
         storeProvider.overrideWith((ref) async => throw StateError('n/a')),

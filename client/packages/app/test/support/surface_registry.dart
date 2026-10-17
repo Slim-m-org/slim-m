@@ -6,7 +6,7 @@
 library;
 
 import '../ui_snapshot_support.dart';
-import '../voice_snapshot_fixtures.dart' show dmChannelId;
+import '../features/voice/voice_snapshot_fixtures.dart' show dmChannelId;
 
 /// The surfaces worth a picture: the route, and which viewports to render.
 ///

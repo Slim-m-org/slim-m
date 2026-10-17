@@ -13,8 +13,8 @@ import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/providers/composer_attachment_drop.dart';
-import 'package:slimm_app/src/widgets/channel_attachment_drop_zone.dart';
+import 'package:slimm_app/src/features/composer/providers/composer_attachment_drop.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_attachment_drop_zone.dart';
 
 /// Records every stage call and the last error set, standing in for the real
 /// composer's own [ComposerAttachmentDropTarget.stage]/`setError`.

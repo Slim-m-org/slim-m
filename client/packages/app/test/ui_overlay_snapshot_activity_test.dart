@@ -16,16 +16,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/member_presence.dart';
+import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/activity_card.dart';
-import 'package:slimm_app/src/widgets/member_pane.dart';
+import 'package:slimm_app/src/features/members/widgets/activity_card.dart';
+import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -60,16 +61,6 @@ Future<MemoryImage> _cover(WidgetTester tester) async {
     return (await image.toByteData(format: ui.ImageByteFormat.png))!;
   });
   return MemoryImage(bytes!.buffer.asUint8List());
-}
-
-/// Keeps the real controller's socket and retry timer out of the test.
-class _StubSyncController extends SyncController {
-  _StubSyncController(super.ref) {
-    state = SyncStatus.live;
-  }
-
-  @override
-  Future<void> start() async {}
 }
 
 api.UserProfile _profile(String id, String name, {String? statusText}) =>
@@ -149,7 +140,7 @@ Future<void> _pump(
       activityArtImageProvider.overrideWithValue((_) => cover),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      syncControllerProvider.overrideWith(_StubSyncController.new),
+      syncControllerProvider.overrideWith(StubSyncController.new),
       apiProvider.overrideWith((ref) {
         final client = _fakeApi(ref.watch(sessionProvider));
         ref.onDispose(client.close);

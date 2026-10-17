@@ -341,24 +341,24 @@ Measured on this branch, `.g.dart` and `.freezed.dart` excluded.
 
 | Lines | File | Named seam |
 |---|---|---|
-| 500 | `app/lib/src/screens/voice_screen.dart` | `_JoinPreview` + `_WhoIsHere` + `_PreToggle` (83-293): the pre-call screen, no dependency on in-call state, leaving `_InCall`/`_ParticipantRow`/`_openProfile` at about 200. **At exactly 500, so the next net line added fails the hygiene workflow.** It has been split for this reason once already (`voice_call_controls.dart` says so in its header) and has grown back |
+| 500 | `app/lib/src/features/voice/screens/voice_screen.dart` | `_JoinPreview` + `_WhoIsHere` + `_PreToggle` (83-293): the pre-call screen, no dependency on in-call state, leaving `_InCall`/`_ParticipantRow`/`_openProfile` at about 200. **At exactly 500, so the next net line added fails the hygiene workflow.** It has been split for this reason once already (`voice_call_controls.dart` says so in its header) and has grown back |
 | 481 | `rtc/lib/src/voice_session.dart` | the screen-share members (`screenShareNeedsSource`, `screenShareSources`, `setScreenShareEnabled`, `captureOptionsFor`, `_isSharing`, `screenShareViewFor`) as a collaborator over the room, the way `local_audio.dart` took the audio triple. Both siblings record being split out at the 500 ceiling, so the pattern has been reactive twice |
 | 461 | `app/lib/src/providers/push_controller.dart` | the lifecycle-reporting half (`_stateLabel`, `didChangeAppLifecycleState`, the foreground heartbeat, `_reportLifecycle`, 361-446), which shares nothing with registration but a status predicate. At 92% of the hard ceiling |
 | 446 | `design_system/lib/src/app_tokens.dart` | none, deliberately: a flat value catalogue with no seam |
-| 412 | `app/lib/src/widgets/composer.dart` | none named; the duplicated action list (below) comes out of it |
-| 409 | `app/lib/src/widgets/member_profile.dart` | none named |
-| 396 | `app/lib/src/screens/onboarding_screen.dart` | none named; the three duplicated address validators are in it |
-| 388 | `app/lib/src/screens/sign_in_screen.dart` | none named |
-| 385 | `app/lib/src/widgets/member_profile_sections.dart` | none named |
-| 374 | `app/lib/src/screens/channel_screen.dart` | three: the read marker (`_markedReadSeq`, `_markReadUpToLatest`, `_markRead`, about 55 lines); permission gating and action wiring (`_actionsFor` 148-176 plus the five handlers 127-144), which `channel_message_actions.dart` already owns as a concern; and `_hydrateExtras` (84-94), which belongs to the extras controller. It has shed two pieces already without getting under budget |
-| 362 | `app/lib/src/providers/voice_controller.dart` | `VoiceState` plus `copyWith` (19-99), 80 lines with no behaviour, into `voice_state.dart` |
-| 357 | `app/lib/src/widgets/onboarding_shell.dart` | none named |
-| 353 | `app/lib/src/screens/voice_settings_screen.dart` | contains no screen; rename to `voice_settings_body.dart` |
+| 412 | `app/lib/src/features/composer/widgets/composer.dart` | none named; the duplicated action list (below) comes out of it |
+| 409 | `app/lib/src/features/members/widgets/member_profile.dart` | none named |
+| 396 | `app/lib/src/features/auth/screens/onboarding_screen.dart` | none named; the three duplicated address validators are in it |
+| 388 | `app/lib/src/features/auth/screens/sign_in_screen.dart` | none named |
+| 385 | `app/lib/src/features/members/widgets/member_profile_sections.dart` | none named |
+| 374 | `app/lib/src/features/channels/screens/channel_screen.dart` | three: the read marker (`_markedReadSeq`, `_markReadUpToLatest`, `_markRead`, about 55 lines); permission gating and action wiring (`_actionsFor` 148-176 plus the five handlers 127-144), which `channel_message_actions.dart` already owns as a concern; and `_hydrateExtras` (84-94), which belongs to the extras controller. It has shed two pieces already without getting under budget |
+| 362 | `app/lib/src/features/voice/providers/voice_controller.dart` | `VoiceState` plus `copyWith` (19-99), 80 lines with no behaviour, into `voice_state.dart` |
+| 357 | `app/lib/src/features/auth/widgets/onboarding_shell.dart` | none named |
+| 353 | `app/lib/src/features/voice/screens/voice_settings_screen.dart` | contains no screen; rename to `voice_settings_body.dart` |
 | 349 | `app/lib/src/providers/providers.dart` | `AppThemeChoice` + `ThemeController` + `themeChoiceKey` (269-318), a self-contained 50 lines |
 | 338 | `api/lib/src/models.dart` | three, along seams the file already draws with section comments: `models_session` (TokenPair, Ticket), `models_voice` (VoiceToken, VoiceRosterParticipant), `models_sync` (ReadState, ScopeCursor, ScopeDelta). Nine siblings already carry a "split out of models.dart purely to stay under this repo's line budget" header, so this is the file whose own header explains the splitting |
 | 334 | `design_system/lib/src/components/surfaces/list_row.dart` | the two animated marks (unread dot, selection marker) as private widgets. Also the highest comment-cap debt in the design system at 11 runs, where the next highest is 4, so splitting moves several of those onto exempt doc comments |
-| 322 | `app/lib/src/screens/admin/invites_screen.dart` | none named |
-| 309 | `app/lib/src/widgets/channel_rail_frame.dart` | none named |
+| 322 | `app/lib/src/features/settings/screens/admin/invites_screen.dart` | none named |
+| 309 | `app/lib/src/features/channels/widgets/channel_rail_frame.dart` | none named |
 | 303 | `app/lib/src/widgets/composer_extras.dart` | none named |
 
 **Test files, all registered:** `push_controller_test.dart` 925, `new_routes_test.dart` 665 (split along the groups it already has; it is named after a pull request rather than anything it covers), `session_persistence_test.dart` 588, `message_row_test.dart` 509.

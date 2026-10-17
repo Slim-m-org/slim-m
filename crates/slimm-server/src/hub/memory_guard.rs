@@ -1,65 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Admission control for memory: refuses a new WebSocket connection when the
-//! process is close to its cgroup memory ceiling, the same way [`super::Hub`]
-//! already refuses one once its own connection ceiling is reached. This only
-//! ever gates admission of a *new* connection; nothing here touches one
-//! already open.
-//!
-//! A capacity study found no equivalent protection for memory: holding 1024
-//! connections costs about 164 MB, but the process was OOM-killed by the
-//! kernel in under a second at a 144 MB cgroup ceiling, after silently
-//! accepting 879-976 connections it could not afford. Every send afterwards
-//! failed with connection refused and nothing was delivered. This guard
-//! closes that gap.
-//!
-//! ## Discovering the limit
-//!
-//! Cgroup v2 (`memory.max`, `memory.current`, `memory.stat`, directly under
-//! `/sys/fs/cgroup` inside a cgroup namespace - verified on the production
-//! host) is tried first, since that is what Docker sets and what the kernel
-//! actually enforces. Cgroup v1
-//! (`/sys/fs/cgroup/memory/memory.limit_in_bytes` and friends) is a fallback
-//! for older hosts. `SLIMM_MEMORY_LIMIT_BYTES` overrides the discovered limit
-//! outright, for a deployment where the cgroup is not visible to this
-//! process. If no limit is discoverable by either means, [`MemoryGuard::admit`]
-//! always admits: a bare-metal self-host with no configured ceiling behaves
-//! exactly as it did before this guard existed.
-//!
-//! ## Choosing the usage signal
-//!
-//! `memory.current` includes page cache, most of which the kernel reclaims
-//! for free under pressure; comparing it against the limit directly would
-//! refuse connections on a server that has simply read a lot of database
-//! pages. The readily reclaimable part of that cache is `inactive_file` in
-//! `memory.stat`, so this guard uses `memory.current - inactive_file`
-//! rather than raw `memory.current`, and deliberately not the narrower
-//! `anon` field: a WebSocket connection's steady cost is mostly kernel
-//! socket buffer memory, which `memory.current` counts but `anon` does not,
-//! so `anon` alone would undercount the exact load this guard exists to
-//! police. Active file pages and other kernel memory the kernel does not
-//! reclaim on demand both stay counted, which is the conservative direction
-//! to be wrong in.
-//!
-//! ## Choosing the reserve
-//!
-//! A connection costs about 144 KB, measured linearly from 100 to 1024 open
-//! sockets. The runs that got OOM-killed died within a second of the ramp
-//! starting, meaning hundreds of connections can be admitted between one
-//! memory reading and the next before a guard that only checks "is there
-//! room for one more" would even notice - so the reserve has to cover a
-//! burst of admissions across a reading's lifetime, not just a single
-//! connection. 256 connections' worth (256 * 144 KB ~= 36 MB) plus a margin
-//! for ordinary request working memory that is not WebSocket-specific
-//! (message bodies, permission cache growth, attachment buffers) rounds up
-//! to 64 MiB.
-//!
-//! ## Caching
-//!
-//! Reading `memory.current` and `memory.stat` on every connection attempt is
-//! correct but wasteful under a connection storm - the exact scenario this
-//! guard exists for. Readings are cached for a few hundred milliseconds,
-//! bounding staleness to a fraction of a second while capping the read rate
-//! to a handful per second regardless of how fast connections arrive.
+//! Refuses a new WebSocket connection when the process is near its cgroup
+//! memory ceiling, after a capacity study found the kernel OOM-killing the
+//! server mid-ramp. It never touches an open connection, and admits always
+//! when no limit is discoverable. How the limit, usage signal and reserve
+//! were chosen is in docs/internals.md.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};

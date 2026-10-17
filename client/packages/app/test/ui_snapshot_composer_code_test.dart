@@ -12,9 +12,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/code_block_runner.dart';
+import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 import 'ui_snapshot_fonts.dart';
 import 'ui_snapshot_support.dart' show snapshotDir, writingSnapshots;
 

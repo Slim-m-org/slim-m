@@ -45,6 +45,8 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ROLE_COLOR_COUNT, Role, RoleChanges, RoleGuardError, RoleWithCount};
 
+pub(super) mod role_reorder;
+
 const BODY_LIMIT: usize = 4 * 1024;
 
 /// The role management routes, mounted by [`super::router`].
@@ -61,7 +63,7 @@ pub fn routes() -> Router<AppState> {
 
 // --- Wire types ---
 
-/// `pub(super)`: [`super::role_reorder`] returns this same shape from its own
+/// `pub(super)`: [`self::role_reorder`] returns this same shape from its own
 /// endpoint, and reuses [`RoleWithCount`]'s conversion below to build it.
 #[derive(Serialize)]
 pub(super) struct RoleDto {
@@ -373,7 +375,7 @@ async fn unassign(
 /// role-management bit - and would silently become a hole the moment something
 /// did.
 ///
-/// `pub(super)`: [`super::role_reorder`] reuses this for its own
+/// `pub(super)`: [`self::role_reorder`] reuses this for its own
 /// position-hierarchy guard's administrator bypass.
 pub(super) async fn caller_granted(
     state: &AppState,

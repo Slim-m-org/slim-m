@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/context_menu_region.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 Widget _row() => harness(
   ContextMenuRegion(

@@ -21,18 +21,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/typing_controller.dart';
-import 'package:slimm_app/src/widgets/blocked_dm_notice.dart';
-import 'package:slimm_app/src/widgets/composer.dart';
-import 'package:slimm_app/src/widgets/composer_clipboard_image.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
+import 'package:slimm_app/src/features/members/widgets/blocked_dm_notice.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_image.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 
-import 'message_row_harness.dart' show harness, message, noActions;
+import 'features/messages/message_row_harness.dart'
+    show harness, message, noActions;
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
+import 'support/fake_blocks.dart';
 
 const _viewport = Size(1400, 880);
 
@@ -49,15 +51,6 @@ class _NoopTyping extends StateNotifier<Set<String>>
 
   @override
   void notifyTyping() {}
-}
-
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
 }
 
 Future<void> _finish(
@@ -88,7 +81,7 @@ void main() {
         ),
         overrides: [
           blocksProvider.overrideWith(
-            (ref) => _FixedBlocks(
+            (ref) => FixedBlocksController(
               ref,
               const BlocksState(ids: {'user-maya'}, settled: true),
             ),
@@ -126,7 +119,7 @@ void main() {
             return client;
           }),
           blocksProvider.overrideWith(
-            (ref) => _FixedBlocks(
+            (ref) => FixedBlocksController(
               ref,
               const BlocksState(ids: {'user-maya'}, settled: true),
             ),

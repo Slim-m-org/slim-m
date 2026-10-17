@@ -10,26 +10,19 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_bar.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_pane.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
-import 'package:slimm_app/src/widgets/voice_strip_indicator.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_controller_harness.dart';
-
-class _FixedVoiceController extends VoiceController {
-  _FixedVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-}
+import 'features/voice/voice_controller_harness.dart';
 
 /// Live in a different channel than the one whose canvas the tests open.
 const _callElsewhere = VoiceState(
@@ -49,7 +42,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _open(
     extraOverrides: [
       canvasOpenProvider.overrideWith((ref) => 'c-general'),
       voiceControllerProvider.overrideWith(
-        (ref) => _FixedVoiceController(ref, _callElsewhere),
+        (ref) => FixedVoiceController(ref, _callElsewhere),
       ),
     ],
   );

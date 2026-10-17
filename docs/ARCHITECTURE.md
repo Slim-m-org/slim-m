@@ -52,6 +52,14 @@ Two server rules that are easy to miss:
 - A migration that adds a uniqueness rule must repair the rows that already break it, because deployments have real data and a migration that fails stops the server.
   Migration 0095 (case-insensitive usernames) renames the losers and records each in `username_collision_renames`, which [OPERATING.md](OPERATING.md#usernames) explains for operators.
 
+## The client
+
+`client/` is a Flutter workspace of seven packages, layered bottom-up: `api` (wire types and transport, no Flutter), `data` (the drift local store and sync), then `design_system`, `platform`, `rtc` and `voice_canvas`, and `app` on top.
+Nothing below `app` imports from it.
+Inside `app/lib/src/`, each feature lives in `features/<feature>/` with its own `widgets/`, `providers/` and `screens/`: auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings and voice.
+The top-level `widgets/`, `providers/` and `screens/` are the shared layer: the home shell, sync, push, app lock and generic pieces two or more features use.
+State is riverpod and routing is go_router (`routing/`).
+
 ## The hub
 
 `hub.rs` is two broadcast channels, one durable and one ephemeral, not a router per scope.

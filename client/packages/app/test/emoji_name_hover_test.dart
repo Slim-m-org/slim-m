@@ -13,10 +13,10 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/emoji_name_tip.dart';
-import 'package:slimm_app/src/widgets/emoji_names.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
-import 'package:slimm_app/src/widgets/reactions_row.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_name_tip.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_names.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/reactions_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

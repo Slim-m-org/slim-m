@@ -15,34 +15,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/presence_controller.dart';
+import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/sync_failure.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'ui_snapshot_support.dart';
-
-class _StubSync extends SyncController {
-  _StubSync(super.ref) {
-    state = SyncStatus.offline;
-  }
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 ProviderContainer _container(List<Override> overrides) => ProviderContainer(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: fixtureTokens)),
-    syncControllerProvider.overrideWith(_StubSync.new),
+    syncControllerProvider.overrideWith(StubSyncController.new),
     apiProvider.overrideWith((ref) {
       final client = api.SlimmApi(
         baseUrl: Uri.parse('http://localhost:8080'),

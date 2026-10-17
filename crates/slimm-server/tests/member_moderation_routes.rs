@@ -13,8 +13,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -24,18 +22,6 @@ use slimm_server::store::{NewMessage, Store};
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-moderation-routes-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -119,7 +105,7 @@ async fn people(store: &Store) -> (String, String, String, String, String) {
 /// that would stop them.
 #[tokio::test]
 async fn a_moderator_cannot_reach_above_their_own_level() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (_admin_token, admin_id, mod_token, _mod_id, member_id) = people(&store).await;
     let app = app(store.clone());
 
@@ -166,7 +152,7 @@ async fn a_moderator_cannot_reach_above_their_own_level() {
 /// group is a legitimate thing to need.
 #[tokio::test]
 async fn an_administrator_can_moderate_a_moderator() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, _mod_token, mod_id, _member_id) = people(&store).await;
     let app = app(store.clone());
 
@@ -186,7 +172,7 @@ async fn an_administrator_can_moderate_a_moderator() {
 /// Holding neither bit is a refusal even against somebody junior.
 #[tokio::test]
 async fn a_plain_member_cannot_moderate_at_all() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (_admin_token, admin_id, _mod_token, mod_id, member_id) = people(&store).await;
     let member_token = store
         .open_session(slimm_server::ids::UserId(member_id.parse().unwrap()), "cli")
@@ -212,7 +198,7 @@ async fn a_plain_member_cannot_moderate_at_all() {
 
 #[tokio::test]
 async fn moderating_yourself_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (_admin_token, _admin_id, mod_token, mod_id, _member_id) = people(&store).await;
     let app = app(store.clone());
 
@@ -240,7 +226,7 @@ async fn moderating_yourself_is_refused() {
 /// "timeout" that is really a removal wearing the wrong word.
 #[tokio::test]
 async fn the_duration_is_validated_at_both_ends() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, _mod_token, _mod_id, member_id) = people(&store).await;
     let app = app(store.clone());
 
@@ -268,7 +254,7 @@ async fn the_duration_is_validated_at_both_ends() {
 /// list deliberately stopped carrying.
 #[tokio::test]
 async fn the_removals_listing_needs_the_ban_bit() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, _mod_token, _mod_id, member_id) = people(&store).await;
     let member_token = store
         .open_session(slimm_server::ids::UserId(member_id.parse().unwrap()), "cli")
@@ -296,7 +282,7 @@ async fn the_removals_listing_needs_the_ban_bit() {
 /// from a no-op rather than both reporting success.
 #[tokio::test]
 async fn restoring_someone_who_was_not_removed_is_a_404() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, _mod_token, _mod_id, member_id) = people(&store).await;
     let app = app(store.clone());
 
@@ -320,7 +306,7 @@ async fn restoring_someone_who_was_not_removed_is_a_404() {
 /// that was a complete substitute for sending.
 #[tokio::test]
 async fn a_timed_out_author_cannot_edit_their_way_around_the_block() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, _mod_token, _mod_id, member_id) = people(&store).await;
     let member = slimm_server::ids::UserId(member_id.parse().unwrap());
     let member_token = store

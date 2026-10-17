@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 /// A real 1x1 transparent PNG, so [Image.memory] decodes it rather than
 /// falling back to the file glyph through its `errorBuilder`.

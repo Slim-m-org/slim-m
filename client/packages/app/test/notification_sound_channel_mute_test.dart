@@ -19,28 +19,13 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/audio/notification_sound.dart';
-import 'package:slimm_app/src/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
-import 'package:slimm_app/src/providers/notification_sound_controller.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
-
-class _FakePlayer implements SoundPlayer {
-  final played = <NotificationSound>[];
-
-  @override
-  Future<void> play(NotificationSound sound) async => played.add(sound);
-
-  @override
-  Future<void> loop(NotificationSound sound) async {}
-
-  @override
-  Future<void> stopLoop() async {}
-
-  @override
-  Future<void> dispose() async {}
-}
+import 'support/fake_sound_player.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -76,7 +61,7 @@ class _Setup {
 
   final ProviderContainer container;
   final StreamController<api.ServerEvent> events;
-  final _FakePlayer player;
+  final RecordingSoundPlayer player;
   final SlimmDatabase db;
 
   Future<void> dispose() async {
@@ -105,7 +90,7 @@ Future<_Setup> _wire() async {
   ]);
 
   final events = StreamController<api.ServerEvent>.broadcast();
-  final player = _FakePlayer();
+  final player = RecordingSoundPlayer();
 
   final container = ProviderContainer(
     overrides: [

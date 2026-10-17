@@ -10,7 +10,7 @@ library;
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   testWidgets('the surface is not a button, and Fit view is its own node', (

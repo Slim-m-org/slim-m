@@ -22,8 +22,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -40,18 +38,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-blocking-live");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -138,7 +124,7 @@ async fn read_frame(ws: &mut Client) -> Value {
 /// deliberately not.
 #[tokio::test]
 async fn a_live_reaction_from_a_blocked_user_is_absent_for_the_blocker_alone() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-blocking-live").await;
     store
         .create_role(
             "everyone",
@@ -242,7 +228,7 @@ async fn a_live_reaction_from_a_blocked_user_is_absent_for_the_blocker_alone() {
 /// step fails here the same way.
 #[tokio::test]
 async fn a_live_reactions_frame_never_carries_a_reactor_id_and_mixes_blocked_with_unblocked() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-blocking-live").await;
     store
         .create_role(
             "everyone",
@@ -347,7 +333,7 @@ async fn a_live_reactions_frame_never_carries_a_reactor_id_and_mixes_blocked_wit
 /// after excluding blocked reactors, not before).
 #[tokio::test]
 async fn a_blocked_reactors_early_timestamp_cannot_reorder_an_emoji_for_the_blocker() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-blocking-live").await;
     store
         .create_role(
             "everyone",

@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::ChannelId;
@@ -20,18 +18,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-join-muted-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -112,7 +98,7 @@ async fn listed_join_muted(app: &Router, token: &str, name: &str) -> bool {
 
 #[tokio::test]
 async fn a_manager_sets_join_muted_alone_and_it_reads_back() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-join-muted-test").await;
     store
         .create_role(
             "everyone",
@@ -148,7 +134,7 @@ async fn a_manager_sets_join_muted_alone_and_it_reads_back() {
 
 #[tokio::test]
 async fn setting_join_muted_without_manage_channels_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-join-muted-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -168,7 +154,7 @@ async fn setting_join_muted_without_manage_channels_is_forbidden() {
 
 #[tokio::test]
 async fn a_channel_can_be_created_join_muted() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-join-muted-test").await;
     store
         .create_role(
             "everyone",
@@ -207,7 +193,7 @@ async fn first_seen_join_muted(store: Store, id: ChannelId) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_reader_never_sees_a_join_muted_channel_before_its_flag() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-join-muted-test").await;
     store
         .create_role(
             "everyone",

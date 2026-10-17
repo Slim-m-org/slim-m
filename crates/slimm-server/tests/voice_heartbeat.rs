@@ -14,8 +14,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
@@ -27,18 +25,6 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-voice-heartbeat-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, voice: VoiceService) -> Router {
     http::router(AppState {
@@ -88,7 +74,7 @@ async fn member(store: &Store, username: &str) -> (UserId, String) {
 /// terminated app's ghost participant unbounded.
 #[tokio::test]
 async fn a_heartbeat_is_recorded_against_the_caller_and_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     store
         .create_role(
             "everyone",
@@ -128,7 +114,7 @@ async fn a_heartbeat_is_recorded_against_the_caller_and_channel() {
 /// Decline would be racing their own keepalive.
 #[tokio::test]
 async fn a_keepalive_from_someone_already_in_the_call_does_not_answer_a_ring() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     store
         .create_role(
             "everyone",
@@ -171,7 +157,7 @@ async fn a_keepalive_from_someone_already_in_the_call_does_not_answer_a_ring() {
 
 #[tokio::test]
 async fn a_heartbeat_without_connect_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     // @everyone can see the channel but not connect to it.
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
@@ -196,7 +182,7 @@ async fn a_heartbeat_without_connect_is_refused() {
 
 #[tokio::test]
 async fn a_heartbeat_requires_authentication() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store, enabled_voice());
 
@@ -213,7 +199,7 @@ async fn a_heartbeat_requires_authentication() {
 
 #[tokio::test]
 async fn a_heartbeat_on_a_text_only_deployment_says_so_instead_of_pretending() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     store
         .create_role(
             "everyone",
@@ -243,7 +229,7 @@ async fn a_heartbeat_on_a_text_only_deployment_says_so_instead_of_pretending() {
 /// `a_channel_denying_connect_beats_the_role_that_grants_it`.
 #[tokio::test]
 async fn a_channel_denying_connect_beats_the_role_that_grants_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     let everyone = store
         .create_role(
             "everyone",
@@ -282,7 +268,7 @@ async fn a_channel_denying_connect_beats_the_role_that_grants_it() {
 /// join, so its existence is not observable through this route either.
 #[tokio::test]
 async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_join() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
     store
         .create_role(
             "everyone",

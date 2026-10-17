@@ -5,12 +5,12 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/dm_call_pane.dart';
+import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
-import 'package:slimm_app/src/widgets/compact_channel_app_bar.dart';
+import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_data/data.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 void main() {
   /// The strip and rail summary set the DM-call provider for any channel, so a

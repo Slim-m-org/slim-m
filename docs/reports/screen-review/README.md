@@ -30,7 +30,7 @@ Every one of the seven areas has at least one finding that would mislead or fail
 ## The systemic finding - closed
 
 **This was closed on main in PRs #522 and #523, under `docs/decisions/0011-per-channel-permissions.md`, and the record below is history rather than an open finding.**
-All seven sites now read a per-channel permission, and `channelPermissionsProvider` (`client/packages/app/lib/src/providers/channel_permissions.dart`) is the abstraction this section was written to ask for.
+All seven sites now read a per-channel permission, and `channelPermissionsProvider` (`client/packages/app/lib/src/features/channels/providers/channel_permissions.dart`) is the abstraction this section was written to ask for.
 Verified against current source on 2026-08-18, site by site, not taken from the area reports' own strikethroughs.
 Two of the files named below have also moved since: `channel_message_actions.dart` and `canvas_pane.dart` now live under `lib/src/screens/`.
 

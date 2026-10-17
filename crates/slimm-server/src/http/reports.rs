@@ -9,7 +9,7 @@
 //! this file's sibling admin surfaces do. [`history`] alone also accepts the
 //! read-only `VIEW_MODERATION_HISTORY`; see that handler's own doc.
 //!
-//! [`super::reports_mine::my_report_status`] is the one exception, split into
+//! [`self::reports_mine::my_report_status`] is the one exception, split into
 //! its own file rather than added here, and deliberately so: it is not a
 //! smaller version of the moderation queue, it is a different question
 //! altogether ("is my own report still open", not "what is in the queue"),
@@ -24,18 +24,22 @@ use axum::http::request::Parts;
 use axum::routing::{get, patch};
 use serde::{Deserialize, Serialize};
 
+use self::reports_cursor::parse_history_cursor;
+use self::reports_guards::{missing_or_closed, require_manage_messages};
+use self::reports_mine::my_report_status;
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
-use super::reports_cursor::parse_history_cursor;
-use super::reports_guards::{missing_or_closed, require_manage_messages};
-use super::reports_mine::my_report_status;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ModerationHistoryItem, Report};
+
+pub(super) mod reports_cursor;
+pub(super) mod reports_guards;
+pub(super) mod reports_mine;
 
 const BODY_LIMIT: usize = 4 * 1024;
 

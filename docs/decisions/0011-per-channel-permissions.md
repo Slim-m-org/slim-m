@@ -14,7 +14,7 @@ The hard part is already built and does not need reinventing.
 `Store::permissions_in_channel` (`crates/slimm-server/src/store/permissions.rs`) already resolves a thread to its parent through `permission_channel`, branches to a wholly different evaluator for a DM through `dm_permissions`, and subtracts a timeout at read time.
 Any new server surface should call this function, not reimplement any part of it.
 
-`Store::channels_where` (`crates/slimm-server/src/store/permissions_batch.rs`), which backs `GET /channels` through `visible_channels`, already computes the full per-channel `Permissions` bitmask for every channel it evaluates.
+`Store::channels_where` (`crates/slimm-server/src/store/permissions/permissions_batch.rs`), which backs `GET /channels` through `visible_channels`, already computes the full per-channel `Permissions` bitmask for every channel it evaluates.
 It calls `evaluate(...).remove(timeout_deny).contains(needed)` and keeps only the boolean.
 The bitmask itself is thrown away.
 `hidden_channels` in `crates/slimm-server/src/http/reports.rs`, which filters `/reports`, does the identical thing a second time: it calls `channels_where(user_id, Permissions::MANAGE_MESSAGES)` and keeps only channel-id membership in a `HashSet`.
@@ -25,7 +25,7 @@ Live events already exist for most of what would go stale.
 `OverwriteChanged` carries only the channel id and is gated by the *current*, post-change `VIEW_CHANNEL` check, so a caller who loses a channel-scoped bit (say `MANAGE_MESSAGES`) while keeping `VIEW_CHANNEL` is told immediately; the event's own doc comment names the one gap it does not close, a caller whose `VIEW_CHANNEL` itself is revoked receives nothing, which is an accepted, already-documented gap this design does not need to re-solve.
 The one genuinely unannounced change is a timeout lapsing: `crates/slimm-server/src/store/timeouts.rs`'s own module doc says this "expires by arithmetic," nothing runs and nothing is published, so no cache invalidated purely by events can ever be told a timeout just ended.
 
-One adjacent gap, found while tracing this: `client/packages/app/lib/src/providers/member_presence.dart`'s `memberModerationWatcherProvider` already listens for `MemberTimeoutChanged` and invalidates `membersProvider` (the roster), but nothing anywhere invalidates `meProvider` on that same event for the caller's own account.
+One adjacent gap, found while tracing this: `client/packages/app/lib/src/features/members/providers/member_presence.dart`'s `memberModerationWatcherProvider` already listens for `MemberTimeoutChanged` and invalidates `membersProvider` (the roster), but nothing anywhere invalidates `meProvider` on that same event for the caller's own account.
 `meProvider` is only invalidated on sign-in/sign-out (`sync_controller.dart`).
 So today, if a moderator times themself out of relevance mid-session (or, more realistically, is timed out by someone else while their client stays open), their own `myPermissionsProvider` reading stays wrong until the next unrelated `meProvider` refetch.
 This predates the per-channel work and is not one of the seven sites, but the fix for the new provider's identical failure mode is one line in the same listener, so it should land in the same change rather than being left as a second, un-fixed instance of the exact bug this record exists to close.

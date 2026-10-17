@@ -53,7 +53,6 @@ use crypto_box::aead::rand_core::{OsRng, TryRngCore};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
 use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -82,18 +81,6 @@ const REAL_CASE_TOKEN_ANDROID: &str = "contract-real-message-android";
 /// job is to notice if that literal and this one ever say something
 /// different, not to assume they agree.
 const RELAY_MAX_PAYLOAD_BYTES: usize = 4096;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-push-contract-fixture-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, push: PushSender) -> Router {
     app_with_voice(
@@ -203,7 +190,7 @@ async fn register_push(
 }
 
 async fn seeded_store() -> (Store, slimm_server::ids::ChannelId, support::TestDbGuard) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-push-contract-fixture-test").await;
     store
         .create_role(
             "everyone",

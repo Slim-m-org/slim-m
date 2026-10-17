@@ -16,7 +16,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart'
     show apiProvider, sessionProvider;
-import 'package:slimm_app/src/widgets/dm_row.dart';
+import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';

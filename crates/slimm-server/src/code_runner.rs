@@ -1,58 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The code-runner broker: this server's half of running a fenced code
-//! block through a self-hosted Piston instance (`engineer-man/piston`).
-//!
-//! **slim-m builds no runner of its own and executes nothing itself.** This
-//! module speaks Piston's own existing `POST /api/v2/execute` and
-//! `GET /api/v2/runtimes` protocol exactly (see [`piston`]) rather than
-//! inventing a parallel one - the operator points `SLIMM_CODE_RUNNER_URL` at
-//! a Piston instance they run and trust, the same relationship this project
-//! already has with the push relay and a self-hosted LiveKit.
-//!
-//! [`CodeRunner`] is the same first-class two-state shape `push::PushSender`
-//! models for the push relay: `SLIMM_CODE_RUNNER_URL` is optional, and
-//! absent is the default, fully supported state - a deployment that never
-//! sets it behaves exactly as it does today, with no Run affordance on any
-//! code block and nothing resembling a startup error.
-//!
-//! **The server brokers and never executes.** Every call this file makes
-//! carries exactly the block that triggered it - a language name and the
-//! code - and nothing else: no token, no session, no way for the runner to
-//! call back into this deployment. Whatever a compromised or misbehaving
-//! runner does, the worst it can produce is a wrong answer in the block that
-//! asked for it (see docs/decisions/0007's sharpest-edged constraint).
-//!
-//! **Ceilings are the server's, not Piston's.** Piston already implements
-//! real sandboxing - no network access by default, an unprivileged user and
-//! Linux namespaces per submission, CPU/wall-time and memory caps, output
-//! truncation, SIGKILL on misbehaviour - and this file does not reimplement
-//! any of it. What it adds on top: an explicit `run_timeout`/`compile_timeout`
-//! and memory ceiling on every request rather than trusting Piston's own
-//! defaults or however an operator's instance happens to be configured
-//! ([`piston::execute`]), an outer HTTP client timeout ([`CLIENT_TIMEOUT`])
-//! so a runner that never answers at all cannot hang the request that asked
-//! for it, and a hard cap on how much of a response this server will ever
-//! read ([`piston::MAX_RESPONSE_BYTES`]), refusing rather than absorbing
-//! anything past it - the same style `http::canvas_write::MAX_PROPS_BYTES`
-//! already uses. `Class::CodeRunner` (`crate::ratelimit::class::Class`) is
-//! the matching rate-limit ceiling, charged once per actual invocation
-//! (`http::module_commands::execute_code_runner`).
-//!
-//! **Trusting the operator, not the code.** Running arbitrary code from
-//! whoever can type in a channel is a real risk regardless of how well
-//! Piston sandboxes it; that is why the permission bit this ships with
-//! (`Permissions::RUN_CODE`) defaults to nobody and why reaching this at all
-//! needs configuration an operator adds deliberately, never something a
-//! deployment gets by default. An operator who enables it is trusting the
-//! people in their own space, the same trust every other write permission
-//! in this project already rests on - and it is worth saying plainly rather
-//! than dressing this up as more exotic than it is.
-//!
-//! **Which languages** a deployment can offer is read from the runner
-//! itself ([`CodeRunner::languages`], `GET /api/v2/runtimes`) rather than
-//! kept as a list in this codebase, so a client is never offered a Run
-//! button for a language nothing has confirmed is actually installed on
-//! this specific instance - see PR #1211.
+//! The code-runner broker: forwards a fenced block to an operator's own
+//! Piston instance (`SLIMM_CODE_RUNNER_URL`, off by default) and never
+//! executes anything itself. The server adds its own time, memory and
+//! response ceilings on top of Piston's sandbox; the trust model is in
+//! docs/decisions/0007 and docs/internals.md.
 
 mod piston;
 

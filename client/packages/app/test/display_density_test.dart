@@ -8,21 +8,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/image_decode.dart';
-import 'package:slimm_app/src/providers/display_density.dart';
+import 'package:slimm_app/src/features/messages/widgets/image_decode.dart';
+import 'package:slimm_app/src/features/settings/providers/display_density.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
-import 'package:slimm_app/src/widgets/author_profile_tap_target.dart';
-import 'package:slimm_app/src/widgets/display_density_preview.dart';
-import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/widgets/display_settings_section.dart';
-import 'package:slimm_app/src/widgets/message_row.dart';
-import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/messages/widgets/author_profile_tap_target.dart';
+import 'package:slimm_app/src/features/settings/widgets/display_density_preview.dart';
+import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/display_settings_section.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/ui_scale_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'message_row_harness.dart';
+import 'features/messages/message_row_harness.dart';
 
 ProviderContainer _container() {
   final container = ProviderContainer(

@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   testWidgets('a refused delete shows the error and the object returns', (

@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   /// The one route back once panning or zooming has gone somewhere nothing

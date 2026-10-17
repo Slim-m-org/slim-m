@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/code_block_runner.dart';
+import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
 import 'package:slimm_app/src/widgets/code_hidden_characters.dart';
-import 'package:slimm_app/src/widgets/message_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _runner = api.CodeBlockRunner(

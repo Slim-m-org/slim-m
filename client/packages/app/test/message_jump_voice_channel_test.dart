@@ -9,41 +9,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/channel_screen.dart';
-import 'package:slimm_app/src/widgets/message_jump.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_rtc/rtc.dart';
 
-import 'home_shell_harness.dart';
-import 'voice_controller_harness.dart' show FakeSession;
-
-class _RecordingVoiceController extends VoiceController {
-  _RecordingVoiceController(super.ref) : super(session: FakeSession());
-
-  final joins = <String>[];
-
-  @override
-  Future<void> join(String channelId) async {
-    joins.add(channelId);
-    state = VoiceState(
-      state: VoiceSessionState.connected,
-      channelId: channelId,
-    );
-  }
-}
+import 'features/settings/home_shell_harness.dart';
+import 'features/voice/voice_controller_harness.dart'
+    show RecordingVoiceController;
 
 void main() {
   testWidgets(
     'jumping to a message in a voice channel does not join the call',
     (tester) async {
-      late _RecordingVoiceController voice;
+      late RecordingVoiceController voice;
       final s = setup(
         httpClient: quietClient(),
         signedIn: true,
         extraOverrides: [
           voiceControllerProvider.overrideWith(
-            (ref) => voice = _RecordingVoiceController(ref),
+            (ref) => voice = RecordingVoiceController(ref),
           ),
         ],
       );

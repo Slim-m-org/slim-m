@@ -77,10 +77,23 @@ Option 2 repeats a mistake this project has already found and fixed once, in the
 
 Not decided here: whether a thread's `VIEW_CHANNEL`/`SEND_MESSAGES` inherit the parent's overwrites or carry their own, whether a thread needs its own entry point beyond "reply in thread" (a dedicated open-thread affordance, ~~a reply count on the parent message~~), and whether push for a thread reply should behave like an ordinary channel message or more like a targeted mention.
 Each of those is a smaller decision that only needs making once option 1 (or whichever option) is picked.
-The struck one is decided and built, 2026-08-01: `Store::thread_summaries_for_messages` batch-loads a reply count and a last-reply timestamp onto the parent message, the same one-query-per-page shape `thread_channel_id` itself already used, and `ThreadReplySummary` (`client/packages/app/lib/src/widgets/message_row_parts.dart`) renders it as a tap-through "N replies" line. See CLAUDE.md's own note on the same date for what the count's permission story and the deleted-reply exclusion turned out to need.
+The struck one is decided and built, 2026-08-01: `Store::thread_summaries_for_messages` batch-loads a reply count and a last-reply timestamp onto the parent message, the same one-query-per-page shape `thread_channel_id` itself already used, and `ThreadReplySummary` (`client/packages/app/lib/src/features/messages/widgets/message_row_parts.dart`) renders it as a tap-through "N replies" line. See CLAUDE.md's own note on the same date for what the count's permission story and the deleted-reply exclusion turned out to need.
 
 ~~Deliberately not built: a live "thread opened" push for a bystander already viewing the parent message.~~
 Built 2026-08-02: `Event::ThreadUpdated` (`crates/slimm-server/src/hub/event.rs`) fires when `Store::open_thread` creates a channel for the first time and again whenever a reply lands in one, folded into the same channel-scoped `VIEW_CHANNEL` gate every other channel event already uses in `http::ws::authorize`, keyed on the *parent* channel's id rather than the thread's own.
 It carries the current `reply_count`/`last_reply_at` directly rather than re-deriving them per receiving connection the way `ReactionsChanged` does its tally: the batch load a REST fetch already uses for this same number is not per-viewer filtered either (blocking does not touch it), so precomputing it here does not reintroduce the bug that fix closed.
 An offline client still needs no catch-up machinery of its own: `thread_channel_id` and the reply count are already batch-loaded onto `MessageDto` on every fetch, so a client that missed the live frame learns the same answer on its next list, search or sync of the parent channel.
 See CLAUDE.md's own note on the same date for the mutation-tested proof that a viewer denied on the parent learns nothing.
+
+## The thread panel in the client (2026-10-17)
+
+The panel reuses `ChannelScreen` for the transcript and composer, since a thread is an ordinary channel with `parentMessageId` set.
+Its header carries only back and the title.
+Pins and the canvas have nothing to offer a short side conversation, and a canvas button there was flagged by the 2026-08-02 security review.
+The member-pane and channel-rail toggles are left out on purpose: their providers are one app-wide flag each, read for whichever channel the router has selected underneath, so wiring them in flipped the chrome of the channel behind the thread (an owner-reported bug).
+Search stays because its provider is keyed by channel id, so it can only search the thread itself.
+`ChannelScreen` is told `isThread` explicitly, because a thread reached by URL or reload has no local channel row (threads are left out of `GET /channels` by design) and the store would answer "not a thread".
+The title reads "Thread in #channel" once the parent resolves, and plain "Thread" until then or when it cannot resolve.
+When the parent resolves, the panel upserts a real local channel row carrying the real `parentMessageId`, so the read marker has a row to update and `replaceChannels` never prunes it.
+The title's `Semantics(container: true, header: true)` separates it in the framework semantics tree but not in Flutter web's DOM, so the e2e harness waits on the back button instead.
+

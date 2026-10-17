@@ -10,9 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
-import 'package:slimm_app/src/providers/voice_call_history.dart';
-import 'package:slimm_app/src/screens/voice_idle/voice_channel_idle.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_call_history.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_idle/voice_channel_idle.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

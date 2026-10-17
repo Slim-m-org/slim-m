@@ -13,7 +13,7 @@ The three facts that decide it are below, then the product survey, then the argu
 
 I read the branch before evaluating, because the brief said the comparison turns on it, and it does.
 
-`client/packages/app/lib/src/widgets/message_row.dart:264` is:
+`client/packages/app/lib/src/features/messages/widgets/message_row.dart:264` is:
 
 ```dart
 constraints: BoxConstraints(
@@ -373,7 +373,7 @@ That is disproportionate to 6px on one class of row, and it recreates in Flutter
 
 Read directly:
 
-- slim-m PR #1520, branch `feat/message-hover-toolbar`, worktree `/home/npc/.slimm-scratch/msg-toolbar/wt`; `client/packages/app/lib/src/widgets/message_row.dart:264`, `message_hover_toolbar.dart`, `client/packages/design_system/lib/src/app_metrics.dart:85,176-178`, `app_typography.dart:81`.
+- slim-m PR #1520, branch `feat/message-hover-toolbar`, worktree `/home/npc/.slimm-scratch/msg-toolbar/wt`; `client/packages/app/lib/src/features/messages/widgets/message_row.dart:264`, `message_hover_toolbar.dart`, `client/packages/design_system/lib/src/app_metrics.dart:85,176-178`, `app_typography.dart:81`.
 - `client/packages/app/build/ui-snapshots/message-toolbar-grouped-dark.png`, measured.
 - `docs/design/design-language.md`, `docs/design/desktop-vs-mobile.md` lines 61-77.
 - Discord web client, build `web.91d9ed412e5a4f3b.js`, CSS chunk `618416.a8a67f0c89afda02.css` (message module, class hash `_c19a55`), retrieved 2026-09-30.

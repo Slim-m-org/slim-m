@@ -14,21 +14,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/blocks_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
-
-class _NoFetchBlocks extends BlocksController {
-  _NoFetchBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'features/canvas/canvas_pane_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
+import 'support/fake_blocks.dart';
 
 const _cameraOn = VoiceParticipant(
   identity: 'user-noor',
@@ -64,7 +56,7 @@ Future<void> _expectPenDrawsThrough(
         ),
       ),
       blocksProvider.overrideWith(
-        (ref) => _NoFetchBlocks(ref, const BlocksState()),
+        (ref) => FixedBlocksController(ref, const BlocksState()),
       ),
     ],
   );

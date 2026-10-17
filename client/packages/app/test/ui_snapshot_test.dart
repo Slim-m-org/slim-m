@@ -19,22 +19,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart'
     show spaceAnalyticsProvider;
-import 'package:slimm_app/src/providers/ephemeral_messages.dart'
+import 'package:slimm_app/src/features/messages/providers/ephemeral_messages.dart'
     show EphemeralMessagesController, ephemeralMessagesProvider;
 import 'package:slimm_app/src/providers/sync_controller.dart'
     show SyncStatus, initialSyncCompleteProvider, syncControllerProvider;
-import 'package:slimm_app/src/providers/threads.dart' show openThreadProvider;
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_pane.dart'
+import 'package:slimm_app/src/features/channels/providers/threads.dart'
+    show openThreadProvider;
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart'
     show canvasOpenProvider;
-import 'package:slimm_app/src/widgets/channel_rail.dart'
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart'
     show channelRailExpandedProvider;
 
 import 'support/surface_registry.dart';
+import 'support/fake_sync.dart';
 import 'ui_snapshot_support.dart';
-import 'voice_snapshot_fixtures.dart'
+import 'features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectedCallState, connectingState;
-import 'voice_snapshot_scenarios.dart';
+import 'features/voice/voice_snapshot_scenarios.dart';
 
 /// `ReportCard`'s own nested resolve needs `renderSurface`'s
 /// `settleNestedResolve` pump, or `expectSettled` catches it as a
@@ -215,7 +217,7 @@ final _shellStateSurfaces =
         viewports: phoneAndDesktop,
         overrides: () => [
           syncControllerProvider.overrideWith(
-            (ref) => FixedSyncController(ref, SyncStatus.connecting),
+            (ref) => StubSyncController(ref, SyncStatus.connecting),
           ),
         ],
       ),
@@ -224,7 +226,7 @@ final _shellStateSurfaces =
         viewports: phoneAndDesktop,
         overrides: () => [
           syncControllerProvider.overrideWith(
-            (ref) => FixedSyncController(ref, SyncStatus.live),
+            (ref) => StubSyncController(ref, SyncStatus.live),
           ),
           initialSyncCompleteProvider.overrideWith((ref) => true),
         ],

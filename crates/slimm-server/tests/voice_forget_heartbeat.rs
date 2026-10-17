@@ -9,8 +9,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -21,18 +19,6 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-voice-forget-heartbeat-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, voice: VoiceService) -> Router {
     http::router(AppState {
@@ -78,7 +64,7 @@ async fn member(store: &Store, username: &str) -> (slimm_server::ids::UserId, St
 
 #[tokio::test]
 async fn forgetting_a_recorded_heartbeat_drops_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
     store
         .create_role(
             "everyone",
@@ -116,7 +102,7 @@ async fn forgetting_a_recorded_heartbeat_drops_it() {
 
 #[tokio::test]
 async fn forgetting_a_heartbeat_never_recorded_is_a_harmless_no_op() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let (_, token) = member(&store, "alice").await;
     let app = app(store.clone(), enabled_voice());
@@ -134,7 +120,7 @@ async fn forgetting_a_heartbeat_never_recorded_is_a_harmless_no_op() {
 
 #[tokio::test]
 async fn forgetting_a_heartbeat_requires_authentication() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store, enabled_voice());
 
@@ -155,7 +141,7 @@ async fn forgetting_a_heartbeat_requires_authentication() {
 /// client's own cleanup.
 #[tokio::test]
 async fn forgetting_a_heartbeat_needs_no_permission_at_all() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
     store
         .create_role("everyone", Permissions::NONE, true)
         .await
@@ -180,7 +166,7 @@ async fn forgetting_a_heartbeat_needs_no_permission_at_all() {
 /// distinction with no purpose.
 #[tokio::test]
 async fn forgetting_a_heartbeat_on_a_text_only_deployment_still_succeeds() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let (_, token) = member(&store, "alice").await;
     let app = app(store.clone(), VoiceService::disabled());
@@ -200,7 +186,7 @@ async fn forgetting_a_heartbeat_on_a_text_only_deployment_still_succeeds() {
 /// there is nothing else to check.
 #[tokio::test]
 async fn forgetting_a_heartbeat_for_a_malformed_channel_id_is_a_bad_request() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
     let (_, token) = member(&store, "alice").await;
     let app = app(store.clone(), enabled_voice());
 

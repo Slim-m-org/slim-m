@@ -18,7 +18,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../providers/auto_update_preference.dart';
 import '../providers/providers.dart';
-import '../providers/voice_controller.dart';
+import '../features/voice/providers/voice_controller.dart';
 import 'desktop_window_port.dart';
 import 'self_update/self_update_controller.dart';
 import 'update_check.dart';

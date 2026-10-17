@@ -9,15 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/voice_flags.dart';
-import 'package:slimm_app/src/screens/voice_call_dock.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_call_dock.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_call_controls_harness.dart' show InertSession;
+import 'features/voice/voice_call_controls_harness.dart' show InertSession;
 
 VoiceParticipant _me() => const VoiceParticipant(
   identity: 'me',

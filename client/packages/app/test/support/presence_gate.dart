@@ -14,12 +14,12 @@ import 'code_only.dart';
 const _statusDotHomes = {
   'design_system/lib/src/components/core/status_dot.dart',
   'design_system/lib/src/components/core/avatar.dart',
-  'app/lib/src/widgets/presence_indicator.dart',
+  'app/lib/src/features/members/widgets/presence_indicator.dart',
 };
 
 const _avatarHomes = {
   'design_system/lib/src/components/core/avatar.dart',
-  'app/lib/src/widgets/user_avatar.dart',
+  'app/lib/src/features/members/widgets/user_avatar.dart',
 };
 
 const _ringHomes = {
@@ -28,13 +28,13 @@ const _ringHomes = {
 };
 
 const _pictureHomes = {
-  'app/lib/src/providers/avatar_bytes.dart',
-  'app/lib/src/widgets/user_avatar.dart',
+  'app/lib/src/features/members/providers/avatar_bytes.dart',
+  'app/lib/src/features/members/widgets/user_avatar.dart',
 };
 
-/// The only code that may read the raw presence map; widgets and screens get a
-/// state from `presenceForProvider`.
-const _presenceMapReaders = 'app/lib/src/providers/';
+/// The only code that may read the raw presence map, the shared providers and
+/// each feature's own; widgets and screens get a state from `presenceForProvider`.
+final _presenceMapReaders = RegExp(r'^app/lib/src/(features/\w+/)?providers/');
 
 /// The painter is deliberately not covered: the Space's connection dot draws
 /// with it, and that is a link to a server rather than a person.
@@ -78,7 +78,7 @@ List<String> presenceGateViolations(Directory packagesRoot) {
       _pictureHomes,
       'fetches a picture outside UserAvatar',
     );
-    if (path.startsWith('app/lib/') && !path.startsWith(_presenceMapReaders)) {
+    if (path.startsWith('app/lib/') && !_presenceMapReaders.hasMatch(path)) {
       forbid(
         RegExp(r'\bpresenceControllerProvider\b'),
         const {},

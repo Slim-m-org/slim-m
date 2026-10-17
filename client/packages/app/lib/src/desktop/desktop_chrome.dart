@@ -30,7 +30,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/fullscreen_video.dart';
+import '../features/voice/providers/fullscreen_video.dart';
 import 'close_behavior.dart';
 import 'desktop_entrance.dart';
 import 'desktop_window_shell.dart';

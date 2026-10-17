@@ -16,8 +16,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::ChannelId;
@@ -29,18 +27,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-create-private-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -140,7 +126,7 @@ async fn channel_names(app: &Router, token: &str) -> Vec<String> {
 /// overwrite of their own cannot see the channel at all.
 #[tokio::test]
 async fn restricted_create_denies_everyone_and_grants_only_the_creator() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-private-test").await;
     let (admin_token, admin_id) = register_admin(&store).await;
     let (member_token, _member_id) = register_member(&store, "bystander", Permissions::NONE).await;
     let app = app(store.clone());
@@ -200,7 +186,7 @@ async fn restricted_create_denies_everyone_and_grants_only_the_creator() {
 /// already do that through `setRoleOverwrite`/`setMemberOverwrite`.
 #[tokio::test]
 async fn restricted_create_without_manage_roles_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-private-test").await;
     register_admin(&store).await;
     let (token, _id) = register_member(&store, "manager", Permissions::MANAGE_CHANNELS).await;
     let app = app(store.clone());
@@ -244,7 +230,7 @@ async fn restricted_create_without_manage_roles_is_forbidden() {
 /// not atomic, they would survive the refusal. They do not.
 #[tokio::test]
 async fn a_private_create_that_fails_leaves_no_channel_behind() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-private-test").await;
     let creator = store.create_user("bob", "bob").await.unwrap();
     let id = ChannelId::generate();
 

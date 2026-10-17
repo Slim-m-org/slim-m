@@ -13,8 +13,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::ids::MessageId;
@@ -26,18 +24,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-pin-delete-events");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 /// Keeps a handle to the hub so a test can subscribe and inspect what the
 /// route actually published, the same shape `dm_open_publishes_no_event.rs`
@@ -116,7 +102,7 @@ fn pin_uri(channel_id: &str, message_id: &str) -> String {
 /// tells it, or it keeps showing the pin until it happens to refetch.
 #[tokio::test]
 async fn deleting_a_pinned_message_publishes_message_unpinned() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pin-delete-events").await;
     store
         .create_role(
             "everyone",
@@ -178,7 +164,7 @@ async fn deleting_a_pinned_message_publishes_message_unpinned() {
 /// that never existed.
 #[tokio::test]
 async fn deleting_an_unpinned_message_publishes_no_message_unpinned() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pin-delete-events").await;
     store
         .create_role(
             "everyone",

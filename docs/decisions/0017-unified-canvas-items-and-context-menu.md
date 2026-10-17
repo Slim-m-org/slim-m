@@ -26,7 +26,7 @@ On the right-click menu:
 That split is real in storage and stays (see below), but 0010 let it surface to the user: tiles carry on-tile control buttons and absorb right-click, while images use a separate object context menu.
 This record makes that split invisible - one component, one action vocabulary - so the user never perceives which backend an item lives in.
 
-2. **The note system's stated invariant "there is no in-place edit anywhere on this canvas" (`client/packages/app/lib/src/screens/canvas/canvas_note_sheet.dart:5-11`).**
+2. **The note system's stated invariant "there is no in-place edit anywhere on this canvas" (`client/packages/app/lib/src/features/canvas/screens/canvas_note_sheet.dart:5-11`).**
 Notes were authored in a bottom sheet, then painted, never edited in place.
 This record replaces that with an inline draft note that is typed on the canvas itself.
 The weaker invariant it actually protects - nothing hits the wire until commit - is kept.

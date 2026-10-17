@@ -18,7 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 
 /// The smallest possible real GIF (a 1x1 transparent pixel), so `Image.memory`
 /// actually decodes it rather than falling back to an error builder.

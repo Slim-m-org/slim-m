@@ -9,8 +9,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -22,18 +20,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-pins");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -120,7 +106,7 @@ fn pin_uri(channel_id: &str, message_id: &str) -> String {
 /// project, and pinning must not repeat it.
 #[tokio::test]
 async fn pinning_needs_manage_messages_evaluated_per_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pins").await;
     store
         .create_role(
             "everyone",
@@ -192,7 +178,7 @@ async fn pinning_needs_manage_messages_evaluated_per_channel() {
 /// else can still see what a moderator pinned.
 #[tokio::test]
 async fn reading_the_pin_list_needs_only_view_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pins").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -253,7 +239,7 @@ async fn reading_the_pin_list_needs_only_view_channel() {
 /// reactions and channel overwrites already rely on.
 #[tokio::test]
 async fn pinning_twice_is_idempotent() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pins").await;
     store
         .create_role(
             "everyone",
@@ -318,7 +304,7 @@ async fn pinning_twice_is_idempotent() {
 /// list has already hidden - a pin the UI would render as a blank.
 #[tokio::test]
 async fn deleting_a_pinned_message_removes_its_pin() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pins").await;
     store
         .create_role(
             "everyone",
@@ -397,7 +383,7 @@ async fn deleting_a_pinned_message_removes_its_pin() {
 /// CLAUDE.md), so this is checked directly rather than assumed from review.
 #[tokio::test]
 async fn pin_route_is_rate_limited() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-pins").await;
     store
         .create_role(
             "everyone",

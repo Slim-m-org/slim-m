@@ -5,7 +5,7 @@ library;
 
 import 'dart:math' as math;
 
-import 'attachment_format.dart';
+import '../features/messages/widgets/attachment_format.dart';
 
 /// The estimate is hidden until the meter has measured for this long, so the first noisy seconds never reach the screen.
 const Duration kTransferDetailAfter = Duration(seconds: 2);

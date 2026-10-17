@@ -12,9 +12,14 @@
 //! (a command's required permission key, the resource caps to run under) has
 //! to be persisted alongside the rest of the install row.
 
-use super::module_artifacts::store_module_artifact_tx;
+use self::module_artifacts::store_module_artifact_tx;
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, UserId};
+
+pub(super) mod module_artifacts;
+pub(super) mod module_kv;
+pub(super) mod module_permissions;
+pub(super) mod module_schedule;
 
 /// One installed module, as recorded at its last install.
 #[derive(Debug, Clone)]

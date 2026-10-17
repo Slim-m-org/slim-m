@@ -16,7 +16,7 @@ import 'package:slimm_app/src/widgets/whats_new_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'settings_harness.dart';
+import 'features/settings/settings_harness.dart';
 
 void main() {
   setUpAll(mockAppVersion);

@@ -14,8 +14,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -26,18 +24,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-reply-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     let auth = Auth::new(2).expect("auth service");
@@ -92,7 +78,7 @@ async fn register(store: &Store, username: &str) -> String {
 
 #[tokio::test]
 async fn a_reply_carries_its_parent_id_through_send_and_list() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reply-test").await;
     store
         .create_role(
             "everyone",
@@ -154,7 +140,7 @@ async fn a_reply_carries_its_parent_id_through_send_and_list() {
 
 #[tokio::test]
 async fn replying_to_a_message_in_another_channel_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reply-test").await;
     store
         .create_role(
             "everyone",
@@ -201,7 +187,7 @@ async fn replying_to_a_message_in_another_channel_is_refused() {
 
 #[tokio::test]
 async fn replying_to_a_nonexistent_message_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reply-test").await;
     store
         .create_role(
             "everyone",
@@ -236,7 +222,7 @@ async fn replying_to_a_nonexistent_message_is_refused() {
 /// is what renders the parent as unavailable by resolving the id fresh.
 #[tokio::test]
 async fn a_reply_survives_its_parent_being_deleted() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reply-test").await;
     store
         .create_role(
             "everyone",
@@ -319,7 +305,7 @@ async fn a_reply_survives_its_parent_being_deleted() {
 /// A reply may itself be replied to; nothing here treats a chain specially.
 #[tokio::test]
 async fn a_reply_to_a_reply_is_allowed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reply-test").await;
     store
         .create_role(
             "everyone",

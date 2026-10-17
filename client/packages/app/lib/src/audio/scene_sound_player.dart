@@ -16,7 +16,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../widgets/module_scene.dart' show SceneNote;
+import '../features/modules/widgets/module_scene.dart' show SceneNote;
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 import 'scene_synth.dart' as scene_synth;
 

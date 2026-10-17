@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -20,18 +18,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-users-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -90,7 +76,7 @@ async fn register(store: &Store, username: &str) -> (String, String) {
 
 #[tokio::test]
 async fn a_profile_carries_only_the_public_shape() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, alice_id) = register(&store, "alice").await;
 
@@ -121,7 +107,7 @@ async fn a_profile_carries_only_the_public_shape() {
 /// account.
 #[tokio::test]
 async fn a_deleted_account_looks_like_one_that_never_existed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, _my_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -161,7 +147,7 @@ async fn a_deleted_account_looks_like_one_that_never_existed() {
 
 #[tokio::test]
 async fn batch_lookup_skips_ids_with_nothing_to_report() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, alice_id) = register(&store, "alice").await;
     let (_, bob_id) = register(&store, "bob").await;
@@ -192,7 +178,7 @@ async fn batch_lookup_skips_ids_with_nothing_to_report() {
 
 #[tokio::test]
 async fn an_empty_batch_returns_an_empty_list() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, _id) = register(&store, "alice").await;
 
@@ -208,7 +194,7 @@ async fn an_empty_batch_returns_an_empty_list() {
 
 #[tokio::test]
 async fn a_batch_over_the_cap_is_rejected() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, _id) = register(&store, "alice").await;
 
@@ -228,7 +214,7 @@ async fn a_batch_over_the_cap_is_rejected() {
 
 #[tokio::test]
 async fn an_unparseable_id_in_the_batch_is_a_bad_request() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, _id) = register(&store, "alice").await;
 
@@ -242,7 +228,7 @@ async fn an_unparseable_id_in_the_batch_is_a_bad_request() {
 
 #[tokio::test]
 async fn the_member_list_is_paginated_and_bounded() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (token, first_id) = register(&store, "alice").await;
     let (_, second_id) = register(&store, "bob").await;
@@ -280,7 +266,7 @@ async fn the_member_list_is_paginated_and_bounded() {
 
 #[tokio::test]
 async fn the_member_list_requires_authentication() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
 
     let response = app
@@ -297,7 +283,7 @@ async fn the_member_list_requires_authentication() {
 /// through `create_account` directly rather than an invite; see MOD9.
 #[tokio::test]
 async fn a_ban_members_caller_sees_the_invite_code_a_member_registered_through() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (admin_token, admin_id) = register(&store, "alice").await;
     let admin_user_id = slimm_server::ids::UserId(Uuid::parse_str(&admin_id).unwrap());
@@ -346,7 +332,7 @@ async fn a_ban_members_caller_sees_the_invite_code_a_member_registered_through()
 /// list position, and this fails loudly if that ever regresses to positional.
 #[tokio::test]
 async fn each_member_shows_its_own_invite_not_another_members() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (admin_token, admin_id) = register(&store, "alice").await;
     let admin_user_id = slimm_server::ids::UserId(Uuid::parse_str(&admin_id).unwrap());
@@ -407,7 +393,7 @@ async fn each_member_shows_its_own_invite_not_another_members() {
 /// without BAN_MEMBERS must not see the field at all, not even as null.
 #[tokio::test]
 async fn a_non_moderator_does_not_see_the_invite_code_field() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-users-test").await;
     let app = app(store.clone());
     let (_admin_token, admin_id) = register(&store, "alice").await;
     let admin_user_id = slimm_server::ids::UserId(Uuid::parse_str(&admin_id).unwrap());

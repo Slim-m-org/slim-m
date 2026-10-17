@@ -5,24 +5,14 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/blocks_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
-
-class _NoFetchBlocks extends BlocksController {
-  _NoFetchBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  /// A real fetch racing this test's pumps could resolve after the fixed
-  /// state above and quietly replace it, so this state never asks at all.
-  @override
-  Future<void> refresh() async {}
-}
+import 'features/canvas/canvas_pane_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
+import 'support/fake_blocks.dart';
 
 const _here = VoiceParticipant(
   identity: 'user-priya',
@@ -65,7 +55,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );
@@ -91,7 +81,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );
@@ -126,7 +116,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );
@@ -154,8 +144,10 @@ void main() {
           ),
         ),
         blocksProvider.overrideWith(
-          (ref) =>
-              _NoFetchBlocks(ref, const BlocksState(ids: {'user-blocked'})),
+          (ref) => FixedBlocksController(
+            ref,
+            const BlocksState(ids: {'user-blocked'}),
+          ),
         ),
       ],
     );

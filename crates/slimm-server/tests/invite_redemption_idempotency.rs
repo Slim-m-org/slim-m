@@ -5,24 +5,9 @@
 //! account. Its own file because `invites.rs` is already at the line budget.
 //! See SRV5 and `Store::redeem_invite`.
 
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::store::Store;
-use sqlx::SqlitePool;
 
 mod support;
-
-async fn new_store() -> (Store, SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-invite-idempotency");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool.clone()), pool, guard)
-}
 
 /// The current use count of `code`.
 async fn uses(store: &Store, code: &str) -> i64 {
@@ -38,7 +23,7 @@ async fn uses(store: &Store, code: &str) -> i64 {
 
 #[tokio::test]
 async fn a_retry_by_the_same_user_spends_no_second_use() {
-    let (store, _pool, _guard) = new_store().await;
+    let (store, _pool, _guard) = support::new_store_with_pool("slimm-invite-idempotency").await;
     let creator = store.create_account("creator", "C", "h").await.unwrap();
     store.bootstrap_deployment(creator.id).await.unwrap();
     let alice = store.create_account("alice", "A", "h").await.unwrap();
@@ -74,7 +59,7 @@ async fn a_retry_by_the_same_user_spends_no_second_use() {
 
 #[tokio::test]
 async fn a_retry_on_a_single_use_invite_reports_success_not_failure() {
-    let (store, _pool, _guard) = new_store().await;
+    let (store, _pool, _guard) = support::new_store_with_pool("slimm-invite-idempotency").await;
     let creator = store.create_account("creator", "C", "h").await.unwrap();
     store.bootstrap_deployment(creator.id).await.unwrap();
     let alice = store.create_account("alice", "A", "h").await.unwrap();
@@ -96,7 +81,7 @@ async fn a_retry_on_a_single_use_invite_reports_success_not_failure() {
 
 #[tokio::test]
 async fn a_code_used_at_registration_cannot_be_redeemed_again() {
-    let (store, _pool, _guard) = new_store().await;
+    let (store, _pool, _guard) = support::new_store_with_pool("slimm-invite-idempotency").await;
     let creator = store.create_account("creator", "C", "h").await.unwrap();
     store.bootstrap_deployment(creator.id).await.unwrap();
 
@@ -123,7 +108,7 @@ async fn a_code_used_at_registration_cannot_be_redeemed_again() {
 
 #[tokio::test]
 async fn deleting_an_account_purges_its_invite_redemptions() {
-    let (store, pool, _guard) = new_store().await;
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-invite-idempotency").await;
     let creator = store.create_account("creator", "C", "h").await.unwrap();
     store.bootstrap_deployment(creator.id).await.unwrap();
     let alice = store.create_account("alice", "A", "h").await.unwrap();

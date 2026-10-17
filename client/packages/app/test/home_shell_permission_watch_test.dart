@@ -21,7 +21,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 void main() {
   testWidgets('a RoleChanged refetches meProvider with only the shell '

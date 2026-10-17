@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/fullscreen_image_viewer.dart';
-import 'package:slimm_app/src/widgets/image_export.dart';
+import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
+import 'package:slimm_app/src/features/messages/widgets/image_export.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'support/mid_flight_capture.dart';

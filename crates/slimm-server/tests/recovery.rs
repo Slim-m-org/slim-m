@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -22,18 +20,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-recovery-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -119,7 +105,7 @@ async fn issue_code(app: &Router, admin_token: &str, user_id: &str) -> String {
 
 #[tokio::test]
 async fn only_an_administrator_can_issue_a_code() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (_admin_token, _admin_id) = register(&store, "alice").await;
     let (member_token, member_id) = register(&store, "bob").await;
@@ -139,7 +125,7 @@ async fn only_an_administrator_can_issue_a_code() {
 
 #[tokio::test]
 async fn issuing_for_a_nonexistent_user_is_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
 
@@ -160,7 +146,7 @@ async fn issuing_for_a_nonexistent_user_is_not_found() {
 
 #[tokio::test]
 async fn a_wrong_code_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -181,7 +167,7 @@ async fn a_wrong_code_is_refused() {
 
 #[tokio::test]
 async fn a_weak_new_password_is_rejected() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -205,7 +191,7 @@ async fn a_weak_new_password_is_rejected() {
 /// reachable again only by logging in with the new password.
 #[tokio::test]
 async fn consuming_revokes_old_sessions_and_sets_the_new_password() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, bob_id) = register(&store, "bob").await;
@@ -278,7 +264,7 @@ async fn consuming_revokes_old_sessions_and_sets_the_new_password() {
 /// refused the same way a wrong code is.
 #[tokio::test]
 async fn a_code_cannot_be_redeemed_twice() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -314,7 +300,7 @@ async fn a_code_cannot_be_redeemed_twice() {
 /// extras - since the caller uses that list to close live sockets.
 #[tokio::test]
 async fn consuming_revokes_sessions_across_multiple_devices_and_returns_their_ids() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, bob_id) = register(&store, "bob").await;
@@ -367,7 +353,7 @@ async fn consuming_revokes_sessions_across_multiple_devices_and_returns_their_id
 /// back rather than failing for want of anything to close.
 #[tokio::test]
 async fn consuming_succeeds_with_no_live_sessions_to_revoke() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-recovery-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, bob_id) = register(&store, "bob").await;

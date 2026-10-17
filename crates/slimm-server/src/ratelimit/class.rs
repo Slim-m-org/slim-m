@@ -158,13 +158,13 @@ classes! {
     /// The sustained refill answers the polled voice roster: every unjoined
     /// voice channel a client is rendering re-fetches its roster every 15
     /// seconds (`voiceRosterPollInterval` in
-    /// `client/packages/app/lib/src/providers/voice_roster.dart`), nudged
+    /// `client/packages/app/lib/src/features/voice/providers/voice_roster.dart`), nudged
     /// early on a live join/leave rather than waiting out the interval. At
     /// this refill, over 100 simultaneously-open voice channels could each
     /// poll on their own 15-second cycle forever without ever touching the
     /// burst, leaving headroom for every other read a client makes in the
     /// same stretch. The burst answers a reconnect: `ChannelRefresher`
-    /// (`client/packages/app/lib/src/providers/channel_refresher.dart`)
+    /// (`client/packages/app/lib/src/features/channels/providers/channel_refresher.dart`)
     /// fetches every channel's and DM's read marker concurrently the moment
     /// a dropped socket comes back, alongside the channel/category/DM lists
     /// and the notification-override and block lists two other controllers

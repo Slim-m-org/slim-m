@@ -67,6 +67,29 @@ pub async fn wake_recipients(
     .await
 }
 
+/// A migrated [`Store`] on its own temporary database, deleted with the guard.
+#[allow(dead_code)]
+pub async fn new_store(prefix: &str) -> (Store, TestDbGuard) {
+    let (store, _pool, guard) = new_store_with_pool(prefix).await;
+    (store, guard)
+}
+
+/// [`new_store`], also handing back the pool for direct SQL.
+#[allow(dead_code)]
+pub async fn new_store_with_pool(prefix: &str) -> (Store, sqlx::SqlitePool, TestDbGuard) {
+    let (path, guard) = TestDbGuard::new(prefix);
+    let config = Config {
+        port: 0,
+        database_path: path,
+        hash_concurrency: 2,
+        ..Config::default()
+    };
+    let pool = slimm_server::db::connect(&config)
+        .await
+        .expect("connect + migrate");
+    (Store::new(pool.clone()), pool, guard)
+}
+
 /// Deletes its temp SQLite database, and its `-wal`/`-shm` siblings, on drop.
 ///
 /// Runs on a panicking test too: `Drop` still runs during unwind, which is

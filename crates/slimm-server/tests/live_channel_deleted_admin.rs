@@ -10,8 +10,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -27,18 +25,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-channel-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -144,7 +130,7 @@ async fn make_admin(store: &Store, user_id: slimm_server::ids::UserId) {
 
 #[tokio::test]
 async fn channel_deleted_reaches_an_admin_who_sees_a_private_channel_by_administrator() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     let everyone = store
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
         .await

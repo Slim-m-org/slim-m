@@ -13,9 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/message_selection.dart';
+import 'package:slimm_app/src/features/messages/providers/message_selection.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/channel_composer_area.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_composer_area.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

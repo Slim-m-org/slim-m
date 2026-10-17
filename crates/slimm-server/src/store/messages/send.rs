@@ -160,7 +160,7 @@ impl Store {
         }
 
         if let Some(origin) = &forward {
-            crate::store::message_forwards::insert_forward(&mut tx, id, origin).await?;
+            crate::store::messages::message_forwards::insert_forward(&mut tx, id, origin).await?;
         }
 
         if let Some((module_id, footer)) = stamp {
@@ -175,7 +175,7 @@ impl Store {
                 footer_text: Some(footer.to_owned()),
                 ..crate::store::NewEmbed::default()
             };
-            crate::store::message_embeds::insert_embeds(&mut tx, id, &[embed]).await?;
+            crate::store::messages::message_embeds::insert_embeds(&mut tx, id, &[embed]).await?;
         }
 
         tx.commit().await?;

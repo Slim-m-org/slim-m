@@ -19,6 +19,13 @@ use super::{Store, now_ms};
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 
+pub(super) mod role_bots;
+pub(super) mod role_hierarchy;
+pub(super) mod role_hoist;
+pub(super) mod role_mentions;
+pub(super) mod role_reorder;
+pub(super) mod role_update;
+
 /// A role: a named, reusable permission set members can hold.
 #[derive(Debug, Clone)]
 pub struct Role {

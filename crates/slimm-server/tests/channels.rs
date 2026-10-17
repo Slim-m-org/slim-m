@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -20,18 +18,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channels-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -93,7 +79,7 @@ async fn register(store: &Store, username: &str) -> String {
 
 #[tokio::test]
 async fn manager_can_rename_a_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role(
             "everyone",
@@ -126,7 +112,7 @@ async fn manager_can_rename_a_channel() {
 
 #[tokio::test]
 async fn renaming_without_manage_channels_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -153,7 +139,7 @@ async fn renaming_without_manage_channels_is_forbidden() {
 /// Forbidden, never a distinguishing 404.
 #[tokio::test]
 async fn a_non_manager_cannot_distinguish_a_real_channel_from_a_fake_one_by_renaming() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -194,7 +180,7 @@ async fn a_non_manager_cannot_distinguish_a_real_channel_from_a_fake_one_by_rena
 /// can already manage every real channel.
 #[tokio::test]
 async fn renaming_a_nonexistent_channel_by_a_manager_is_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role(
             "everyone",
@@ -222,7 +208,7 @@ async fn renaming_a_nonexistent_channel_by_a_manager_is_not_found() {
 
 #[tokio::test]
 async fn rename_validates_the_new_name() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role(
             "everyone",
@@ -252,7 +238,7 @@ async fn rename_validates_the_new_name() {
 /// is not an error.
 #[tokio::test]
 async fn manager_can_delete_a_channel_idempotently() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role(
             "everyone",
@@ -297,7 +283,7 @@ async fn manager_can_delete_a_channel_idempotently() {
 /// left nobody has anywhere to land.
 #[tokio::test]
 async fn the_last_channel_cannot_be_deleted() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role(
             "everyone",
@@ -337,7 +323,7 @@ async fn the_last_channel_cannot_be_deleted() {
 /// from the 204 an already-deleted (but once real) channel gets.
 #[tokio::test]
 async fn deleting_a_channel_id_that_was_never_real_is_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role(
             "everyone",
@@ -369,7 +355,7 @@ async fn deleting_a_channel_id_that_was_never_real_is_not_found() {
 /// caller's *channel* bitmask to embed - the channel is brand new.
 #[tokio::test]
 async fn listing_channels_includes_the_callers_own_permissions() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     let everyone = store
         .create_role(
             "everyone",
@@ -428,7 +414,7 @@ async fn listing_channels_includes_the_callers_own_permissions() {
 
 #[tokio::test]
 async fn deleting_without_manage_channels_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await

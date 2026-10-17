@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -23,18 +21,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-reports-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -152,7 +138,7 @@ async fn file_a_report(
 /// black hole the audit found, in the one place harassment is most private.
 #[tokio::test]
 async fn a_report_filed_in_a_dm_reaches_the_moderators() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -219,7 +205,7 @@ async fn a_report_filed_in_a_dm_reaches_the_moderators() {
 /// the per-channel re-check dropped the report out of the queue on delete.
 #[tokio::test]
 async fn a_report_survives_its_channel_being_deleted() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let channel_id = general_channel_id(&store).await;
@@ -269,7 +255,7 @@ async fn a_report_survives_its_channel_being_deleted() {
 /// could be flooded with reports naming random uuids.
 #[tokio::test]
 async fn a_report_about_a_nonexistent_user_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (bob_token, _bob_id) = register(&store, "bob").await;
 
@@ -298,7 +284,7 @@ async fn a_report_about_a_nonexistent_user_is_refused() {
 /// deliberately.
 #[tokio::test]
 async fn retrying_a_deleted_send_is_not_a_500() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     store
         .create_role(
             "everyone",

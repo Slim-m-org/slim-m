@@ -179,11 +179,11 @@ content it wraps.
   touch-order z-index - keyed by an opaque `'camera:<identity>'` /
   `'screen:<identity>'` string, with `prune` closing the "reset on rejoin"
   loop.
-- `CanvasPresenceLayer` (`client/packages/app/lib/src/screens/canvas/canvas_presence_layer.dart`,
+- `CanvasPresenceLayer` (`client/packages/app/lib/src/features/canvas/screens/canvas_presence_layer.dart`,
   rewritten): renders self and remote, camera and screen share, all through
   one world-anchored list. `CanvasSelfPresenceOverlay`, the screen-anchored
   self-only layer, is deleted outright rather than kept alongside.
-- `CanvasPresenceManipulableTile` (`client/packages/app/lib/src/screens/canvas/canvas_presence_tile.dart`,
+- `CanvasPresenceManipulableTile` (`client/packages/app/lib/src/features/canvas/screens/canvas_presence_tile.dart`,
   new): the drag/resize/lock/hide interaction, self-contained rather than
   routed through the tool-based gesture state machine real canvas objects
   use, since a tile's manipulation has never depended on which tool is
@@ -373,3 +373,13 @@ consequence of who owns the arrangement.
 Everything else this document decided - lock's own pointer-absorption
 meaning, hide's meaning, and one manipulation contract for two tile kinds -
 is unaffected by the reversal and still holds.
+
+## Client notes (2026-10-17)
+
+These moved here from doc comments in `canvas_presence_layer.dart` and `canvas_presence_tile.dart`.
+Self and remote tiles are one list in world space; the old screen-anchored self bubble blocked whatever world content panned under it ("stuck to the dock").
+Sending a tile back never moves the manipulable tile below `CanvasSurface`, because the surface's opaque hit region would then delete its controls: only the content moves into `CanvasPresenceBackdrop`, painted under the ink, while the drag area, grip and corner controls stay where they were.
+A tile's expand control reuses the voice screen's root-navigator full-screen route, so Escape, back and the stopped-feed guard come with it and never reach the canvas's own full-screen binding.
+While a tile is expanded the layer reports that one key as its video interest, so every other feed is unsubscribed until it closes; the report stays in the layer so the interest set has one owner.
+A tile's name badge stays visible while its action controls hide, since it identifies the tile for as long as it is up.
+

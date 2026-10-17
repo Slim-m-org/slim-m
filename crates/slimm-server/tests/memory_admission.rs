@@ -14,8 +14,6 @@ use axum::http::StatusCode;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Hub, MemoryReading};
 use slimm_server::push::PushSender;
@@ -44,18 +42,6 @@ fn starved() -> MemoryReading {
         limit_bytes: Some(1_000_000_000),
         usage_bytes: Some(999_500_000),
     }
-}
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-memguard-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
 }
 
 fn state_with(store: &Store, hub: Hub) -> AppState {
@@ -129,7 +115,7 @@ async fn read_frame(ws: &mut Client) -> Value {
 
 #[tokio::test]
 async fn an_existing_connection_survives_the_guard_refusing_new_ones() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-memguard-test").await;
     let shared = Arc::new(Mutex::new(healthy()));
     let hub = Hub::with_memory_reading(shared.clone());
     let addr = serve(state_with(&store, hub)).await;
@@ -165,7 +151,7 @@ async fn an_existing_connection_survives_the_guard_refusing_new_ones() {
 
 #[tokio::test]
 async fn a_healthy_reading_admits_normally() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-memguard-test").await;
     let hub = Hub::with_memory_reading(Arc::new(Mutex::new(healthy())));
     let addr = serve(state_with(&store, hub)).await;
 

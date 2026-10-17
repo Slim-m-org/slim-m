@@ -28,7 +28,7 @@ Keep docs short, link a decision record rather than repeating it, and use a plai
 ## Definition of done
 
 Run the gates last, on the branch, after `git add`: several of them read only tracked files and report success on an untracked one.
-[CLAUDE.md](CLAUDE.md) and `.github/workflows/hygiene.yml` are the authority; [docs/ci.md](docs/ci.md) explains each workflow.
+[CLAUDE.md](CLAUDE.md) and `.github/workflows/hygiene.yml` are the authority; [docs/ci.md](docs/ci.md) explains each workflow, and [docs/DEVELOPING.md](docs/DEVELOPING.md) has the commands to run every check locally.
 A change is done when every line that applies to it holds.
 
 Every change:

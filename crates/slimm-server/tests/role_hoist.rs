@@ -7,8 +7,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -17,18 +15,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-role-hoist");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -131,7 +117,7 @@ async fn member(app: &Router, token: &str, user_id: &str) -> Value {
 /// the response and `GET /roles` agree.
 #[tokio::test]
 async fn hoist_defaults_off_and_toggles_on_its_own() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-hoist").await;
     let app = app(store.clone());
     let (token, _) = register(&store, "alice").await;
     let role_id = create_role(&app, &token, "Core Team").await;
@@ -161,7 +147,7 @@ async fn hoist_defaults_off_and_toggles_on_its_own() {
 
 #[tokio::test]
 async fn hoist_needs_manage_roles_and_a_real_role() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-hoist").await;
     let app = app(store.clone());
     let (admin, _) = register(&store, "alice").await;
     let role_id = create_role(&app, &admin, "Core Team").await;
@@ -208,7 +194,7 @@ async fn hoist_needs_manage_roles_and_a_real_role() {
 /// a hoisted role counts, the highest of those wins, and the position rides along.
 #[tokio::test]
 async fn members_report_their_top_hoisted_role_and_its_position() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-hoist").await;
     let app = app(store.clone());
     let (admin, _) = register(&store, "alice").await;
     let bob = store

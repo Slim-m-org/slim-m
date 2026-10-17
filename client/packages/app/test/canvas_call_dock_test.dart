@@ -7,8 +7,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_tools_row.dart';
-import 'package:slimm_app/src/screens/voice_call_controls.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_tools_row.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 
 import 'support/canvas_call_dock_fixtures.dart';

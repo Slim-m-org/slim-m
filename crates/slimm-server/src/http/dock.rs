@@ -30,9 +30,9 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use url::Url;
 
+use self::dock_lifecycle::{disable, enable, list_installed, uninstall};
+use self::dock_sources::{add_source, list_sources, remove_source};
 use super::AppState;
-use super::dock_lifecycle::{disable, enable, list_installed, uninstall};
-use super::dock_sources::{add_source, list_sources, remove_source};
 use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
@@ -53,6 +53,9 @@ use keywords::ensure_slash_keywords_free;
 use manifest::{IndexEntry, Manifest, ManifestError, parse_index, parse_manifest, validate_slug};
 use sources::SourceQuery;
 use wire::{IndexEntryDto, InstalledModuleDto, ManifestDto};
+
+pub(super) mod dock_lifecycle;
+pub(super) mod dock_sources;
 
 const BODY_LIMIT: usize = 4 * 1024;
 

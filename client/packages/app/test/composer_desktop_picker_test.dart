@@ -11,11 +11,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/widgets/composer_picker_panel.dart';
-import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_picker_panel.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'composer_harness.dart';
+import 'features/composer/composer_harness.dart';
 import 'composer_picker_api.dart';
 
 void main() {

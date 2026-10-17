@@ -1,48 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! `GET /metrics`: process resident memory, request counts by rate-limit
-//! class, per-route request latency, SQLite pool occupancy, currently open
-//! WebSocket connections, the memory-admission guard's own view of its
-//! ceiling, usage and refusals (`crate::hub::memory_guard`), and whether the
-//! configured SFU answers - as Prometheus text exposition format.
-//!
-//! Built to close the exact gap CLAUDE.md records: LiveKit crashlooped for
-//! half an hour behind a `voice enabled` line that only ever reports the
-//! server's own config, never whether the SFU it names actually answers.
-//! `compose-smoke` now checks that by hand once, at deploy time; this makes
-//! it an ongoing, scrapable signal.
-//!
-//! **Per-route latency** is recorded continuously by [`super::route_timing`],
-//! not sampled lazily the way `store/analytics.rs`'s memory time series is:
-//! a latency reading taken only when an admin happens to open a screen would
-//! answer for whatever request happened to be running at that moment, not
-//! for the traffic in between - useless for finding a slow route. See that
-//! module's own doc for the cardinality reasoning behind labelling by route
-//! template rather than raw path.
-//!
-//! **Auth**: gated on an authenticated session holding `MANAGE_SERVER`, the
-//! same bit `/space/analytics` already gates on, rather than left open the
-//! way `/version` is. `/version` discloses a handful of deployment-wide
-//! facts an unauthenticated caller needs before an account exists; this
-//! discloses traffic volume by class and connection counts, which is a
-//! member-count-adjacent signal about a specific self-hosted community, not
-//! the kind of thing this project leaves unauthenticated. There is no
-//! service-account or API-key concept in this server, so an admin's own
-//! session token is what a Prometheus scrape has to carry; a dedicated
-//! scrape credential is a reasonable follow-up if that friction turns out
-//! to matter, not built here.
-//!
-//! **Rate limit**: `Class::Write`, not the generous `Class::AuthedRead` most
-//! authenticated GETs use, because `write_voice` below makes a real,
-//! uncached outbound call to the configured SFU on every scrape - a cheap
-//! list read this is not, and a scrape interval short enough to blow
-//! `Write`'s budget is already misconfigured against the SFU it is probing.
-//!
-//! **No metrics crate.** `docs/dependencies.md` already declines a charting
-//! package for three bar charts on the grounds that a small, bespoke output
-//! is a function, not a dependency; four gauges and two counter families
-//! hand-rolled as text is smaller still, and a crate like `prometheus` or
-//! `metrics` would bring its own registry, encoder, and (for `metrics`) an
-//! exporter trait object this server has no other use for.
+//! `GET /metrics` in Prometheus text format: memory, request counts and
+//! latency, pool and connection gauges, the memory guard's view, and whether
+//! the SFU answers. Gated on `MANAGE_SERVER` because traffic volume is a
+//! signal about a private community; see docs/internals.md.
 
 use axum::Router;
 use axum::extract::{Extension, State};

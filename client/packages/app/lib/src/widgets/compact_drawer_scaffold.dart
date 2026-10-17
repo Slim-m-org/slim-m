@@ -9,14 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 
-import '../providers/channel_by_id_provider.dart';
-import '../providers/member_selection.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
+import '../features/members/providers/member_selection.dart';
 import '../routing/routes.dart';
-import '../screens/voice_text_pane.dart' show voiceChatPaneVisibleProvider;
-import 'channel_rail_drawer.dart';
-import 'compact_channel_app_bar.dart';
+import '../features/voice/screens/voice_text_pane.dart'
+    show voiceChatPaneVisibleProvider;
+import '../features/channels/widgets/channel_rail_drawer.dart';
+import '../features/channels/widgets/compact_channel_app_bar.dart';
 import 'drawer_edge_drag.dart';
-import 'member_pane.dart';
+import '../features/members/widgets/member_pane.dart';
 
 class CompactDrawerScaffold extends ConsumerStatefulWidget {
   const CompactDrawerScaffold({

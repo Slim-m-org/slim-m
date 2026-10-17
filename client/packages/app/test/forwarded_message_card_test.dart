@@ -13,9 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/channel_by_id_provider.dart';
-import 'package:slimm_app/src/providers/user_profiles.dart';
-import 'package:slimm_app/src/widgets/forwarded_message_card.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/messages/widgets/forwarded_message_card.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

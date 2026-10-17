@@ -9,22 +9,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/blocks_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
-
-class _NoFetchBlocks extends BlocksController {
-  _NoFetchBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'features/canvas/canvas_pane_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
+import 'support/fake_blocks.dart';
 
 const _local = VoiceParticipant(
   identity: 'me',
@@ -44,7 +36,7 @@ ProviderContainer _containerWithSelfInCall() => CanvasPaneFixture().container(
       ),
     ),
     blocksProvider.overrideWith(
-      (ref) => _NoFetchBlocks(ref, const BlocksState()),
+      (ref) => FixedBlocksController(ref, const BlocksState()),
     ),
   ],
 );

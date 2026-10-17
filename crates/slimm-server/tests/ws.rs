@@ -35,18 +35,6 @@ mod support;
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-ws-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
-
 /// Like [`new_store`], but also hands back the raw pool so a test can break a
 /// single query for real; see
 /// `a_store_error_authorizing_fan_out_closes_the_connection`.
@@ -158,7 +146,7 @@ fn send_request(uri: &str, token: &str, body: Value) -> Request<Body> {
 
 #[tokio::test]
 async fn two_clients_receive_fan_out_in_order() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-test").await;
     store
         .create_role(
             "everyone",
@@ -199,7 +187,7 @@ async fn two_clients_receive_fan_out_in_order() {
 
 #[tokio::test]
 async fn fan_out_respects_view_permission() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-test").await;
     store
         .create_role(
             "everyone",
@@ -326,7 +314,7 @@ async fn a_store_error_authorizing_fan_out_closes_the_connection() {
 /// connection happens to get scheduled.
 #[tokio::test]
 async fn ephemeral_lag_skips_forward_without_closing_or_blocking_durable_events() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-test").await;
     store
         .create_role(
             "everyone",
@@ -392,7 +380,7 @@ async fn ephemeral_lag_skips_forward_without_closing_or_blocking_durable_events(
 /// skipped the way a stale cursor can.
 #[tokio::test]
 async fn durable_lag_still_forces_a_resync_close() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-test").await;
     store
         .create_role(
             "everyone",

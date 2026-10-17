@@ -7,8 +7,8 @@
 /// persisted locally - every REST fetch that returns a message (send, list,
 /// sync, search) already carries all of them in full, so a fresh render is
 /// always a fresh read rather than a stale cache. `MessageExtras`
-/// (`packages/app/lib/src/providers/message_extras.dart`) and
-/// `PinsController` (`packages/app/lib/src/providers/pins_controller.dart`)
+/// (`packages/app/lib/src/features/messages/providers/message_extras.dart`) and
+/// `PinsController` (`packages/app/lib/src/features/channels/providers/pins_controller.dart`)
 /// both say so in their own doc comments and both hold their state in plain
 /// Riverpod memory, never in this database.
 ///

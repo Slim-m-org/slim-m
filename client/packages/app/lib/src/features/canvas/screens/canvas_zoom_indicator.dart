@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The one on-screen readout of how zoomed in the canvas currently is, and
+/// the way back to the content: tapping it fits the view.
+///
+/// The canvas is a bounded large world, not literally infinite (see
+/// `CLAUDE.md`), and panning or pinching around it left nothing on screen
+/// saying how far zoomed in or out a person had gone - the owner's backlog
+/// named this directly as a gap. This closes it with the smallest thing that
+/// answers the question, a small pill in the one corner nothing else already
+/// claims: `canvas_presence_roster.dart`'s own doc maps the error/truncation
+/// banners to top-left-to-center and the floating dock to bottom-center,
+/// which leaves bottom-left free.
+///
+/// Deliberately not a minimap, and not a position readout either: a
+/// position needs [CanvasDocument.contentBounds], which that getter's own
+/// doc says is a plain scan meant for one Recenter tap, never once a frame -
+/// exactly the cost a camera-driven rebuild here would pay on every pan and
+/// pinch. Zoom alone costs nothing extra: [CanvasDocument.camera] is already
+/// read every frame elsewhere, and answers most of what "where am I" means
+/// for a roughly dozen-person canvas, where the existing Recenter action is
+/// already the way back if a person really is lost.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
+
+import '../../modules/providers/dock_reservation.dart';
+
+/// The widest pane where the centred dock can still reach this corner.
+const _beside = 900.0;
+
+/// At phone width the dock's cards reach into this corner, so the readout
+/// rides above them by the dock's measured height instead of sitting under it.
+/// So does a pane too narrow for the one-row dock to leave room beside it.
+class CanvasZoomIndicator extends ConsumerWidget {
+  const CanvasZoomIndicator({
+    super.key,
+    required this.document,
+    required this.tokens,
+    required this.onFit,
+  });
+
+  /// Fits the camera to what is drawn; a view-only change, so always enabled.
+  final VoidCallback onFit;
+
+  final CanvasDocument document;
+  final AppTokens tokens;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phone = MediaQuery.sizeOf(context).width < kCompactWidth;
+    return CustomSingleChildLayout(
+      delegate: _CornerDelegate(
+        lift: ref.watch(bottomDockReservationProvider) + AppSpacing.s12,
+        alwaysLifted: phone,
+      ),
+      child: _readout(),
+    );
+  }
+
+  Widget _readout() => SafeArea(
+    minimum: const EdgeInsets.all(AppSpacing.s12),
+    child: ListenableBuilder(
+      listenable: document,
+      builder: (context, _) {
+        final percent = (document.camera.zoom * 100).round();
+        // Its own node: merged into the surface's, it made the whole canvas a button that swallowed every drag on web.
+        return Semantics(
+          container: true,
+          button: true,
+          label: 'Fit view, zoom $percent percent',
+          excludeSemantics: true,
+          onTap: onFit,
+          child: Tooltip(
+            message: 'Fit view',
+            child: Material(
+              color: tokens.surfaceRaised,
+              shape: StadiumBorder(
+                side: BorderSide(color: tokens.borderSubtle),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onFit,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: AppSizes.icon28),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$percent%',
+                          style: AppText.caption.copyWith(
+                            color: tokens.textSecondary,
+                            fontWeight: AppWeights.medium,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.s4),
+                        Icon(
+                          AppIcons.recenter,
+                          size: AppSizes.icon16,
+                          color: tokens.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+/// Pins the readout bottom-left, lifted over the dock when it could reach the corner.
+///
+/// A layout delegate rather than a LayoutBuilder: the readout listens to the
+/// document, and mounting it during layout kept a frame callback alive under
+/// reduce motion.
+class _CornerDelegate extends SingleChildLayoutDelegate {
+  const _CornerDelegate({required this.lift, required this.alwaysLifted});
+
+  final double lift;
+  final bool alwaysLifted;
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final lifted = alwaysLifted || size.width < _beside;
+    return Offset(0, size.height - childSize.height - (lifted ? lift : 0));
+  }
+
+  @override
+  bool shouldRelayout(_CornerDelegate old) =>
+      old.lift != lift || old.alwaysLifted != alwaysLifted;
+}

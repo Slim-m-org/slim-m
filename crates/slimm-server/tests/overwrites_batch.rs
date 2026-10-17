@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -22,18 +20,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-overwrites-batch-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -125,7 +111,7 @@ async fn get_overwrites(app: &Router, admin_token: &str, channel_id: &str) -> Va
 /// carries both allow/deny pairs, not just the first one processed.
 #[tokio::test]
 async fn batch_applies_every_entry() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-overwrites-batch-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (_member_token, member_id) = register(&store, "bob").await;
@@ -157,7 +143,7 @@ async fn batch_applies_every_entry() {
 /// either.
 #[tokio::test]
 async fn batch_refuses_the_whole_request_if_one_entry_escalates() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-overwrites-batch-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (member_token, member_id) = register(&store, "bob").await;
@@ -208,7 +194,7 @@ async fn batch_refuses_the_whole_request_if_one_entry_escalates() {
 /// same as the single-target route.
 #[tokio::test]
 async fn batch_refuses_an_unknown_target() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-overwrites-batch-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let channel_id = general_channel_id(&store).await;

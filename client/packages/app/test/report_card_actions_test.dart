@@ -11,13 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/providers/message_jump.dart';
-import 'package:slimm_app/src/widgets/member_profile_sections.dart'
+import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
+import 'package:slimm_app/src/features/members/widgets/member_profile_sections.dart'
     show TimeoutDurationChips;
 import 'package:slimm_data/data.dart' hide Channel, Message;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'report_card_harness.dart';
+import 'features/settings/report_card_harness.dart';
 
 void main() {
   group('jump to message', () {

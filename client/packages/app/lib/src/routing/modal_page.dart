@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../widgets/voice_strip_indicator.dart';
+import '../features/voice/widgets/voice_strip_indicator.dart';
 
 /// How large the floating panel is allowed to get.
 ///

@@ -12,8 +12,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -25,18 +23,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-dms-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -142,7 +128,7 @@ async fn block(app: &Router, token: &str, target_id: &str) -> StatusCode {
 /// participant of. Checked against both reading and sending.
 #[tokio::test]
 async fn administrator_who_is_not_a_participant_cannot_read_or_send_in_a_dm() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     // The first registration claims the deployment and becomes its admin.
@@ -203,7 +189,7 @@ async fn administrator_who_is_not_a_participant_cannot_read_or_send_in_a_dm() {
 /// all.
 #[tokio::test]
 async fn opening_the_same_dm_concurrently_converges_on_one_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (alice_token, alice_id) = register(&store, "alice").await;
@@ -237,7 +223,7 @@ async fn opening_the_same_dm_concurrently_converges_on_one_channel() {
 /// half of it.
 #[tokio::test]
 async fn blocking_refuses_opening_in_either_direction() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (alice_token, alice_id) = register(&store, "alice").await;
@@ -267,7 +253,7 @@ async fn blocking_refuses_opening_in_either_direction() {
 /// not, for either party.
 #[tokio::test]
 async fn blocking_refuses_sending_but_not_reading_after_the_dm_is_open() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -321,7 +307,7 @@ async fn blocking_refuses_sending_but_not_reading_after_the_dm_is_open() {
 /// never show up next to `general` in the ordinary channel list.
 #[tokio::test]
 async fn dm_channel_is_excluded_from_the_ordinary_channel_list() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -354,7 +340,7 @@ async fn dm_channel_is_excluded_from_the_ordinary_channel_list() {
 /// the caller's own unread count, updating as messages arrive and are read.
 #[tokio::test]
 async fn dm_list_reports_the_other_participant_and_the_unread_count() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -409,7 +395,7 @@ async fn dm_list_reports_the_other_participant_and_the_unread_count() {
 /// channel it cannot view), refused outright by search.
 #[tokio::test]
 async fn sync_and_search_follow_dm_participation() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -503,7 +489,7 @@ async fn sync_and_search_follow_dm_participation() {
 /// channel id legitimately, which is what makes this reachable at all.
 #[tokio::test]
 async fn channel_management_routes_cannot_touch_a_dm() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (admin_token, _admin_id) = register(&store, "admin").await;
@@ -557,7 +543,7 @@ async fn channel_management_routes_cannot_touch_a_dm() {
 /// leaving members with nowhere to talk.
 #[tokio::test]
 async fn a_dm_does_not_let_the_last_real_channel_be_deleted() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dms-test").await;
     let app = app(store.clone());
 
     let (admin_token, _admin_id) = register(&store, "admin").await;

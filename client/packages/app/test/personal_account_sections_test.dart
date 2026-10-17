@@ -14,24 +14,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/personal_account_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-/// A fixed block set with no real fetch, the same shape
-/// `personal_account_sections_list_row_test.dart` already uses.
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'support/fake_blocks.dart';
 
 /// Stands in for the real socket connection [SyncController.start] would
 /// otherwise attempt: a widget test has no server at the other end, so the
@@ -245,7 +235,7 @@ void main() {
           return api;
         }),
         blocksProvider.overrideWith(
-          (ref) => _FixedBlocks(
+          (ref) => FixedBlocksController(
             ref,
             const BlocksState(ids: {'user-blocked'}, settled: true),
           ),

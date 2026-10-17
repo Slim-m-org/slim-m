@@ -11,8 +11,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::presence;
@@ -28,18 +26,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-presence-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store, hub: Hub) -> AppState {
     AppState {
@@ -170,7 +156,7 @@ async fn presence_status(state: &AppState, token: &str, target_id: &str) -> Stri
 /// only because the viewer differs.
 #[tokio::test]
 async fn hidden_user_reads_offline_to_others_but_true_to_self() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -237,7 +223,7 @@ async fn hidden_user_reads_offline_to_others_but_true_to_self() {
 /// peer and the REST surface observe the transition.
 #[tokio::test]
 async fn presence_flips_to_offline_when_the_last_socket_closes() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -279,7 +265,7 @@ async fn presence_flips_to_offline_when_the_last_socket_closes() {
 /// or dropping a real id when only some in the page have a live row).
 #[tokio::test]
 async fn a_batch_mixes_hidden_visible_and_absent_ids_correctly() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
@@ -345,7 +331,7 @@ async fn a_batch_mixes_hidden_visible_and_absent_ids_correctly() {
 /// "offline" entry.
 #[tokio::test]
 async fn unknown_id_is_simply_absent() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let (access, _ticket, _id) = user_ticket(&store, "alice").await;
 
@@ -374,7 +360,7 @@ async fn unknown_id_is_simply_absent() {
 /// the time the test reads `is_idle`.
 #[tokio::test]
 async fn a_ping_resets_the_idle_clock_not_just_typing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let hub = Hub::new();
     let state = state_for(&store, hub.clone());
     let (_access, ticket, id) = user_ticket(&store, "alice").await;
@@ -414,7 +400,7 @@ async fn a_ping_resets_the_idle_clock_not_just_typing() {
 /// nothing about the fix needs ten real minutes to pass to prove it.
 #[tokio::test]
 async fn an_idle_transition_is_announced_to_another_viewer() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let hub = Hub::with_idle_poll_interval(Duration::from_millis(20));
     let state = state_for(&store, hub.clone());
     let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
@@ -452,7 +438,7 @@ async fn an_idle_transition_is_announced_to_another_viewer() {
 /// precisely what makes it easy to miss.
 #[tokio::test]
 async fn a_hidden_users_idle_transition_is_never_published() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let hub = Hub::with_idle_poll_interval(Duration::from_millis(20));
     let state = state_for(&store, hub.clone());
     let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;

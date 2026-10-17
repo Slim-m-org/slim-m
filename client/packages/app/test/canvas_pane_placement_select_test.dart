@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   testWidgets(

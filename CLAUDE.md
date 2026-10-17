@@ -14,7 +14,7 @@ slim-m is a lightweight, self-hostable Discord-style platform for text, voice, s
 - Wire protocol: schema-first JSON in `schema/openapi.yaml`
 - Name is temporary; final product name is chosen before 1.0
 
-Read first when starting substantial work:
+Read first when starting substantial work (`docs/README.md` indexes the rest, `docs/DEVELOPING.md` is the contributor setup):
 1. `docs/BRIEF.md`
 2. `docs/STRATEGY.md`
 3. `docs/ROADMAP.md`
@@ -66,7 +66,7 @@ Server (`crates/slimm-server/src/`):
 Client (`client/packages/`), layered bottom-up:
 
 - `api` (wire types and transport, no Flutter) -> `data` (drift local store and sync) -> feature packages (`design_system`, `platform`, `rtc`, `voice_canvas`) -> `app` (screens, routing, providers).
-- `app` uses riverpod for state and go_router for routing; `app/lib/src/` is grouped by `screens/`, `widgets/`, `providers/`, `routing/`.
+- `app` uses riverpod for state and go_router for routing. `app/lib/src/features/<feature>/{widgets,providers,screens}` holds each feature (auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings, voice); the top-level `widgets/`, `providers/` and `screens/` are the shared layer (shell, sync, push, app lock, generic UI), next to `routing/`, `desktop/` and the other platform folders. A new file goes in its feature; it goes in the shared layer only when two or more features use it. A widget never imports a screen and a provider never imports a widget; `app/test/layer_direction_gate_test.dart` enforces it, with a shrink-only list of the known exceptions.
 - `data` commits drift's generated `database.g.dart`; regenerate it rather than hand-editing.
 
 ## Critical rules

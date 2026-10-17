@@ -16,6 +16,7 @@
 //! than needing a second evaluator.
 
 /// What a message has to be, for this account, before it is worth a push.
+pub mod notification_schedule;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NotificationPreference {
     /// Every message in a channel this account can see. The default, and

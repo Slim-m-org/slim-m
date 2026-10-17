@@ -12,10 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/providers/emoji_catalog_provider.dart';
-import 'package:slimm_app/src/widgets/custom_emoji_image.dart';
-import 'package:slimm_app/src/widgets/poll_composer_sheet.dart';
-import 'package:slimm_app/src/widgets/poll_view.dart';
+import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
+import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
+import 'package:slimm_app/src/features/composer/widgets/poll_composer_sheet.dart';
+import 'package:slimm_app/src/features/composer/widgets/poll_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _grinningFace = '\u{1F600}';

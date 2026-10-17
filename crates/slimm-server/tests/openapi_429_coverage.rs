@@ -127,9 +127,16 @@ fn functions_in(scrubbed: &str) -> BTreeMap<String, HandlerFn> {
 /// The sibling module a `use super::<module>::<name>;` (or the grouped form
 /// `use super::<module>::{a, name, b};`) imports `name` from, if any.
 fn imported_from(scrubbed: &str, name: &str) -> Option<String> {
+    // A sibling is `use super::m::f`; a module grouped under its parent is `use self::m::f`.
+    ["use super::", "use self::"]
+        .iter()
+        .find_map(|prefix| imported_with(scrubbed, name, prefix))
+}
+
+fn imported_with(scrubbed: &str, name: &str, prefix: &str) -> Option<String> {
     let mut from = 0usize;
-    while let Some(rel) = scrubbed[from..].find("use super::") {
-        let start = from + rel + "use super::".len();
+    while let Some(rel) = scrubbed[from..].find(prefix) {
+        let start = from + rel + prefix.len();
         let Some(semi_rel) = scrubbed[start..].find(';') else {
             break;
         };
@@ -169,7 +176,13 @@ fn resolve_handler(manifest_dir: &Path, route: &RouterRoute) -> Option<(String, 
             route.handler.clone(),
         ),
     };
-    let target_rel = format!("src/http/{module}.rs");
+    let target_rel = http_source_files(manifest_dir)
+        .into_iter()
+        .find(|f| f.file_name().and_then(|n| n.to_str()) == Some(&format!("{module}.rs")))?
+        .strip_prefix(manifest_dir)
+        .ok()?
+        .to_string_lossy()
+        .into_owned();
     let target_source = std::fs::read_to_string(manifest_dir.join(&target_rel)).ok()?;
     let target_scrubbed = code_only(&target_source);
     let f = functions_in(&target_scrubbed).remove(&name)?;
@@ -389,7 +402,7 @@ fn resolve_handler_follows_a_cross_module_import() {
     };
     let (def_file, handler) =
         resolve_handler(manifest_dir, &route).expect("place resolves via canvas_write.rs");
-    assert_eq!(def_file, "src/http/canvas_write.rs");
+    assert_eq!(def_file, "src/http/canvas/canvas_write.rs");
     assert!(
         charges(&handler),
         "placeCanvasObject is expected to charge CANVAS"

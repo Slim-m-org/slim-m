@@ -51,7 +51,7 @@ Shape: give the HTTP surface the bounds the socket surface already has, and move
 
 ### 3. Blocking filters nothing in a shared channel, while two snackbars promise the messages are hidden - high
 
-`client/packages/app/lib/src/screens/channel_message_actions.dart:191`, `client/packages/app/lib/src/widgets/member_actions.dart:60`
+`client/packages/app/lib/src/features/channels/screens/channel_message_actions.dart:191`, `client/packages/app/lib/src/features/members/widgets/member_actions.dart:60`
 
 The block list has exactly four app-side readers, all inside one settings widget (`personal_account_sections.dart:26,98,136`), and `blocksProvider` is `autoDispose`, so it is alive only while `BlockedSection` is mounted.
 Nothing in the transcript, the message row, the member pane, the pinned list, search or the sync controller reads it.
@@ -72,7 +72,7 @@ An adversarial review of that fix found three more, none of which any test caugh
 
 ### 4. Sign-in shows a tick for any server that returns an identity object, which is not what the widget says the tick means - medium
 
-`client/packages/app/lib/src/screens/sign_in_screen.dart:272`
+`client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:272`
 
 `ServerIdentityChip`'s own doc comment (`onboarding_shell.dart:282-288`) states the contract: "The tick is about the pinned fingerprint rather than about reachability - reaching a server says who answered, not that it is the one you trusted last time."
 The call site passes `confirmed: version.identity != null`.
@@ -91,7 +91,7 @@ Three findings here, all client-side, all in the same three entry points, and th
 
 ### 5. The pinned server key is compared only when someone re-opens the manual connect dialog - medium
 
-`client/packages/app/lib/src/widgets/server_identity_confirmation.dart:30`
+`client/packages/app/lib/src/features/auth/widgets/server_identity_confirmation.dart:30`
 
 `confirmServerIdentity` has one call site: `onboarding_screen.dart:109`, inside `_manualFlow`.
 Sign-in validates shape only and commits (`sign_in_screen.dart:161-177`).
@@ -111,7 +111,7 @@ Shape: bind the check to connecting rather than to address entry, pin on first c
 
 ### 6. The https-over-the-internet rule exists only in the manual dialog - medium
 
-`client/packages/app/lib/src/screens/sign_in_screen.dart:161`
+`client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:161`
 
 The rule appears once, at `onboarding_screen.dart:335`, guarded by a well-defined `isLocalAddress` covering localhost, `.local`, 127/8, 10/8, 192.168/16 and 172.16/12.
 `_submit` on the sign-in screen has no scheme test before it persists the address.
@@ -125,7 +125,7 @@ Shape: one shared validator called from all three entry points, with the LAN exe
 
 ### 7. The SFU URL from the server is joined without requiring wss - low
 
-`client/packages/app/lib/src/providers/voice_controller.dart:169`
+`client/packages/app/lib/src/features/voice/providers/voice_controller.dart:169`
 
 `token.url` comes verbatim off the wire (`models.dart:219`) and is handed to `room.connect` as given (`voice_session.dart:178`), with no scheme check in any of the three files.
 The server explicitly permits plaintext (`voice/mod.rs:367` accepts `ws://` and `http://`, and `voice/tests.rs:152` exercises `ws://10.0.0.100:7880/`).
@@ -139,7 +139,7 @@ Shape: treat the SFU URL like the server address, and make a plain-ws call a vis
 
 ### 8. Sign-in persists the typed address verbatim, keeping userinfo that dart:io turns into a Basic auth header - low
 
-`client/packages/app/lib/src/screens/sign_in_screen.dart:177`
+`client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart:177`
 
 The file documents the hazard at lines 81-84 and applies the reduction in `_probeTarget` (lines 90-94), then `_submit` does not.
 The comment is correct on native: dart:io builds the header from userinfo (`http_impl.dart:2328,2331`).

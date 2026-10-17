@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../widgets/compact_channel_app_bar.dart';
+import '../features/channels/widgets/compact_channel_app_bar.dart';
 import 'web_page.dart';
 import 'web_update_watch.dart';
 

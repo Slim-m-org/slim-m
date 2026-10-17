@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/member_presence.dart'
+import 'package:slimm_app/src/features/members/providers/member_presence.dart'
     show membersProvider;
-import 'package:slimm_app/src/screens/admin/overwrite_target_picker_sheets.dart';
+import 'package:slimm_app/src/features/settings/widgets/admin/overwrite_target_picker_sheets.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<void> _pump(WidgetTester tester) async {

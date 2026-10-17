@@ -11,8 +11,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -21,18 +19,6 @@ use slimm_server::store::{JoinPolicy, Store};
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-join-policy");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -99,7 +85,7 @@ async fn claim(app: &Router) -> String {
 
 #[tokio::test]
 async fn a_fresh_deployment_is_invite_only() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     assert_eq!(store.join_policy().await.unwrap(), JoinPolicy::Invite);
 
     let app = app(store);
@@ -112,7 +98,7 @@ async fn a_fresh_deployment_is_invite_only() {
 
 #[tokio::test]
 async fn an_open_deployment_takes_an_account_with_no_code() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
     let admin = claim(&app).await;
 
@@ -134,7 +120,7 @@ async fn an_open_deployment_takes_an_account_with_no_code() {
 
 #[tokio::test]
 async fn an_open_deployment_still_applies_a_codes_role_grant() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
     let admin = claim(&app).await;
     store.set_join_policy(JoinPolicy::Open).await.unwrap();
@@ -178,7 +164,7 @@ async fn an_open_deployment_still_applies_a_codes_role_grant() {
 
 #[tokio::test]
 async fn an_open_deployment_still_refuses_a_bad_code() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
     claim(&app).await;
     store.set_join_policy(JoinPolicy::Open).await.unwrap();
@@ -189,7 +175,7 @@ async fn an_open_deployment_still_refuses_a_bad_code() {
 
 #[tokio::test]
 async fn changing_the_policy_needs_manage_server() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
     let admin = claim(&app).await;
     store.set_join_policy(JoinPolicy::Open).await.unwrap();
@@ -224,7 +210,7 @@ async fn changing_the_policy_needs_manage_server() {
 
 #[tokio::test]
 async fn an_unknown_policy_is_refused_rather_than_coerced() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
     let admin = claim(&app).await;
 
@@ -246,7 +232,7 @@ async fn an_unknown_policy_is_refused_rather_than_coerced() {
 
 #[tokio::test]
 async fn version_reports_whether_a_code_is_needed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
 
     let before = json_body(
@@ -271,7 +257,7 @@ async fn version_reports_whether_a_code_is_needed() {
 
 #[tokio::test]
 async fn version_reports_whether_the_deployment_is_claimed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store);
 
     let version = || async {
@@ -291,7 +277,7 @@ async fn version_reports_whether_the_deployment_is_claimed() {
 
 #[tokio::test]
 async fn a_patch_writes_only_the_fields_it_carries() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-join-policy").await;
     let app = app(store.clone());
     let admin = claim(&app).await;
     store.set_join_policy(JoinPolicy::Open).await.unwrap();

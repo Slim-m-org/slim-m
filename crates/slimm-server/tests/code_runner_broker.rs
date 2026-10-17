@@ -16,7 +16,6 @@ use serde_json::{Value, json};
 use slimm_server::auth::Auth;
 use slimm_server::code_runner::CodeRunner;
 use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -27,18 +26,6 @@ use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-code-runner-broker");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, code_runner: CodeRunner) -> Router {
     http::router(AppState {
@@ -154,7 +141,7 @@ async fn grant_run_code(store: &Store, user_id: slimm_server::ids::UserId) {
 
 #[tokio::test]
 async fn an_unconfigured_runner_is_a_clean_no_op_not_an_error() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-code-runner-broker").await;
     let (user_id, token, _channel) = deployment(&store).await;
     grant_run_code(&store, user_id).await;
     let router = app(store, CodeRunner::disabled());
@@ -185,7 +172,7 @@ async fn an_unconfigured_runner_is_a_clean_no_op_not_an_error() {
 
 #[tokio::test]
 async fn the_broker_refuses_a_caller_without_run_code() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-code-runner-broker").await;
     let (_user_id, token, _channel) = deployment(&store).await;
     // Deliberately never granted.
     let base_url = fake_piston().await;
@@ -219,7 +206,7 @@ async fn the_broker_refuses_a_caller_without_run_code() {
 
 #[tokio::test]
 async fn a_permission_holder_can_run_through_the_configured_runner() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-code-runner-broker").await;
     let (user_id, token, _channel) = deployment(&store).await;
     grant_run_code(&store, user_id).await;
     let base_url = fake_piston().await;
@@ -256,7 +243,7 @@ async fn a_permission_holder_can_run_through_the_configured_runner() {
 
 #[tokio::test]
 async fn the_message_scoped_run_shares_and_stores_the_result() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-code-runner-broker").await;
     let (user_id, token, channel_id) = deployment(&store).await;
     grant_run_code(&store, user_id).await;
     let base_url = fake_piston().await;
@@ -304,7 +291,7 @@ async fn the_message_scoped_run_shares_and_stores_the_result() {
 /// permission already has.
 #[tokio::test]
 async fn the_message_scoped_run_can_be_denied_by_a_channel_overwrite() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-code-runner-broker").await;
     let (user_id, token, channel_id) = deployment(&store).await;
     let role = store
         .create_role("coders", Permissions::RUN_CODE, false)
@@ -343,7 +330,7 @@ async fn the_message_scoped_run_can_be_denied_by_a_channel_overwrite() {
 
 #[tokio::test]
 async fn the_code_runner_rate_limit_class_is_charged() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-code-runner-broker").await;
     let (user_id, token, _channel) = deployment(&store).await;
     grant_run_code(&store, user_id).await;
     let base_url = fake_piston().await;

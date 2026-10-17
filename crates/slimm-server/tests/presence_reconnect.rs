@@ -9,8 +9,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -25,18 +23,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-presence-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store, hub: Hub) -> AppState {
     AppState {
@@ -144,7 +130,7 @@ async fn presence_status(state: &AppState, token: &str, target_id: &str) -> Stri
 /// client that never notices the loss stays offline to everyone instead.
 #[tokio::test]
 async fn a_reconnecting_session_is_online_again_without_re_announcing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;

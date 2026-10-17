@@ -1,19 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The local database: the client's single source of truth.
-///
-/// The UI reads only from here, never from the network directly. Anything that
-/// arrives, whether pushed over the WebSocket or pulled by catch-up, is written
-/// here first and then observed, so both paths converge on the same state and
-/// there is one place where ordering and de-duplication are decided.
-///
-/// Two rules make that safe, and both are enforced in [applyMessage]:
-///
-/// - Identity is the server's message id (a UUIDv7). Writes are upserts keyed by
-///   it, so the same message arriving twice, once live and once from catch-up,
-///   is stored once.
-/// - Order is the per-channel `seq`. A row is only overwritten by something with
-///   a `seq` at least as high, so a late-arriving duplicate of an older state
-///   can never clobber a newer one.
+/// The local database: the client's single source of truth. Live pushes and
+/// catch-up both write here first, so they converge; [applyMessage] keys rows
+/// by the server's message id and only lets an equal or higher `seq` replace
+/// one, so a duplicate or a late, older copy changes nothing.
 library;
 
 import 'package:drift/drift.dart';
@@ -295,111 +284,11 @@ class SlimmDatabase extends _$SlimmDatabase {
   @override
   int get schemaVersion => 23;
 
-  /// How each schema version is reached, and why v3 throws the cache away.
-  ///
-  /// v2 added the author's display name and left existing rows null, on the
-  /// assumption that the next sync would replace them. It does not: sync is
-  /// keyset on `seq` and only ever asks for messages newer than the cursor, so
-  /// every message that predated the upgrade kept a null name permanently and
-  /// rendered as an unknown author. On a real client that was 19 of 22
-  /// messages.
-  ///
-  /// v3 drops the message cache and rewinds the cursor, and that is the whole
-  /// fix. This table is a cache of server state with no local-only rows worth
-  /// keeping, so the cost is one catch-up sync and the benefit is that the
-  /// client cannot be left holding a version of a message the server has a
-  /// better copy of.
-  ///
-  /// v4 adds `channels.topic` in place instead. Unlike the message cache,
-  /// channels are fully refetched on every sync rather than paged by a cursor,
-  /// so a null topic fills itself in on the next connect without dropping
-  /// anything.
-  ///
-  /// v5 adds `channels.isPersonalSpace` the same way: it defaults to false for
-  /// every existing row, and the next channel refresh (`ChannelRefresher`)
-  /// sets it correctly on whichever row is the caller's own personal space,
-  /// since that refresh always replaces the whole channel list.
-  ///
-  /// v6 adds `channels.dmParticipantId` the same way again: null until the
-  /// next refresh fills it in for every DM row.
-  ///
-  /// v7 adds `channels.opCursor` and then does what v3 did, for a reason of
-  /// its own rather than a repeat of v3's. Edits and deletes made before the
-  /// server had an op stream to record them in are unrecoverable by any
-  /// mechanism: no cursor can reach behind the first op ever written, so a
-  /// message this cache holds a stale copy of would stay stale forever. The
-  /// cache is dropped once to close that pre-log epoch, and every op from
-  /// here on reconciles without another wipe.
-  ///
-  /// v8 adds `channels.position` in place, the same shape as v4's topic:
-  /// every existing row defaults to 0, and the next channel refresh replaces
-  /// it with the server's real value, since channels are refetched whole
-  /// rather than paged by a cursor.
-  ///
-  /// v9 adds `messages.replyToId` in place, unlike v2's `authorDisplayName` -
-  /// deliberately not a wipe. That one needed one because the server already
-  /// held display names a keyset sync could never page back far enough to
-  /// backfill. `reply_to_id` has no such gap: it is new on the server in the
-  /// same release, so no message any existing local cache holds could
-  /// possibly be a reply the server knows about but this column does not -
-  /// there is nothing to backfill, only rows that were correctly never a
-  /// reply in the first place.
-  ///
-  /// v10 adds `channels.parentMessageId` in place, the same shape as v9:
-  /// threads are new on both sides in the same release, so there is no
-  /// existing row this column could ever need to backfill for.
-  ///
-  /// v11 adds `messages.failureReason` in place, the same shape as v9 and
-  /// v10 again: a failed send is local-only state a server was never asked
-  /// about, so an existing failed row simply keeps rendering the generic
-  /// retry it always had until the user retries or discards it.
-  ///
-  /// v12 adds `channels.categoryId` in place and creates [ChannelCategories]
-  /// fresh, the same "new on both sides in the same release, nothing to
-  /// backfill" shape as v9 and v10: every existing row's `categoryId` reads
-  /// null until the next channel refresh fills it in, and the empty
-  /// categories table is populated by that same refresh
-  /// ([ChannelRefresher.refresh] calling [MessageStore.replaceCategories]).
-  ///
-  /// v13 adds the seven `messages.forwarded*` columns in place, the same
-  /// "new on both sides in the same release, nothing to backfill" shape as
-  /// v9 and v10. Forwards that predate it were composed into message text
-  /// and are indistinguishable from ordinary content by design; they stay
-  /// exactly as they read today rather than being guessed at.
-  ///
-  /// v14 adds `channels.mentionedSeq` in place, defaulting every existing
-  /// row to 0 like v8's `position`. An unread mention already sitting in a
-  /// channel's cache from before this version stays unbadged until the next
-  /// message, edit, or full resync touches that channel - the same gap v2's
-  /// own doc comment describes for a keyset sync that only ever asks for
-  /// messages newer than what is already cached, accepted here for the same
-  /// reason: nothing server-side can be paged back through to backfill it.
-  ///
-  /// v15 adds `channels.slowModeSeconds` in place, the same shape as v8's
-  /// `position` and v14's `mentionedSeq`: every existing row defaults to 0
-  /// (off), and the next channel refresh replaces it with the server's real
-  /// value, since channels are refetched whole rather than paged by a
-  /// cursor.
-  ///
-  /// v16 adds `channels.restricted` in place, the same shape again: every
-  /// existing row reads null (unknown, which renders the same as "not
-  /// restricted") until the next channel refresh fills in the server's real
-  /// value.
-  ///
-  /// v19 adds `channels.joinMuted` in place the same way, false until the
-  /// next channel refresh.
-  ///
-  /// v20 adds `messages.forwardedRemoved`, false for every existing row.
-  ///
-  /// v21 adds the `pending_attachments` table, empty for every existing send.
-  ///
-  /// v22 adds the four temporary-room columns, null until the next refresh.
-  ///
-  /// v23 adds `pending_attachments.mentionReply`, null for every queued send.
-  ///
-  /// v17 adds `channels.manuallyUnread` the same way: false for every existing
-  /// row, and the next refresh reads each channel's real flag back from the
-  /// server, since the refresher already fetches read state per channel.
+  /// How each schema version is reached. Most add a column in place that the
+  /// next channel refresh fills in. v3 and v7 drop the message cache and rewind
+  /// the cursor instead, because a keyset sync only pages forward and could
+  /// never backfill what they fixed (display names, and edits made before the
+  /// op log existed).
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {

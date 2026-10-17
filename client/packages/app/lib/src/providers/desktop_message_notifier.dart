@@ -40,7 +40,7 @@ import 'package:slimm_platform/platform.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import 'live_events.dart';
-import 'message_alert_policy.dart';
+import '../features/messages/providers/message_alert_policy.dart';
 import 'providers.dart';
 import 'push_controller.dart';
 

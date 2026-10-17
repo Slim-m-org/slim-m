@@ -17,24 +17,16 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/blocks_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
-
-class _NoFetchBlocks extends BlocksController {
-  _NoFetchBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'features/canvas/canvas_pane_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
+import 'support/fake_blocks.dart';
 
 /// Camera on: this suite drives the depth control, which an avatar-only
 /// tile no longer exposes - see `canvas_presence_tile_kind_test.dart`.
@@ -87,7 +79,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );
@@ -135,7 +127,7 @@ void main() {
             ),
           ),
           blocksProvider.overrideWith(
-            (ref) => _NoFetchBlocks(ref, const BlocksState()),
+            (ref) => FixedBlocksController(ref, const BlocksState()),
           ),
         ],
       );

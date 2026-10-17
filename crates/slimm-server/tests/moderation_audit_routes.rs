@@ -16,8 +16,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -28,18 +26,6 @@ use sqlx::SqlitePool;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, SqlitePool, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-moderation-audit-routes");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool.clone()), pool, guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -126,7 +112,7 @@ fn id_bytes(id: UserId) -> Option<Vec<u8>> {
 
 #[tokio::test]
 async fn the_route_records_the_moderator_who_lifted_the_timeout() {
-    let (store, pool, _guard) = new_store().await;
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-moderation-audit-routes").await;
     let (first_token, first_id, second_token, second_id, member) = people(&store).await;
     let app = app(store.clone());
 
@@ -166,7 +152,7 @@ async fn the_route_records_the_moderator_who_lifted_the_timeout() {
 
 #[tokio::test]
 async fn the_route_records_the_moderator_who_restored_the_member() {
-    let (store, pool, _guard) = new_store().await;
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-moderation-audit-routes").await;
     let (first_token, first_id, second_token, second_id, member) = people(&store).await;
     let app = app(store.clone());
 
@@ -209,7 +195,7 @@ async fn the_route_records_the_moderator_who_restored_the_member() {
 /// history show every member's.
 #[tokio::test]
 async fn one_members_trail_does_not_carry_anothers() {
-    let (store, pool, _guard) = new_store().await;
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-moderation-audit-routes").await;
     let (first_token, first_id, _second_token, _second_id, member) = people(&store).await;
     let other = store
         .create_account("kit", "Kit", "not-a-real-hash")

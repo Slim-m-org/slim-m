@@ -10,16 +10,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/voice_flags.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_call_dock.dart';
-import 'package:slimm_app/src/screens/canvas/canvas_pen_style.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../voice_controller_harness.dart';
+import '../features/voice/voice_controller_harness.dart';
 import 'canvas_tools_row_fixtures.dart';
 
 /// A connected [VoiceFlags] with sensible defaults, matching what

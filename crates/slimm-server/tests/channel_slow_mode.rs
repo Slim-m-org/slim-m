@@ -9,8 +9,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -21,18 +19,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-slow-mode-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -100,7 +86,7 @@ fn send(uri: &str, token: &str, content: &str) -> Request<Body> {
 /// 429 naming the seconds remaining, both in the body and as `Retry-After`.
 #[tokio::test]
 async fn a_second_message_inside_the_window_is_refused_with_the_remaining_time() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",
@@ -148,7 +134,7 @@ async fn a_second_message_inside_the_window_is_refused_with_the_remaining_time()
 /// bit a timeout would otherwise be the only way around.
 #[tokio::test]
 async fn a_manage_channels_holder_is_exempt() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",
@@ -187,7 +173,7 @@ async fn a_manage_channels_holder_is_exempt() {
 /// topic edits use.
 #[tokio::test]
 async fn setting_slow_mode_without_manage_channels_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -213,7 +199,7 @@ async fn setting_slow_mode_without_manage_channels_is_forbidden() {
 /// the same request, and it round-trips through the response.
 #[tokio::test]
 async fn manager_can_set_slow_mode_alone_and_it_round_trips() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",
@@ -246,7 +232,7 @@ async fn manager_can_set_slow_mode_alone_and_it_round_trips() {
 /// A `slow_mode_seconds` outside 0..=21600 is refused, not clamped.
 #[tokio::test]
 async fn slow_mode_seconds_out_of_range_is_rejected() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",
@@ -288,7 +274,7 @@ async fn slow_mode_seconds_out_of_range_is_rejected() {
 /// for arriving "too soon" - it is not a second message, it is the same one.
 #[tokio::test]
 async fn an_idempotent_retry_is_never_slow_moded() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",
@@ -330,7 +316,7 @@ async fn an_idempotent_retry_is_never_slow_moded() {
 /// `slow_mode_seconds = 0`, the default, disables enforcement entirely.
 #[tokio::test]
 async fn zero_disables_slow_mode() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",
@@ -362,7 +348,7 @@ async fn zero_disables_slow_mode() {
 /// in a channel whose slow mode is `seconds`, with a thread open on a message
 /// of their own. Returns the app, the member's token and the thread's send URI.
 async fn member_with_a_thread(seconds: i64) -> (Router, String, String, support::TestDbGuard) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-channel-slow-mode-test").await;
     store
         .create_role(
             "everyone",

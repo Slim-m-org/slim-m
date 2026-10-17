@@ -105,7 +105,7 @@ fn assert_no_scan(plan: &[String], what: &str) {
 #[tokio::test]
 async fn the_op_clock_seed_never_scans_canvas_ops() {
     let (pool, _guard) = new_pool("canvas-clock-plan").await;
-    let source = read_source("src/store/canvas_op_clock.rs");
+    let source = read_source("src/store/canvas/canvas_op_clock.rs");
     let sql = extract_containing(&source, "WHERE kind IN ('place'", true);
     let plan = plan_of(&pool, &sql, &[]).await;
     assert_no_scan(&plan, "the op-clock seed");
@@ -118,7 +118,7 @@ async fn the_op_clock_seed_never_scans_canvas_ops() {
 #[tokio::test]
 async fn the_sweeps_three_passes_never_scan_canvas_ops() {
     let (pool, _guard) = new_pool("canvas-sweep-plan").await;
-    let source = read_source("src/store/canvas_ops_sweep.rs");
+    let source = read_source("src/store/canvas/canvas_ops_sweep.rs");
 
     let restores = extract_containing(&source, "kind = 'restore' AND created_at", false);
     let removes = extract_containing(&source, "o.kind = 'remove'", true);
@@ -192,7 +192,7 @@ async fn canvas_op_kind_check_list(pool: &SqlitePool) -> Vec<String> {
 #[tokio::test]
 async fn the_op_clock_seed_names_every_kind_the_check_constraint_allows() {
     let (pool, _guard) = new_pool("canvas-clock-kinds").await;
-    let source = read_source("src/store/canvas_op_clock.rs");
+    let source = read_source("src/store/canvas/canvas_op_clock.rs");
     let seed_sql = extract_containing(&source, "WHERE kind IN ('place'", true);
 
     let mut seeded = extract_in_list(&seed_sql);

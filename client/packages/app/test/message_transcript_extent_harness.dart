@@ -21,24 +21,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' hide Message;
-import 'package:slimm_app/src/providers/channel_history.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/message_transcript.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_transcript.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'message_row_harness.dart';
-
-/// A real `SyncController.start` would open a websocket to a server that does
-/// not exist here; the same shape `message_transcript_top_slot_test.dart` uses.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'features/messages/message_row_harness.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -89,7 +81,7 @@ Widget app(Widget transcript) => ProviderScope(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-    syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+    syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
   ],
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),

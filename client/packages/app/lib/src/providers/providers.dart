@@ -18,7 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'database_key_store.dart';
+import '../features/auth/providers/database_key_store.dart';
 import 'live_events.dart';
 import 'preference_controller.dart';
 

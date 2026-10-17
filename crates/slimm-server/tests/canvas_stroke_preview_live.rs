@@ -12,8 +12,6 @@ use std::time::Duration;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -28,18 +26,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-canvas-stroke-preview-live");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store, hub: Hub) -> AppState {
     AppState {
@@ -159,7 +145,7 @@ fn now_ms() -> i64 {
 /// a plain channel-scoped check. Mirrors `canvas_cursor_live.rs`'s own pair.
 #[tokio::test]
 async fn a_viewer_with_both_bits_receives_the_preview() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -190,7 +176,7 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
 
 #[tokio::test]
 async fn a_member_denied_use_canvas_never_sees_a_preview() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -228,7 +214,7 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
 #[tokio::test]
 async fn a_hidden_users_preview_is_not_announced() {
     use slimm_server::presence::Visibility;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -259,7 +245,7 @@ async fn a_hidden_users_preview_is_not_announced() {
 /// never relayed, the same treatment `canvas.cursor` already gets.
 #[tokio::test]
 async fn an_out_of_bounds_point_is_dropped() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -288,7 +274,7 @@ async fn an_out_of_bounds_point_is_dropped() {
 /// the first N pairs and relaying the rest.
 #[tokio::test]
 async fn a_frame_carrying_too_many_points_is_dropped() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -318,7 +304,7 @@ async fn a_frame_carrying_too_many_points_is_dropped() {
 /// the socket even though `POST .../canvas/objects` already refuses them.
 #[tokio::test]
 async fn a_timed_out_member_cannot_send_a_preview() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -351,7 +337,7 @@ async fn a_timed_out_member_cannot_send_a_preview() {
 /// tight loop of frames near the per-frame point ceiling still gets capped.
 #[tokio::test]
 async fn preview_frames_are_rate_limited_by_bytes() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
