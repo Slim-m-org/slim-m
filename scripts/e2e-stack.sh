@@ -14,7 +14,7 @@
 #   down  stop what `up` started, found through the pid files it wrote
 #
 # Environment (defaults in brackets):
-#   E2E_WORK [/tmp/e2e]   work dir: database, logs, pid files, stack.json
+#   E2E_WORK [e2e/.work]   work dir: database, logs, pid files, stack.json
 #   E2E_API_PORT [8095]   the server
 #   E2E_WEB_PORT [8356]   the static web build
 #   E2E_LK_PORT [7880]    LiveKit's HTTP/WebSocket port on the host
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORK="${E2E_WORK:-/tmp/e2e}"
+WORK="${E2E_WORK:-$ROOT/e2e/.work}"
 WEB_PORT="${E2E_WEB_PORT:-8356}"
 API_PORT="${E2E_API_PORT:-8095}"
 LK_PORT="${E2E_LK_PORT:-7880}"
@@ -48,7 +48,8 @@ say_commit() {
 }
 
 need() {
-  command -v "$1" >/dev/null || { echo "missing: $1"; exit 1; }
+  local tool="$1"
+  command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }
 }
 
 stop_pid_file() {

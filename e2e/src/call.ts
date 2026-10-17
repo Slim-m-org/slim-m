@@ -10,7 +10,7 @@ import { L } from './labels';
  * tile is matched by the microphone state only a call tile carries.
  */
 export function tile(app: FlutterApp, name: string): Locator {
-  return app.page.locator('flt-semantics[role="button"]').filter({ hasText: new RegExp(`^\\s*${name}, (you, )?microphone`, 'i') });
+  return app.page.locator('flt-semantics[role="button"]').filter({ hasText: new RegExp(String.raw`^\s*${name}, (you, )?microphone`, 'i') });
 }
 
 /** The call header's count, which is the only node that reads exactly "N in call". */

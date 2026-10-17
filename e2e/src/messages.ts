@@ -26,7 +26,7 @@ export function messageRow(app: FlutterApp, text: string): Locator {
 /** Waits until the message has left the optimistic "Sending" state, so it has a server id to act on. */
 export async function expectSent(app: FlutterApp, text: string): Promise<void> {
   await app.see(text);
-  await expect(app.page.locator('flt-semantics').filter({ hasText: new RegExp(`Sending\\s*${text}`) })).toHaveCount(0);
+  await expect(app.page.locator('flt-semantics').filter({ hasText: new RegExp(String.raw`Sending\s*${text}`) })).toHaveCount(0);
 }
 
 /** The message's box once the list has stopped moving under it, so a pointer lands where the row is. */
@@ -73,7 +73,7 @@ export async function reactionsOn(app: FlutterApp, text: string): Promise<string
     const row = [...document.querySelectorAll('flt-semantics[aria-label]')].find((n) =>
       (n.getAttribute('aria-label') ?? '').trim().endsWith(needle),
     );
-    const chip = /^\P{L}+\s+\d+$/u;
+    const chip = /^[^\p{L}\s]+\s+\d+$/u;
     // A chip is a button wrapping a button, so only the innermost counts.
     return [...(row?.querySelectorAll('flt-semantics[role="button"]') ?? [])]
       .filter((n) => !n.querySelector('flt-semantics[role="button"]'))

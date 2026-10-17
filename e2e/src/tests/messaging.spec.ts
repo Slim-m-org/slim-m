@@ -48,7 +48,7 @@ test.describe('messaging between two people', () => {
       await bob.see(after);
       await bob.seeNo(before);
       // The marker sits in the edited message's own row, so older edited messages cannot satisfy it.
-      await expect(bob.page.locator('flt-semantics[role="button"]').filter({ hasText: new RegExp(`^${after}\\s*\\nEdited`) }).first()).toBeAttached();
+      await expect(bob.page.locator('flt-semantics[role="button"]').filter({ hasText: new RegExp(String.raw`^${after}\s*\nEdited`) }).first()).toBeAttached();
     });
   });
 

@@ -17,7 +17,7 @@ export interface Stack {
 export const repoRoot = path.resolve(__dirname, '..', '..');
 
 export function workDir(): string {
-  return process.env.E2E_WORK ?? '/tmp/e2e';
+  return process.env.E2E_WORK ?? path.join(repoRoot, 'e2e', '.work');
 }
 
 export function stackFile(): string {

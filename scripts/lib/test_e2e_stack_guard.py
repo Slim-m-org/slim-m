@@ -21,16 +21,19 @@ class StackGuardTest(unittest.TestCase):
 
     def test_production_hosts_are_refused(self):
         for bad in ("https://slim.npc-server.top", "http://10.0.0.100:8095"):
+            candidate = stack(api=bad)
             with self.assertRaises(seed_guard.GuardError, msg=bad):
-                e2e_stack_guard.check_stack(stack(api=bad))
+                e2e_stack_guard.check_stack(candidate)
 
     def test_any_other_remote_host_is_refused(self):
+        candidate = stack(web="http://example.com")
         with self.assertRaises(seed_guard.GuardError):
-            e2e_stack_guard.check_stack(stack(web="http://example.com"))
+            e2e_stack_guard.check_stack(candidate)
 
     def test_the_sfu_url_is_checked_too(self):
+        candidate = stack(lk="https://lk.npc-server.top")
         with self.assertRaises(seed_guard.GuardError):
-            e2e_stack_guard.check_stack(stack(lk="https://lk.npc-server.top"))
+            e2e_stack_guard.check_stack(candidate)
 
 
 if __name__ == "__main__":

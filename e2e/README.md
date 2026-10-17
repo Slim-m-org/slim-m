@@ -44,7 +44,7 @@ The suite signs each user in once per run and restores that session for the othe
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `E2E_WORK` | `/tmp/e2e` | Work dir: database, logs, `stack.json` |
+| `E2E_WORK` | `e2e/.work` | Work dir: database, logs, `stack.json` |
 | `E2E_API_PORT` | `8095` | The server |
 | `E2E_WEB_PORT` | `8356` | The web build |
 | `E2E_LK_PORT` | `7880` | LiveKit |

@@ -4,11 +4,11 @@ import { expect, type Locator, type Page } from '@playwright/test';
 const BOOT_TIMEOUT = 90_000;
 
 function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 function cssString(text: string): string {
-  return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  return `"${text.replaceAll('\\', String.raw`\\`).replaceAll('"', String.raw`\"`)}"`;
 }
 
 /**
@@ -60,7 +60,7 @@ export class FlutterApp {
     const byAria = this.page.locator(`flt-semantics[aria-label=${cssString(label)} i]`);
     const byText = this.page
       .locator('flt-semantics:not(:has(flt-semantics))')
-      .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(label)}\\s*$`, 'i') });
+      .filter({ hasText: new RegExp(String.raw`^\s*${escapeRegExp(label)}\s*$`, 'i') });
     return byAria.or(byText);
   }
 
@@ -85,9 +85,9 @@ export class FlutterApp {
     const aria = (op: string) => this.page.locator(`flt-semantics[aria-label${op}=${cssString(label)} i]`).and(this.page.locator(any));
     const tiers = [
       aria(''),
-      inner.filter({ hasText: new RegExp(`^\\s*${escaped}\\s*(?:\\n|$)`, 'i') }),
+      inner.filter({ hasText: new RegExp(String.raw`^\s*${escaped}\s*(?:\n|$)`, 'i') }),
       aria('^'),
-      inner.filter({ hasText: new RegExp(`^\\s*${escaped}\\b`, 'i') }),
+      inner.filter({ hasText: new RegExp(String.raw`^\s*${escaped}\b`, 'i') }),
     ];
     if (contains) tiers.push(aria('*'), inner.filter({ hasText: new RegExp(escaped, 'i') }));
     return tiers;
