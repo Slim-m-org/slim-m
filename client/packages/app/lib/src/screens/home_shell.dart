@@ -172,11 +172,11 @@ class HomeShell extends ConsumerWidget {
         !canvasFullscreen &&
         !showThread &&
         ref.watch(memberPaneVisibleProvider);
-    final dockedPane = showThread
-        ? kThreadPaneWidth
-        : showMembers
-        ? AppMemberPane.width
-        : 0.0;
+    final dockedPane = switch ((showThread, showMembers)) {
+      (true, _) => kThreadPaneWidth,
+      (_, true) => AppMemberPane.width,
+      _ => 0.0,
+    };
     return _ShellFacts(
       selected: selected,
       canvasOpen: canvasOpen,

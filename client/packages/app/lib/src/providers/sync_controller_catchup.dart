@@ -79,21 +79,39 @@ extension SyncControllerCatchUp on SyncController {
 
     // After the messages: an edit cannot precede the message it names.
     if (delta.opLatestSeq != null) {
-      final cursor = await store.opCursorFor(delta.channelId);
-      if (!isCurrent()) return null;
-      if (cursor == null) {
-        // Adopt the head; asking from zero replays every edit ever made.
-        await store.setOpCursor(delta.channelId, delta.opLatestSeq);
-      } else if (delta.ops.isNotEmpty) {
-        final outcome = await applyOps(store, delta.channelId, delta.ops);
-        if (!isCurrent()) return null;
-        if (outcome == OpsOutcome.needsReset) {
-          await _resetScope(generation, api, store, delta.channelId);
+      switch (await _applyDeltaOps(generation, api, store, delta)) {
+        case _OpsStep.stale:
+          return null;
+        case _OpsStep.reset:
           return false;
-        }
+        case _OpsStep.proceed:
+          break;
       }
     }
     return delta.hasMore || delta.opsHasMore;
+  }
+
+  /// Applies a scope's edit ops after its messages, adopting the head on a first sync.
+  Future<_OpsStep> _applyDeltaOps(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    ScopeDelta delta,
+  ) async {
+    bool isCurrent() => generation == _generation;
+    final cursor = await store.opCursorFor(delta.channelId);
+    if (!isCurrent()) return _OpsStep.stale;
+    if (cursor == null) {
+      // Adopt the head; asking from zero replays every edit ever made.
+      await store.setOpCursor(delta.channelId, delta.opLatestSeq);
+      return _OpsStep.proceed;
+    }
+    if (delta.ops.isEmpty) return _OpsStep.proceed;
+    final outcome = await applyOps(store, delta.channelId, delta.ops);
+    if (!isCurrent()) return _OpsStep.stale;
+    if (outcome != OpsOutcome.needsReset) return _OpsStep.proceed;
+    await _resetScope(generation, api, store, delta.channelId);
+    return _OpsStep.reset;
   }
 
   /// Runs a catch-up against the current generation.
@@ -131,3 +149,6 @@ extension SyncControllerCatchUp on SyncController {
     }
   }
 }
+
+/// What applying a scope's edit ops leaves the catch-up to do.
+enum _OpsStep { proceed, stale, reset }
