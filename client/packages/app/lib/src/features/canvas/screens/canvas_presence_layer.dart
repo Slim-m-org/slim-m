@@ -1,83 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Camera and screen-share tiles for whoever is on this channel's call -
-/// including the caller's own - positioned in the canvas's own
-/// world-coordinate space, exactly the AR-glasses framing the owner asked
-/// for: "make the screen as big or small as you want, draw on it, hide it,
-/// lock it in place."
+/// Camera and screen-share tiles for everyone on this channel's call,
+/// including the caller, placed in the canvas's world space.
 ///
-/// A widget layer stacked over [CanvasSurface], never painted into it: a
-/// live camera or screen-share track is a platform `Texture`
-/// (`VoiceSession.cameraViewFor`/`screenShareViewFor` already return one
-/// wrapped as a plain `Widget`, per their own docs), and there is no
-/// supported way to sample a `Texture`'s pixels into a `CustomPainter`'s
-/// `Canvas` without an expensive manual frame capture this package does not
-/// do anywhere else. So presence is the topmost layer in its own `Stack`
-/// entry, exactly the shape `docs/STRATEGY.md` names: "a presence
-/// video-texture layer so LiveKit's video updates never trigger stroke or
-/// image repaints."
-///
-/// **Every tile is presence, never a [CanvasObjectKind]**, and that is a
-/// decision recorded in `docs/decisions/0010-canvas-media-tiles.md`, not an
-/// oversight: STRATEGY already called camera bubbles and screen-share tiles
-/// "ephemeral presence objects never written to the op log and reset on
-/// rejoin", and this file extends that same line to position, size, lock and
-/// depth, kept in [CanvasPresenceTileOverrides] rather than a
-/// `canvas_objects` row. Position, size, lock and depth are shared and
-/// persistent now - decision 0010's own reversal of its first call, mirrored
-/// from the server's `canvas_media_slots` table by `CanvasMediaSlotSync` in
-/// the app's own canvas screen. Only [CanvasPresenceTileOverrides.hidden]
-/// stays personal and per-call; see that class's own doc for why.
-///
-/// This used to render the caller's own bubble nowhere at all (a separate,
-/// screen-anchored overlay owned that), which is exactly the "stuck to the
-/// dock" complaint the owner reported: a fixed screen corner blocks whatever
-/// world content happens to pan underneath it, forever, rather than sitting
-/// at one place a person chose. Self and remote are one list now.
-///
-/// **Sending a tile to the back never moves this widget, or any tile's own
-/// controls with it.** A rendered probe proved the obvious version of that
-/// feature - reordering the whole manipulable tile below [CanvasSurface] in
-/// the pane's Stack - does not merely dim a control, it deletes it:
-/// [CanvasSurface] covers its full bounds with an opaque `MouseRegion` for
-/// pan and draw, and Flutter's own Stack hit-testing stops at the first
-/// child claiming a hit, topmost first, so nothing painted behind it is ever
-/// hit-tested again. `CanvasPresenceBackdrop` is the fix: only a
-/// sent-to-back tile's *content* (its video, its name badge) moves into that
-/// separate, non-interactive, `IgnorePointer`-wrapped widget, painted before
-/// [CanvasSurface] so real ink lands over it; the drag area, resize grip and
-/// corner controls stay here, at the same screen position, regardless of
-/// depth - the same "never a dead end" guarantee `locked` already makes for
-/// its own unlock button.
-///
-/// **This widget is also the one place that decides which remote video the
-/// call is worth subscribing to at all**, through [onVideoInterest]. Not a
-/// second, parallel declaration of what is on screen: it reports exactly the
-/// set it just used to build its own children, so the thing that mounts a
-/// video widget and the thing that asks the SFU for that video can never
-/// disagree about which tiles those are. [CanvasPresenceBackdrop] needs no
-/// report of its own for the same reason - it reads the same
-/// `CanvasPresenceFrame` this widget does and then narrows to
-/// the sent-to-back subset, so the union of tiles carrying real video across
-/// both widgets is precisely this widget's own visible set.
-///
-/// **Full screen is `showFullscreenVideo`'s existing route, never a second
-/// fullscreen of this pane's own.** A tile's expand control pushes the same
-/// root-navigator route the voice screen already pushes, so the close
-/// button, Escape, the platform back gesture and the self-closing "this feed
-/// stopped being live" guard all come with it. Being a *root*-navigator
-/// route is also what keeps it from colliding with `canvas_fullscreen.dart`:
-/// it sits above `CanvasPane` with its own autofocused `CallbackShortcuts`,
-/// so Escape closes the expanded tile and never reaches the pane's own
-/// binding underneath, and a canvas already in fullscreen still is when the
-/// tile closes.
-///
-/// What this widget does own is the subscription consequence, because it
-/// owns [onVideoInterest] and nothing else may: while a tile is expanded it
-/// reports that one key alone, so every other participant's video is
-/// unsubscribed for as long as nobody can see it, and restored on close by
-/// the ordinary report this widget was already making. Reporting it from
-/// inside the route instead would give one interest set two owners, and the
-/// one that unmounts first would win.
+/// It is a widget layer over [CanvasSurface] because a video track is a
+/// platform texture a painter cannot sample, and it is the one place that
+/// decides which remote video is worth subscribing to ([onVideoInterest]),
+/// so what is mounted and what the SFU sends never disagree. The reasoning
+/// for presence over canvas objects, the backdrop for sent-to-back tiles and
+/// full screen reusing the voice screen's route is in
+/// docs/decisions/0010-canvas-media-tiles.md.
 library;
 
 import 'dart:async';
@@ -146,22 +77,9 @@ class CanvasPresenceLayer extends StatefulWidget {
   /// [overrides.setHidden], which needs no commit at all.
   final void Function(String key, Rect rect) onCommit;
 
-  /// Reports which tile keys currently carry live video, so the rest can be
-  /// unsubscribed rather than merely paused - `VoiceController
-  /// .setVideoInterest` is what this closes over.
-  ///
-  /// Fired after the frame rather than during build, since it reaches out of
-  /// this widget into the live session, and only when the set actually
-  /// changes, which the spatial hysteresis band already makes rare during an
-  /// ordinary pan.
-  ///
-  /// Reports null - "no opinion, subscribe everything" - rather than an
-  /// empty set whenever this canvas has no call roster to speak for, and on
-  /// dispose. An empty set is a real answer meaning "nothing on this canvas
-  /// wants video", which is what a fully hidden or fully off-screen roster
-  /// genuinely is; having no roster at all is not that, and a canvas open on
-  /// one channel must not cull a call running in another it knows nothing
-  /// about.
+  /// Reports the tile keys showing live video so the rest are unsubscribed,
+  /// after the frame and only on change. Null means no opinion (no roster
+  /// here, or disposed), so a canvas never culls a call it is not showing.
   final void Function(Set<String>? tileKeys)? onVideoInterest;
 
   /// The caller's own standing "never show my own camera" preference

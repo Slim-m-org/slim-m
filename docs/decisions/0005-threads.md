@@ -84,3 +84,16 @@ Built 2026-08-02: `Event::ThreadUpdated` (`crates/slimm-server/src/hub/event.rs`
 It carries the current `reply_count`/`last_reply_at` directly rather than re-deriving them per receiving connection the way `ReactionsChanged` does its tally: the batch load a REST fetch already uses for this same number is not per-viewer filtered either (blocking does not touch it), so precomputing it here does not reintroduce the bug that fix closed.
 An offline client still needs no catch-up machinery of its own: `thread_channel_id` and the reply count are already batch-loaded onto `MessageDto` on every fetch, so a client that missed the live frame learns the same answer on its next list, search or sync of the parent channel.
 See CLAUDE.md's own note on the same date for the mutation-tested proof that a viewer denied on the parent learns nothing.
+
+## The thread panel in the client (2026-10-17)
+
+The panel reuses `ChannelScreen` for the transcript and composer, since a thread is an ordinary channel with `parentMessageId` set.
+Its header carries only back and the title.
+Pins and the canvas have nothing to offer a short side conversation, and a canvas button there was flagged by the 2026-08-02 security review.
+The member-pane and channel-rail toggles are left out on purpose: their providers are one app-wide flag each, read for whichever channel the router has selected underneath, so wiring them in flipped the chrome of the channel behind the thread (an owner-reported bug).
+Search stays because its provider is keyed by channel id, so it can only search the thread itself.
+`ChannelScreen` is told `isThread` explicitly, because a thread reached by URL or reload has no local channel row (threads are left out of `GET /channels` by design) and the store would answer "not a thread".
+The title reads "Thread in #channel" once the parent resolves, and plain "Thread" until then or when it cannot resolve.
+When the parent resolves, the panel upserts a real local channel row carrying the real `parentMessageId`, so the read marker has a row to update and `replaceChannels` never prunes it.
+The title's `Semantics(container: true, header: true)` separates it in the framework semantics tree but not in Flutter web's DOM, so the e2e harness waits on the back button instead.
+

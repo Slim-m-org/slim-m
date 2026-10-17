@@ -1,118 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A right-click on the canvas: over an object, bring to front/send to
-/// back/delete - the same three verbs the overflow menu already offers a
-/// selection, reached directly at the object under the cursor instead of a
-/// select-then-open-the-overflow-menu round trip. Over empty space, a
-/// smaller menu of paste-image, add-note and recenter, each anchored (or
-/// placed) at the exact point clicked - see this file's own doc, below,
-/// for why that second menu exists now when it once deliberately did not.
+/// A right-click on the canvas: front, back and delete over an object; paste
+/// image, add note and recenter at the clicked point over empty space (an
+/// owner request, 2026-08-29). Clear canvas stays out: it is destructive and
+/// needs MANAGE_CANVAS, so it keeps the overflow menu's extra step.
 ///
-/// **Why not `ContextMenuRegion`.** That widget wraps one static child as
-/// the gesture target and opens on tap-DOWN, both wrong here: a canvas
-/// object is painted, not a widget, so the target has to be resolved by
-/// hit-testing at the pointer's own position rather than fixed at
-/// construction; and opening on tap-down would show a menu before a
-/// competing right-drag pan (built separately, on this same surface) ever
-/// gets to declare itself a drag. This widget reuses everything about
-/// `ContextMenuRegion` that does transfer - [MessageMenuLayout]'s anchored
-/// positioning, [ContextMenuKeyboardScope]'s Escape/Tab route, [AppMenu]'s
-/// body - and only rebuilds the gesture detection and target resolution
-/// that a painted surface actually needs.
-///
-/// **Tap-up, not tap-down, is what makes this immune to a right-drag pan
-/// on the same surface, regardless of how that pan turns out to be built.**
-/// [GestureDetector.onSecondaryTapUp] only fires once a secondary-button
-/// press releases without exceeding the platform's own tap slop; a real
-/// drag either cancels this tap outright (if the pan is a competing
-/// `GestureRecognizer` restricted to the same button, Flutter's own arena
-/// resolves the two exactly the way a tap and a pan already disambiguate
-/// anywhere else in this codebase) or never registers with it at all (if
-/// the pan instead reads `event.buttons` off the surface's own raw
-/// `Listener`, which this widget's tap recognizer neither blocks nor is
-/// blocked by - a `Listener` and a `GestureDetector` at the same point both
-/// see every raw event independently). Either way there is no window in
-/// which a drag can leave a menu open behind it.
-///
-/// **The gesture layer is deliberately button-scoped rather than
-/// button-blind.** Only `onSecondaryTapUp` is wired, and
-/// `TapGestureRecognizer.isPointerAllowed` (read from source, not assumed)
-/// refuses a primary-button pointer outright the moment no primary
-/// callback is set - so this layer cannot compete for, delay, or otherwise
-/// affect an ordinary left-button draw, erase or select gesture on the
-/// surface beneath it.
-///
-/// **Empty canvas used to do nothing, deliberately - overridden 2026-08-29
-/// on direct owner request** ("no basic right click on canvas for quick
-/// actions"). The reasoning below was real at the time and is kept rather
-/// than deleted, since the owner's ask supersedes it rather than proving it
-/// wrong: there genuinely was no established "act on this exact point" set
-/// of canvas-wide actions, and the toolbar's overflow menu genuinely already
-/// reached everything canvas-wide from one place regardless of the cursor.
-/// What changed is not that reasoning, only the answer to whether reaching
-/// those same actions *at the cursor* is worth a menu - the owner decided it
-/// is. The three items chosen (paste image, add note, recenter) are exactly
-/// the overflow menu's own always-available, non-destructive verbs, placed
-/// or anchored at the clicked point instead of the view's centre or nowhere
-/// in particular; "Clear canvas" is deliberately excluded even though the
-/// overflow menu carries it too, both because it needs MANAGE_CANVAS (the
-/// two other menus this file already builds gate nothing so this new one
-/// would be the first to need a permission check) and because a destructive,
-/// confirm-gated action sitting one row from "Paste image" in a menu that
-/// opens on every stray right-click is a bad adjacency to introduce - a
-/// manager clearing the canvas is already one deliberate trip to the
-/// overflow menu away, which is exactly the friction `CanvasOverflowMenu`'s
-/// own doc says that action is supposed to keep. The same tap-up gesture
-/// arena and hit-test-first ordering below is what a pan-in-progress and an
-/// object-vs-empty-space right-click were already immune to; opening a
-/// second menu shape from the same resolved-to-nothing hit test adds no new
-/// gesture surface, so every claim in this file about drags and semantics
-/// still holds for it unchanged.
-///
-/// **Deliberately duplicated with the overflow menu's own selection-gated
-/// items, not moved.** The overflow menu - reachable from the bar on every
-/// platform - stays a second route to bring-to-front/send-to-back/delete;
-/// removing them there to avoid the overlap would be a real regression for
-/// a user who has not found the long-press path below yet.
-///
-/// **Touch's long-press equivalent (`onLongPressStart`) is gated to the
-/// Select tool.** Every other tool's raw pointer-down starts a stroke
-/// draft, an erase or a placement the instant a finger lands, well before
-/// any long-press timer could fire, so teaching this to open under a
-/// drawing tool would draw or place *and* pop a menu 500ms later. The
-/// Select tool's own pointer-down only calls `onSelectStart`, which a menu
-/// opening on top of moments later changes nothing about - see
-/// `_onLongPressStart`'s own doc.
-///
-/// **Keyboard and screen-reader route: `CanvasSelectionSemantics`, not a
-/// tab stop of this widget's own.** A canvas object has no focus node to
-/// hang `ContextMenuFocus`'s row-tab-stop model on; the one accessibility
-/// node an object already gets once selected is exactly where a custom
-/// "open its actions" route belongs instead. [CanvasObjectMenuRequests] is
-/// the small bus that carries that request here with no pointer position
-/// behind it - the same gap `ContextMenuRegion`'s own context-menu-key
-/// fallback covers for a message row, anchored here at the selected
-/// object's own screen-space centre rather than a fixed corner, since
-/// unlike a row this widget always knows exactly what it is opening for.
-///
-/// **`excludeFromSemantics: true` on the hit-catcher, and it is load-bearing
-/// rather than tidiness.** Wiring `onSecondaryTapUp` alone still makes
-/// `RawGestureDetector` build a `TapGestureRecognizer` (needed to detect any
-/// tap variant, secondary included), and Flutter's own default semantics
-/// delegate (`_DefaultSemanticsGestureDelegate._getTapHandler`, read from
-/// the framework source rather than assumed) exposes `SemanticsAction.tap`
-/// the moment *any* `TapGestureRecognizer` exists, regardless of which tap
-/// callback it actually carries. Without the exclusion this childless
-/// `SizedBox.expand()` became a full-canvas `role="button"` node the moment
-/// semantics were ever engaged (a screen reader, or anything else that
-/// turns Flutter's accessibility tree on) - Flutter's web renderer sets
-/// `pointer-events: all` on any such actionable node, which sits in front
-/// of `CanvasSurface` and silently swallows every draw, erase, select and
-/// placement gesture with no visible error, since the recognizer this
-/// invented "tap" would actually invoke has no `onTap` of its own to call.
-/// The accessible route to these three actions was never this node's job in
-/// the first place - see the paragraph above - so nothing is lost by
-/// telling Flutter this hit-catcher has no accessibility meaning of its
-/// own.
+/// It opens on secondary tap-up so a right-drag pan can never leave a menu
+/// behind, and it wires no primary callback so drawing is untouched. Touch
+/// gets it on a long press with the Select tool only, since every other tool
+/// has already started drawing by then. The hit-catcher is excluded from
+/// semantics because Flutter web would otherwise make it a full-canvas
+/// button that swallows every gesture; the accessible route is
+/// `CanvasSelectionSemantics` through [CanvasObjectMenuRequests].
 library;
 
 import 'dart:async';
@@ -125,15 +23,8 @@ import '../../../widgets/context_menu_focus.dart';
 import 'canvas_object_locks.dart';
 import '../../messages/widgets/message_context_menu_layout.dart';
 
-/// A request to open [CanvasObjectContextMenu] for a specific object with no
-/// pointer position behind it - see this file's own doc for the keyboard and
-/// screen-reader route this exists for.
-///
-/// Notifies unconditionally on every [request] call, never gated on whether
-/// [objectId] actually changed: a `ValueNotifier`'s equality gate would
-/// silently swallow a second ask for the same object (open, dismiss, ask
-/// again), the same trap `canvas_activity_log.dart`'s own `announcementTick`
-/// doc comment already names for an identical shape.
+/// Asks [CanvasObjectContextMenu] to open for an object with no pointer
+/// behind it; notifies on every ask, so asking twice for one object works.
 class CanvasObjectMenuRequests extends ChangeNotifier {
   String? objectId;
 
@@ -271,15 +162,8 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     }
   }
 
-  /// The touch equivalent of [_onSecondaryTapUp] - desktop-vs-mobile rule 3.
-  /// Gated to the Select tool, not to a particular pointer kind: every
-  /// other tool's own raw pointer-down already committed a draw, erase or
-  /// placement before this timer could ever fire, exactly the collision
-  /// this file's own library doc names as the reason a long press was
-  /// rejected before. The Select tool's pointer-down only selects, which a
-  /// menu opening on top of moments later changes nothing about, and a real
-  /// mouse drag-select cancels this recognizer at the first move past slop
-  /// the same way any long press does.
+  /// The touch equivalent of [_onSecondaryTapUp] (desktop-vs-mobile rule 3),
+  /// for the Select tool only.
   void _onLongPressStart(LongPressStartDetails details) {
     if (widget.tool != CanvasTool.pan) return;
     final world = _toWorld(details.localPosition);

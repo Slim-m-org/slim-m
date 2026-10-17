@@ -274,3 +274,34 @@ Script and raw output are in `~/.slimm-scratch/tmp/mic-ab/`, not in the repo.
 - ViSQOL: https://github.com/google/visqol
 - Bluetooth: https://www.daily.co/blog/why-bluetooth-audio-quality-suffers-in-video-calls/ ; https://iis.fraunhofer.de/en/ff/amm/communication/lc3
 - Our code: client/packages/rtc/lib/src/{voice_session.dart,audio_device_switching.dart,input_gate.dart,voice_session_input_gate.dart,voice_session_tracks.dart}; client/packages/app/lib/src/features/voice/providers/voice_controller_input.dart; docs/voice-input-gate.md; fork ~/.slimm-scratch/webrtc/flutter-webrtc/common/cpp/src/{flutter_capture_chain,flutter_noise_suppressor,flutter_input_gate,flutter_voice_dynamics,flutter_media_stream,flutter_webrtc_base}.cc
+
+## Listener-side mute and volume (moved from the code, 2026-10-17)
+
+What one listener has done about what reaches their own ears.
+
+Three axes that all end in the same place, so they live together rather than as three fields on the session: deafen everyone, silence one person, and turn one person up or down.
+Split out of `voice_session.dart` when the third took that file past the 500-line ceiling.
+
+**All of it is local and none of it is announced.** The SFU is never told, so somebody who has been muted or turned down cannot learn that they were - the same reason blocking is silent.
+Anything room-visible (a moderator's timeout, a kick) is a server call, not this.
+
+**It is applied by reapplication, not by event.** [applyTo] runs on every room event rather than only when a control moves, which is what keeps a participant who joins mid-call, or whose track resubscribes after a network blip, in the state this listener chose.
+Gain needs that more than muting does: it lives on the platform track object, so a resubscribed track arrives back at full volume with nothing to say so.
+
+**What it does not do is push a value a track already has.** The caller fires this from a catch-all room-event listener, and one of those events is `ActiveSpeakersChanged`, which arrives several times a second for as long as anybody is talking.
+Every push is a real platform round trip - flutter_webrtc's `enabled` setter invokes `mediaStreamTrackSetEnable` with no equality check of its own, and for an audio track it also fires that track's `onMute`/`onUnMute` - so reapplying unconditionally spends a method channel per remote track per event to set values that are already set.
+
+**What it skips on is the track's own state, not a memory of what was asked for**, and the distinction is the whole safety of the thing.
+Whether a track is silenced is read back from it every time, which costs nothing: flutter_webrtc keeps `enabled` in a local field its setter maintains.
+So if anything at all leaves a track in a state this listener did not choose, the next event sees it and corrects it, exactly as unconditional reapplication did.
+
+That matters because something does.
+`Track.enable`/`disable` do nothing when the track is not `_active`, silently and without throwing, and `addSubscribedMediaTrack` emits `TrackSubscribedEvent` *before* it awaits `track.start()`, which itself awaits `startCapture()` before setting `_active`.
+The emitter is asynchronous, so this runs on a resubscribed track while it is still inactive, the push is dropped with nothing said, and `RemoteTrack.start()` then calls `enable()` of its own accord.
+A cache that trusted the call would leave a muted participant audible for the rest of the call; reading the state back means the next event fixes it.
+
+Gain is the exception, because there is nothing to read it back from - flutter_webrtc offers no getter.
+[_applied] remembers it, keyed on the platform track object rather than any id.
+A resubscribe reuses the publication and its sid, so an id-keyed cache would report a hit and skip the reapplication that exists precisely to catch a track that came back at source volume.
+It does not reuse the object: `addSubscribedMediaTrack` builds a new `RemoteAudioTrack` around the new `MediaStreamTrack`, so a resubscribed track misses, which is the point.
+The entry is also only written when the enable that precedes it can be seen to have landed.

@@ -1,84 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The AR-glasses interaction the owner asked for by name: a camera or
-/// screen-share tile you can drag anywhere in the canvas's own world space,
-/// resize with a grip, lock so a drawing tool reaches through it, or hide.
+/// A camera or screen-share tile in the canvas's world space that can be
+/// dragged, resized, locked so drawing reaches through it, sent back, or
+/// hidden - the AR-glasses framing the owner asked for. An avatar-only tile
+/// gets drag and hide only, since resize, lock and depth exist for video.
 ///
-/// An avatar-only tile - a camera key whose participant's camera is off -
-/// gets only the drag and the hide; report 4's own line, "the pfp should not
-/// be broken or resizeable," is [fixedRenderSize] (no grip, a fixed paint
-/// box regardless of any stale resize) plus null [onToggleLocked] and
-/// [onToggleSentToBack] (no lock or depth row at all): resize exists for a
-/// video tile's own aspect ratio, and lock/depth exist so a drawing tool
-/// reaches through or over a video track, none of which a bare avatar has.
-///
-/// Deliberately not built on the drag-and-resize state machine
-/// `canvas_ops_controller_select.dart` already drives for a real
-/// [CanvasObjectKind] - a presence tile is not one of those (see
-/// `canvas_presence_layer.dart`'s own doc for why), so it owns a short,
-/// self-contained gesture handler instead, the same shape the self bubble's
-/// old screen-anchored drag already used before this file replaced it.
-///
-/// Being locked, or [tool] not being [CanvasTool.pan], wraps only the
-/// content in [IgnorePointer]: the resize grip disappears too (nothing to
-/// resize while it is not reachable) but the lock control itself never
-/// does, or a locked tile would be a dead end with no way back.
-///
-/// The resize grip and the lock/depth/hide row are hidden - both visually
-/// and to hit-testing - until this tile is hovered (desktop) or pressed
-/// once (touch, where there is no hover): permanently painting three
-/// buttons over every participant's video was report 3 in the backlog
-/// channel. The reveal has to live on the outer [Listener] that already
-/// wraps this whole tile, not on the controls themselves, because that is
-/// the one piece of this widget [locked]'s own [IgnorePointer] never
-/// reaches - see this file's own doc above for why the outer `Listener`
-/// already has to see every pointer within the tile regardless of lock
-/// state. So a locked tile still reveals its own unlock button on a hover
-/// or a first press, the same "never a dead end" guarantee [locked] itself
-/// already makes.
-///
-/// The owner reported the same complaint a second time on 0.35.1, after the
-/// hover/press reveal above had already shipped, which is what closed the
-/// remaining gap: hover and a touch press are not the only ways a person
-/// reaches a control. [_focusedWithin] reveals the same row for a keyboard
-/// user tabbing onto it, on the owner's own instruction that hover is the
-/// desktop-pointer answer and focus has to be the desktop-keyboard one -
-/// [IgnorePointer] blocks a pointer tap, never focus traversal, so a hidden
-/// button was already Tab-then-Enter reachable, just invisible while it
-/// happened, which is worse than either fully hidden or fully shown. A
-/// touch press keeps the tap-to-reveal shape it already had (report 3's own
-/// fix): a tile is the thing being touched to begin with, so a tap on it
-/// costs nothing a drag or a resize was not already going to spend, and the
-/// three-second [canvasPresenceTileTouchRevealDuration] window is enough
-/// for the follow-up tap on a lock, depth or hide button that a real touch
-/// sequence needs. The participant name badge in `canvas_presence_bubble
-/// .dart` stays always-on rather than joining this same gate: it identifies
-/// whose tile this is for as long as the tile is up, the same job a name
-/// label does in every other call surface this app has, where the row of
-/// three action buttons and the resize grip are each a thing somebody does
-/// once and moves on from.
-///
-/// [CanvasPresenceManipulableTile.sentToBack] never touches this widget's
-/// own layout, gesture handling or paint position at all - see
-/// `canvas_presence_layer.dart`'s own doc for why. Only [child] differs
-/// (an invisible placeholder when sent to back, the real content
-/// otherwise), so the drag area, resize grip and corner controls stay
-/// exactly where a person last saw them, whichever side of the drawing
-/// surface the tile's own pixels are currently painting on.
-///
-/// The outer shell (the [MouseRegion] and the [Listener] both) is opaque,
-/// replicating a middle-mouse grab-pan and a mouse wheel itself against
-/// [document], only while this tile is unlocked with [CanvasTool.pan]
-/// active - the one state where a pointer here means "manipulate this
-/// tile". Any other [tool], or [locked] regardless of [tool], turns both
-/// `HitTestBehavior.translucent` and ignores the content: report 2 in the
-/// backlog channel, "unable to start drawing on attachments", is exactly a
-/// pen stroke that would not start over a camera bubble, and report 4 is a
-/// locked, sent-to-back tile still swallowing a click meant for whatever
-/// `CanvasSurface` paints above it. Translucent still delivers every raw
-/// pointer here, so [_revealForTouch] always runs and a locked tile's own
-/// unlock button never becomes a dead end - but the pan/wheel replication
-/// itself stops, since `CanvasSurface` now genuinely receives the same
-/// gesture directly and a second copy here would double it.
+/// Its controls show on hover, focus or a first touch rather than always
+/// (backlog reports 3 and 0.35.1), and a locked tile can always reveal its
+/// own unlock button. Unless it is unlocked under the pan tool, the tile
+/// passes pointers through so a pen stroke can start over it (report 2).
+/// Why presence tiles are not canvas objects, and how sending one back keeps
+/// its controls in place, is in docs/decisions/0010-canvas-media-tiles.md.
 library;
 
 import 'dart:async';
@@ -367,30 +298,9 @@ class _CanvasPresenceManipulableTileState
     super.dispose();
   }
 
-  /// Wraps [child] so it is invisible and unreachable by a pointer while
-  /// this tile's own reveal is inactive, and both otherwise - the grip and
-  /// the controls row share this, never the tile's own content, which draws
-  /// and hit-tests exactly as before.
-  ///
-  /// `alwaysIncludeSemantics: true` is load-bearing, not tidiness:
-  /// [AnimatedOpacity] excludes its child from the semantics tree at zero
-  /// opacity by default, which would have made a screen reader's own swipe
-  /// navigation lose these controls entirely rather than only the pointer
-  /// route this fix means to gate - a strictly worse accessibility position
-  /// than before this file ever hid anything. [IgnorePointer] still blocks
-  /// an ordinary pointer tap while hidden; a screen reader's own activation
-  /// reaches straight through it regardless, the same way it always could.
-  ///
-  /// The [Focus] wrapper is what stops a sighted keyboard user from tabbing
-  /// onto, and operating, a control they cannot see: [IgnorePointer] gates a
-  /// pointer only, never focus traversal, so without this a hidden
-  /// `AppIconButton` was already reachable and already activatable by Tab
-  /// then Enter, just invisible while it happened. `canRequestFocus: false`
-  /// keeps this node itself out of the tab order - only its real children
-  /// (the icon buttons) are stops - and Flutter's own `FocusNode.hasFocus`
-  /// is already true for a node whenever a descendant holds focus, so one
-  /// listener here answers for every button in [child] without wiring each
-  /// one separately.
+  /// Hides [child] from pointers and sight until the tile is revealed. It stays
+  /// in the semantics tree so a screen reader keeps the controls, and focus
+  /// within it reveals them so a keyboard user never operates an unseen one.
   Widget _revealable(BuildContext context, Widget child) => IgnorePointer(
     ignoring: !_controlsVisible,
     child: AnimatedOpacity(
