@@ -68,7 +68,10 @@ class _SwipeToReplyState extends State<SwipeToReply>
   void _onEnd(DragEndDetails details) {
     final commit = _armed;
     _snapBack();
-    if (commit) widget.onReply();
+    if (commit) {
+      AppHaptics.success();
+      widget.onReply();
+    }
   }
 
   void _snapBack() {

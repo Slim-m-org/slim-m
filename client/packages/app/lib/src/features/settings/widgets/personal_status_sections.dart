@@ -9,7 +9,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -22,12 +22,19 @@ import '../providers/notification_sound_settings.dart';
 import '../../../providers/push_controller.dart';
 import '../../../providers/toasts.dart';
 import 'notification_schedule_allow_lists.dart';
+import '../providers/ui_sound_settings.dart';
 import 'notification_schedule_section.dart';
 import 'notification_snooze_section.dart';
 import 'notification_status_banner.dart';
 import 'notification_settings_rows.dart';
 import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';
+
+/// Only the platforms with a haptic engine get a haptics switch.
+bool get isPhoneHaptics =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android);
 
 /// Whether this device is registered for push, read plainly off the state
 /// [PushController] tracks: this is what makes a registration problem
@@ -40,6 +47,8 @@ class NotificationsSection extends ConsumerWidget {
     final status = ref.watch(pushControllerProvider);
     final soundsEnabled = ref.watch(messageSoundSettingsProvider);
     final moduleSoundsEnabled = ref.watch(moduleSoundSettingsProvider);
+    final uiSoundsEnabled = ref.watch(uiSoundSettingsProvider);
+    final hapticsEnabled = ref.watch(hapticsSettingsProvider);
     // The Linux desktop shows its own notifications and never has push, so any push status would be the wrong answer there.
     final localOnly = isLinuxHost;
     final style = notificationBannerStyle(status, localOnly: localOnly);
@@ -77,6 +86,24 @@ class NotificationsSection extends ConsumerWidget {
                   .setEnabled(value),
               semanticLabel: 'Play a sound for messages, mentions and errors',
             ),
+            SettingsToggleRow(
+              label: 'Interface sounds',
+              description: 'Soft cues for sending, joining and muting.',
+              value: uiSoundsEnabled,
+              onChanged: (value) =>
+                  ref.read(uiSoundSettingsProvider.notifier).setEnabled(value),
+              semanticLabel: 'Play soft sounds for sending, joining and muting',
+            ),
+            if (isPhoneHaptics)
+              SettingsToggleRow(
+                label: 'Haptics',
+                description: 'Vibrate for taps, holds and alerts.',
+                value: hapticsEnabled,
+                onChanged: (value) => ref
+                    .read(hapticsSettingsProvider.notifier)
+                    .setEnabled(value),
+                semanticLabel: 'Vibrate for taps, holds and alerts',
+              ),
             SettingsToggleRow(
               label: 'Dock module sounds',
               description: 'Lets modules play short sounds.',

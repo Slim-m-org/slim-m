@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_sound_settings.dart';
+import 'package:slimm_app/src/features/settings/providers/ui_sound_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/notification_status_banner.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
@@ -69,5 +72,60 @@ void main() {
 
     expect(find.byType(ListTile), findsNothing);
     expect(find.byType(NotificationStatusBanner), findsOneWidget);
+  });
+
+  Finder toggleLabelled(String label) =>
+      find.byWidgetPredicate((w) => w is AppToggle && w.semanticLabel == label);
+
+  testWidgets('the interface sounds toggle persists independently', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_wrap(const NotificationsSection()));
+    await tester.pumpAndSettle();
+
+    final toggle = toggleLabelled(
+      'Play soft sounds for sending, joining and muting',
+    );
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(uiSoundsEnabledKey), isFalse);
+    expect(prefs.getBool(messageSoundsEnabledKey), isNull);
+  });
+
+  testWidgets(
+    'the haptics toggle switches AppHaptics without touching sounds',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        AppHaptics.enabled = true;
+      });
+      await tester.pumpWidget(_wrap(const NotificationsSection()));
+      await tester.pumpAndSettle();
+
+      final toggle = toggleLabelled('Vibrate for taps, holds and alerts');
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(hapticsEnabledKey), isFalse);
+      expect(prefs.getBool(messageSoundsEnabledKey), isNull);
+      expect(AppHaptics.enabled, isFalse);
+      debugDefaultTargetPlatformOverride = null;
+      AppHaptics.enabled = true;
+    },
+  );
+
+  testWidgets('the haptics toggle is absent on a desktop', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    await tester.pumpWidget(_wrap(const NotificationsSection()));
+    await tester.pumpAndSettle();
+
+    expect(toggleLabelled('Vibrate for taps, holds and alerts'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
   });
 }

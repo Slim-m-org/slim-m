@@ -22,7 +22,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "notifications"))
 
-from sounds import SOUNDS  # noqa: E402
+from sounds import SOUNDS, UI_SOUNDS  # noqa: E402
+
+SHIPPED = [*SOUNDS, *UI_SOUNDS]
 
 CANONICAL = HERE / "notifications"
 CLIENT_COPY = (
@@ -32,7 +34,7 @@ CLIENT_COPY = (
 
 class ClientBundleCopy(unittest.TestCase):
     def test_every_sound_is_byte_identical_in_the_client_copy(self) -> None:
-        for name in SOUNDS:
+        for name in SHIPPED:
             canonical = (CANONICAL / f"{name}.wav").read_bytes()
             copy_path = CLIENT_COPY / f"{name}.wav"
             self.assertTrue(copy_path.exists(), f"{copy_path} is missing")
@@ -45,11 +47,11 @@ class ClientBundleCopy(unittest.TestCase):
 
     def test_the_client_copy_carries_no_extra_or_stale_files(self) -> None:
         present = {p.name for p in CLIENT_COPY.glob("*.wav")}
-        expected = {f"{name}.wav" for name in SOUNDS}
+        expected = {f"{name}.wav" for name in SHIPPED}
         self.assertEqual(
             present,
             expected,
-            "the client copy's file set has drifted from SOUNDS",
+            "the client copy's file set has drifted from SOUNDS and UI_SOUNDS",
         )
 
 

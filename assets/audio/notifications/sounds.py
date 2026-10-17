@@ -84,3 +84,58 @@ CALLKIT_RINGTONE: tuple[list[Note], str] = (
     "its own and so is exempt from the family's cross-sound loudness "
     "invariants and its exactly-seven count.",
 )
+
+# Quieter cues for the person's own actions, kept out of SOUNDS so its invariants stay about the seven.
+UI_TARGET_LUFS = -26.0
+
+# name -> (notes, seconds to pad to or 0, what it is for); padding is the ringback's pause.
+UI_SOUNDS: dict[str, tuple[list[Note], float, str]] = {
+    "message_sent": (
+        [Note(0.00, G5, 0.14)],
+        0.0,
+        "One short note, higher than a received message so the two never read "
+        "as each other.",
+    ),
+    "message_received_in_view": (
+        [Note(0.00, E5, 0.12)],
+        0.0,
+        "The group-message note, shorter: the channel on screen needs a nudge, "
+        "not a chime.",
+    ),
+    "self_join": (
+        [Note(0.00, E5, 0.16), Note(0.08, G5, 0.24)],
+        0.0,
+        "Two rising notes: you are in the call.",
+    ),
+    "self_leave": (
+        [Note(0.00, G5, 0.16), Note(0.08, E5, 0.24)],
+        0.0,
+        "The same two notes falling: you left the call.",
+    ),
+    "mute_on": (
+        [Note(0.00, D5, 0.14)],
+        0.0,
+        "One low note: the mic is off.",
+    ),
+    "mute_off": (
+        [Note(0.00, A5, 0.14)],
+        0.0,
+        "One high note: the mic is on.",
+    ),
+    "deafen_on": (
+        [Note(0.00, E5, 0.12), Note(0.07, A4, 0.20)],
+        0.0,
+        "Two falling notes: you stopped hearing the call.",
+    ),
+    "deafen_off": (
+        [Note(0.00, A4, 0.12), Note(0.07, E5, 0.20)],
+        0.0,
+        "Two rising notes: you hear the call again.",
+    ),
+    "ringback": (
+        [Note(0.00, E5, 0.40), Note(0.30, E5, 0.40)],
+        2.2,
+        "A soft double pulse then a pause, looped while an outgoing call "
+        "rings. Calmer than call_ring, which is for the person being called.",
+    ),
+}

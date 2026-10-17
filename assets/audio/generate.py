@@ -21,14 +21,24 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "notifications"))
 
 import synth  # noqa: E402
-from sounds import CALLKIT_RINGTONE, SOUNDS  # noqa: E402
+from sounds import (  # noqa: E402
+    CALLKIT_RINGTONE, SOUNDS, UI_SOUNDS, UI_TARGET_LUFS)
 
 OUT = HERE / "notifications"
 
 
-def _render_one(name: str, notes: list[synth.Note]) -> None:
+def _render_one(
+    name: str,
+    notes: list[synth.Note],
+    target: float = synth.TARGET_LUFS,
+    pad_to: float = 0.0,
+) -> None:
     rendered = synth.render(notes)
-    levelled = synth.normalise(rendered)
+    levelled = synth.normalise(rendered, target)
+    if pad_to > levelled.size / synth.SAMPLE_RATE:
+        silence = int(round(pad_to * synth.SAMPLE_RATE)) - levelled.size
+        levelled = __import__("numpy").concatenate(
+            [levelled, __import__("numpy").zeros(silence)])
     size = synth.write_wav(OUT / f"{name}.wav", levelled)
 
     seconds = levelled.size / synth.SAMPLE_RATE
@@ -45,6 +55,8 @@ def main() -> int:
         _render_one(name, notes)
     # Same renderer and diff gate, but not one of the seven; see sounds.py.
     _render_one("callkit_ringtone", CALLKIT_RINGTONE[0])
+    for name, (notes, pad_to, _) in sorted(UI_SOUNDS.items()):
+        _render_one(name, notes, UI_TARGET_LUFS, pad_to)
     return 0
 
 
