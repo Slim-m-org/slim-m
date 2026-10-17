@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+name: e2e-playwright
+# Advisory Playwright Test run with a video of every user; triggers and why it is not required: docs/ci.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "client/packages/rtc/**"
+      - "client/packages/api/**"
+      - "client/packages/voice_canvas/**"
+      - "client/packages/platform/**"
+      - "client/packages/app/lib/src/**/*voice*"
+      - "client/packages/app/lib/src/**/*call*"
+      - "client/packages/app/lib/src/**/*canvas*"
+      - "client/packages/app/lib/src/**/*screen_share*"
+      - "client/packages/app/lib/src/**/*stream*"
+      - "client/packages/app/lib/src/routing/**"
+      - "client/packages/app/lib/main.dart"
+      - "client/pubspec.lock"
+      - "crates/slimm-server/src/voice/**"
+      - "crates/slimm-server/src/hub/**"
+      - "crates/slimm-server/src/hub.rs"
+      - "crates/slimm-server/src/auth.rs"
+      - "crates/slimm-server/src/http/auth.rs"
+      - "crates/slimm-server/src/http/ws.rs"
+      - "crates/slimm-server/src/http/ws/**"
+      - "crates/slimm-server/src/http/voice*.rs"
+      - "crates/slimm-server/src/http/canvas*.rs"
+      - "crates/slimm-server/src/lib.rs"
+      - "crates/slimm-server/migrations/**"
+      - "Cargo.lock"
+      - "docker/**"
+      - "schema/openapi.yaml"
+      - "scripts/e2e-stack.sh"
+      - "scripts/lib/e2e_*.py"
+      - "e2e/**"
+      - ".github/workflows/e2e-playwright.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A superseded PR run is cancelled; main and manual runs queue so a merge burst still leaves a verdict.
+concurrency:
+  group: e2e-playwright-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SQLX_OFFLINE: "true"
+  E2E_WORK: /tmp/e2e
+
+jobs:
+  e2e-playwright:
+    name: the full stack, driven by Playwright
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      # Fast and needs no stack: catches label drift between e2e_labels.py and e2e/src/labels.ts before the long boot.
+      - name: unit tests for the harness's own logic
+        working-directory: scripts/lib
+        run: python3 -m unittest discover -p 'test_*.py' -v
+
+      - name: install the Playwright package
+        working-directory: e2e
+        run: npm ci --ignore-scripts
+
+      - name: type check the suite
+        working-directory: e2e
+        run: npm run typecheck
+
+      - name: install the browser
+        working-directory: e2e
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+
+      # Deterministic resolve, the same reason client-ci does this before building.
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
+      # E2E_REBUILD=1: a cached web build silently tests stale code.
+      - name: run the suite
+        working-directory: e2e
+        env:
+          E2E_REBUILD: "1"
+        run: ./node_modules/.bin/playwright test
+
+      # The report and every user's video are the point of this workflow, so they upload on failure too.
+      - name: upload the report and videos
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            ${{ env.E2E_WORK }}/server.log
+          if-no-files-found: warn
+          retention-days: 14
