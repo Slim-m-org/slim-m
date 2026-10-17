@@ -24,9 +24,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../audio/scene_sound_player.dart';
+import '../../../audio/scene_sound_player.dart';
 import '../providers/module_sound_settings.dart';
-import '../providers/providers.dart';
+import '../../../providers/providers.dart';
 import 'module_scene.dart';
 import 'module_scene_fullscreen.dart';
 import 'module_scene_view.dart';

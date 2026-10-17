@@ -30,7 +30,7 @@ import '../providers/channel_by_id_provider.dart';
 import '../features/composer/providers/composer_focus.dart';
 import '../providers/database_key_store.dart';
 import '../providers/member_selection.dart';
-import '../providers/module_sound_settings.dart';
+import '../features/modules/providers/module_sound_settings.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../providers/notification_sound_controller.dart';
 import '../providers/providers.dart';

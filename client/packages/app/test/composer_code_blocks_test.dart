@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/code_block_runner.dart';
+import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_code_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 

@@ -13,8 +13,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
-import '../../providers/app_launch.dart';
-import '../../providers/code_block_runner.dart';
+import '../../features/modules/providers/app_launch.dart';
+import '../../features/modules/providers/code_block_runner.dart';
 import '../../providers/providers.dart';
 import '../../features/composer/providers/slash_command.dart';
 import '../../widgets/run_guarded.dart';

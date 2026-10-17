@@ -25,7 +25,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/providers.dart';
-import '../../widgets/module_command_output.dart';
+import '../../features/modules/widgets/module_command_output.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 

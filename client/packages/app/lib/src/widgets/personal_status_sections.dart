@@ -17,7 +17,7 @@ import 'package:slimm_platform/platform.dart'
     show LocalAlertChannel, isAndroidHost, isLinuxHost;
 
 import '../providers/desktop_message_text_settings.dart';
-import '../providers/module_sound_settings.dart';
+import '../features/modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../providers/push_controller.dart';
 import '../providers/toasts.dart';

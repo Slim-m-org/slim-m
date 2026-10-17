@@ -16,8 +16,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_painter.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_painter.dart';
 
 /// A 100x100 scene holding one 4x4 grid, optionally boxed, over a tappable
 /// backdrop. The backdrop is what proves a tap outside the box falls through

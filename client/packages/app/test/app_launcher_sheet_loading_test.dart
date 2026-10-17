@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/app_launch.dart';
-import 'package:slimm_app/src/widgets/app_launcher_sheet.dart';
+import 'package:slimm_app/src/features/modules/providers/app_launch.dart';
+import 'package:slimm_app/src/features/modules/widgets/app_launcher_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 // The non-admin copy: myPermissionsProvider defaults to 0 with no override.

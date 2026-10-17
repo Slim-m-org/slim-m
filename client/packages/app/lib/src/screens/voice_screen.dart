@@ -36,7 +36,7 @@ import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import '../widgets/bot_call_controls.dart';
 import '../widgets/call_stage_layout.dart';
-import '../widgets/dock_height_reporter.dart';
+import '../features/modules/widgets/dock_height_reporter.dart';
 import '../widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';

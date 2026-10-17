@@ -28,8 +28,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/dock_reservation.dart';
-import 'package:slimm_app/src/widgets/dock_height_reporter.dart';
+import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
+import 'package:slimm_app/src/features/modules/widgets/dock_height_reporter.dart';
 
 /// [show] toggles only the reporter itself; the [UncontrolledProviderScope]
 /// and the [Directionality]/[Align] around it stay the same widget across

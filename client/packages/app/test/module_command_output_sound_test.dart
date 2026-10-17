@@ -15,10 +15,10 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/audio/scene_sound_player.dart';
-import 'package:slimm_app/src/providers/module_sound_settings.dart';
+import 'package:slimm_app/src/features/modules/providers/module_sound_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/module_command_output.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_command_output.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _tokens = api.TokenPair(

@@ -23,7 +23,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 final codeBlockRunnerProvider =
     FutureProvider.autoDispose<List<api.CodeBlockRunner>>(

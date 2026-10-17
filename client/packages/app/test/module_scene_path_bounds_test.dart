@@ -9,8 +9,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_path.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_path.dart';
 
 /// Code units the tokeniser touched for [d].
 int _work(String d) {

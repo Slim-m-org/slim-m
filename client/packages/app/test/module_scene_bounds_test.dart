@@ -7,8 +7,8 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_bounds.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_bounds.dart';
 
 ModuleScene _scene(
   List<Map<String, Object?>> ops, {

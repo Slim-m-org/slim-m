@@ -14,8 +14,8 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/module_command_output.dart';
-import 'package:slimm_app/src/widgets/module_scene_fullscreen.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_command_output.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_fullscreen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'support/module_scene_fixtures.dart';

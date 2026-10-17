@@ -22,12 +22,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/code_block_runner.dart';
+import '../features/modules/providers/code_block_runner.dart';
 import '../providers/message_extras.dart';
 import '../providers/providers.dart';
 import 'code_hidden_characters.dart';
 import 'message_code_lexer.dart';
-import 'module_command_output.dart';
+import '../features/modules/widgets/module_command_output.dart';
 import 'run_guarded.dart';
 
 class MessageCodeBlockRunner extends ConsumerStatefulWidget {

@@ -12,7 +12,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 
 ModuleScene? _sceneWith({required Object? cols, required Object? rows}) =>
     parseModuleScene(

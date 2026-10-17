@@ -36,7 +36,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
-import 'bounded_image_decode.dart';
+import '../../../widgets/bounded_image_decode.dart';
 import 'module_scene.dart';
 
 /// The longer side a kept bitmap is decoded to at most.

@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/message_link.dart';
-import 'package:slimm_app/src/providers/code_block_runner.dart';
+import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
 import 'package:slimm_app/src/providers/message_jump.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';

@@ -16,7 +16,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 const moduleSoundEnabledKey = 'slimm.modules.sound_enabled';
 

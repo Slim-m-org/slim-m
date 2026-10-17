@@ -47,7 +47,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../call_leave_button.dart';
-import '../dock_solo_controls.dart';
+import '../../features/modules/screens/dock_solo_controls.dart';
 import '../voice_call_controls.dart';
 import '../../providers/call_solo.dart';
 import '../../providers/voice_controller.dart';

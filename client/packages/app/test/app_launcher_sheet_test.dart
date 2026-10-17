@@ -10,9 +10,9 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/providers/app_launch.dart';
+import 'package:slimm_app/src/features/modules/providers/app_launch.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/app_launcher_sheet.dart';
+import 'package:slimm_app/src/features/modules/widgets/app_launcher_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<void> _open(WidgetTester tester, {required int permissions}) async {

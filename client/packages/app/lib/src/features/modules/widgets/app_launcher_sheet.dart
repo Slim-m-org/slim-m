@@ -18,14 +18,14 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../api_failure.dart';
-import '../ids.dart';
-import '../permissions.dart';
-import '../providers/admin_providers.dart';
+import '../../../api_failure.dart';
+import '../../../ids.dart';
+import '../../../permissions.dart';
+import '../../../providers/admin_providers.dart';
 import '../providers/app_launch.dart';
-import '../providers/message_extras.dart';
-import '../providers/providers.dart';
-import '../routing/routes.dart';
+import '../../../providers/message_extras.dart';
+import '../../../providers/providers.dart';
+import '../../../routing/routes.dart';
 
 /// Launches [app] into [channelId]: posts the message, then applies it to the
 /// local store and extras cache exactly as sending a poll does, so the surface

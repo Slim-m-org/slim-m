@@ -10,9 +10,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_frame.dart';
-import 'package:slimm_app/src/widgets/module_scene_view.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_frame.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 String _rectScene(double w, double h) => jsonEncode({

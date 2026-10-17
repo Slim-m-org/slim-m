@@ -53,7 +53,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/dock_reservation.dart';
+import '../features/modules/providers/dock_reservation.dart';
 
 /// Shows [message] in a plain SnackBar.
 ///

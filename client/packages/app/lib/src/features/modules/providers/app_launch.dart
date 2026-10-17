@@ -14,7 +14,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 final appLaunchProvider = FutureProvider.autoDispose<List<api.App>>(
   (ref) => ref.watch(apiProvider).listApps(),

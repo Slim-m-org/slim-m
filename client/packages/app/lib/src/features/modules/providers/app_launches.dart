@@ -12,8 +12,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../api_failure.dart';
-import 'providers.dart';
+import '../../../api_failure.dart';
+import '../../../providers/providers.dart';
 
 /// Where one message's launch stands: in flight, answered, or refused.
 class AppLaunch {

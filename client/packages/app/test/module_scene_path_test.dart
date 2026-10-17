@@ -10,9 +10,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_painter.dart';
-import 'package:slimm_app/src/widgets/module_scene_path.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_painter.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_path.dart';
 
 /// The single path op in a scene built around [d], or null if it was skipped.
 PathOp? _pathOp(String d) {

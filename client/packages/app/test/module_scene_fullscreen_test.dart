@@ -16,10 +16,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/module_scene.dart';
-import 'package:slimm_app/src/widgets/module_scene_frame.dart';
-import 'package:slimm_app/src/widgets/module_scene_fullscreen.dart';
-import 'package:slimm_app/src/widgets/module_scene_view.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_frame.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_fullscreen.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 String _sceneJson({int cols = 3, int rows = 3}) => jsonEncode({

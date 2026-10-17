@@ -22,7 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../api_failure.dart';
+import '../../../api_failure.dart';
 import 'module_scene.dart';
 import 'module_scene_bounds.dart';
 import 'module_scene_busy.dart';
@@ -36,7 +36,7 @@ import 'module_scene_pacing.dart';
 import 'module_scene_queue.dart';
 import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
-import 'swipe_to_reply.dart';
+import '../../../widgets/swipe_to_reply.dart';
 
 /// Runs one action against the module and returns its raw result. The action
 /// and the current scene state are already packed into [input] as

@@ -8,7 +8,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/module_scene.dart';
+import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 
 ModuleScene _scene(String opsJson) => parseModuleScene(
   '{"\$slim":"scene/1","width":100,"height":100,"ops":[$opsJson]}',
