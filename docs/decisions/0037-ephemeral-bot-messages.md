@@ -33,7 +33,7 @@ That is how Discord behaves too, and it is the reason the primitive is cheap eno
 It takes no `seq` and does not touch the channel's counter.
 The alternative, taking a `seq` and leaving a gap for everyone else, is what the resync logic reads as loss.
 `tests/ephemeral_messages.rs` sends a message, a private answer and another message, and asserts the two real messages are seq 1 and 2.
-The client keeps ephemeral messages in a list of their own, so nothing has to order them against a numbered stream.
+The client keeps ephemeral messages in a list of their own and merges them into the transcript by time, so nothing has to order them against a numbered stream.
 Its id is a UUIDv7, used only to dedupe and to dismiss.
 
 ### Addressing: a message that was aimed at this bot
@@ -57,7 +57,7 @@ Residual gaps, stated plainly:
   A person who holds `MENTION_EVERYONE` and uses it makes their message an anchor for every bot that can view the channel.
   That is a deliberate, public act by someone with a moderator-grade permission, and it is left in.
 - A bot that is addressed once can send three private messages to that one person, so a hostile bot the person did talk to can still phish them there.
-  The badge below and the three-message cap are the mitigation, and revoking the bot is the control.
+  The badge below and the per-anchor budget are the mitigation, and revoking the bot is the control.
 - The prefix check reads the message text with the registered prefix and command names, so a bot that parses commands some other way than its registration says will be refused unless the message also mentions it.
 
 ### Per-anchor budget
@@ -68,18 +68,18 @@ An entry expires when the anchor's window closes, and expired entries are swept 
 It is charged only after every other check has passed, so a refused call costs nothing.
 A restart forgets it, which at worst gives a bot another three messages on an anchor that is still inside its window.
 
-### Bot badge on the card
+### Bot badge on the row
 
 The author's name is whatever the bot's display name is, so a bot can call itself "System" or "Admin".
-The client draws the `Bot` badge next to the name on every private-answer card.
-The server guarantees the author is a bot, which is why the frame carries no flag and the card always shows it.
+The client draws the `Bot` badge next to the name on every private-answer row.
+The server guarantees the author is a bot, which is why the frame carries no flag and the row always shows it.
 The badge is fixed-size beside a name that ellipsizes, so a long name cannot push it off the line.
 
 ### Button clicks reuse the same fan-out
 
 The follow-on card (buttons on bot messages) will hand the owning bot a click event carrying the clicker.
 A private reply to a click is the same primitive with a different anchor: the anchor becomes the interaction, and the recipient is the clicker.
-The delivery path, the frame, the client tray and the library method do not change.
+The delivery path, the frame, the client row and the library method do not change.
 Only the resolver that turns an anchor into a recipient grows a second case: `ephemeral_anchor.rs` returns an `Anchor` (an id for the budget, the recipient, and an expiry), and an interaction would add a resolver beside `resolve_message`.
 That is why the recipient is derived from an anchor in one place rather than accepted from the caller.
 
@@ -125,7 +125,7 @@ An old client reads the new kind as a user report, so it would show the bot's me
 ### Files and embeds
 
 An ephemeral message may carry embeds and attachments, in the same request shape as `sendMessage`.
-Embeds are built by the same code, so the caps and the image handling are the same, and the card renders them with the transcript's own embed widget.
+Embeds are built by the same code, so the caps and the image handling are the same, and the row renders them with the transcript's own embed widget.
 Attachments ride by id and are never uploaded here.
 Each id must already be fetchable by the bot and by the recipient, meaning uploaded by them or attached to a message in a channel they can view.
 Anything else is one 400 that does not say which side failed.
@@ -136,10 +136,18 @@ A refused call spends none of the per-anchor budget.
 
 ### Client
 
-The client keeps them in memory, per channel, capped at three, and renders them in a tray above the composer.
-Each is a card marked "Only you can see this", with the bot's name and a dismiss control.
-A tray rather than an in-transcript row: the transcript is ordered by `seq`, an ephemeral message has none, and a tray stays visible when the reader is scrolled back.
-It survives leaving and re-entering the channel and is cleared at sign-out.
+The client keeps them in memory, per channel, and draws each one in the transcript.
+Each is a normal row from the bot, with the same avatar, name, time, text, embeds and files.
+It carries a subtle tint, a line reading "Only you can see this", and Dismiss and Report actions.
+The `Bot` badge is always drawn, because the server guarantees the author is a bot.
+A row is placed by its server `created_at`, after the last stored message at or before that time, so a reply to a command lands right under it.
+It never joins a stored message's group, and a continuation marker never runs into it.
+A reader at the bottom sees a new one arrive like any new message.
+Screen readers announce "Only you can see this" and then the content.
+This replaces the tray above the composer, which stacked up to three cards that never expired.
+There is no cap now, because the per-anchor budget above already bounds what a bot can send.
+The rows are never written to the local store.
+They survive leaving and re-entering the channel and are cleared at sign-out.
 
 ## Library
 

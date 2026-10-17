@@ -134,4 +134,43 @@ void main() {
     );
     expect(directSeen, isEmpty);
   });
+
+  test(
+      'a connection opened before the address was known is not reused for '
+      'the requests after it', () async {
+    final (direct, directSeen) = await _server('direct', _host);
+    final r = route();
+    expect(await get(r, '/version'), 'public');
+
+    r.advertise(['127.0.0.1:${direct.port}']);
+    expect(await get(r, '/upload'), 'direct');
+    expect(directSeen, ['/upload']);
+  });
+
+  test(
+      'once the back-off ends the next request tries the address again, '
+      'even with a public connection kept alive', () async {
+    final (direct, _) = await _server('direct', _host);
+    var reachable = false;
+    final r = IoDirectRoute(
+      Uri.parse('https://$_host:${public.port}'),
+      context: _trusting,
+      connectPublic: (host, port) =>
+          Socket.connect(InternetAddress.loopbackIPv4, port),
+      connectDirect: (host, port) => reachable
+          ? Socket.connect(InternetAddress.loopbackIPv4, direct.port)
+          : Future.error(const SocketException('unreachable')),
+      clock: () => now,
+    );
+    addTearDown(r.httpClient.close);
+    r.advertise(['10.0.0.100:443']);
+
+    expect(await get(r, '/a'), 'public');
+    reachable = true;
+    expect(await get(r, '/b'), 'public', reason: 'still backing off');
+
+    now = now.add(const Duration(minutes: 2));
+    expect(await get(r, '/c'), 'direct');
+    expect(r.active, isTrue);
+  });
 }

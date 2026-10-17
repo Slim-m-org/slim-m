@@ -54,7 +54,7 @@ void main() {
           lastSeenAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      expect(line, 'desktop 0.83.0 · Active now');
+      expect(line, 'desktop 0.83.0 · active now');
     });
 
     test('still renders with only one of client kind or version present', () {
@@ -64,7 +64,7 @@ void main() {
           lastSeenAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      expect(line, 'ios · Active now');
+      expect(line, 'ios · active now');
     });
   });
 }

@@ -7,19 +7,22 @@
 /// it.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/downloads/transfers_banner.dart';
 import 'package:slimm_app/src/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/attachment_video_player.dart';
 import 'package:slimm_app/src/widgets/attachment_view.dart';
 import 'package:slimm_design_system/design_system.dart';
+
+import 'downloads_harness.dart';
 
 const _attachment = api.Attachment(
   id: 'a1',
@@ -43,40 +46,6 @@ Future<void> _pump(WidgetTester tester, Uint8List bytes) async {
     ),
   );
   await tester.pumpAndSettle();
-}
-
-/// Extends (never implements) [FilePickerPlatform]; see
-/// `attachment_save_test.dart` for the same fake in isolation.
-class _FakeSaver extends FilePickerPlatform {
-  String? savedFileName;
-  Uint8List? savedBytes;
-
-  @override
-  Future<Uri?> saveFile({
-    String? dialogTitle,
-    required String fileName,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    required Uint8List bytes,
-    String mimeType = 'application/octet-stream',
-    void Function(FilePickerStatus)? onFileSaving,
-    WindowsOptions windowsOptions = const WindowsOptions(),
-    LinuxOptions linuxOptions = const LinuxOptions(),
-    WebOptions webOptions = const WebOptions(),
-  }) async {
-    savedFileName = fileName;
-    savedBytes = bytes;
-    return Uri.file('/home/user/Downloads/$fileName');
-  }
-}
-
-_FakeSaver _useSaver() {
-  final previous = FilePickerPlatform.instance;
-  final saver = _FakeSaver();
-  FilePickerPlatform.instance = saver;
-  addTearDown(() => FilePickerPlatform.instance = previous);
-  return saver;
 }
 
 void main() {
@@ -116,10 +85,8 @@ void main() {
       await _pump(tester, Uint8List.fromList(const [1, 2, 3, 4]));
 
       expect(find.byType(ErrorWidget), findsNothing);
-      expect(
-        find.text('Could not open ${_attachment.filename}.'),
-        findsOneWidget,
-      );
+      expect(find.text('Could not open'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
     },
   );
 
@@ -156,63 +123,65 @@ void main() {
     size: 1800000,
   );
 
-  testWidgets(
-    'a non-image attachment exposes a save action that fetches with auth '
-    'and hands off the exact bytes',
-    (tester) async {
-      final saver = _useSaver();
-      final bytes = Uint8List.fromList(const [9, 9, 9]);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            attachmentBytesProvider(pdf.id).overrideWith((ref) async {
-              return bytes;
-            }),
-          ],
-          child: MaterialApp(
-            theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(body: AttachmentView(attachment: pdf)),
+  Future<ProviderContainer> pumpPdf(
+    WidgetTester tester,
+    FakeAttachmentServer server,
+    FakeSaveDialog dialog,
+  ) async {
+    final container = downloadsContainer(server, dialog);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(
+            body: TransfersBannerHost(child: AttachmentView(attachment: pdf)),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
+    return container;
+  }
+
+  testWidgets(
+    'a non-image attachment exposes a save action that streams the bytes to '
+    'the chosen file',
+    (tester) async {
+      final server = FakeAttachmentServer(contentLength: 3);
+      final dialog = FakeSaveDialog();
+      await pumpPdf(tester, server, dialog);
 
       expect(find.byIcon(AppIcons.download), findsOneWidget);
       await tester.tap(find.text(pdf.filename));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
+      server.body.add([9, 9, 9]);
+      unawaited(server.body.close());
+      await tester.pump(const Duration(milliseconds: 200));
 
-      expect(saver.savedFileName, pdf.filename);
-      expect(saver.savedBytes, bytes);
+      expect(dialog.filenames, [pdf.filename]);
+      expect(dialog.targets.single.bytes, [9, 9, 9]);
+      expect(dialog.targets.single.finished, isTrue);
     },
   );
 
   testWidgets(
-    'a save failure surfaces through this row\'s own AppErrorState, never a '
-    'SnackBar',
+    'a save failure surfaces through the transfers banner\'s AppErrorState, '
+    'never a SnackBar',
     (tester) async {
-      _useSaver();
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            attachmentBytesProvider(pdf.id).overrideWith((ref) async {
-              throw const api.ForbiddenException('not in this channel');
-            }),
-          ],
-          child: MaterialApp(
-            theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(body: AttachmentView(attachment: pdf)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      final server = FakeAttachmentServer(status: 403);
+      final dialog = FakeSaveDialog();
+      await pumpPdf(tester, server, dialog);
 
       await tester.tap(find.text(pdf.filename));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.byType(SnackBar), findsNothing);
       expect(
         find.text(
-          'Could not save ${pdf.filename}: you are not allowed to do that.',
+          'Could not download ${pdf.filename}: you are not allowed to do that.',
         ),
         findsOneWidget,
       );

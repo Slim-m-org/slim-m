@@ -49,11 +49,7 @@ class CameraOnJoinSection extends ConsumerWidget {
             .setCameraOnJoin(value),
       ),
     ];
-    if (embedded) return Column(children: rows);
-    return SettingsSectionCard(
-      title: 'Camera',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: rows,
-    );
+    if (embedded) return rows.single;
+    return SettingsSectionCard(title: 'Camera', children: rows);
   }
 }

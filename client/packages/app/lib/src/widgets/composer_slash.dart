@@ -87,7 +87,7 @@ Future<bool> runComposedCommand({
   final clash = clashingSlashKeyword(commands, controller.text);
   if (app == null && clash != null) {
     fail(
-      'Two modules both provide /$clash, so it will not run. Disable one in the Dock.',
+      'Two modules both provide /$clash, so it will not run. Disable one in Modules.',
     );
     return true;
   }

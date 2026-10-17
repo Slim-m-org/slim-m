@@ -35,6 +35,7 @@ import '../screens/admin/dock_screen.dart';
 import '../screens/admin/emoji_screen.dart';
 import '../screens/admin/invites_screen.dart';
 import '../screens/admin/performance_screen.dart';
+import '../screens/admin/space_voice_screen.dart';
 import '../screens/admin/removed_members_screen.dart';
 import '../screens/admin/reports_screen.dart';
 import '../screens/admin/roles_screen.dart';
@@ -94,7 +95,6 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
             compactRoute: Routes.adminReports,
             // The queue pages its own list; see ReportsScreen's same pair.
             scrollable: false,
-            padding: EdgeInsets.zero,
             builder: (_) =>
                 ReportsPane(historyOnly: reportsHistoryOnly(permissions)),
           ),
@@ -174,6 +174,14 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
       panes: [
         if (canManageServer)
           SettingsPane(
+            id: 'space-voice',
+            label: ActionLabels.spaceVoice,
+            icon: AppIcons.voice,
+            compactRoute: Routes.adminSpaceVoice,
+            builder: (_) => const SpaceVoicePane(),
+          ),
+        if (canManageServer)
+          SettingsPane(
             id: 'performance',
             label: ActionLabels.retentionAndLimits,
             icon: AppIcons.performance,
@@ -213,7 +221,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
         if (canManageServer)
           SettingsPane(
             id: 'dock',
-            label: 'Dock',
+            label: 'Modules',
             icon: AppIcons.dock,
             compactRoute: Routes.adminDock,
             builder: (_) => const DockPane(),
@@ -222,7 +230,7 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
           SettingsPane(
             id: 'bots',
             label: 'Bots',
-            icon: AppIcons.code,
+            icon: AppIcons.botAction,
             compactRoute: Routes.adminBots,
             builder: (_) => const BotsPane(),
           ),

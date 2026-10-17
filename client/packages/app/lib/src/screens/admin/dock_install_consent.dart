@@ -53,16 +53,28 @@ bool dockNeedsConsent({
   required bool firstInstall,
 }) => newCapabilities.isNotEmpty || (firstInstall && !verified);
 
-/// A "Verified" mark for a module from the official registry.
+/// A "Verified" mark for a module from the official registry: the icon alone,
+/// named by its tooltip and semantics label so a row stays on one line.
 class DockVerifiedBadge extends StatelessWidget {
   const DockVerifiedBadge({super.key});
 
   @override
-  Widget build(BuildContext context) => const AppBadge(
-    variant: AppBadgeVariant.role,
-    label: 'Verified',
-    icon: AppIcons.verified,
-  );
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Tooltip(
+      message: 'Verified',
+      child: Semantics(
+        label: 'Verified',
+        child: ExcludeSemantics(
+          child: Icon(
+            AppIcons.verified,
+            size: AppSizes.icon16,
+            color: tokens.accent,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Resolves true once the admin agrees, false when they back out.

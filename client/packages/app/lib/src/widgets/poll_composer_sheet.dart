@@ -219,7 +219,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             ),
             const SizedBox(height: AppSpacing.s8),
             AnimatedSize(
-              duration: AppMotion.reduced(context, AppMotion.fast),
+              duration: AppMotion.reducedSize(context, AppMotion.fast),
               alignment: Alignment.topCenter,
               child: Column(
                 mainAxisSize: MainAxisSize.min,

@@ -18,6 +18,8 @@ import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
+import '../widgets/settings_info_line.dart';
+import '../widgets/settings_hairline.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
@@ -60,17 +62,13 @@ class _SensitivitySection extends ConsumerWidget {
     final settings = ref.watch(voiceSettingsControllerProvider);
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsCardBlock(
+      gap: AppSpacing.s8,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-          child: Text(
-            'Voice activity sensitivity',
-            style: AppText.ui.copyWith(color: tokens.textPrimary),
-          ),
+        Text(
+          'Voice activity sensitivity',
+          style: AppText.ui.copyWith(color: tokens.textPrimary),
         ),
-        const SizedBox(height: AppSpacing.s8),
         AppSlider(
           value: settings.voiceActivitySensitivity,
           ticks: const ['Strict', 'Moderate', 'Loose'],
@@ -95,8 +93,7 @@ class _PushToTalkSection extends ConsumerWidget {
     if (!isDesktopHost) return const SizedBox.shrink();
     final settings = ref.watch(voiceSettingsControllerProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsRowGroup(
       children: [
         SettingsToggleRow(
           label: 'Hold a key to talk',
@@ -108,15 +105,13 @@ class _PushToTalkSection extends ConsumerWidget {
               .read(voiceSettingsControllerProvider.notifier)
               .setPushToTalkEnabled(value),
         ),
-        if (settings.pushToTalkEnabled) ...[
-          const SizedBox(height: AppSpacing.s8),
+        if (settings.pushToTalkEnabled)
           PushToTalkKeyRow(
             current: settings.pushToTalkKey,
             onChanged: (key) => ref
                 .read(voiceSettingsControllerProvider.notifier)
                 .setPushToTalkKey(key),
           ),
-        ],
       ],
     );
   }
@@ -153,28 +148,12 @@ class _MicrophoneSection extends ConsumerWidget {
       return SettingsSectionCard(
         title: 'Microphone',
         description: 'Sound below the line is not sent.',
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const InputSensitivityMeter(),
-          const SizedBox(height: AppSpacing.s8),
           const AutoSensitivityToggle(),
-          if (!inCall) ...[
-            const SizedBox(height: AppSpacing.s8),
-            const AppCallout(
-              tone: AppCalloutTone.info,
-              child: Text(
-                'Join a voice call to see your live input level here.',
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.s16),
           const NoiseSuppressionSection(),
-          const SizedBox(height: AppSpacing.s16),
           const EvenOutLoudSoundsToggle(),
-          if (isDesktopHost) ...[
-            const SizedBox(height: AppSpacing.s16),
-            const _PushToTalkSection(),
-          ],
+          if (isDesktopHost) const _PushToTalkSection(),
         ],
       );
     }
@@ -182,36 +161,34 @@ class _MicrophoneSection extends ConsumerWidget {
     return SettingsSectionCard(
       title: 'Microphone',
       description: 'Your input level while you are in a call.',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TweenAnimationBuilder<double>(
-          tween: Tween(end: speaking ? _speakingLevel : _quietLevel),
-          duration: AppMotion.reduced(
-            context,
-            const Duration(milliseconds: 200),
-          ),
-          builder: (context, level, _) => AppSlider(
-            tall: true,
-            value: 0,
-            onChanged: null,
-            meter: level,
-            muted: muted,
-            semanticLabel: 'Microphone input level',
-          ),
+        SettingsCardBlock(
+          gap: AppSpacing.s8,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween(end: speaking ? _speakingLevel : _quietLevel),
+              duration: AppMotion.reduced(
+                context,
+                const Duration(milliseconds: 200),
+              ),
+              builder: (context, level, _) => AppSlider(
+                tall: true,
+                value: 0,
+                onChanged: null,
+                meter: level,
+                muted: muted,
+                semanticLabel: 'Microphone input level',
+              ),
+            ),
+            if (!inCall)
+              const SettingsInfoLine(
+                'Join a voice call to see your live input level here.',
+                padding: EdgeInsets.zero,
+              ),
+          ],
         ),
-        if (!inCall) ...[
-          const SizedBox(height: AppSpacing.s8),
-          const AppCallout(
-            tone: AppCalloutTone.info,
-            child: Text('Join a voice call to see your live input level here.'),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.s16),
         const _SensitivitySection(),
-        if (isDesktopHost) ...[
-          const SizedBox(height: AppSpacing.s16),
-          const _PushToTalkSection(),
-        ],
+        if (isDesktopHost) const _PushToTalkSection(),
       ],
     );
   }
@@ -225,10 +202,8 @@ class _DevicesSection extends StatelessWidget {
     return const SettingsSectionCard(
       title: 'Devices',
       description: 'What a call uses to hear, speak and show you.',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AudioDeviceSection(embedded: true),
-        SizedBox(height: AppSpacing.s8),
         CameraOnJoinSection(embedded: true),
       ],
     );
@@ -244,7 +219,6 @@ class _SoundsSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       title: 'Sounds',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsToggleRow(
           label: 'Join and leave sounds',
@@ -255,7 +229,6 @@ class _SoundsSection extends ConsumerWidget {
               .read(voiceSettingsControllerProvider.notifier)
               .setJoinLeaveSoundsEnabled(value),
         ),
-        const SizedBox(height: AppSpacing.s8),
         SettingsToggleRow(
           label: 'Incoming call sound',
           value: settings.callRingSoundEnabled,
@@ -264,7 +237,6 @@ class _SoundsSection extends ConsumerWidget {
               .read(voiceSettingsControllerProvider.notifier)
               .setCallRingSoundEnabled(value),
         ),
-        const SizedBox(height: AppSpacing.s8),
         SettingsToggleRow(
           label: 'Music while alone',
           value: settings.holdMusicEnabled,
@@ -275,6 +247,7 @@ class _SoundsSection extends ConsumerWidget {
         ),
         if (settings.holdMusicEnabled)
           SettingsSelectRow<LoungeTrack>(
+            sub: true,
             label: 'Music style',
             value: settings.holdMusicTrack,
             sheetTitle: 'Music style',

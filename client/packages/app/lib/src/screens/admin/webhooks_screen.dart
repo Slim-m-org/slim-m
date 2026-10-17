@@ -7,7 +7,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Channel;
@@ -21,8 +20,9 @@ import '../../routing/routes.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/labeled_field.dart';
 import '../../widgets/run_guarded.dart';
-import '../../widgets/settings_entity_row.dart';
-import '../../widgets/settings_notice.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'overwrite_target_picker_sheets.dart';
@@ -106,59 +106,64 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
   @override
   Widget build(BuildContext context) {
     final webhooks = ref.watch(webhooksProvider);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_justCreated case final created?) ...[
-          _UrlReveal(
-            created: created.created,
-            url: created.url,
+        if (_justCreated case final created?)
+          SettingsSecretReveal(
+            warning:
+                'This is the only time ${created.created.webhook.label}\'s URL '
+                'is shown. Copy it now - the server keeps only a hash of its '
+                'token, so it cannot be shown again. Rotate it for a new one '
+                'if you lose it.',
+            value: created.url.toString(),
+            valueSemanticsLabel:
+                'Webhook URL for ${created.created.webhook.label}',
+            copyLabel: 'Copy URL',
             onDismiss: () => setState(() => _justCreated = null),
           ),
-          const SizedBox(height: AppSpacing.s16),
-        ],
-        const SettingsSectionHeader(ActionLabels.createWebhook),
         SettingsSectionCard(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          title: ActionLabels.createWebhook,
           children: [
-            Text(
-              'Channel',
-              style: AppText.label.copyWith(color: tokens.textSecondary),
+            SettingsCardBlock(
+              gap: AppSpacing.s12,
+              children: [
+                LabeledField(
+                  label: 'Channel',
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: AppButton(
+                      label: _channel?.name ?? 'Choose a channel',
+                      variant: AppButtonVariant.secondary,
+                      icon: AppIcons.hash,
+                      onPressed: _pickChannel,
+                    ),
+                  ),
+                ),
+                LabeledField(
+                  label: 'Label',
+                  helper: 'Shown in this list and beside its posts.',
+                  child: AppInput(
+                    maxLength: api.InputLimits.name,
+                    controller: _label,
+                    semanticLabel: 'Webhook label',
+                    onSubmitted: (_) => _busy ? null : _create(),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppButton(
+                    label: ActionLabels.createWebhook,
+                    variant: AppButtonVariant.primary,
+                    onPressed: _busy ? null : _create,
+                  ),
+                ),
+                if (actionError case final error?)
+                  AppErrorState(message: error, onDismiss: clearActionError),
+              ],
             ),
-            const SizedBox(height: AppSpacing.s4),
-            AppButton(
-              label: _channel?.name ?? 'Choose a channel',
-              variant: AppButtonVariant.secondary,
-              icon: AppIcons.hash,
-              onPressed: _pickChannel,
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            LabeledField(
-              label: 'Label',
-              helper: 'Shown in this list and beside its posts.',
-              child: AppInput(
-                maxLength: api.InputLimits.name,
-                controller: _label,
-                semanticLabel: 'Webhook label',
-                onSubmitted: (_) => _busy ? null : _create(),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s12),
-            AppButton(
-              label: ActionLabels.createWebhook,
-              variant: AppButtonVariant.primary,
-              onPressed: _busy ? null : _create,
-            ),
-            if (actionError case final error?) ...[
-              const SizedBox(height: AppSpacing.s12),
-              SettingsNotice(icon: AppIcons.warning, message: error),
-            ],
           ],
         ),
-        const SizedBox(height: AppSpacing.s24),
-        const SettingsSectionHeader('Webhooks in this Space'),
         AppAsyncView<List<api.Webhook>>(
           value: AppAsyncState(
             data: webhooks.valueOrNull,
@@ -167,70 +172,20 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
           center: false,
           errorMessage: 'Could not load the webhooks.',
           onRetry: () => ref.invalidate(webhooksProvider),
-          isEmpty: (list) => list.isEmpty,
-          emptyMessage: 'No webhooks yet.',
           data: (context, list) => SettingsSectionCard(
+            title: 'Webhooks in this Space',
             children: [
-              for (final webhook in list)
-                _WebhookRow(webhook: webhook, onRotated: _reveal),
+              if (list.isEmpty)
+                const SettingsEmptyState(
+                  icon: AppIcons.webhook,
+                  title: 'No webhooks yet.',
+                  detail: 'Create one above to post into a channel from a URL.',
+                )
+              else
+                for (final webhook in list)
+                  _WebhookRow(webhook: webhook, onRotated: _reveal),
             ],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The created webhook's delivery URL, shown once.
-class _UrlReveal extends StatelessWidget {
-  const _UrlReveal({
-    required this.created,
-    required this.url,
-    required this.onDismiss,
-  });
-
-  final api.NewWebhook created;
-  final Uri url;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsSectionCard(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsNotice(
-          icon: AppIcons.warning,
-          message:
-              'This is the only time ${created.webhook.label}\'s URL is '
-              'shown. Copy it now - the server keeps only a hash of its '
-              'token, so it cannot be shown again. Rotate it for a new one '
-              'if you lose it.',
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        SelectableText(
-          url.toString(),
-          style: AppText.code,
-          semanticsLabel: 'Webhook URL for ${created.webhook.label}',
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        Row(
-          children: [
-            AppButton(
-              label: 'Copy URL',
-              variant: AppButtonVariant.primary,
-              size: AppButtonSize.sm,
-              icon: AppIcons.copy,
-              onPressed: () =>
-                  Clipboard.setData(ClipboardData(text: url.toString())),
-            ),
-            const SizedBox(width: AppSpacing.s8),
-            AppButton(
-              label: 'Done',
-              variant: AppButtonVariant.secondary,
-              size: AppButtonSize.sm,
-              onPressed: onDismiss,
-            ),
-          ],
         ),
       ],
     );
@@ -299,34 +254,38 @@ class _WebhookRowState extends ConsumerState<_WebhookRow>
   @override
   Widget build(BuildContext context) {
     final webhook = widget.webhook;
-    return SettingsEntityRow(
-      headline: webhook.label,
-      details: [
+    return SettingsDetailRow(
+      icon: AppIcons.webhook,
+      title: webhook.label,
+      detail: [
         if (webhook.createdByDisplayName case final minter?)
-          SettingsEntityDetail('Minted by $minter'),
+          'Minted by $minter.',
         if (webhook.lastDeliveryAt case final at?)
-          SettingsEntityDetail(webhookDeliveryLabel(at, DateTime.now()))
+          webhookDeliveryLabel(at, DateTime.now())
         else
-          const SettingsAbsentValue('Never delivered yet.'),
-      ],
-      actions: [
-        AppIconButton(
-          icon: AppIcons.edit,
-          semanticLabel: 'Rename ${webhook.label}',
-          onPressed: () => showRenameWebhookSheet(context, webhook),
-        ),
-        AppIconButton(
-          icon: AppIcons.retry,
-          semanticLabel: 'Rotate ${webhook.label}',
-          onPressed: _busy ? null : _rotate,
-        ),
-        AppIconButton(
-          icon: AppIcons.revoke,
-          semanticLabel: 'Revoke ${webhook.label}',
-          variant: AppIconButtonVariant.danger,
-          onPressed: _busy ? null : _revoke,
-        ),
-      ],
+          'Never delivered yet.',
+      ].join(' '),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIconButton(
+            icon: AppIcons.edit,
+            semanticLabel: 'Rename ${webhook.label}',
+            onPressed: () => showRenameWebhookSheet(context, webhook),
+          ),
+          AppIconButton(
+            icon: AppIcons.retry,
+            semanticLabel: 'Rotate ${webhook.label}',
+            onPressed: _busy ? null : _rotate,
+          ),
+          AppIconButton(
+            icon: AppIcons.revoke,
+            semanticLabel: 'Revoke ${webhook.label}',
+            variant: AppIconButtonVariant.danger,
+            onPressed: _busy ? null : _revoke,
+          ),
+        ],
+      ),
       error: actionError,
       onErrorDismiss: clearActionError,
     );

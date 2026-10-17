@@ -30,7 +30,8 @@ import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/reset_code_sheet.dart';
-import '../../widgets/settings_notice.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'overwrite_target_picker_sheets.dart';
@@ -58,39 +59,37 @@ class AccountRecoveryPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final canIssue = ref
         .watch(myPermissionsProvider)
         .hasPermission(Perm.administrator);
 
     // Hidden, not inert: see this library's doc for the rule.
     if (!canIssue) {
-      return const SettingsNotice(
-        message: 'Issuing a reset code needs the administrator permission.',
-        detail: 'Locked-out members get back in with a one-time code.',
+      return const SettingsSectionCard(
+        children: [
+          SettingsEmptyState(
+            icon: AppIcons.shield,
+            title: 'Issuing a reset code needs the administrator permission.',
+            detail: 'Locked-out members get back in with a one-time code.',
+          ),
+        ],
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsSectionCard(
+      title: 'Reset codes',
+      description: resetCodesDescription,
       children: [
-        // Titled because a description only renders under a title.
-        SettingsSectionCard(
-          title: 'Reset codes',
-          description: resetCodesDescription,
-          children: [
-            AppListRow(
-              label: ActionLabels.createResetCode,
-              leading: const Icon(AppIcons.resetCode),
-              semanticLabel: '${ActionLabels.createResetCode}, choose a member',
-              trailing: Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              onTap: () => _pickThenIssue(context),
-            ),
-          ],
+        SettingsDetailRow(
+          icon: AppIcons.resetCode,
+          title: 'Password reset code',
+          detail: 'Pick a member, confirm your password, hand them the code.',
+          trailing: AppButton(
+            label: ActionLabels.createResetCode,
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
+            onPressed: () => _pickThenIssue(context),
+          ),
         ),
       ],
     );

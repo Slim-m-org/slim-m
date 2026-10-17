@@ -32,6 +32,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'settings_section_header.dart';
+
 class SettingsToggleRow extends StatelessWidget {
   const SettingsToggleRow({
     super.key,
@@ -65,12 +67,13 @@ class SettingsToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final metrics = SettingsRowMetrics.of(context);
     return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: AppListRow.heightFor(context)),
+      constraints: BoxConstraints(minHeight: metrics.minHeight),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s8,
-          vertical: AppSpacing.s4,
+        padding: EdgeInsets.symmetric(
+          horizontal: metrics.inset,
+          vertical: metrics.vertical,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -87,7 +90,9 @@ class SettingsToggleRow extends StatelessWidget {
                     style: AppText.ui.copyWith(color: tokens.textPrimary),
                   ),
                   if (description != null) ...[
-                    const SizedBox(height: AppSpacing.s4),
+                    SizedBox(
+                      height: AppCardRowScope.of(context) ? 2 : AppSpacing.s4,
+                    ),
                     Text(
                       description!,
                       style: AppText.caption.copyWith(

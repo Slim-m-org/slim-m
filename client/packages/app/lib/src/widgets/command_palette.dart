@@ -30,6 +30,7 @@ import '../providers/user_profiles.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
+import 'command_palette_rows.dart';
 
 /// The design's floating card width; not on the spacing grid because it is
 /// the palette's own measured size, like the rail widths beside it. Never
@@ -37,8 +38,8 @@ import 'command_palette_items.dart';
 /// reaches this width at or above `kCompactWidth` (600), where `width - 48`
 /// is always past it, and below that width the compact shell replaces the
 /// card outright rather than shrinking it.
-const double _paletteWidth = 480;
-const double _resultsMaxHeight = 360;
+const double _paletteWidth = 600;
+const double _resultsMaxHeight = 420;
 
 /// Opens the palette over whatever is on screen and restores focus to
 /// wherever it was once the palette closes. Message search covers every
@@ -117,6 +118,9 @@ class _CommandPaletteContentState
   /// build) can act on exactly what the user is looking at right now.
   List<PaletteResultItem> _visible = const [];
 
+  /// Where each section begins in [_visible], for Tab to jump between them.
+  List<int> _sectionStarts = const [];
+
   @override
   void dispose() {
     _controller.dispose();
@@ -129,14 +133,15 @@ class _CommandPaletteContentState
       _query = value;
       _highlighted = 0;
     });
-    if (value.isEmpty) {
+    final text = parsePaletteQuery(value);
+    if (text.text.isEmpty || text.scope != PaletteScope.all) {
       setState(() {
         _messageResults = const [];
         _messagesForbidden = false;
       });
       return;
     }
-    _search(value);
+    _search(text.text);
   }
 
   /// The command palette's own cross-channel scope: every channel the caller
@@ -167,12 +172,26 @@ class _CommandPaletteContentState
     });
   }
 
+  void _close() => Navigator.of(context).pop();
+
   void _move(int delta) {
     if (_visible.isEmpty) return;
     setState(() {
       _highlighted = (_highlighted + delta) % _visible.length;
       if (_highlighted < 0) _highlighted += _visible.length;
     });
+  }
+
+  void _jumpSection(int direction) {
+    if (_sectionStarts.length < 2) return;
+    final current = _sectionStarts.lastIndexWhere(
+      (start) => start <= _highlighted,
+    );
+    final next = (current + direction) % _sectionStarts.length;
+    setState(
+      () => _highlighted =
+          _sectionStarts[next < 0 ? next + _sectionStarts.length : next],
+    );
   }
 
   Future<void> _runHighlighted() async {
@@ -190,6 +209,9 @@ class _CommandPaletteContentState
     return {
       const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
       const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
+      const SingleActivator(LogicalKeyboardKey.tab): () => _jumpSection(1),
+      const SingleActivator(LogicalKeyboardKey.tab, shift: true): () =>
+          _jumpSection(-1),
       if (close != null) close: () => Navigator.of(context).pop(),
     };
   }
@@ -212,7 +234,7 @@ class _CommandPaletteContentState
       focusNode: _focusNode,
       autofocus: true,
       size: compact ? AppInputSize.lg : AppInputSize.md,
-      placeholder: 'Search channels, members and messages',
+      placeholder: 'Search channels, people and messages',
       icon: Icon(
         AppIcons.search,
         size: AppSizes.icon16,
@@ -220,7 +242,8 @@ class _CommandPaletteContentState
       ),
       onChanged: _onQueryChanged,
       onSubmitted: (_) => _runHighlighted(),
-      semanticLabel: 'Search channels, members and messages',
+      semanticLabel: 'Search channels, people and messages',
+      trailing: compact ? null : PaletteEscKeycap(onTap: _close),
     );
 
     final results = storeAsync.when(
@@ -230,26 +253,22 @@ class _CommandPaletteContentState
         stream: store.watchChannels(),
         builder: (context, snapshot) {
           final channels = snapshot.data ?? const <Channel>[];
-          // Keyed on the query alone: arrow keys and late-arriving message hits update in place, only typing crossfades.
-          return MaybeAnimatedSize(
-            duration: AppMotion.fast,
-            curve: AppMotion.entrance,
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              switchInCurve: AppMotion.entrance,
-              switchOutCurve: AppMotion.exit,
-              child: KeyedSubtree(
-                key: ValueKey(_query),
-                child: _buildResults(
-                  tokens,
-                  channels,
-                  members,
-                  me,
-                  permissions,
-                  personalSpaceHidden,
-                ),
-              ),
+          // The category names ride a second stream so a rename shows live.
+          return StreamBuilder<List<ChannelCategoryRow>>(
+            stream: store.watchCategories(),
+            builder: (context, categorySnapshot) => _animatedResults(
+              tokens,
+              channels,
+              {
+                for (final c
+                    in categorySnapshot.data ?? const <ChannelCategoryRow>[])
+                  c.id: c.name,
+              },
+              members,
+              me,
+              permissions,
+              personalSpaceHidden,
+              compact,
             ),
           );
         },
@@ -260,7 +279,7 @@ class _CommandPaletteContentState
         ? CommandPaletteCompactShell(
             searchField: searchField,
             results: results,
-            onCancel: () => Navigator.of(context).pop(),
+            onCancel: _close,
           )
         : Align(
             alignment: const Alignment(0, -0.5),
@@ -276,7 +295,7 @@ class _CommandPaletteContentState
                   const AppMenuDivider(),
                   results,
                   const AppMenuDivider(),
-                  _paletteKbdFooter(tokens),
+                  const PaletteFooter(),
                 ],
               ),
             ),
@@ -285,42 +304,92 @@ class _CommandPaletteContentState
     return CallbackShortcuts(bindings: _bindings(), child: shell);
   }
 
-  Widget _buildResults(
+  Widget _animatedResults(
     AppTokens tokens,
     List<Channel> channels,
+    Map<String, String> categoryNames,
     List<api.UserProfile> members,
     api.Me? me,
     int permissions,
     bool personalSpaceHidden,
+    bool compact,
   ) {
-    resolveAuthorProfiles(ref, _messageResults.map((m) => m.authorId));
-    final groups = <(String, List<PaletteResultItem>)>[
-      (
-        'Channels',
-        buildChannelItems(
-          channels,
-          _query,
-          selfDisplayName: me?.displayName,
-          personalSpaceHidden: personalSpaceHidden,
+    // Keyed on the query alone: arrow keys and late-arriving message hits update in place, only typing crossfades.
+    return MaybeAnimatedSize(
+      duration: AppMotion.fast,
+      curve: AppMotion.entrance,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: AppMotion.reduced(context, AppMotion.fast),
+        switchInCurve: AppMotion.entrance,
+        switchOutCurve: AppMotion.exit,
+        child: KeyedSubtree(
+          key: ValueKey(_query),
+          child: _buildResults(
+            tokens,
+            channels,
+            categoryNames,
+            members,
+            me,
+            permissions,
+            personalSpaceHidden,
+            compact,
+          ),
         ),
       ),
-      ('Members', buildMemberItems(members, _query, me?.id)),
-      if (!_messagesForbidden)
+    );
+  }
+
+  Widget _buildResults(
+    AppTokens tokens,
+    List<Channel> channels,
+    Map<String, String> categoryNames,
+    List<api.UserProfile> members,
+    api.Me? me,
+    int permissions,
+    bool personalSpaceHidden,
+    bool compact,
+  ) {
+    resolveAuthorProfiles(ref, _messageResults.map((m) => m.authorId));
+    final (:scope, text: query) = parsePaletteQuery(_query);
+    final everything = scope == PaletteScope.all;
+    final groups = <(String, List<PaletteResultItem>)>[
+      if (everything || scope == PaletteScope.channels)
+        (
+          'Channels',
+          buildChannelItems(
+            channels,
+            query,
+            selfDisplayName: me?.displayName,
+            personalSpaceHidden: personalSpaceHidden,
+            categoryNames: categoryNames,
+            currentChannelId: widget.currentChannelId,
+          ),
+        ),
+      if (everything || scope == PaletteScope.people)
+        ('People', buildMemberItems(members, query, me?.id)),
+      if (everything && !_messagesForbidden)
         (
           'Messages',
           buildMessageItems(
             _messageResults,
             currentChannelId: widget.currentChannelId,
+            channelsById: {for (final c in channels) c.id: c},
           ),
         ),
-      ('Actions', buildActionItems(_query, permissions)),
+      if (everything) ('Actions', buildActionItems(query, permissions)),
     ].where((g) => g.$2.isNotEmpty).toList();
 
     // An empty result and a refusal are different things; so says search too.
-    final showForbiddenNotice = _messagesForbidden && _query.isNotEmpty;
+    final showForbiddenNotice =
+        everything && _messagesForbidden && query.isNotEmpty;
 
     final flat = [for (final group in groups) ...group.$2];
     _visible = flat;
+    _sectionStarts = [
+      for (var i = 0, at = 0; i < groups.length; at += groups[i].$2.length, i++)
+        at,
+    ];
     if (_highlighted >= flat.length) {
       _highlighted = flat.isEmpty ? 0 : flat.length - 1;
     }
@@ -338,24 +407,23 @@ class _CommandPaletteContentState
     final rows = <Widget>[];
     var index = 0;
     for (final group in groups) {
-      rows.add(AppMenuLabel(group.$1));
+      rows.add(PaletteSectionHeader(label: group.$1, count: group.$2.length));
       for (final item in group.$2) {
         final at = index;
         index++;
         rows.add(
-          AppMenuItem(
-            label: item.label,
-            leading: item.leading,
-            trailing: item.trailing,
-            selected: at == _highlighted,
-            semanticLabel: item.semanticLabel,
+          PaletteResultRow(
+            item: item,
+            query: query,
+            highlighted: at == _highlighted,
+            touch: compact,
             onTap: () => _run(item),
           ),
         );
       }
     }
     if (showForbiddenNotice) {
-      rows.add(const AppMenuLabel('Messages'));
+      rows.add(const PaletteSectionHeader(label: 'Messages', count: 0));
       rows.add(
         Padding(
           padding: const EdgeInsets.symmetric(
@@ -371,41 +439,15 @@ class _CommandPaletteContentState
     }
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: _resultsMaxHeight),
+      constraints: BoxConstraints(
+        maxHeight: compact
+            ? MediaQuery.sizeOf(context).height * 0.7
+            : _resultsMaxHeight,
+      ),
       child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
         child: Column(mainAxisSize: MainAxisSize.min, children: rows),
       ),
     );
   }
-}
-
-/// The floating card's own footer: arrow/Enter hints and a nudge that typing
-/// narrows the list. Desktop-only - `CommandPaletteCompactShell` never builds
-/// this, matching `channel_rail.dart`'s own "keycaps only where a keyboard
-/// is" rule for the Ctrl+K hint beside it.
-Widget _paletteKbdFooter(AppTokens tokens) {
-  Widget hint(List<String> keys, String label) => Row(
-    mainAxisSize: MainAxisSize.min,
-    spacing: AppSpacing.s4,
-    children: [
-      for (final key in keys) AppKbd(key),
-      Text(label, style: AppText.micro.copyWith(color: tokens.textSecondary)),
-    ],
-  );
-
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(10, 4, 10, 2),
-    child: Wrap(
-      spacing: AppSpacing.s16,
-      runSpacing: AppSpacing.s4,
-      children: [
-        hint(const ['↑', '↓'], 'to navigate'),
-        hint(const ['Enter'], 'to select'),
-        Text(
-          'Type to filter',
-          style: AppText.micro.copyWith(color: tokens.textSecondary),
-        ),
-      ],
-    ),
-  );
 }

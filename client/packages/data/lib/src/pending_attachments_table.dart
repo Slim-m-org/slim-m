@@ -22,6 +22,10 @@ class PendingAttachments extends Table {
   /// The ids in the order they were staged, stored as a JSON array.
   TextColumn get attachmentIds => text().map(const AttachmentIdList())();
 
+  /// False when a queued reply opted out of mentioning its author, so a retry
+  /// honours the choice. Null for every send that has nothing to remember.
+  BoolColumn get mentionReply => boolean().nullable()();
+
   @override
   Set<Column> get primaryKey => {messageId};
 }

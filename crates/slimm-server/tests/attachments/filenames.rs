@@ -109,3 +109,61 @@ fn urlencoding_minimal(raw: &str) -> String {
         })
         .collect()
 }
+
+/// A non-ASCII name survives the upload as typed and reaches the download as
+/// an RFC 5987 `filename*`, with an ASCII fallback beside it (issue 2075).
+#[tokio::test]
+async fn a_unicode_filename_round_trips_as_typed() {
+    let (store, _guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL
+                .union(Permissions::SEND_MESSAGES)
+                .union(Permissions::ATTACH_FILES),
+            true,
+        )
+        .await
+        .unwrap();
+    let app = app(store.clone());
+    let (token, _id) = register(&store, "alice").await;
+    let name = "résumé 日本.png";
+    let encoded: String = name
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b == b'.' {
+                (b as char).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect();
+
+    let uploaded = upload(&app, &token, &encoded, png(4)).await;
+    assert_eq!(uploaded["filename"], name);
+
+    let attachment_id = uploaded["id"].as_str().unwrap();
+    let response = app
+        .clone()
+        .oneshot(request_plain(
+            "GET",
+            &format!("/attachments/{attachment_id}"),
+            &token,
+        ))
+        .await
+        .unwrap();
+    let disposition = response
+        .headers()
+        .get("content-disposition")
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(
+        disposition.ends_with("filename*=UTF-8''r%C3%A9sum%C3%A9%20%E6%97%A5%E6%9C%AC.png"),
+        "{disposition}"
+    );
+    assert!(
+        disposition.contains("filename=\"r_sum_ __.png\""),
+        "{disposition}"
+    );
+}

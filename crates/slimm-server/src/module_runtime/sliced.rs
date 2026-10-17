@@ -34,6 +34,14 @@ impl FuelBudget {
         store.set_fuel(slice)?;
         Ok(Some(()))
     }
+
+    /// Returns fuel the store holds but did not burn, so the budget is charged
+    /// for what a call consumed rather than for each slice it was handed.
+    fn reclaim<T>(&mut self, store: &mut Store<T>) -> Result<(), wasmi::Error> {
+        self.remaining += store.get_fuel()?;
+        store.set_fuel(0)?;
+        Ok(())
+    }
 }
 
 /// Calls `func`, topping up fuel one slice at a time. Between slices the
@@ -46,7 +54,11 @@ pub fn call_sliced<T, P: WasmParams, R: WasmResults>(
     params: P,
     (budget, deadline): (&mut FuelBudget, Instant),
 ) -> Result<R, RunError> {
-    budget.next_slice(store).map_err(classify_trap)?;
+    // Reclaiming inside the out-of-fuel loop below could hand back a residue too small for the next instruction forever.
+    budget.reclaim(store).map_err(classify_trap)?;
+    if budget.next_slice(store).map_err(classify_trap)?.is_none() {
+        return Err(classify_trap(wasmi::Error::from(TrapCode::OutOfFuel)));
+    }
     let mut call = func.call_resumable(store.as_context_mut(), params);
     loop {
         match call.map_err(classify_trap)? {

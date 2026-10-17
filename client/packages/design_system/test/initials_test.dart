@@ -20,4 +20,11 @@ void main() {
     expect(initialsFor('!!!'), '');
     expect(initialsFor(''), '');
   });
+
+  test('#2024 names in any script keep their letters', () {
+    expect(initialsFor('\u0391\u03bb\u03ad\u03be\u03b7\u03c2'), '\u0391\u039b');
+    expect(initialsFor('\uae40\ubbfc\uc900'), '\uae40\ubbfc');
+    expect(initialsFor('\u{10400}\u{10401}x'), '\u{10400}\u{10401}');
+    expect(initialsFor("N'ick"), 'NI');
+  });
 }

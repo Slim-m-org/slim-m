@@ -101,7 +101,7 @@ void main() {
   testWidgets('with nothing filed it says so', (tester) async {
     await _pump(tester, const []);
 
-    expect(find.text('Nothing filed from this device yet.'), findsOneWidget);
+    expect(find.text('Nothing filed from this device yet'), findsOneWidget);
   });
 
   testWidgets('checking an id by hand words the result, and a miss', (

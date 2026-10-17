@@ -50,14 +50,17 @@ void main() {
     );
   });
 
-  test('windows launches the executable directly', () {
-    final command = _command(
-      os: 'windows',
-      executable: r'C:\slim-m\slim-m.exe',
-    )!;
-    expect(command.program, r'C:\slim-m\slim-m.exe');
-    expect(command.arguments, ['--flag']);
-  });
+  test(
+    'windows launches the executable, told to wait for this one to exit',
+    () {
+      final command = _command(
+        os: 'windows',
+        executable: r'C:\slim-m\slim-m.exe',
+      )!;
+      expect(command.program, r'C:\slim-m\slim-m.exe');
+      expect(command.arguments, [windowsRelaunchArgument, '--flag']);
+    },
+  );
 
   test('flatpak and unknown platforms offer nothing', () {
     expect(

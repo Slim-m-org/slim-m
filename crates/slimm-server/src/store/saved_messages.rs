@@ -92,7 +92,9 @@ impl Store {
         }
         // Counted only for a save that would add a row, so somebody at the ceiling can still re-save what they hold.
         let held = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "n!: i64" FROM saved_messages WHERE user_id = ?"#,
+            r#"SELECT COUNT(*) AS "n!: i64" FROM saved_messages s
+               JOIN messages m ON m.id = s.message_id AND m.deleted_at IS NULL
+               WHERE s.user_id = ?"#,
             user_id
         )
         .fetch_one(&mut *tx)

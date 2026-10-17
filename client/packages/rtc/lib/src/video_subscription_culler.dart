@@ -123,6 +123,9 @@ class VideoSubscriptionCuller {
   final Duration dwell;
 
   Set<String>? _interest;
+
+  /// The keys some surface currently wants, or null for no opinion.
+  Set<String>? get interest => _interest;
   final Map<String, Timer> _pending = {};
   final Set<String> _due = {};
   bool _disposed = false;

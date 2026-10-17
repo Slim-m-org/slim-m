@@ -22,6 +22,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/moderation_history_controller.dart';
 import '../../providers/user_profiles.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_section_header.dart';
 import 'report_history_row.dart';
 import 'reports_load_more_row.dart';
 
@@ -51,36 +53,39 @@ class ReportHistoryPane extends ConsumerWidget {
       ),
       errorMessage: 'Could not load the moderation history.',
       onRetry: controller.refresh,
-      isEmpty: (list) => list.isEmpty,
-      emptyMessage: 'Nothing has happened here yet.',
-      data: (context, list) => ListView.separated(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        // One trailing row when the last page came back full; see the controller.
-        itemCount: history.more || history.error != null
-            ? list.length + 1
-            : list.length,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.s12),
-        itemBuilder: (context, i) => i == list.length
-            ? ReportsLoadMoreRow(
-                loading: history.loading,
-                error: history.error,
-                failureMessage: 'Could not load more history.',
-                onTap: controller.loadMore,
-              )
-            : ReportHistoryRow(
-                key: ValueKey('${list[i].cursorKind}:${list[i].id}'),
-                item: list[i],
-              ),
+      data: (context, list) => ListView(
+        children: [
+          SettingsSectionCard(
+            title: 'History',
+            description: 'Closed reports and moderation actions, newest first.',
+            children: [
+              if (list.isEmpty)
+                const SettingsEmptyState(
+                  icon: AppIcons.activityLog,
+                  title: 'Nothing has happened here yet',
+                )
+              else
+                for (final item in list)
+                  ReportHistoryRow(
+                    key: ValueKey('${item.cursorKind}:${item.id}'),
+                    item: item,
+                  ),
+            ],
+          ),
+          // One trailing row when the last page came back full; see the controller.
+          if (history.more || history.error != null)
+            ReportsLoadMoreRow(
+              loading: history.loading,
+              error: history.error,
+              failureMessage: 'Could not load more history.',
+              onTap: controller.loadMore,
+            ),
+        ],
       ),
     );
   }
 }
 
-/// The ids [ReportHistoryRow] needs a name for, so [ReportHistoryPane] can
-/// resolve a page's worth in one call rather than one per row: the actor for
-/// an audit entry, the resolving moderator for a report, and whichever of
-/// author/subject that report actually names - see `ReportHistoryRow`'s own
-/// doc for why that split follows `ReportCard`'s.
 Iterable<String> _namedIds(api.ModerationHistoryItem item) => switch (item) {
   api.AuditLogHistoryEntry(:final actorId, :final subjectId) => [
     if (actorId != null) actorId,

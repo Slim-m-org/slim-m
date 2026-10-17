@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'settings_section_header.dart';
+
 /// Keys that already mean something while choosing, so they cannot be bound.
 final _unbindable = {
   LogicalKeyboardKey.escape,
@@ -84,22 +86,14 @@ class _PushToTalkKeyRowState extends State<PushToTalkKeyRow> {
       onFocusChange: (focused) {
         if (!focused && _listening) _stop();
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-        child: Row(
+      child: SettingsSubRow(
+        label: _listening ? 'Press a key, or Escape to cancel' : 'Key',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.s8,
           children: [
-            Expanded(
-              child: Text(
-                _listening ? 'Press a key, or Escape to cancel' : 'Key',
-                style: AppText.ui.copyWith(
-                  color: _listening ? tokens.textPrimary : tokens.textSecondary,
-                ),
-              ),
-            ),
-            if (!_listening) ...[
+            if (!_listening)
               _KeyCap(label: pushToTalkKeyName(widget.current), tokens: tokens),
-              const SizedBox(width: AppSpacing.s8),
-            ],
             AppButton(
               label: _listening ? 'Cancel' : 'Change',
               size: AppButtonSize.sm,
@@ -137,7 +131,7 @@ class _KeyCap extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppText.ui.copyWith(
+        style: AppText.caption.copyWith(
           fontFamily: AppFonts.mono,
           fontWeight: AppWeights.semi,
           color: tokens.textPrimary,

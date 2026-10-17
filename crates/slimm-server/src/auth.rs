@@ -52,6 +52,7 @@ pub enum HashError {
 pub struct Auth {
     argon: Argon2<'static>,
     permits: Arc<Semaphore>,
+    acquire_timeout: Duration,
     /// A precomputed valid hash. Verifying a login for a username that does not
     /// exist runs against this so the response time does not reveal whether the
     /// account is real.
@@ -76,13 +77,20 @@ impl Auth {
         Ok(Self {
             argon,
             permits: Arc::new(Semaphore::new(concurrency.max(1))),
+            acquire_timeout: HASH_ACQUIRE_TIMEOUT,
             dummy_hash,
         })
     }
 
+    #[cfg(test)]
+    fn with_acquire_timeout(mut self, timeout: Duration) -> Self {
+        self.acquire_timeout = timeout;
+        self
+    }
+
     /// Acquires a hashing permit or sheds the request past the deadline.
     async fn acquire(&self) -> Result<OwnedSemaphorePermit, HashError> {
-        match tokio::time::timeout(HASH_ACQUIRE_TIMEOUT, self.permits.clone().acquire_owned()).await
+        match tokio::time::timeout(self.acquire_timeout, self.permits.clone().acquire_owned()).await
         {
             Ok(Ok(permit)) => Ok(permit),
             Ok(Err(_closed)) => Err(HashError::Internal(anyhow!("hashing semaphore closed"))),
@@ -90,12 +98,14 @@ impl Auth {
         }
     }
 
-    /// Hashes a password into a PHC string for storage. The permit is held
-    /// across the blocking hash, so the memory bound is real.
+    /// Hashes a password into a PHC string for storage. The permit moves into
+    /// the blocking hash, so the memory bound holds even when the request that
+    /// started it is cancelled: a blocking task cannot be stopped mid-hash.
     pub async fn hash_password(&self, password: String) -> Result<String, HashError> {
-        let _permit = self.acquire().await?;
+        let permit = self.acquire().await?;
         let argon = self.argon.clone();
         let joined = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
             let salt = SaltString::generate(&mut OsRng);
             argon
                 .hash_password(password.as_bytes(), &salt)
@@ -111,11 +121,14 @@ impl Auth {
     /// verifies as a non-match rather than an error, so one corrupt row cannot
     /// lock an account into 500s.
     pub async fn verify_password(&self, password: String, phc: String) -> Result<bool, HashError> {
-        let _permit = self.acquire().await?;
+        let permit = self.acquire().await?;
         let argon = self.argon.clone();
-        tokio::task::spawn_blocking(move || match PasswordHash::new(&phc) {
-            Ok(parsed) => argon.verify_password(password.as_bytes(), &parsed).is_ok(),
-            Err(_) => false,
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            match PasswordHash::new(&phc) {
+                Ok(parsed) => argon.verify_password(password.as_bytes(), &parsed).is_ok(),
+                Err(_) => false,
+            }
         })
         .await
         .map_err(|e| HashError::Internal(anyhow!("password verify task panicked: {e}")))
@@ -160,7 +173,58 @@ pub(crate) fn hash_secret(secret: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::hash_secret;
+    use std::time::{Duration, Instant};
+
+    use super::{Auth, HashError, hash_secret};
+
+    fn one_permit() -> Auth {
+        Auth::new(1)
+            .unwrap()
+            .with_acquire_timeout(Duration::from_millis(30))
+    }
+
+    async fn hold_the_permit(auth: &Auth) -> tokio::task::JoinHandle<()> {
+        let holder = auth.clone();
+        let task = tokio::spawn(async move {
+            let _ = holder.hash_password("x".repeat(64)).await;
+        });
+        let started = Instant::now();
+        while auth.permits.available_permits() > 0 {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "hash never started"
+            );
+            tokio::task::yield_now().await;
+        }
+        task
+    }
+
+    #[tokio::test]
+    async fn a_saturated_hasher_sheds_real_and_decoy_logins_alike() {
+        let auth = one_permit();
+        let _held = hold_the_permit(&auth).await;
+
+        let real = auth
+            .verify_password("pw".to_owned(), "not-a-phc".to_owned())
+            .await;
+        let decoy = auth.verify_decoy().await;
+        assert!(matches!(real, Err(HashError::Busy)), "{real:?}");
+        assert!(matches!(decoy, Err(HashError::Busy)), "{decoy:?}");
+    }
+
+    #[tokio::test]
+    async fn a_cancelled_request_keeps_its_permit_until_the_hash_ends() {
+        let auth = one_permit();
+        let held = hold_the_permit(&auth).await;
+        held.abort();
+        let _ = held.await;
+
+        let next = auth.hash_password("y".to_owned()).await;
+        assert!(
+            matches!(next, Err(HashError::Busy)),
+            "a cancelled login freed its permit while its hash kept running: {next:?}"
+        );
+    }
 
     /// Pinned against the published SHA-256 vectors, lowercase hex: the stored
     /// hash of an invite or reset code is looked up by exact string, so the

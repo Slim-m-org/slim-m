@@ -16,7 +16,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/admin/performance_screen.dart';
+import 'package:slimm_app/src/screens/admin/space_voice_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -47,7 +47,7 @@ Widget _app(ProviderContainer container) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
     theme: buildTheme(Brightness.dark, AppTokens.dark),
-    home: const Scaffold(body: PerformanceScreen()),
+    home: const Scaffold(body: SpaceVoiceScreen()),
   ),
 );
 

@@ -14,15 +14,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Unaliased for the `updateChannel` extension method; `Channel` hidden since `slimm_data`'s own (this section's `channel` field type) would otherwise collide.
 import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../preset_options.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
+import '../widgets/optimistic_setting_state.dart';
 import '../widgets/run_guarded.dart';
-import '../widgets/settings_section_header.dart';
 import '../widgets/settings_select_row.dart';
-import '../widgets/success_flash.dart';
+import '../widgets/settings_save_feedback.dart';
 
 /// The interval choices offered here, index-matched to the segmented
 /// control below. Not the server's own full 0..21600 range
@@ -46,105 +45,65 @@ String slowModeLabel(int seconds) {
 }
 
 class ChannelSlowModeSection extends ConsumerStatefulWidget {
-  const ChannelSlowModeSection({
-    super.key,
-    required this.channel,
-    this.embedded = false,
-  });
+  const ChannelSlowModeSection({super.key, required this.channel});
 
   final Channel channel;
 
   /// One select row inside another card instead of its own card.
-  final bool embedded;
-
   @override
   ConsumerState<ChannelSlowModeSection> createState() =>
       _ChannelSlowModeSectionState();
 }
 
 class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
-    with GuardedActionState<ChannelSlowModeSection> {
-  bool _saving = false;
-  int? _optimisticSeconds;
-
-  Future<void> _setSeconds(int seconds) async {
-    setState(() {
-      _saving = true;
-      _optimisticSeconds = seconds;
-    });
-    final ok = await guard(
-      whatFailed: 'change slow mode',
-      action: () async {
-        final updated = await ref
-            .read(apiProvider)
-            .updateChannel(
-              channelId: widget.channel.id,
-              slowModeSeconds: seconds,
-            );
-        final store = await ref.read(storeProvider.future);
-        await store.upsertChannels([updated]);
-      },
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (!ok) _optimisticSeconds = null;
-    });
-  }
+    with
+        GuardedActionState<ChannelSlowModeSection>,
+        OptimisticSettingState<ChannelSlowModeSection, int> {
+  Future<void> _setSeconds(int seconds) => saveOptimistic(
+    seconds,
+    whatFailed: 'change slow mode',
+    action: () async {
+      final updated = await ref
+          .read(apiProvider)
+          .updateChannel(
+            channelId: widget.channel.id,
+            slowModeSeconds: seconds,
+          );
+      final store = await ref.read(storeProvider.future);
+      await store.upsertChannels([updated]);
+    },
+    refresh: channelByIdProvider(widget.channel.id),
+  );
 
   @override
   Widget build(BuildContext context) {
+    final channel = channelByIdProvider(widget.channel.id);
+    ref.listen(channel, (_, next) => retireOptimistic(next));
     // The stored row, so a save that landed earlier is what a later failure falls back to.
-    final stored =
-        ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
-        widget.channel;
-    final current = _optimisticSeconds ?? stored.slowModeSeconds;
+    final stored = ref.watch(channel).valueOrNull ?? widget.channel;
+    final current = shown(stored.slowModeSeconds, 0);
     final options = presetsIncluding(slowModeOptions, current, slowModeLabel);
-    final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
-    if (widget.embedded) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SettingsSelectRow<int>(
-            label: 'Slow mode',
-            sheetTitle: 'Slow mode',
-            value: current,
-            choices: [
-              for (final option in options)
-                SettingsChoice(value: option.$2, label: option.$1),
-            ],
-            sheetFootnote:
-                'How long a member waits between their own messages.',
-            onChanged: (seconds) => _saving ? null : _setSeconds(seconds),
-          ),
-          SuccessFlash(tick: successTick),
-          if (actionError != null) ...[
-            const SizedBox(height: AppSpacing.s8),
-            AppErrorState(message: actionError!, onDismiss: clearActionError),
-          ],
-        ],
-      );
-    }
-    return SettingsSectionCard(
-      title: 'Slow mode',
-      description: 'How long a member waits between their own messages.',
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppSegmentedControl.inline(
-          semanticLabel: 'Slow mode interval',
-          options: [
+        SettingsSelectRow<int>(
+          label: 'Slow mode',
+          description: 'How long a member waits between their own messages.',
+          sheetTitle: 'Slow mode',
+          value: current,
+          choices: [
             for (final option in options)
-              AppSegmentedOption(label: option.$1, disabled: _saving),
+              SettingsChoice(value: option.$2, label: option.$1),
           ],
-          selectedIndex: selectedIndex,
-          onSegmentSelected: (i) => _setSeconds(options[i].$2),
+          onChanged: (seconds) => saving ? null : _setSeconds(seconds),
         ),
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsSaveFeedback(
+          inCard: true,
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
       ],
     );
   }

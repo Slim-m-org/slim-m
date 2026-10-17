@@ -37,12 +37,13 @@ class ModuleScenePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final sx = scene.width == 0 ? 1.0 : size.width / scene.width;
-    final sy = scene.height == 0 ? 1.0 : size.height / scene.height;
+    final sx = scene.viewWidth == 0 ? 1.0 : size.width / scene.viewWidth;
+    final sy = scene.viewHeight == 0 ? 1.0 : size.height / scene.viewHeight;
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = _resolve(scene.background, tokens.surfaceRaised),
     );
+    canvas.translate(-scene.viewLeft * sx, -scene.viewTop * sy);
     final seconds = time?.value ?? double.infinity;
     for (final op in scene.ops) {
       _paintOp(canvas, applySweep(op, seconds), sx, sy);
@@ -297,9 +298,10 @@ Rect cellsGridRect(CellsOp op, ModuleScene scene, double sx, double sy) {
   );
 }
 
-String? sceneTapAction(ModuleScene scene, Offset local, Size size) {
-  final sx = scene.width == 0 ? 1.0 : size.width / scene.width;
-  final sy = scene.height == 0 ? 1.0 : size.height / scene.height;
+String? sceneTapAction(ModuleScene scene, Offset tapped, Size size) {
+  final sx = scene.viewWidth == 0 ? 1.0 : size.width / scene.viewWidth;
+  final sy = scene.viewHeight == 0 ? 1.0 : size.height / scene.viewHeight;
+  final local = tapped.translate(scene.viewLeft * sx, scene.viewTop * sy);
   for (final op in scene.ops.reversed) {
     switch (op) {
       case CellsOp() when op.tap != null && op.cols > 0 && op.rows > 0:

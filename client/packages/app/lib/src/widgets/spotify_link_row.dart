@@ -10,6 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../spotify/spotify_link.dart';
 import '../spotify/spotify_link_status.dart';
+import 'settings_section_header.dart';
 
 class SpotifyLinkRow extends ConsumerWidget {
   const SpotifyLinkRow({super.key});
@@ -33,14 +34,15 @@ class SpotifyLinkRow extends ConsumerWidget {
         onAction: () =>
             ref.read(shareSpotifyProvider.notifier).setEnabled(false),
       ),
-      SpotifyFailed(:final message) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.s8),
-        child: AppErrorState(
-          message: message,
-          onRetry: () =>
-              ref.read(shareSpotifyProvider.notifier).setEnabled(true),
-          onDismiss: linker.dismissFailure,
-        ),
+      SpotifyFailed(:final message) => SettingsCardBlock(
+        children: [
+          AppErrorState(
+            message: message,
+            onRetry: () =>
+                ref.read(shareSpotifyProvider.notifier).setEnabled(true),
+            onDismiss: linker.dismissFailure,
+          ),
+        ],
       ),
     };
   }
@@ -57,32 +59,20 @@ class _Line extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: AppSizes.icon16, color: tokens.accent),
-            const SizedBox(width: AppSpacing.s8),
-          ],
-          Expanded(
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                text,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-          ),
-          if (action != null)
-            AppButton(
+    return SettingsSubRow(
+      label: text,
+      semanticLabel: text,
+      leading: icon == null
+          ? null
+          : Icon(icon, size: AppSizes.icon16, color: tokens.accent),
+      trailing: action == null
+          ? null
+          : AppButton(
               label: action!,
               variant: AppButtonVariant.ghost,
               size: AppButtonSize.sm,
               onPressed: onAction,
             ),
-        ],
-      ),
     );
   }
 }

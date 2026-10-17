@@ -43,7 +43,7 @@ void main() {
     await writeSnapshot(tester, 'channel-settings-voice-phone');
 
     expect(
-      tester.getBottomLeft(find.text('Delete channel')).dy,
+      tester.getBottomLeft(find.text('Delete channel...')).dy,
       lessThanOrEqualTo(844),
       reason: 'everything, the danger zone included, is on the first screen',
     );

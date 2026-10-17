@@ -427,6 +427,8 @@ class SyncController extends StateNotifier<SyncStatus> {
     _ref.invalidate(syncFailureProvider);
     _ref.invalidate(ephemeralMessagesProvider);
     _ref.invalidate(lastTextChannelProvider);
+    _ref.invalidate(previousTextChannelProvider);
+    _ref.invalidate(deletedChannelsProvider);
     _ref.read(messageExtrasProvider.notifier).clear();
     _ref.read(dmCallRingControllerProvider.notifier).clear();
     _ref.read(dmCallActivityProvider.notifier).clear();

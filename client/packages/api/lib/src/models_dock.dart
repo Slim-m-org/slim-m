@@ -216,6 +216,63 @@ List<DockSchedule> _schedules(Object? json) =>
         .map((s) => DockSchedule.fromJson(s as Map<String, dynamic>))
         .toList(growable: false);
 
+/// One release in a module's changelog: the version and its one-line changes.
+class DockChangelogEntry {
+  const DockChangelogEntry({required this.version, required this.changes});
+
+  final String version;
+  final List<String> changes;
+}
+
+/// Newest first, as published. Anything malformed is dropped, never thrown on,
+/// because a bad changelog must not stop the module opening.
+List<DockChangelogEntry> _changelog(Object? json) {
+  if (json is! List) return const [];
+  return [
+    for (final item in json)
+      if (item is Map && item['version'] is String && item['changes'] is List)
+        DockChangelogEntry(
+          version: item['version'] as String,
+          changes: [
+            for (final c in item['changes'] as List)
+              if (c is String) c,
+          ],
+        ),
+  ];
+}
+
+List<DockChangelogEntry> _newestFirst(List<DockChangelogEntry> entries) {
+  bool numeric(DockChangelogEntry e) =>
+      compareDockVersions(e.version, e.version) != null;
+  final nums = entries.where(numeric).toList()
+    ..sort((a, b) => compareDockVersions(b.version, a.version)!);
+  return [...nums, ...entries.where((e) => !numeric(e))];
+}
+
+/// Dot-separated integer parts compared left to right (missing parts are 0);
+/// null when either side is not purely numeric.
+int? compareDockVersions(String a, String b) {
+  List<int>? parts(String v) {
+    final out = <int>[];
+    for (final p in v.split('.')) {
+      final n = int.tryParse(p);
+      if (n == null) return null;
+      out.add(n);
+    }
+    return out;
+  }
+
+  final pa = parts(a);
+  final pb = parts(b);
+  if (pa == null || pb == null) return null;
+  for (var i = 0; i < pa.length || i < pb.length; i++) {
+    final x = i < pa.length ? pa[i] : 0;
+    final y = i < pb.length ? pb[i] : 0;
+    if (x != y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
 /// A module's full manifest, as `GET /space/dock/modules/{id}` returns it: the
 /// permissions it will add and the capabilities it asks for, shown before an
 /// admin ever installs it.
@@ -233,6 +290,7 @@ class DockManifest {
     required this.extensionPoints,
     this.network,
     this.schedules = const [],
+    this.changelog = const [],
   });
 
   final String id;
@@ -240,6 +298,34 @@ class DockManifest {
   final String version;
   final String summary;
   final String? author;
+
+  /// Release notes, newest first; empty when the module publishes none.
+  final List<DockChangelogEntry> changelog;
+
+  /// What to tell someone about this module: the newest entry when nothing is
+  /// installed, otherwise every entry newer than [installedVersion].
+  ///
+  /// Numeric versions are sorted newest first whatever order they were
+  /// published in; non-numeric ones follow in published order. When a
+  /// comparison is impossible the entries listed before the installed one are
+  /// the newer ones, and an installed version nobody lists yields only the
+  /// newest entry rather than the whole history.
+  List<DockChangelogEntry> changesSince(String? installedVersion) {
+    final sorted = _newestFirst(changelog);
+    if (installedVersion == null) return sorted.take(1).toList();
+    final comparable = [
+      for (final e in sorted)
+        if (compareDockVersions(e.version, installedVersion) != null) e,
+    ];
+    if (comparable.length == sorted.length) {
+      return [
+        for (final e in sorted)
+          if (compareDockVersions(e.version, installedVersion)! > 0) e,
+      ];
+    }
+    final at = sorted.indexWhere((e) => e.version == installedVersion);
+    return at < 0 ? sorted.take(1).toList() : sorted.sublist(0, at);
+  }
 
   /// Absent when the module does not declare `net.fetch`.
   final DockNetwork? network;
@@ -278,6 +364,7 @@ class DockManifest {
             ? null
             : DockNetwork.fromJson(json['network'] as Map<String, dynamic>),
         schedules: _schedules(json['schedules']),
+        changelog: _changelog(json['changelog']),
       );
 }
 

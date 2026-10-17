@@ -16,6 +16,7 @@ import 'package:slimm_app/src/providers/activity_feeds.dart';
 import 'package:slimm_app/src/providers/activity_publisher.dart';
 import 'package:slimm_app/src/providers/activity_sharing_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
+import 'package:slimm_app/src/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -64,10 +65,22 @@ class _Rig {
     container.read(activityPublisherProvider);
     await container.read(preferencesProvider.future);
     await settle();
+    // Sharing waits for /me to say the visibility.
+    for (var i = 0; i < 20; i++) {
+      if (container.read(ownVisibilityProvider) != null) break;
+      await settle();
+    }
   }
 
   Future<http.Response> _answer(http.Request request) async {
-    if (request.url.path == '/me') return http.Response('{}', 404);
+    if (request.url.path == '/me') {
+      return http.Response(
+        '{"id":"self","username":"self","display_name":"Self",'
+        '"created_at":0,"permissions":0,"presence_visibility":"online"}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     if (request.method != 'PUT') return http.Response('', 204);
     final title = (jsonDecode(request.body) as Map<String, dynamic>)['title'];
     events.add('start $title');

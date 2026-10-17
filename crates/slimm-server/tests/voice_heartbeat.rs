@@ -155,7 +155,7 @@ async fn a_keepalive_from_someone_already_in_the_call_does_not_answer_a_ring() {
     assert_eq!(beat().await.unwrap().status(), StatusCode::NO_CONTENT);
     assert!(voice.has_heartbeat(callee_id, channel.id));
 
-    let ring_id = voice.rings().start(channel.id, caller_id, callee_id);
+    let ring_id = voice.rings().start(channel.id, caller_id, callee_id).0;
 
     // His next routine keepalive must leave that ring outstanding.
     assert_eq!(beat().await.unwrap().status(), StatusCode::NO_CONTENT);

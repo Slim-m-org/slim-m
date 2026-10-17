@@ -72,7 +72,7 @@ pub async fn message_recipients(
     presence: &PresenceTracker,
 ) -> anyhow::Result<Vec<UserId>> {
     let (recipients, _mentioned) =
-        message_audience(store, channel_id, author_id, content, presence).await?;
+        message_audience(store, channel_id, author_id, content, presence, None).await?;
     Ok(recipients)
 }
 
@@ -84,6 +84,7 @@ pub(crate) async fn message_audience(
     author_id: UserId,
     content: &str,
     presence: &PresenceTracker,
+    reply_ping: Option<UserId>,
 ) -> anyhow::Result<(Vec<UserId>, HashSet<UserId>)> {
     // Push registrations first, permissions second; see the note above.
     let candidates = store.users_with_push_devices().await?;
@@ -93,8 +94,10 @@ pub(crate) async fn message_audience(
         .filter(|user_id| *user_id != author_id && !blockers.contains(user_id))
         .collect();
     let viewers = store.viewers_among(channel_id, &candidates).await?;
-    let mentioned =
+    let mut mentioned =
         resolved_mentions(store, channel_id, author_id, content, &viewers, presence).await?;
+    // A reply's ping was already checked against the channel at send; it still needs a device and no block.
+    mentioned.extend(reply_ping.filter(|pinged| viewers.contains(pinged)));
     // Resolved once: both steps below ask the same "is this a thread, and whose" question.
     let parent = store.thread_parent(channel_id).await?;
     let viewers =
@@ -139,6 +142,24 @@ pub(crate) async fn message_audience(
 /// mentioned needs no further gate, and one they did not stays quiet for
 /// everybody except the same override that already ignores every other
 /// mention gate in this function.
+/// What kinds of mention `content` makes, read without touching the store, so
+/// a caller can skip loading the whole channel audience for a message that
+/// only names people (or nobody).
+pub(crate) struct MentionKinds {
+    pub names: bool,
+    pub mass_or_role: bool,
+}
+
+pub(crate) fn mention_kinds(content: &str) -> MentionKinds {
+    let prose = prose_outside_code(content);
+    let mut names = mentioned_usernames(&prose);
+    let mass = names.remove(EVERYONE_MENTION) | names.remove(HERE_MENTION);
+    MentionKinds {
+        names: !names.is_empty(),
+        mass_or_role: mass || !mentioned_role_names(&prose).is_empty(),
+    }
+}
+
 pub(crate) async fn resolved_mentions(
     store: &Store,
     channel_id: ChannelId,
@@ -188,6 +209,7 @@ pub(crate) async fn resolved_mentions(
     }
 
     if !role_names.is_empty() {
+        let viewers: HashSet<UserId> = viewers.iter().copied().collect();
         for role in store.roles_for_names(&role_names).await? {
             if !(role.mentionable || mention_everyone_held) {
                 continue;

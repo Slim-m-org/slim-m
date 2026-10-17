@@ -15,12 +15,28 @@ use crate::ids::{ChannelId, UserId};
 
 use super::VoiceService;
 
-#[derive(Default)]
 struct ParticipantState {
+    /// The LiveKit participant sid this entry belongs to. A webhook from an
+    /// earlier session of the same member arrives with a different sid and
+    /// must not act on the current one.
+    sid: String,
+    /// Whether a join was published for this sid. An entry a track webhook
+    /// created before (or after) its join is provisional until then.
+    announced: bool,
     /// Sids of currently-published screen-share-sourced tracks. A screen
     /// share with audio publishes two tracks, so "is sharing" is "this set
     /// is non-empty", not "a track was published".
     screen_share_tracks: HashSet<String>,
+}
+
+impl ParticipantState {
+    fn new(sid: &str, announced: bool) -> Self {
+        Self {
+            sid: sid.to_owned(),
+            announced,
+            screen_share_tracks: HashSet::new(),
+        }
+    }
 }
 
 type Key = (ChannelId, UserId);
@@ -38,23 +54,29 @@ impl RoomLiveState {
     }
 
     /// Records a join, reporting whether this is a real transition - a
-    /// duplicate `participant_joined` webhook for someone already known must
-    /// not republish.
-    pub fn mark_joined(&self, channel_id: ChannelId, user_id: UserId) -> bool {
-        match lock(&self.state).entry((channel_id, user_id)) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(ParticipantState::default());
-                true
-            }
-            std::collections::hash_map::Entry::Occupied(_) => false,
+    /// duplicate `participant_joined` webhook for the same session must not
+    /// republish, while a provisional entry or an earlier session's leftover
+    /// must not swallow it either.
+    pub fn mark_joined(&self, channel_id: ChannelId, user_id: UserId, sid: &str) -> bool {
+        let mut state = lock(&self.state);
+        let entry = state
+            .entry((channel_id, user_id))
+            .or_insert_with(|| ParticipantState::new(sid, false));
+        if entry.sid != sid {
+            *entry = ParticipantState::new(sid, false);
         }
+        !std::mem::replace(&mut entry.announced, true)
     }
 
-    /// Forgets a participant entirely, reporting whether they were known at
-    /// all - a duplicate `participant_left` for someone already gone must
-    /// not republish.
-    pub fn mark_left(&self, channel_id: ChannelId, user_id: UserId) -> bool {
-        lock(&self.state).remove(&(channel_id, user_id)).is_some()
+    /// Forgets a participant, reporting whether this leave ended the session
+    /// we know about - a duplicate leave, or a late one from an earlier
+    /// session after the member rejoined, must not republish.
+    pub fn mark_left(&self, channel_id: ChannelId, user_id: UserId, sid: &str) -> bool {
+        let mut state = lock(&self.state);
+        match state.get(&(channel_id, user_id)) {
+            Some(entry) if entry.sid == sid => state.remove(&(channel_id, user_id)).is_some(),
+            _ => false,
+        }
     }
 
     /// Records a screen-share track publish, reporting `true` only when this
@@ -62,33 +84,52 @@ impl RoomLiveState {
     /// screen-share track (video's own audio) publishing while the first is
     /// still up is not a fresh "started sharing".
     ///
-    /// Auto-vivifies the participant if a `track_published` webhook somehow
-    /// outraces its `participant_joined`: LiveKit does not order these two
-    /// unqueued deliveries against each other, and treating a track from an
-    /// unknown participant as evidence they are present is safer than
-    /// dropping it and never learning they are sharing at all.
-    pub fn track_published(&self, channel_id: ChannelId, user_id: UserId, track_sid: &str) -> bool {
+    /// A track from an unknown participant creates a provisional entry: LiveKit
+    /// does not order `track_published` against `participant_joined`, and
+    /// dropping it would mean never learning they are sharing. The entry stays
+    /// unannounced, so the join that follows still publishes.
+    pub fn track_published(
+        &self,
+        channel_id: ChannelId,
+        (user_id, participant_sid): (UserId, &str),
+        track_sid: &str,
+    ) -> bool {
         let mut state = lock(&self.state);
-        let participant = state.entry((channel_id, user_id)).or_default();
+        let participant = state
+            .entry((channel_id, user_id))
+            .or_insert_with(|| ParticipantState::new(participant_sid, false));
+        if participant.sid != participant_sid {
+            return false;
+        }
         let was_sharing = !participant.screen_share_tracks.is_empty();
         participant.screen_share_tracks.insert(track_sid.to_owned());
         !was_sharing
     }
 
     /// Records a screen-share track unpublish, reporting `true` only when
-    /// this was the participant's last screen-share track.
+    /// this call removed the participant's last screen-share track - a
+    /// duplicate webhook for a track already gone is not a second stop.
     pub fn track_unpublished(
         &self,
         channel_id: ChannelId,
-        user_id: UserId,
+        (user_id, participant_sid): (UserId, &str),
         track_sid: &str,
     ) -> bool {
         let mut state = lock(&self.state);
         let Some(participant) = state.get_mut(&(channel_id, user_id)) else {
             return false;
         };
-        participant.screen_share_tracks.remove(track_sid);
-        participant.screen_share_tracks.is_empty()
+        if participant.sid != participant_sid {
+            return false;
+        }
+        participant.screen_share_tracks.remove(track_sid)
+            && participant.screen_share_tracks.is_empty()
+    }
+
+    /// Forgets everyone in a room LiveKit reports finished, so no entry
+    /// outlives the room it was about.
+    pub fn forget_room(&self, channel_id: ChannelId) {
+        lock(&self.state).retain(|(channel, _), _| *channel != channel_id);
     }
 }
 
@@ -123,63 +164,63 @@ mod tests {
     #[test]
     fn a_first_join_is_a_real_transition() {
         let state = RoomLiveState::new();
-        assert!(state.mark_joined(cid(), uid()));
+        assert!(state.mark_joined(cid(), uid(), "PA"));
     }
 
     #[test]
     fn a_duplicate_join_webhook_does_not_republish() {
         let state = RoomLiveState::new();
         let (channel, user) = (cid(), uid());
-        assert!(state.mark_joined(channel, user));
-        assert!(!state.mark_joined(channel, user));
+        assert!(state.mark_joined(channel, user, "PA"));
+        assert!(!state.mark_joined(channel, user, "PA"));
     }
 
     #[test]
     fn leaving_someone_unknown_reports_no_transition() {
         let state = RoomLiveState::new();
-        assert!(!state.mark_left(cid(), uid()));
+        assert!(!state.mark_left(cid(), uid(), "PA"));
     }
 
     #[test]
     fn a_duplicate_leave_webhook_does_not_republish() {
         let state = RoomLiveState::new();
         let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user);
-        assert!(state.mark_left(channel, user));
-        assert!(!state.mark_left(channel, user));
+        state.mark_joined(channel, user, "PA");
+        assert!(state.mark_left(channel, user, "PA"));
+        assert!(!state.mark_left(channel, user, "PA"));
     }
 
     #[test]
     fn the_first_screen_share_track_starts_sharing() {
         let state = RoomLiveState::new();
         let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user);
-        assert!(state.track_published(channel, user, "track-video"));
+        state.mark_joined(channel, user, "PA");
+        assert!(state.track_published(channel, (user, "PA"), "track-video"));
     }
 
     #[test]
     fn a_second_screen_share_track_is_not_a_fresh_start() {
         let state = RoomLiveState::new();
         let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user);
-        assert!(state.track_published(channel, user, "track-video"));
-        assert!(!state.track_published(channel, user, "track-audio"));
+        state.mark_joined(channel, user, "PA");
+        assert!(state.track_published(channel, (user, "PA"), "track-video"));
+        assert!(!state.track_published(channel, (user, "PA"), "track-audio"));
     }
 
     #[test]
     fn sharing_stops_only_once_every_screen_share_track_is_gone() {
         let state = RoomLiveState::new();
         let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user);
-        state.track_published(channel, user, "track-video");
-        state.track_published(channel, user, "track-audio");
+        state.mark_joined(channel, user, "PA");
+        state.track_published(channel, (user, "PA"), "track-video");
+        state.track_published(channel, (user, "PA"), "track-audio");
 
         assert!(
-            !state.track_unpublished(channel, user, "track-video"),
+            !state.track_unpublished(channel, (user, "PA"), "track-video"),
             "the audio track is still up"
         );
         assert!(
-            state.track_unpublished(channel, user, "track-audio"),
+            state.track_unpublished(channel, (user, "PA"), "track-audio"),
             "that was the last screen-share track"
         );
     }
@@ -187,13 +228,64 @@ mod tests {
     #[test]
     fn unpublishing_a_track_for_someone_unknown_reports_no_transition() {
         let state = RoomLiveState::new();
-        assert!(!state.track_unpublished(cid(), uid(), "track-video"));
+        assert!(!state.track_unpublished(cid(), (uid(), "PA"), "track-video"));
     }
 
     #[test]
     fn a_track_published_before_any_join_webhook_still_counts() {
         let state = RoomLiveState::new();
         let (channel, user) = (cid(), uid());
-        assert!(state.track_published(channel, user, "track-video"));
+        assert!(state.track_published(channel, (user, "PA"), "track-video"));
+    }
+
+    #[test]
+    fn a_duplicate_unpublish_is_not_a_second_stop() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.mark_joined(channel, user, "PA");
+        state.track_published(channel, (user, "PA"), "track-video");
+        assert!(state.track_unpublished(channel, (user, "PA"), "track-video"));
+        assert!(!state.track_unpublished(channel, (user, "PA"), "track-video"));
+    }
+
+    #[test]
+    fn a_join_after_an_early_track_still_publishes() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        assert!(state.track_published(channel, (user, "PA"), "track-video"));
+        assert!(state.mark_joined(channel, user, "PA"));
+        assert!(!state.mark_joined(channel, user, "PA"));
+    }
+
+    #[test]
+    fn a_late_track_after_leaving_does_not_swallow_the_next_join() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.mark_joined(channel, user, "PA");
+        assert!(state.mark_left(channel, user, "PA"));
+        state.track_published(channel, (user, "PA"), "track-video");
+        assert!(
+            state.mark_joined(channel, user, "PB"),
+            "the rejoin was swallowed"
+        );
+    }
+
+    #[test]
+    fn a_late_leave_from_an_earlier_session_is_ignored() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.mark_joined(channel, user, "PA");
+        assert!(state.mark_joined(channel, user, "PB"));
+        assert!(!state.mark_left(channel, user, "PA"));
+        assert!(state.mark_left(channel, user, "PB"));
+    }
+
+    #[test]
+    fn a_finished_room_forgets_its_participants() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.mark_joined(channel, user, "PA");
+        state.forget_room(channel);
+        assert!(state.mark_joined(channel, user, "PA"));
     }
 }

@@ -77,6 +77,8 @@ extension CanvasDocumentSelection on CanvasDocument {
     int? hi;
     for (final stroke in _strokes) {
       if (stroke == null || !stroke.alive) continue;
+      // A stroke still waiting on its commit sits at a placeholder z no server holds.
+      if (stroke.zIndex == provisionalLocalZIndex) continue;
       lo = lo == null ? stroke.zIndex : math.min(lo, stroke.zIndex);
       hi = hi == null ? stroke.zIndex : math.max(hi, stroke.zIndex);
     }

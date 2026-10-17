@@ -1,26 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The debug log: what the app caught, newest first, with a copy button.
+/// The debug log as its own screen, for a phone: wide windows show the same
+/// [DebugLogPage] inside the Troubleshooting pane instead.
 ///
-/// This screen used to build its own `Scaffold`/`AppBar` rather than going
-/// through [SettingsScreenScaffold] like its eleven siblings, which cost it
-/// two things. It lost [BackToButton]'s named "Back to X" tooltip, leaving a
-/// bare default arrow that says nothing about where it goes - a real
-/// accessibility regression, since the tooltip is the only thing that names
-/// the destination. And it bypassed [AppContentColumn], so nothing tied its
-/// content width to the screens it sits beside.
+/// Goes through [SettingsScreenScaffold] like its siblings so it carries the
+/// named "Back to X" tooltip, the only thing that says where the arrow goes.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../diagnostics/debug_log.dart';
-import '../providers/toasts.dart';
 import '../routing/routes.dart';
-import '../widgets/settings_notice.dart';
-import '../widgets/memory_diagnostics.dart';
-import '../widgets/settings_section_header.dart';
+import '../widgets/debug_log_page.dart';
 import 'settings_screen_scaffold.dart';
 
 class DebugLogScreen extends ConsumerWidget {
@@ -28,8 +22,7 @@ class DebugLogScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(debugLogProvider);
-    final log = ref.read(debugLogProvider.notifier);
+    final empty = ref.watch(debugLogProvider).isEmpty;
 
     return SettingsScreenScaffold(
       title: 'Debug log',
@@ -39,163 +32,15 @@ class DebugLogScreen extends ConsumerWidget {
         IconButton(
           icon: const Icon(AppIcons.copy),
           tooltip: 'Copy all',
-          onPressed: entries.isEmpty
-              ? null
-              : () async {
-                  await Clipboard.setData(ClipboardData(text: log.asReport()));
-                  if (!context.mounted) return;
-                  ref
-                      .read(toastsProvider.notifier)
-                      .show(
-                        'Debug log copied',
-                        severity: AppToastSeverity.success,
-                      );
-                },
+          onPressed: empty ? null : () => unawaited(copyDebugLog(context, ref)),
         ),
         IconButton(
           icon: const Icon(AppIcons.delete),
           tooltip: 'Clear',
-          onPressed: entries.isEmpty ? null : log.clear,
+          onPressed: empty ? null : ref.read(debugLogProvider.notifier).clear,
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const MemoryDiagnostics(),
-          if (entries.isEmpty)
-            const SettingsNotice(
-              message: 'Nothing has gone wrong this session.',
-              detail:
-                  'Errors the app catches are collected here so you can copy '
-                  'them into a bug report.',
-            )
-          else
-            SettingsSectionCard(
-              title: 'This session',
-              description: '${entries.length} caught, newest first.',
-              children: [for (final entry in entries) _EntryTile(entry: entry)],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One caught event.
-///
-/// Severity used to be carried by the category label's colour alone - the one
-/// place in this whole area that encoded state in a single channel, against
-/// this project's standing rule that a cue never rides on colour by itself
-/// (see `AppStatusDot`, which pairs every colour with its own shape). The
-/// label text is the *source* ("flutter", "platform", "voice"), not the
-/// severity, and the same source logs at any severity depending on context,
-/// so there was no redundant cue anywhere on the row. A leading glyph and a
-/// spoken severity word carry it now, and the colour is a third reinforcement
-/// rather than the only one.
-class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry});
-
-  final DiagnosticEvent entry;
-
-  Color _levelColor(AppTokens tokens) => switch (entry.level) {
-    DiagnosticSeverity.error => tokens.dangerText,
-    DiagnosticSeverity.warning => tokens.warnText,
-    DiagnosticSeverity.info => tokens.textSecondary,
-  };
-
-  /// Three distinct silhouettes, not three tints of one: an octagon, a
-  /// triangle and a circle, the same shape-carries-the-state treatment
-  /// `AppStatusDot` gives presence.
-  IconData get _levelIcon => switch (entry.level) {
-    DiagnosticSeverity.error => AppIcons.danger,
-    DiagnosticSeverity.warning => AppIcons.warning,
-    DiagnosticSeverity.info => AppIcons.info,
-  };
-
-  String get _levelWord => switch (entry.level) {
-    DiagnosticSeverity.error => 'Error',
-    DiagnosticSeverity.warning => 'Warning',
-    DiagnosticSeverity.info => 'Info',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final level = _levelColor(tokens);
-
-    final header = Row(
-      children: [
-        Icon(_levelIcon, size: AppSizes.icon16, color: level),
-        const SizedBox(width: AppSpacing.s8),
-        // Spoken and shown: the glyph alone still leaves severity to a shape.
-        Text(
-          _levelWord,
-          style: AppText.micro.copyWith(
-            color: level,
-            fontWeight: AppWeights.semi,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.s8),
-        Flexible(
-          child: Text(
-            entry.source,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.micro.copyWith(color: tokens.textSecondary),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.s8),
-        Text(
-          entry.timestamp,
-          style: AppText.micro.copyWith(
-            color: tokens.textSecondary,
-            fontFamily: AppFonts.mono,
-          ),
-        ),
-      ],
-    );
-
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        header,
-        const SizedBox(height: 2),
-        Text(entry.message, style: AppText.caption),
-      ],
-    );
-
-    if (entry.detail == null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s8,
-          vertical: AppSpacing.s8,
-        ),
-        child: title,
-      );
-    }
-
-    return ExpansionTile(
-      // Its own controller reads the platform's own reduce-motion feature, never this app's MotionOverride; see sheet.dart's library doc.
-      expansionAnimationStyle: AppMotion.isReduced(context)
-          ? AnimationStyle.noAnimation
-          : null,
-      tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      shape: const Border(),
-      collapsedShape: const Border(),
-      title: title,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s8,
-            0,
-            AppSpacing.s8,
-            AppSpacing.s12,
-          ),
-          child: SelectableText(
-            entry.detail!,
-            style: AppText.code.copyWith(color: tokens.textSecondary),
-          ),
-        ),
-      ],
+      child: const DebugLogPage(),
     );
   }
 }

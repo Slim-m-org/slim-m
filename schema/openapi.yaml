@@ -1264,6 +1264,14 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: after_id
+          in: query
+          description: >
+            The last report's own id, which breaks ties between reports filed
+            in the same millisecond. Goes with `after`: one without the other
+            is refused with 400.
+          schema:
+            type: string
         - name: limit
           in: query
           description: Page size, 50 when omitted; the server clamps it into 1..200 rather than rejecting it.
@@ -3707,6 +3715,16 @@ paths:
             keyed by content hash).
           schema:
             type: string
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the file is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -3876,6 +3894,17 @@ paths:
         copy, and the id is referenced the same way on `sendMessage`. A
         session still short of its declared size answers 409. A full
         deployment drops the session.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the file is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "201":
           description: The stored attachment's metadata.
@@ -4771,6 +4800,17 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: before_id
+          in: query
+          description: >
+            The id of the last message on the previous page; returns only hits
+            after it in result order (newest first). Pages a search across
+            channels correctly, where `before`'s per-channel seq cannot, and
+            `before` is ignored when this is given. An id that names no
+            message answers 400.
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           description: Page size; the server clamps it.
@@ -4871,6 +4911,17 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: before_id
+          in: query
+          description: >
+            The id of the last message on the previous page; returns only hits
+            after it in result order (newest first). Pages a search across
+            channels correctly, where `before`'s per-channel seq cannot, and
+            `before` is ignored when this is given. An id that names no
+            message answers 400.
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           description: Page size; the server clamps it.
@@ -7953,7 +8004,9 @@ paths:
       description: >
         Gated on MANAGE_SERVER, like `/space/retention`. Counts live messages
         older than `days`, which the next sweep would prune if the window
-        were set to it. Nothing is changed. `0` (keep forever) counts none.
+        were set to it, leaving out channels with a window of their own
+        (`/channels/{channelId}/retention`). Nothing is changed. `0` (keep
+        forever) counts none.
       parameters:
         - name: days
           in: query
@@ -7975,6 +8028,101 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /channels/{channelId}/retention:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: getChannelRetention
+      tags: [channels]
+      summary: Read a channel's own message retention window.
+      description: >
+        Gated on MANAGE_SERVER, like `/space/retention`: keeping a channel
+        forever is an exemption from the Space's policy. `retention_days` is
+        null while the channel follows the Space. A thread follows its parent
+        and a DM follows the Space, so both answer 400.
+      responses:
+        "200":
+          description: The channel's window and the Space's.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelRetention"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: updateChannelRetention
+      tags: [channels]
+      summary: Set or clear a channel's own message retention window.
+      description: >
+        Null follows the Space again; `0` keeps the channel forever; any
+        other value (up to 3650) prunes its messages and its threads' once
+        they are that many days old, on the same sweep as the Space window.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelRetentionUpdate"
+      responses:
+        "200":
+          description: The windows after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelRetention"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /channels/{channelId}/retention/preview:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: previewChannelRetention
+      tags: [channels]
+      summary: Count what a channel window would prune now.
+      description: >
+        Live messages in the channel and its threads older than `days`.
+        Nothing is changed.
+      parameters:
+        - name: days
+          in: query
+          required: true
+          description: The window to preview, in days; 0 to 3650.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceRetentionPreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/canvas-cap:
@@ -10157,6 +10305,27 @@ components:
           format: int64
           description: Live messages older than the window right now.
 
+    ChannelRetention:
+      type: object
+      required: [retention_days, space_retention_days]
+      properties:
+        retention_days:
+          type: [integer, "null"]
+          format: int64
+          description: The channel's own window in days, or null to follow the Space; 0 keeps it forever.
+        space_retention_days:
+          type: integer
+          format: int64
+          description: The Space window this channel follows when it has none of its own.
+
+    ChannelRetentionUpdate:
+      type: object
+      required: [retention_days]
+      properties:
+        retention_days:
+          type: [integer, "null"]
+          format: int64
+
     SpaceCanvasCap:
       type: object
       required: [object_cap]
@@ -10187,6 +10356,12 @@ components:
         size:
           type: integer
           description: The whole file's size in bytes.
+        channel_id:
+          type: string
+          format: uuid
+          description: >
+            The channel the file is headed for; ATTACH_FILES is then checked
+            there, as uploadAttachment's channel_id does.
     UploadSession:
       type: object
       required: [id, size, offset, part_max_bytes, expires_at]
@@ -10402,6 +10577,23 @@ components:
             the schedule capability is approved and a channel is chosen.
           items:
             $ref: "#/components/schemas/DockSchedule"
+        changelog:
+          type: array
+          description: >
+            What each version changed, newest first, from the manifest's own
+            optional changelog; empty when the module publishes none.
+          items:
+            $ref: "#/components/schemas/DockChangelogEntry"
+    DockChangelogEntry:
+      type: object
+      required: [version, changes]
+      properties:
+        version:
+          type: string
+        changes:
+          type: array
+          items:
+            type: string
     DockSchedule:
       type: object
       required: [command, every_minutes]
@@ -13628,6 +13820,15 @@ components:
           description: >-
             The message this one replies to. Must already exist (live or
             soft-deleted) in this same channel, or the send is a 400.
+        mention_reply:
+          type: boolean
+          description: >-
+            On a reply, ping the replied-to author: they are added to this
+            message's mentions (mentions_me, an unread mention and a mention
+            push), unless they are the sender, a webhook, a deleted account,
+            or cannot see the channel. Ignored without reply_to_id. Defaults
+            to false. An edit keeps the ping while they can still see the
+            channel.
         forwarded_from_id:
           type: [string, "null"]
           format: uuid

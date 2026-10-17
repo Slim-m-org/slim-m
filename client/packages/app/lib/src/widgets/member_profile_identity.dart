@@ -52,10 +52,14 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
     super.key,
     required this.roles,
     required this.createdAt,
+    this.inviteCode,
   });
 
   final List<String> roles;
   final int createdAt;
+
+  /// Present only for a viewer who can manage roles; see `UserProfile.inviteCode`.
+  final String? inviteCode;
 
   @override
   Widget build(BuildContext context) {
@@ -81,11 +85,23 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.s8),
-          Text(
-            formatJoinDate(createdAt),
-            maxLines: 1,
-            softWrap: false,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatJoinDate(createdAt),
+                maxLines: 1,
+                softWrap: false,
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+              if (inviteCode case final code?)
+                Text(
+                  'with invite $code',
+                  maxLines: 1,
+                  softWrap: false,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+            ],
           ),
         ],
       ),

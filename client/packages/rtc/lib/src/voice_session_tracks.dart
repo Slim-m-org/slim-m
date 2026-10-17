@@ -73,6 +73,8 @@ extension VoiceSessionTracks on VoiceSession {
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
+    _stopStallWatch();
+    _capture.reset();
     final cancelEvents = _cancelEvents;
     _cancelEvents = null;
     if (cancelEvents != null) await _step(cancelEvents);
@@ -91,7 +93,15 @@ extension VoiceSessionTracks on VoiceSession {
     final room = _room;
     if (room == null) return false;
     try {
-      await room.localParticipant?.setMicrophoneEnabled(enabled);
+      final hadTrack = _mic.hasTrack;
+      final options = _micCaptureOptions();
+      await _mic.setEnabled(enabled, options);
+      if (enabled && options != null) {
+        if (!hadTrack) {
+          _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
+        }
+        _capture.retry();
+      }
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
       return true;
@@ -124,17 +134,10 @@ extension VoiceSessionTracks on VoiceSession {
     return result.ok;
   }
 
-  /// Delegates to [LocalAudioState.applyTo]; see that class for why this
-  /// runs on every room event rather than only when a control moves.
-  Future<void> _applyLocalAudioState(lk.Room room) async {
-    final failure = await _audio.applyTo(room);
-    if (failure != null) _lastError = failure;
-  }
-
   /// Moved here from the main class body for its 500-line hard ceiling:
   /// private plumbing, so an extension costs it nothing an
   /// `implements VoiceSession` fake would notice.
-  void _refreshParticipants() {
+  void _rebuildRoster() {
     final room = _room;
     if (room == null || _disposed) return;
 
@@ -160,7 +163,7 @@ extension VoiceSessionTracks on VoiceSession {
     );
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer =
-        recheck == null ? null : Timer(recheck, _refreshParticipants);
+        recheck == null ? null : Timer(recheck, _rebuildRoster);
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
     if (listEquals(next, _participants)) return;
     _participants = List.unmodifiable(next);

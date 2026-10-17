@@ -37,8 +37,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 
+import 'desktop_message_text_settings.dart';
+import 'desktop_notification_text.dart';
 import 'live_events.dart';
 import 'message_alert_policy.dart';
+import 'providers.dart';
 import 'push_controller.dart';
 
 final desktopMessageNotifierProvider = Provider<void>((ref) {
@@ -70,16 +73,28 @@ class _DesktopMessageNotifier {
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
     if (alert == null) return;
 
-    final author = message.authorDisplayName;
-    final text = author == null || author.isEmpty
-        ? 'New message'
-        : 'New message from $author';
+    // Read from storage, not the controller: the controller loads asynchronously and may still hold its default.
+    final prefs = await _ref.read(preferencesProvider.future);
+    final showText = prefs.getBool(desktopMessageTextKey) ?? true;
+    final channel = showText && !alert.isDm
+        ? await (await _ref.read(
+            storeProvider.future,
+          )).channelRow(message.channelId)
+        : null;
+    final text = desktopNotificationText(
+      message,
+      showText: showText,
+      isDm: alert.isDm,
+      channelName: channel?.name,
+    );
     final notifications = _ref.read(localNotificationsProvider);
     // The per-kind OS control only reaches a banner filed under the kind it is; see LocalAlertChannel.
     final alertChannel = alert.mentionsSelf
         ? LocalAlertChannel.mentions
         : LocalAlertChannel.messages;
     // Fire-and-forget: a failed notification must never break event handling.
-    unawaited(notifications.show(text, channel: alertChannel));
+    unawaited(
+      notifications.show(text.body, channel: alertChannel, title: text.title),
+    );
   }
 }

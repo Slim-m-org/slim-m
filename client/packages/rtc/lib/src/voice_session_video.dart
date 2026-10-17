@@ -53,5 +53,6 @@ extension VoiceSessionVideo on VoiceSession {
     _videoCuller.apply(
       mapVideoSubscriptionRefs(_remoteVideoPublications(room)),
     );
+    _syncStallWatch();
   }
 }

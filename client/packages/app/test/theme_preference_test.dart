@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/widgets/theme_choice_cards.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -139,7 +139,7 @@ void main() {
 
     expect(container.read(themeControllerProvider), AppThemeChoice.system);
 
-    await _choose(tester, 'True black');
+    await _choose(tester, AppThemeChoice.trueBlack);
 
     expect(
       container.read(themeControllerProvider),
@@ -173,7 +173,7 @@ void main() {
           AppThemeChoice.light;
       await _pumpSection(tester, container);
 
-      await _choose(tester, _labelOf(choice));
+      await _choose(tester, choice);
 
       expect(
         container.read(themeControllerProvider),
@@ -242,9 +242,7 @@ void main() {
 /// Opens the row's sheet and picks [label]. The options are no longer segments
 /// on the screen itself, so a tap has to go through the sheet to prove the row
 /// is wired to anything.
-Future<void> _choose(WidgetTester tester, String label) async {
-  await tester.tap(find.byType(SettingsSelectRow<AppThemeChoice>));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(label).last);
+Future<void> _choose(WidgetTester tester, AppThemeChoice choice) async {
+  await tester.tap(find.byKey(ThemeChoiceCards.cardKey(choice)));
   await tester.pumpAndSettle();
 }

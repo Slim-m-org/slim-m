@@ -121,10 +121,15 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
+    final carded = AppCardRowScope.of(context);
     final body = Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.s8,
-        vertical: widget.dense ? AppSpacing.s4 : AppSpacing.s8,
+        horizontal: carded ? AppCardRowScope.inset : AppSpacing.s8,
+        vertical: carded
+            ? 10
+            : widget.dense
+            ? AppSpacing.s4
+            : AppSpacing.s8,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -212,7 +217,7 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
         curve: AppMotion.entrance,
         decoration: BoxDecoration(
           color: _hovered ? tokens.surfaceSunken : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.control),
+          borderRadius: carded ? null : BorderRadius.circular(AppRadii.control),
         ),
         child: onTap == null
             ? body

@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'settings_section_header.dart';
+
 class ActivityGameList extends StatefulWidget {
   const ActivityGameList({super.key});
 
@@ -20,29 +22,42 @@ class _ActivityGameListState extends State<ActivityGameList> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppButton(
-            label: _open
-                ? 'Hide the ${gameAllowlist.length} listed games'
-                : 'Show the ${gameAllowlist.length} listed games',
-            variant: AppButtonVariant.ghost,
-            size: AppButtonSize.sm,
-            onPressed: () => setState(() => _open = !_open),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsSubRow(
+          label: 'Listed games',
+          semanticLabel: _open
+              ? 'Hide the listed games'
+              : 'Show the listed games',
+          onTap: () => setState(() => _open = !_open),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpacing.s4,
+            children: [
+              Text(
+                '${gameAllowlist.length} games',
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+              Icon(
+                _open ? AppIcons.chevronDown : AppIcons.chevronRight,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+            ],
           ),
-          if (_open)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s4),
-              child: Text(
+        ),
+        if (_open)
+          SettingsCardBlock(
+            children: [
+              Text(
                 gameAllowlist.map((game) => game.name).join(', '),
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
-            ),
-        ],
-      ),
+            ],
+          ),
+      ],
     );
   }
 }

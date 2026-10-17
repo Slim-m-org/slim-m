@@ -22,12 +22,7 @@ class PermissionsToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        AppSpacing.s12,
-        AppSpacing.s16,
-        AppSpacing.s8,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.s12),
       child: LayoutBuilder(
         builder: (context, box) {
           final compact = box.maxWidth < kCompactWidth;

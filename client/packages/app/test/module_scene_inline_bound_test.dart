@@ -6,6 +6,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,15 +61,17 @@ void main() {
       tester,
     ) async {
       final board = await _boardAt(tester, entry.value, _rectScene(300, 300));
-      expect(board.width, lessThanOrEqualTo(ModuleSceneFrame.maxInlineEdge));
-      expect(board.height, lessThanOrEqualTo(ModuleSceneFrame.maxInlineEdge));
-      expect(board.width, board.height);
-      expect(
-        board.width,
-        entry.value.width < ModuleSceneFrame.maxInlineEdge
-            ? entry.value.width
-            : ModuleSceneFrame.maxInlineEdge,
+      final edge = math.min(
+        ModuleSceneFrame.inlineEdge(entry.value.width),
+        math.max(
+          ModuleSceneFrame.minHeight,
+          entry.value.height * ModuleSceneFrame.viewportShare,
+        ),
       );
+      expect(board.width, lessThanOrEqualTo(edge));
+      expect(board.height, lessThanOrEqualTo(edge));
+      expect(board.width, board.height);
+      expect(board.width, entry.value.width < edge ? entry.value.width : edge);
     });
   }
 

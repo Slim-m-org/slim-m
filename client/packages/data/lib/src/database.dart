@@ -293,7 +293,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   /// How each schema version is reached, and why v3 throws the cache away.
   ///
@@ -395,6 +395,8 @@ class SlimmDatabase extends _$SlimmDatabase {
   ///
   /// v22 adds the four temporary-room columns, null until the next refresh.
   ///
+  /// v23 adds `pending_attachments.mentionReply`, null for every queued send.
+  ///
   /// v17 adds `channels.manuallyUnread` the same way: false for every existing
   /// row, and the next refresh reads each channel's real flag back from the
   /// server, since the refresher already fetches read state per channel.
@@ -475,6 +477,11 @@ class SlimmDatabase extends _$SlimmDatabase {
             await m.addColumn(channels, channels.userLimit);
             await m.addColumn(channels, channels.roomOwnerId);
             await m.addColumn(channels, channels.roomLocked);
+          }
+          // A table made by the v21 step above already has the column.
+          if (from >= 21 && from < 23) {
+            await m.addColumn(
+                pendingAttachments, pendingAttachments.mentionReply);
           }
           // v2's null display names and the pre-op-stream epoch are both
           // unreachable by a keyset sync. See the doc comment above.

@@ -379,11 +379,13 @@ impl Store {
             revoke_session_rows(&mut tx, *session_id, now).await?;
         }
 
+        let action = super::moderation_audit::ModerationAction::TotpCleared.as_str();
         sqlx::query!(
             "INSERT INTO moderation_audit_log (actor_id, subject_id, action, created_at)
-             VALUES (?, ?, 'totp_cleared', ?)",
+             VALUES (?, ?, ?, ?)",
             actor_id,
             user_id,
+            action,
             now
         )
         .execute(&mut *tx)

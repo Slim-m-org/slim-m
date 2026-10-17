@@ -57,12 +57,7 @@ class _CategorySyncBannerState extends ConsumerState<CategorySyncBanner>
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final error = actionError;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s8,
-      ),
+      padding: const EdgeInsets.only(bottom: AppSpacing.s12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

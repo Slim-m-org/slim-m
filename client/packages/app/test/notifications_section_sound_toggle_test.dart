@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/widgets/notification_status_banner.dart';
 import 'package:slimm_app/src/widgets/personal_status_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -44,13 +45,13 @@ void main() {
     await tester.pumpWidget(_wrap(const NotificationsSection()));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) =>
-            w is AppToggle &&
-            w.semanticLabel == 'Play a sound for messages, mentions and errors',
-      ),
+    final toggle = find.byWidgetPredicate(
+      (w) =>
+          w is AppToggle &&
+          w.semanticLabel == 'Play a sound for messages, mentions and errors',
     );
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
@@ -60,13 +61,13 @@ void main() {
     );
   });
 
-  testWidgets('the push-status row is an AppListRow, never a bare ListTile', (
+  testWidgets('the push status is a banner, never a bare ListTile', (
     tester,
   ) async {
     await tester.pumpWidget(_wrap(const NotificationsSection()));
     await tester.pumpAndSettle();
 
     expect(find.byType(ListTile), findsNothing);
-    expect(find.byType(AppListRow), findsWidgets);
+    expect(find.byType(NotificationStatusBanner), findsOneWidget);
   });
 }

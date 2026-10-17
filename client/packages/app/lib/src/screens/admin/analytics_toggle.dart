@@ -65,19 +65,14 @@ class _AnalyticsToggleHeaderState extends State<AnalyticsToggleHeader> {
         ],
       );
     }
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return SettingsSectionCard(
       children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(minHeight: AppListRow.heightFor(context)),
-          child: Row(
+        AppListRow(
+          label: 'Space analytics is on',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpacing.s4,
             children: [
-              Expanded(
-                child: Text(
-                  'Space analytics is on',
-                  style: AppText.ui.copyWith(color: tokens.textPrimary),
-                ),
-              ),
               AppIconButton(
                 icon: AppIcons.info,
                 active: _explanationOpen,
@@ -90,7 +85,6 @@ class _AnalyticsToggleHeaderState extends State<AnalyticsToggleHeader> {
                 onPressed: () =>
                     setState(() => _explanationOpen = !_explanationOpen),
               ),
-              const SizedBox(width: AppSpacing.s4),
               AppToggle(
                 value: true,
                 onChanged: widget.busy ? null : widget.onChanged,
@@ -99,13 +93,8 @@ class _AnalyticsToggleHeaderState extends State<AnalyticsToggleHeader> {
             ],
           ),
         ),
-        if (_explanationOpen) ...[
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            analyticsToggleDescription,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ],
+        if (_explanationOpen)
+          const SettingsSubRow(label: analyticsToggleDescription),
       ],
     );
   }

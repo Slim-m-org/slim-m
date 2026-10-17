@@ -130,6 +130,7 @@ void main() {
               'frameHeight': 360,
               'framesPerSecond': 24,
               'framesDropped': 7,
+              'framesDecoded': 1234,
               'freezeCount': 2,
               'totalFreezesDuration': 1.5,
               'pauseCount': 1,
@@ -151,6 +152,7 @@ void main() {
       );
       final s = sample.streams.single;
       expect(s.framesDropped, 7);
+      expect(s.framesDecoded, 1234);
       expect(s.freezeCount, 2);
       expect(s.freezeSeconds, 1.5);
       expect(s.pauseCount, 1);

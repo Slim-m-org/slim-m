@@ -15,7 +15,7 @@
 use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{SessionId, UserId};
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::sessions::revoke_session_rows;
 use super::{Store, now_ms};
 
@@ -97,7 +97,7 @@ impl Store {
             ModerationAudit {
                 actor_id: issued_by,
                 subject_id: user_id,
-                action: "reset_code_issue",
+                action: ModerationAction::ResetCodeIssue,
                 reason: None,
                 until: None,
                 created_at: now,

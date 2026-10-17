@@ -13,9 +13,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/providers.dart';
 import '../../routing/routes.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'channel_permissions_grid.dart';
-import 'overwrite_target_picker_sheets.dart';
+import '../../providers/dms.dart' show dmChannelKind;
 
 class ChannelPermissionsScreen extends StatelessWidget {
   const ChannelPermissionsScreen({super.key, this.initialChannel});
@@ -68,68 +70,32 @@ class _ChannelPermissionsPaneState
     _channel = widget.initialChannel;
   }
 
-  Future<void> _pickChannel() async {
-    final store = await ref.read(storeProvider.future);
-    final channels = await store.watchChannels().first;
-    if (!mounted) return;
-    final picked = await showAppSheet<Channel>(
-      context,
-      builder: (context) => ChannelPickerSheet(channels: channels),
-    );
-    if (picked == null || !mounted) return;
-    setState(() => _channel = picked);
-  }
-
   @override
   Widget build(BuildContext context) {
     final channel = _channel;
     if (channel == null) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppListRow(
-              label: 'Choose a channel',
-              trailing: const Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
-              ),
-              onTap: _pickChannel,
-            ),
-          ],
-        ),
+      return _ChannelList(
+        onPick: (picked) => setState(() => _channel = picked),
       );
     }
 
     final header = widget.lockChannel
         ? null
-        : Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              AppSpacing.s12,
-              AppSpacing.s16,
-              AppSpacing.s4,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
-                  size: AppSizes.icon16,
+        : SettingsSectionCard(
+            children: [
+              SettingsDetailRow(
+                icon: channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+                title: channel.name,
+                detail: 'Permission overwrites',
+                trailing: AppButton(
+                  label: 'All channels',
+                  semanticLabel: 'Back to all channels',
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  onPressed: () => setState(() => _channel = null),
                 ),
-                const SizedBox(width: AppSpacing.s8),
-                Expanded(
-                  child: Text(
-                    '${channel.name} · Permissions',
-                    style: AppText.heading,
-                  ),
-                ),
-                TextButton(
-                  onPressed: _pickChannel,
-                  child: const Text('Change'),
-                ),
-              ],
-            ),
+              ),
+            ],
           );
     final grid = ChannelPermissionsGrid(
       key: ValueKey(channel.id),
@@ -141,10 +107,58 @@ class _ChannelPermissionsPaneState
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (header != null) header,
+          if (header != null) ...[
+            header,
+            const SizedBox(height: AppSpacing.s12),
+          ],
           constraints.hasBoundedHeight ? Expanded(child: grid) : grid,
         ],
       ),
+    );
+  }
+}
+
+/// Every channel at once, in rail order, so picking one is a single tap
+/// rather than a row that opens a sheet. A DM carries no overwrites.
+class _ChannelList extends ConsumerWidget {
+  const _ChannelList({required this.onPick});
+
+  final ValueChanged<Channel> onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(storeProvider).valueOrNull;
+    if (store == null) return const SizedBox.shrink();
+    return StreamBuilder<List<Channel>>(
+      stream: store.watchChannels(),
+      builder: (context, snapshot) {
+        final card = SettingsSectionCard(
+          children: [
+            for (final c in snapshot.data ?? const <Channel>[])
+              if (c.kind != dmChannelKind)
+                AppListRow(
+                  leading: Icon(
+                    c.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+                    size: AppSizes.icon16,
+                  ),
+                  label: c.name,
+                  trailing: (c.restricted ?? false)
+                      ? const Icon(
+                          AppIcons.restrictedChannel,
+                          size: AppSizes.icon16,
+                        )
+                      : null,
+                  onTap: () => onPick(c),
+                ),
+          ],
+        );
+        // The routed screen gives a bounded height; the Space settings pane already scrolls.
+        return LayoutBuilder(
+          builder: (context, constraints) => constraints.hasBoundedHeight
+              ? SingleChildScrollView(child: card)
+              : card,
+        );
+      },
     );
   }
 }

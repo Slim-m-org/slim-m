@@ -128,7 +128,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final toggleNode = tester.getSemantics(pttToggle);
+      final toggleNode = tester.getSemantics(
+        find.bySemanticsLabel('Push-to-talk'),
+      );
       expect(toggleNode.label, contains('Push-to-talk'));
       expect(
         toggleNode.getSemanticsData().hasAction(SemanticsAction.tap),

@@ -272,7 +272,17 @@ class _AppInputState extends State<AppInput> {
         ),
         borderRadius: BorderRadius.circular(AppRadii.control + 2),
       ),
-      child: field,
+      // The whole box is the target; the text line alone left most of it dead to a tap.
+      child: MouseRegion(
+        cursor: widget.enabled ? SystemMouseCursors.text : MouseCursor.defer,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          // The field inside already says everything a screen reader needs.
+          excludeFromSemantics: true,
+          onTap: widget.enabled ? _focusNode.requestFocus : null,
+          child: field,
+        ),
+      ),
     );
 
     return Semantics(

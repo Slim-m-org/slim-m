@@ -10,8 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../widgets/settings_info_line.dart';
+import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+import 'dock_changelog_card.dart';
 import 'dock_command_panel_group.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
@@ -101,19 +104,26 @@ class DockManifestView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // No title row: the app bar already names the module; see this class's doc.
-        Text(
-          manifest.author == null
-              ? 'v${manifest.version}'
-              : 'v${manifest.version} · ${manifest.author}',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                manifest.author == null
+                    ? 'v${manifest.version}'
+                    : 'v${manifest.version} · ${manifest.author}',
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(
+                  color: tokens.textSecondary,
+                  fontFamily: AppFonts.mono,
+                ),
+              ),
+            ),
+            if (verified) ...[
+              const SizedBox(width: AppSpacing.s8),
+              const DockVerifiedBadge(),
+            ],
+          ],
         ),
-        if (verified) ...[
-          const SizedBox(height: AppSpacing.s8),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: DockVerifiedBadge(),
-          ),
-        ],
         if (sourceRepo != null) ...[
           const SizedBox(height: AppSpacing.s8),
           AppBadge(
@@ -126,16 +136,15 @@ class DockManifestView extends StatelessWidget {
           manifest.summary,
           style: AppText.body.copyWith(color: tokens.textPrimary),
         ),
-        const SizedBox(height: AppSpacing.s16),
+        DockChangelogCard(
+          manifest: manifest,
+          installedVersion: installed?.version,
+        ),
         _PermissionsCard(permissions: manifest.permissions),
-        if (manifest.extensionPoints.any((ep) => ep.kind != 'command')) ...[
-          const SizedBox(height: AppSpacing.s16),
+        if (manifest.extensionPoints.any((ep) => ep.kind != 'command'))
           DockWhatItAddsCard(extensionPoints: manifest.extensionPoints),
-        ],
-        const SizedBox(height: AppSpacing.s16),
         DockLimitsCard(manifest: manifest),
-        if (grantableHostCapabilities(manifest.capabilities).isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.s16),
+        if (grantableHostCapabilities(manifest.capabilities).isNotEmpty)
           DockHostAccessCard(
             manifest: manifest,
             approved: approvedHostCapabilities,
@@ -146,11 +155,9 @@ class DockManifestView extends StatelessWidget {
             reapprove: reapprove,
             enabled: !busy,
           ),
-        ],
         if (installed != null &&
             installed!.approvedHostCapabilities.contains('schedule') &&
-            onScheduleChannel != null) ...[
-          const SizedBox(height: AppSpacing.s16),
+            onScheduleChannel != null)
           DockScheduleCard(
             schedules: installed!.schedules,
             channels: scheduleChannels,
@@ -158,8 +165,6 @@ class DockManifestView extends StatelessWidget {
             onChannel: onScheduleChannel!,
             enabled: !busy,
           ),
-        ],
-        const SizedBox(height: AppSpacing.s16),
         _ActionsCard(
           manifest: manifest,
           installed: installed,
@@ -175,13 +180,11 @@ class DockManifestView extends StatelessWidget {
           AppErrorState(message: error!, onDismiss: onErrorDismiss),
         ],
         if (_runnableCommands(installed) case final commands
-            when commands.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.s16),
+            when commands.isNotEmpty)
           DockCommandPanelGroup(
             moduleId: installed!.id,
             extensionPoints: commands,
           ),
-        ],
       ],
     );
   }
@@ -220,44 +223,16 @@ class _PermissionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    if (permissions.isEmpty) {
-      return SettingsSectionCard(
-        title: 'Permissions this will add',
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            child: Text(
-              'None. This module adds no grantable permission.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ),
-        ],
-      );
-    }
     return SettingsSectionCard(
       title: 'Permissions this will add',
       children: [
-        for (final p in permissions)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: AppSpacing.s4,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.name,
-                  style: AppText.body.copyWith(color: tokens.textPrimary),
-                ),
-                Text(
-                  p.description,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ],
-            ),
-          ),
+        if (permissions.isEmpty)
+          const SettingsInfoLine(
+            'None. This module adds no grantable permission.',
+          )
+        else
+          for (final p in permissions)
+            SettingsDetailRow(title: p.name, detail: p.description),
       ],
     );
   }
@@ -319,7 +294,6 @@ class _ActionsCard extends StatelessWidget {
             'use it, and whether it is on.',
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
-          const SizedBox(height: AppSpacing.s16),
         ],
         if (hostAccessChanged && !outdated) ...[
           AppButton(
@@ -329,7 +303,6 @@ class _ActionsCard extends StatelessWidget {
             disabled: busy,
             onPressed: onInstall,
           ),
-          const SizedBox(height: AppSpacing.s16),
         ],
         SettingsSectionCard(
           children: [
@@ -342,26 +315,29 @@ class _ActionsCard extends StatelessWidget {
                   ? '${manifest.name} enabled'
                   : '${manifest.name} disabled',
             ),
+            // Installed grants nothing, so this is the step to it appearing at all.
+            if (manifest.permissions.isNotEmpty)
+              SettingsActionRow(
+                message: 'Which roles may use it.',
+                action: AppButton(
+                  label: 'Choose who can use this',
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  disabled: busy,
+                  onPressed: onChooseAccess,
+                ),
+              ),
+            SettingsActionRow(
+              message: 'Remove it from this space.',
+              action: AppButton(
+                label: 'Uninstall',
+                variant: AppButtonVariant.danger,
+                size: AppButtonSize.sm,
+                disabled: busy,
+                onPressed: onUninstall,
+              ),
+            ),
           ],
-        ),
-        if (manifest.permissions.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.s12),
-          // Installed grants nothing, so this is the step to it appearing at all.
-          AppButton(
-            label: 'Choose who can use this',
-            variant: AppButtonVariant.secondary,
-            full: true,
-            disabled: busy,
-            onPressed: onChooseAccess,
-          ),
-        ],
-        const SizedBox(height: AppSpacing.s12),
-        AppButton(
-          label: 'Uninstall',
-          variant: AppButtonVariant.danger,
-          full: true,
-          disabled: busy,
-          onPressed: onUninstall,
         ),
       ],
     );

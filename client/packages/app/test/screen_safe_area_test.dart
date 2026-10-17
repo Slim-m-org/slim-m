@@ -32,6 +32,7 @@ import 'package:slimm_app/src/screens/sign_in_screen.dart';
 import 'package:slimm_app/src/screens/voice_screen.dart';
 import 'package:slimm_app/src/screens/personal_settings_screen.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
+import 'package:slimm_data/data.dart' as data show Channel, MessageStore;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -304,6 +305,18 @@ Future<ProviderContainer> _pump(
 }
 
 /// The whole point: nothing drawn may reach past the home indicator's edge.
+/// Answers [watchChannels] from a fixed list; drift's own streams stall under the test clock.
+class _ChannelsOnlyStore implements data.MessageStore {
+  _ChannelsOnlyStore(this.channels);
+  final List<data.Channel> channels;
+
+  @override
+  Stream<List<data.Channel>> watchChannels() => Stream.value(channels);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void _expectClearOfIndicator(WidgetTester tester, Finder finder, String what) {
   expect(
     tester.getRect(finder).bottom,
@@ -370,7 +383,7 @@ void main() {
       tester,
       find
           .ancestor(
-            of: find.text('The queue is empty.'),
+            of: find.text('The queue is empty'),
             matching: find.byType(ListView),
           )
           .first,
@@ -384,16 +397,36 @@ void main() {
     _expectClearOfIndicator(tester, find.byType(ListView), 'the emoji list');
   });
 
-  testWidgets('the channel permissions picker is inset', (tester) async {
-    await _pump(tester, const ChannelPermissionsScreen());
+  testWidgets('the channel permissions list is inset', (tester) async {
+    final store = _ChannelsOnlyStore([
+      for (var i = 0; i < 30; i++)
+        data.Channel(
+          id: 'c$i',
+          name: 'channel-$i',
+          kind: 'text',
+          createdAt: 0,
+          position: i,
+          cursor: 0,
+          lastReadSeq: 0,
+          mentionedSeq: 0,
+          slowModeSeconds: 0,
+          joinMuted: false,
+          isPersonalSpace: false,
+        ),
+    ]);
+    await _pump(
+      tester,
+      const ChannelPermissionsScreen(),
+      overrides: [storeProvider.overrideWith((ref) async => store)],
+    );
+    await tester.pumpAndSettle();
 
-    // No channel chosen yet: the pane is a plain "Choose a channel" row, not
-    // a ListView - `ChannelPermissionsPane` is `scrollable: false` and the
-    // grid itself only mounts once a channel is picked.
+    // Thirty channels overflow the screen, so the list must stop above the home indicator.
+    expect(find.text('channel-0'), findsOneWidget);
     _expectClearOfIndicator(
       tester,
-      find.byType(AppListRow),
-      'the channel picker',
+      find.byType(SingleChildScrollView).last,
+      'the channel list',
     );
   });
 

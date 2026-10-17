@@ -61,7 +61,7 @@
 //! bounding staleness to a fraction of a second while capping the read rate
 //! to a handful per second regardless of how fast connections arrive.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -121,15 +121,46 @@ fn discover_limit() -> Option<u64> {
     {
         return Some(bytes);
     }
-    read_v2_limit().or_else(read_v1_limit)
+    v2_limited_dir()
+        .map(|(_, limit)| limit)
+        .or_else(read_v1_limit)
 }
 
 fn discover_usage() -> Option<u64> {
-    read_v2_usage().or_else(read_v1_usage)
+    let dir = v2_limited_dir().map_or_else(|| PathBuf::from(CGROUP_V2_ROOT), |(dir, _)| dir);
+    read_v2_usage(&dir).or_else(read_v1_usage)
 }
 
-fn read_v2_limit() -> Option<u64> {
-    let raw = std::fs::read_to_string(Path::new(CGROUP_V2_ROOT).join("memory.max")).ok()?;
+/// The cgroup v2 directory that bounds this process, and its limit.
+fn v2_limited_dir() -> Option<(PathBuf, u64)> {
+    let self_cgroup = std::fs::read_to_string("/proc/self/cgroup").unwrap_or_default();
+    nearest_v2_limit(Path::new(CGROUP_V2_ROOT), &self_cgroup)
+}
+
+/// Walks from the process's own cgroup (the `0::<path>` line of
+/// `/proc/self/cgroup`) up to `root`, returning the first directory with a
+/// numeric `memory.max`. Inside a container with its own cgroup namespace the
+/// path is `/` and this reads the root, as before; on a host or under a
+/// systemd slice the limit lives further down, where reading only the root
+/// found nothing.
+fn nearest_v2_limit(root: &Path, self_cgroup: &str) -> Option<(PathBuf, u64)> {
+    let relative = self_cgroup
+        .lines()
+        .find_map(|line| line.strip_prefix("0::"))
+        .map_or("", |path| path.trim().trim_start_matches('/'));
+    let mut dir = root.join(relative);
+    loop {
+        if let Some(limit) = read_v2_limit(&dir) {
+            return Some((dir, limit));
+        }
+        if dir == root || !dir.pop() || !dir.starts_with(root) {
+            return None;
+        }
+    }
+}
+
+fn read_v2_limit(dir: &Path) -> Option<u64> {
+    let raw = std::fs::read_to_string(dir.join("memory.max")).ok()?;
     let raw = raw.trim();
     if raw == "max" {
         return None;
@@ -137,9 +168,9 @@ fn read_v2_limit() -> Option<u64> {
     raw.parse().ok()
 }
 
-fn read_v2_usage() -> Option<u64> {
-    let current = read_u64_file(&Path::new(CGROUP_V2_ROOT).join("memory.current"))?;
-    let stat = std::fs::read_to_string(Path::new(CGROUP_V2_ROOT).join("memory.stat")).ok()?;
+fn read_v2_usage(dir: &Path) -> Option<u64> {
+    let current = read_u64_file(&dir.join("memory.current"))?;
+    let stat = std::fs::read_to_string(dir.join("memory.stat")).ok()?;
     let inactive_file = parse_stat_field(&stat, "inactive_file").unwrap_or(0);
     Some(current.saturating_sub(inactive_file))
 }
@@ -353,5 +384,30 @@ mod tests {
     fn a_missing_field_in_memory_stat_is_none_not_a_default() {
         let stat = "anon 12345678\nfile 87654321\n";
         assert_eq!(parse_stat_field(stat, "inactive_file"), None);
+    }
+
+    fn fake_tree(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("{name}-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(root.join("user.slice/app.scope")).unwrap();
+        std::fs::write(root.join("memory.max"), "max\n").unwrap();
+        std::fs::write(root.join("user.slice/memory.max"), "1073741824\n").unwrap();
+        std::fs::write(root.join("user.slice/app.scope/memory.max"), "max\n").unwrap();
+        root
+    }
+
+    #[test]
+    fn the_limit_is_found_on_the_nearest_ancestor_of_the_process_cgroup() {
+        let root = fake_tree("slimm-cgroup-nested");
+        let found = nearest_v2_limit(&root, "0::/user.slice/app.scope\n");
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(found, Some((root.join("user.slice"), 1_073_741_824)));
+    }
+
+    #[test]
+    fn a_namespaced_process_reads_the_root_and_unlimited_is_none() {
+        let root = fake_tree("slimm-cgroup-root");
+        let found = nearest_v2_limit(&root, "0::/\n");
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(found, None);
     }
 }

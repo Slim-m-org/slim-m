@@ -17,9 +17,10 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import 'attachment_format.dart';
+import 'settings_meter_row.dart';
+import 'settings_refresh_button.dart';
 import 'settings_section_header.dart';
 
 import 'memory_diagnostics_io.dart'
@@ -33,91 +34,48 @@ class MemoryDiagnostics extends StatefulWidget {
 }
 
 class _MemoryDiagnosticsState extends State<MemoryDiagnostics> {
+  DateTime _updated = DateTime.now();
+
+  String get _updatedLabel {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return 'Updated ${two(_updated.hour)}:${two(_updated.minute)}:'
+        '${two(_updated.second)}.';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final cache = PaintingBinding.instance.imageCache;
     final rss = currentResidentBytes();
 
     return SettingsSectionCard(
+      title: 'Memory',
+      description: _updatedLabel,
+      trailing: SettingsRefreshButton(
+        label: 'Refresh memory readout',
+        onPressed: () => setState(() => _updated = DateTime.now()),
+      ),
       children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Memory',
-                      style: AppText.ui.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: AppWeights.semi,
-                      ),
-                    ),
-                  ),
-                  AppIconButton(
-                    icon: AppIcons.retry,
-                    semanticLabel: 'Refresh memory readout',
-                    size: AppIconButtonSize.sm,
-                    onPressed: () => setState(() {}),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.s8),
-              _Line(
-                label: 'Resident set (process)',
-                value: rss == null ? 'unavailable on web' : formatByteSize(rss),
-                tokens: tokens,
-              ),
-              _Line(
-                label: 'Image cache',
-                value:
-                    '${formatByteSize(cache.currentSizeBytes)} of '
-                    '${formatByteSize(cache.maximumSizeBytes)}',
-                tokens: tokens,
-              ),
-              _Line(
-                label: 'Image cache entries',
-                value: '${cache.currentSize} of ${cache.maximumSize}',
-                tokens: tokens,
-              ),
-            ],
+        if (rss != null)
+          SettingsMeterRow(
+            label: 'Resident set (process)',
+            value: formatByteSize(rss),
           ),
+        SettingsMeterRow(
+          label: 'Image cache',
+          value: formatByteSize(cache.currentSizeBytes),
+          of: 'of ${formatByteSize(cache.maximumSizeBytes)}',
+          fraction: meterFraction(
+            cache.currentSizeBytes,
+            cache.maximumSizeBytes,
+          ),
+        ),
+        SettingsMeterRow(
+          label: 'Image cache entries',
+          value: '${cache.currentSize}',
+          of: 'of ${cache.maximumSize}',
+          fraction: meterFraction(cache.currentSize, cache.maximumSize),
         ),
       ],
     );
   }
-}
-
-class _Line extends StatelessWidget {
-  const _Line({required this.label, required this.value, required this.tokens});
-
-  final String label;
-  final String value;
-  final AppTokens tokens;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ),
-        Text(
-          value,
-          style: AppText.caption.copyWith(
-            color: tokens.textPrimary,
-            fontFamily: AppFonts.mono,
-          ),
-        ),
-      ],
-    ),
-  );
 }

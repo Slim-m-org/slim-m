@@ -30,6 +30,7 @@ import '../providers/channel_history.dart';
 import '../providers/channel_permissions.dart';
 import '../providers/channel_search_controller.dart';
 import '../providers/emoji_catalog_provider.dart';
+import '../providers/ephemeral_messages.dart';
 import '../providers/member_presence.dart';
 import '../providers/message_actions.dart';
 import '../providers/message_editing.dart';
@@ -40,6 +41,7 @@ import '../providers/sync_controller.dart';
 import '../providers/user_profiles.dart';
 import '../widgets/channel_search.dart';
 import '../widgets/dismiss_keyboard_on_drag.dart';
+import '../widgets/ephemeral_report.dart';
 import '../widgets/jump_to_latest_button.dart';
 import '../widgets/message_jump.dart';
 import '../widgets/message_transcript.dart';
@@ -146,6 +148,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
               const <api.PinnedMessage>[])
         p.message.id,
     };
+    final privateAnswers = ref.watch(
+      channelEphemeralMessagesProvider(channelId),
+    );
     final jumpArrival = watchMessageJump(ref, context, channelId);
 
     return Expanded(
@@ -192,10 +197,10 @@ class ChannelTranscriptPane extends ConsumerWidget {
                         final transcript = visibleTranscript(rows, blocked);
                         final oldest = oldestDeliveredSeq(rows);
                         paging.syncOldest(oldest);
-                        resolveAuthorProfiles(
-                          ref,
-                          transcript.messages.map((m) => m.authorId),
-                        );
+                        resolveAuthorProfiles(ref, [
+                          ...transcript.messages.map((m) => m.authorId),
+                          ...privateAnswers.map((m) => m.authorId),
+                        ]);
                         // A deleted newest message leaves nothing to show, but must not leave the channel unread.
                         final readUpTo = math.max(
                           transcript.newestSeq,
@@ -214,6 +219,12 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           channelId: channelId,
                           selfId: ref.read(sessionProvider).tokens?.userId,
                           messages: transcript.messages,
+                          privateAnswers: privateAnswers,
+                          onDismissPrivate: (m) => ref
+                              .read(ephemeralMessagesProvider.notifier)
+                              .dismiss(channelId, m.id),
+                          onReportPrivate: (m) =>
+                              unawaited(reportEphemeralMessage(context, m)),
                           syncStatus: syncStatus,
                           historyKnown: historyKnown,
                           channelName: hashChannelName,

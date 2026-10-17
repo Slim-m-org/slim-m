@@ -19,7 +19,9 @@ import '../../widgets/color_swatch_row.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/role_color.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
+import '../../widgets/settings_toggle_row.dart';
 
 class RoleDisplayTab extends ConsumerStatefulWidget {
   const RoleDisplayTab({super.key, required this.role});
@@ -117,140 +119,102 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final role = widget.role;
+    final unchanged =
+        _name.text.trim().isEmpty || _name.text.trim() == role.name;
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.s16),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.s24, 0, AppSpacing.s24, 40),
       children: [
         SettingsSectionCard(
           title: 'Name',
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: roleColor(role.id, color: role.color),
-                    shape: BoxShape.circle,
+            if (role.isEveryone)
+              SettingsDetailRow(title: role.name)
+            else
+              SettingsCardBlock(
+                gap: AppSpacing.s12,
+                children: [
+                  AppInput(
+                    maxLength: api.InputLimits.name,
+                    controller: _name,
+                    placeholder: 'Role name',
+                    semanticLabel: 'Role name',
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _renameIfChanged(),
                   ),
-                  child: const SizedBox(width: 16, height: 16),
-                ),
-                const SizedBox(width: AppSpacing.s12),
-                Expanded(
-                  child: role.isEveryone
-                      ? Text(
-                          role.name,
-                          style: AppText.ui.copyWith(color: tokens.textPrimary),
-                        )
-                      : AppInput(
-                          maxLength: api.InputLimits.name,
-                          controller: _name,
-                          placeholder: 'Role name',
-                          semanticLabel: 'Role name',
-                          onChanged: (_) => setState(() {}),
-                          onSubmitted: (_) => _renameIfChanged(),
-                        ),
-                ),
-              ],
-            ),
-            if (!role.isEveryone) ...[
-              const SizedBox(height: AppSpacing.s8),
-              AppButton(
-                label: 'Save name',
-                variant: AppButtonVariant.secondary,
-                size: AppButtonSize.sm,
-                disabled:
-                    _name.text.trim().isEmpty || _name.text.trim() == role.name,
-                onPressed: _renameIfChanged,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AppButton(
+                      label: 'Save name',
+                      variant: AppButtonVariant.secondary,
+                      size: AppButtonSize.sm,
+                      disabled: unchanged,
+                      onPressed: _renameIfChanged,
+                    ),
+                  ),
+                ],
               ),
-            ],
           ],
         ),
-        const SizedBox(height: AppSpacing.s12),
         SettingsSectionCard(
           title: 'Colour',
           description: 'Marks this role in the roles list.',
           children: [
-            ColorSwatchRow(
-              label: 'Role colour',
-              colors: [for (final entry in rolePalette) entry.color],
-              names: [for (final entry in rolePalette) entry.name],
-              selected: rolePaletteIndex(role.id, role.color),
-              onSelect: _setColor,
+            SettingsCardBlock(
+              children: [
+                ColorSwatchRow(
+                  label: 'Role colour',
+                  colors: [for (final entry in rolePalette) entry.color],
+                  names: [for (final entry in rolePalette) entry.name],
+                  selected: rolePaletteIndex(role.id, role.color),
+                  onSelect: _setColor,
+                ),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.s12),
         if (!role.isEveryone)
           SettingsSectionCard(
-            title: 'Mentions',
-            description:
-                'Anyone can mention this role, whatever their permissions.',
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            title: 'Display',
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Anyone can @mention this role',
-                      style: AppText.ui.copyWith(color: tokens.textPrimary),
-                    ),
-                  ),
-                  AppToggle(
-                    value: role.mentionable,
-                    onChanged: _setMentionable,
-                    semanticLabel: 'Anyone can @mention this role',
-                  ),
-                ],
+              SettingsToggleRow(
+                label: 'Anyone can @mention this role',
+                description: 'Whatever their permissions.',
+                semanticLabel: 'Anyone can @mention this role',
+                value: role.mentionable,
+                onChanged: _setMentionable,
+              ),
+              SettingsToggleRow(
+                label: 'Display role members separately',
+                description: 'Gives this role its own heading above Online.',
+                semanticLabel: 'Display role members separately',
+                value: role.hoist,
+                onChanged: _setHoist,
               ),
             ],
           ),
-        if (!role.isEveryone) ...[
-          const SizedBox(height: AppSpacing.s12),
-          SettingsSectionCard(
-            title: 'Member list',
-            description: 'Gives this role its own heading above Online.',
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Display role members separately',
-                      style: AppText.ui.copyWith(color: tokens.textPrimary),
-                    ),
-                  ),
-                  AppToggle(
-                    value: role.hoist,
-                    onChanged: _setHoist,
-                    semanticLabel: 'Display role members separately',
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
         if (actionError case final error?) ...[
           const SizedBox(height: AppSpacing.s12),
           AppErrorState(message: error, onDismiss: clearActionError),
         ],
-        if (!role.isEveryone) ...[
-          const SizedBox(height: AppSpacing.s12),
+        if (!role.isEveryone)
           SettingsSectionCard(
             title: 'Danger zone',
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AppButton(
-                label: 'Delete role',
-                variant: AppButtonVariant.danger,
-                full: true,
-                disabled: _busy,
-                onPressed: _delete,
+              SettingsActionRow(
+                message:
+                    'Members holding this role lose what it grants immediately.',
+                action: AppButton(
+                  label: 'Delete role',
+                  variant: AppButtonVariant.danger,
+                  size: AppButtonSize.sm,
+                  disabled: _busy,
+                  onPressed: _delete,
+                ),
               ),
             ],
           ),
-        ],
       ],
     );
   }

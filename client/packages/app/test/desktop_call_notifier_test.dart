@@ -31,8 +31,11 @@ class _FakeNotifications implements LocalNotifications {
   final cancelled = <LocalAlertChannel>[];
 
   @override
-  Future<void> show(String text, {required LocalAlertChannel channel}) async =>
-      shown.add(channel);
+  Future<void> show(
+    String text, {
+    required LocalAlertChannel channel,
+    String? title,
+  }) async => shown.add(channel);
 
   @override
   Future<void> cancel(LocalAlertChannel channel) async =>

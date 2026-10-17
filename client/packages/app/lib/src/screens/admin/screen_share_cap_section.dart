@@ -16,8 +16,9 @@ import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../widgets/optimistic_setting_state.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/success_flash.dart';
+import '../../widgets/settings_segmented_block.dart';
 
 /// The screen-share resolution ceiling; index-matched to the segmented
 /// options below. All lie inside the server's settable range (360 to 2160),
@@ -82,38 +83,39 @@ class _ScreenShareCapSectionState extends ConsumerState<ScreenShareCapSection>
         : presetsIncluding(_screenShareCapOptions, current, (h) => '${h}p');
     final selectedIndex = options.indexWhere((o) => o.$2 == current);
 
-    return SettingsSectionCard(
-      title: 'Screen share quality',
-      description: 'The tallest resolution a share may use.',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppSegmentedControl.inline(
-          semanticLabel: 'Screen share resolution ceiling',
-          options: [
-            for (final option in options)
-              AppSegmentedOption(label: option.$1, disabled: saving),
+        SettingsSectionCard(
+          title: 'Screen share quality',
+          description: 'The tallest resolution a share may use.',
+          children: [
+            SettingsSegmentedBlock(
+              semanticLabel: 'Screen share resolution ceiling',
+              labels: [for (final option in options) option.$1],
+              selectedIndex: selectedIndex,
+              disabled: saving,
+              onSelected: (i) => _setMaxHeight(options[i].$2),
+            ),
+            if (current != null)
+              SettingsSubRow(label: screenShareCapConsequence(current)),
+            if (ceiling.hasError && current == null)
+              SettingsCardBlock(
+                children: [
+                  AppErrorState(
+                    message: 'Could not load the current ceiling.',
+                    onRetry: () =>
+                        ref.invalidate(spaceScreenShareCeilingProvider),
+                  ),
+                ],
+              ),
           ],
-          selectedIndex: selectedIndex,
-          onSegmentSelected: (i) => _setMaxHeight(options[i].$2),
         ),
-        if (current != null) ...[
-          const SizedBox(height: AppSpacing.s12),
-          AppCallout(
-            tone: AppCalloutTone.info,
-            child: Text(screenShareCapConsequence(current)),
-          ),
-        ],
-        if (ceiling.hasError && current == null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(
-            message: 'Could not load the current ceiling.',
-            onRetry: () => ref.invalidate(spaceScreenShareCeilingProvider),
-          ),
-        ],
-        SuccessFlash(tick: successTick),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        SettingsSaveFeedback(
+          tick: successTick,
+          error: actionError,
+          onDismissError: clearActionError,
+        ),
       ],
     );
   }

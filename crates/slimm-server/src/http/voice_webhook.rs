@@ -69,20 +69,24 @@ fn apply(state: &AppState, event: WebhookEvent) {
     else {
         return;
     };
-    let Some(user_id) = event
+    let live_state = state.voice.live_state();
+    if event.event == "room_finished" {
+        live_state.forget_room(channel_id);
+        return;
+    }
+    let Some((user_id, sid)) = event
         .participant
         .as_ref()
-        .and_then(|p| p.identity.parse().ok().map(UserId))
+        .and_then(|p| Some((p.identity.parse().ok().map(UserId)?, p.sid.as_str())))
     else {
         return;
     };
-    let live_state = state.voice.live_state();
 
     match event.event.as_str() {
         "participant_joined" => {
             // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
             record(state, channel_id, user_id, VoiceEventKind::Joined);
-            if live_state.mark_joined(channel_id, user_id) {
+            if live_state.mark_joined(channel_id, user_id, sid) {
                 state.hub.publish(Event::VoiceParticipantJoined {
                     channel_id,
                     user_id,
@@ -91,7 +95,7 @@ fn apply(state: &AppState, event: WebhookEvent) {
         }
         "participant_left" => {
             record(state, channel_id, user_id, VoiceEventKind::Left);
-            if live_state.mark_left(channel_id, user_id) {
+            if live_state.mark_left(channel_id, user_id, sid) {
                 state.hub.publish(Event::VoiceParticipantLeft {
                     channel_id,
                     user_id,
@@ -103,10 +107,17 @@ fn apply(state: &AppState, event: WebhookEvent) {
             });
         }
         "track_published" => {
-            publish_share_change(state, &live_state, channel_id, user_id, &event, true);
+            publish_share_change(state, &live_state, channel_id, (user_id, sid), &event, true);
         }
         "track_unpublished" => {
-            publish_share_change(state, &live_state, channel_id, user_id, &event, false);
+            publish_share_change(
+                state,
+                &live_state,
+                channel_id,
+                (user_id, sid),
+                &event,
+                false,
+            );
         }
         _ => {}
     }
@@ -120,7 +131,7 @@ fn publish_share_change(
     state: &AppState,
     live_state: &RoomLiveState,
     channel_id: ChannelId,
-    user_id: UserId,
+    (user_id, sid): (UserId, &str),
     event: &WebhookEvent,
     started: bool,
 ) {
@@ -129,9 +140,9 @@ fn publish_share_change(
         return;
     }
     let is_real_transition = if started {
-        live_state.track_published(channel_id, user_id, &track.sid)
+        live_state.track_published(channel_id, (user_id, sid), &track.sid)
     } else {
-        live_state.track_unpublished(channel_id, user_id, &track.sid)
+        live_state.track_unpublished(channel_id, (user_id, sid), &track.sid)
     };
     if is_real_transition {
         let kind = if started {

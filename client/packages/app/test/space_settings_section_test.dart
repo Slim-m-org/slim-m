@@ -109,10 +109,13 @@ void main() {
     // Every gating bit, so every pane renders. Who can join is not one now.
     await _pump(tester, permissions: -1);
 
-    expect(find.text('Moderation'), findsOneWidget);
-    expect(find.text('Access'), findsOneWidget);
-    expect(find.text('Configuration'), findsOneWidget);
-    expect(find.text(ActionLabels.operationsGroup), findsOneWidget);
+    expect(find.text('MODERATION'), findsOneWidget);
+    expect(find.text('ACCESS'), findsOneWidget);
+    expect(find.text('CONFIGURATION'), findsOneWidget);
+    expect(
+      find.text(ActionLabels.operationsGroup.toUpperCase()),
+      findsOneWidget,
+    );
     for (final label in [
       'Reports',
       'Removed members',
@@ -130,17 +133,17 @@ void main() {
     expect(find.byType(ListTile), findsNothing);
     // Wide always shows something: the first pane is embedded, not routed.
     expect(find.byType(ReportsPane), findsOneWidget);
-    expect(find.text('The queue is empty.'), findsOneWidget);
+    expect(find.text('The queue is empty'), findsOneWidget);
 
     // Geometry, not just text: the four panes sit under SERVER, between CONFIGURATION and ADDONS.
-    final configurationY = tester.getTopLeft(find.text('Configuration')).dy;
+    final configurationY = tester.getTopLeft(find.text('CONFIGURATION')).dy;
     final serverY = tester
-        .getTopLeft(find.text(ActionLabels.operationsGroup))
+        .getTopLeft(find.text(ActionLabels.operationsGroup.toUpperCase()))
         .dy;
     final performanceY = tester
         .getTopLeft(find.text(ActionLabels.retentionAndLimits))
         .dy;
-    final addonsY = tester.getTopLeft(find.text('Addons')).dy;
+    final addonsY = tester.getTopLeft(find.text('ADDONS')).dy;
     expect(configurationY, lessThan(serverY));
     expect(serverY, lessThan(performanceY));
     expect(performanceY, lessThan(addonsY));
@@ -153,7 +156,10 @@ void main() {
       // Emoji stays MANAGE_SERVER, same as before the split, so Configuration survives on that pane alone.
       await _pump(tester, permissions: Perm.manageServer);
 
-      expect(find.text(ActionLabels.operationsGroup), findsOneWidget);
+      expect(
+        find.text(ActionLabels.operationsGroup.toUpperCase()),
+        findsOneWidget,
+      );
       for (final label in [
         ActionLabels.retentionAndLimits,
         'Analytics',
@@ -162,7 +168,7 @@ void main() {
       ]) {
         expect(find.text(label), findsWidgets, reason: '$label missing');
       }
-      expect(find.text('Configuration'), findsOneWidget);
+      expect(find.text('CONFIGURATION'), findsOneWidget);
       expect(find.text('Emoji'), findsWidgets);
       for (final label in ['Roles', 'Channel permissions']) {
         expect(
@@ -218,15 +224,15 @@ void main() {
     // CREATE_INVITE alone: only the Access group has anything in it.
     await _pump(tester, permissions: Perm.createInvite);
 
-    expect(find.text('Access'), findsOneWidget);
+    expect(find.text('ACCESS'), findsOneWidget);
     expect(find.text('Invites'), findsWidgets);
     expect(
-      find.text('Moderation'),
+      find.text('MODERATION'),
       findsNothing,
       reason: 'Reports and Removed members are both hidden here',
     );
     expect(
-      find.text('Configuration'),
+      find.text('CONFIGURATION'),
       findsNothing,
       reason: 'Roles, permissions and emoji are all hidden',
     );

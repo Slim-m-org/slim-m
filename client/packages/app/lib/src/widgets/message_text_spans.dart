@@ -47,6 +47,7 @@ class _InlineContext {
     required this.linkColor,
     required this.makeLinkRecognizer,
     required this.makeMessageLinkRecognizer,
+    this.makeEmojiNameSpan,
   });
 
   final Set<String> knownUsernames;
@@ -62,12 +63,16 @@ class _InlineContext {
   /// The same, for a message link, which is followed inside the app rather than
   /// handed to the OS.
   final TapGestureRecognizer Function(String raw) makeMessageLinkRecognizer;
+
+  /// Wraps a standard emoji in a span that can name it; null leaves emoji as
+  /// plain text (a poll's one-line text, which owns no tip).
+  final TextSpan Function(String glyph, String name)? makeEmojiNameSpan;
 }
 
 List<InlineSpan> _buildSpans(List<InlineNode> nodes, _InlineContext ctx) => [
   for (final node in nodes)
     switch (node) {
-      InlineText(:final text) => TextSpan(text: text),
+      InlineText(:final text) => _textWithEmojiNames(text, ctx),
       InlineCode(:final text) => WidgetSpan(
         alignment: PlaceholderAlignment.middle,
         child: AppInlineCode(text),
@@ -86,6 +91,10 @@ List<InlineSpan> _buildSpans(List<InlineNode> nodes, _InlineContext ctx) => [
                 child: _MentionChip('@$name'),
               )
             : TextSpan(text: '@[$name]'),
+      InlineChannelMention(:final channelId) => WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: ChannelMentionChip(channelId: channelId),
+      ),
       InlineEmoji(:final raw) => _emojiSpan(raw, ctx.customEmoji),
       InlineLink(:final url) => TextSpan(
         text: url,
@@ -135,8 +144,44 @@ InlineSpan _emojiSpan(String raw, Map<String, String> customEmoji) {
       ? TextSpan(text: raw)
       : WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: CustomEmojiImage(emojiId: id, label: raw, size: _emojiSize),
+          child: Tooltip(
+            message: raw,
+            waitDuration: emojiNameHoverRest,
+            excludeFromSemantics: true,
+            child: CustomEmojiImage(emojiId: id, label: raw, size: _emojiSize),
+          ),
         );
+}
+
+/// The first codepoint a catalog emoji can start with; below it is plain text
+/// (Latin, punctuation, the odd trademark sign), which never gets a tip.
+const int _emojiFloor = 0x2190;
+
+/// [text] with each standard emoji in its own span from
+/// [_InlineContext.makeEmojiNameSpan], the rest left as runs of plain text.
+InlineSpan _textWithEmojiNames(String text, _InlineContext ctx) {
+  final make = ctx.makeEmojiNameSpan;
+  if (make == null || !text.runes.any((r) => r >= _emojiFloor)) {
+    return TextSpan(text: text);
+  }
+  final spans = <InlineSpan>[];
+  final plain = StringBuffer();
+  for (final glyph in text.characters) {
+    final name = glyph.runes.first >= _emojiFloor
+        ? standardEmojiShortcode(glyph)
+        : null;
+    if (name == null) {
+      plain.write(glyph);
+      continue;
+    }
+    if (plain.isNotEmpty) {
+      spans.add(TextSpan(text: plain.toString()));
+      plain.clear();
+    }
+    spans.add(make(glyph, name));
+  }
+  if (plain.isNotEmpty) spans.add(TextSpan(text: plain.toString()));
+  return spans.length == 1 ? spans.single : TextSpan(children: spans);
 }
 
 /// A pill's own padding is layout width: at 4dp a side it read as a second space
@@ -165,6 +210,50 @@ class _MentionChip extends StatelessWidget {
         style: AppText.body.copyWith(
           color: tokens.accent,
           fontWeight: AppWeights.medium,
+        ),
+      ),
+    );
+  }
+}
+
+/// A `<#id>` channel mention: the channel's name as a tappable chip, or a
+/// plain "#unknown-channel" when the local store has no such channel, which is
+/// also what a channel this member cannot see looks like.
+class ChannelMentionChip extends ConsumerWidget {
+  const ChannelMentionChip({super.key, required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
+    final known = channel != null;
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: _mentionPillInset),
+      decoration: BoxDecoration(
+        color: known ? tokens.accentSoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: Text(
+        '#${channel?.name ?? 'unknown-channel'}',
+        style: AppText.body.copyWith(
+          color: known ? tokens.accent : tokens.textSecondary,
+          fontWeight: AppWeights.medium,
+        ),
+      ),
+    );
+    if (!known) return chip;
+    return Semantics(
+      link: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => GoRouter.of(
+            context,
+          ).go(Routes.channel(channelId, openChat: true)),
+          child: chip,
         ),
       ),
     );

@@ -211,8 +211,7 @@ class _ModuleAccessPaneState extends ConsumerState<ModuleAccessPane>
           _summary(),
           style: AppText.body.copyWith(color: tokens.textSecondary),
         ),
-        const SizedBox(height: AppSpacing.s16),
-        if (installed != null) ...[
+        if (installed != null)
           SettingsSectionCard(
             children: [
               SettingsToggleRow(
@@ -226,15 +225,13 @@ class _ModuleAccessPaneState extends ConsumerState<ModuleAccessPane>
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.s16),
-          const SettingsSectionHeader('Who can use it'),
-        ],
         AppAsyncView<List<api.Role>>(
           value: AppAsyncState(data: roles.valueOrNull, error: roles.error),
           center: false,
           errorMessage: 'Could not load the roles.',
           onRetry: () => ref.invalidate(rolesProvider),
           data: (context, list) => SettingsSectionCard(
+            title: installed == null ? null : 'Who can use it',
             children: [
               for (final role in list)
                 _RoleSwitch(

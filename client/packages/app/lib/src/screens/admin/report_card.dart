@@ -39,6 +39,7 @@ import '../../widgets/message_text.dart';
 import '../../widgets/moderation_unavailable_caption.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
+import '../../widgets/settings_value_row.dart';
 import '../channel_screen.dart' show knownRoleNamesFrom, knownUsernamesFrom;
 import 'report_card_actions.dart';
 import 'report_card_labels.dart';
@@ -205,169 +206,148 @@ class _ReportCardState extends ConsumerState<ReportCard>
         api.ReportSubject.user => 'Reported user',
       },
       children: [
-        ReportLabeledValue(
-          // 'Subject' rather than repeating the card's own title, which AppCard(title:)'s uppercase used to hide.
-          label: isMessageReport
-              ? 'Reported author'
-              : isPrivateBotReport
-              ? 'Reported bot'
-              : 'Subject',
-          value: targetName,
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Text(
-          report.reason,
-          style: AppText.body.copyWith(color: tokens.textPrimary),
-        ),
-        if (isPrivateBotReport)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.s4),
-            child: Text(
-              'The server kept no copy. This is the text the reporter says they were shown.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
+        SettingsCardBlock(
+          gap: AppSpacing.s8,
+          children: [
+            ReportLabeledValue(
+              // 'Subject' rather than repeating the card's own title.
+              label: isMessageReport
+                  ? 'Reported author'
+                  : isPrivateBotReport
+                  ? 'Reported bot'
+                  : 'Subject',
+              value: targetName,
             ),
-          ),
-        if (report.snapshot != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            decoration: BoxDecoration(
-              color: tokens.surfaceSunken,
-              borderRadius: BorderRadius.circular(AppRadii.control),
+            Text(
+              report.reason,
+              style: AppText.body.copyWith(color: tokens.textPrimary),
             ),
-            // Bounded and scrolling, not clipped, so one long paste cannot grow past the rest.
-            constraints: const BoxConstraints(maxHeight: 160),
-            child: SingleChildScrollView(
-              child: MessageBody(
-                content: report.snapshot!,
-                knownUsernames: knownUsernames,
-                knownRoleNames: knownRoleNames,
-                customEmoji: customEmoji,
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.s8),
-        LayoutBuilder(
-          builder: (context, box) => Row(
-            children: [
+            if (isPrivateBotReport)
               Text(
-                'Reporter',
-                style: AppText.caption.copyWith(
-                  color: tokens.textSecondary,
-                  fontWeight: AppWeights.medium,
-                ),
+                'The server kept no copy. This is the text the reporter says they were shown.',
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
-              const SizedBox(width: AppSpacing.s4),
-              // Expanded, not a bare Text: a long real display name would otherwise overflow the row.
-              Expanded(
-                child: Text(
-                  reporterLabel(report.reporterId, profiles),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+            if (report.snapshot != null)
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.s8),
+                decoration: BoxDecoration(
+                  color: tokens.surfaceSunken,
+                  borderRadius: BorderRadius.circular(AppRadii.control),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              // Not flexible: a flex sibling of the name would hand the date half the free space and strand it short of the right edge.
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
-                child: Text(
-                  formatDateTime(
-                    report.createdAt,
-                    use24Hour: watchUse24Hour(ref, context),
+                // Bounded and scrolling, not clipped, so one long paste cannot grow past the rest.
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: SingleChildScrollView(
+                  child: MessageBody(
+                    content: report.snapshot!,
+                    knownUsernames: knownUsernames,
+                    knownRoleNames: knownRoleNames,
+                    customEmoji: customEmoji,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
                 ),
               ),
-            ],
+          ],
+        ),
+        SettingsValueRow(
+          label: 'Reporter',
+          value: reporterLabel(report.reporterId, profiles),
+        ),
+        SettingsValueRow(
+          label: 'Reported',
+          value: formatDateTime(
+            report.createdAt,
+            use24Hour: watchUse24Hour(ref, context),
           ),
         ),
         // Only shown when it would clarify something: without either bit, no quick actions was already the ordinary reason.
         if (isSelf &&
             (mine.hasPermission(Perm.kickMembers) ||
-                mine.hasPermission(Perm.banMembers))) ...[
-          const SizedBox(height: AppSpacing.s4),
-          const ModerationUnavailableCaption(
-            "This report names you - you can't time yourself out or remove "
-            'yourself.',
+                mine.hasPermission(Perm.banMembers)))
+          const SettingsCardBlock(
+            children: [
+              ModerationUnavailableCaption(
+                "This report names you - you can't time yourself out or remove "
+                'yourself.',
+              ),
+            ],
           ),
-        ],
-        if (hasQuickActions) ...[
-          const SizedBox(height: AppSpacing.s12),
-          ReportQuickActions(
-            busy: _busy,
-            jumpEnabled: canJump ? jumpEnabled : null,
-            onJump: canJump ? _jump : null,
-            onDelete: canDeleteMessage
-                ? () => unawaited(
-                    _runQuickAction(
-                      (g) => deleteReportedMessage(
-                        context,
-                        ref,
-                        g,
-                        channelId: report.channelId!,
-                        messageId: report.subjectId,
-                        reportId: report.id,
-                      ),
-                    ),
-                  )
-                : null,
-            onRemove: canRemove
-                ? () => unawaited(
-                    _runQuickAction(
-                      (g) => removeReportedAuthor(
-                        context,
-                        ref,
-                        g,
-                        userId: targetUserId,
-                        name: targetName,
-                        reportId: report.id,
-                      ),
-                    ),
-                  )
-                : null,
-            onTimeOut: canTimeOut
-                ? (d) => unawaited(
-                    _runQuickAction(
-                      (g) => timeOutReportedAuthor(
-                        ref,
-                        g,
-                        userId: targetUserId,
-                        duration: d,
-                        reportId: report.id,
-                      ),
-                    ),
-                  )
-                : null,
+        if (hasQuickActions)
+          SettingsCardBlock(
+            children: [
+              ReportQuickActions(
+                busy: _busy,
+                jumpEnabled: canJump ? jumpEnabled : null,
+                onJump: canJump ? _jump : null,
+                onDelete: canDeleteMessage
+                    ? () => unawaited(
+                        _runQuickAction(
+                          (g) => deleteReportedMessage(
+                            context,
+                            ref,
+                            g,
+                            channelId: report.channelId!,
+                            messageId: report.subjectId,
+                            reportId: report.id,
+                          ),
+                        ),
+                      )
+                    : null,
+                onRemove: canRemove
+                    ? () => unawaited(
+                        _runQuickAction(
+                          (g) => removeReportedAuthor(
+                            context,
+                            ref,
+                            g,
+                            userId: targetUserId,
+                            name: targetName,
+                            reportId: report.id,
+                          ),
+                        ),
+                      )
+                    : null,
+                onTimeOut: canTimeOut
+                    ? (d) => unawaited(
+                        _runQuickAction(
+                          (g) => timeOutReportedAuthor(
+                            ref,
+                            g,
+                            userId: targetUserId,
+                            duration: d,
+                            reportId: report.id,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ],
           ),
-        ],
-        const SizedBox(height: AppSpacing.s12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        SettingsCardBlock(
+          gap: AppSpacing.s12,
           children: [
-            AppButton(
-              label: 'Dismiss',
-              icon: AppIcons.dismiss,
-              disabled: _busy,
-              onPressed: () => _resolve(api.ReportResolution.dismissed),
-            ),
-            const SizedBox(width: AppSpacing.s8),
-            AppButton(
-              label: 'Resolve',
-              icon: AppIcons.check,
-              variant: AppButtonVariant.primary,
-              disabled: _busy,
-              onPressed: () => _resolve(api.ReportResolution.resolved),
+            if (actionError != null)
+              AppErrorState(message: actionError!, onDismiss: clearActionError),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
+              children: [
+                AppButton(
+                  label: 'Dismiss',
+                  icon: AppIcons.dismiss,
+                  disabled: _busy,
+                  onPressed: () => _resolve(api.ReportResolution.dismissed),
+                ),
+                AppButton(
+                  label: 'Resolve',
+                  icon: AppIcons.check,
+                  variant: AppButtonVariant.primary,
+                  disabled: _busy,
+                  onPressed: () => _resolve(api.ReportResolution.resolved),
+                ),
+              ],
             ),
           ],
         ),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
       ],
     );
   }

@@ -22,6 +22,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/reports_screen.dart';
+import 'package:slimm_app/src/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -51,7 +52,7 @@ void main() {
     expect(find.textContaining('reporter-1'), findsNothing);
   });
 
-  testWidgets('the footer date sits flush with the card content edge', (
+  testWidgets('the report date sits at the card 16px content inset', (
     tester,
   ) async {
     await pumpReports(
@@ -69,10 +70,9 @@ void main() {
       profiles: {'reporter-1': 'Alice'},
     );
 
-    final card = tester.getRect(find.byType(AppCard).first);
+    final card = tester.getRect(find.byType(SettingsSectionCard).first);
     final date = tester.getRect(find.textContaining(RegExp(r'\d{4}')).first);
-    expect(date.right, greaterThan(card.right - AppSpacing.s16 - 2));
-    expect(date.right, lessThanOrEqualTo(card.right - AppSpacing.s8 + 1));
+    expect(date.right, closeTo(card.right - 1 - AppSpacing.s16, 1));
   });
 
   testWidgets('a user report names its subject, not the raw id', (

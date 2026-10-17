@@ -72,6 +72,10 @@ final class OutgoingCallLifecycle {
 
   private(set) var activeCallId: UUID?
 
+  /// Calls this side asked CallKit to end, so their end action is not
+  /// mistaken for the system UI hanging up and echoed back to Dart.
+  private var endingLocally: Set<UUID> = []
+
   /// Runs when the system call UI ends this call (Dynamic Island, the lock
   /// screen), rather than this app's own hangup. Wired to tell the Dart side
   /// to actually leave the room: fulfilling the action alone would only end
@@ -109,16 +113,28 @@ final class OutgoingCallLifecycle {
   }
 
   /// This side ended the call. Safe to call with nothing active.
+  ///
+  /// A hangup on this device is a user action, so it goes to CallKit as an
+  /// end request; `reportCall(endedAt:)` is only for a call ended elsewhere,
+  /// and reporting it as remote-ended showed the wrong thing in Recents.
   func callEnded() {
     guard let id = activeCallId else { return }
     activeCallId = nil
-    provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
+    endingLocally.insert(id)
+    controller.requestEnd(CXEndCallAction(call: id)) { [weak self] error in
+      // CallKit refused; report it ended anyway so no dead call lingers in the system UI.
+      guard error != nil, let self, self.endingLocally.remove(id) != nil else { return }
+      self.provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
+    }
   }
 
-  /// The system call UI asked to end the call.
+  /// CallKit delivers an end action, for this side's own request or because
+  /// the system call UI hung up; only the latter must tell Dart to leave.
   func handleEndAction(_ action: CallActionFulfilling) {
-    activeCallId = nil
-    onHangUp?()
+    if endingLocally.remove(action.callUUID) == nil {
+      activeCallId = nil
+      onHangUp?()
+    }
     action.fulfill()
   }
 }

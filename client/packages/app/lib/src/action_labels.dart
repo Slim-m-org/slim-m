@@ -21,9 +21,13 @@ abstract final class ActionLabels {
 
   /// This device's media and cache options, not the Space's limits.
   static const mediaAndCache = 'Media and cache';
+  static const general = 'General';
 
   /// The Space's message retention and canvas cap, not this device's options.
   static const retentionAndLimits = 'Retention and limits';
+
+  /// The Space's call defaults: screen-share quality and noise suppression.
+  static const spaceVoice = 'Voice and screen share';
 
   /// The Space settings group for how the Space is running.
   static const operationsGroup = 'Operations';

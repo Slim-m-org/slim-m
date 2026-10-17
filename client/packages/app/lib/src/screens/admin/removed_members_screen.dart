@@ -53,15 +53,21 @@ class RemovedMembersPane extends ConsumerWidget {
       center: false,
       errorMessage: 'Could not load the removals.',
       onRetry: () => ref.invalidate(removedMembersProvider),
-      // One group, so a section header would only restate the app bar.
-      data: (context, list) => list.isEmpty
-          ? const SettingsEmpty('Nobody has been removed from this Space.')
-          : SettingsSectionCard(
-              children: [
-                for (final removal in list)
-                  _RemovalRow(key: ValueKey(removal.userId), removal: removal),
-              ],
-            ),
+      data: (context, list) => SettingsSectionCard(
+        title: 'Removed members',
+        description: 'Letting someone back in restores their access.',
+        children: [
+          if (list.isEmpty)
+            const SettingsEmptyState(
+              icon: AppIcons.signOut,
+              title: 'Nobody has been removed',
+              detail: 'People you remove are listed here, to let back in.',
+            )
+          else
+            for (final removal in list)
+              _RemovalRow(key: ValueKey(removal.userId), removal: removal),
+        ],
+      ),
     );
   }
 }
@@ -138,6 +144,8 @@ class _RemovalRowState extends ConsumerState<_RemovalRow>
       headline: removal.displayName,
       details: [
         SettingsEntityDetail('@${removal.username}'),
+        if (removal.inviteCode case final code?)
+          SettingsEntityDetail('Joined with invite $code'),
         // Wrapped: the one line here a person typed, and the point of the screen.
         if (removal.reason case final reason?)
           SettingsEntityDetail(reason, wrap: true)

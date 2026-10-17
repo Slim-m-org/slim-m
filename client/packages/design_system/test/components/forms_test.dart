@@ -201,6 +201,39 @@ void main() {
   });
 
   group('AppToggle', () {
+    testWidgets('on is a solid accent track with a larger knob than off',
+        (tester) async {
+      const t = AppTokens.light;
+      Future<(BoxDecoration, BoxDecoration, Size)> paint(bool value) async {
+        await tester
+            .pumpWidget(_wrap(AppToggle(value: value, onChanged: (_) {})));
+        await tester.pumpAndSettle();
+        final track = tester
+            .widget<Container>(find.descendant(
+                of: find.byType(AppToggle),
+                matching: find.byWidgetPredicate(
+                    (w) => w is Container && w.constraints?.maxWidth == 40)))
+            .decoration! as BoxDecoration;
+        final knobFinder = find.byType(AnimatedContainer);
+        final knob = tester.widget<AnimatedContainer>(knobFinder).decoration!
+            as BoxDecoration;
+        final knobSize = tester.getSize(find.descendant(
+            of: knobFinder, matching: find.byType(DecoratedBox)));
+        return (track, knob, knobSize);
+      }
+
+      final (onTrack, onKnob, onSize) = await paint(true);
+      expect(onTrack.color, t.accentFill);
+      expect(onKnob.color, t.accentOn);
+      expect(onSize, const Size(16, 16));
+
+      final (offTrack, offKnob, offSize) = await paint(false);
+      expect(offTrack.color, t.surfaceSunken);
+      expect((offTrack.border! as Border).top.color, t.borderStrong);
+      expect(offKnob.color, t.textSecondary);
+      expect(offSize, const Size(14, 14));
+    });
+
     testWidgets('flips and reports its value through onChanged',
         (tester) async {
       bool? reported;
@@ -339,6 +372,17 @@ void main() {
       await tester.pump();
 
       expect(reported, isNotNull);
+    });
+
+    testWidgets('a divided slider draws no tick marks on its trough',
+        (tester) async {
+      await tester.pumpWidget(_wrap(SizedBox(
+          width: 200,
+          child:
+              AppSlider(value: 4, max: 16, divisions: 4, onChanged: (_) {}))));
+
+      final theme = SliderTheme.of(tester.element(find.byType(Slider)));
+      expect(theme.tickMarkShape, SliderTickMarkShape.noTickMark);
     });
 
     testWidgets('tall variant renders without a meter or ticks supplied',

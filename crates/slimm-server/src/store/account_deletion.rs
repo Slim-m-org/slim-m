@@ -14,7 +14,7 @@
 
 use crate::ids::{SessionId, UserId};
 
-use super::moderation_audit::{ModerationAudit, record_moderation_audit};
+use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Store, now_ms};
 
 /// Why deleting an account was refused.
@@ -474,7 +474,7 @@ impl Store {
                 ModerationAudit {
                     actor_id,
                     subject_id: user_id,
-                    action: "account_delete",
+                    action: ModerationAction::AccountDelete,
                     reason: None,
                     until: None,
                     created_at: now,

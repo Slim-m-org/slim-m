@@ -250,3 +250,38 @@ async fn uninstalling_wipes_the_modules_data_and_a_reinstall_starts_empty() {
         None
     );
 }
+
+/// A delete through the durable store removes the module's own key and never
+/// another module's key of the same name (issue 2099).
+#[tokio::test]
+async fn a_delete_removes_only_the_modules_own_key() {
+    let w = world("slimm-modcap-delete").await;
+    for id in ["module-a", "module-b"] {
+        w.install(Install {
+            id,
+            wasm: host_call_loop_wasm(&kv_request("set", "k", Some(id)), 1),
+            declared: &["kv.store"],
+            approved_host: &["kv.store"],
+        })
+        .await;
+        w.answer(id).await;
+    }
+    w.install(Install {
+        id: "module-a",
+        wasm: host_call_loop_wasm(&kv_request("delete", "k", None), 1),
+        declared: &["kv.store"],
+        approved_host: &["kv.store"],
+    })
+    .await;
+
+    assert_eq!(w.answer("module-a").await, "{'ok':true}");
+    assert_eq!(w.store.module_kv_get("module-a", "k").await.unwrap(), None);
+    assert_eq!(
+        w.store
+            .module_kv_get("module-b", "k")
+            .await
+            .unwrap()
+            .as_deref(),
+        Some("module-b")
+    );
+}

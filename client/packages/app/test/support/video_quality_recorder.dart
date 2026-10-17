@@ -3,10 +3,15 @@
 /// the session does not grow every fake past the file budget.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 mixin VideoQualityRecorder {
   CallStatsSampler callStats = CallStatsSampler(targets: () => const []);
+
+  ValueNotifier<Map<String, VideoTileHealth>> videoHealth = ValueNotifier(
+    const {},
+  );
 
   ReceiveVideoQuality? lastReceiveVideoQuality;
   CameraQuality? lastCameraQuality;

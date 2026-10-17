@@ -24,18 +24,28 @@ class IoDirectRoute implements DirectRoute {
     this._base, {
     SecurityContext? context,
     PublicConnect? connectPublic,
+    PublicConnect? connectDirect,
     DateTime Function()? clock,
   })  : _context = context,
         _connectPublic = connectPublic,
+        _connectDirect = connectDirect,
         _clock = clock ?? DateTime.now {
-    _client.connectionFactory = _connect;
+    _client = _freshClient();
   }
 
   final Uri _base;
   final SecurityContext? _context;
   final PublicConnect? _connectPublic;
+  final PublicConnect? _connectDirect;
   final DateTime Function() _clock;
-  final HttpClient _client = HttpClient();
+
+  /// The current pool. Kept-alive connections outlive the decision that
+  /// opened them, so a route change starts a new pool; the old one finishes
+  /// what it is carrying and closes.
+  late HttpClient _client;
+
+  /// A fresh pool is opened and its first connection has not settled yet.
+  bool _probing = false;
 
   /// A reachable server on the same network answers in milliseconds; past
   /// this the address is not reachable from wherever the device is now.
@@ -54,7 +64,7 @@ class IoDirectRoute implements DirectRoute {
   bool get active => _active;
 
   @override
-  late final http.Client httpClient = IOClient(_client);
+  late final http.Client httpClient = _RoutedClient(this);
 
   @override
   void advertise(List<String> addresses) {
@@ -65,11 +75,35 @@ class IoDirectRoute implements DirectRoute {
     _skipUntil = null;
     _penalty = _firstPenalty;
     if (parsed.isEmpty) _active = false;
+    _renewPool();
   }
 
   @override
   WebSocketChannel connectWebSocket(Uri url) =>
-      IOWebSocketChannel.connect(url, customClient: _client);
+      IOWebSocketChannel.connect(url, customClient: _currentClient());
+
+  HttpClient _freshClient() => HttpClient()..connectionFactory = _connect;
+
+  /// The pool to use now, renewed when a direct attempt is due and the
+  /// current pool would otherwise keep reusing a public connection.
+  HttpClient _currentClient() {
+    final skip = _skipUntil;
+    final due = _addresses.isNotEmpty &&
+        !_active &&
+        !_probing &&
+        (skip == null || !_clock().isBefore(skip));
+    if (due) _renewPool();
+    return _client;
+  }
+
+  void _renewPool() {
+    final old = _client;
+    _client = _freshClient();
+    _probing = _addresses.isNotEmpty;
+    old.close();
+  }
+
+  void _close() => _client.close(force: true);
 
   Future<ConnectionTask<Socket>> _connect(
     Uri url,
@@ -95,23 +129,28 @@ class IoDirectRoute implements DirectRoute {
   Future<Socket> _viaDirect(({String host, int port}) to, Uri url) async {
     Socket? raw;
     try {
-      raw = await Socket.connect(
-        to.host,
-        to.port,
-        timeout: _directConnectTimeout,
-      );
+      final connect = _connectDirect;
+      raw = connect != null
+          ? await connect(to.host, to.port).timeout(_directConnectTimeout)
+          : await Socket.connect(
+              to.host,
+              to.port,
+              timeout: _directConnectTimeout,
+            );
       final socket = await SecureSocket.secure(
         raw,
         host: url.host,
         context: _context,
       ).timeout(_handshakeTimeout);
       _active = true;
+      _probing = false;
       _penalty = _firstPenalty;
       _skipUntil = null;
       return socket;
     } on Object {
       raw?.destroy();
       _active = false;
+      _probing = false;
       _next++;
       _skipUntil = _clock().add(_penalty);
       _penalty = Duration(
@@ -143,4 +182,18 @@ class IoDirectRoute implements DirectRoute {
     }
     return true;
   }
+}
+
+/// Sends each request through whichever pool the route holds at that moment.
+class _RoutedClient extends http.BaseClient {
+  _RoutedClient(this._route);
+
+  final IoDirectRoute _route;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      IOClient(_route._currentClient()).send(request);
+
+  @override
+  void close() => _route._close();
 }

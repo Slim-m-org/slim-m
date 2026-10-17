@@ -27,7 +27,6 @@ use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, Json, Query, UPLOAD};
 use super::message_dto::AttachmentDto;
 use crate::media::{self, StreamError};
-use crate::permissions::Permissions;
 use crate::store::AttachmentSummary;
 
 /// A fetched attachment's bytes never change (they are keyed by their own
@@ -60,6 +59,8 @@ pub fn upload_routes() -> Router<AppState> {
 #[derive(Deserialize)]
 struct UploadParams {
     filename: Option<String>,
+    /// Where the file is headed; see `attachment_uploads::may_attach`.
+    channel_id: Option<String>,
 }
 
 // --- Handlers ---
@@ -85,11 +86,11 @@ struct UploadParams {
 /// two leaves an orphaned file (harmless, eventually swept) rather than a row
 /// that promises bytes which were never written.
 ///
-/// Requires ATTACH_FILES deployment-wide. An upload names no channel, so the
-/// per-channel check still happens when the resulting id is attached to a
-/// message; until this bit was checked at all a member denied attachments
-/// everywhere - or one currently timed out - could still write bytes into
-/// media storage.
+/// Requires ATTACH_FILES in the channel the upload names, or deployment-wide
+/// when it names none; the per-channel check still happens when the resulting
+/// id is attached to a message. Until this bit was checked at all a member
+/// denied attachments everywhere - or one currently timed out - could still
+/// write bytes into media storage.
 async fn upload(
     AuthedLimited(ctx): AuthedLimited<UPLOAD>,
     Query(params): Query<UploadParams>,
@@ -98,14 +99,8 @@ async fn upload(
     body: Body,
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
     // Before the body streams, so no permission means no disk write.
-    if !state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::ATTACH_FILES)
-    {
-        return Err(ApiError::Forbidden);
-    }
+    super::attachment_uploads::may_attach(&state, ctx.user_id, params.channel_id.as_deref())
+        .await?;
 
     let max_bytes = effective_attachment_max(&state).await?;
     // A fast-fail on a declared oversize; the true size is re-checked below.
@@ -134,7 +129,7 @@ async fn upload(
         return Err(err);
     }
 
-    let filename = media::sanitize_filename(params.filename.as_deref().unwrap_or("file"));
+    let filename = media::sanitize_display_filename(params.filename.as_deref().unwrap_or("file"));
     let hex_id = pending.hex_id().to_owned();
     let size = pending.size() as i64;
     let sha256 = media::from_hex(&hex_id).expect("a hex id from sha256 is well-formed hex");
@@ -294,15 +289,21 @@ pub(super) fn apply_asset_headers(headers: &mut HeaderMap, content_type: &str, f
     } else {
         "attachment"
     };
-    let safe_name = media::sanitize_filename(filename);
-    let disposition = format!("{disposition_kind}; filename=\"{safe_name}\"");
+    let display = media::sanitize_display_filename(filename);
+    let ascii = media::sanitize_filename(&display);
+    let disposition = if ascii == display {
+        format!("{disposition_kind}; filename=\"{ascii}\"")
+    } else {
+        let encoded = media::rfc5987_encode(&display);
+        format!("{disposition_kind}; filename=\"{ascii}\"; filename*=UTF-8''{encoded}")
+    };
 
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_str(content_type)
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
-    // `sanitize_filename` guarantees printable ASCII so this cannot fail; the
+    // The ASCII fallback and RFC 5987 encoding keep this printable ASCII, so it cannot fail; the
     // fallback keeps a future change to that guarantee a response, not a panic.
     let disposition_value = HeaderValue::from_str(&disposition)
         .unwrap_or_else(|_| HeaderValue::from_static("attachment"));

@@ -61,6 +61,7 @@ Future<_Log> _pump(WidgetTester tester, {required int perms}) async {
                   'display_name': 'Bob',
                   'removed_at': 0,
                   'reason': 'spam',
+                  'invite_code': 'K7Q2',
                 },
               ]);
             }
@@ -116,6 +117,13 @@ void main() {
       greaterThan(membersBefore),
       reason: 'members list refetched',
     );
+  });
+
+  testWidgets('the invite they joined with is shown (issue 1774)', (
+    tester,
+  ) async {
+    await _pump(tester, perms: Perm.banMembers);
+    expect(find.text('Joined with invite K7Q2'), findsOneWidget);
   });
 
   testWidgets('Delete needs ADMINISTRATOR', (tester) async {

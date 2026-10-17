@@ -14,12 +14,14 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
+import 'capture_noise_suppression.dart';
+import 'mic_port.dart';
 import 'input_gate.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
@@ -43,12 +45,15 @@ import 'screen_share_view.dart';
 import 'voice_disconnect_reason.dart';
 import 'video_publish_options.dart';
 import 'video_quality.dart';
+import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
+part 'voice_session_listener_audio.dart';
+part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
 part 'voice_session_video.dart';
@@ -62,23 +67,31 @@ typedef RoomFactory = lk.Room Function();
 /// its lifetime. [dispose] must be called, and leaving is not the same as
 /// disposing, because a user can leave and rejoin without the surrounding
 /// screen being torn down.
-class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
+class VoiceSession
+    with
+        VoiceSessionAudioDevices,
+        VoiceSessionInputGate,
+        VoiceSessionListenerAudio {
   VoiceSession({
     RoomFactory? roomFactory,
     BroadcastBridge? broadcast,
     DesktopSources? desktopSources,
     CameraDevices? cameraDevices,
     InputGateMonitor? inputGate,
+    MicPort? micPort,
+    Duration? captureRestartDebounce,
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
-        _cameraSwitching =
-            CameraSwitching(cameraDevices ?? const HardwareCameraDevices()) {
+        _cameraSwitching = CameraSwitching(
+          cameraDevices ?? const HardwareCameraDevices(),
+        ) {
     _roomFactory = roomFactory ?? _buildRoom;
     // An injected room has no native capture behind it to gate.
     _gate = inputGate ??
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
+    _initCapture(micPort, captureRestartDebounce, _followPreferredDevices);
     _screenShare = ScreenShareControl(_broadcast);
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
@@ -94,6 +107,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
             dynacast: true,
             defaultVideoPublishOptions: cameraPublishOptions(),
           ),
+          noiseSuppression: _capture.webrtcNoiseSuppression,
         ),
       );
 
@@ -103,6 +117,11 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
   late final VideoSubscriptionCuller _videoCuller;
+
+  /// See [videoHealth]; fed by [callStats] while any remote video is subscribed.
+  late final _stallWatchdog = VideoStallWatchdog(recover: _recoverStalledVideo);
+  StreamSubscription<CallStatsSnapshot>? _stallStats;
+  final _activeVideoKeys = <String>{};
 
   /// Per-track video stats, sampled only while something is listening.
   late final callStats = CallStatsSampler(
@@ -120,6 +139,7 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   final _participantsController =
       StreamController<List<VoiceParticipant>>.broadcast();
 
+  @override
   VoiceSessionState _state = VoiceSessionState.idle;
   List<VoiceParticipant> _participants = const [];
   Object? _lastError;
@@ -134,10 +154,6 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   final _loweredVideoSids = <String>{};
   CameraQuality _cameraQuality = CameraQuality.balanced;
 
-  /// Deafen, per-participant mute and per-participant gain, which are one
-  /// listener's own business and never reach the room; see [LocalAudioState].
-  final LocalAudioState _audio = LocalAudioState();
-
   /// See [SpeakingHold]; the timer drops a held ring when its time is up.
   final SpeakingHold _speakingHold = SpeakingHold();
   Timer? _speakingHoldTimer;
@@ -149,49 +165,10 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   Stream<List<VoiceParticipant>> get participantChanges =>
       _participantsController.stream;
 
-  bool get deafened => _audio.deafened;
-
-  /// Whether [identity] is silenced for this listener alone.
-  bool isLocallyMuted(String identity) => _audio.isMuted(identity);
-
-  /// Whether this host can change one participant's volume at all. See
-  /// [supportsParticipantVolume]: on the platforms that answer false the call
-  /// would either throw or quietly do nothing, so the control is not offered.
-  bool get supportsParticipantVolume => rtc_gain.supportsParticipantVolume;
-
   /// Whether this host can add a real audio track to a screen share; see
   /// [rtc_share_audio.supportsScreenShareAudio] for the per-platform trace.
   bool get supportsScreenShareAudio =>
       rtc_share_audio.supportsScreenShareAudio();
-
-  /// [identity]'s playback gain for this listener, 1.0 being unchanged.
-  double volumeFor(String identity) => _audio.volumeFor(identity);
-
-  /// Sets [identity]'s playback gain for this listener only, clamped to the
-  /// range the UI offers.
-  ///
-  /// Stored as well as applied, and reapplied from [_applyLocalAudioState] on
-  /// every room event, because native gain lives on the platform track object
-  /// and a track that resubscribes arrives as a new one at full volume. A
-  /// setter that only touched currently-subscribed tracks would pass every
-  /// test and quietly reset somebody whose network blipped.
-  Future<void> setVolumeFor(String identity, double volume) async {
-    _audio.setVolumeFor(identity, volume);
-    final room = _room;
-    if (room != null) await _applyLocalAudioState(room);
-  }
-
-  /// Silences (or restores) one participant, for this listener only.
-  ///
-  /// Reapplied on every room event through [_applyLocalAudioState], so a track
-  /// that resubscribes after the mute stays silenced without this class
-  /// tracking subscriptions itself.
-  Future<void> setLocallyMuted(String identity, bool muted) async {
-    _audio.setMuted(identity, muted);
-    final room = _room;
-    if (room != null) await _applyLocalAudioState(room);
-    _refreshParticipants();
-  }
 
   /// How readily [VoiceParticipant.isSpeaking] reports true; see
   /// [passesActivationThreshold] for what this can and cannot do.
@@ -429,6 +406,12 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
   /// exact counterpart: a plain [Widget] backed by [CameraView], working for
   /// the local participant exactly as it works for anyone else, which is
   /// what makes a self camera preview possible.
+  /// Per tile key (`<kind>:<identity>`), what each remote video's tile should
+  /// say beyond its picture: paused by the server, stalled and recovering, or
+  /// stopped. A tile missing from the map is playing normally.
+  ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
+      _stallWatchdog.health;
+
   Widget cameraViewFor(String identity) {
     final room = _room;
     if (room == null) return const SizedBox.shrink();
@@ -495,30 +478,20 @@ class VoiceSession with VoiceSessionAudioDevices, VoiceSessionInputGate {
     }
   }
 
-  /// Silences (or restores) every remote participant's audio locally, by
-  /// disabling the underlying WebRTC track rather than unsubscribing from
-  /// it: a track publication's own `disable()` drops the SFU subscription
-  /// and would need renegotiation before sound comes back, while flipping
-  /// the underlying media track's `enabled` flag is a local, instant, and
-  /// instantly reversible mute. Returns whether it took effect, matching
-  /// [setMicrophoneEnabled] and [setScreenShareEnabled]'s own convention: no
-  /// room, no effect.
-  Future<bool> setDeafened(bool deafened) async {
-    final room = _room;
-    if (room == null) return false;
-    _audio.deafened = deafened;
-    await _applyLocalAudioState(room);
-    return true;
-  }
+  @override
+  void _refreshParticipants() => _rebuildRoster();
 
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
     _videoCuller.dispose();
+    await _stallStats?.cancel();
+    _stallWatchdog.dispose();
     await callStats.dispose();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();
+    await _disposeCapture();
     await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();

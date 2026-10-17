@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// `GET /channels/{channelId}/overwrites`: the read
-/// `setChannelOverwrite`/`deleteChannelOverwrite` never had, so an editor can
-/// see what it is replacing.
+/// `GET /channels/{channelId}/overwrites`: the read an
+/// editor needs to see what it is replacing.
 library;
 
 import 'dart:convert';

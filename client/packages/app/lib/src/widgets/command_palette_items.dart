@@ -19,22 +19,59 @@ import 'author_label.dart';
 import 'message_jump.dart';
 import 'space_settings_section.dart';
 
-/// A running palette result: a label and icon to render, and what selecting
-/// it does. [onSelect] receives the still-mounted palette's own context and
-/// ref, so it can navigate or await a request before the caller pops it.
+/// Which row layout a [PaletteResultItem] draws with.
+enum PaletteKind { channel, person, message, action }
+
+/// Which sections a query asks for: a leading `#` narrows to channels and a
+/// leading `@` to people, so a type-ahead habit from other chat apps works.
+enum PaletteScope { all, channels, people }
+
+/// [raw] split into its section scope and the text to match.
+({PaletteScope scope, String text}) parsePaletteQuery(String raw) {
+  if (raw.startsWith('#')) {
+    return (scope: PaletteScope.channels, text: raw.substring(1).trimLeft());
+  }
+  if (raw.startsWith('@')) {
+    return (scope: PaletteScope.people, text: raw.substring(1).trimLeft());
+  }
+  return (scope: PaletteScope.all, text: raw);
+}
+
+/// Why a person matched when it was not on their display name.
+typedef PaletteReason = ({String label, String value});
+
+/// A running palette result: what to render, and what selecting it does.
+/// [onSelect] receives the still-mounted palette's own context and ref, so it
+/// can navigate or await a request before the caller pops it.
 class PaletteResultItem {
   const PaletteResultItem({
     required this.label,
     required this.onSelect,
+    this.kind = PaletteKind.action,
     this.leading,
-    this.trailing,
     this.semanticLabel,
+    this.channel,
+    this.categoryName,
+    this.isCurrent = false,
+    this.member,
+    this.reason,
+    this.message,
+    this.messageChannelLabel,
   });
 
   final String label;
+  final PaletteKind kind;
+
+  /// An action's glyph; channel and person rows draw their own.
   final IconData? leading;
-  final Widget? trailing;
   final String? semanticLabel;
+  final Channel? channel;
+  final String? categoryName;
+  final bool isCurrent;
+  final api.UserProfile? member;
+  final PaletteReason? reason;
+  final api.Message? message;
+  final String? messageChannelLabel;
   final Future<void> Function(BuildContext context, WidgetRef ref) onSelect;
 }
 
@@ -60,22 +97,31 @@ bool channelMatchesQuery(
       selfDisplayName.toLowerCase().contains(q);
 }
 
-/// Same rule as [channelMatchesQuery], over both a member's display name and
-/// their username, since either is a name someone might type to find them.
-bool memberMatchesQuery(api.UserProfile member, String query) {
-  if (query.isEmpty) return true;
+/// Same rule as [channelMatchesQuery], over a member's display name, their
+/// username and their role names, since each is something someone might type
+/// to find them.
+bool memberMatchesQuery(api.UserProfile member, String query) =>
+    query.isEmpty ||
+    member.displayName.toLowerCase().contains(query.toLowerCase()) ||
+    memberMatchReason(member, query) != null;
+
+/// The reason a member matched [query] off their display name, or null when
+/// the name itself matched (or the query is empty): the row then says why a
+/// person appears under a name that does not contain what was typed.
+PaletteReason? memberMatchReason(api.UserProfile member, String query) {
+  if (query.isEmpty) return null;
   final q = query.toLowerCase();
-  return member.displayName.toLowerCase().contains(q) ||
-      member.username.toLowerCase().contains(q);
+  if (member.displayName.toLowerCase().contains(q)) return null;
+  if (member.username.toLowerCase().contains(q)) {
+    return (label: 'Username', value: member.username);
+  }
+  for (final role in member.roles) {
+    if (role.toLowerCase().contains(q)) return (label: 'Role', value: role);
+  }
+  return null;
 }
 
 const int paletteResultLimit = 8;
-
-IconData _channelIcon(Channel channel) => switch (channel.kind) {
-  'voice' => AppIcons.voice,
-  dmChannelKind => AppIcons.account,
-  _ => AppIcons.hash,
-};
 
 /// Channels matching [query], text and voice alike. A DM is a person and is
 /// found under Members, so listing it here too showed everyone twice; only the
@@ -91,6 +137,8 @@ List<PaletteResultItem> buildChannelItems(
   String query, {
   String? selfDisplayName,
   bool personalSpaceHidden = false,
+  Map<String, String> categoryNames = const {},
+  String? currentChannelId,
 }) => [
   for (final channel
       in channels
@@ -106,7 +154,10 @@ List<PaletteResultItem> buildChannelItems(
           .take(paletteResultLimit))
     PaletteResultItem(
       label: channel.name,
-      leading: _channelIcon(channel),
+      kind: PaletteKind.channel,
+      channel: channel,
+      categoryName: categoryNames[channel.categoryId],
+      isCurrent: channel.id == currentChannelId,
       onSelect: (context, ref) async {
         if (channel.isPersonalSpace) {
           await ref.read(personalSpaceVisibilityProvider.notifier).show();
@@ -132,7 +183,9 @@ List<PaletteResultItem> buildMemberItems(
           .take(paletteResultLimit))
     PaletteResultItem(
       label: member.displayName,
-      leading: AppIcons.account,
+      kind: PaletteKind.person,
+      member: member,
+      reason: memberMatchReason(member, query),
       semanticLabel: 'Message ${member.displayName}',
       onSelect: (context, ref) async {
         final container = ProviderScope.containerOf(context, listen: false);
@@ -154,13 +207,15 @@ List<PaletteResultItem> buildMemberItems(
 List<PaletteResultItem> buildMessageItems(
   List<api.Message> messages, {
   required String? currentChannelId,
+  Map<String, Channel> channelsById = const {},
 }) => [
   for (final message in messages)
     PaletteResultItem(
       label: message.content,
-      trailing: PaletteMessageAuthor(
-        authorId: message.authorId,
-        cachedDisplayName: message.authorDisplayName,
+      kind: PaletteKind.message,
+      message: message,
+      messageChannelLabel: _messageChannelLabel(
+        channelsById[message.channelId],
       ),
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),
@@ -172,6 +227,12 @@ List<PaletteResultItem> buildMessageItems(
     ),
 ];
 
+String _messageChannelLabel(Channel? channel) => switch (channel) {
+  null => 'a channel',
+  Channel(kind: dmChannelKind) => 'a direct message',
+  Channel(:final name) => '#$name',
+};
+
 /// A message hit's trailing author label: selects only its own author's
 /// slice of [batchProfilesControllerProvider], so an unrelated author
 /// resolving does not rebuild every row in the palette's result list - see
@@ -181,10 +242,14 @@ class PaletteMessageAuthor extends ConsumerWidget {
     super.key,
     required this.authorId,
     required this.cachedDisplayName,
+    this.style,
   });
 
   final String? authorId;
   final String? cachedDisplayName;
+
+  /// Defaults to the micro secondary style a trailing label used to have.
+  final TextStyle? style;
 
   /// Bounds the name so a long or claimed one cannot grow into the row's
   /// message-content column instead of ellipsizing in its own trailing
@@ -210,7 +275,7 @@ class PaletteMessageAuthor extends ConsumerWidget {
       child: AuthorNameLine(
         name: name,
         profile: resolution.profile,
-        style: AppText.micro.copyWith(color: tokens.textSecondary),
+        style: style ?? AppText.micro.copyWith(color: tokens.textSecondary),
       ),
     );
   }
@@ -229,12 +294,14 @@ List<PaletteResultItem> buildActionItems(String query, int permissions) {
     // on go, since a channel is a shell route and replacing is right there.
     PaletteResultItem(
       label: 'Open personal settings',
+      kind: PaletteKind.action,
       leading: AppIcons.settings,
       onSelect: (context, ref) async => context.push(Routes.personalSettings),
     ),
     if (spaceSettingsReachable(permissions))
       PaletteResultItem(
         label: 'Open Space settings',
+        kind: PaletteKind.action,
         leading: AppIcons.settings,
         onSelect: (context, ref) async => context.push(Routes.spaceSettings),
       ),

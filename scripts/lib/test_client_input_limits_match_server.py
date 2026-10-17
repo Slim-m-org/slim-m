@@ -106,5 +106,12 @@ class ClientInputLimitsMatchServerTest(unittest.TestCase):
         self.assertEqual(client_limits(dart), {"name": 64})
 
 
+    def test_the_profile_batch_size_matches_the_server(self):
+        source = strip_block_comments((CLIENT.parent / "client_users.dart").read_text())
+        found = re.search(r"\bconst _maxUserIdsPerRequest = (\d+);", source)
+        self.assertIsNotNone(found, "_maxUserIdsPerRequest is no longer an int constant in client_users.dart")
+        self.assertEqual(int(found.group(1)), read_real_server("http/users.rs", "MAX_USER_BATCH"))
+
+
 if __name__ == "__main__":
     unittest.main()

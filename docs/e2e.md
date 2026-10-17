@@ -9,6 +9,7 @@ web build, and two isolated headless browsers that talk to each other.
 bash scripts/e2e.sh            # the whole run, then teardown
 bash scripts/e2e.sh --keep     # leave the stack up afterwards to poke at
 E2E_ONLY="reaction" bash scripts/e2e.sh   # one scenario, by name
+E2E_ONLY="reaction|reconcile" bash scripts/e2e.sh   # several, split by |
 E2E_REBUILD=1 bash scripts/e2e.sh   # rebuild the web bundle first
 ```
 

@@ -154,13 +154,17 @@ class _SceneKeyboardGridState extends State<SceneKeyboardGrid> {
   }
 
   Widget _highlight(CellsOp grid, AppTokens tokens) {
-    final sx = widget.scene.width == 0
+    final scene = widget.scene;
+    final sx = scene.viewWidth == 0 ? 1.0 : widget.size.width / scene.viewWidth;
+    final sy = scene.viewHeight == 0
         ? 1.0
-        : widget.size.width / widget.scene.width;
-    final sy = widget.scene.height == 0
-        ? 1.0
-        : widget.size.height / widget.scene.height;
-    final rect = cellsGridRect(grid, widget.scene, sx, sy);
+        : widget.size.height / scene.viewHeight;
+    final rect = cellsGridRect(
+      grid,
+      scene,
+      sx,
+      sy,
+    ).shift(Offset(-scene.viewLeft * sx, -scene.viewTop * sy));
     final cellW = rect.width / grid.cols;
     final cellH = rect.height / grid.rows;
     return Positioned(

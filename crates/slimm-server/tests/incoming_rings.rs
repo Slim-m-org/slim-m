@@ -218,3 +218,47 @@ async fn listing_rings_needs_a_session() {
     let (status, _) = incoming(&h.app, None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
+
+/// Two people ringing each other: the second ring replaces the first, and the
+/// first caller is told their ring ended rather than ringing out forever
+/// (issue 2087).
+#[tokio::test]
+async fn a_ring_replaced_by_the_other_side_is_reported_ended() {
+    let h = harness().await;
+    let (alice_token, _alice_id) = register(&h.store, "alice").await;
+    let (bob_token, bob_id) = register(&h.store, "bob").await;
+    let channel_id = open_dm(&h.app, &alice_token, &bob_id).await;
+    assert_eq!(
+        ring(&h.app, &channel_id, &alice_token).await,
+        StatusCode::OK
+    );
+    let alice_ring = rings_for(&h.app, &bob_token).await[0]["ring_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mut durable = h.hub.subscribe();
+    let mut ephemeral = h.hub.subscribe_ephemeral();
+
+    assert_eq!(ring(&h.app, &channel_id, &bob_token).await, StatusCode::OK);
+
+    let mut ended = Vec::new();
+    let mut records = 0;
+    for rx in [&mut durable, &mut ephemeral] {
+        while let Ok(event) = rx.try_recv() {
+            match event {
+                slimm_server::hub::Event::CallRingEnded {
+                    ring_id, outcome, ..
+                } => {
+                    ended.push((ring_id.to_string(), outcome.as_str().to_owned()));
+                }
+                slimm_server::hub::Event::MessageCreated { call: Some(_), .. } => records += 1,
+                _ => {}
+            }
+        }
+    }
+    assert_eq!(ended, vec![(alice_ring, "answered".to_owned())]);
+    assert_eq!(
+        records, 0,
+        "ringing back is not a finished call, so it leaves no record"
+    );
+}

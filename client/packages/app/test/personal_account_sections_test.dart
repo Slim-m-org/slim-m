@@ -8,7 +8,6 @@ library;
 import 'dart:convert';
 import 'dart:io' show SocketException;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -132,54 +131,33 @@ void main() {
       return http.Response('{}', 404);
     });
 
-    expect(find.text('Sign out'), findsNothing, reason: 'no button per row');
-    await tester.tap(find.bySemanticsLabel('Sign out A phone'));
+    await tester.tap(find.widgetWithText(AppButton, 'Sign out'));
     await tester.pumpAndSettle();
     expect(find.text('Sign out A phone?'), findsOneWidget, reason: 'asks');
-    await tester.tap(find.widgetWithText(AppButton, 'Sign out'));
+    await tester.tap(find.widgetWithText(AppButton, 'Sign out').last);
     await tester.pumpAndSettle();
 
     expect(find.text('No devices signed in.'), findsOneWidget);
     container.dispose();
   });
 
-  testWidgets('the sign-out glyph shows on hover, and is always there for a '
-      'screen reader', (tester) async {
-    await _pump(tester, (request) {
-      if (request.method == 'GET' && request.url.path == '/devices') {
-        return http.Response(
-          '[${_deviceJson('device-1')}]',
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }
-      return http.Response('{}', 404);
-    });
-    double glyphOpacity() => tester
-        .widget<AnimatedOpacity>(
-          find.ancestor(
-            of: find.bySemanticsLabel('Sign out A phone'),
-            matching: find.byType(AnimatedOpacity),
-          ),
-        )
-        .opacity;
-    expect(
-      glyphOpacity(),
-      0,
-      reason: 'a list of four calls to action is noise',
-    );
+  testWidgets(
+    'another device has a labelled sign-out button, this one has none',
+    (tester) async {
+      await _pump(tester, (request) {
+        if (request.method == 'GET' && request.url.path == '/devices') {
+          return http.Response(
+            '[${_deviceJson('device-1')}]',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 404);
+      });
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: Offset.zero);
-    addTearDown(mouse.removePointer);
-    await mouse.moveTo(tester.getCenter(find.text('A phone')));
-    await tester.pumpAndSettle();
-    expect(glyphOpacity(), 1);
-
-    await mouse.moveTo(Offset.zero);
-    await tester.pumpAndSettle();
-    expect(glyphOpacity(), 0);
-  });
+      expect(find.widgetWithText(AppButton, 'Sign out'), findsOneWidget);
+    },
+  );
 
   /// This is the exact case the finding named: a lost connection while
   /// signing out a device used to throw out of `onPressed` with nothing
@@ -201,9 +179,9 @@ void main() {
         return http.Response('{}', 404);
       });
 
-      await tester.tap(find.bySemanticsLabel('Sign out A phone'));
-      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(AppButton, 'Sign out'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(AppButton, 'Sign out').last);
       await tester.pumpAndSettle();
 
       // Still listed, and no exception escaped: `pumpAndSettle` would rethrow one.
@@ -218,14 +196,9 @@ void main() {
       // Recovers rather than staying stuck: sign-out can be tried again.
       expect(
         tester
-            .widget<AppIconButton>(
-              find.ancestor(
-                of: find.bySemanticsLabel('Sign out A phone'),
-                matching: find.byType(AppIconButton),
-              ),
-            )
-            .onPressed,
-        isNotNull,
+            .widget<AppButton>(find.widgetWithText(AppButton, 'Sign out'))
+            .disabled,
+        isFalse,
       );
     },
   );

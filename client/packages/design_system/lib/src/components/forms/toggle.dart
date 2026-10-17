@@ -24,22 +24,21 @@ class AppToggle extends StatelessWidget {
     required this.value,
     this.onChanged,
     this.locked = false,
-    this.focusNode,
     this.semanticLabel,
   });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
   final bool locked;
-  final FocusNode? focusNode;
   final String? semanticLabel;
 
-  /// Exact design constants (track 40x22, thumb 16, padding 2), not derived
-  /// from spacing tokens: AppSizes has no switch metric and these do not sum
-  /// cleanly from AppSpacing steps.
+  /// Exact design constants (track 40x22, thumb 16 on and 14 off, padding 2),
+  /// not derived from spacing tokens: AppSizes has no switch metric and these
+  /// do not sum cleanly from AppSpacing steps.
   static const double _trackWidth = 40;
   static const double _trackHeight = 22;
-  static const double _thumbSize = 16;
+  static const double _thumbOn = 16;
+  static const double _thumbOff = 14;
   static const double _thumbInset = 2;
 
   @override
@@ -50,7 +49,6 @@ class AppToggle extends StatelessWidget {
     return Opacity(
       opacity: locked ? 0.6 : 1,
       child: FocusableTapTarget(
-        focusNode: focusNode,
         enabled: interactive,
         isButton: false,
         onTap: () => onChanged?.call(!value),
@@ -58,9 +56,13 @@ class AppToggle extends StatelessWidget {
         semanticLabel: semanticLabel,
         ringRadius: AppRadii.full,
         builder: (context, focused, hovered) {
-          final trackColor = value ? tokens.accentSoft : tokens.surfaceSunken;
-          final trackBorder = value ? tokens.accentFill : tokens.borderSubtle;
-          final thumbColor = value ? tokens.accentFill : tokens.status.offline;
+          // On is a solid accent track, off a hollow one, per the settings redesign (2026-10-16).
+          final trackColor = value ? tokens.accentFill : tokens.surfaceSunken;
+          final trackBorder = value ? tokens.accentFill : tokens.borderStrong;
+          final thumbColor = value ? tokens.accentOn : tokens.textSecondary;
+          final thumb = value ? _thumbOn : _thumbOff;
+          final motion =
+              AppMotion.reduced(context, const Duration(milliseconds: 150));
 
           return Container(
             width: _trackWidth,
@@ -73,12 +75,14 @@ class AppToggle extends StatelessWidget {
             ),
             child: AnimatedAlign(
               alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-              duration:
-                  AppMotion.reduced(context, const Duration(milliseconds: 150)),
+              duration: motion,
               curve: Curves.easeOut,
-              child: Container(
-                width: _thumbSize,
-                height: _thumbSize,
+              child: AnimatedContainer(
+                duration: motion,
+                curve: Curves.easeOut,
+                width: thumb,
+                height: thumb,
+                margin: EdgeInsets.all((_thumbOn - thumb) / 2),
                 decoration:
                     BoxDecoration(color: thumbColor, shape: BoxShape.circle),
               ),

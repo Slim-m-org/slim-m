@@ -23,6 +23,7 @@
 /// the text that was typed.
 library;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,10 +32,14 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../external_link.dart';
 import '../message_link.dart';
+import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
+import '../routing/routes.dart';
 import 'app_snackbar.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'custom_emoji_image.dart';
+import 'emoji_name_tip.dart';
+import 'emoji_names.dart';
 import 'message_jump.dart' show jumpToMessage;
 import 'message_code_block_runner.dart';
 import 'message_fences.dart';
@@ -283,10 +288,12 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
   /// recognizer is not disposed for you, so they are owned here, rebuilt on
   /// each build and released in [dispose] - a link inside a message row that
   /// scrolls off would otherwise leak one per rebuild.
-  final List<TapGestureRecognizer> _recognizers = [];
+  final List<GestureRecognizer> _recognizers = [];
+  final _nameTip = EmojiNameTipController();
 
   @override
   void dispose() {
+    _nameTip.dispose();
     _disposeRecognizers();
     super.dispose();
   }
@@ -309,6 +316,33 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
     final recognizer = TapGestureRecognizer()..onTap = () => _openMessage(raw);
     _recognizers.add(recognizer);
     return recognizer;
+  }
+
+  /// A standard emoji's run of text, which names itself on hover (pointer
+  /// platforms) or on a long press of the glyph itself (touch, where a long
+  /// press anywhere else on the row still opens the message menu).
+  TextSpan _makeEmojiNameSpan(String glyph, String name) {
+    final touch =
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    if (!touch) {
+      return TextSpan(
+        text: glyph,
+        onEnter: (event) =>
+            _nameTip.showAfterRest(context, name, event.position),
+        onExit: (_) => _nameTip.hide(),
+      );
+    }
+    final recognizer = LongPressGestureRecognizer()
+      ..onLongPressStart = (details) {
+        _nameTip.show(context, name, details.globalPosition);
+      }
+      ..onLongPressEnd = (_) {
+        _nameTip.hideAfter(emojiNameLinger);
+      }
+      ..onLongPressCancel = _nameTip.hide;
+    _recognizers.add(recognizer);
+    return TextSpan(text: glyph, recognizer: recognizer);
   }
 
   /// Follows a message link inside the app. Never reaches [launchUrl]: see
@@ -355,6 +389,7 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
               linkColor: tokens.accent,
               makeLinkRecognizer: _makeLinkRecognizer,
               makeMessageLinkRecognizer: _makeMessageLinkRecognizer,
+              makeEmojiNameSpan: _makeEmojiNameSpan,
             ),
           ),
           if (widget.trailing case final trailing?)

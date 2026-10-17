@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_data/src/database.dart';
 
 import 'support/v22_columns.dart';
+import 'support/v23_columns.dart';
 
 Future<void> _downgradeToV21(File file) async {
   final db = SlimmDatabase(NativeDatabase(file));
@@ -22,6 +23,7 @@ Future<void> _downgradeToV21(File file) async {
         ),
       );
   await dropV22Columns(db);
+  await dropV23Columns(db);
   await db.customStatement('PRAGMA user_version = 21');
   await db.close();
 }

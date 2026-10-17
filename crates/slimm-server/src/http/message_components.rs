@@ -51,15 +51,23 @@ pub(super) async fn honored_for_send(
     components::validate(raw, super::hidden_chars::is_hidden_char).map_err(ApiError::BadRequest)
 }
 
-/// Stores `rows` when `fresh`, then reads back what the message really has, so
-/// an idempotent retry returns the buttons as they are now.
+/// Stores `rows` on a fresh send, or on a retry whose first attempt stored
+/// none, then reads back what the message really has.
 pub(super) async fn store_and_reload(
     state: &AppState,
     message_id: MessageId,
     fresh: bool,
     rows: &[ComponentRow],
 ) -> anyhow::Result<Vec<ComponentRow>> {
-    if fresh && !rows.is_empty() {
+    // A retry stores what its first attempt failed to; one that already has buttons leaves them, edits included.
+    if !rows.is_empty()
+        && (fresh
+            || state
+                .store
+                .components_for_message(message_id)
+                .await?
+                .is_empty())
+    {
         state.store.set_message_components(message_id, rows).await?;
     }
     state.store.components_for_message(message_id).await

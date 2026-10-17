@@ -45,9 +45,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings...'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Delete channel'));
+      await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete channel'));
+      await tester.tap(find.text('Delete channel...'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete permanently'));
       await tester.pumpAndSettle();
@@ -228,9 +228,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings...'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Delete channel'));
+      await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete channel'));
+      await tester.tap(find.text('Delete channel...'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete permanently'));
       await tester.pumpAndSettle();
@@ -275,9 +275,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings...'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Delete channel'));
+      await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete channel'));
+      await tester.tap(find.text('Delete channel...'));
       await tester.pumpAndSettle();
 
       // "Keep channel", not "Cancel": next to "Delete permanently" the vaguer word is what made this dialog get copied instead of reused.
@@ -322,9 +322,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings...'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Delete channel'));
+      await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete channel'));
+      await tester.tap(find.text('Delete channel...'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete permanently'));
       await tester.pumpAndSettle();

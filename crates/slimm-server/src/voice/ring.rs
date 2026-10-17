@@ -48,10 +48,17 @@ impl CallRings {
 
     /// Starts a fresh ring, replacing whatever was outstanding for this
     /// channel; see this module's own doc for why replacing rather than
-    /// refusing a second attempt is the right call.
-    pub fn start(&self, channel_id: ChannelId, caller_id: UserId, callee_id: UserId) -> CallRingId {
+    /// refusing a second attempt is the right call. Reports the replaced
+    /// ring's id and caller, so its end can be announced: otherwise the first
+    /// caller's client keeps ringing out with nothing to tell it to stop.
+    pub fn start(
+        &self,
+        channel_id: ChannelId,
+        caller_id: UserId,
+        callee_id: UserId,
+    ) -> (CallRingId, Option<(CallRingId, UserId)>) {
         let ring_id = CallRingId::generate();
-        lock(&self.state).insert(
+        let replaced = lock(&self.state).insert(
             channel_id,
             RingState {
                 ring_id,
@@ -60,7 +67,7 @@ impl CallRings {
                 started_at: Instant::now(),
             },
         );
-        ring_id
+        (ring_id, replaced.map(|ring| (ring.ring_id, ring.caller_id)))
     }
 
     /// The callee answered (their first heartbeat for this channel landed
@@ -218,7 +225,7 @@ mod tests {
     fn the_callee_answering_clears_the_ring_and_reports_its_id() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee);
+        let ring_id = rings.start(channel, caller, callee).0;
 
         assert_eq!(
             rings.answer(channel, callee).map(|(id, _)| id),
@@ -297,7 +304,7 @@ mod tests {
     fn declining_clears_the_ring_and_reports_the_caller_to_evict() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee);
+        let ring_id = rings.start(channel, caller, callee).0;
 
         assert_eq!(rings.decline(channel, callee), Some((ring_id, caller)));
         assert_eq!(rings.decline(channel, callee), None);
@@ -307,7 +314,7 @@ mod tests {
     fn the_caller_canceling_is_matched_on_the_caller_not_the_callee() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee);
+        let ring_id = rings.start(channel, caller, callee).0;
 
         assert_eq!(rings.cancel(channel, callee), None, "not the caller");
         assert_eq!(rings.cancel(channel, caller), Some(ring_id));
@@ -317,8 +324,8 @@ mod tests {
     fn starting_a_second_ring_for_the_same_channel_replaces_the_first() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let first = rings.start(channel, caller, callee);
-        let second = rings.start(channel, caller, callee);
+        let first = rings.start(channel, caller, callee).0;
+        let second = rings.start(channel, caller, callee).0;
 
         assert_ne!(first, second, "each attempt mints a fresh id");
         assert_eq!(
@@ -344,7 +351,7 @@ mod tests {
     fn a_ring_past_the_timeout_is_swept_and_reports_the_caller() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee);
+        let ring_id = rings.start(channel, caller, callee).0;
 
         let past = Instant::now() + RING_TIMEOUT + Duration::from_secs(1);
         assert_eq!(rings.sweep_stale_at(past), [(channel, ring_id, caller)]);

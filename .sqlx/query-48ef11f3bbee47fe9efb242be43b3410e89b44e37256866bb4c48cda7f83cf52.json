@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_retention (channel_id, retention_days, updated_at)\n                     VALUES (?, ?, ?)\n                     ON CONFLICT(channel_id) DO UPDATE\n                     SET retention_days = excluded.retention_days, updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "48ef11f3bbee47fe9efb242be43b3410e89b44e37256866bb4c48cda7f83cf52"
+}

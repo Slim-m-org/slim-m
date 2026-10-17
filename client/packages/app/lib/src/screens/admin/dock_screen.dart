@@ -27,6 +27,8 @@ import '../../routing/routes.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/ring_flush.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'dock_install_consent.dart';
@@ -38,7 +40,7 @@ class DockScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SettingsScreenScaffold(
-    title: 'Dock',
+    title: 'Modules',
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     child: DockPane(),
@@ -195,7 +197,6 @@ class _DockPaneState extends ConsumerState<DockPane>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final catalog = ref.watch(dockCatalogProvider);
     final needle = _query.text.trim().toLowerCase();
     return AppAsyncView<DockCatalog>(
@@ -217,14 +218,12 @@ class _DockPaneState extends ConsumerState<DockPane>
               AppErrorState(message: message, onDismiss: clearActionError),
               const SizedBox(height: AppSpacing.s12),
             ],
-            if (outdated.isNotEmpty) ...[
+            if (outdated.isNotEmpty)
               _UpdateAllBar(
                 count: outdated.length,
                 busy: _updatingAll,
                 onUpdateAll: () => unawaited(_updateAll(outdated)),
               ),
-              const SizedBox(height: AppSpacing.s12),
-            ],
             RingFlush(
               child: AppInput(
                 controller: _query,
@@ -235,19 +234,19 @@ class _DockPaneState extends ConsumerState<DockPane>
             ),
             const SizedBox(height: AppSpacing.s12),
             if (shown.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.s16),
-                child: Text(
-                  catalog.entries.isEmpty
-                      ? 'No modules are published in the marketplace yet.'
-                      : 'No module matches "${_query.text.trim()}".',
-                  style: AppText.body.copyWith(color: tokens.textSecondary),
-                ),
+              SettingsSectionCard(
+                children: [
+                  SettingsEmptyState(
+                    icon: AppIcons.dock,
+                    title: catalog.entries.isEmpty
+                        ? 'No modules are published in the marketplace yet.'
+                        : 'No module matches "${_query.text.trim()}".',
+                  ),
+                ],
               )
             else
               SettingsSectionCard(
                 title: catalog.sections.isEmpty ? null : 'Official modules',
-                divided: true,
                 children: [
                   for (final entry in shown)
                     DockModuleRow(
@@ -303,35 +302,19 @@ class _UpdateAllBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final subject = count == 1 ? '1 module has' : '$count modules have';
     return SettingsSectionCard(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s8,
-            vertical: AppSpacing.s4,
-          ),
-          child: Row(
-            children: [
-              Icon(AppIcons.dock, color: tokens.accent),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: Text(
-                  '$subject an update',
-                  style: AppText.body.copyWith(color: tokens.textPrimary),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              AppButton(
-                label: busy ? 'Updating...' : 'Update all',
-                variant: AppButtonVariant.primary,
-                size: AppButtonSize.sm,
-                disabled: busy,
-                onPressed: onUpdateAll,
-                semanticLabel: 'Update all modules',
-              ),
-            ],
+        SettingsDetailRow(
+          icon: AppIcons.dock,
+          title: '$subject an update',
+          trailing: AppButton(
+            label: busy ? 'Updating...' : 'Update all',
+            variant: AppButtonVariant.primary,
+            size: AppButtonSize.sm,
+            disabled: busy,
+            onPressed: onUpdateAll,
+            semanticLabel: 'Update all modules',
           ),
         ),
       ],

@@ -211,4 +211,19 @@ mod tests {
         assert!(blocked("2002:7f00:0001::"));
         assert!(blocked("64:ff9b::7f00:0001"));
     }
+
+    fn resolve(allow_private: bool, host: &str) -> Resolving {
+        GuardResolver { allow_private }.resolve(host.parse().unwrap())
+    }
+
+    #[tokio::test]
+    async fn the_resolver_refuses_a_name_that_resolves_to_loopback() {
+        assert!(resolve(false, "localhost").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn the_resolver_lets_a_test_reach_loopback_when_told_to() {
+        let addrs: Vec<SocketAddr> = resolve(true, "localhost").await.unwrap().collect();
+        assert!(addrs.iter().all(|a| a.ip().is_loopback()), "{addrs:?}");
+    }
 }

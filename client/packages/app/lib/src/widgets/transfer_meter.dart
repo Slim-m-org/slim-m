@@ -1,20 +1,25 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// How fast an upload is going and how long it has left, smoothed so the
-/// estimate does not jump with every progress callback.
+/// How fast an upload or download is going and how long it has left, smoothed
+/// so the estimate does not jump with every progress callback.
 library;
 
 import 'dart:math' as math;
 
-/// Uploads shorter than this show no speed or estimate: there is nothing to wait for.
-const Duration kTransferDetailAfter = Duration(seconds: 10);
+import 'attachment_format.dart';
+
+/// The estimate is hidden until the meter has measured for this long, so the first noisy seconds never reach the screen.
+const Duration kTransferDetailAfter = Duration(seconds: 2);
+
+/// With no bytes for longer than this the shown rate decays, so a stalled transfer stops promising its old finish time.
+const Duration _stallAfter = Duration(seconds: 2);
 
 class TransferMeter {
   TransferMeter([DateTime Function()? clock])
     : _clock = clock ?? DateTime.now,
-      startedAt = (clock ?? DateTime.now)();
+      _measuredSince = (clock ?? DateTime.now)();
 
   final DateTime Function() _clock;
-  final DateTime startedAt;
+  DateTime _measuredSince;
 
   /// How quickly the smoothed rate follows a change, in seconds.
   static const double _smoothing = 3;
@@ -25,6 +30,14 @@ class TransferMeter {
   DateTime? _lastAt;
   int _lastBytes = 0;
   double? _rate;
+
+  /// Forgets the measured rate, for a reconnect: the old speed says nothing about the new link.
+  void reset() {
+    _lastAt = null;
+    _lastBytes = 0;
+    _rate = null;
+    _measuredSince = _clock();
+  }
 
   void record(int sent) {
     final at = _clock();
@@ -49,7 +62,14 @@ class TransferMeter {
   /// Bytes a second, or null while nothing has been measured or nothing moves.
   double? get bytesPerSecond {
     final rate = _rate;
-    return rate != null && rate > 0 && rate.isFinite ? rate : null;
+    final lastAt = _lastAt;
+    if (rate == null || lastAt == null || rate <= 0 || !rate.isFinite) {
+      return null;
+    }
+    final idle = _clock().difference(lastAt) - _stallAfter;
+    if (idle <= Duration.zero) return rate;
+    final seconds = idle.inMicroseconds / Duration.microsecondsPerSecond;
+    return rate * math.exp(-seconds / _smoothing);
   }
 
   /// Time left at the current rate, or null when the rate is unknown.
@@ -60,18 +80,45 @@ class TransferMeter {
     return Duration(seconds: math.min(seconds, 99 * 3600).ceil());
   }
 
-  /// Whether the upload has run long enough to be worth an estimate.
+  /// Whether the transfer has been measured long enough to be worth an estimate.
   bool get showsDetail =>
-      _clock().difference(startedAt) >= kTransferDetailAfter &&
+      _clock().difference(_measuredSince) >= kTransferDetailAfter &&
       bytesPerSecond != null;
 }
 
-/// "about 40 s left", "about 7 min left", "about 2 h left".
+/// "40 s left", "7 min left", "2 h left".
 String formatTimeLeft(Duration left) {
-  if (left.inSeconds < 60) return 'about ${math.max(1, left.inSeconds)} s left';
-  if (left.inMinutes < 60) {
-    return 'about ${(left.inSeconds / 60).ceil()} min left';
-  }
+  if (left.inSeconds < 60) return '${math.max(1, left.inSeconds)} s left';
+  if (left.inMinutes < 60) return '${(left.inSeconds / 60).ceil()} min left';
   final hours = left.inMinutes / 60;
-  return 'about ${hours < 10 ? hours.toStringAsFixed(1) : hours.round()} h left';
+  return '${hours < 10 ? hours.toStringAsFixed(1) : hours.round()} h left';
+}
+
+/// "38.0 MB/s".
+String formatTransferRate(double bytesPerSecond) =>
+    '${formatByteSize(bytesPerSecond.round())}/s';
+
+/// "42% · 38.0 MB/s · 2 min left" once the [meter] has an estimate, else the
+/// plain "42% of 5.4 GB" (or just "42%" when the total is unknown).
+String formatTransferLine({
+  required int sent,
+  required int? total,
+  required TransferMeter? meter,
+  bool reconnecting = false,
+}) {
+  final percent = total == null || total <= 0
+      ? null
+      : (sent / total * 100).clamp(0, 100).floor();
+  if (reconnecting) return 'Reconnecting at ${percent ?? 0}%…';
+  final rate = meter?.bytesPerSecond;
+  final left = total == null ? null : meter?.remaining(sent, total);
+  if (meter != null && meter.showsDetail && rate != null) {
+    return [
+      percent == null ? formatByteSize(sent) : '$percent%',
+      formatTransferRate(rate),
+      ?left == null ? null : formatTimeLeft(left),
+    ].join(' · ');
+  }
+  if (percent == null) return formatByteSize(sent);
+  return '$percent% of ${formatByteSize(total!)}';
 }

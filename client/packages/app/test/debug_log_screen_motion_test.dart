@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The debug log's own `ExpansionTile` (an entry with a stack trace) drives
-/// its expand/collapse with a plain `AnimationController` Flutter owns,
-/// keyed to the platform's own reduce-motion feature rather than this app's
-/// `MediaQuery` override - the same gap `sheet_test.dart` covers for
-/// `showAppSheet`, on a widget that never goes through it.
+/// A debug log entry with a stack trace expands under reduce motion without
+/// animating, and animates for a viewer who asked for nothing.
 ///
 /// Measured on the tile's own rendered height, not `hasRunningAnimations`:
 /// tapping it also starts the row's own `InkWell` ripple, a second, genuinely
@@ -16,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/screens/debug_log_screen.dart';
+import 'package:slimm_app/src/widgets/debug_log_entry.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness({required bool reduceMotion}) => ProviderScope(
@@ -43,12 +41,12 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_harness(reduceMotion: true));
-    await tester.tap(find.byType(ExpansionTile));
+    await tester.tap(find.byTooltip('Show detail'));
     await tester.pump();
 
-    final justAfterTap = tester.getSize(find.byType(ExpansionTile)).height;
+    final justAfterTap = tester.getSize(find.byType(DebugLogEntry)).height;
     await tester.pumpAndSettle();
-    final settled = tester.getSize(find.byType(ExpansionTile)).height;
+    final settled = tester.getSize(find.byType(DebugLogEntry)).height;
 
     expect(
       justAfterTap,
@@ -59,12 +57,12 @@ void main() {
 
   testWidgets('expanding an entry still animates by default', (tester) async {
     await tester.pumpWidget(_harness(reduceMotion: false));
-    await tester.tap(find.byType(ExpansionTile));
+    await tester.tap(find.byTooltip('Show detail'));
     await tester.pump();
 
-    final justAfterTap = tester.getSize(find.byType(ExpansionTile)).height;
+    final justAfterTap = tester.getSize(find.byType(DebugLogEntry)).height;
     await tester.pumpAndSettle();
-    final settled = tester.getSize(find.byType(ExpansionTile)).height;
+    final settled = tester.getSize(find.byType(DebugLogEntry)).height;
 
     expect(
       justAfterTap,

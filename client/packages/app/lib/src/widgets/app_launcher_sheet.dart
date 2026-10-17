@@ -115,7 +115,7 @@ Future<void> showAppLauncherSheet(
                           canManageServer
                               ? 'No apps installed yet.'
                               : 'No apps installed. Ask an admin to install '
-                                    'one from the Dock.',
+                                    'one from Modules.',
                           style: AppText.caption.copyWith(
                             color: tokens.textSecondary,
                           ),
@@ -123,7 +123,7 @@ Future<void> showAppLauncherSheet(
                       ),
                       if (canManageServer)
                         AppListRow(
-                          label: 'Open the Dock',
+                          label: 'Open Modules',
                           leading: Icon(
                             AppIcons.dock,
                             size: AppSizes.icon16,

@@ -57,6 +57,7 @@ pub(crate) async fn record_finished_call(
                 seq: sent.message.seq,
                 content: sent.message.content.clone(),
                 presence: hub.presence(),
+                reply_ping: None,
             },
         );
     }

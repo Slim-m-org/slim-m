@@ -99,7 +99,8 @@ The brief treats binary size as a budget for a self-host binary, and `server-ci`
 An OpenAPI 3.1 schema object *is* a JSON Schema 2020-12 schema, so a general JSON Schema validator checks it directly, rather than a hand-written copy of each shape drifting alongside the real one.
 `default-features = false` drops the file and http `$ref` resolvers, and the reqwest and aws-lc-rs they drag in: every `$ref` in that document is a local pointer into the one document.
 
-`serde_yaml_ng` is the maintained fork of the archived `serde_yaml`, used only to turn the schema into a `serde_json::Value` the validator can compile.
+`serde-saphyr` turns the schema into a `serde_json::Value` the validator can compile, and loads it for the other schema-reading tests.
+It is pure Rust; it replaced `serde_yaml_ng`, whose `unsafe-libyaml` dependency is unmaintained (RUSTSEC-2024-0449, issue 2154).
 
 ## Client holds
 

@@ -4,6 +4,8 @@
 //! handling. Split out of `super` (the envelope and connection loop) so that
 //! file stays focused on the wire protocol itself.
 
+use std::sync::Arc;
+
 use super::frames::ServerFrame;
 use crate::hub::{Event, Hub};
 use crate::ids::{CanvasObjectId, ChannelId, DeviceId, UserId};
@@ -388,7 +390,7 @@ pub(super) async fn handle_canvas_stroke_preview(
         channel_id,
         user_id: ctx.user_id,
         object_id,
-        points: frame.points,
+        points: Arc::new(frame.points),
         ended: frame.ended,
     });
 }

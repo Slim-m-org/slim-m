@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Dock's three levels on the snapshot router, with the real screens.
+/// The Dock's three levels, plus Bots and Webhooks, on the snapshot router, with the real screens.
 ///
 /// The router here lists routes by hand, and the two module levels were
 /// missing from it, so both surfaces rendered the router's own not-found page
@@ -9,11 +9,21 @@ library;
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_app/src/routing/routes.dart';
+import 'package:slimm_app/src/screens/admin/bots_screen.dart';
 import 'package:slimm_app/src/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/screens/admin/dock_screen.dart';
+import 'package:slimm_app/src/screens/admin/webhooks_screen.dart';
 
 final dockFixtureRoutes = [
+  GoRoute(
+    path: Routes.adminBots,
+    pageBuilder: (context, state) => modalPage(context, const BotsScreen()),
+  ),
+  GoRoute(
+    path: Routes.adminWebhooks,
+    pageBuilder: (context, state) => modalPage(context, const WebhooksScreen()),
+  ),
   GoRoute(
     path: Routes.adminDock,
     pageBuilder: (context, state) => modalPage(context, const DockScreen()),

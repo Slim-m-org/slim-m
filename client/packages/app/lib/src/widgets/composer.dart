@@ -39,6 +39,8 @@ import 'composer_bot_mention_help.dart';
 import 'composer_bot_mentions.dart';
 import 'composer_clipboard_image.dart';
 import 'composer_clipboard_paste.dart';
+import 'composer_code_blocks.dart';
+import 'composer_send_focus.dart';
 import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
 import 'composer_list_keys.dart';
@@ -108,6 +110,7 @@ class _ComposerState extends ConsumerState<Composer> {
   late final FocusNode _focus = FocusNode(onKeyEvent: _onKey);
   final _pickerController = ComposerPickerController();
   final ComposerListKeys _listKeys = ComposerListKeys();
+  late final _codePaste = ComposerCodePaste(widget.controller);
 
   /// The composed text's own length and how far over [kMessageMaxChars] it
   /// sits, if at all. Tracked alongside [_hasText] rather than read fresh in
@@ -238,6 +241,7 @@ class _ComposerState extends ConsumerState<Composer> {
     widget.clipboardPasteStop(_handlePastedImage);
     _focus.dispose();
     _pickerController.dispose();
+    _codePaste.dispose();
     _attachments.removeListener(_handleAttachmentsChange);
     super.dispose();
   }
@@ -444,7 +448,8 @@ class _ComposerState extends ConsumerState<Composer> {
   void _insert(String text, {int? caretOffset}) =>
       insertAtSelection(widget.controller, text, caretOffset: caretOffset);
 
-  void _insertCodeFence() => _insert('``', caretOffset: 1);
+  void _insertCodeFence() =>
+      unawaited(insertCodeFromPicker(context, widget.controller, _focus));
 
   /// Touch density only: the Space's own emoji; native ones come from the
   /// keyboard. Desktop width reaches `ComposerPickerButton`'s panel instead.
@@ -517,7 +522,7 @@ class _ComposerState extends ConsumerState<Composer> {
   /// Re-focuses first so a soft keyboard stays up across the send, matching
   /// what the field's own submit action does.
   void _sendFromButton() {
-    _focus.requestFocus();
+    reattachFieldAfterButtonSend(context, _focus);
     unawaited(_send());
   }
 
@@ -681,6 +686,7 @@ class _ComposerState extends ConsumerState<Composer> {
               isSpoiler: _attachments.isSpoiler,
               onToggleSpoiler: _attachments.toggleSpoiler,
             ),
+            ComposerCodePasteOffer(paste: _codePaste),
             // Above the field, never below: that is the send row and keyboard.
             ComposerAutocomplete(
               suggestions: _suggestions,

@@ -30,6 +30,7 @@ String _flatten(InlineNode node) => switch (node) {
   InlineEmoji(:final raw) => raw,
   InlineLink(:final url) => url,
   InlineMessageLink(:final raw) => raw,
+  InlineChannelMention() => '#channel',
   InlineBold(:final children) ||
   InlineItalic(:final children) ||
   InlineStrikethrough(:final children) => children.map(_flatten).join(),

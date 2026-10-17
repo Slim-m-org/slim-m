@@ -14,6 +14,7 @@
 /// at the bottom of this same stack, drawing over exactly that content.
 library;
 
+import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +36,7 @@ import 'selection_painter.dart';
 /// and update callbacks (`_scaleStart`, `_scaleFocalWorld`) stay here, since
 /// an extension cannot declare instance state.
 part 'canvas_surface_gestures.dart';
+part 'canvas_surface_painters.dart';
 
 /// A pen stroke the surface has finished and wants committed.
 typedef StrokeCommitted = void Function(List<Offset> worldPoints);
@@ -298,18 +300,20 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   }
 
   final DraftStroke _draft = DraftStroke();
-  late final StrokePainter _strokes = StrokePainter(
-    document: widget.document,
-    ink: widget.ink,
-    inkColors: widget.inkColors,
-    noteColor: widget.noteColor,
-    shapeColor: widget.shapeColor,
-    textInk: widget.noteTextInk,
-    textFontFamily: widget.cursorLabelFontFamily,
-    placeholderFill: widget.placeholderFill,
-    placeholderIcon: widget.placeholderIcon,
-    elevationShadow: widget.elevationShadow,
-  );
+  late StrokePainter _strokes = _buildStrokePainter();
+
+  StrokePainter _buildStrokePainter() => StrokePainter(
+        document: widget.document,
+        ink: widget.ink,
+        inkColors: widget.inkColors,
+        noteColor: widget.noteColor,
+        shapeColor: widget.shapeColor,
+        textInk: widget.noteTextInk,
+        textFontFamily: widget.cursorLabelFontFamily,
+        placeholderFill: widget.placeholderFill,
+        placeholderIcon: widget.placeholderIcon,
+        elevationShadow: widget.elevationShadow,
+      );
   late DraftPainter _draftPainter = _buildDraftPainter();
 
   DraftPainter _buildDraftPainter() => DraftPainter(
@@ -322,27 +326,29 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   @override
   void didUpdateWidget(CanvasSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.penInk != widget.penInk ||
-        oldWidget.strokeWidth != widget.strokeWidth) {
-      _draftPainter = _buildDraftPainter();
-    }
+    _refreshPainters(oldWidget);
   }
 
   final DraftShape _shapeDraft = DraftShape();
-  late final DraftShapePainter _shapeDraftPainter = DraftShapePainter(
-    draft: _shapeDraft,
-    document: widget.document,
-    color: widget.shapeColor ?? widget.ink,
-  );
-  late final RemoteDraftPainter? _remoteDraftPainter =
-      widget.remoteDrafts == null
-          ? null
-          : RemoteDraftPainter(
-              drafts: widget.remoteDrafts!,
-              document: widget.document,
-              colors: widget.cursorColors,
-            );
-  late final CursorPainter? _cursorPainter = widget.cursors == null
+  late DraftShapePainter _shapeDraftPainter = _buildShapeDraftPainter();
+
+  DraftShapePainter _buildShapeDraftPainter() => DraftShapePainter(
+        draft: _shapeDraft,
+        document: widget.document,
+        color: widget.shapeColor ?? widget.ink,
+      );
+  late RemoteDraftPainter? _remoteDraftPainter = _buildRemoteDraftPainter();
+
+  RemoteDraftPainter? _buildRemoteDraftPainter() => widget.remoteDrafts == null
+      ? null
+      : RemoteDraftPainter(
+          drafts: widget.remoteDrafts!,
+          document: widget.document,
+          colors: widget.cursorColors,
+        );
+  late CursorPainter? _cursorPainter = _buildCursorPainter();
+
+  CursorPainter? _buildCursorPainter() => widget.cursors == null
       ? null
       : CursorPainter(
           cursors: widget.cursors!,
@@ -352,8 +358,9 @@ class _CanvasSurfaceState extends State<CanvasSurface>
           glide: widget.cursorGlide,
           glideTick: _cursorGlideTick,
         );
-  late final SelectionPainter? _selectionPainter = widget.selectionOutline ==
-          null
+  late SelectionPainter? _selectionPainter = _buildSelectionPainter();
+
+  SelectionPainter? _buildSelectionPainter() => widget.selectionOutline == null
       ? null
       : SelectionPainter(
           document: widget.document,

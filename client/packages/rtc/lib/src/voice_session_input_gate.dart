@@ -7,16 +7,62 @@ part of 'voice_session.dart';
 const double _kAutoThresholdStepDb = 0.5;
 
 mixin VoiceSessionInputGate {
+  lk.Room? get _room;
+  VoiceSessionState get _state;
+  AudioDeviceSwitching get _audioSwitching;
+  late final MicPort _mic;
+  late final void Function() _afterRestart;
   late final InputGateMonitor _gate;
+  late final CaptureNoiseSuppression _capture;
+  StreamSubscription<InputGateReading>? _captureReadings;
   bool _gateEnabled = true;
   double _gateThresholdDb = kDefaultInputThresholdDb;
   bool _evenOutLoudSounds = true;
-  bool _strongNoiseSuppression = false;
   NoiseFloorEstimator? _autoThreshold;
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
   bool get supportsInputGate => _gate.supported;
+
+  void _initCapture(
+    MicPort? mic,
+    Duration? debounce,
+    void Function() afterRestart,
+  ) {
+    _afterRestart = afterRestart;
+    _mic = mic ?? LiveKitMicPort(() => _room);
+    _capture = CaptureNoiseSuppression(
+      supported: _gate.supported,
+      restart: _restartCapture,
+      canRestart: () =>
+          _state == VoiceSessionState.connected && _mic.open && _gateEnabled,
+      onNativeStrongChanged: () => unawaited(_applyInputGate()),
+      debounce: debounce ?? kCaptureRestartDebounce,
+    );
+    _captureReadings = _gate.readings.listen(
+      (r) =>
+          _capture.onReading(strongActive: r.strongActive, micOpen: _mic.open),
+    );
+  }
+
+  Future<void> _disposeCapture() async {
+    _capture.dispose();
+    await _captureReadings?.cancel();
+  }
+
+  /// Null leaves the room's defaults, which is all a host without the gate needs.
+  lk.AudioCaptureOptions? _micCaptureOptions() => _gate.supported
+      ? _audioSwitching.captureOptions(
+          noiseSuppression: _capture.webrtcNoiseSuppression,
+        )
+      : null;
+
+  Future<void> _restartCapture({required bool webrtcNoiseSuppression}) async {
+    await _mic.restart(
+      _audioSwitching.captureOptions(noiseSuppression: webrtcNoiseSuppression),
+    );
+    _afterRestart();
+  }
 
   /// Your microphone's level and voice state, while in a call.
   Stream<InputGateReading> get inputGateReadings => _gate.readings;
@@ -71,7 +117,7 @@ mixin VoiceSessionInputGate {
   /// Runs rnnoise on the microphone ahead of the gate, for keyboards, fans
   /// and room noise libwebrtc's own suppressor lets through.
   void setStrongNoiseSuppression(bool enabled) {
-    _strongNoiseSuppression = enabled;
+    _capture.setStrong(enabled);
     unawaited(_applyInputGate());
   }
 
@@ -79,6 +125,6 @@ mixin VoiceSessionInputGate {
         enabled: _gateEnabled,
         thresholdDb: _gateThresholdDb,
         dynamics: _evenOutLoudSounds,
-        strongNoiseSuppression: _strongNoiseSuppression,
+        strongNoiseSuppression: _capture.nativeStrong,
       );
 }

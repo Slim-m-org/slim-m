@@ -12,8 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_design_system/design_system.dart';
-
+import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 
 class DockWhatItAddsCard extends StatelessWidget {
@@ -23,7 +22,6 @@ class DockWhatItAddsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final entries = extensionPoints.map(_describe).nonNulls.toList();
     if (entries.isEmpty) {
       // A module of bare commands only surfaces nothing in chat; its commands run from the panel below when it is installed.
@@ -33,25 +31,7 @@ class DockWhatItAddsCard extends StatelessWidget {
       title: 'What it adds',
       children: [
         for (final (title, subtitle) in entries)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: AppSpacing.s4,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppText.body.copyWith(color: tokens.textPrimary),
-                ),
-                Text(
-                  subtitle,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ],
-            ),
-          ),
+          SettingsDetailRow(title: title, detail: subtitle),
       ],
     );
   }

@@ -296,6 +296,12 @@ jobs:
             }
           done
 
+          manifest=client/packages/app/web/manifest.json
+          if grep -qF '"orientation"' "$manifest"; then
+            echo "::error::$manifest sets an orientation; an installed web app cannot tell a phone from a desktop, so it would lock every desktop install too"
+            fail=1
+          fi
+
           if [ $fail -eq 0 ]; then
             echo "orientation locked on phones only"
           fi

@@ -106,4 +106,30 @@ final class NotificationSoundTests: XCTestCase {
     XCTAssertNotNil(content.sound)
     XCTAssertFalse(content.sound === original, "named must replace the sound, not keep the old one")
   }
+
+  func testAMentionPlaysTheMentionSoundEvenWithoutAPreview() {
+    var mention = envelope(sender: nil, body: nil, channel: nil)
+    mention.kind = PushEnvelope.mentionKind
+    let decision = NotificationSound.decide(
+      for: mention, callActivity: FakeCallActivity(hasActiveCall: false))
+    XCTAssertEqual(decision, .named("mention.wav"))
+  }
+
+  func testALiveCallSilencesAMentionToo() {
+    var mention = envelope(sender: "Ada", body: "hi @you", channel: "general")
+    mention.kind = PushEnvelope.mentionKind
+    let decision = NotificationSound.decide(
+      for: mention, callActivity: FakeCallActivity(hasActiveCall: true))
+    XCTAssertEqual(decision, .silence)
+  }
+
+  func testASignInAlertNamesTheDevice() throws {
+    let plaintext = Array(
+      #"{"domain":"slim-m.push.v1","version":1,"kind":"security","event":"new_device_sign_in","signed_in_at":1,"device_name":"Pixel 9"}"#
+        .utf8)
+    let decoded = try XCTUnwrap(PushEnvelope.decode(plaintext))
+    let content = decoded.applied(to: UNMutableNotificationContent())
+    XCTAssertEqual(content.title, "New sign-in")
+    XCTAssertEqual(content.body, "Pixel 9 signed in to your account.")
+  }
 }

@@ -76,6 +76,9 @@ abstract final class AppIcons {
   static const IconData moveUp = LucideIcons.arrowUp300;
   static const IconData moveDown = LucideIcons.arrowDown300;
 
+  /// The Enter key on a keycap; the mono font has no return-arrow glyph.
+  static const IconData enterKey = LucideIcons.cornerDownLeft300;
+
   /// Folding a category's channels out of the way, and the reverse.
   static const IconData fold = LucideIcons.foldVertical300;
   static const IconData unfold = LucideIcons.unfoldVertical300;
@@ -96,6 +99,9 @@ abstract final class AppIcons {
   /// closed accent roles. Never shown for a tie at the top.
   static const IconData pollLeading = LucideIcons.trendingUp300;
   static const IconData code = LucideIcons.code300;
+
+  /// A fenced code block, beside [code]'s inline code.
+  static const IconData codeBlock = LucideIcons.squareCode300;
   static const IconData webhook = LucideIcons.webhook300;
   static const IconData smile = LucideIcons.smile300;
 
@@ -151,7 +157,7 @@ abstract final class AppIcons {
   static const IconData autoUpdate = LucideIcons.packageCheck300;
 
   /// Saving an attachment this app cannot render inline - a PDF, an archive,
-  /// or a video before it finishes buffering. See `attachment_save.dart`.
+  /// or a video before it finishes buffering. See `downloads/downloads_controller.dart`.
   static const IconData download = LucideIcons.download300;
 
   /// Handing an opened image to the system share sheet; see `image_export.dart`.
@@ -266,6 +272,12 @@ abstract final class AppIcons {
 
   /// Checks for when something does not work, beside About in settings.
   static const IconData troubleshooting = LucideIcons.lifeBuoy300;
+
+  /// The device check row in troubleshooting.
+  static const IconData deviceCheck = LucideIcons.activity300;
+
+  /// The debug log row in troubleshooting.
+  static const IconData debugLog = LucideIcons.fileText300;
 
   /// A tile's own resize grip, drawn at its bottom-right corner.
   static const IconData tileResize = LucideIcons.moveDiagonal2300;

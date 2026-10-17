@@ -96,7 +96,7 @@ class DiskEmojiImageCache implements EmojiImageCache {
   Future<void> write(String emojiId, Uint8List bytes) async {
     try {
       final dir = await _cacheDir();
-      await _fileFor(dir, emojiId).writeAsBytes(bytes, flush: true);
+      await _fileFor(dir, emojiId).writeAsBytes(bytes);
       await _evictOverCeiling(dir);
     } catch (_) {
       // See the interface doc: a failed write only means a slower next launch.

@@ -3,6 +3,7 @@
 /// pane heading is looked at on each rather than only on the first pane.
 library;
 
+import 'package:flutter/widgets.dart' show Scrollable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -17,11 +18,12 @@ const _panes = <String>[
   'Roles',
   'Channel permissions',
   'Emoji',
+  ActionLabels.spaceVoice,
   ActionLabels.retentionAndLimits,
   'Analytics',
   'Storage',
   'Server metrics',
-  'Dock',
+  'Modules',
   'Bots',
   'Webhooks',
 ];
@@ -43,7 +45,17 @@ void main() {
           settleNestedResolve: true,
           afterSettle: (tester) async {
             final row = find.widgetWithText(AppListRow, pane);
-            await tester.ensureVisible(row);
+            // The nav is a lazy list, so a pane near the end is built only once scrolled to.
+            await tester.scrollUntilVisible(
+              row,
+              120,
+              scrollable: find
+                  .ancestor(
+                    of: find.widgetWithText(AppListRow, 'Reports'),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            );
             await tester.pump();
             await tester.tap(row);
             await tester.pump();

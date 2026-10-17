@@ -24,6 +24,8 @@ import '../../api_failure.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/providers.dart';
 import '../../widgets/app_drop_zone.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_section_header.dart';
 import 'emoji_add_review.dart';
 import 'emoji_add_summary.dart';
 import 'emoji_bulk_plan.dart';
@@ -213,120 +215,97 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
       label: 'Drop to add emoji',
       icon: AppIcons.image,
       onDrop: (files) => unawaited(_drop(files)),
-      child: AppCard(
-        padding: const EdgeInsets.all(AppSpacing.s12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _Strip(enabled: !_running, onChoose: _choose),
-            if (_refusal case final refusal?) ...[
-              const SizedBox(height: AppSpacing.s12),
-              AppErrorState(
-                message: refusal,
-                onDismiss: () => setState(() => _refusal = null),
-              ),
-            ],
-            if (sameImage != null) ...[
-              const SizedBox(height: AppSpacing.s12),
-              EmojiSameImageNotice(
-                added: sameImage,
-                existingName: sameImage.sameImageAs!,
-                busy: _running,
-                onUseExisting: () => _useExisting(sameImage),
-                onKeep: () => setState(() => _sameImage = null),
-              ),
-            ],
-            if (_items.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.s12),
-              EmojiReviewList(
-                items: _items,
-                problems: problems,
-                enabled: !_running,
-                onChanged: () => setState(() {}),
-                onRemove: _remove,
-              ),
-            ],
-            if (_running) ...[
-              const SizedBox(height: AppSpacing.s8),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  'Uploading $_current of $_total...',
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+      child: SettingsSectionCard(
+        title: 'New emoji',
+        children: [
+          SettingsActionRow(
+            message: dropZoneSupported()
+                ? 'Drop images or a zip, or choose files.'
+                : 'Choose images or a zip.',
+            action: AppButton(
+              label: 'Choose files',
+              icon: AppIcons.add,
+              size: AppButtonSize.sm,
+              disabled: _running,
+              onPressed: _choose,
+            ),
+          ),
+          if (_refusal case final refusal?)
+            SettingsCardBlock(
+              children: [
+                AppErrorState(
+                  message: refusal,
+                  onDismiss: () => setState(() => _refusal = null),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.s8),
-              LinearProgressIndicator(
-                value: _total == 0 ? null : _current / _total,
-              ),
-            ],
-            if (finished) ...[
-              const SizedBox(height: AppSpacing.s12),
-              EmojiAddSummary(
-                succeeded: _succeeded,
-                failed: _failed,
-                skipped: _skipped,
-              ),
-            ],
-            if (_items.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.s12),
-              AppButton(
-                label: 'Add ${_items.length} emoji',
-                icon: AppIcons.smile,
-                variant: AppButtonVariant.primary,
-                full: true,
-                disabled: _running || blocked,
-                onPressed: _upload,
-              ),
-            ],
-          ],
-        ),
+              ],
+            ),
+          if (sameImage != null)
+            SettingsCardBlock(
+              children: [
+                EmojiSameImageNotice(
+                  added: sameImage,
+                  existingName: sameImage.sameImageAs!,
+                  busy: _running,
+                  onUseExisting: () => _useExisting(sameImage),
+                  onKeep: () => setState(() => _sameImage = null),
+                ),
+              ],
+            ),
+          if (_items.isNotEmpty)
+            SettingsCardBlock(
+              children: [
+                EmojiReviewList(
+                  items: _items,
+                  problems: problems,
+                  enabled: !_running,
+                  onChanged: () => setState(() {}),
+                  onRemove: _remove,
+                ),
+              ],
+            ),
+          if (_running)
+            SettingsCardBlock(
+              gap: AppSpacing.s8,
+              children: [
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    'Uploading $_current of $_total...',
+                    style: AppText.caption.copyWith(
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                ),
+                LinearProgressIndicator(
+                  value: _total == 0 ? null : _current / _total,
+                ),
+              ],
+            ),
+          if (finished)
+            SettingsCardBlock(
+              children: [
+                EmojiAddSummary(
+                  succeeded: _succeeded,
+                  failed: _failed,
+                  skipped: _skipped,
+                ),
+              ],
+            ),
+          if (_items.isNotEmpty)
+            SettingsCardBlock(
+              children: [
+                AppButton(
+                  label: 'Add ${_items.length} emoji',
+                  icon: AppIcons.smile,
+                  variant: AppButtonVariant.primary,
+                  full: true,
+                  disabled: _running || blocked,
+                  onPressed: _upload,
+                ),
+              ],
+            ),
+        ],
       ),
-    );
-  }
-}
-
-class _Strip extends StatelessWidget {
-  const _Strip({required this.enabled, required this.onChoose});
-
-  final bool enabled;
-  final VoidCallback onChoose;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Wrap(
-      spacing: AppSpacing.s12,
-      runSpacing: AppSpacing.s8,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'New emoji',
-              style: AppText.ui.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            Text(
-              dropZoneSupported()
-                  ? 'Drop images or a zip, or choose files.'
-                  : 'Choose images or a zip.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ],
-        ),
-        AppButton(
-          label: 'Choose files',
-          icon: AppIcons.add,
-          disabled: !enabled,
-          onPressed: onChoose,
-        ),
-      ],
     );
   }
 }

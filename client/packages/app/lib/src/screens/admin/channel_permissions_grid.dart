@@ -26,12 +26,12 @@ import '../../providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
 import '../../providers/providers.dart';
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_save_bar.dart';
 import 'category_sync_banner.dart';
 import 'channel_permissions_body.dart';
 import 'channel_permissions_escalation.dart';
 import 'channel_permissions_grid_rows.dart';
-import 'channel_permissions_savebar.dart';
-import 'channel_permissions_toolbar.dart';
+import 'channel_permissions_card.dart';
 import 'channel_permissions_picker.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
@@ -399,38 +399,34 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       onRemove: _removeColumn,
       cellBuilder: (column, spec) => _cell(column, spec, myPermissions),
     );
+    final card = PermissionsCard(
+      filter: _filter,
+      onFilterChanged: () => setState(() {}),
+      onAdd: _pickTarget,
+      shrinkWrap: shrinkWrap,
+      grid: view,
+    );
     return Column(
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.channel case final channel? when channel.categoryId != null)
           CategorySyncBanner(channelId: channel.id),
-        PermissionsToolbar(
-          filter: _filter,
-          onFilterChanged: () => setState(() {}),
-          onAdd: _pickTarget,
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s8,
-          ),
-          child: Legend(),
-        ),
         if (actionError case final error?)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s12),
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
-        if (shrinkWrap) view else Expanded(child: view),
+        if (shrinkWrap) card else Expanded(child: card),
         if (_isDirty)
-          UnsavedChangesBar(
-            changeCount: _changeCount,
-            saving: _saving,
-            onDiscard: _discard,
-            onSave: _save,
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.s12),
+            child: SettingsSaveBar(
+              changeCount: _changeCount,
+              saving: _saving,
+              onDiscard: _discard,
+              onSave: _save,
+            ),
           ),
       ],
     );

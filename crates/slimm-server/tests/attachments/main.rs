@@ -20,6 +20,7 @@ mod binding;
 mod filenames;
 mod fixtures;
 mod message_filenames;
+mod overwrite_allow;
 mod ranges;
 mod serving;
 mod shared_staging;

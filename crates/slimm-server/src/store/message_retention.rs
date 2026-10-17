@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Message retention: an opt-in, deployment-wide window past which a
 //! message is pruned, on the same periodic-sweep model as
-//! [`Store::sweep_expired_tokens`] and [`Store::sweep_canvas_ops`].
+//! [`Store::sweep_expired_tokens`] and [`Store::sweep_canvas_ops`]. A channel
+//! may override the window (`channel_retention.rs`), and whatever is left in
+//! a deleted channel is pruned whatever the window, since nothing can reach it.
 //!
 //! A prune is an ordinary soft delete, the same shape [`Store::delete_message`]
 //! already uses (`deleted_at` set, attachments released, a `message_ops`
@@ -47,6 +49,10 @@ const CONTENT_SWEEP_BATCH: i64 = 200;
 const COPY_SWEEP_CAP: usize = 2_000;
 /// Bounds the op-log reclaim pass.
 const OP_FLOOR_SWEEP_BATCH: i64 = 2_000;
+/// How many content batches one tick may run, each in its own transaction so
+/// the write lock is released between them: 50 batches is 10,000 messages a
+/// tick, past which the rest wait six hours rather than stall writers.
+const SWEEP_BATCHES_PER_TICK: usize = 50;
 
 /// The largest window a caller may set, ten years. Not a real ceiling on
 /// retained history - a deployment's own disk is whatever it is under
@@ -63,6 +69,9 @@ pub struct PrunedMessage {
     /// the soft delete it performs always writes a fresh op.
     pub op_seq: Option<i64>,
     pub freed_attachments: Vec<String>,
+    /// Whether it was pinned. The soft delete's trigger drops the pin row, so
+    /// the sweep must announce the unpin itself or clients keep showing it.
+    pub was_pinned: bool,
 }
 
 /// What one retention sweep tick did.
@@ -96,9 +105,13 @@ impl Store {
             return Ok(0);
         }
         let cutoff = now_ms() - days * DAY_MS;
+        // A channel with its own window (or a thread under one) is not the Space's to prune.
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "n!: i64" FROM messages
-               WHERE deleted_at IS NULL AND created_at < ?"#,
+            r#"SELECT COUNT(*) AS "n!: i64" FROM messages m
+               JOIN channels c ON c.id = m.channel_id
+               LEFT JOIN messages pm ON pm.id = c.parent_message_id
+               LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(pm.channel_id, c.id)
+               WHERE m.deleted_at IS NULL AND m.created_at < ? AND cr.channel_id IS NULL"#,
             cutoff
         )
         .fetch_one(&self.pool)
@@ -121,22 +134,28 @@ impl Store {
         Ok(())
     }
 
-    /// One sweep tick. A no-op, cheaply, whenever the window is disabled:
-    /// [`Store::message_retention_days`] is the only query it runs.
+    /// One sweep tick: prunes every message past its channel's window (the
+    /// channel's own, a thread's parent's, else the Space's) and everything
+    /// left in a deleted channel, a batch at a time until none remain or
+    /// [`SWEEP_BATCHES_PER_TICK`] is reached, so a newly shortened window
+    /// lands within the tick the admin was told about rather than over days.
     pub async fn sweep_message_retention(&self) -> anyhow::Result<SweptMessageRetention> {
-        let days = self.message_retention_days().await?;
-        if days <= 0 {
-            return Ok(SweptMessageRetention::default());
+        let space_days = self.message_retention_days().await?;
+        let mut swept = SweptMessageRetention::default();
+        for _ in 0..SWEEP_BATCHES_PER_TICK {
+            let (pruned, detached) = self.prune_expired_messages(space_days).await?;
+            let done = pruned.is_empty() && detached.is_empty();
+            swept.pruned.extend(pruned);
+            swept.detached.extend(detached);
+            if done {
+                break;
+            }
         }
-        let cutoff = now_ms() - days * DAY_MS;
-
-        let (pruned, detached) = self.prune_messages_before(cutoff).await?;
-        let ops_reclaimed = self.reclaim_message_ops_before(cutoff).await?;
-        Ok(SweptMessageRetention {
-            pruned,
-            detached,
-            ops_reclaimed,
-        })
+        if space_days > 0 {
+            let cutoff = now_ms() - space_days * DAY_MS;
+            swept.ops_reclaimed = self.reclaim_message_ops_before(cutoff).await?;
+        }
+        Ok(swept)
     }
 
     /// Soft-deletes up to [`CONTENT_SWEEP_BATCH`] live messages older than
@@ -146,19 +165,31 @@ impl Store {
     /// (`actor_id: None`), but batched rather than per message so the write
     /// lock is held across a handful of round trips instead of one per
     /// message; see SRV2.
-    async fn prune_messages_before(
+    async fn prune_expired_messages(
         &self,
-        cutoff: i64,
+        space_days: i64,
     ) -> anyhow::Result<(Vec<PrunedMessage>, Vec<DetachedForward>)> {
         use sqlx::Row;
 
         let mut tx = self.begin_write().await?;
+        let now = now_ms();
+        // A deleted channel has no way back, so what is left in it (and its threads) only holds disk.
         let candidates = sqlx::query_scalar!(
-            r#"SELECT id AS "id!: MessageId" FROM messages
-               WHERE deleted_at IS NULL AND created_at < ?
-               ORDER BY created_at ASC
-               LIMIT ?"#,
-            cutoff,
+            r#"SELECT m.id AS "id!: MessageId" FROM messages m
+               JOIN channels c ON c.id = m.channel_id
+               LEFT JOIN messages pm ON pm.id = c.parent_message_id
+               LEFT JOIN channels p ON p.id = pm.channel_id
+               LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(p.id, c.id)
+               WHERE m.deleted_at IS NULL
+                 AND (c.deleted_at IS NOT NULL
+                      OR p.deleted_at IS NOT NULL
+                      OR (COALESCE(cr.retention_days, ?1) > 0
+                          AND m.created_at < ?2 - COALESCE(cr.retention_days, ?1) * ?3))
+               ORDER BY m.created_at ASC
+               LIMIT ?4"#,
+            space_days,
+            now,
+            DAY_MS,
             CONTENT_SWEEP_BATCH
         )
         .fetch_all(&mut *tx)
@@ -172,7 +203,6 @@ impl Store {
         candidates.extend(bare.iter().map(|c| c.message_id));
         candidates.sort_unstable_by_key(|id| id.0);
         candidates.dedup();
-        let now = now_ms();
         let mut detached = Vec::new();
         for copy in noted.iter().filter(|c| !candidates.contains(&c.message_id)) {
             if detached
@@ -186,6 +216,21 @@ impl Store {
             tx.commit().await?;
             return Ok((Vec::new(), detached));
         }
+
+        // Read before the soft delete fires the trigger that drops the pin; see `PrunedMessage::was_pinned`.
+        let mut pinned_query =
+            QueryBuilder::new("SELECT message_id FROM pinned_messages WHERE message_id IN (");
+        let mut pinned_ids = pinned_query.separated(", ");
+        for id in &candidates {
+            pinned_ids.push_bind(*id);
+        }
+        pinned_query.push(")");
+        let pinned: std::collections::HashSet<MessageId> = pinned_query
+            .build_query_scalar::<MessageId>()
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .collect();
 
         // One soft-delete for the whole batch; RETURNING names the rows it actually flipped and their channel.
         let mut update = QueryBuilder::new("UPDATE messages SET deleted_at = ");
@@ -274,6 +319,7 @@ impl Store {
                 message_id,
                 op_seq: Some(op_seq_of[&message_id]),
                 freed_attachments: freed_of.remove(&message_id).unwrap_or_default(),
+                was_pinned: pinned.contains(&message_id),
             })
             .collect();
         Ok((pruned, detached))

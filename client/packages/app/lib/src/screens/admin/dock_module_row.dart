@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One module in the Dock's list, official or community. Split out of
+/// One module in the Modules list, official or community. Split out of
 /// `dock_screen.dart` so the community sections can reuse it.
 library;
 
@@ -9,7 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../routing/routes.dart';
-import '../../widgets/settings_entity_row.dart';
+import '../../widgets/settings_detail_row.dart';
 import 'dock_install_consent.dart';
 
 class DockModuleRow extends StatelessWidget {
@@ -55,16 +55,21 @@ class DockModuleRow extends StatelessWidget {
       ? 'v${entry.version}'
       : 'Installed v${installed.version}, latest v${entry.version}';
 
-  /// The version line, led by the Verified mark for the official source; it
-  /// lives here because the headline row has no room for a second badge.
-  Widget _versionDetail(api.InstalledDockModule? installed) {
-    final line = SettingsEntityDetail(_versionLine(entry, installed));
-    if (!dockIsVerified(source)) return line;
+  /// The Verified mark, then the install state, beside the name.
+  Widget? _badges(api.InstalledDockModule? installed, bool blocked) {
+    final state = blocked
+        ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken')
+        : installed == null
+        ? null
+        : _stateBadge(entry, installed);
+    final verified = dockIsVerified(source);
+    if (state == null && !verified) return null;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const DockVerifiedBadge(),
-        const SizedBox(width: AppSpacing.s8),
-        Flexible(child: line),
+        if (verified) const DockVerifiedBadge(),
+        if (verified && state != null) const SizedBox(width: AppSpacing.s8),
+        ?state,
       ],
     );
   }
@@ -74,40 +79,26 @@ class DockModuleRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final installed = this.installed;
     final blocked = entry.shadowed;
-    return SettingsEntityRow(
-      // Accent leading when installed, so it reads as installed down the list at a glance, not only from its badge.
-      leading: Icon(
-        AppIcons.dock,
-        color: installed == null ? null : tokens.accent,
-      ),
-      headline: entry.name,
-      badge: blocked
-          ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken')
-          : installed == null
-          ? null
-          : _stateBadge(entry, installed),
-      details: [
-        _versionDetail(installed),
-        SettingsEntityDetail(entry.summary, wrap: true),
-        if (blocked)
-          const SettingsEntityDetail(
-            'Another source already provides a module with this id, so it '
-            'cannot be installed from here.',
-            wrap: true,
-          ),
-      ],
+    return SettingsDetailRow(
+      icon: AppIcons.dock,
+      title: entry.name,
+      badge: _badges(installed, blocked),
+      meta: _versionLine(entry, installed),
+      detail: blocked
+          ? 'Another source already provides a module with this id, so it '
+                'cannot be installed from here.'
+          : entry.summary,
       onTap: blocked
           ? null
-          : () => context.go(Routes.adminDockModule(entry.id, source: source)),
+          : () =>
+                context.push(Routes.adminDockModule(entry.id, source: source)),
       onTapSemanticLabel: 'View ${entry.name}',
       // Decorative: the row itself is the control, so this points the way without being a second, smaller target.
-      actions: blocked
-          ? const []
-          : [
-              ExcludeSemantics(
-                child: Icon(AppIcons.chevronRight, color: tokens.textSecondary),
-              ),
-            ],
+      trailing: blocked
+          ? null
+          : ExcludeSemantics(
+              child: Icon(AppIcons.chevronRight, color: tokens.textSecondary),
+            ),
     );
   }
 }

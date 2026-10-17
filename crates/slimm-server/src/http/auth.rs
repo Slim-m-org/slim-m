@@ -16,6 +16,7 @@ use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
 use super::extract::{Authed, AuthedLimited, Json, PASSWORD, REFRESH, RateLimited, WRITE, enforce};
+use super::invites::invite_code_key;
 use crate::hub::Event;
 use crate::ratelimit::Class;
 use crate::store::DeleteAccountError;
@@ -209,7 +210,7 @@ async fn register(
     let invite_code = req
         .invite_code
         .as_deref()
-        .map(str::trim)
+        .map(invite_code_key)
         .filter(|c| !c.is_empty());
     // Answered before hashing so a doomed request costs no Argon2id run. The
     // store re-checks both inside its transaction, which is what settles a
@@ -224,7 +225,7 @@ async fn register(
     let hash = state.auth.hash_password(req.password).await?;
     let account = match state
         .store
-        .register_account(&req.username, display_name, &hash, invite_code)
+        .register_account(&req.username, display_name, &hash, invite_code.as_deref())
         .await
     {
         Ok(account) => account,

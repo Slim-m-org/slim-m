@@ -108,24 +108,16 @@ async fn bulk_delete(
         ids.push(MessageId(parse_uuid(raw)?));
     }
 
-    let resolved = match state.store.message_authors_in(channel_id, &ids).await {
-        Ok(found) => found,
+    // Every id must name a message in this channel; the authors themselves are the store's to read.
+    match state.store.message_authors_in(channel_id, &ids).await {
+        Ok(_) => {}
         Err(BulkDeleteError::NotFound(_)) => {
             return Err(ApiError::NotFound("message not found"));
         }
         Err(BulkDeleteError::Internal(err)) => return Err(err.into()),
-    };
-
-    // The distinct authors, for the audit trail: one row each, not one per message.
-    let mut subjects: Vec<UserId> = Vec::new();
-    for (_, author_id) in &resolved {
-        let Some(author_id) = author_id else { continue };
-        if !subjects.contains(author_id) {
-            subjects.push(*author_id);
-        }
     }
 
-    delete_and_publish(&state, channel_id, &ids, ctx.user_id, &subjects).await?;
+    delete_and_publish(&state, channel_id, &ids, ctx.user_id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -137,11 +129,10 @@ pub(super) async fn delete_and_publish(
     channel_id: ChannelId,
     ids: &[MessageId],
     actor_id: UserId,
-    subjects: &[UserId],
 ) -> Result<(), ApiError> {
     let outcome = state
         .store
-        .bulk_delete_messages(channel_id, ids, actor_id, subjects)
+        .bulk_delete_messages(channel_id, ids, actor_id)
         .await?;
 
     // One event per message, each with its own seq; see this module's doc.

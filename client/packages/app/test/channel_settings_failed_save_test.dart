@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/screens/channel_settings_join_muted_section.dart';
 import 'package:slimm_app/src/screens/channel_settings_slow_mode_section.dart';
+import 'package:slimm_app/src/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'channel_management_harness.dart';
@@ -42,12 +43,19 @@ http.Response Function(http.Request) _server({
   };
 }
 
-AppSegmentedControl _control(WidgetTester tester) =>
-    tester.widget<AppSegmentedControl>(find.byType(AppSegmentedControl));
+SettingsSelectRow<int> _row(WidgetTester tester) =>
+    tester.widget<SettingsSelectRow<int>>(find.byType(SettingsSelectRow<int>));
 
 String _selectedLabel(WidgetTester tester) {
-  final control = _control(tester);
-  return control.options[control.selectedIndex].label;
+  final row = _row(tester);
+  return row.choices.firstWhere((c) => c.value == row.value).label;
+}
+
+Future<void> _choose(WidgetTester tester, String label) async {
+  await tester.tap(find.text('Slow mode'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpSlowMode(
@@ -76,12 +84,10 @@ void main() {
       _server(fail: (b) => b['slow_mode_seconds'] == 600),
     );
 
-    await tester.tap(find.text('30s'));
-    await tester.pumpAndSettle();
+    await _choose(tester, '30s');
     expect(_selectedLabel(tester), '30s');
 
-    await tester.tap(find.text('10m'));
-    await tester.pumpAndSettle();
+    await _choose(tester, '10m');
 
     expect(_selectedLabel(tester), '30s', reason: 'the server still holds 30s');
     expect(find.byType(AppErrorState), findsOneWidget);
@@ -92,8 +98,7 @@ void main() {
     (tester) async {
       await _pumpSlowMode(tester, 60, _server(fail: (_) => true));
 
-      await tester.tap(find.text('10s'));
-      await tester.pumpAndSettle();
+      await _choose(tester, '10s');
 
       expect(_selectedLabel(tester), '1m');
       expect(find.byType(AppErrorState), findsOneWidget);
@@ -107,7 +112,7 @@ void main() {
 
     expect(_selectedLabel(tester), '5s');
     expect(
-      _control(tester).options.map((o) => o.label),
+      _row(tester).choices.map((c) => c.label),
       containsAll(['Off', '10m']),
     );
   });

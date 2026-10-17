@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A row of round colour swatches where one is chosen, shared by the profile
+/// A row of round colour swatches where the chosen one wears a ring, shared by the profile
 /// colour and the role colour pickers.
 library;
 
@@ -32,8 +32,8 @@ class ColorSwatchRow extends StatelessWidget {
     final touch = AppTouchTargets.of(context);
     final onSelect = this.onSelect;
     return Wrap(
-      spacing: touch ? 0 : AppSpacing.s8,
-      runSpacing: touch ? 0 : AppSpacing.s8,
+      spacing: touch ? 0 : 2,
+      runSpacing: touch ? 0 : 2,
       children: [
         for (var i = 0; i < colors.length; i++)
           _ColorSwatch(
@@ -63,7 +63,7 @@ class _ColorSwatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final side = AppTouchTargets.of(context) ? AppSizes.rowTouch : 28.0;
+    final side = AppTouchTargets.of(context) ? AppSizes.rowTouch : 36.0;
     return Semantics(
       button: true,
       selected: selected,
@@ -76,22 +76,19 @@ class _ColorSwatch extends StatelessWidget {
           height: side,
           alignment: Alignment.center,
           child: Container(
-            width: 28,
-            height: 28,
+            width: 36,
+            height: 36,
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: color,
               shape: BoxShape.circle,
-              border: selected
-                  ? Border.all(color: tokens.textPrimary, width: 2)
-                  : null,
+              border: Border.all(
+                color: selected ? tokens.textPrimary : Colors.transparent,
+                width: 2,
+              ),
             ),
-            child: selected
-                ? Icon(
-                    AppIcons.check,
-                    size: AppSizes.icon16,
-                    color: tokens.accentOn,
-                  )
-                : null,
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
           ),
         ),
       ),

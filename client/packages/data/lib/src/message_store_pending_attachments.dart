@@ -10,12 +10,13 @@ Future<void> _savePendingAttachments(
   MessageStore store,
   String messageId,
   List<String> ids,
-  List<String> spoilerIds,
-) async {
+  List<String> spoilerIds, {
+  bool mentionReply = true,
+}) async {
   ids = [
     for (final id in ids) spoilerIds.contains(id) ? '$_spoilerMark$id' : id,
   ];
-  if (ids.isEmpty) {
+  if (ids.isEmpty && mentionReply) {
     await _forgetPendingAttachments(store, messageId);
     return;
   }
@@ -23,6 +24,7 @@ Future<void> _savePendingAttachments(
         PendingAttachmentsCompanion.insert(
           messageId: messageId,
           attachmentIds: ids,
+          mentionReply: Value(mentionReply ? null : false),
         ),
       );
 }
@@ -41,6 +43,13 @@ Future<List<String>> _pendingAttachmentIds(
       if (!spoilersOnly || id.startsWith(_spoilerMark))
         id.startsWith(_spoilerMark) ? id.substring(1) : id,
   ];
+}
+
+Future<bool> _pendingMentionReply(MessageStore store, String messageId) async {
+  final row = await (store.db.select(store.db.pendingAttachments)
+        ..where((p) => p.messageId.equals(messageId)))
+      .getSingleOrNull();
+  return row?.mentionReply ?? true;
 }
 
 Future<void> _forgetPendingAttachments(

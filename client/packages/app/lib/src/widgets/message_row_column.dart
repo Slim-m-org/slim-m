@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
+import '../providers/providers.dart' show sessionProvider;
 import 'app_surface_view.dart';
 import 'attachment_gallery.dart';
 import 'bot_ui_failure.dart';
@@ -34,6 +35,10 @@ import 'poll_view.dart';
 import 'reactions_row.dart';
 import 'reply_quote.dart';
 
+final _selfId = Provider<String?>(
+  (ref) => ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
+);
+
 class MessageRowColumn extends ConsumerWidget {
   const MessageRowColumn({
     super.key,
@@ -50,6 +55,7 @@ class MessageRowColumn extends ConsumerWidget {
     this.replyTo,
     this.replyParentAdjacent = false,
     this.viewerIsCaller = false,
+    this.hoverTime,
   });
 
   final Message message;
@@ -68,6 +74,9 @@ class MessageRowColumn extends ConsumerWidget {
   final bool replyParentAdjacent;
   final bool viewerIsCaller;
 
+  /// A continuation's sent time, set after the body's last word.
+  final Widget? hoverTime;
+
   /// The command a bot is answering is already the line above it.
   static bool _isCommand(Message? parent) {
     final text = parent?.content.trimLeft() ?? '';
@@ -80,9 +89,21 @@ class MessageRowColumn extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isBot = ref.watch(authorIsBotProvider(message.authorId));
     // A bot edits its own status as it goes, so the marker says nothing.
-    final edited = message.editedAt != null && !editing && !isBot
+    final editedMarker = message.editedAt != null && !editing && !isBot
         ? EditedMarker(onTap: callbacks.onViewEditHistory)
         : null;
+    final edited = hoverTime == null
+        ? editedMarker
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (editedMarker != null) ...[
+                editedMarker,
+                const SizedBox(width: AppSpacing.s8),
+              ],
+              hoverTime!,
+            ],
+          );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -103,7 +124,14 @@ class MessageRowColumn extends ConsumerWidget {
           ),
         if (message.replyToId != null &&
             !(isBot && replyParentAdjacent && _isCommand(replyTo)))
-          ReplyQuote(resolved: replyTo, onTap: callbacks.onReplyTap ?? () {}),
+          ReplyQuote(
+            resolved: replyTo,
+            onTap: callbacks.onReplyTap ?? () {},
+            pinged:
+                extras.mentionsMe &&
+                replyTo?.authorId != null &&
+                replyTo?.authorId == ref.watch(_selfId),
+          ),
         if (editing)
           Padding(
             // The row is raised while editing; the field needs air above the fill's edge.

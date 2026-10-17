@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
@@ -19,6 +18,7 @@ import '../providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/run_guarded.dart';
+import '../widgets/settings_save_feedback.dart';
 import '../widgets/settings_toggle_row.dart';
 
 /// Denies `@everyone` the view of [channelId] and grants it to [selfId],
@@ -144,6 +144,13 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
 
   @override
   Widget build(BuildContext context) {
+    // The save writes overwrites, not this row, so the tapped value stands until the row agrees.
+    ref.listen(channelByIdProvider(widget.channel.id), (_, next) {
+      final restricted = next.valueOrNull?.restricted;
+      if (_optimistic != null && !_saving && restricted == _optimistic) {
+        setState(() => _optimistic = null);
+      }
+    });
     final stored =
         ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
         widget.channel;
@@ -158,10 +165,13 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
           semanticLabel: 'Private channel',
           onChanged: _saving ? null : (value) => unawaited(_set(value)),
         ),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
+        if (actionError != null)
+          SettingsSaveFeedback(
+            inCard: true,
+            tick: 0,
+            error: actionError,
+            onDismissError: clearActionError,
+          ),
       ],
     );
   }

@@ -3,6 +3,8 @@
 //! syncing a channel back to them. The checks are the channel batch's own,
 //! with the caller's deployment-wide permissions as the ceiling.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::request::Parts;
@@ -149,7 +151,7 @@ async fn batch_set(
     for (channel_id, previously_visible_to) in before {
         state.hub.publish(Event::OverwriteChanged {
             channel_id,
-            previously_visible_to,
+            previously_visible_to: Arc::new(previously_visible_to),
         });
     }
     Ok(Json(category_dto(&state, id).await?))
@@ -191,7 +193,7 @@ async fn sync(
     for (channel_id, previously_visible_to) in before {
         state.hub.publish(Event::OverwriteChanged {
             channel_id,
-            previously_visible_to,
+            previously_visible_to: Arc::new(previously_visible_to),
         });
     }
     let overwrites = state.store.channel_overwrites(channel_id).await?;

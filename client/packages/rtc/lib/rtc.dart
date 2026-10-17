@@ -13,6 +13,8 @@ export 'src/pulse_audio.dart';
 export 'src/audio_gain.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
+export 'src/capture_noise_suppression.dart';
+export 'src/strong_inactivity.dart';
 export 'src/call_stats_sampler.dart'
     show CallStatsSampler, CallStatsSnapshot, CallStatsTarget;
 export 'src/camera_devices.dart';
@@ -28,12 +30,14 @@ export 'src/input_gate.dart'
         kInputFloorDb;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
+export 'src/mic_port.dart';
 export 'src/remote_video_publication.dart';
 export 'src/screen_share.dart';
 export 'src/screen_share_audio.dart';
 export 'src/screen_share_control.dart';
 export 'src/video_publish_options.dart';
 export 'src/video_quality.dart';
+export 'src/video_stall_watchdog.dart' show VideoTileHealth;
 export 'src/video_subscription_culler.dart';
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'

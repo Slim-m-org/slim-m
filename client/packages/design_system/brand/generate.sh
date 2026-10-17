@@ -104,4 +104,29 @@ done
 # Shipped as scalable/apps, which covers every HiDPI scale of the sizes above.
 cp "${here}/icon-master.svg" "${pkg}/top.npcserver.slimm.svg"
 
+echo "macos"
+mac="${app}/macos/Runner/Assets.xcassets/AppIcon.appiconset"
+scratch="$(mktemp -d)"
+trap 'rm -rf "${scratch}"' EXIT
+# macOS applies no mask: the tile sits on Apple's 824-in-1024 grid, the rest transparent.
+for px in 16 32 64 128 256 512 1024; do
+  body=$(( px * 824 / 1024 ))
+  src=icon-master.svg
+  (( body < 32 )) && src=icon-master-small.svg
+  render "${src}" 512 "${body}" "${scratch}/mac-${px}.png"
+  magick "${scratch}/mac-${px}.png" -background none -gravity center \
+    -extent "${px}x${px}" png32:"${mac}/app_icon_${px}.png"
+done
+
+echo "windows"
+# Windows draws an icon edge to edge, so the tile fills each size the .ico carries.
+ico=()
+for px in 16 24 32 48 64 128 256; do
+  src=icon-master.svg
+  (( px < 32 )) && src=icon-master-small.svg
+  render "${src}" 512 "${px}" "${scratch}/win-${px}.png"
+  ico+=("${scratch}/win-${px}.png")
+done
+magick "${ico[@]}" "${app}/windows/runner/resources/app_icon.ico"
+
 echo "done"

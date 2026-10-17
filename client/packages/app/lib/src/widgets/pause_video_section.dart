@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/video_pause.dart';
 import '../providers/voice_settings_controller.dart';
@@ -22,18 +21,15 @@ class PauseVideoRow extends ConsumerWidget {
     final enabled = ref.watch(
       voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenUnfocused),
     );
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s8),
-      child: SettingsToggleRow(
-        label: 'Pause my preview when unfocused',
-        description:
-            'Stops your own camera and screen preview behind other windows.',
-        value: enabled,
-        semanticLabel: 'Pause my preview when slim-m is not focused',
-        onChanged: (value) => ref
-            .read(voiceSettingsControllerProvider.notifier)
-            .setPauseVideoWhenUnfocused(value),
-      ),
+    return SettingsToggleRow(
+      label: 'Pause my preview when unfocused',
+      description:
+          'Stops your own camera and screen preview behind other windows.',
+      value: enabled,
+      semanticLabel: 'Pause my preview when slim-m is not focused',
+      onChanged: (value) => ref
+          .read(voiceSettingsControllerProvider.notifier)
+          .setPauseVideoWhenUnfocused(value),
     );
   }
 }

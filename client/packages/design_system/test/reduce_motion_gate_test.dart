@@ -56,7 +56,7 @@ class _Rule {
   final RegExp call;
 
   /// The keyword argument that carries `AppMotion` through to it.
-  final String override;
+  final Pattern override;
 }
 
 final _rules = [
@@ -81,6 +81,12 @@ final _rules = [
     'ScaffoldMessenger.showSnackBar',
     RegExp(r'\.showSnackBar\('),
     'snackBarAnimationStyle:',
+  ),
+  // AppMotion.reduced's zero duration trips AnimatedSize's layout assertion; reducedSize exists for it.
+  _Rule(
+    'AnimatedSize',
+    RegExp(r'\bAnimatedSize\('),
+    RegExp(r'AppMotion\.(reducedSize|isReduced)\('),
   ),
 ];
 
@@ -120,7 +126,7 @@ void main() {
             if (calls > overrides) {
               offenders.add(
                 '${file.path}: ${rule.name} appears $calls time(s) but '
-                '${rule.override} only $overrides time(s)',
+                'its override only $overrides time(s)',
               );
             }
           }

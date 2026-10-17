@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../touch_targets.dart';
 import 'focusable_tap_target.dart';
 import 'slider_shapes.dart';
 
@@ -36,7 +37,6 @@ class AppSlider extends StatefulWidget {
     this.meter,
     this.muted = false,
     this.ticks,
-    this.focusNode,
     this.semanticLabel,
   });
 
@@ -59,7 +59,6 @@ class AppSlider extends StatefulWidget {
   /// nearest the thumb is picked out in accent, so the highlight never
   /// disagrees with where the thumb is.
   final List<String>? ticks;
-  final FocusNode? focusNode;
   final String? semanticLabel;
 
   @override
@@ -67,15 +66,12 @@ class AppSlider extends StatefulWidget {
 }
 
 class _AppSliderState extends State<AppSlider> {
-  late final FocusNode _focusNode;
-  bool _ownsFocusNode = false;
+  final FocusNode _focusNode = FocusNode();
   bool _focused = false;
 
   @override
   void initState() {
     super.initState();
-    _ownsFocusNode = widget.focusNode == null;
-    _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_handleFocusChange);
   }
 
@@ -84,7 +80,7 @@ class _AppSliderState extends State<AppSlider> {
   @override
   void dispose() {
     _focusNode.removeListener(_handleFocusChange);
-    if (_ownsFocusNode) _focusNode.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -137,6 +133,8 @@ class _AppSliderState extends State<AppSlider> {
             RoundSliderOverlayShape(overlayRadius: widget.tall ? 14 : 12),
         trackShape: track,
         thumbShape: thumb,
+        // A divided slider still reads as one continuous trough, as in the settings design.
+        tickMarkShape: SliderTickMarkShape.noTickMark,
       ),
       child: Slider(
         value: value,
@@ -161,7 +159,10 @@ class _AppSliderState extends State<AppSlider> {
           ),
           borderRadius: BorderRadius.circular(AppRadii.full),
         ),
-        child: slider,
+        // On touch the 24px-tall control grows to the touch floor; the track stays centred and looks the same.
+        child: AppTouchTargets.of(context)
+            ? SizedBox(height: AppSizes.rowTouch, child: slider)
+            : slider,
       ),
     );
 

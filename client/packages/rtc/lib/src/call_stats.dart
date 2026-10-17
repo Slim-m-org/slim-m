@@ -67,6 +67,7 @@ class VideoStreamStats {
     this.limitationResolutionChanges,
     this.active,
     this.framesDropped,
+    this.framesDecoded,
     this.freezeCount,
     this.freezeSeconds,
     this.pauseCount,
@@ -106,6 +107,9 @@ class VideoStreamStats {
 
   /// Receiving only.
   final int? framesDropped;
+
+  /// Frames this receiver has decoded so far; the stall watchdog's clock.
+  final int? framesDecoded;
   final int? freezeCount;
   final double? freezeSeconds;
   final int? pauseCount;
@@ -233,6 +237,7 @@ VideoStreamStats _parseStream(
         e.number('qualityLimitationResolutionChanges')?.toInt(),
     active: e.flag('active'),
     framesDropped: e.number('framesDropped')?.toInt(),
+    framesDecoded: local ? null : e.number('framesDecoded')?.toInt(),
     freezeCount: e.number('freezeCount')?.toInt(),
     freezeSeconds: e.number('totalFreezesDuration')?.toDouble(),
     pauseCount: e.number('pauseCount')?.toInt(),

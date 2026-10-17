@@ -75,6 +75,7 @@ class MessageExtras {
     this.threadReplyCount,
     this.threadLastReplyAt,
     this.threadUnreadCount,
+    this.mentionsMe = false,
   });
 
   final List<api.ReactionSummary> reactions;
@@ -122,6 +123,10 @@ class MessageExtras {
   /// fetch established until the next one corrects it.
   final int? threadUnreadCount;
 
+  /// This viewer is mentioned, including by a reply that pinged them. Per
+  /// viewer, so only a REST fetch can clear it.
+  final bool mentionsMe;
+
   MessageExtras copyWith({
     List<api.ReactionSummary>? reactions,
     List<api.Attachment>? attachments,
@@ -148,6 +153,7 @@ class MessageExtras {
     threadReplyCount: threadReplyCount ?? this.threadReplyCount,
     threadLastReplyAt: threadLastReplyAt ?? this.threadLastReplyAt,
     threadUnreadCount: threadUnreadCount,
+    mentionsMe: mentionsMe,
   );
 
   static const empty = MessageExtras();
@@ -277,6 +283,10 @@ class MessageExtrasController
     threadReplyCount: message.threadReplyCount ?? existing?.threadReplyCount,
     threadLastReplyAt: message.threadLastReplyAt ?? existing?.threadLastReplyAt,
     threadUnreadCount: message.threadUnreadCount ?? existing?.threadUnreadCount,
+    // Only REST pages carry it per viewer; the author's own send and edit responses say false.
+    mentionsMe: authoritative
+        ? message.mentionsMe
+        : message.mentionsMe || (existing?.mentionsMe ?? false),
   );
 
   /// Replaces the cached tallies from a broadcast, carrying `reacted` over from

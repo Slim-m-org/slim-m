@@ -46,15 +46,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../routing/routes.dart';
 import '../widgets/settings_section_header.dart';
-import '../widgets/media_capability_section.dart';
 import '../widgets/activity_sharing_section.dart';
 import '../widgets/app_info_section.dart';
 import '../widgets/app_lock_section.dart';
 import '../widgets/appearance_settings_section.dart';
+import '../widgets/general_settings_section.dart';
 import '../widgets/performance_settings_section.dart';
 import '../widgets/avatar_settings_section.dart';
 import '../widgets/personal_account_sections.dart';
@@ -64,6 +65,7 @@ import '../widgets/report_status_section.dart';
 import '../widgets/settings_panes.dart';
 import '../widgets/settings_profile_preview.dart';
 import '../widgets/totp_section.dart';
+import '../widgets/troubleshooting_pane.dart';
 import '../widgets/change_password_section.dart';
 import 'voice_settings_screen.dart';
 import '../action_labels.dart';
@@ -102,9 +104,9 @@ class PersonalSettingsScreen extends StatelessWidget {
               // No presence rows: the rail footer's own status menu already sets both the state and the status text.
               builder: (context) => const Column(
                 children: [
+                  SettingsProfilePreview(),
                   AvatarSettingsSection(),
                   ProfileFieldsSection(),
-                  SettingsProfilePreview(),
                   ActivitySharingSection(),
                 ],
               ),
@@ -122,17 +124,16 @@ class PersonalSettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+        SettingsPaneGroup(
+          label: 'App',
+          panes: [
             SettingsPane(
               id: 'appearance',
               label: 'Appearance',
               icon: AppIcons.appearance,
               builder: (context) => const AppearanceSettingsSection(),
-            ),
-            SettingsPane(
-              id: 'performance',
-              label: ActionLabels.mediaAndCache,
-              icon: AppIcons.performance,
-              builder: (context) => const PerformanceSettingsSection(),
             ),
             SettingsPane(
               id: 'notifications',
@@ -145,6 +146,18 @@ class PersonalSettingsScreen extends StatelessWidget {
               label: 'Voice & screen share',
               icon: AppIcons.voice,
               builder: (context) => const VoiceSettingsBody(),
+            ),
+            SettingsPane(
+              id: 'performance',
+              label: ActionLabels.mediaAndCache,
+              icon: AppIcons.performance,
+              builder: (context) => const PerformanceSettingsSection(),
+            ),
+            SettingsPane(
+              id: 'general',
+              label: ActionLabels.general,
+              icon: AppIcons.settings,
+              builder: (context) => const GeneralSettingsSection(),
             ),
           ],
         ),
@@ -166,13 +179,15 @@ class PersonalSettingsScreen extends StatelessWidget {
           ],
         ),
         SettingsPaneGroup(
-          label: 'App',
+          label: 'Help',
           panes: [
             SettingsPane(
               id: 'troubleshooting',
               label: 'Troubleshooting',
               icon: AppIcons.troubleshooting,
-              builder: (context) => const MediaCapabilitySection(),
+              builder: (context) => const TroubleshootingPane(),
+              headingBuilder: (context, onClose) =>
+                  TroubleshootingHeading(onClose: onClose),
             ),
             SettingsPane(
               id: 'about',
@@ -189,17 +204,20 @@ class PersonalSettingsScreen extends StatelessWidget {
 
 /// Password and two-factor together: both are how you prove it is you, and
 /// one card of rows reads lighter than a card per single button.
-class _SignInSection extends StatelessWidget {
+class _SignInSection extends ConsumerWidget {
   const _SignInSection();
 
   @override
-  Widget build(BuildContext context) => const SettingsSectionCard(
-    title: 'Sign-in',
-    description: 'How you prove it is you on a new device.',
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      ChangePasswordSection(embedded: true),
-      TotpSection(embedded: true),
-    ],
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(totpStatusProvider).valueOrNull;
+    final hideTotp = status != null && totpSectionHidden(status);
+    return SettingsSectionCard(
+      title: 'Sign-in',
+      description: "How you prove it's you on a new device.",
+      children: [
+        const ChangePasswordSection(embedded: true),
+        if (!hideTotp) const TotpSection(),
+      ],
+    );
+  }
 }

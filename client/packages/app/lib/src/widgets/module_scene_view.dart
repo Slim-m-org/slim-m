@@ -24,6 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
 import 'module_scene.dart';
+import 'module_scene_bounds.dart';
 import 'module_scene_busy.dart';
 import 'module_scene_images.dart';
 import 'module_scene_inputs.dart';
@@ -32,8 +33,10 @@ import 'module_scene_expand.dart';
 import 'module_scene_frame.dart';
 import 'module_scene_keyboard.dart';
 import 'module_scene_pacing.dart';
+import 'module_scene_queue.dart';
 import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
+import 'swipe_to_reply.dart';
 
 /// Runs one action against the module and returns its raw result. The action
 /// and the current scene state are already packed into [input] as
@@ -92,23 +95,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   bool _playing = false;
   String? _error;
 
-  /// Actions waiting on the one in flight, oldest first.
-  ///
-  /// A module call is a round trip and only one runs at a time, so a drag
-  /// across a grid produces actions faster than they can be sent. Dropping the
-  /// ones that arrive while busy - which is what the [_busy] guard in [_send]
-  /// does on its own - would leave holes in a drawn line, so they queue here
-  /// and drain in order instead.
-  final _queue = <String>[];
-
-  /// Capped so a long drag on a fine grid cannot build a backlog the board
-  /// spends a minute catching up on. A dropped tail is better than a board
-  /// that keeps moving after the finger stops.
-  static const _maxQueue = 64;
-
-  /// Cells already sent during the current drag, so crossing one twice does
-  /// not toggle it back off. Cleared when the drag starts.
-  final _paintedThisDrag = <String>{};
+  final _queue = SceneActionQueue();
 
   /// The last few scene states this view produced itself.
   ///
@@ -143,15 +130,14 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     if (_isOwnWork(widget.initial.state)) {
       _rememberOwn(widget.initial.state);
       if (_scene.state != widget.initial.state) {
-        setState(() => _scene = widget.initial);
+        setState(() => _scene = keepCropStable(_scene, widget.initial));
       }
       return;
     }
     _stop();
     _queue.clear();
-    _paintedThisDrag.clear();
     _rememberOwn(widget.initial.state);
-    setState(() => _scene = widget.initial);
+    setState(() => _scene = keepCropStable(_scene, widget.initial));
   }
 
   /// Whether a scene arriving from above is this view's own, rather than a
@@ -203,7 +189,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
       setState(() {
         _busy = false;
         if (next != null) {
-          _scene = next;
+          _scene = keepCropStable(_scene, next);
           _playNotes(next);
           if (!next.live) _stop();
         } else {
@@ -220,7 +206,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
       }
       if (queued && !_pacing.exhausted) {
         // Put it back and hold: see _drain on why not just drop it.
-        _queue.insert(0, action);
+        _queue.putBack(action);
         await Future<void>.delayed(_pacing.interval);
         if (!mounted) return;
         setState(() => _busy = false);
@@ -326,7 +312,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   /// for exactly the gestures this needs to know the origin of.
   void _handlePointerDown(PointerDownEvent event) {
     _downAt = event.localPosition;
-    _paintedThisDrag.clear();
+    _queue.startDrag();
   }
 
   void _handleTapUp(TapUpDetails details, Size size) {
@@ -352,12 +338,11 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   void _paintCell(Offset local, Size size) {
     final action = sceneTapAction(_scene, local, size);
     if (action == null || !action.contains(':')) return;
-    if (!_paintedThisDrag.add(action)) return;
+    if (!_queue.markPainted(action)) return;
     _enqueue(action);
   }
 
   void _enqueue(String action) {
-    if (_queue.length >= _maxQueue) return;
     _queue.add(action);
     unawaited(_drain());
   }
@@ -377,44 +362,52 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     while (_queue.isNotEmpty && mounted) {
       // Per iteration: play's step can take _busy between sends.
       if (_busy) return;
-      await _send(_takeNext(), queued: true);
+      await _send(_queue.takeNext(_scene), queued: true);
     }
-  }
-
-  /// The next call to make: one queued action, or every leading action sharing
-  /// a prefix the module reads as a list, joined into one.
-  ///
-  /// A whole drag becomes a single round trip that way. Without it the queue
-  /// still drains in order and nothing is lost - it just costs a call per cell,
-  /// which over a real network is what made drawing feel like work.
-  String _takeNext() {
-    final first = _queue.removeAt(0);
-    final prefix = first.split(':').first;
-    if (!first.contains(':') || !sceneAllowsTapBatch(_scene, first)) {
-      return first;
-    }
-    final cells = <String>[first.substring(prefix.length + 1)];
-    while (_queue.isNotEmpty && _queue.first.startsWith('$prefix:')) {
-      cells.add(_queue.removeAt(0).substring(prefix.length + 1));
-    }
-    return '$prefix:${cells.join(';')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.fillAvailable) return _content(context);
+    final windowHeight = MediaQuery.sizeOf(context).height;
+    final aspect = _scene.viewHeight == 0
+        ? 1.0
+        : _scene.viewWidth / _scene.viewHeight;
+    // The caption and controls take the frame's width, never widen the card past it.
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        width: ModuleSceneFrame.inlineWidth(
+          maxWidth: constraints.hasBoundedWidth ? constraints.maxWidth : null,
+          windowHeight: windowHeight,
+          aspect: aspect,
+          sceneHeight: _scene.viewHeight,
+        ),
+        child: _content(
+          context,
+          cardWidth: constraints.hasBoundedWidth ? constraints.maxWidth : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, {double? cardWidth}) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final aspect = _scene.height == 0 ? 1.0 : _scene.width / _scene.height;
+    final aspect = _scene.viewHeight == 0
+        ? 1.0
+        : _scene.viewWidth / _scene.viewHeight;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.fillAvailable)
-          Expanded(child: _frame(aspect, tokens))
+          Expanded(child: _frame(aspect, tokens, cardWidth))
         else
-          _frame(aspect, tokens),
+          _frame(aspect, tokens, cardWidth),
         if (_scene.status != null) ...[
           const SizedBox(height: AppSpacing.s8),
           Text(
             _scene.status!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: AppText.caption.copyWith(
               fontFamily: AppFonts.mono,
               color: tokens.textSecondary,
@@ -452,9 +445,14 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
 
   /// The board itself, in its box. Split out because full screen wraps it in
   /// an [Expanded] and inline does not, and a widget cannot be both.
-  Widget _frame(double aspect, AppTokens tokens) => ModuleSceneFrame(
+  Widget _frame(
+    double aspect,
+    AppTokens tokens,
+    double? cardWidth,
+  ) => ModuleSceneFrame(
     aspect: aspect,
-    sceneHeight: _scene.height,
+    cardWidth: cardWidth,
+    sceneHeight: _scene.viewHeight,
     fillAvailable: widget.fillAvailable,
     child: LayoutBuilder(
       builder: (context, constraints) {
@@ -463,32 +461,34 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
           scene: _scene,
           size: size,
           onActivate: _enqueue,
-          child: Listener(
-            onPointerDown: _handlePointerDown,
-            child: GestureDetector(
-              onTapUp: (d) => _handleTapUp(d, size),
-              onPanStart: (d) => _handlePanStart(d, size),
-              onPanUpdate: (d) => _handlePanUpdate(d, size),
-              child: Stack(
-                children: [
-                  SceneTimeline(
-                    scene: _scene,
-                    tokens: tokens,
-                    images: _images.snapshot(_scene),
-                    size: size,
-                  ),
-                  // Above the paint: a tap for a field must not also fall through.
-                  SceneInputOverlay(
-                    scene: _scene,
-                    size: size,
-                    onSubmit: _enqueue,
-                  ),
-                  Positioned(
-                    top: AppSpacing.s8,
-                    right: AppSpacing.s8,
-                    child: SceneBusyIndicator(busy: _busy, tokens: tokens),
-                  ),
-                ],
+          child: SwipeToReplyOptOut(
+            child: Listener(
+              onPointerDown: _handlePointerDown,
+              child: GestureDetector(
+                onTapUp: (d) => _handleTapUp(d, size),
+                onPanStart: (d) => _handlePanStart(d, size),
+                onPanUpdate: (d) => _handlePanUpdate(d, size),
+                child: Stack(
+                  children: [
+                    SceneTimeline(
+                      scene: _scene,
+                      tokens: tokens,
+                      images: _images.snapshot(_scene),
+                      size: size,
+                    ),
+                    // Above the paint: a tap for a field must not also fall through.
+                    SceneInputOverlay(
+                      scene: _scene,
+                      size: size,
+                      onSubmit: _enqueue,
+                    ),
+                    Positioned(
+                      top: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      child: SceneBusyIndicator(busy: _busy, tokens: tokens),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

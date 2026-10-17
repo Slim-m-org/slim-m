@@ -4,17 +4,11 @@
 // overrides every other answer: a call already in progress must not be
 // stepped on by a chime.
 //
-// The wire carries less than the ideal input here. The relay's own `kind`
-// field and the sealed envelope's `PushKind` (crates/slimm-server/src/push/
-// envelope.rs) both have exactly one variant, `message`, for every message
-// push regardless of whether it is a DM, a mention, or an ordinary channel
-// post - there is no mention flag anywhere in this pipeline today, so this
-// cannot tell a mention apart from a plain channel message without a wire
-// change, which is out of this change's scope. What the decrypted preview
-// does carry is `channel`: present for a named channel, absent for a DM or a
-// thread reply (see PushEnvelope's own doc comment on `applied(to:)`), so
-// that is the one distinction actually available, and mention is left
-// unattempted rather than guessed at.
+// The sealed envelope's `kind` (`PushKind` in crates/slimm-server/src/push/
+// envelope.rs) says `mention` for a message that mentions the reader, which
+// gets the mention sound. Otherwise `channel` decides: present for a named
+// channel, absent for a DM or a thread reply (see PushEnvelope's own doc
+// comment on `applied(to:)`).
 
 import CallKit
 import Foundation
@@ -40,13 +34,16 @@ enum NotificationSound {
   /// platform default with nothing failing anywhere.
   private static let directMessage = "direct_message.wav"
   private static let groupMessage = "group_message.wav"
+  private static let mention = "mention.wav"
 
   static func decide(
     for envelope: PushEnvelope?,
     callActivity: CallActivityChecking
   ) -> Decision {
     guard !callActivity.hasActiveCall else { return .silence }
-    guard let envelope, envelope.hasPreview else { return .leaveUnset }
+    guard let envelope else { return .leaveUnset }
+    if envelope.kind == PushEnvelope.mentionKind { return .named(mention) }
+    guard envelope.hasPreview else { return .leaveUnset }
     if let channel = envelope.channel, !channel.isEmpty { return .named(groupMessage) }
     return .named(directMessage)
   }

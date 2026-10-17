@@ -20,6 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 
@@ -86,7 +87,6 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         selectedId: settings.audioInputDeviceId,
         onChanged: settingsNotifier.setAudioInputDevice,
       ),
-      const SizedBox(height: AppSpacing.s8),
       _DevicePickerRow(
         label: 'Speaker',
         icon: AppIcons.speaker,
@@ -98,11 +98,10 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         onChanged: settingsNotifier.setAudioOutputDevice,
       ),
     ];
-    if (widget.embedded) return Column(children: rows);
+    if (widget.embedded) return SettingsRowGroup(children: rows);
     return SettingsSectionCard(
       title: 'Input and output devices',
       description: 'Which microphone and speaker a call uses.',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: rows,
     );
   }
@@ -130,16 +129,17 @@ class _DevicePickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!supported) {
-      return AppCallout(
-        tone: AppCalloutTone.info,
-        icon: icon,
-        child: Text('$label: $unsupportedCaption'),
+      return AppListRow(
+        label: label,
+        subtitle: unsupportedCaption,
+        meta: 'Default',
       );
     }
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final resolved = resolveAudioDevice(devices, selectedId);
     final unplugged = selectedId != null && resolved == null;
+    final kind = label == 'Microphone' ? 'mic' : 'speaker';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,15 +168,27 @@ class _DevicePickerRow extends StatelessWidget {
         if (unplugged)
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              AppSpacing.s4,
-              AppSpacing.s8,
+              AppSpacing.s16,
               0,
+              AppSpacing.s16,
+              AppSpacing.s12,
             ),
-            child: Text(
-              'Your chosen ${label.toLowerCase()} is not currently '
-              'connected; using the system default instead.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            child: Row(
+              spacing: AppSpacing.s8,
+              children: [
+                Icon(
+                  AppIcons.warning,
+                  size: AppSizes.icon16,
+                  color: tokens.warnText,
+                ),
+                Expanded(
+                  child: Text(
+                    "Your chosen $kind isn't connected. Using the system "
+                    'default.',
+                    style: AppText.caption.copyWith(color: tokens.warnText),
+                  ),
+                ),
+              ],
             ),
           ),
       ],

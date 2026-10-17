@@ -153,3 +153,18 @@ Four concrete causes, found by rendering every personal pane at phone and deskto
 4. At two-pane width nothing in the pane named the pane, only the selected nav row.
    `SettingsPanesScaffold` renders the pane label as a `heading` step above its sections, giving three levels (pane, section, row).
    This supersedes `settings_taxonomy_test.dart`'s earlier "the nav row is the only place the name appears": a section header still may not restate the pane name, but the pane's own heading does.
+
+## Addendum, 2026-10-16: the redesigned settings window
+
+The owner asked for personal settings to follow a new design ("personal settings redesign, align to this"), exported as thirteen desktop frames.
+It keeps this record's vocabulary, a stack of titled section cards holding rows, and changes the metrics inside it.
+
+- `SettingsSectionCard` lays its children edge to edge with a full-width `SettingsHairline` between every child and no inner padding.
+  The padded card (8 inside, an inset rule only when `divided`) is gone: personal settings, Space settings, channel settings and call stats were all moved over in the same change, at the owner's request ("align the space settings to the new personal setting styling ... cleanup old code").
+- Rows inside a card are 56 tall with a 16 inset and square hover, set once by `AppCardRowScope` in the design system so `AppListRow`, `SettingsToggleRow`, `SettingsSelectRow` and `SettingsEntityRow` cannot drift apart.
+- Non-row content (fields, a preview) sits in a `SettingsCardBlock` at the card's 16 inset, and a setting that belongs to the row above it is a `SettingsSubRow`, indented 32 on a tint halfway between `surface-base` and `surface-raised` rather than a new token.
+- Section headers sit 28 below the previous card, with 2 between title and description and 10 to the card.
+- `SettingsPanesScaffold` drops the app bar across both columns at two-pane width: the nav carries the way back and the title on `surface-sunken`, its group labels are uppercase mono (spoken in their written case), and the pane has its own heading row with a close button and a 32/24/40 inset.
+- The design's 13px and 16px text map to the scale's 12 (caption) and 15 (body) steps; no off-scale size was added.
+- Personal settings are grouped by what a setting follows, not by the design frames' grouping (owner, 2026-10-16): **You** holds what follows the account to every device (Profile, Account & devices), **App** holds what this install does (Appearance, Notifications, Voice & screen share, Media and cache, General), then **Safety**, then **Help** (Troubleshooting, About).
+  Every App pane is saved per device, which is the line the grouping draws.

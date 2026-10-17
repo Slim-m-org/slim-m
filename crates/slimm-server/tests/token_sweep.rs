@@ -176,3 +176,30 @@ async fn sweeping_does_not_disturb_a_live_session_alongside_dead_rows() {
         "and the swept one must not"
     );
 }
+
+/// A backlog bigger than one delete batch drains in one pass rather than
+/// 5000 rows every six hours (issue 2059).
+#[tokio::test]
+async fn one_pass_drains_a_backlog_larger_than_a_batch() {
+    let (pool, _guard) = pool().await;
+    let store = Store::new(pool.clone());
+    let user = store.create_user("alice", "Alice").await.unwrap();
+    store.open_session(user.id, "laptop").await.unwrap();
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 12000)
+         INSERT INTO access_tokens (token_hash, session_id, user_id, device_id, issued_at, expires_at)
+         SELECT 'dead-' || i, a.session_id, a.user_id, a.device_id, 0, 1
+         FROM n, (SELECT session_id, user_id, device_id FROM access_tokens LIMIT 1) a",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let swept = store.sweep_expired_tokens().await.unwrap();
+    assert_eq!(swept.access_tokens, 12_000);
+    assert_eq!(
+        count(&pool, "access_tokens").await,
+        1,
+        "only the live token is left"
+    );
+}

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 
 /// Every observed route, slowest p95 first - the order that puts a
@@ -19,14 +20,13 @@ class SlowestRoutesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     if (routes.isEmpty) {
-      return SettingsSectionCard(
+      return const SettingsSectionCard(
         title: 'Slowest routes',
         children: [
-          Text(
-            'No requests recorded since this server process started.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          SettingsEmptyState(
+            icon: AppIcons.requestLatency,
+            title: 'No requests recorded since this server process started.',
           ),
         ],
       );
@@ -34,14 +34,9 @@ class SlowestRoutesCard extends StatelessWidget {
     final sorted = [...routes]..sort(_byP95Descending);
     return SettingsSectionCard(
       title: 'Slowest routes',
+      description: 'Slowest first, by p95 latency.',
       children: [
-        Text(
-          'By p95 latency, an estimate over each route\'s own histogram. '
-          '${routes.length} route${routes.length == 1 ? '' : 's'} observed.',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        _HeaderRow(),
+        const _HeaderRow(),
         for (final route in sorted) _RouteRow(route: route),
       ],
     );
@@ -66,14 +61,18 @@ class _HeaderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final style = AppText.caption.copyWith(color: tokens.textSecondary);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+    return Container(
+      color: Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
       child: Row(
         children: [
           Expanded(flex: 3, child: Text('Route', style: style)),
-          Expanded(flex: 1, child: Text('Requests', style: style)),
-          Expanded(flex: 1, child: Text('Avg', style: style)),
-          Expanded(flex: 1, child: Text('p95', style: style)),
+          Expanded(child: Text('Requests', style: style)),
+          Expanded(child: Text('Avg', style: style)),
+          Expanded(child: Text('p95', style: style)),
         ],
       ),
     );
@@ -88,10 +87,16 @@ class _RouteRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final bodyStyle = AppText.body.copyWith(color: tokens.textPrimary);
-    final captionStyle = AppText.caption.copyWith(color: tokens.textSecondary);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+    final numbers = AppText.caption.copyWith(
+      color: tokens.textSecondary,
+      fontFamily: AppFonts.mono,
+    );
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -100,19 +105,17 @@ class _RouteRow extends StatelessWidget {
               '${route.method} ${route.route}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: bodyStyle,
+              style: AppText.ui.copyWith(color: tokens.textPrimary),
             ),
           ),
-          Expanded(flex: 1, child: Text('${route.count}', style: captionStyle)),
+          Expanded(child: Text('${route.count}', style: numbers)),
           Expanded(
-            flex: 1,
-            child: Text(formatLatency(route.avgSeconds), style: captionStyle),
+            child: Text(formatLatency(route.avgSeconds), style: numbers),
           ),
           Expanded(
-            flex: 1,
             child: Text(
               route.p95Seconds == null ? '-' : formatLatency(route.p95Seconds!),
-              style: captionStyle,
+              style: numbers,
             ),
           ),
         ],

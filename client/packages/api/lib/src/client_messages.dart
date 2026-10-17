@@ -45,7 +45,9 @@ extension SlimmApiMessages on SlimmApi {
   /// are hex sha256 ids already uploaded through [SlimmApi.uploadAttachment],
   /// in display order; a non-empty list needs ATTACH_FILES in addition to
   /// SEND_MESSAGES. [replyToId] must already name a message in this same
-  /// channel (live or deleted) or the send is refused.
+  /// channel (live or deleted) or the send is refused. [mentionReply] decides
+  /// whether the replied-to author is also mentioned; it only goes on the wire
+  /// for a reply.
   ///
   /// [forwardedFromId] may name a message in any channel the sender can see,
   /// but it must be live: forwarding copies the text, so a deleted original
@@ -60,6 +62,7 @@ extension SlimmApiMessages on SlimmApi {
     List<String> attachmentIds = const [],
     List<String> spoilerAttachmentIds = const [],
     String? replyToId,
+    bool mentionReply = true,
     String? forwardedFromId,
   }) async {
     final json = await _send(
@@ -71,7 +74,10 @@ extension SlimmApiMessages on SlimmApi {
         if (attachmentIds.isNotEmpty) 'attachment_ids': attachmentIds,
         if (spoilerAttachmentIds.isNotEmpty)
           'spoiler_attachment_ids': spoilerAttachmentIds,
-        if (replyToId != null) 'reply_to_id': replyToId,
+        if (replyToId != null) ...{
+          'reply_to_id': replyToId,
+          'mention_reply': mentionReply,
+        },
         if (forwardedFromId != null) 'forwarded_from_id': forwardedFromId,
       },
     );
@@ -381,13 +387,6 @@ extension SlimmApiMessages on SlimmApi {
     return (json as List<dynamic>)
         .map((r) => MessageRevision.fromJson(r as Map<String, dynamic>))
         .toList(growable: false);
-  }
-
-  /// How many messages are pinned in a channel. Cheap: a single indexed
-  /// count, never a fetch of every pinned message.
-  Future<int> pinnedMessageCount(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/pins/count');
-    return (json as Map<String, dynamic>)['count'] as int;
   }
 
   /// Sends a message that carries a poll. Idempotent by [id] exactly like

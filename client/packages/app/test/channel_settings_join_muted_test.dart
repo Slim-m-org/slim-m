@@ -7,8 +7,11 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/channel_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -79,6 +82,38 @@ void main() {
     expect(jsonDecode(patched.first.body) as Map<String, dynamic>, {
       'join_muted': true,
     });
+  });
+
+  testWidgets('after a save, a change from another device still shows '
+      '(issue 1682)', (tester) async {
+    await _openSettings(tester, kind: 'voice', name: 'stage');
+    final toggle = find.byWidgetPredicate(
+      (w) =>
+          w is AppToggle &&
+          w.semanticLabel == 'Members join this channel muted',
+    );
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<AppToggle>(toggle).value, isTrue);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ChannelSettingsPane)),
+    );
+    await tester.runAsync(() async {
+      final store = await container.read(storeProvider.future);
+      await store.upsertChannels([
+        api.Channel.fromJson({
+          'id': 'c1',
+          'name': 'stage',
+          'kind': 'voice',
+          'created_at': 0,
+          'join_muted': false,
+        }),
+      ]);
+    });
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<AppToggle>(toggle).value, isFalse);
   });
 
   testWidgets('a text channel does not offer Join muted', (tester) async {

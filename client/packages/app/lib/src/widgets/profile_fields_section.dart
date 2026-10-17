@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/profile_draft.dart';
 import '../providers/providers.dart';
 import 'color_swatch_row.dart';
 import 'settings_section_header.dart';
@@ -51,11 +52,18 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     super.dispose();
   }
 
+  /// What the server last accepted, so a blur with nothing changed sends nothing.
+  String? _savedPronouns;
+  String? _savedAbout;
+
   void _seed(api.Me me) {
     if (_seeded) return;
     _seeded = true;
-    _pronouns.text = me.pronouns ?? '';
-    _about.text = me.about ?? '';
+    _pronouns.text = _savedPronouns = me.pronouns ?? '';
+    _about.text = _savedAbout = me.about ?? '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(profileDraftProvider);
+    });
   }
 
   void _onBlur(FocusNode node, Future<void> Function() save) {
@@ -64,8 +72,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   }
 
   Future<void> _savePronouns() async {
+    final text = _pronouns.text.trim();
+    if (text == _savedPronouns) return;
     try {
-      await ref.read(apiProvider).updateMe(pronouns: _pronouns.text.trim());
+      await ref.read(apiProvider).updateMe(pronouns: text);
+      _savedPronouns = text;
       ref.invalidate(meProvider);
     } on api.ApiException {
       // Low-stakes; the field keeps the unsaved text rather than a banner.
@@ -73,8 +84,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   }
 
   Future<void> _saveAbout() async {
+    final text = _about.text.trim();
+    if (text == _savedAbout) return;
     try {
-      await ref.read(apiProvider).updateMe(about: _about.text.trim());
+      await ref.read(apiProvider).updateMe(about: text);
+      _savedAbout = text;
       ref.invalidate(meProvider);
     } on api.ApiException {
       // Same tolerance as _savePronouns.
@@ -90,67 +104,92 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     }
   }
 
+  void _publishDraft() {
+    ref.read(profileDraftProvider.notifier).state = (
+      pronouns: _pronouns.text,
+      about: _about.text,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final me = ref.watch(meProvider).valueOrNull;
-    final touch = AppTouchTargets.of(context);
     if (me != null) _seed(me);
+    final label = AppText.caption.copyWith(
+      color: tokens.textPrimary,
+      fontWeight: AppWeights.medium,
+    );
 
     return SettingsSectionCard(
+      title: 'About you',
       children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Pronouns',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.s4),
-              AppInput(
-                counterMax: api.InputLimits.pronouns,
-                controller: _pronouns,
-                focusNode: _pronounsFocus,
-                enabled: _seeded,
-                placeholder: 'she/her',
-                semanticLabel: 'Pronouns',
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _pronounsFocus.unfocus(),
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              Text(
-                'About',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.s4),
-              AppInput(
-                counterMax: api.InputLimits.about,
-                controller: _about,
-                focusNode: _aboutFocus,
-                enabled: _seeded,
-                placeholder: 'Maintainer. If the build breaks, I broke it.',
-                semanticLabel: 'About',
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _aboutFocus.unfocus(),
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              Text(
-                'Profile colour',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-              SizedBox(height: touch ? 0 : AppSpacing.s8),
-              ColorSwatchRow(
-                label: 'Profile colour',
-                colors: AppCanvasColors.cursors,
-                names: _colourNames,
-                selected: me?.profileColor,
-                onSelect: me == null ? null : _setColor,
-              ),
-            ],
-          ),
+        SettingsCardBlock(
+          gap: 18,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 6,
+              children: [
+                Text('Pronouns', style: label),
+                AppInput(
+                  maxLength: api.InputLimits.pronouns,
+                  controller: _pronouns,
+                  focusNode: _pronounsFocus,
+                  enabled: _seeded,
+                  placeholder: 'e.g. she/her',
+                  semanticLabel: 'Pronouns',
+                  onChanged: (_) => _publishDraft(),
+                  onSubmitted: (_) => _pronounsFocus.unfocus(),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 6,
+              children: [
+                Text('About', style: label),
+                AppInput(
+                  maxLength: api.InputLimits.about,
+                  minLines: 3,
+                  maxLines: 3,
+                  controller: _about,
+                  focusNode: _aboutFocus,
+                  enabled: _seeded,
+                  placeholder: 'Maintainer. If the build breaks, I broke it.',
+                  semanticLabel: 'About',
+                  onChanged: (_) => _publishDraft(),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: _about,
+                  builder: (context, value, _) => Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${value.text.runes.length} / ${api.InputLimits.about}',
+                      style: AppText.code.copyWith(
+                        fontSize: AppText.micro.fontSize,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Profile colour', style: label),
+                const SizedBox(height: 6),
+                ColorSwatchRow(
+                  label: 'Profile colour',
+                  colors: AppCanvasColors.cursors,
+                  names: _colourNames,
+                  selected: me?.profileColor,
+                  onSelect: me == null ? null : _setColor,
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );

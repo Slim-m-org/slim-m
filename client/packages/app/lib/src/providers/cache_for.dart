@@ -39,6 +39,9 @@ class KeepAliveCache {
   final int capacity;
   final _links = <Object, KeepAliveLink>{};
 
+  /// Stops holding [key], so a failed value is not kept for later views.
+  void release(Object key) => _links.remove(key)?.close();
+
   /// Registers this provider as one of the recent ones.
   ///
   /// Re-registering an existing key moves it to the most-recent end rather

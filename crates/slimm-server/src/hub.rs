@@ -438,6 +438,28 @@ mod epoch_tests {
     use super::*;
     use crate::ids::{ChannelId, RoleId, UserId};
 
+    /// Every subscriber receives a clone of the event; a large payload must be
+    /// shared by those clones, not copied once per connection (issue 2079).
+    #[test]
+    fn subscribers_share_a_large_payload_rather_than_copying_it() {
+        let hub = Hub::new();
+        let (mut first, mut second) = (hub.subscribe(), hub.subscribe());
+        hub.publish(Event::ReactionsChanged {
+            channel_id: ChannelId::generate(),
+            message_id: crate::ids::MessageId::generate(),
+            reactors: Arc::new(vec![("+1".to_owned(), vec![(UserId::generate(), 1)])]),
+        });
+        let reactors = |event| match event {
+            Event::ReactionsChanged { reactors, .. } => reactors,
+            _ => panic!("wrong event"),
+        };
+        let (a, b) = (
+            reactors(first.try_recv().unwrap()),
+            reactors(second.try_recv().unwrap()),
+        );
+        assert!(Arc::ptr_eq(&a, &b));
+    }
+
     /// The property the view cache rests on: the counter moves inside
     /// `publish`, so it has already moved by the time anybody could receive
     /// the event - and for a subscriber that never receives it at all.
@@ -454,7 +476,7 @@ mod epoch_tests {
 
         hub.publish(Event::OverwriteChanged {
             channel_id: ChannelId::generate(),
-            previously_visible_to: Vec::new(),
+            previously_visible_to: Arc::new(Vec::new()),
         });
 
         assert!(
@@ -505,7 +527,7 @@ mod epoch_tests {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
             object_id: crate::ids::CanvasObjectId::generate(),
-            points: vec![0.0, 0.0],
+            points: Arc::new(vec![0.0, 0.0]),
             ended: false,
         });
         assert_eq!(hub.permissions_epoch(), before);

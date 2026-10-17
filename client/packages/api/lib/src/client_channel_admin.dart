@@ -124,4 +124,56 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// already-deleted category is not an error.
   Future<void> deleteCategory(String categoryId) =>
       _send('DELETE', '/categories/$categoryId', expectNoContent: true);
+
+  /// This channel's own retention window ([ChannelRetention.days] null while
+  /// it follows the Space) and the Space's. Requires MANAGE_SERVER.
+  Future<ChannelRetention> channelRetention(String channelId) async =>
+      ChannelRetention._fromJson(
+        await _send('GET', '/channels/$channelId/retention'),
+      );
+
+  /// Sets the channel's own window, or clears it with null so it follows the
+  /// Space again; 0 keeps the channel forever.
+  Future<ChannelRetention> setChannelRetention(
+    String channelId,
+    int? days,
+  ) async =>
+      ChannelRetention._fromJson(
+        await _send(
+          'PUT',
+          '/channels/$channelId/retention',
+          body: {'retention_days': days},
+        ),
+      );
+
+  /// How many live messages in this channel and its threads a window of
+  /// [days] would prune now.
+  Future<int> previewChannelRetention(String channelId, int days) async {
+    final json = await _send(
+      'GET',
+      '/channels/$channelId/retention/preview',
+      query: {'days': '$days'},
+    );
+    return (json as Map<String, dynamic>)['messages'] as int;
+  }
+}
+
+/// A channel's own retention window beside the Space's.
+class ChannelRetention {
+  const ChannelRetention({required this.days, required this.spaceDays});
+
+  factory ChannelRetention._fromJson(Object? json) {
+    final map = json as Map<String, dynamic>;
+    return ChannelRetention(
+      days: map['retention_days'] as int?,
+      spaceDays: map['space_retention_days'] as int,
+    );
+  }
+
+  /// The channel's own window in days, null while it follows the Space; 0
+  /// keeps it forever.
+  final int? days;
+
+  /// The Space window the channel follows when [days] is null.
+  final int spaceDays;
 }

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The uploading tile's speed and time left (owner, 2026-10-15): only past
-/// ten seconds, on hover where there is a pointer, always on a narrow layout.
+/// The uploading tile always shows percent, speed and time left once the rate
+/// is stable (owner, 2026-10-16: the hover-only version was never noticed).
 library;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/composer_attachments.dart';
@@ -65,39 +64,38 @@ Future<void> _pump(
   );
 }
 
-Future<void> _hover(WidgetTester tester) async {
-  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-  await mouse.addPointer(location: Offset.zero);
-  addTearDown(mouse.removePointer);
-  await mouse.moveTo(tester.getCenter(find.byType(LinearProgressIndicator)));
-  await tester.pump();
-}
-
 void main() {
-  testWidgets(
-    'on a wide layout, hovering a long upload swaps in speed and time left',
-    (tester) async {
-      await _pump(tester, _upload(_Clock(), 20), const Size(1200, 800));
-      expect(find.text('3% of 5.4 GB'), findsOneWidget);
-      await _hover(tester);
-      expect(find.text('10.0 MB/s · about 9 min left'), findsOneWidget);
-    },
-  );
+  for (final size in const [Size(1200, 800), Size(400, 800)]) {
+    testWidgets('a running upload shows percent, speed and time left at '
+        '${size.width.toInt()} wide, with no hover', (tester) async {
+      await _pump(tester, _upload(_Clock(), 20), size);
+      expect(find.text('3% · 10.0 MB/s · 9 min left'), findsOneWidget);
+    });
+  }
 
-  testWidgets('a short upload shows only its progress, even hovered', (
+  testWidgets('the first seconds show only progress, no guessed estimate', (
     tester,
   ) async {
-    await _pump(tester, _upload(_Clock(), 5), const Size(1200, 800));
-    await _hover(tester);
+    await _pump(tester, _upload(_Clock(), 1), const Size(1200, 800));
+    expect(find.text('0% of 5.4 GB'), findsOneWidget);
     expect(find.textContaining('/s'), findsNothing);
-    expect(find.textContaining('left'), findsNothing);
   });
 
-  testWidgets(
-    'on a narrow layout a long upload shows time left without a hover',
-    (tester) async {
-      await _pump(tester, _upload(_Clock(), 20), const Size(400, 800));
-      expect(find.text('3% · about 9 min left'), findsOneWidget);
-    },
-  );
+  testWidgets('reconnecting hides the estimate', (tester) async {
+    final running = _upload(_Clock(), 20);
+    await _pump(
+      tester,
+      UploadingAttachment(
+        localId: running.localId,
+        filename: running.filename,
+        body: running.body,
+        sent: running.sent,
+        meter: running.meter,
+        reconnecting: true,
+      ),
+      const Size(1200, 800),
+    );
+    expect(find.text('Reconnecting at 3%…'), findsOneWidget);
+    expect(find.textContaining('/s'), findsNothing);
+  });
 }

@@ -4,7 +4,7 @@
 ///
 /// See `attachment_video_source.dart` for how each platform gets the
 /// bearer-token-gated bytes to `package:media_kit`'s player, and
-/// `attachment_save.dart` for the save action beside the player - a video
+/// `downloads/downloads_controller.dart` for the save action beside the player - a video
 /// that plays but cannot be saved is still only half of what this fixes.
 library;
 
@@ -18,9 +18,9 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../api_failure.dart';
+import '../downloads/downloads_controller.dart';
 import '../providers/providers.dart';
 import 'attachment_format.dart';
-import 'attachment_save.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_reopen.dart';
 import 'attachment_video_source.dart' show AttachmentVideoSource;
@@ -42,6 +42,32 @@ final attachmentVideoSourceProvider =
       (ref) => createAttachmentVideoSource,
     );
 
+/// The player each widget plays through, injectable because the real one
+/// needs libmpv and a GL texture that a headless test cannot give it.
+final attachmentPlayerProvider = Provider<Player Function()>(
+  (ref) => Player.new,
+);
+
+/// Builds the picture and controls once the player is ready, injectable for
+/// the same reason as [attachmentPlayerProvider]: a `Video` needs a GL texture.
+typedef AttachmentVideoSurfaceBuilder =
+    Widget Function(
+      Player player,
+      VideoController Function() controller,
+      VoidCallback onToggleFullscreen,
+    );
+
+final attachmentVideoSurfaceProvider = Provider<AttachmentVideoSurfaceBuilder>(
+  (ref) =>
+      (player, controller, onToggleFullscreen) => VideoPlaybackControls(
+        player: player,
+        isFullscreen: false,
+        onToggleFullscreen: onToggleFullscreen,
+        // No default media_kit chrome; see video_playback_controls.dart's doc.
+        child: Video(controller: controller(), controls: null),
+      ),
+);
+
 class AttachmentVideoPlayer extends ConsumerStatefulWidget {
   const AttachmentVideoPlayer({super.key, required this.attachment});
 
@@ -54,14 +80,13 @@ class AttachmentVideoPlayer extends ConsumerStatefulWidget {
 
 class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     with GuardedActionState<AttachmentVideoPlayer> {
-  final Player _player = Player();
+  late final Player _player = ref.read(attachmentPlayerProvider)();
   late final VideoController _videoController = VideoController(_player);
   late final AttachmentVideoSource _source = ref.read(
     attachmentVideoSourceProvider,
   )();
 
   bool _ready = false;
-  bool _saving = false;
   double? _fetchProgress;
   StreamSubscription<String>? _errorSub;
   late final StaleTokenReopener _reopener;
@@ -73,6 +98,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     super.initState();
     // A decode failure mid-playback surfaces here rather than a thrown Future, since it can fire after open() already succeeded.
     _errorSub = _player.stream.error.listen((_) {
+      if (_reopener.reopenIfStale()) return;
       if (mounted) setActionError('Could not play ${attachment.filename}.');
     });
     _reopener = StaleTokenReopener(
@@ -123,16 +149,9 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     );
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final failure = await saveAttachment(ref, attachment);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (failure != null) {
-      setActionError(failure);
-    } else {
-      clearActionError();
-    }
+  void _save() {
+    clearActionError();
+    unawaited(ref.read(downloadsProvider.notifier).start(attachment));
   }
 
   @override
@@ -147,6 +166,12 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final saving = ref.watch(
+      downloadsProvider.select(
+        (tasks) =>
+            tasks.any((t) => t.running && t.attachment.id == attachment.id),
+      ),
+    );
     final caption =
         '${attachment.filename} · ${formatByteSize(attachment.size)}';
 
@@ -166,15 +191,10 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
                   border: Border.all(color: tokens.borderSubtle),
                 ),
                 child: _ready
-                    ? VideoPlaybackControls(
-                        player: _player,
-                        isFullscreen: false,
-                        onToggleFullscreen: _openFullscreen,
-                        // No default media_kit chrome; see video_playback_controls.dart's doc.
-                        child: Video(
-                          controller: _videoController,
-                          controls: null,
-                        ),
+                    ? ref.watch(attachmentVideoSurfaceProvider)(
+                        _player,
+                        () => _videoController,
+                        _openFullscreen,
                       )
                     : _VideoLoading(progress: _fetchProgress, tokens: tokens),
               ),
@@ -194,7 +214,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
               ),
             ),
             const SizedBox(width: AppSpacing.s4),
-            _saving
+            saving
                 ? const Padding(
                     padding: EdgeInsets.all(AppSpacing.s4),
                     child: SizedBox(

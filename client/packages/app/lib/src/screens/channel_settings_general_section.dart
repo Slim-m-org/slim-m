@@ -19,6 +19,7 @@ import '../api_failure.dart';
 import '../entity_name.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
+import '../widgets/settings_field.dart';
 import '../widgets/settings_section_header.dart';
 
 /// Matches the server's own ceiling (`CHANNEL_TOPIC_MAX_CHARS` in
@@ -107,44 +108,47 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
   Widget build(BuildContext context) {
     return SettingsSectionCard(
       title: 'General',
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppInput(
-          counterMax: entityNameMaxChars,
-          controller: _name,
-          placeholder: 'Channel name',
-          onChanged: (_) => setState(() {}),
-          textInputAction: TextInputAction.done,
-          // Enter saves, the same as the button below: the owner typed a new name, pressed it, and nothing happened.
-          onSubmitted: (_) => _canSave ? unawaited(_save()) : null,
-          semanticLabel: 'Channel name',
+        SettingsCardBlock(
+          children: [
+            SettingsField(
+              label: 'Name',
+              child: AppInput(
+                counterMax: entityNameMaxChars,
+                controller: _name,
+                placeholder: 'Channel name',
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.done,
+                // Enter saves, the same as the button below: the owner typed a new name, pressed it, and nothing happened.
+                onSubmitted: (_) => _canSave ? unawaited(_save()) : null,
+                semanticLabel: 'Channel name',
+              ),
+            ),
+            SettingsField(
+              label: 'Description',
+              child: AppInput(
+                counterMax: channelTopicMaxChars,
+                controller: _topic,
+                placeholder: 'What this channel is for',
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _canSave ? unawaited(_save()) : null,
+                semanticLabel: 'Channel description',
+              ),
+            ),
+            if (_error != null) AppErrorState(message: _error!),
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppButton(
+                label: _saving ? 'Saving...' : 'Save changes',
+                variant: AppButtonVariant.primary,
+                disabled: !_canSave,
+                onPressed: _save,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.s8),
-        AppInput(
-          counterMax: channelTopicMaxChars,
-          controller: _topic,
-          placeholder: 'Description',
-          onChanged: (_) => setState(() {}),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _canSave ? unawaited(_save()) : null,
-          semanticLabel: 'Channel description',
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: _error!),
-        ],
-        const SizedBox(height: AppSpacing.s12),
-        AppButton(
-          label: _saving ? 'Saving...' : 'Save changes',
-          variant: AppButtonVariant.primary,
-          full: true,
-          disabled: !_canSave,
-          onPressed: _save,
-        ),
-        for (final row in widget.rows) ...[
-          const SizedBox(height: AppSpacing.s12),
-          row,
-        ],
+        ...widget.rows,
       ],
     );
   }

@@ -247,8 +247,8 @@ class _Edge extends StatelessWidget {
             begin: from,
             end: to,
             colors: [
-              tokens.surfaceBase,
-              tokens.surfaceBase.withValues(alpha: 0),
+              tokens.surfaceRaised,
+              tokens.surfaceRaised.withValues(alpha: 0),
             ],
           ),
         ),

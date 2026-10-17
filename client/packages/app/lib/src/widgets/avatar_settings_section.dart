@@ -1,28 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Settings' profile card: the caller's own picture, which is itself the
-/// control (a camera badge is the cue), the display name beside its own
-/// rename affordance, and the `@handle` underneath.
+/// Settings > Profile's "Identity" card: picture, display name and username.
 ///
-/// Tapping the picture opens `showAvatarPhotoMenu`: take, choose, browse,
-/// remove. Choose and browse stay two rows because a Photos-only pick cannot
-/// reach a picture that arrived by download or AirDrop. See
-/// `attachment_picker.dart`.
-///
-/// The name and handle used to sit above the settings nav, outside every
-/// named section - editable, yet nowhere a caller would think to look for
-/// "rename yourself". They live in this card now, which is the whole of the
-/// `Profile` pane, so renaming sits beside the picture it is next to on
-/// every other profile in this app. The card carries no title of its own:
-/// `Profile` under `Profile` would restate the nav row it already sits
-/// under, the case decision 0013 made `SettingsSectionCard.title` nullable
-/// for.
+/// Change opens `showAvatarPhotoMenu`: take, choose, browse, remove. Choose
+/// and browse stay two rows because a Photos-only pick cannot reach a picture
+/// that arrived by download or AirDrop. See `attachment_picker.dart`.
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show SlimmApiUsers;
 import 'package:slimm_design_system/design_system.dart';
@@ -37,11 +25,7 @@ import 'run_guarded.dart';
 import 'settings_section_header.dart';
 import 'user_avatar.dart';
 
-/// Large enough on its own to clear the 44pt touch minimum, so the badge
-/// never needs a separately expanded hit target the way a small icon button
-/// would.
-const double _avatarSize = AppAvatarSize.s56;
-const double _badgeSize = 28;
+const double _avatarSize = AppAvatarSize.s40;
 
 class AvatarSettingsSection extends ConsumerStatefulWidget {
   const AvatarSettingsSection({super.key});
@@ -138,7 +122,6 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final me = ref.watch(meProvider).valueOrNull;
     final hasAvatar = me?.avatarUpdatedAt != null;
     final enabled = me != null && !_busy;
@@ -149,146 +132,159 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
       onImage: (bytes, _) => unawaited(_crop(bytes)),
       onRejected: setActionError,
       child: SettingsSectionCard(
+        title: 'Identity',
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Semantics(
-                      button: true,
-                      enabled: enabled,
-                      label: 'Change profile picture',
-                      child: AppFocusRing(
-                        radius: _avatarSize / 2,
-                        builder: (context, onFocusChange) => InkWell(
-                          onTap: enabled ? () => _onTapChange(hasAvatar) : null,
-                          // AppFocusRing replaces this overlay; see its own doc comment.
-                          focusColor: Colors.transparent,
-                          onFocusChange: onFocusChange,
-                          customBorder: const CircleBorder(),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              ExcludeSemantics(
-                                child: UserAvatar(
-                                  userId: me?.id,
-                                  name: me?.displayName ?? '',
-                                  size: _avatarSize,
-                                ),
-                              ),
-                              if (_busy)
-                                Positioned.fill(
-                                  child: ExcludeSemantics(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: tokens.surfaceBase.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Center(
-                                        child: SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              Positioned(
-                                right: -2,
-                                bottom: -2,
-                                child: ExcludeSemantics(
-                                  child: Container(
-                                    width: _badgeSize,
-                                    height: _badgeSize,
-                                    decoration: BoxDecoration(
-                                      color: tokens.accentFill,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: tokens.surfaceBase,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      AppIcons.avatarCamera,
-                                      size: AppSizes.icon16,
-                                      color: tokens.accentOn,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (me != null) ...[
-                      const SizedBox(width: AppSpacing.s12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    me.displayName,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppText.ui.copyWith(
-                                      color: tokens.textPrimary,
-                                      fontWeight: AppWeights.medium,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.s4),
-                                AppIconButton(
-                                  icon: AppIcons.edit,
-                                  semanticLabel: 'Edit display name',
-                                  tooltip: 'Edit display name',
-                                  size: AppIconButtonSize.sm,
-                                  onPressed: () => unawaited(
-                                    showEditDisplayNameSheet(
-                                      context,
-                                      me.displayName,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              '@${me.username}',
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.caption.copyWith(
-                                color: tokens.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else
-                      const Spacer(),
-                  ],
-                ),
-                if (actionError != null) ...[
-                  const SizedBox(height: AppSpacing.s8),
-                  AppErrorState(
-                    message: actionError!,
-                    onDismiss: clearActionError,
+          _IdentityRow(
+            leading: ExcludeSemantics(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  UserAvatar(
+                    userId: me?.id,
+                    name: me?.displayName ?? '',
+                    size: _avatarSize,
                   ),
+                  if (_busy)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                 ],
+              ),
+            ),
+            title: 'Picture',
+            caption: 'Square images work best.',
+            trailing: [
+              if (hasAvatar)
+                AppButton(
+                  label: 'Remove',
+                  variant: AppButtonVariant.ghost,
+                  semanticLabel: 'Remove profile picture',
+                  onPressed: enabled
+                      ? () => unawaited(_removeAndClear())
+                      : null,
+                ),
+              AppButton(
+                label: 'Change',
+                semanticLabel: 'Change profile picture',
+                onPressed: enabled ? () => _onTapChange(hasAvatar) : null,
+              ),
+            ],
+          ),
+          _IdentityRow(
+            caption: 'Display name',
+            title: me?.displayName ?? '',
+            trailing: [
+              AppButton(
+                label: 'Edit',
+                semanticLabel: 'Edit display name',
+                onPressed: me == null
+                    ? null
+                    : () => unawaited(
+                        showEditDisplayNameSheet(context, me.displayName),
+                      ),
+              ),
+            ],
+          ),
+          _IdentityRow(
+            caption: 'Username',
+            title: me == null ? '' : '@${me.username}',
+            mono: true,
+            trailing: [
+              AppIconButton(
+                icon: AppIcons.copy,
+                semanticLabel: 'Copy username',
+                tooltip: 'Copy username',
+                iconSize: AppSizes.icon16,
+                onPressed: me == null
+                    ? null
+                    : () => unawaited(
+                        Clipboard.setData(
+                          ClipboardData(text: '@${me.username}'),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+          if (actionError != null)
+            SettingsCardBlock(
+              children: [
+                AppErrorState(
+                  message: actionError!,
+                  onDismiss: clearActionError,
+                ),
               ],
             ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _removeAndClear() async {
+    clearActionError();
+    await _remove();
+  }
+}
+
+/// One `.row` of the Identity card: a lead, a two-line label (caption above
+/// value when there is no lead) and trailing actions.
+class _IdentityRow extends StatelessWidget {
+  const _IdentityRow({
+    required this.title,
+    required this.trailing,
+    this.leading,
+    this.caption,
+    this.mono = false,
+  });
+
+  final Widget? leading;
+  final String title;
+  final String? caption;
+  final bool mono;
+  final List<Widget> trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final metrics = SettingsRowMetrics.of(context);
+    final captionText = caption == null
+        ? null
+        : Text(
+            caption!,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          );
+    final titleText = Text(
+      title,
+      overflow: TextOverflow.ellipsis,
+      style: (mono ? AppText.code : AppText.ui).copyWith(
+        color: tokens.textPrimary,
+      ),
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: metrics.minHeight),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: metrics.inset,
+          vertical: metrics.vertical,
+        ),
+        child: Row(
+          spacing: AppSpacing.s12,
+          children: [
+            ?leading,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                spacing: 2,
+                children: leading == null
+                    ? [?captionText, titleText]
+                    : [titleText, ?captionText],
+              ),
+            ),
+            ...trailing,
+          ],
+        ),
       ),
     );
   }

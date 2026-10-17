@@ -261,28 +261,23 @@ void main() {
 
   for (final width in [390.0, 1280.0]) {
     testWidgets(
-      'controls share one left edge and rows stay on a line at $width',
+      'picture rows keep their buttons on a line and on the card inset at $width',
       (tester) async {
         final server = _Server()
           ..banner = 7
           ..icon = 9;
         await _pump(tester, server, width);
         final field = tester.getRect(_descriptionInput);
-        final inset = field.left + 4;
-        final banner = tester.getRect(find.text('Banner'));
-        final icon = tester.getRect(find.text('Icon'));
-        expect(banner.left, inset);
-        expect(icon.left, inset);
         for (final name in ['banner', 'icon']) {
           final choose = tester.getRect(_button('Replace $name'));
           final remove = tester.getRect(_button('Remove $name'));
           expect(remove.top, choose.top);
-          expect(remove.right, lessThanOrEqualTo(field.right));
+          expect(remove.right, field.right);
         }
         final save = tester.getRect(
           find.widgetWithText(AppButton, 'Save description'),
         );
-        expect(save.right, field.right - 4);
+        expect(save.right, field.right);
         expect(save.top, greaterThan(field.bottom));
         expect(
           tester.getRect(_button('Replace banner')).left,

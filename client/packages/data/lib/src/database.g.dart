@@ -2653,8 +2653,18 @@ class $PendingAttachmentsTable extends PendingAttachments
               type: DriftSqlType.string, requiredDuringInsert: true)
           .withConverter<List<String>>(
               $PendingAttachmentsTable.$converterattachmentIds);
+  static const VerificationMeta _mentionReplyMeta =
+      const VerificationMeta('mentionReply');
   @override
-  List<GeneratedColumn> get $columns => [messageId, attachmentIds];
+  late final GeneratedColumn<bool> mentionReply = GeneratedColumn<bool>(
+      'mention_reply', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("mention_reply" IN (0, 1))'));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [messageId, attachmentIds, mentionReply];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2672,6 +2682,12 @@ class $PendingAttachmentsTable extends PendingAttachments
     } else if (isInserting) {
       context.missing(_messageIdMeta);
     }
+    if (data.containsKey('mention_reply')) {
+      context.handle(
+          _mentionReplyMeta,
+          mentionReply.isAcceptableOrUnknown(
+              data['mention_reply']!, _mentionReplyMeta));
+    }
     return context;
   }
 
@@ -2686,6 +2702,8 @@ class $PendingAttachmentsTable extends PendingAttachments
       attachmentIds: $PendingAttachmentsTable.$converterattachmentIds.fromSql(
           attachedDatabase.typeMapping.read(
               DriftSqlType.string, data['${effectivePrefix}attachment_ids'])!),
+      mentionReply: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}mention_reply']),
     );
   }
 
@@ -2704,8 +2722,14 @@ class PendingAttachmentRow extends DataClass
 
   /// The ids in the order they were staged, stored as a JSON array.
   final List<String> attachmentIds;
+
+  /// False when a queued reply opted out of mentioning its author, so a retry
+  /// honours the choice. Null for every send that has nothing to remember.
+  final bool? mentionReply;
   const PendingAttachmentRow(
-      {required this.messageId, required this.attachmentIds});
+      {required this.messageId,
+      required this.attachmentIds,
+      this.mentionReply});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2715,6 +2739,9 @@ class PendingAttachmentRow extends DataClass
           .$converterattachmentIds
           .toSql(attachmentIds));
     }
+    if (!nullToAbsent || mentionReply != null) {
+      map['mention_reply'] = Variable<bool>(mentionReply);
+    }
     return map;
   }
 
@@ -2722,6 +2749,9 @@ class PendingAttachmentRow extends DataClass
     return PendingAttachmentsCompanion(
       messageId: Value(messageId),
       attachmentIds: Value(attachmentIds),
+      mentionReply: mentionReply == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mentionReply),
     );
   }
 
@@ -2731,6 +2761,7 @@ class PendingAttachmentRow extends DataClass
     return PendingAttachmentRow(
       messageId: serializer.fromJson<String>(json['messageId']),
       attachmentIds: serializer.fromJson<List<String>>(json['attachmentIds']),
+      mentionReply: serializer.fromJson<bool?>(json['mentionReply']),
     );
   }
   @override
@@ -2739,14 +2770,19 @@ class PendingAttachmentRow extends DataClass
     return <String, dynamic>{
       'messageId': serializer.toJson<String>(messageId),
       'attachmentIds': serializer.toJson<List<String>>(attachmentIds),
+      'mentionReply': serializer.toJson<bool?>(mentionReply),
     };
   }
 
   PendingAttachmentRow copyWith(
-          {String? messageId, List<String>? attachmentIds}) =>
+          {String? messageId,
+          List<String>? attachmentIds,
+          Value<bool?> mentionReply = const Value.absent()}) =>
       PendingAttachmentRow(
         messageId: messageId ?? this.messageId,
         attachmentIds: attachmentIds ?? this.attachmentIds,
+        mentionReply:
+            mentionReply.present ? mentionReply.value : this.mentionReply,
       );
   PendingAttachmentRow copyWithCompanion(PendingAttachmentsCompanion data) {
     return PendingAttachmentRow(
@@ -2754,6 +2790,9 @@ class PendingAttachmentRow extends DataClass
       attachmentIds: data.attachmentIds.present
           ? data.attachmentIds.value
           : this.attachmentIds,
+      mentionReply: data.mentionReply.present
+          ? data.mentionReply.value
+          : this.mentionReply,
     );
   }
 
@@ -2761,45 +2800,52 @@ class PendingAttachmentRow extends DataClass
   String toString() {
     return (StringBuffer('PendingAttachmentRow(')
           ..write('messageId: $messageId, ')
-          ..write('attachmentIds: $attachmentIds')
+          ..write('attachmentIds: $attachmentIds, ')
+          ..write('mentionReply: $mentionReply')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(messageId, attachmentIds);
+  int get hashCode => Object.hash(messageId, attachmentIds, mentionReply);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PendingAttachmentRow &&
           other.messageId == this.messageId &&
-          other.attachmentIds == this.attachmentIds);
+          other.attachmentIds == this.attachmentIds &&
+          other.mentionReply == this.mentionReply);
 }
 
 class PendingAttachmentsCompanion
     extends UpdateCompanion<PendingAttachmentRow> {
   final Value<String> messageId;
   final Value<List<String>> attachmentIds;
+  final Value<bool?> mentionReply;
   final Value<int> rowid;
   const PendingAttachmentsCompanion({
     this.messageId = const Value.absent(),
     this.attachmentIds = const Value.absent(),
+    this.mentionReply = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PendingAttachmentsCompanion.insert({
     required String messageId,
     required List<String> attachmentIds,
+    this.mentionReply = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : messageId = Value(messageId),
         attachmentIds = Value(attachmentIds);
   static Insertable<PendingAttachmentRow> custom({
     Expression<String>? messageId,
     Expression<String>? attachmentIds,
+    Expression<bool>? mentionReply,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (messageId != null) 'message_id': messageId,
       if (attachmentIds != null) 'attachment_ids': attachmentIds,
+      if (mentionReply != null) 'mention_reply': mentionReply,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2807,10 +2853,12 @@ class PendingAttachmentsCompanion
   PendingAttachmentsCompanion copyWith(
       {Value<String>? messageId,
       Value<List<String>>? attachmentIds,
+      Value<bool?>? mentionReply,
       Value<int>? rowid}) {
     return PendingAttachmentsCompanion(
       messageId: messageId ?? this.messageId,
       attachmentIds: attachmentIds ?? this.attachmentIds,
+      mentionReply: mentionReply ?? this.mentionReply,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2826,6 +2874,9 @@ class PendingAttachmentsCompanion
           .$converterattachmentIds
           .toSql(attachmentIds.value));
     }
+    if (mentionReply.present) {
+      map['mention_reply'] = Variable<bool>(mentionReply.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2837,6 +2888,7 @@ class PendingAttachmentsCompanion
     return (StringBuffer('PendingAttachmentsCompanion(')
           ..write('messageId: $messageId, ')
           ..write('attachmentIds: $attachmentIds, ')
+          ..write('mentionReply: $mentionReply, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4020,12 +4072,14 @@ typedef $$PendingAttachmentsTableCreateCompanionBuilder
     = PendingAttachmentsCompanion Function({
   required String messageId,
   required List<String> attachmentIds,
+  Value<bool?> mentionReply,
   Value<int> rowid,
 });
 typedef $$PendingAttachmentsTableUpdateCompanionBuilder
     = PendingAttachmentsCompanion Function({
   Value<String> messageId,
   Value<List<String>> attachmentIds,
+  Value<bool?> mentionReply,
   Value<int> rowid,
 });
 
@@ -4045,6 +4099,9 @@ class $$PendingAttachmentsTableFilterComposer
       get attachmentIds => $composableBuilder(
           column: $table.attachmentIds,
           builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<bool> get mentionReply => $composableBuilder(
+      column: $table.mentionReply, builder: (column) => ColumnFilters(column));
 }
 
 class $$PendingAttachmentsTableOrderingComposer
@@ -4061,6 +4118,10 @@ class $$PendingAttachmentsTableOrderingComposer
 
   ColumnOrderings<String> get attachmentIds => $composableBuilder(
       column: $table.attachmentIds,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get mentionReply => $composableBuilder(
+      column: $table.mentionReply,
       builder: (column) => ColumnOrderings(column));
 }
 
@@ -4079,6 +4140,9 @@ class $$PendingAttachmentsTableAnnotationComposer
   GeneratedColumnWithTypeConverter<List<String>, String> get attachmentIds =>
       $composableBuilder(
           column: $table.attachmentIds, builder: (column) => column);
+
+  GeneratedColumn<bool> get mentionReply => $composableBuilder(
+      column: $table.mentionReply, builder: (column) => column);
 }
 
 class $$PendingAttachmentsTableTableManager extends RootTableManager<
@@ -4112,21 +4176,25 @@ class $$PendingAttachmentsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> messageId = const Value.absent(),
             Value<List<String>> attachmentIds = const Value.absent(),
+            Value<bool?> mentionReply = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PendingAttachmentsCompanion(
             messageId: messageId,
             attachmentIds: attachmentIds,
+            mentionReply: mentionReply,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String messageId,
             required List<String> attachmentIds,
+            Value<bool?> mentionReply = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PendingAttachmentsCompanion.insert(
             messageId: messageId,
             attachmentIds: attachmentIds,
+            mentionReply: mentionReply,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

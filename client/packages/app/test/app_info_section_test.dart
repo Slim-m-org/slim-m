@@ -26,14 +26,19 @@ void main() {
   ) async {
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
 
+    // The last nav row; the nav list only builds what is on screen.
+    await tester.scrollUntilVisible(
+      find.text('About slim-m'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('About slim-m'));
     await tester.pumpAndSettle();
 
     expect(find.byType(ListTile), findsNothing);
-    expect(find.text('Version'), findsOneWidget);
-    expect(find.textContaining('0.1.0'), findsOneWidget);
-    expect(find.text('Debug log'), findsOneWidget);
-    expect(find.text('Nothing caught this session'), findsOneWidget);
+    expect(find.text('slim-m'), findsWidgets);
+    expect(find.textContaining('Version 0.1.0'), findsOneWidget);
+    expect(find.text('Release notes'), findsOneWidget);
   });
 
   Future<void> pumpAbout(WidgetTester tester, String buildNumber) async {
@@ -60,19 +65,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('every row in the card starts its text in one column', (
+  testWidgets('the Updates rows start their text in one column', (
     tester,
   ) async {
     await pumpAbout(tester, '');
 
     final xs = {
-      for (final label in [
-        'Version',
-        'Automatic updates',
-        'Check for updates',
-        'Release notes',
-        'Debug log',
-      ])
+      for (final label in ['Automatic updates', 'Release notes'])
         label: tester.getTopLeft(find.text(label)).dx,
     };
     expect(xs.values.toSet(), hasLength(1), reason: '$xs');
@@ -93,7 +92,7 @@ void main() {
   ) async {
     await pumpAbout(tester, '');
 
-    expect(find.text('0.89.0'), findsOneWidget);
+    expect(find.text('Version 0.89.0'), findsOneWidget);
     expect(find.textContaining('()'), findsNothing);
   });
 
@@ -102,7 +101,7 @@ void main() {
   ) async {
     await pumpAbout(tester, '42');
 
-    expect(find.text('0.89.0 (42)'), findsOneWidget);
+    expect(find.text('Version 0.89.0 (42)'), findsOneWidget);
   });
 
   /// Decision 0025: the switch that decides whether the splash installs an
@@ -114,6 +113,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
 
+    // The last nav row; the nav list only builds what is on screen.
+    await tester.scrollUntilVisible(
+      find.text('About slim-m'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('About slim-m'));
     await tester.pumpAndSettle();
 

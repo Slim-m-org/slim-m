@@ -80,6 +80,11 @@ struct SendRequest {
     /// same channel (live or soft-deleted); anything else is a 400.
     #[serde(default)]
     reply_to_id: Option<String>,
+    /// On a reply, whether to ping the replied-to author (Discord's "@ On"):
+    /// they are added to this message's mentions. Off by default, so a client
+    /// that never sends it keeps a reply silent.
+    #[serde(default)]
+    mention_reply: bool,
     /// The message this one forwards, if any. Unlike `reply_to_id` it may
     /// live in any channel the sender can see, and only its id is accepted:
     /// the server reads the original's author, timestamp and text for
@@ -184,6 +189,7 @@ async fn send(
         .as_deref()
         .map(|raw| parse_uuid(raw).map(MessageId))
         .transpose()?;
+    let mention_reply = req.mention_reply;
     // A retry must not re-authorize what already succeeded; the authoritative check still runs in the transaction.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
     // Never on a retry: see `enforce_slow_mode`'s own doc for why a second attempt at an id that already landed must not be refused.
@@ -247,19 +253,30 @@ async fn send(
         message_components::store_and_reload(&state, id, sent.fresh, &components).await,
     );
 
+    let reply_ping = match sent.message.reply_to_id.filter(|_| mention_reply) {
+        Some(parent) => after_commit(
+            "its reply ping",
+            super::message_mentions::reply_ping_target(&state, channel_id, ctx.user_id, parent)
+                .await,
+        ),
+        None => None,
+    };
+    // Also on a retry, which repairs mentions its first attempt failed to store; resolving is idempotent.
+    after_commit(
+        "its mentions",
+        super::message_mentions::resolve_and_store(
+            &state,
+            channel_id,
+            ctx.user_id,
+            sent.message.id,
+            &sent.message.content,
+            reply_ping,
+        )
+        .await,
+    );
+
     // An idempotent retry must not fan out or push again; see this function's note.
     if sent.fresh {
-        after_commit(
-            "its mentions",
-            super::message_mentions::resolve_and_store(
-                &state,
-                channel_id,
-                ctx.user_id,
-                sent.message.id,
-                &sent.message.content,
-            )
-            .await,
-        );
         super::read_sync::advance_for_author(&state, ctx.user_id, &sent.message).await;
 
         state.hub.publish(Event::MessageCreated {
@@ -286,6 +303,7 @@ async fn send(
                 seq: sent.message.seq,
                 content: sent.message.content.clone(),
                 presence: state.hub.presence(),
+                reply_ping,
             },
         );
         // A no-op for an ordinary channel; see `threads::notify_reply`.
@@ -478,20 +496,26 @@ async fn edit(
             op_seq,
             code_runs_cleared,
         } => {
+            let author = message.author_id.unwrap_or(ctx.user_id);
+            // A reply's ping is not in its text, so an edit keeps it only if the send stored one.
+            let reply_ping =
+                super::message_mentions::kept_reply_ping(&state, channel_id, author, message.id)
+                    .await?;
             // Content changed, so the mention set may have too; see resolve_and_store's own doc for the author-vs-editor choice below.
             super::message_mentions::resolve_and_store(
                 &state,
                 channel_id,
-                message.author_id.unwrap_or(ctx.user_id),
+                author,
                 message.id,
                 &message.content,
+                reply_ping,
             )
             .await?;
 
             state.hub.publish(Event::MessageEdited {
-                message: message.clone(),
+                message: Arc::new(message.clone()),
                 op_seq,
-                forwarded: forwarded.clone(),
+                forwarded: forwarded.clone().map(Arc::new),
             });
             // A bare MessageEdited frame cannot shrink a client's cached runs (message_extras.dart), so this is the only signal that does.
             if code_runs_cleared {

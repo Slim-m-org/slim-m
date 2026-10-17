@@ -15,6 +15,8 @@
 /// the way back is the app bar's own back arrow.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -219,8 +221,10 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     if (!wasInstalled && mounted) {
       // Installed is not usable until somebody is granted it; see that screen's doc.
       if (manifest.permissions.isNotEmpty) {
-        context.go(
-          Routes.adminDockModuleAccess(manifest.id, source: widget.source),
+        unawaited(
+          context.push(
+            Routes.adminDockModuleAccess(manifest.id, source: widget.source),
+          ),
         );
       } else {
         // Nothing to grant, so there is no later moment to turn it on at.
@@ -311,7 +315,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
 
     return SettingsScreenScaffold(
       title: manifest.valueOrNull?.name ?? 'Module',
-      backTooltip: 'Back to the Dock',
+      backTooltip: 'Back to Modules',
       backFallback: Routes.adminDock,
       child: AppAsyncView<api.DockManifest>(
         value: AppAsyncState(data: manifest.valueOrNull, error: manifest.error),
@@ -341,7 +345,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           onInstall: () => _install(m, wasInstalled: installed != null),
           onSetEnabled: (v) => _setEnabled(m.name, v),
           onUninstall: () => _uninstall(m.name),
-          onChooseAccess: () => context.go(
+          onChooseAccess: () => context.push(
             Routes.adminDockModuleAccess(m.id, source: widget.source),
           ),
         ),

@@ -66,6 +66,9 @@ pub struct RoomInfo {
 #[derive(Debug, Deserialize)]
 pub struct ParticipantInfo {
     pub identity: String,
+    /// Tells one session of a member from the next; see `RoomLiveState`.
+    #[serde(default)]
+    pub sid: String,
 }
 
 #[derive(Debug, Deserialize)]

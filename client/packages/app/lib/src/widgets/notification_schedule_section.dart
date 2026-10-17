@@ -22,8 +22,10 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/device_timezone.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';
-import 'notification_schedule_allow_lists.dart';
 import 'run_guarded.dart';
+import 'settings_info_line.dart';
+import 'settings_hairline.dart';
+import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
 
@@ -185,8 +187,15 @@ class _NotificationScheduleSectionState
     final activeWeekdays =
         current?.days.map((d) => d.weekday).toSet() ?? const {};
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final hours = Text(
+      '${start.format(context)} - ${end.format(context)}',
+      style: AppText.caption.copyWith(
+        fontFamily: AppFonts.mono,
+        color: tokens.textPrimary,
+      ),
+    );
+    return SettingsRowGroup(
       children: [
         SettingsToggleRow(
           label: 'Notification schedule',
@@ -196,34 +205,48 @@ class _NotificationScheduleSectionState
           semanticLabel: 'Notification schedule',
         ),
         if (enabled) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s16,
-              vertical: AppSpacing.s8,
-            ),
-            // Expanded, not a fixed width: seven 44pt targets overflow a phone-width card, so this divides the space evenly instead of clipping Sunday.
-            child: Row(
-              children: [
-                for (var weekday = 0; weekday < 7; weekday++) ...[
-                  if (weekday > 0) const SizedBox(width: AppSpacing.s4),
-                  Expanded(
-                    child: _DayToggle(
-                      label: _dayLabels[weekday],
-                      semanticLabel: _dayFullNames[weekday],
-                      active: activeWeekdays.contains(weekday),
-                      onTap: () => _toggleDay(weekday, current, start, end),
-                    ),
-                  ),
-                ],
-              ],
+          SettingsSubRow(
+            label: 'Days',
+            // Scaled down rather than clipped: seven chips overflow a phone-width card.
+            trailing: Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  spacing: 6,
+                  children: [
+                    for (var weekday = 0; weekday < 7; weekday++)
+                      _DayToggle(
+                        label: _dayLabels[weekday],
+                        semanticLabel: _dayFullNames[weekday],
+                        active: activeWeekdays.contains(weekday),
+                        onTap: () => _toggleDay(weekday, current, start, end),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
-          AppListRow(
+          SettingsSubRow(
             label: 'Hours',
-            trailing: Text('${start.format(context)} - ${end.format(context)}'),
+            semanticLabel:
+                'Hours, ${start.format(context)} to ${end.format(context)}',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: AppSpacing.s8,
+              children: [
+                hours,
+                Icon(
+                  AppIcons.chevronDown,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
+              ],
+            ),
             onTap: () => _pickHours(current, start, end),
           ),
           SettingsSelectRow<api.OffHoursMode>(
+            sub: true,
             label: 'Outside these hours',
             sheetTitle: 'Outside your notification schedule',
             value: current.offHoursMode,
@@ -236,37 +259,15 @@ class _NotificationScheduleSectionState
             ],
             onChanged: (mode) => _setMode(mode, current, start, end),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s8,
-              0,
-              AppSpacing.s8,
-              AppSpacing.s8,
-            ),
-            child: Text(
-              'Calls still ring even outside your hours; only chat '
-              'notifications follow this schedule.',
-              style: AppText.caption.copyWith(
-                color: Theme.of(context).extension<AppTokens>()!.textSecondary,
-              ),
-            ),
+          const SettingsInfoLine(
+            'Calls still ring even outside your hours; only chat '
+            'notifications follow this schedule.',
+            tinted: true,
           ),
-          NotificationScheduleAllowedPeople(
-            allowedUserIds: current.allowedUserIds,
-          ),
-          NotificationScheduleAllowedChannels(
-            allowedChannelIds: current.allowedChannelIds,
-          ),
-          _SnoozeRow(schedule: current, guard: guard),
         ],
         if (loadFailed)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s8,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
               message: 'Could not load your notification schedule.',
               onRetry: () => ref.invalidate(notificationScheduleProvider),
@@ -274,12 +275,7 @@ class _NotificationScheduleSectionState
           ),
         if (actionError != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s8,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
               message: actionError!,
               onDismiss: clearActionError,
@@ -303,6 +299,8 @@ class _DayToggle extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
+  static const _size = 32.0;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -312,117 +310,22 @@ class _DayToggle extends StatelessWidget {
       semanticLabel: '$semanticLabel, ${active ? 'on' : 'off'}',
       ringRadius: AppRadii.full,
       builder: (context, focused, hovered) => Container(
-        width: AppSizes.rowPointer,
-        height: AppSizes.rowPointer,
+        width: _size,
+        height: _size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? tokens.accentFill : tokens.surfaceRaised,
+          color: active ? tokens.textPrimary : Colors.transparent,
           shape: BoxShape.circle,
           border: active ? null : Border.all(color: tokens.borderSubtle),
         ),
         child: Text(
           label,
-          style: AppText.caption.copyWith(
-            color: active ? tokens.accentSoft : tokens.textSecondary,
+          style: AppText.micro.copyWith(
+            color: active ? tokens.surfaceBase : tokens.textSecondary,
             fontWeight: active ? AppWeights.semi : AppWeights.regular,
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Slack's 30m / 1h / until-tomorrow pause, plus the active-snooze
-/// indicator and its own cancel.
-class _SnoozeRow extends StatelessWidget {
-  const _SnoozeRow({required this.schedule, required this.guard});
-
-  final api.NotificationSchedule schedule;
-  final Guard guard;
-
-  Future<void> _snoozeFor(WidgetRef ref, Duration duration) =>
-      _apply(ref, DateTime.now().add(duration).millisecondsSinceEpoch);
-
-  Future<void> _snoozeUntilTomorrow(WidgetRef ref) {
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    return _apply(ref, tomorrow.millisecondsSinceEpoch);
-  }
-
-  Future<void> _apply(WidgetRef ref, int untilMs) async {
-    final ok = await guard(
-      whatFailed: 'snooze your notifications',
-      action: () =>
-          ref.read(apiProvider).setNotificationSnooze(untilMs).then((_) {}),
-    );
-    if (ok) ref.invalidate(notificationScheduleProvider);
-  }
-
-  Future<void> _cancel(WidgetRef ref) async {
-    final ok = await guard(
-      whatFailed: 'cancel your snooze',
-      action: () => ref.read(apiProvider).clearNotificationSnooze(),
-    );
-    if (ok) ref.invalidate(notificationScheduleProvider);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        if (schedule.isSnoozed) {
-          final until = TimeOfDay.fromDateTime(
-            DateTime.fromMillisecondsSinceEpoch(schedule.snoozeUntil!),
-          );
-          return AppListRow(
-            leading: const Icon(AppIcons.notificationsOff),
-            label: 'Snoozed until ${until.format(context)}',
-            trailing: AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.ghost,
-              size: AppButtonSize.sm,
-              onPressed: () => unawaited(_cancel(ref)),
-            ),
-          );
-        }
-        final tokens = Theme.of(context).extension<AppTokens>()!;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s8,
-            AppSpacing.s8,
-            AppSpacing.s8,
-            AppSpacing.s8,
-          ),
-          child: Wrap(
-            spacing: AppSpacing.s8,
-            runSpacing: AppSpacing.s8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'Snooze notifications for',
-                style: AppText.body.copyWith(color: tokens.textPrimary),
-              ),
-              AppButton(
-                label: '30m',
-                size: AppButtonSize.sm,
-                onPressed: () =>
-                    unawaited(_snoozeFor(ref, const Duration(minutes: 30))),
-              ),
-              AppButton(
-                label: '1h',
-                size: AppButtonSize.sm,
-                onPressed: () =>
-                    unawaited(_snoozeFor(ref, const Duration(hours: 1))),
-              ),
-              AppButton(
-                label: 'Until tomorrow',
-                size: AppButtonSize.sm,
-                onPressed: () => unawaited(_snoozeUntilTomorrow(ref)),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

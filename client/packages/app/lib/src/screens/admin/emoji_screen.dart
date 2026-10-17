@@ -23,6 +23,7 @@ import '../../widgets/confirm_dialog.dart';
 import '../../widgets/custom_emoji_image.dart';
 import '../../widgets/emoji_catalog.dart' show emojiNameMatches;
 import '../../widgets/run_guarded.dart';
+import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/sheet_item_list.dart';
@@ -84,9 +85,19 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
           center: false,
           errorMessage: 'Could not load emoji.',
           onRetry: () => ref.invalidate(customEmojiProvider),
-          isEmpty: (list) => list.isEmpty,
-          emptyMessage: 'No emoji yet.',
           data: (context, list) {
+            if (list.isEmpty) {
+              return const SettingsSectionCard(
+                title: 'Emoji (0)',
+                children: [
+                  SettingsEmptyState(
+                    icon: AppIcons.smile,
+                    title: 'No emoji yet.',
+                    detail: 'Add some above and members can use them.',
+                  ),
+                ],
+              );
+            }
             final shown = [
               for (final e in list)
                 if (emojiNameMatches(e.name, _search.text)) e,
@@ -96,27 +107,25 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
                   ? 'Emoji (${list.length})'
                   : 'Emoji (${shown.length} of ${list.length})',
               children: [
-                AppInput(
-                  controller: _search,
-                  placeholder: 'Search emoji',
-                  semanticLabel: 'Search emoji',
-                  icon: Icon(
-                    AppIcons.search,
-                    size: AppSizes.icon16,
-                    color: tokens.textSecondary,
-                  ),
-                  onChanged: (_) => setState(() {}),
+                SettingsCardBlock(
+                  children: [
+                    AppInput(
+                      controller: _search,
+                      placeholder: 'Search emoji',
+                      semanticLabel: 'Search emoji',
+                      icon: Icon(
+                        AppIcons.search,
+                        size: AppSizes.icon16,
+                        color: tokens.textSecondary,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.s8),
                 if (shown.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.s12,
-                    ),
-                    child: Text(
-                      'No emoji match "${_search.text.trim()}".',
-                      style: AppText.body.copyWith(color: tokens.textSecondary),
-                    ),
+                  SettingsEmptyState(
+                    icon: AppIcons.search,
+                    title: 'No emoji match "${_search.text.trim()}".',
                   )
                 else
                   ConstrainedBox(

@@ -241,11 +241,11 @@ This is not redundant with the PR-time gate: `verify-release-checks.yml` (see be
 This relies on this repo's squash-merge-only convention (see "Contribution conventions" in `CLAUDE.md`): `HEAD~1` is exactly the one commit a merged PR added.
 A direct multi-commit push to `main` bypassing that convention would only diff the last of them; not a concern under the convention this repo actually follows, and not worth the added complexity of walking further back for a case that should not happen.
 
-### The one OpenAPI 3.0 `nullable` in the schema
+### OpenAPI 3.0 `nullable` in a 3.1 schema
 
-`RegisterRequest.invite_code` in `schema/openapi.yaml` is written with the OpenAPI 3.0 `nullable` keyword, alone in a 3.1 document.
-oasdiff cannot read a 3.1 `type: [x, "null"]` union and reports the conversion as the property losing nullability, which fails the additive-only gate, and redocly rejects carrying both forms at once.
-It is a request property, so nothing is testable either way: the field is optional through `required` regardless, and the server takes an absent value and an explicit null identically.
+`schema/openapi.yaml` declares OpenAPI 3.1 but writes nullable fields with the 3.0 `nullable: true` keyword beside a `type`, at about thirty sites.
+oasdiff cannot read a 3.1 `type: [x, "null"]` union and reports the conversion as the property losing nullability, which fails the additive-only gate on a request property, and redocly rejects carrying both forms at once.
+JSON Schema 2020-12 has no `nullable` keyword, so the response contract test (`tests/response_contract/openapi.rs`) rewrites each `nullable: true` into the union when it loads the schema; without that, a documented-nullable field holding null would fail validation (issue 2089).
 
 ## hygiene
 
@@ -286,6 +286,7 @@ This step checks the identifiers agree with each other across `project.pbxproj` 
 Phones are locked to portrait and tablets are free to rotate, on both platforms, and the two halves fail in opposite directions if either is quietly edited.
 This step reads the iOS orientation arrays, the two Android `bools.xml` overrides, and the Kotlin code that applies the lock, and fails if any of the four no longer agrees with the others.
 The one exception is full screen call video (decision 0058): the iPhone array may list landscape as a ceiling only while `AppDelegate.swift` still defaults to portrait and `fullscreen_video_overlay.dart` is the only Dart code that asks for landscape, and the step fails otherwise.
+It also fails if the web manifest sets an orientation: an installed web app cannot tell a phone from a desktop, so a lock there would lock every desktop install too.
 
 ### No emoji in UI source
 

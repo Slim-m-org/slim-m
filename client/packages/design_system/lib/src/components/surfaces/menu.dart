@@ -175,7 +175,7 @@ class AppMenuDivider extends StatelessWidget {
 }
 
 /// The tone an [AppMenuItem] renders in.
-enum AppMenuItemTone { normal, warn, danger }
+enum AppMenuItemTone { normal, danger }
 
 /// One row inside an [AppMenu]: an optional leading icon, a label, and
 /// optional trailing content (a shortcut hint, a chevron for [submenu]).
@@ -207,9 +207,9 @@ class AppMenuItem extends StatefulWidget {
   /// `{trailing}{submenu && <chevron>}`.
   final bool submenu;
 
-  /// The current-value background: `accentSoft` normally, `warnSoft` when
-  /// [tone] is [AppMenuItemTone.warn]. Also draws a trailing check unless a
-  /// [trailing] widget takes that slot, so the choice never rests on a tint.
+  /// The current-value background (`accentSoft`). Also draws a trailing check
+  /// unless a [trailing] widget takes that slot, so the choice never rests on
+  /// a tint.
   final bool selected;
   final AppMenuItemTone tone;
 
@@ -232,7 +232,6 @@ class _AppMenuItemState extends State<AppMenuItem> {
 
   Color _toneColor(AppTokens tokens) => switch (widget.tone) {
         AppMenuItemTone.normal => tokens.textPrimary,
-        AppMenuItemTone.warn => tokens.warnText,
         AppMenuItemTone.danger => tokens.dangerText,
       };
 
@@ -241,24 +240,20 @@ class _AppMenuItemState extends State<AppMenuItem> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final active = widget.onTap != null;
     final touch = widget.touch ?? AppTouchTargets.of(context);
-    final ink = _toneColor(tokens);
+    // An item with no action is dimmed throughout, so it cannot pass for one that works.
+    final ink = active ? _toneColor(tokens) : tokens.textDisabled;
     // The source dims the icon to text-secondary for the normal tone even
-    // though the label is text-primary; warn/danger keep icon and label in step.
-    final iconInk =
-        widget.tone == AppMenuItemTone.normal ? tokens.textSecondary : ink;
-
-    final selectedFill = widget.tone == AppMenuItemTone.warn
-        ? tokens.warnSoft
-        : tokens.accentSoft;
+    // though the label is text-primary; danger keeps icon and label in step.
+    final iconInk = active && widget.tone == AppMenuItemTone.normal
+        ? tokens.textSecondary
+        : ink;
 
     final trailing = widget.trailing ??
         (widget.selected
             ? Icon(
                 AppIcons.check,
                 size: AppSizes.icon16,
-                color: widget.tone == AppMenuItemTone.warn
-                    ? tokens.warnText
-                    : tokens.accent,
+                color: tokens.accent,
               )
             : null);
 
@@ -270,7 +265,7 @@ class _AppMenuItemState extends State<AppMenuItem> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: widget.selected
-            ? selectedFill
+            ? tokens.accentSoft
             : (_hovered || _pressed
                 ? tokens.surfaceSunken
                 : Colors.transparent),

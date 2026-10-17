@@ -22,6 +22,7 @@ import 'report_card.dart';
 import 'report_history_pane.dart';
 import 'reports_load_more_row.dart';
 import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_section_header.dart';
 
 /// Whether [permissions] reads history but cannot read the open queue.
 bool reportsHistoryOnly(int permissions) =>
@@ -37,7 +38,6 @@ class ReportsScreen extends ConsumerWidget {
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     scrollable: false,
-    padding: EdgeInsets.zero,
     child: ReportsPane(
       historyOnly: reportsHistoryOnly(ref.watch(myPermissionsProvider)),
     ),
@@ -71,24 +71,16 @@ class _ReportsPaneState extends State<ReportsPane> {
     if (widget.historyOnly) return const ReportHistoryPane();
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            AppSpacing.s16,
-            AppSpacing.s16,
-            AppSpacing.s8,
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: AppSegmentedControl.inline(
-              semanticLabel: 'Reports view',
-              options: const [
-                AppSegmentedOption(label: 'Open'),
-                AppSegmentedOption(label: 'History'),
-              ],
-              selectedIndex: _tab,
-              onSegmentSelected: (i) => setState(() => _tab = i),
-            ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: AppSegmentedControl.inline(
+            semanticLabel: 'Reports view',
+            options: const [
+              AppSegmentedOption(label: 'Open'),
+              AppSegmentedOption(label: 'History'),
+            ],
+            selectedIndex: _tab,
+            onSegmentSelected: (i) => setState(() => _tab = i),
           ),
         ),
         Expanded(
@@ -123,29 +115,33 @@ class _OpenQueuePane extends ConsumerWidget {
       errorMessage: 'Could not load reports.',
       onRetry: controller.refresh,
       center: false,
-      data: (context, list) => list.isEmpty
-          ? ListView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
-              children: const [SettingsEmpty('The queue is empty.')],
+      data: (context, list) => ListView(
+        children: [
+          if (list.isEmpty)
+            const SettingsSectionCard(
+              children: [
+                SettingsEmptyState(
+                  icon: AppIcons.report,
+                  title: 'The queue is empty',
+                  detail:
+                      'Reports from members land here, to resolve or dismiss.',
+                ),
+              ],
             )
-          : ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.s16),
-              // One trailing row when the last page came back full; see the controller.
-              itemCount: reports.more || reports.error != null
-                  ? list.length + 1
-                  : list.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: AppSpacing.s12),
-              itemBuilder: (context, i) => i == list.length
-                  ? ReportsLoadMoreRow(
-                      loading: reports.loading,
-                      error: reports.error,
-                      failureMessage: 'Could not load more reports.',
-                      onTap: controller.loadMore,
-                    )
-                  // Keyed by id, or a shortened page hands the next report the previous card's busy state.
-                  : ReportCard(key: ValueKey(list[i].id), report: list[i]),
+          else
+            // Keyed by id, or a shortened page hands the next report the previous card's busy state.
+            for (final report in list)
+              ReportCard(key: ValueKey(report.id), report: report),
+          // One trailing row when the last page came back full; see the controller.
+          if (reports.more || reports.error != null)
+            ReportsLoadMoreRow(
+              loading: reports.loading,
+              error: reports.error,
+              failureMessage: 'Could not load more reports.',
+              onTap: controller.loadMore,
             ),
+        ],
+      ),
     );
   }
 }

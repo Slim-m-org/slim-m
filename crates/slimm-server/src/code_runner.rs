@@ -80,7 +80,18 @@ pub struct CodeRunner {
 struct Enabled {
     http: reqwest::Client,
     base_url: String,
+    /// The last discovery answer and until when it stands, so every
+    /// Run-button lookup is not a round trip to the runner.
+    languages: std::sync::Mutex<Option<(std::time::Instant, Vec<String>)>>,
 }
+
+/// How long a discovery answer is reused before the runner is asked again.
+const LANGUAGES_TTL: Duration = Duration::from_secs(60);
+
+/// How long a failed discovery stands before the runner is asked again:
+/// short, so one blip does not hide Run buttons for a minute, long enough
+/// that a runner that hangs costs one bounded wait per interval, not per lookup.
+const FAILED_LANGUAGES_TTL: Duration = Duration::from_secs(10);
 
 /// One invocation's outcome: `ok` plus a single payload, the exact shape
 /// `http::module_commands::CommandOutcome` already answers with, so a run
@@ -125,6 +136,7 @@ impl CodeRunner {
                 Some(Arc::new(Enabled {
                     http,
                     base_url: url.trim_end_matches('/').to_owned(),
+                    languages: std::sync::Mutex::new(None),
                 }))
             }
             None => {
@@ -152,14 +164,39 @@ impl CodeRunner {
     /// reached: a runner having a bad moment loses its Run buttons for that
     /// request rather than failing the whole discovery list, the same
     /// clean-no-op posture an unconfigured runner already gets.
+    ///
+    /// Each name appears once, aliases included (`cpp` for `c++`), so a fence
+    /// tagged with either gets a Run button. An answer is reused for
+    /// [`LANGUAGES_TTL`]; when the runner fails, the last good answer stands
+    /// for [`FAILED_LANGUAGES_TTL`] before it is asked again.
     pub async fn languages(&self) -> Vec<String> {
         let Some(enabled) = &self.inner else {
             return Vec::new();
         };
-        piston::runtimes(enabled)
-            .await
-            .map(|runtimes| runtimes.into_iter().map(|r| r.language).collect())
-            .unwrap_or_default()
+        let cached = lock_languages(enabled).clone();
+        let now = std::time::Instant::now();
+        if let Some((good_until, languages)) = &cached
+            && now < *good_until
+        {
+            return languages.clone();
+        }
+        let (languages, ttl) = match piston::runtimes(enabled).await {
+            Some(runtimes) => (
+                runtimes
+                    .into_iter()
+                    .flat_map(|runtime| std::iter::once(runtime.language).chain(runtime.aliases))
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .into_iter()
+                    .collect(),
+                LANGUAGES_TTL,
+            ),
+            None => (
+                cached.map(|(_, stale)| stale).unwrap_or_default(),
+                FAILED_LANGUAGES_TTL,
+            ),
+        };
+        *lock_languages(enabled) = Some((now + ttl, languages.clone()));
+        languages
     }
 
     /// Runs `code` as `language` and returns Piston's own outcome, ceilings
@@ -178,6 +215,15 @@ impl CodeRunner {
     }
 }
 
+fn lock_languages(
+    enabled: &Enabled,
+) -> std::sync::MutexGuard<'_, Option<(std::time::Instant, Vec<String>)>> {
+    match enabled.languages.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,6 +238,51 @@ mod tests {
         let outcome = CodeRunner::disabled().run("python", "print(1)").await;
         assert!(!outcome.ok);
         assert!(!outcome.payload.is_empty());
+    }
+
+    /// A failed discovery stands only [`FAILED_LANGUAGES_TTL`], so a runner
+    /// that errors once and then recovers gets its Run buttons back soon after.
+    #[tokio::test]
+    async fn a_failed_discovery_is_retried_once_its_short_window_passes() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let calls = Arc::new(AtomicUsize::new(0));
+        let counted = calls.clone();
+        let router = axum::Router::new().route(
+            "/api/v2/runtimes",
+            axum::routing::get(move || {
+                let first = counted.fetch_add(1, Ordering::SeqCst) == 0;
+                async move {
+                    if first {
+                        Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                    } else {
+                        Ok(axum::Json(
+                            serde_json::json!([{ "language": "python", "version": "3" }]),
+                        ))
+                    }
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let runner = CodeRunner::new(&Config {
+            code_runner_url: Some(format!("http://{addr}")),
+            ..Config::default()
+        })
+        .unwrap();
+        let enabled = runner.inner.as_ref().unwrap();
+
+        assert!(runner.languages().await.is_empty());
+        let (good_until, _) = lock_languages(enabled).clone().unwrap();
+        assert!(good_until <= std::time::Instant::now() + FAILED_LANGUAGES_TTL);
+        assert!(
+            runner.languages().await.is_empty(),
+            "within the window: no new ask"
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+        lock_languages(enabled).as_mut().unwrap().0 = std::time::Instant::now();
+        assert_eq!(runner.languages().await, ["python"]);
     }
 
     #[tokio::test]

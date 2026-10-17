@@ -46,6 +46,7 @@ abstract final class Routes {
   static const adminEmoji = '/settings/emoji';
   static const adminAnalytics = '/settings/analytics';
   static const adminPerformance = '/settings/performance';
+  static const adminSpaceVoice = '/settings/space-voice';
   static const adminStorage = '/settings/storage';
   static const adminServerMetrics = '/settings/server-metrics';
   static const adminDock = '/settings/dock';

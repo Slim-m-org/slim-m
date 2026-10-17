@@ -43,6 +43,8 @@ import 'package:slimm_app/src/screens/admin/performance_screen.dart';
 import 'package:slimm_app/src/screens/admin/removed_members_screen.dart';
 import 'package:slimm_app/src/screens/admin/reports_screen.dart';
 import 'package:slimm_app/src/screens/admin/roles_screen.dart';
+import 'package:slimm_app/src/screens/admin/server_metrics_screen.dart';
+import 'package:slimm_app/src/screens/admin/storage_screen.dart';
 import 'package:slimm_app/src/screens/debug_log_screen.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/screens/onboarding_screen.dart';
@@ -279,6 +281,16 @@ GoRouter fixtureRouter(String location) => GoRouter(
       path: '/settings/performance',
       pageBuilder: (context, state) =>
           modalPage(context, const PerformanceScreen()),
+    ),
+    GoRoute(
+      path: '/settings/storage',
+      pageBuilder: (context, state) =>
+          modalPage(context, const StorageScreen()),
+    ),
+    GoRoute(
+      path: '/settings/server-metrics',
+      pageBuilder: (context, state) =>
+          modalPage(context, const ServerMetricsScreen()),
     ),
     GoRoute(
       path: '/settings/account-recovery',

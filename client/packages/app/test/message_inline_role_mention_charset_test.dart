@@ -74,6 +74,7 @@ Set<String> _roleMentionsIn(String content) {
         case InlineMention():
         case InlineLink():
         case InlineMessageLink():
+        case InlineChannelMention():
           break;
       }
     }

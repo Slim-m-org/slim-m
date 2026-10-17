@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The off-state preview for [AnalyticsScreen]: skeleton stat tiles and
+/// The off-state preview for [AnalyticsScreen]: skeleton rows and
 /// chart outlines standing in for the real numbers, so turning analytics on
 /// is a decision made with a sense of what appears rather than a blind leap.
 ///
@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../widgets/settings_section_header.dart';
-import 'admin_stat_tile.dart' show adminStatTileWidth;
 
 /// A fixed, deterministic silhouette rather than random heights, so the
 /// ghost renders identically on every build - this feeds the ui-snapshot
@@ -34,7 +33,7 @@ const List<double> _ghostBarHeights = [
   0.5,
 ];
 
-/// Skeleton tiles and chart outlines for every section [AnalyticsScreen]
+/// Skeleton rows and chart outlines for every section [AnalyticsScreen]
 /// renders once enabled, in the same order, so a reader scrolling the off
 /// state previews exactly what turning the toggle on would replace it with.
 class AnalyticsGhostPreview extends StatelessWidget {
@@ -47,14 +46,10 @@ class AnalyticsGhostPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _GhostStatTiles(),
-          SizedBox(height: AppSpacing.s16),
+          _GhostOverview(),
           _GhostChartCard(title: 'Messages, last 30 days'),
-          SizedBox(height: AppSpacing.s16),
           _GhostChartCard(title: 'Active hours, last 30 days (UTC)'),
-          SizedBox(height: AppSpacing.s16),
           _GhostChartCard(title: 'Server memory use'),
-          SizedBox(height: AppSpacing.s16),
           _GhostMemberList(),
         ],
       ),
@@ -62,39 +57,13 @@ class AnalyticsGhostPreview extends StatelessWidget {
   );
 }
 
-class _GhostStatTiles extends StatelessWidget {
-  const _GhostStatTiles();
+class _GhostOverview extends StatelessWidget {
+  const _GhostOverview();
 
   @override
-  Widget build(BuildContext context) => const Wrap(
-    spacing: AppSpacing.s12,
-    runSpacing: AppSpacing.s12,
-    children: [
-      AdminStatTileGhost(),
-      AdminStatTileGhost(),
-      AdminStatTileGhost(),
-      AdminStatTileGhost(),
-    ],
-  );
-}
-
-class AdminStatTileGhost extends StatelessWidget {
-  const AdminStatTileGhost({super.key});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox(
-    width: adminStatTileWidth,
-    child: AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _GhostBlock(width: 64, height: 22),
-          SizedBox(height: AppSpacing.s8),
-          _GhostBlock(width: 92, height: 12),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => const SettingsSectionCard(
+    title: 'Overview',
+    children: [_GhostRow(), _GhostRow(), _GhostRow(), _GhostRow()],
   );
 }
 
@@ -107,9 +76,16 @@ class _GhostChartCard extends StatelessWidget {
   Widget build(BuildContext context) => SettingsSectionCard(
     title: title,
     children: const [
-      _GhostBars(),
-      SizedBox(height: AppSpacing.s8),
-      _GhostBlock(width: 150, height: 12),
+      SettingsCardBlock(
+        gap: AppSpacing.s8,
+        children: [
+          _GhostBars(),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _GhostBlock(width: 150, height: 12),
+          ),
+        ],
+      ),
     ],
   );
 }
@@ -159,24 +135,21 @@ class _GhostMemberList extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const SettingsSectionCard(
     title: 'Attachment storage by member',
-    children: [
-      _GhostMemberRow(),
-      SizedBox(height: AppSpacing.s8),
-      _GhostMemberRow(),
-    ],
+    children: [_GhostRow(), _GhostRow()],
   );
 }
 
-class _GhostMemberRow extends StatelessWidget {
-  const _GhostMemberRow();
+class _GhostRow extends StatelessWidget {
+  const _GhostRow();
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(vertical: AppSpacing.s4),
-    child: Row(
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 56),
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+    child: const Row(
       children: [
-        Expanded(child: _GhostBlock(width: double.infinity, height: 14)),
-        SizedBox(width: AppSpacing.s12),
+        _GhostBlock(width: 120, height: 14),
+        Spacer(),
         _GhostBlock(width: 56, height: 14),
       ],
     ),

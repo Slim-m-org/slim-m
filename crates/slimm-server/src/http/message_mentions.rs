@@ -20,14 +20,18 @@ use crate::ids::{ChannelId, MessageId, UserId};
 /// message must not gain that other author's `MENTION_EVERYONE` reach, and
 /// only falls back to the editor once the author is already anonymized and
 /// has no permission left to check at all.
+///
+/// `reply_ping` is the replied-to author a reply chose to ping (see
+/// [`reply_ping_target`]); they join the mention set like a written `@name`.
 pub(crate) async fn resolve_and_store(
     state: &AppState,
     channel_id: ChannelId,
     author_id: UserId,
     message_id: MessageId,
     content: &str,
+    reply_ping: Option<UserId>,
 ) -> anyhow::Result<()> {
-    let mentioned = crate::mentions::mentioned_viewers(
+    let mut mentioned = crate::mentions::mentioned_viewers(
         &state.store,
         channel_id,
         author_id,
@@ -35,8 +39,51 @@ pub(crate) async fn resolve_and_store(
         &state.hub.presence(),
     )
     .await?;
+    if let Some(pinged) = reply_ping
+        && !mentioned.contains(&pinged)
+    {
+        mentioned.push(pinged);
+    }
     state
         .store
-        .set_message_mentions(message_id, &mentioned)
+        .set_message_mentions(message_id, &mentioned, reply_ping)
         .await
+}
+
+/// Who a reply to `reply_to_id` pings, Discord style: that message's author,
+/// unless it is the sender, a webhook, a deleted account, or someone who can
+/// no longer see `channel_id`.
+pub(crate) async fn reply_ping_target(
+    state: &AppState,
+    channel_id: ChannelId,
+    sender: UserId,
+    reply_to_id: MessageId,
+) -> anyhow::Result<Option<UserId>> {
+    let candidate = state.store.reply_ping_candidate(reply_to_id).await?;
+    pingable(state, channel_id, sender, candidate).await
+}
+
+/// The ping an edit of `message_id` keeps: the one its send stored, if that
+/// person can still see the channel.
+pub(crate) async fn kept_reply_ping(
+    state: &AppState,
+    channel_id: ChannelId,
+    sender: UserId,
+    message_id: MessageId,
+) -> anyhow::Result<Option<UserId>> {
+    let pinged = state.store.reply_pinged(message_id).await?;
+    pingable(state, channel_id, sender, pinged).await
+}
+
+async fn pingable(
+    state: &AppState,
+    channel_id: ChannelId,
+    sender: UserId,
+    candidate: Option<UserId>,
+) -> anyhow::Result<Option<UserId>> {
+    let Some(user) = candidate.filter(|user| *user != sender) else {
+        return Ok(None);
+    };
+    let viewers = state.store.viewers_among(channel_id, &[user]).await?;
+    Ok(viewers.contains(&user).then_some(user))
 }

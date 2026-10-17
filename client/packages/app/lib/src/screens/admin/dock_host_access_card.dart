@@ -10,8 +10,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_design_system/design_system.dart';
 
+import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 
@@ -115,23 +115,13 @@ class DockHostAccessCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final grantable = grantableHostCapabilities(manifest.capabilities);
     if (grantable.isEmpty) return const SizedBox.shrink();
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final access = SettingsSectionCard(
       title: 'Access to approve',
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s8,
-            AppSpacing.s4,
-            AppSpacing.s8,
-            AppSpacing.s8,
-          ),
-          child: Text(
-            reapprove.isEmpty
-                ? 'Off unless you turn it on.'
-                : 'A new build needs ${_labels(reapprove)} approved again.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
+        SettingsInfoLine(
+          reapprove.isEmpty
+              ? 'Off unless you turn it on.'
+              : 'A new build needs ${_labels(reapprove)} approved again.',
         ),
         for (final capability in grantable)
           SettingsToggleRow(
@@ -149,7 +139,6 @@ class DockHostAccessCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         access,
-        const SizedBox(height: AppSpacing.s16),
         SettingsSectionCard(
           title: 'Second approval',
           children: [

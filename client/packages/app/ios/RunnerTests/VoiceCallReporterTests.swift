@@ -10,6 +10,7 @@ private final class RecordingController: CallRequesting {
   var started: [CXStartCallAction] = []
   var ended: [CXEndCallAction] = []
   var startError: Error?
+  var endError: Error?
 
   func requestStart(_ action: CXStartCallAction, completion: @escaping (Error?) -> Void) {
     started.append(action)
@@ -18,7 +19,7 @@ private final class RecordingController: CallRequesting {
 
   func requestEnd(_ action: CXEndCallAction, completion: @escaping (Error?) -> Void) {
     ended.append(action)
-    completion(nil)
+    completion(endError)
   }
 }
 
@@ -132,7 +133,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     XCTAssertTrue(provider.connected.isEmpty)
   }
 
-  func testCallEndedReportsTheActiveCallEndedAndClearsIt() {
+  func testCallEndedRequestsAnEndActionRatherThanReportingARemoteEnd() {
     let controller = RecordingController()
     let provider = RecordingProvider()
     let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
@@ -141,9 +142,39 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     lifecycle.callStarted(id: id, displayName: "Voice call")
     lifecycle.callEnded()
 
-    XCTAssertEqual(provider.ended.count, 1)
-    XCTAssertEqual(provider.ended.first?.uuid, id)
+    XCTAssertEqual(controller.ended.map(\.callUUID), [id])
+    XCTAssertTrue(provider.ended.isEmpty, "a local hangup is not a remote end")
     XCTAssertNil(lifecycle.activeCallId)
+  }
+
+  func testTheEndActionForALocalHangupIsFulfilledWithoutEchoingToDart() {
+    let controller = RecordingController()
+    let provider = RecordingProvider()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let id = UUID()
+    lifecycle.callStarted(id: id, displayName: "Voice call")
+    var hungUp = false
+    lifecycle.onHangUp = { hungUp = true }
+
+    lifecycle.callEnded()
+    let action = RecordingAction(callUUID: id)
+    lifecycle.handleEndAction(action)
+
+    XCTAssertFalse(hungUp, "Dart already left; telling it again would be an echo")
+    XCTAssertEqual(action.fulfilled, 1)
+  }
+
+  func testARefusedEndRequestStillReportsTheCallEnded() {
+    let controller = RecordingController()
+    controller.endError = NSError(domain: "CXErrorDomainRequestTransaction", code: 1)
+    let provider = RecordingProvider()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let id = UUID()
+
+    lifecycle.callStarted(id: id, displayName: "Voice call")
+    lifecycle.callEnded()
+
+    XCTAssertEqual(provider.ended.map(\.uuid), [id])
   }
 
   func testCallEndedWithNothingActiveIsSafe() {

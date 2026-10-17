@@ -17,8 +17,9 @@ import '../providers/providers.dart';
 import 'confirm_dialog.dart';
 import 'devices_stale.dart';
 import 'run_guarded.dart';
-import 'settings_section_header.dart';
+import 'settings_detail_row.dart';
 import 'settings_empty.dart';
+import 'settings_section_header.dart';
 
 /// The account's devices, refetched when invalidated.
 ///
@@ -52,95 +53,72 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
   @override
   Widget build(BuildContext context) {
     final devices = ref.watch(devicesProvider);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
 
     return SettingsSectionCard(
       title: 'Devices',
       description: 'Everywhere this account is signed in.',
-      children: [
-        devices.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(AppSpacing.s8),
+      children: devices.when(
+        loading: () => const [
+          Padding(
+            padding: EdgeInsets.all(AppSpacing.s16),
             child: LinearProgressIndicator(),
           ),
-          error: (e, _) => const Padding(
-            padding: EdgeInsets.all(AppSpacing.s8),
+        ],
+        error: (e, _) => const [
+          Padding(
+            padding: EdgeInsets.all(AppSpacing.s16),
             child: Text('Could not load devices.'),
           ),
-          // Named like Blocked's empty state below: an empty card reads as a loading glitch, not an intentional state.
-          data: (list) => list.isEmpty
-              ? const SettingsEmptyLine('No devices signed in.')
-              : _buildDeviceList(context, tokens, list),
-        ),
-      ],
+        ],
+        data: (list) => list.isEmpty
+            ? const [SettingsEmptyLine('No devices signed in.')]
+            : _deviceRows(list),
+      ),
     );
   }
 
-  Widget _buildDeviceList(
-    BuildContext context,
-    AppTokens tokens,
-    List<api.Device> list,
-  ) {
+  List<Widget> _deviceRows(List<api.Device> list) {
     final others = list.where((d) => !d.isCurrent).toList();
     final stale = staleDevices(list, DateTime.now());
     final recent = list.where((d) => !stale.contains(d)).toList();
-    return Column(
-      children: [
-        for (final device in recent)
-          _DeviceRow(key: ValueKey(device.id), device: device),
-        if (stale.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              AppSpacing.s16,
-              AppSpacing.s16,
-              AppSpacing.s4,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Not used recently',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-          ),
-          for (final device in stale)
-            Opacity(
-              opacity: 0.6,
-              child: _DeviceRow(key: ValueKey(device.id), device: device),
-            ),
-          AppButton(
+    return [
+      for (final device in recent)
+        _DeviceRow(key: ValueKey(device.id), device: device),
+      if (stale.isNotEmpty) ...[
+        const SettingsGroupLabelRow('Not used recently'),
+        for (final device in stale)
+          _DeviceRow(key: ValueKey(device.id), device: device, dimmed: true),
+        SettingsActionRow(
+          message: 'Devices unused for over a week.',
+          action: AppButton(
             label: 'Sign out unused',
             variant: AppButtonVariant.danger,
-            full: true,
+            size: AppButtonSize.sm,
             disabled: _signingOutAll,
             onPressed: () => _confirmRemoveStale(context, stale),
           ),
-        ],
-        if (others.isNotEmpty) ...[
-          AppButton(
-            label: 'Sign out all other devices',
+        ),
+      ],
+      if (others.isNotEmpty)
+        SettingsActionRow(
+          message: 'Lost a device? Sign out of everything except this one.',
+          action: AppButton(
+            label: 'Sign out others',
             variant: AppButtonVariant.danger,
-            full: true,
+            size: AppButtonSize.sm,
             disabled: _signingOutAll,
             onPressed: () => _confirmSignOutAllOthers(context, others),
           ),
-          if (_bulkError case final error?)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s16,
-                0,
-                AppSpacing.s16,
-                AppSpacing.s8,
-              ),
-              child: AppErrorState(
-                message: error,
-                onDismiss: () => setState(() => _bulkError = null),
-              ),
-            ),
-        ],
-      ],
-    );
+        ),
+      if (_bulkError case final error?)
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.s16),
+          child: AppErrorState(
+            message: error,
+            onDismiss: () => setState(() => _bulkError = null),
+          ),
+        ),
+    ];
   }
 
   Future<void> _confirmSignOutAllOthers(
@@ -253,23 +231,22 @@ String? deviceDetailLine(api.Device device) {
     if (kind != null) kind,
     if (version != null) version,
   ].join(' ');
-  final active = lastUsed(device.lastSeenAt).replaceFirst('Last used ', '');
+  final raw = lastUsed(device.lastSeenAt).replaceFirst('Last used ', '');
+  final active = raw.replaceRange(0, 1, raw[0].toLowerCase());
   return '$client · $active';
 }
 
 /// One signed-in device, with its own "sign out" failure: a revoke that
 /// cannot reach the server must say so on the row it was for, not vanish.
 ///
-/// The sign-out is a dismiss glyph that shows on hover (always, on touch,
-/// where there is no hover), behind a confirmation that says what it does.
-/// A labelled button on every row made the list read as four calls to
-/// action; the owner asked for "an on hover X with a popup saying it will
-/// log them out". Signing a device out is rare and consequential enough
-/// that the pause the popup adds is the right cost.
+/// The button is always shown, behind a confirmation that says what it does:
+/// signing a device out is rare and consequential enough that the pause the
+/// popup adds is the right cost.
 class _DeviceRow extends ConsumerStatefulWidget {
-  const _DeviceRow({super.key, required this.device});
+  const _DeviceRow({super.key, required this.device, this.dimmed = false});
 
   final api.Device device;
+  final bool dimmed;
 
   @override
   ConsumerState<_DeviceRow> createState() => _DeviceRowState();
@@ -278,8 +255,6 @@ class _DeviceRow extends ConsumerStatefulWidget {
 class _DeviceRowState extends ConsumerState<_DeviceRow>
     with GuardedActionState<_DeviceRow> {
   bool _busy = false;
-  bool _hovered = false;
-  bool _focused = false;
 
   Future<void> _confirmSignOut() async {
     final confirmed = await confirmDangerousAction(
@@ -308,44 +283,34 @@ class _DeviceRowState extends ConsumerState<_DeviceRow>
   @override
   Widget build(BuildContext context) {
     final device = widget.device;
-    final shown = AppTouchTargets.of(context) || _hovered || _focused || _busy;
+    final detail =
+        deviceDetailLine(device) ??
+        (device.isCurrent ? null : lastUsed(device.lastSeenAt));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        MouseRegion(
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: AppListRow(
-            leading: Icon(
-              deviceIcon(device.name, clientKind: device.clientKind),
-            ),
-            label: devicePlatformLabel(device.name),
-            subtitle: deviceDetailLine(device),
-            meta: device.isCurrent
-                ? 'This device'
-                : (deviceDetailLine(device) == null
-                      ? lastUsed(device.lastSeenAt)
-                      : null),
-            trailing: device.isCurrent
-                ? null
-                : Focus(
-                    onFocusChange: (v) => setState(() => _focused = v),
-                    child: AnimatedOpacity(
-                      opacity: shown ? 1 : 0,
-                      duration: AppMotion.reduced(context, AppMotion.fast),
-                      // Hidden from the eye is not hidden from a screen reader.
-                      alwaysIncludeSemantics: true,
-                      child: AppIconButton(
-                        icon: AppIcons.dismiss,
-                        semanticLabel: 'Sign out ${device.name}',
-                        tooltip: 'Sign out this device',
-                        size: AppIconButtonSize.sm,
-                        onPressed: _busy ? null : _confirmSignOut,
-                      ),
-                    ),
-                  ),
-          ),
+        SettingsDetailRow(
+          icon: deviceIcon(device.name, clientKind: device.clientKind),
+          title: devicePlatformLabel(device.name),
+          badge: device.isCurrent
+              ? const AppBadge(
+                  variant: AppBadgeVariant.tag,
+                  label: 'This device',
+                )
+              : null,
+          detail: detail,
+          monoDetail: true,
+          dimmed: widget.dimmed,
+          trailing: device.isCurrent
+              ? null
+              : AppButton(
+                  label: 'Sign out',
+                  size: AppButtonSize.sm,
+                  semanticLabel: 'Sign out ${device.name}',
+                  disabled: _busy,
+                  onPressed: _confirmSignOut,
+                ),
         ),
         if (actionError != null)
           Padding(

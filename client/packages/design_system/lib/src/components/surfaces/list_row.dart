@@ -22,6 +22,25 @@ import 'list_row_label.dart';
 
 /// Reads every [AppListRow] label below it in `text-primary` at rest, for a
 /// settings card where each label names a control rather than a destination.
+/// Marks rows that sit edge to edge inside a settings card: taller, inset by
+/// the card's own padding, and square, so the card's hairlines and a row's
+/// hover fill both run the card's full width.
+class AppCardRowScope extends InheritedWidget {
+  const AppCardRowScope({required super.child, super.key});
+
+  /// The least height of a row in a card, the design's 56.
+  static const double minHeight = 56;
+
+  /// A row's own horizontal inset in a card.
+  static const double inset = AppSpacing.s16;
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppCardRowScope>() != null;
+
+  @override
+  bool updateShouldNotify(AppCardRowScope oldWidget) => false;
+}
+
 class AppStrongLabelScope extends InheritedWidget {
   const AppStrongLabelScope({required super.child, super.key});
 
@@ -279,12 +298,16 @@ class _AppListRowState extends State<AppListRow> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final touch = widget.touch ?? AppTouchTargets.of(context);
+    final carded = AppCardRowScope.of(context);
     final rowHeight = AppListRow.heightFor(
       context,
       touch: touch,
-      min: widget.height,
+      min: carded
+          ? math.max(widget.height ?? 0, AppCardRowScope.minHeight)
+          : widget.height,
       hasSubtitle: widget.subtitle != null,
     );
+    final radius = BorderRadius.circular(carded ? 0 : AppRadii.control);
 
     // `mentioned` joins `selected`/`unread`'s lift; `muted` suppresses the unread half of it, since only a mention breaks through mute.
     final emphasised =
@@ -316,7 +339,9 @@ class _AppListRowState extends State<AppListRow> {
         : null;
 
     final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+      padding: EdgeInsets.symmetric(
+        horizontal: carded ? AppCardRowScope.inset : AppSpacing.s8,
+      ),
       child: LayoutBuilder(
         builder: (context, box) => Row(
           spacing: AppSpacing.s8,
@@ -377,12 +402,12 @@ class _AppListRowState extends State<AppListRow> {
         curve: AppMotion.entrance,
         decoration: BoxDecoration(
           color: widget.selected ? tokens.accentSoft : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.control),
+          borderRadius: radius,
         ),
         foregroundDecoration: _focused
             ? BoxDecoration(
                 border: Border.all(color: tokens.focusRing, width: 2),
-                borderRadius: BorderRadius.circular(AppRadii.control),
+                borderRadius: radius,
               )
             : null,
         child: Stack(
@@ -398,7 +423,7 @@ class _AppListRowState extends State<AppListRow> {
                 color: !widget.selected && (_pressed || _hovered)
                     ? tokens.surfaceRaised
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppRadii.control),
+                borderRadius: radius,
               ),
             ),
             content,

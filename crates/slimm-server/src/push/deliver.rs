@@ -62,15 +62,19 @@ pub(super) async fn deliver(
         seq,
         content,
         presence,
+        reply_ping,
     } = sent;
-    let (recipients, mentioned) =
-        match message_audience(&store, channel_id, author_id, &content, &presence).await {
-            Ok(audience) => audience,
-            Err(err) => {
-                tracing::warn!(error = %err, %channel_id, "push: failed to resolve recipients");
-                return;
-            }
-        };
+    let (recipients, mentioned) = match message_audience(
+        &store, channel_id, author_id, &content, &presence, reply_ping,
+    )
+    .await
+    {
+        Ok(audience) => audience,
+        Err(err) => {
+            tracing::warn!(error = %err, %channel_id, "push: failed to resolve recipients");
+            return;
+        }
+    };
     let recipients = match narrow_for_attention(
         &store,
         channel_id,
@@ -110,9 +114,13 @@ pub(super) async fn deliver(
     // Once per recipient, not once per device; see the note on this function.
     let mut decisions: HashMap<UserId, Option<i64>> = HashMap::new();
     for target in &targets {
-        decisions
-            .entry(target.user_id)
-            .or_insert_with(|| debounce.try_fire(channel_id, target.user_id));
+        decisions.entry(target.user_id).or_insert_with(|| {
+            debounce.try_fire(
+                channel_id,
+                target.user_id,
+                mentioned.contains(&target.user_id),
+            )
+        });
     }
     let opened: HashMap<UserId, i64> = decisions
         .into_iter()

@@ -17,11 +17,12 @@ import '../../providers/providers.dart';
 import '../../routing/routes.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/labeled_field.dart';
-import '../../widgets/permission_row.dart';
+import '../../widgets/bot_permission_toggles.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_disclosure.dart';
-import '../../widgets/settings_entity_row.dart';
-import '../../widgets/settings_notice.dart';
+import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import '../../action_labels.dart';
@@ -98,134 +99,85 @@ class _BotsPaneState extends ConsumerState<BotsPane>
   @override
   Widget build(BuildContext context) {
     final bots = ref.watch(botsProvider);
-    final myPermissions = ref.watch(myPermissionsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_justCreated case final created?) ...[
-          _TokenReveal(
-            created: created,
+        if (_justCreated case final created?)
+          SettingsSecretReveal(
+            warning:
+                'This is the only time ${created.bot.username}\'s token is '
+                'shown. Copy it now - the server keeps only a hash, so it '
+                'cannot be shown again. Revoke the bot and make another if '
+                'you lose it.',
+            value: created.token,
+            valueSemanticsLabel: 'Bot token for ${created.bot.username}',
+            copyLabel: 'Copy token',
             onDismiss: () => setState(() => _justCreated = null),
           ),
-          const SizedBox(height: AppSpacing.s16),
-        ],
-        const SettingsSectionHeader(ActionLabels.createBot),
         SettingsSectionCard(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          title: ActionLabels.createBot,
           children: [
-            LabeledField(
-              label: 'Username',
-              helper: 'Letters, digits, _ . and - only, up to 32 characters.',
-              child: AppInput(
-                maxLength: api.InputLimits.username,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(api.usernameCharacters),
-                ],
-                controller: _username,
-                autocorrect: false,
-                semanticLabel: 'Bot username',
-                onSubmitted: (_) => _busy ? null : _create(),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            SettingsDisclosure(
-              title: 'Permissions',
-              summary: _permissionsSummary(),
+            SettingsCardBlock(
+              gap: AppSpacing.s12,
               children: [
-                for (final (bit, label) in Perm.editable)
-                  PermissionRow(
-                    label: label,
-                    dimmed: !myPermissions.hasPermission(bit),
-                    control: AppToggle(
-                      value: _permissions.hasPermission(bit),
-                      semanticLabel: label,
-                      onChanged: myPermissions.hasPermission(bit)
-                          ? (v) => setState(() {
-                              _permissions = v
-                                  ? (_permissions | bit)
-                                  : (_permissions & ~bit);
-                            })
-                          : null,
-                    ),
+                LabeledField(
+                  label: 'Username',
+                  helper:
+                      'Letters, digits, _ . and - only, up to 32 characters.',
+                  child: AppInput(
+                    maxLength: api.InputLimits.username,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(api.usernameCharacters),
+                    ],
+                    controller: _username,
+                    autocorrect: false,
+                    semanticLabel: 'Bot username',
+                    onSubmitted: (_) => _busy ? null : _create(),
                   ),
+                ),
+                SettingsDisclosure(
+                  title: 'Permissions',
+                  summary: _permissionsSummary(),
+                  children: [
+                    BotPermissionToggles(
+                      value: _permissions,
+                      onChanged: (v) => setState(() => _permissions = v),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppButton(
+                    label: ActionLabels.createBot,
+                    variant: AppButtonVariant.primary,
+                    onPressed: _busy ? null : _create,
+                  ),
+                ),
+                if (actionError case final error?)
+                  AppErrorState(message: error, onDismiss: clearActionError),
               ],
             ),
-            const SizedBox(height: AppSpacing.s12),
-            AppButton(
-              label: ActionLabels.createBot,
-              variant: AppButtonVariant.primary,
-              onPressed: _busy ? null : _create,
-            ),
-            if (actionError case final error?) ...[
-              const SizedBox(height: AppSpacing.s12),
-              SettingsNotice(icon: AppIcons.warning, message: error),
-            ],
           ],
         ),
-        const SizedBox(height: AppSpacing.s24),
-        const SettingsSectionHeader('Bots in this Space'),
         AppAsyncView<List<api.Bot>>(
           value: AppAsyncState(data: bots.valueOrNull, error: bots.error),
           center: false,
           errorMessage: 'Could not load the bots.',
           onRetry: () => ref.invalidate(botsProvider),
-          isEmpty: (list) => list.isEmpty,
-          emptyMessage: 'No bots yet.',
           data: (context, list) => SettingsSectionCard(
-            children: [for (final bot in list) _BotRow(bot: bot)],
+            title: 'Bots in this Space',
+            children: [
+              if (list.isEmpty)
+                const SettingsEmptyState(
+                  icon: AppIcons.botAction,
+                  title: 'No bots yet.',
+                  detail: 'Create one above to give an integration an account.',
+                )
+              else
+                for (final bot in list) _BotRow(bot: bot),
+            ],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The created bot's token, shown once.
-class _TokenReveal extends StatelessWidget {
-  const _TokenReveal({required this.created, required this.onDismiss});
-
-  final api.NewBot created;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsSectionCard(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsNotice(
-          icon: AppIcons.warning,
-          message:
-              'This is the only time ${created.bot.username}\'s token is '
-              'shown. Copy it now - the server keeps only a hash, so it '
-              'cannot be shown again. Revoke the bot and make another if you '
-              'lose it.',
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        SelectableText(
-          created.token,
-          style: AppText.code,
-          semanticsLabel: 'Bot token for ${created.bot.username}',
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        Row(
-          children: [
-            AppButton(
-              label: 'Copy token',
-              variant: AppButtonVariant.primary,
-              size: AppButtonSize.sm,
-              icon: AppIcons.copy,
-              onPressed: () =>
-                  Clipboard.setData(ClipboardData(text: created.token)),
-            ),
-            const SizedBox(width: AppSpacing.s8),
-            AppButton(
-              label: 'Done',
-              variant: AppButtonVariant.secondary,
-              size: AppButtonSize.sm,
-              onPressed: onDismiss,
-            ),
-          ],
         ),
       ],
     );
@@ -273,41 +225,42 @@ class _BotRowState extends ConsumerState<_BotRow>
         .where((e) => bot.permissions.hasPermission(e.$1))
         .length;
 
-    return SettingsEntityRow(
-      headline: bot.displayName,
-      details: [
-        SettingsEntityDetail('@${bot.username}'),
-        if (bot.isRevoked)
-          const SettingsAbsentValue('Revoked. Kept for what it wrote.')
-        else if (bot.tokenLastUsedAt == null)
-          const SettingsAbsentValue('Never used yet.')
-        else
-          const SettingsEntityDetail('Token active.'),
-        if (!bot.isRevoked)
-          SettingsEntityDetail(
-            count == 0
-                ? 'No permissions granted yet'
-                : count == 1
-                ? '1 permission granted'
-                : '$count permissions granted',
-          ),
-      ],
-      actions: [
-        if (!bot.isRevoked)
-          AppButton(
-            label: 'Permissions',
-            variant: AppButtonVariant.secondary,
-            size: AppButtonSize.sm,
-            onPressed: () => showBotPermissionsSheet(context, bot),
-          ),
-        if (!bot.isRevoked)
-          AppButton(
-            label: 'Revoke',
-            variant: AppButtonVariant.secondary,
-            size: AppButtonSize.sm,
-            onPressed: _busy ? null : _revoke,
-          ),
-      ],
+    return SettingsDetailRow(
+      icon: AppIcons.botAction,
+      title: bot.displayName,
+      meta: '@${bot.username}',
+      detail: bot.isRevoked
+          ? 'Revoked. Kept for what it wrote.'
+          : [
+              bot.tokenLastUsedAt == null ? 'Never used yet.' : 'Token active.',
+              count == 0
+                  ? 'No permissions granted yet'
+                  : count == 1
+                  ? '1 permission granted'
+                  : '$count permissions granted',
+            ].join(' '),
+      dimmed: bot.isRevoked,
+      stackTrailingWhenNarrow: true,
+      trailing: bot.isRevoked
+          ? null
+          : Wrap(
+              spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
+              children: [
+                AppButton(
+                  label: 'Permissions',
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  onPressed: () => showBotPermissionsSheet(context, bot),
+                ),
+                AppButton(
+                  label: 'Revoke',
+                  variant: AppButtonVariant.danger,
+                  size: AppButtonSize.sm,
+                  onPressed: _busy ? null : _revoke,
+                ),
+              ],
+            ),
       error: actionError,
       onErrorDismiss: clearActionError,
     );
@@ -359,8 +312,6 @@ class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final myPermissions = ref.watch(myPermissionsProvider);
-
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -405,22 +356,10 @@ class _BotPermissionsSheetState extends ConsumerState<_BotPermissionsSheet>
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s8),
-                  for (final (bit, label) in Perm.editable)
-                    PermissionRow(
-                      label: label,
-                      dimmed: !myPermissions.hasPermission(bit),
-                      control: AppToggle(
-                        value: _permissions.hasPermission(bit),
-                        semanticLabel: label,
-                        onChanged: myPermissions.hasPermission(bit)
-                            ? (v) => setState(() {
-                                _permissions = v
-                                    ? (_permissions | bit)
-                                    : (_permissions & ~bit);
-                              })
-                            : null,
-                      ),
-                    ),
+                  BotPermissionToggles(
+                    value: _permissions,
+                    onChanged: (v) => setState(() => _permissions = v),
+                  ),
                 ],
               ),
             ),
