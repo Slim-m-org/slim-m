@@ -115,8 +115,7 @@ class CaptureNoiseSuppression {
     if (_tracker.add(strongActive: strongActive) && !_fallback) {
       _fallback = true;
       _log(
-        'Strong is not running on this mic (rnnoise needs 48 kHz input); '
-        'using standard suppression',
+        'Strong is not running on this mic; using standard suppression',
       );
       _schedule();
     }

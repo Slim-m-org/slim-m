@@ -32,7 +32,7 @@ void main() {
 
       expect(lines.first, 'voice: Strong noise suppression on');
       expect(lines.where((l) => l.contains('not running')), hasLength(1));
-      expect(lines.last, contains('48 kHz'));
+      expect(lines.last, contains('standard suppression'));
     });
   });
 

@@ -33,7 +33,7 @@ class NoiseSuppressionSection extends ConsumerWidget {
       label: 'Noise suppression',
       description: description,
       footnote: strongInactive
-          ? 'Strong is off for this mic. It needs a 48 kHz input.'
+          ? "Strong isn't running on this mic."
           : null,
       value: choice,
       choices: [
