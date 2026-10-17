@@ -25,6 +25,7 @@ import '../../../routing/routes.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
+import '../../voice/providers/dm_call_start.dart';
 import 'safety_actions.dart';
 
 /// Files a report against a member, from the row's context menu.
@@ -59,6 +60,27 @@ Future<void> messageMember(
     action: () async {
       final channelId = await openDirectMessage(container, profile.id);
       if (host.mounted) host.go(Routes.channel(channelId));
+    },
+  );
+  if (failure != null && host.mounted) showAppSnackbar(host, failure);
+}
+
+/// Opens a direct message with [profile] and starts a call in it, ringing them.
+///
+/// Same failure handling as [messageMember]: the card is already closed, so a
+/// refusal is said on [host].
+Future<void> callMember(
+  BuildContext host,
+  ProviderContainer container,
+  api.UserProfile profile,
+) async {
+  final failure = await runGuarded(
+    whatFailed: 'call ${profile.displayName}',
+    action: () async {
+      final channelId = await openDirectMessage(container, profile.id);
+      if (!host.mounted) return;
+      host.go(Routes.channel(channelId));
+      startDmCall(container.read, channelId);
     },
   );
   if (failure != null && host.mounted) showAppSnackbar(host, failure);

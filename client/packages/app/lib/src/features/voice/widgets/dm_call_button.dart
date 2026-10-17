@@ -7,15 +7,12 @@
 /// personal space, where calling yourself is not a call.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
-import '../providers/dm_call_ring_controller.dart';
-import '../providers/voice_controller.dart';
+import '../providers/dm_call_start.dart';
 import '../screens/dm_call_pane.dart';
 
 class DmCallButton extends ConsumerWidget {
@@ -49,15 +46,6 @@ class DmCallButton extends ConsumerWidget {
       ref.read(dmCallOpenProvider.notifier).state = null;
       return;
     }
-    final startingFresh =
-        ref.read(voiceControllerProvider).channelId != channelId;
-    ref.read(dmCallOpenProvider.notifier).state = channelId;
-    if (startingFresh) {
-      unawaited(
-        ref
-            .read(dmCallRingControllerProvider.notifier)
-            .startOutgoingRing(channelId),
-      );
-    }
+    startDmCall(ref.read, channelId);
   }
 }

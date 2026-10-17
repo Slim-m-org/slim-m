@@ -72,6 +72,8 @@ class _ComposerAutofocusState extends ConsumerState<ComposerAutofocus> {
 
   void _focusComposer() {
     if (!mounted) return;
+    // Behind a modal (settings, a sheet) the caret would blink unseen and take the keystrokes meant for it.
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
     EditableText? field;
     void visit(Element element) {
       if (field != null) return;

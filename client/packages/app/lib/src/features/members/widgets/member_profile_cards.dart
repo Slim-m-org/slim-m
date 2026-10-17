@@ -201,6 +201,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         ? null
         : ref.watch(channelByIdProvider(channelId)).valueOrNull?.name;
     final canMessage = widget.actions.contains(ParticipantAction.message);
+    final canCall = widget.actions.contains(ParticipantAction.call);
     final blocked = ref.watch(blocksProvider).contains(profile.id);
 
     return Column(
@@ -227,7 +228,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             onLift: gates.canTimeOut ? widget.onLiftTimeout : null,
           ),
         if (profile.isBot) MemberProfileBotCommands(botId: profile.id),
-        if (canMessage || !hasNote) _messageRow(canMessage, hasNote),
+        if (canMessage || !hasNote) _messageRow(canMessage, canCall, hasNote),
         if (hasNote || _noteRevealed)
           MemberProfileNoteField(
             subjectId: profile.id,
@@ -244,7 +245,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
     );
   }
 
-  Widget _messageRow(bool canMessage, bool hasNote) {
+  Widget _messageRow(bool canMessage, bool canCall, bool hasNote) {
     final profile = widget.profile;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -271,6 +272,18 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
                   );
                 },
               ),
+            ),
+          if (canCall)
+            AppIconButton(
+              icon: AppIcons.startCall,
+              semanticLabel: 'Call ${profile.displayName}',
+              tooltip: 'Call',
+              onPressed: () {
+                widget.memberPaneScaffold?.closeEndDrawer();
+                widget.run(
+                  (container) => callMember(widget.host, container, profile),
+                );
+              },
             ),
           if (!hasNote)
             Expanded(

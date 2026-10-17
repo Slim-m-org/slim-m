@@ -3,31 +3,45 @@
 //! they have a home to be unit-tested in and the handler file stays under its
 //! line budget. Pure functions of their argument.
 
-use super::auth::is_disallowed_label_char;
 use super::error::ApiError;
+use crate::hidden_chars::hides_text_outside_emoji;
 
 const STATUS_TEXT_MAX_CHARS: usize = 80;
 const PRONOUNS_MAX_CHARS: usize = 40;
 const ABOUT_MAX_CHARS: usize = 190;
+/// Line breaks an about may carry: enough for a few short lines, not a wall.
+const ABOUT_MAX_LINE_BREAKS: usize = 4;
 /// Exclusive upper bound on `profile_color`: the number of hues in the
 /// design system's closed categorical set (`AppCanvasColors.cursors`).
 pub(super) const PROFILE_COLOR_COUNT: i64 = 6;
 
 /// Trims a free-text profile field, bounds it to `max_chars`, and rejects the
-/// control and text-direction characters a display string must never carry.
-/// An empty result clears the field (returns `None`) rather than storing a
-/// blank - the shared shape [`validate_status_text`], [`validate_pronouns`]
-/// and [`validate_about`] all follow.
+/// control and text-direction characters a display string must never carry,
+/// while letting a joined emoji (a family, a profession, a subdivision flag)
+/// through the way a poll does. `line_breaks` is how many `\n` the field may
+/// hold; only the about line takes any. An empty result clears the field
+/// (returns `None`) rather than storing a blank - the shared shape
+/// [`validate_status_text`], [`validate_pronouns`] and [`validate_about`] all
+/// follow.
 fn validate_short_field(
     value: &str,
     max_chars: usize,
     too_long: &'static str,
+    line_breaks: usize,
 ) -> Result<Option<String>, ApiError> {
     let trimmed = value.trim();
     if trimmed.chars().count() > max_chars {
         return Err(ApiError::BadRequest(too_long));
     }
-    if trimmed.chars().any(is_disallowed_label_char) {
+    let breaks = trimmed.matches('\n').count();
+    if breaks > line_breaks {
+        return Err(ApiError::BadRequest(if line_breaks == 0 {
+            "must not contain control or text-direction characters"
+        } else {
+            "about can be at most 5 lines"
+        }));
+    }
+    if hides_text_outside_emoji(&trimmed.replace('\n', "")) {
         return Err(ApiError::BadRequest(
             "must not contain control or text-direction characters",
         ));
@@ -47,6 +61,7 @@ pub(super) fn validate_status_text(status_text: &str) -> Result<Option<String>, 
         status_text,
         STATUS_TEXT_MAX_CHARS,
         "status must be at most 80 characters",
+        0,
     )
 }
 
@@ -57,15 +72,18 @@ pub(super) fn validate_pronouns(pronouns: &str) -> Result<Option<String>, ApiErr
         pronouns,
         PRONOUNS_MAX_CHARS,
         "pronouns must be at most 40 characters",
+        0,
     )
 }
 
-/// A short "about" line, shown on the member card under the status.
+/// A short "about" line, shown on the member card under the status. The one
+/// profile field that may wrap onto a few lines of its own.
 pub(super) fn validate_about(about: &str) -> Result<Option<String>, ApiError> {
     validate_short_field(
         about,
         ABOUT_MAX_CHARS,
         "about must be at most 190 characters",
+        ABOUT_MAX_LINE_BREAKS,
     )
 }
 
@@ -128,6 +146,38 @@ mod tests {
         assert!(matches!(validate_about(""), Ok(None)));
         assert!(validate_about(&"a".repeat(190)).is_ok());
         assert!(validate_about(&"a".repeat(191)).is_err());
+    }
+
+    /// The owner's report: emoji did not save in the about box. A joined emoji
+    /// (family, profession, subdivision flag) carries a zero width joiner or tag
+    /// characters, which the plain hidden-character check refused.
+    #[test]
+    fn joined_emoji_are_kept_in_every_field() {
+        let family = "\u{1F469}\u{200D}\u{1F469}\u{200D}\u{1F467}";
+        let coder = "\u{1F469}\u{1F3FD}\u{200D}\u{1F4BB}";
+        let scotland = "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}";
+        for emoji in [family, coder, scotland] {
+            let text = format!("hi {emoji}");
+            assert!(matches!(validate_about(&text), Ok(Some(ref s)) if *s == text));
+            assert!(validate_status_text(&text).is_ok());
+            assert!(validate_pronouns(&text).is_ok());
+        }
+    }
+
+    /// A joiner that is not between two emoji is still a hidden character.
+    #[test]
+    fn a_bare_joiner_is_still_refused() {
+        assert!(validate_about("a\u{200D}b").is_err());
+        assert!(validate_status_text("a\u{200D}b").is_err());
+    }
+
+    #[test]
+    fn about_takes_up_to_five_lines_and_nothing_else_takes_a_break() {
+        assert!(matches!(validate_about("one\ntwo"), Ok(Some(s)) if s == "one\ntwo"));
+        assert!(validate_about("1\n2\n3\n4\n5").is_ok());
+        assert!(validate_about("1\n2\n3\n4\n5\n6").is_err());
+        assert!(validate_about("a\r\nb").is_err());
+        assert!(validate_pronouns("she\nher").is_err());
     }
 
     #[test]

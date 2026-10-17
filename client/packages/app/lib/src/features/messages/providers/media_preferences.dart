@@ -32,8 +32,8 @@ extension MediaAutoDownloadX on MediaAutoDownload {
 
 extension GifAutoplayX on GifAutoplay {
   String get label => switch (this) {
-    GifAutoplay.autoplay => 'Always',
-    GifAutoplay.tapToPlay => 'On hover or tap (default)',
+    GifAutoplay.autoplay => 'Always (default)',
+    GifAutoplay.tapToPlay => 'On hover or tap',
   };
 }
 
@@ -41,7 +41,7 @@ const mediaAutoDownloadKey = 'slimm.performance.media_autodownload';
 const gifAutoplayKey = 'slimm.performance.gif_autoplay';
 
 const defaultMediaAutoDownload = MediaAutoDownload.always;
-const defaultGifAutoplay = GifAutoplay.tapToPlay;
+const defaultGifAutoplay = GifAutoplay.autoplay;
 
 class MediaAutoDownloadController
     extends EnumPreferenceController<MediaAutoDownload> {

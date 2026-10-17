@@ -25,7 +25,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../providers/voice_controller.dart';
-import '../../members/widgets/member_actions.dart' show messageMember;
+import '../../members/widgets/member_actions.dart'
+    show callMember, messageMember;
 import '../../members/widgets/member_moderation_gates.dart';
 import '../../members/widgets/member_profile.dart';
 import 'participant_actions.dart';
@@ -93,6 +94,15 @@ List<Widget> participantCallMenuItems(
             final container = ProviderScope.containerOf(context, listen: false);
             close();
             unawaited(messageMember(context, container, profile!));
+          },
+        ),
+        ParticipantAction.call => AppMenuItem(
+          label: 'Call',
+          leading: AppIcons.startCall,
+          onTap: () {
+            final container = ProviderScope.containerOf(context, listen: false);
+            close();
+            unawaited(callMember(context, container, profile!));
           },
         ),
         ParticipantAction.viewProfile => AppMenuItem(

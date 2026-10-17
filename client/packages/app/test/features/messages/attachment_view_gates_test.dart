@@ -134,12 +134,27 @@ void main() {
     },
   );
 
-  testWidgets('by default a gif holds under a play badge until the tap', (
+  testWidgets('by default a gif plays on sight, with no play badge', (
     tester,
   ) async {
     final container = _container([
       attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
     ]);
+
+    await _pump(tester, container, _gif);
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(AppIcons.play), findsNothing);
+  });
+
+  testWidgets('set to hover or tap, a gif holds under a play badge until the '
+      'tap', (tester) async {
+    final container = _container([
+      attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
+    ]);
+    await container
+        .read(gifAutoplayControllerProvider.notifier)
+        .select(GifAutoplay.tapToPlay);
 
     await _pump(tester, container, _gif);
 
@@ -160,6 +175,9 @@ void main() {
     final container = _container([
       attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
     ]);
+    await container
+        .read(gifAutoplayControllerProvider.notifier)
+        .select(GifAutoplay.tapToPlay);
     await _pump(tester, container, _gif);
     expect(find.byType(Image), findsNothing);
 

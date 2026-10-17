@@ -69,35 +69,35 @@ void main() {
   });
 
   group('gif autoplay', () {
-    test('defaults to hover or tap, so autoplay is opt-in', () {
+    test('defaults to always, so holding a gif is opt-in', () {
       expect(
         container().read(gifAutoplayControllerProvider),
-        GifAutoplay.tapToPlay,
+        GifAutoplay.autoplay,
       );
-      expect(GifAutoplay.tapToPlay.label, contains('(default)'));
-      expect(GifAutoplay.autoplay.label, isNot(contains('(')));
+      expect(GifAutoplay.autoplay.label, contains('(default)'));
+      expect(GifAutoplay.tapToPlay.label, isNot(contains('(')));
     });
 
     test('selecting persists, and restore reads it back', () async {
       final c = container();
       await c
           .read(gifAutoplayControllerProvider.notifier)
-          .select(GifAutoplay.autoplay);
+          .select(GifAutoplay.tapToPlay);
       expect(
         (await SharedPreferences.getInstance()).getString(gifAutoplayKey),
-        'autoplay',
+        'tapToPlay',
       );
 
       final c2 = container();
       await c2.read(gifAutoplayControllerProvider.notifier).restore();
-      expect(c2.read(gifAutoplayControllerProvider), GifAutoplay.autoplay);
+      expect(c2.read(gifAutoplayControllerProvider), GifAutoplay.tapToPlay);
     });
 
     test('an unknown stored value degrades to the default', () async {
       SharedPreferences.setMockInitialValues({gifAutoplayKey: 'sometimes'});
       final c = container();
       await c.read(gifAutoplayControllerProvider.notifier).restore();
-      expect(c.read(gifAutoplayControllerProvider), GifAutoplay.tapToPlay);
+      expect(c.read(gifAutoplayControllerProvider), GifAutoplay.autoplay);
     });
   });
 }

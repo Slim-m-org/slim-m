@@ -263,6 +263,33 @@ void main() {
     await _teardown(tester, setup.container, setup.db);
   });
 
+  testWidgets('switching channels on desktop puts the caret in the composer', (
+    tester,
+  ) async {
+    final setup = _setup();
+    await MessageStore(setup.db).upsertChannels(const [
+      api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
+      api.Channel(id: 'c2', name: 'random', kind: 'text', createdAt: 0),
+    ]);
+    final router = _conversationRouter('/channels/c1');
+    await _pump(tester, setup.container, router);
+    expect(
+      tester
+          .widget<ComposerField>(find.byType(ComposerField))
+          .focusNode
+          .hasFocus,
+      isFalse,
+      reason: 'the first channel shown at launch does not take focus',
+    );
+
+    router.go('/channels/c2');
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<ComposerField>(find.byType(ComposerField));
+    expect(field.focusNode.hasFocus, isTrue);
+    await _teardown(tester, setup.container, setup.db);
+  });
+
   testWidgets('Ctrl+L focuses the open channel\'s composer', (tester) async {
     final setup = _setup();
     await MessageStore(setup.db).upsertChannels(const [
