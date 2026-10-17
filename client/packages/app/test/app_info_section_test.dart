@@ -30,7 +30,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('About slim-m'),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .ancestor(
+            of: find.text('Appearance'),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.tap(find.text('About slim-m'));
     await tester.pumpAndSettle();
@@ -117,7 +122,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('About slim-m'),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .ancestor(
+            of: find.text('Appearance'),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.tap(find.text('About slim-m'));
     await tester.pumpAndSettle();

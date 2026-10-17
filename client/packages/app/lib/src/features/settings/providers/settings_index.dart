@@ -151,6 +151,20 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'notifications',
+    'Interface sounds',
+    description: 'Soft cues for sending, joining and muting.',
+    keywords: ['sound', 'send sound', 'mute sound', 'ringback', 'chime'],
+  ),
+  SettingsEntry(
+    'notifications',
+    'Haptics',
+    description: 'Vibrate for taps, holds and alerts.',
+    keywords: ['vibration', 'vibrate', 'haptic feedback'],
+    conditional: true,
+    available: _mobile,
+  ),
+  SettingsEntry(
+    'notifications',
     'Dock module sounds',
     description: 'Lets modules play short sounds.',
   ),
@@ -334,6 +348,8 @@ const personalSettingsIndex = <SettingsEntry>[
 ];
 
 bool _desktop() => isDesktopHost;
+
+bool _mobile() => isIOSHost || isAndroidHost;
 
 bool _inputGate() => isLinuxHost || isWindowsHost;
 
