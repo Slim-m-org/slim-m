@@ -10,7 +10,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_shape_icons.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'support/canvas_tools_row_fixtures.dart';
+import '../../support/canvas_tools_row_fixtures.dart';
 
 void main() {
   testWidgets(

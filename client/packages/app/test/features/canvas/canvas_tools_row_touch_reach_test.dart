@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_tools_row.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'support/canvas_tools_row_fixtures.dart';
+import '../../support/canvas_tools_row_fixtures.dart';
 
 void main() {
   /// A tool clipped by the strip's own scroll viewport is not the same as

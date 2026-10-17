@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 Future<CanvasPaneFixture> _drawAndUndo(WidgetTester tester) async {
   final fixture = CanvasPaneFixture();

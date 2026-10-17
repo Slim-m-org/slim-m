@@ -19,7 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
-import 'support/async_wait.dart';
+import '../../support/async_wait.dart';
 
 void main() {
   testWidgets('opening the canvas fetches the region and paints it', (

@@ -26,7 +26,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
-import 'support/fake_sync.dart';
+import '../../support/fake_sync.dart';
 
 const testTokens = api.TokenPair(
   userId: 'me',

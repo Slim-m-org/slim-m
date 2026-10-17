@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 Finder _button(IconData icon) =>
     find.byWidgetPredicate((w) => w is AppIconButton && w.icon == icon);

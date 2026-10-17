@@ -15,7 +15,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_image_hydrator.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'support/synthetic_png.dart';
+import '../../support/synthetic_png.dart';
 
 Future<void> _settleUntil(
   bool Function() ready, {

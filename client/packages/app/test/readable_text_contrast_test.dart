@@ -11,7 +11,7 @@ import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_recap_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 double _channel(double v) =>
     v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();

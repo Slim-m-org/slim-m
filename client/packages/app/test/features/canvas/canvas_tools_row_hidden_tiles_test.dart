@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_tools_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/canvas_tools_row_fixtures.dart';
+import '../../support/canvas_tools_row_fixtures.dart';
 
 void main() {
   testWidgets('nothing hidden shows no recovery section at all', (

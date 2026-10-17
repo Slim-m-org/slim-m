@@ -11,7 +11,7 @@ import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'support/canvas_call_dock_fixtures.dart';
+import '../../support/canvas_call_dock_fixtures.dart';
 
 void main() {
   for (final width in [800.0, 1280.0, 1920.0]) {

@@ -11,7 +11,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart'
     show canvasOpenProvider;
 import 'package:slimm_data/data.dart';
 
-import 'home_shell_harness.dart';
+import '../../home_shell_harness.dart';
 
 void main() {
   testWidgets('names a real voice channel alongside "Canvas"', (tester) async {

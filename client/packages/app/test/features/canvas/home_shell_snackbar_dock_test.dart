@@ -23,8 +23,8 @@ import 'package:slimm_app/src/widgets/app_snackbar.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'home_shell_harness.dart';
-import 'voice_controller_harness.dart' show FixedVoiceController;
+import '../../home_shell_harness.dart';
+import '../../voice_controller_harness.dart' show FixedVoiceController;
 
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpCallAndCanvas(
   WidgetTester tester, {

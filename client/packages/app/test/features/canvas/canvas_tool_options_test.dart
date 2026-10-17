@@ -14,8 +14,8 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'support/canvas_call_dock_fixtures.dart';
-import 'support/canvas_tools_row_fixtures.dart';
+import '../../support/canvas_call_dock_fixtures.dart';
+import '../../support/canvas_tools_row_fixtures.dart';
 
 Finder get _caret => find.byIcon(AppIcons.chevronDown);
 

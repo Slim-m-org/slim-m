@@ -12,7 +12,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart'
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'ui_snapshot_fonts.dart';
+import '../../ui_snapshot_fonts.dart';
 
 /// The exact chain a menu row's label sits behind: `AppMenu`'s own 6px
 /// padding on each side, the item container's 10px padding on each side,

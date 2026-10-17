@@ -25,7 +25,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart'
     show canvasImageJson, canvasPngFixture, surfaceDocument;
-import 'home_shell_harness.dart';
+import '../../home_shell_harness.dart';
 
 http.Response _jsonResponse(Object body) => http.Response(
   jsonEncode(body),

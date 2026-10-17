@@ -18,7 +18,7 @@ library;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'canvas_pane_harness.dart';
+import 'features/canvas/canvas_pane_harness.dart';
 
 const _channel = MethodChannel('top.npcserver.slimm/clipboard_image');
 

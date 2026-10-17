@@ -23,7 +23,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
-import 'support/geometry.dart';
+import '../../support/geometry.dart';
 
 /// The identity strip's own fixed height, the space fullscreen hands back.
 const _barHeight = AppSizes.headerBar;

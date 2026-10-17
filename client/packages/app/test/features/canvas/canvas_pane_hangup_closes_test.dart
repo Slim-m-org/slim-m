@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
+import '../../voice_controller_harness.dart';
 
 /// A controller a test can move between states; `state` is only settable
 /// from inside a [VoiceController] subclass.
