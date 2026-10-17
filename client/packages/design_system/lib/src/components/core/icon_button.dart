@@ -121,67 +121,7 @@ class _AppIconButtonState extends State<AppIconButton> {
     final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
     final outerSize = visualSize > hitTarget ? visualSize : hitTarget;
 
-    Color ink;
-    Color fill;
-    Color? border;
-
-    switch (widget.variant) {
-      case AppIconButtonVariant.ghost:
-        ink = tokens.textSecondary;
-        fill = Colors.transparent;
-        border = null;
-      case AppIconButtonVariant.danger:
-        ink = tokens.dangerText;
-        fill = Colors.transparent;
-        border = tokens.dangerBorder;
-      case AppIconButtonVariant.dangerGhost:
-        ink = _hovered && enabled ? tokens.dangerText : tokens.textSecondary;
-        fill = Colors.transparent;
-        border = null;
-    }
-
-    if (_hovered &&
-        enabled &&
-        !widget._active &&
-        !widget.suppressOwnHoverFill) {
-      fill = tokens.surfaceRaised;
-    }
-
-    if (widget._active) {
-      fill = tokens.accentSoft;
-      ink = tokens.accent;
-      // The caret beside a joined control draws the seam in the subtle border.
-      border = joined ? tokens.borderSubtle : tokens.accentFill;
-    }
-
-    // Hover and active arrive on AppListRow's own fast clock, never snapping.
-    final button = AnimatedContainer(
-      duration: AppMotion.reduced(context, AppMotion.fast),
-      curve: AppMotion.entrance,
-      width: visualSize,
-      height: visualSize,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: radius,
-        border: border == null
-            ? null
-            : joined
-                ? Border(
-                    top: BorderSide(color: border),
-                    left: BorderSide(color: border),
-                    bottom: BorderSide(color: border),
-                  )
-                : Border.all(color: border),
-      ),
-      foregroundDecoration: _focused
-          ? BoxDecoration(
-              borderRadius: radius,
-              border: Border.all(color: tokens.focusRing, width: 2),
-            )
-          : null,
-      child: Icon(widget.icon, size: widget.iconSize, color: ink),
-    );
+    final button = _visual(tokens, visualSize, radius, joined, enabled);
 
     Widget control = Semantics(
       label: widget.semanticLabel,
@@ -196,39 +136,8 @@ class _AppIconButtonState extends State<AppIconButton> {
           mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
           onShowHoverHighlight: (v) => setState(() => _hovered = v),
           onShowFocusHighlight: (v) => setState(() => _focused = v),
-          actions: !enabled
-              ? const <Type, Action<Intent>>{}
-              : <Type, Action<Intent>>{
-                  ActivateIntent: CallbackAction<ActivateIntent>(
-                      onInvoke: (_) => widget.onPressed!()),
-                },
-          child: GestureDetector(
-            // Opaque so the whole hit box responds, not just the visual inside it.
-            behavior: HitTestBehavior.opaque,
-            onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-            onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-            onTapCancel:
-                enabled ? () => setState(() => _pressed = false) : null,
-            onTap: enabled
-                ? () {
-                    AppHaptics.selection();
-                    widget.onPressed!();
-                  }
-                : null,
-            child: SizedBox(
-              width: outerSize,
-              height: outerSize,
-              child: Align(
-                alignment: joined ? Alignment.centerRight : Alignment.center,
-                child: AnimatedScale(
-                  scale: _pressed ? AppMotion.pressScale : 1,
-                  duration: AppMotion.reduced(context, AppMotion.fast),
-                  curve: AppMotion.entrance,
-                  child: button,
-                ),
-              ),
-            ),
-          ),
+          actions: _activateActions(enabled),
+          child: _gestures(enabled, outerSize, joined, button),
         ),
       ),
     );
@@ -246,5 +155,117 @@ class _AppIconButtonState extends State<AppIconButton> {
     }
 
     return control;
+  }
+
+  Map<Type, Action<Intent>> _activateActions(bool enabled) {
+    if (!enabled) return const <Type, Action<Intent>>{};
+    return <Type, Action<Intent>>{
+      ActivateIntent:
+          CallbackAction<ActivateIntent>(onInvoke: (_) => widget.onPressed!()),
+    };
+  }
+
+  Widget _gestures(bool enabled, double outerSize, bool joined, Widget button) {
+    return GestureDetector(
+      // Opaque so the whole hit box responds, not just the visual inside it.
+      behavior: HitTestBehavior.opaque,
+      onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+      onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+      onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+      onTap: enabled
+          ? () {
+              AppHaptics.selection();
+              widget.onPressed!();
+            }
+          : null,
+      child: SizedBox(
+        width: outerSize,
+        height: outerSize,
+        child: Align(
+          alignment: joined ? Alignment.centerRight : Alignment.center,
+          child: AnimatedScale(
+            scale: _pressed ? AppMotion.pressScale : 1,
+            duration: AppMotion.reduced(context, AppMotion.fast),
+            curve: AppMotion.entrance,
+            child: button,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _visual(
+    AppTokens tokens,
+    double visualSize,
+    BorderRadius radius,
+    bool joined,
+    bool enabled,
+  ) {
+    var (ink, fill, border) = _colors(tokens, enabled);
+
+    if (_hovered &&
+        enabled &&
+        !widget._active &&
+        !widget.suppressOwnHoverFill) {
+      fill = tokens.surfaceRaised;
+    }
+
+    if (widget._active) {
+      fill = tokens.accentSoft;
+      ink = tokens.accent;
+      // The caret beside a joined control draws the seam in the subtle border.
+      border = joined ? tokens.borderSubtle : tokens.accentFill;
+    }
+
+    // Hover and active arrive on AppListRow's own fast clock, never snapping.
+    return AnimatedContainer(
+      duration: AppMotion.reduced(context, AppMotion.fast),
+      curve: AppMotion.entrance,
+      width: visualSize,
+      height: visualSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: radius,
+        border: _border(border, joined),
+      ),
+      foregroundDecoration: _focused
+          ? BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: tokens.focusRing, width: 2),
+            )
+          : null,
+      child: Icon(widget.icon, size: widget.iconSize, color: ink),
+    );
+  }
+
+  (Color, Color, Color?) _colors(AppTokens tokens, bool enabled) {
+    return switch (widget.variant) {
+      AppIconButtonVariant.ghost => (
+          tokens.textSecondary,
+          Colors.transparent,
+          null,
+        ),
+      AppIconButtonVariant.danger => (
+          tokens.dangerText,
+          Colors.transparent,
+          tokens.dangerBorder,
+        ),
+      AppIconButtonVariant.dangerGhost => (
+          _hovered && enabled ? tokens.dangerText : tokens.textSecondary,
+          Colors.transparent,
+          null,
+        ),
+    };
+  }
+
+  static Border? _border(Color? color, bool joined) {
+    if (color == null) return null;
+    if (!joined) return Border.all(color: color);
+    return Border(
+      top: BorderSide(color: color),
+      left: BorderSide(color: color),
+      bottom: BorderSide(color: color),
+    );
   }
 }
