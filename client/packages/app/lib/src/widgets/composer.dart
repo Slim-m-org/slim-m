@@ -46,7 +46,7 @@ import '../features/composer/widgets/composer_extras.dart';
 import '../features/composer/widgets/composer_list_keys.dart';
 import '../features/composer/widgets/composer_photo_strip.dart';
 import '../features/composer/widgets/composer_slash.dart';
-import 'emoji_picker.dart';
+import '../features/emoji/widgets/emoji_picker.dart';
 import '../features/composer/widgets/composer_gif_command.dart';
 import '../features/composer/widgets/composer_picker_panel.dart'
     show ComposerPickerTab, showComposerPickerSheet;

@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'bot_menu_sections.dart';
 import 'message_context_menu.dart';
-import 'quick_reactions.dart';
+import '../features/emoji/widgets/quick_reactions.dart';
 
 class MessageMenuBody extends StatefulWidget {
   const MessageMenuBody({

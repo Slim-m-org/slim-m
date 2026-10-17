@@ -18,7 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../providers/reaction_users.dart';
 import '../providers/user_profiles.dart';
 import 'context_menu_focus.dart';
-import 'emoji_names.dart';
+import '../features/emoji/widgets/emoji_names.dart';
 import 'reaction_users_list.dart';
 import 'reaction_users_surface.dart';
 

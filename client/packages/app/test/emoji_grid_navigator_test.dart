@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/emoji_grid_navigator.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_grid_navigator.dart';
 
 void main() {
   group('layout', () {

@@ -27,7 +27,7 @@ import '../../format.dart';
 import '../../permissions.dart';
 import '../../providers/admin_providers.dart';
 import '../../providers/display_preferences.dart';
-import '../../providers/emoji_catalog_provider.dart';
+import '../../features/emoji/providers/emoji_catalog_provider.dart';
 import '../../providers/member_presence.dart' show membersProvider;
 import '../../providers/providers.dart';
 import '../../providers/reports_controller.dart';

@@ -8,7 +8,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/emoji_catalog.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_catalog.dart';
 
 void main() {
   test('with no pick, custom opens only when there are custom emoji', () {

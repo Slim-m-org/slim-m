@@ -7,7 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/widgets/custom_emoji_image.dart';
+import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 
 import 'composer_harness.dart' hide custom;
 import 'composer_harness.dart' as harness show custom;

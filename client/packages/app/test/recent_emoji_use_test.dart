@@ -8,7 +8,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/recent_emoji.dart';
+import 'package:slimm_app/src/features/emoji/providers/recent_emoji.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));

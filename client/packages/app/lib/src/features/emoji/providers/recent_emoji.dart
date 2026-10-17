@@ -8,7 +8,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 const _recentEmojiKey = 'slimm.recent_emoji';
 const _maxRecentEmoji = 24;

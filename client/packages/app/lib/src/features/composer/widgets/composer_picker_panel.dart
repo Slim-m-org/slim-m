@@ -23,8 +23,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'composer_emoji_browse.dart';
-import '../../../widgets/emoji_picker_panel.dart' show pickerWidth;
-import '../../../widgets/emoji_picker_sheets.dart' show SpaceEmojiSheetBody;
+import '../../emoji/widgets/emoji_picker_panel.dart' show pickerWidth;
+import '../../emoji/widgets/emoji_picker_sheets.dart' show SpaceEmojiSheetBody;
 import '../../../widgets/gif_picker.dart' show GifPickerBody;
 import '../../../providers/gif_preview_bytes.dart';
 import '../../../providers/gif_trending.dart';

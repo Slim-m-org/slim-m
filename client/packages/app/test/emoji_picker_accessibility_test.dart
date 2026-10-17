@@ -14,8 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' show CustomEmoji;
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/providers/emoji_catalog_provider.dart';
-import 'package:slimm_app/src/widgets/emoji_picker.dart';
+import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 // A 1x1 transparent PNG, so Image.memory decodes rather than throwing.

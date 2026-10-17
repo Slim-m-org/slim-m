@@ -13,11 +13,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'animated_menu_portal.dart';
+import '../../../widgets/animated_menu_portal.dart';
 import 'emoji_picker_panel.dart';
-import 'hover_reveal.dart';
-import 'message_context_menu_layout.dart';
-import '../action_labels.dart';
+import '../../../widgets/hover_reveal.dart';
+import '../../../widgets/message_context_menu_layout.dart';
+import '../../../action_labels.dart';
 
 export 'emoji_picker_panel.dart' show EmojiPickerPanel;
 export 'emoji_picker_sheets.dart'

@@ -10,9 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'custom_emoji_image.dart';
+import '../features/emoji/widgets/custom_emoji_image.dart';
 import 'reaction_chip_who.dart';
-import 'standard_emoji.dart';
+import '../features/emoji/widgets/standard_emoji.dart';
 
 /// 16, not the 13 the chip's text glyph uses: 13 is a font size, and an emoji
 /// face draws well inside its em box while an image fills whatever box it gets.

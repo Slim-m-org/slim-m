@@ -21,13 +21,13 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../../providers/admin_providers.dart';
-import '../../../providers/recent_emoji.dart';
-import '../../../widgets/emoji_catalog.dart';
-import '../../../widgets/emoji_grid_navigator.dart';
-import '../../../widgets/emoji_picker_grid.dart';
-import '../../../widgets/emoji_preview_footer.dart';
-import '../../../widgets/emoji_section_navigation.dart';
-import '../../../widgets/emoji_sectioned_grid.dart';
+import '../../emoji/providers/recent_emoji.dart';
+import '../../emoji/widgets/emoji_catalog.dart';
+import '../../emoji/widgets/emoji_grid_navigator.dart';
+import '../../emoji/widgets/emoji_picker_grid.dart';
+import '../../emoji/widgets/emoji_preview_footer.dart';
+import '../../emoji/widgets/emoji_section_navigation.dart';
+import '../../emoji/widgets/emoji_sectioned_grid.dart';
 
 /// The rail-plus-grid area's own fixed height: tall enough that the rail shows
 /// every default category, with Flags last, instead of clipping the end of it.

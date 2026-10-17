@@ -12,11 +12,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/widgets/control_swatch_row.dart';
-import 'package:slimm_app/src/widgets/emoji_picker.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/widgets/quick_reactions.dart';
+import 'package:slimm_app/src/features/emoji/widgets/quick_reactions.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';

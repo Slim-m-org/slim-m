@@ -9,7 +9,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/emoji_image_cache.dart';
+import 'package:slimm_app/src/features/emoji/providers/emoji_image_cache.dart';
 
 Uint8List _bytesOfSize(int size) => Uint8List(size)..fillRange(0, size, 7);
 

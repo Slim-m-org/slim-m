@@ -29,7 +29,7 @@ import '../providers/bot_ui_uses.dart';
 import '../providers/channel_history.dart';
 import '../providers/channel_permissions.dart';
 import '../providers/channel_search_controller.dart';
-import '../providers/emoji_catalog_provider.dart';
+import '../features/emoji/providers/emoji_catalog_provider.dart';
 import '../providers/ephemeral_messages.dart';
 import '../providers/member_presence.dart';
 import '../providers/message_actions.dart';

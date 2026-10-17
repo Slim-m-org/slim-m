@@ -16,9 +16,9 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import 'admin_providers.dart';
+import '../../../providers/admin_providers.dart';
 import 'emoji_image_cache.dart';
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 /// Emoji name (already lower-case, the server normalises it) to emoji id, for
 /// resolving a `:shortcode:` while rendering a message.

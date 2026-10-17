@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_autocomplete_items.dart';
-import '../../../widgets/custom_emoji_image.dart';
+import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../../widgets/user_avatar.dart';
 
 class ComposerAutocomplete extends StatelessWidget {

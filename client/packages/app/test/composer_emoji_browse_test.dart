@@ -20,10 +20,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_emoji_browse.dart';
-import 'package:slimm_app/src/widgets/emoji_catalog.dart';
-import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
-import 'package:slimm_app/src/widgets/emoji_preview_footer.dart';
-import 'package:slimm_app/src/widgets/emoji_sectioned_grid.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_catalog.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_preview_footer.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_sectioned_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _grinningFace = '\u{1F600}'; // The catalog's first entry.

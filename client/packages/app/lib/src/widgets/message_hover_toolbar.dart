@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'context_menu_region.dart';
-import 'emoji_picker.dart';
+import '../features/emoji/widgets/emoji_picker.dart';
 import 'message_context_menu.dart';
 import 'message_row_roving.dart';
 

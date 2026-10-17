@@ -7,8 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show CustomEmoji;
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/widgets/emoji_picker.dart';
-import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness() => ProviderScope(

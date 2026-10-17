@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show CustomEmoji;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/admin_providers.dart';
+import '../../../providers/admin_providers.dart';
 import '../providers/recent_emoji.dart';
 import 'emoji_catalog.dart';
 import 'emoji_picker_grid.dart';

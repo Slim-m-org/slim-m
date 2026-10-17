@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show CustomEmoji;
-import 'package:slimm_app/src/widgets/emoji_catalog.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_catalog.dart';
 
 CustomEmoji _custom(String name) =>
     CustomEmoji(id: 'e-$name', name: name, uploaderId: 'u1', createdAt: 1);

@@ -17,10 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/emoji_catalog_provider.dart';
+import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/emoji_catalog.dart';
-import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_catalog.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A 1x1 transparent PNG, so `Image.memory` decodes rather than throwing.

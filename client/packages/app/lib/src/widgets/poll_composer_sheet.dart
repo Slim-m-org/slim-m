@@ -22,7 +22,7 @@ import '../api_failure.dart';
 import '../ids.dart';
 import '../providers/message_extras.dart';
 import '../providers/providers.dart';
-import 'emoji_picker.dart';
+import '../features/emoji/widgets/emoji_picker.dart';
 import 'poll_view.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';

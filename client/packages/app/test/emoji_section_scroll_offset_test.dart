@@ -8,9 +8,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show CustomEmoji;
-import 'package:slimm_app/src/widgets/emoji_catalog.dart';
-import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
-import 'package:slimm_app/src/widgets/emoji_sectioned_grid.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_catalog.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_sectioned_grid.dart';
 
 List<PickerEmoji> _fakeEmoji(int count) => [
   for (var i = 0; i < count; i++)

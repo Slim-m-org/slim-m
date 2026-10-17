@@ -5,9 +5,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../action_labels.dart';
+import '../../../action_labels.dart';
 
-import 'control_swatch_row.dart';
+import '../../../widgets/control_swatch_row.dart';
 
 /// One quick reaction: [token] is exactly what the picker would have produced
 /// for it, so a quick pick and a picked one are the same reaction on the wire.

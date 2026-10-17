@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/emoji_catalog_provider.dart';
+import '../features/emoji/providers/emoji_catalog_provider.dart';
 import 'message_text.dart';
 
 class PollText extends ConsumerStatefulWidget {

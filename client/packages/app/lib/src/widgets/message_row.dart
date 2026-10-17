@@ -28,7 +28,7 @@ import '../providers/message_extras.dart' show MessageExtras;
 import '../routing/breakpoints.dart';
 
 import 'continuation_marker.dart';
-import 'emoji_picker.dart';
+import '../features/emoji/widgets/emoji_picker.dart';
 import 'message_hover_toolbar.dart';
 import 'hover_reveal.dart';
 import 'message_context_menu.dart';

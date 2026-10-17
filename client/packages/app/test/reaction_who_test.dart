@@ -17,7 +17,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/message_extras.dart' show MessageExtras;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/emoji_names.dart';
+import 'package:slimm_app/src/features/emoji/widgets/emoji_names.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/widgets/reaction_users_list.dart';
