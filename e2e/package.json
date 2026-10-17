@@ -1,0 +1,19 @@
+{
+  "name": "slimm-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Playwright Test end-to-end suite for slim-m",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "typecheck": "tsc --noEmit",
+    "labels": "python3 ../scripts/lib/e2e_labels_json.py --ts > src/labels.ts",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  }
+}
