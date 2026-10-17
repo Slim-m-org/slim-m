@@ -66,6 +66,7 @@ class ReplayTest(unittest.TestCase):
     def test_a_speaker_not_in_this_conversations_accounts_is_skipped(self):
         stats, _failures = self._replay([_turn("Somebody Else"), _turn("Alan")])
         self.assertEqual(stats["conversation_message"], 1)
+        self.assertEqual(stats["conversation_skipped_speaker"], 1)
 
     def test_a_valid_reply_to_carries_the_targets_message_id_and_mentions_them(self):
         stats, _failures = self._replay([

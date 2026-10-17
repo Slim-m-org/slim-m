@@ -1264,6 +1264,14 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: after_id
+          in: query
+          description: >
+            The last report's own id, which breaks ties between reports filed
+            in the same millisecond. Goes with `after`: one without the other
+            is refused with 400.
+          schema:
+            type: string
         - name: limit
           in: query
           description: Page size, 50 when omitted; the server clamps it into 1..200 rather than rejecting it.
