@@ -4,7 +4,7 @@
 //! `channels.rs` to keep that file under the line budget rather than
 //! expanding its already-optional `update_channel` to a third field.
 
-use super::{Channel, Store};
+use super::super::{Channel, Store};
 use crate::ids::{ChannelId, UserId};
 
 impl Store {

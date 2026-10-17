@@ -12,7 +12,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::{Channel, Store};
+use super::super::{Channel, Store};
 use crate::ids::{ChannelCategoryId, ChannelId};
 
 /// One rail section's ordered contents, as submitted by a drag: the category
@@ -305,7 +305,7 @@ impl Store {
                 .await?;
                 // A move never changes who can see a channel, so it keeps its rows but stops following a category.
                 if before.get(id).map(|(category, _)| *category) != Some(group.category_id) {
-                    super::category_overwrites::mark_unsynced(&mut *tx, *id).await?;
+                    super::super::category_overwrites::mark_unsynced(&mut *tx, *id).await?;
                 }
             }
         }

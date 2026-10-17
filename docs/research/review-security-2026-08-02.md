@@ -95,7 +95,7 @@ Client-side, `report_card.dart:169-171` sets `targetUserId` from `report.subject
 
 ## 6. Drag-to-reorder channels holds under the obvious abuse attempts
 
-`crates/slimm-server/src/http/channel_order.rs`, `crates/slimm-server/src/store/channel_order.rs`
+`crates/slimm-server/src/http/channel_order.rs`, `crates/slimm-server/src/store/channels/channel_order.rs`
 
 Gated on deployment-wide `MANAGE_CHANNELS` (`channel_order.rs:47-55`), the same bit `createChannel`/`updateChannel`/`deleteChannel` already require.
 `reorder_channels` (`store/channel_order.rs:58-104`) refuses any list that is not exactly the current live, non-DM, non-thread channel set (`live_set != given_set`, `channel_order.rs:74`), inside one `BEGIN IMMEDIATE` transaction from the first read, so there is no way to smuggle a DM id or a thread channel id into the position ordering, and no window for a concurrent create/delete to land between validation and write.

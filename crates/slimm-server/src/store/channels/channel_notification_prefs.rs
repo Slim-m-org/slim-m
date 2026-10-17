@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 use sqlx::QueryBuilder;
 
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 use crate::notifications::NotificationPreference;
 

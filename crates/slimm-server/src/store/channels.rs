@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Channel persistence: fetch, rename, and soft-delete. Creation lives in
-//! [`super::channel_create`], split out once the private-channel overwrite
+//! [`self::channel_create`], split out once the private-channel overwrite
 //! writes pushed this module past the file budget.
 //!
 //! Listing lives in [`super::bootstrap`] alongside the rest of the admin
 //! surface it was introduced with; this module is the rest of the CRUD paths
 //! for a single channel.
 
-use super::channel_create::fetch_channel_by_id;
+use self::channel_create::fetch_channel_by_id;
 use super::{Channel, Store, now_ms};
 use crate::ids::ChannelId;
+
+pub(super) mod channel_create;
+pub(super) mod channel_notification_prefs;
+pub(super) mod channel_order;
+pub(super) mod channel_restricted;
+pub(super) mod channel_retention;
+pub(super) mod channel_settings;
+pub(crate) mod channel_slow_mode;
 
 /// Why deleting a channel failed.
 #[derive(Debug)]

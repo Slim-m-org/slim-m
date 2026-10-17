@@ -31,14 +31,9 @@ use canvas::{
 };
 mod categories;
 mod category_overwrites;
-mod channel_create;
-mod channel_notification_prefs;
-mod channel_order;
-mod channel_restricted;
-mod channel_retention;
-mod channel_settings;
-pub(crate) mod channel_slow_mode;
 mod channels;
+pub(crate) use channels::channel_slow_mode;
+use channels::{channel_create, channel_notification_prefs, channel_order, channel_settings};
 mod code_runs;
 mod credentials;
 mod deployment_identity;

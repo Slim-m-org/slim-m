@@ -4,7 +4,7 @@
 
 use sqlx::QueryBuilder;
 
-use super::{Channel, Store};
+use super::super::{Channel, Store};
 use crate::ids::ChannelId;
 
 /// The fields a channel update may set; `None` leaves a field untouched.

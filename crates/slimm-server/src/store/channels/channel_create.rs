@@ -2,14 +2,14 @@
 //! Channel creation: the idempotent-by-id insert, its convenience
 //! server-minted form, and the optional private-at-creation overwrites.
 //!
-//! Split out of [`super::channels`], which keeps the rest of a channel's CRUD
+//! Split out of [`super`], which keeps the rest of a channel's CRUD
 //! (fetch, rename, soft-delete), once the private-channel overwrite writes
 //! pushed that module past the file budget.
 
 use sqlx::SqliteExecutor;
 
-use super::permissions::{everyone_role_id, set_overwrite};
-use super::{Channel, Store, now_ms};
+use super::super::permissions::{everyone_role_id, set_overwrite};
+use super::super::{Channel, Store, now_ms};
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
 
@@ -21,7 +21,7 @@ pub enum CreateChannelError {
     /// channel. `channels` holds all three kinds under one id namespace, so a
     /// colliding id must never be handed back as if it were the caller's own
     /// text/voice channel - the same reason
-    /// [`super::messages::SendError::IdConflict`] refuses to alias a foreign
+    /// [`super::super::messages::SendError::IdConflict`] refuses to alias a foreign
     /// message rather than returning it.
     IdConflict,
     /// This id named a channel that has since been deleted. Not a retry: the
@@ -74,7 +74,7 @@ impl Store {
     /// Creates a channel and seeds its message and canvas sequence counters.
     /// Idempotent by `id`: a retry with the same id returns the row already
     /// stored under it rather than inserting again, the same contract
-    /// [`super::messages::Store::send_message`] gives a message send.
+    /// [`super::super::messages::Store::send_message`] gives a message send.
     ///
     /// [`Store::create_channel`] is the convenience form for a caller with no
     /// client-supplied id of its own; it mints one and always sees
@@ -87,11 +87,11 @@ impl Store {
     /// cannot both claim the last slot. A DM's or a thread's position is
     /// left at its schema default (0) and never read, since both are
     /// excluded from every position-ordered query - the same exclusion
-    /// [`super::bootstrap::Store::list_channels`] and
+    /// [`super::super::bootstrap::Store::list_channels`] and
     /// [`super::channel_order::Store::reorder_channels`] already apply.
     ///
     /// Uses [`Store::begin_write`] (`BEGIN IMMEDIATE`) rather than a deferred
-    /// transaction, for the same reason [`super::messages::Store::send_message`]
+    /// transaction, for the same reason [`super::super::messages::Store::send_message`]
     /// does: this reads the id before it writes.
     ///
     /// The id probe matches a deleted row as well as a live one: the id
@@ -213,7 +213,8 @@ impl Store {
             .await?;
         } else if let Some(category_id) = category_id {
             // A channel with no audience of its own takes its category's; see decision 0064.
-            super::category_overwrites::copy_category_overwrites(&mut tx, id, category_id).await?;
+            super::super::category_overwrites::copy_category_overwrites(&mut tx, id, category_id)
+                .await?;
         }
 
         tx.commit().await?;
@@ -231,7 +232,7 @@ impl Store {
                 // The column default; a fresh channel has no slow mode set yet.
                 slow_mode_seconds: 0,
                 join_muted,
-                room: super::ChannelRoom::default(),
+                room: super::super::ChannelRoom::default(),
             },
             fresh: true,
         })
@@ -278,9 +279,9 @@ async fn channel_is_deleted(pool: &sqlx::SqlitePool, id: ChannelId) -> anyhow::R
 }
 
 /// Fetches a channel by id, live or deleted, over any executor - the pool for
-/// [`super::channels::Store::channel_including_deleted`], or an open
+/// [`super::Store::channel_including_deleted`], or an open
 /// transaction for the id probe inside [`Store::create_channel_with_id`].
-pub(super) async fn fetch_channel_by_id<'e, E>(
+pub(in crate::store) async fn fetch_channel_by_id<'e, E>(
     executor: E,
     id: ChannelId,
 ) -> anyhow::Result<Option<Channel>>
@@ -316,7 +317,7 @@ where
         created_at: r.created_at,
         slow_mode_seconds: r.slow_mode_seconds,
         join_muted: r.join_muted,
-        room: super::ChannelRoom {
+        room: super::super::ChannelRoom {
             creates_rooms: r.creates_rooms,
             user_limit: r.user_limit,
             owner_id: r.room_owner_id,

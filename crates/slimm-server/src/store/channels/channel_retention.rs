@@ -3,7 +3,7 @@
 //! (`message_retention.rs`). No row follows the Space; `0` keeps the channel
 //! forever. A thread follows its parent channel, so the sweep resolves every
 //! message to the channel that owns its window before comparing ages.
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 use crate::ids::ChannelId;
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;

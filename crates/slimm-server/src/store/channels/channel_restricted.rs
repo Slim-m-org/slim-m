@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Whether a channel is hidden from `@everyone`, for one channel at a time.
 
-use super::Store;
-use super::permissions::everyone_role_id;
+use super::super::Store;
+use super::super::permissions::everyone_role_id;
 use crate::ids::{ChannelId, RoleId};
 use crate::permissions::{Overwrite, Permissions, evaluate};
 
