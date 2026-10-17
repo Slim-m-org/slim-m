@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/members/widgets/member_profile_sections.d
 import 'package:slimm_data/data.dart' hide Channel, Message;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'report_card_harness.dart';
+import 'features/settings/report_card_harness.dart';
 
 void main() {
   group('jump to message', () {

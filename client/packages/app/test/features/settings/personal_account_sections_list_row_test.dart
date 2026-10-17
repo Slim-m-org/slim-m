@@ -20,7 +20,7 @@ import 'package:slimm_app/src/features/settings/widgets/personal_account_section
 import 'package:slimm_app/src/features/settings/widgets/settings_detail_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_blocks.dart';
+import '../../support/fake_blocks.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',

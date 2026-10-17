@@ -10,7 +10,7 @@ import 'package:slimm_app/src/features/settings/widgets/appearance_settings_sect
 import 'package:slimm_app/src/features/settings/widgets/display_settings_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 
-import 'features/voice/voice_settings_screen_harness.dart';
+import '../voice/voice_settings_screen_harness.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));

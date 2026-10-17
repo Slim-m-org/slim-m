@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 /// A shell with one channel of [kind] open at [width], the canvas already
 /// open for it before the first frame - "mounted with the provider set",

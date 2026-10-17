@@ -25,8 +25,8 @@ import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sync.dart';
-import 'support/fake_sound_player.dart';
+import '../../support/fake_sync.dart';
+import '../../support/fake_sound_player.dart';
 
 /// The compact tests render a real conversation, which fetches its members,
 /// its pins and a window of messages on the way up. None of the three is what

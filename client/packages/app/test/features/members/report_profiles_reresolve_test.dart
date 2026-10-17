@@ -6,7 +6,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 
-import '../../report_card_harness.dart';
+import '../settings/report_card_harness.dart';
 
 void main() {
   testWidgets('a report card gets its names back after profiles are cleared', (

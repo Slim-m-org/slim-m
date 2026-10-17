@@ -20,7 +20,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession;
 
 class _HangUpController extends VoiceController {

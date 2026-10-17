@@ -15,7 +15,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_data/data.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 
 GoRouter _router(WidgetTester tester) =>
     GoRouter.of(tester.element(find.byType(Navigator).first));

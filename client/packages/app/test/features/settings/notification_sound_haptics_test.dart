@@ -23,7 +23,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sound_player.dart';
+import '../../support/fake_sound_player.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',

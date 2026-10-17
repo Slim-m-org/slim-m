@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_data/data.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 
 Future<({ProviderContainer container, SlimmDatabase db})> _withChannel(
   String kind,

@@ -14,7 +14,7 @@ import 'package:slimm_app/src/features/voice/widgets/call_stage_layout.dart';
 import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../home_shell_harness.dart' show teardown;
+import '../settings/home_shell_harness.dart' show teardown;
 import '../../support/call_screen_phone_harness.dart';
 
 const _phone = Size(390, 844);

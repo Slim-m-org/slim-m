@@ -23,7 +23,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'report_card_harness.dart';
+import 'features/settings/report_card_harness.dart';
 import 'support/geometry.dart';
 import 'ui_snapshot_support.dart';
 

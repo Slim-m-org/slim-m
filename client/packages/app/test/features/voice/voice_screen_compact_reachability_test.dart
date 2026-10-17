@@ -32,7 +32,7 @@ import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 import 'voice_controller_harness.dart';
 
 const _voiceChannelId = 'c-voice';

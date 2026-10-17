@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 import 'voice_controller_harness.dart' show FixedVoiceController;
 
 /// Long enough to overrun the header at any width the shell offers it.

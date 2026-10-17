@@ -28,7 +28,7 @@ import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 void main() {
   /// The rail and member pane both toggle, and the connection bar's own

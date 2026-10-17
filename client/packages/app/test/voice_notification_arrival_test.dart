@@ -15,7 +15,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_data/data.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 import 'features/voice/voice_controller_harness.dart'
     show RecordingVoiceController;
 

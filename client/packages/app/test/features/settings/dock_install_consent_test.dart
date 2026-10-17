@@ -21,8 +21,8 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'dock_manifest_fixture.dart';
-import 'ui_snapshot_support.dart';
+import '../../dock_manifest_fixture.dart';
+import '../../ui_snapshot_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',

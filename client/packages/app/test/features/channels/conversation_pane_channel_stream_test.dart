@@ -14,7 +14,7 @@ import 'package:slimm_app/src/features/channels/screens/unlisted_channel.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 
 class _CountingStore extends MessageStore {
   _CountingStore(super.db);

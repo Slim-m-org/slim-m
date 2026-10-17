@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'emoji_add_harness.dart';
+import 'features/settings/emoji_add_harness.dart';
 
 void main() {
   testWidgets('leaving mid-upload finishes every chunk and refreshes the list', (

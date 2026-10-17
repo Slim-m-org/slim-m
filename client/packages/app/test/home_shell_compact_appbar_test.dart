@@ -10,7 +10,7 @@ import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_data/data.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 void main() {
   /// The strip and rail summary set the DM-call provider for any channel, so a

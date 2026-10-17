@@ -51,7 +51,7 @@ import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_support.dart';
+import '../../ui_snapshot_support.dart';
 
 class _AlwaysReduceMotion extends MotionPreferenceController {
   _AlwaysReduceMotion(super.ref) {

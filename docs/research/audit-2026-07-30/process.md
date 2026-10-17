@@ -225,7 +225,7 @@ Shape of the fix: move the four helpers into the module that already exists and 
 
 ### Five hand-written `implements VoiceSession` fakes (medium)
 
-`client/packages/app/test/screen_safe_area_test.dart:81`
+`client/packages/app/test/features/settings/screen_safe_area_test.dart:81`
 
 `implements VoiceSession` appears in voice_settings_screen_test.dart, voice_call_controls_test.dart, voice_screen_test.dart, screen_safe_area_test.dart and voice_controller_harness.dart.
 The `_FakeSession` in screen_safe_area_test.dart runs from line 81 into the 170s, and all five carry the same `Widget screenShareViewFor(String identity) => SizedBox.shrink(key: Key('fake-share-view-$identity'));` line.

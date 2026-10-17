@@ -306,7 +306,7 @@ The redesign made panes lazy, the test opens none, and the comment above the dra
 
 **The in-call voice tree is reached by two tests at two or fewer participants, one viewport each** (low) - `client/packages/app/test/ui_snapshot_test.dart:55`, so the tile grid, the share-stage split and the control bar are ungated at the counts the code says it is sized for.
 
-**"Removed members" is pinned to no permission bit** (low) - `client/packages/app/test/settings_space_section_test.dart:22`.
+**"Removed members" is pinned to no permission bit** (low) - `client/packages/app/test/features/settings/settings_space_section_test.dart:22`.
 Six of seven rows are asserted in both directions; showing that one to a CREATE_INVITE-only caller passes green, and dropping it for a BAN_MEMBERS holder passes green too.
 
 ## 12. Copy, naming and information architecture

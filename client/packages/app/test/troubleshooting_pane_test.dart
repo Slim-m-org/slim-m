@@ -12,7 +12,7 @@ import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'settings_harness.dart';
+import 'features/settings/settings_harness.dart';
 
 Future<ProviderContainer> _open(WidgetTester tester) async {
   tester.view.physicalSize = const Size(1400, 1000);

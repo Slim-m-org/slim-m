@@ -12,7 +12,7 @@ import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_entity_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_support.dart';
+import '../../ui_snapshot_support.dart';
 
 Future<void> _pump(
   WidgetTester tester,

@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 
-import 'report_card_harness.dart';
+import 'features/settings/report_card_harness.dart';
 
 String _auditJson(String id) =>
     '{"kind":"audit_log","id":"$id","actor_id":"mod-1",'

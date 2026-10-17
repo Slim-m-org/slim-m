@@ -81,13 +81,13 @@ client/packages/app/test/composer_affordances_test.dart 4
 client/packages/app/test/features/emoji/composer_emoji_test.dart 1
 client/packages/app/test/features/composer/composer_test.dart 5
 client/packages/app/test/features/messages/context_menu_reachability_test.dart 1
-client/packages/app/test/emoji_admin_screen_test.dart 1
-client/packages/app/test/emoji_name_test.dart 1
+client/packages/app/test/features/settings/emoji_admin_screen_test.dart 1
+client/packages/app/test/features/settings/emoji_name_test.dart 1
 client/packages/app/test/features/emoji/emoji_picker_test.dart 6
 client/packages/app/test/features/channels/emoji_wiring_test.dart 1
 client/packages/app/test/features/messages/fullscreen_image_viewer_test.dart 1
 client/packages/app/test/features/channels/home_shell_test.dart 1
-client/packages/app/test/invite_role_grant_test.dart 3
+client/packages/app/test/features/settings/invite_role_grant_test.dart 3
 client/packages/app/test/live_features_test.dart 1
 client/packages/app/test/features/members/member_pane_test.dart 1
 client/packages/app/test/features/messages/message_context_menu_scroll_test.dart 1
@@ -98,7 +98,7 @@ client/packages/app/test/features/voice/modal_page_test.dart 2
 client/packages/app/test/features/auth/onboarding_screen_test.dart 1
 client/packages/app/test/push_controller_test.dart 6
 client/packages/app/test/router_recovery_test.dart 1
-client/packages/app/test/screen_safe_area_test.dart 3
+client/packages/app/test/features/settings/screen_safe_area_test.dart 3
 client/packages/app/test/features/auth/server_fingerprint_test.dart 1
 client/packages/app/test/session_persistence_test.dart 7
 client/packages/app/test/settings_entry_points_test.dart 1
@@ -106,7 +106,7 @@ client/packages/app/test/shell_semantics_test.dart 1
 client/packages/app/test/features/channels/shell_test.dart 2
 client/packages/app/test/features/auth/sign_in_screen_test.dart 1
 client/packages/app/test/sync_controller_test.dart 4
-client/packages/app/test/theme_preference_test.dart 4
+client/packages/app/test/features/settings/theme_preference_test.dart 4
 client/packages/app/test/features/channels/touch_targets_test.dart 1
 client/packages/app/test/ui_snapshot_support.dart 3
 client/packages/app/test/ui_snapshot_test.dart 1

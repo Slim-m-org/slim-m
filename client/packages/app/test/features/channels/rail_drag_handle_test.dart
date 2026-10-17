@@ -20,7 +20,7 @@ import 'package:slimm_app/src/features/channels/widgets/rail_drag_handle.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../home_shell_harness.dart';
+import '../settings/home_shell_harness.dart';
 
 double _railWidth(WidgetTester tester) =>
     tester.getSize(find.byType(ChannelRail)).width;

@@ -12,7 +12,7 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_permissions_tab.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'features/members/roles_config_harness.dart';
+import '../members/roles_config_harness.dart';
 
 api.Role _role(int permissions) => api.Role(
   id: 'role-mod',

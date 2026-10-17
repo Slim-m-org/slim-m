@@ -27,7 +27,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/code_only.dart';
+import '../../support/code_only.dart';
 
 /// A named allowlist, each entry carrying its own one-line why - the
 /// `type_scale_literal_test.dart` shape. `reports_screen.dart` genuinely

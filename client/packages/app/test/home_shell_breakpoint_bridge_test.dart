@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 
-import 'home_shell_harness.dart';
+import 'features/settings/home_shell_harness.dart';
 
 double _shellOpacity(WidgetTester tester) => tester
     .widget<Opacity>(

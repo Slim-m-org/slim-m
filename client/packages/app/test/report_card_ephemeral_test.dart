@@ -5,7 +5,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'report_card_harness.dart';
+import 'features/settings/report_card_harness.dart';
 
 void main() {
   testWidgets('a private-message report shows the bot and the snapshot', (

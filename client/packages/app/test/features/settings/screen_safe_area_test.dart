@@ -37,7 +37,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'support/video_quality_recorder.dart';
+import '../../support/video_quality_recorder.dart';
 
 /// An iPhone with a notch, in logical points.
 const double _topInset = 59;

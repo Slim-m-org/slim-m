@@ -20,7 +20,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/role_detail_screen
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'support/fake_sync.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',

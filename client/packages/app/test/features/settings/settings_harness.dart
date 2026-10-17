@@ -34,7 +34,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-export 'support/mock_app_version.dart';
+export '../../support/mock_app_version.dart';
 
 /// Every permission bit the client knows how to name, which is what the
 /// server sends a real administrator: `evaluate()`'s ADMINISTRATOR bypass is
