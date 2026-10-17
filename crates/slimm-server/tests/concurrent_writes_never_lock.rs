@@ -108,7 +108,7 @@ async fn spending_one_recovery_code_on_many_challenges_at_once_is_never_a_500() 
     }
 
     assert!(
-        !statuses.iter().any(|status| status.is_server_error()),
+        !statuses.iter().any(axum::http::StatusCode::is_server_error),
         "a concurrent verify answered with a server error: {statuses:?}"
     );
     let accepted = statuses.iter().filter(|s| **s == StatusCode::OK).count();

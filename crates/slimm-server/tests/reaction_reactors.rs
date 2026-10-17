@@ -209,7 +209,10 @@ async fn the_list_is_exactly_as_long_as_the_tally_under_every_block_arrangement(
             assert_eq!(got.len(), tally(&app, channel, &token, THUMB).await);
             assert_eq!(
                 got,
-                expected.iter().map(|u| u.to_string()).collect::<Vec<_>>()
+                expected
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect::<Vec<_>>()
             );
         }
     };

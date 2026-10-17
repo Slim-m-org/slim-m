@@ -126,7 +126,7 @@ impl Drop for Claim {
     fn drop(&mut self) {
         self.in_flight
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&self.id);
     }
 }
@@ -142,7 +142,9 @@ impl Uploads {
     }
 
     fn lock_running(&self) -> std::sync::MutexGuard<'_, HashMap<Uuid, RunningHash>> {
-        self.running.lock().unwrap_or_else(|p| p.into_inner())
+        self.running
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// The carried hash if it covers exactly `offset` bytes; `None` means the
@@ -161,7 +163,10 @@ impl Uploads {
     }
 
     fn claim(&self, id: Uuid) -> Option<Claim> {
-        let mut set = self.in_flight.lock().unwrap_or_else(|p| p.into_inner());
+        let mut set = self
+            .in_flight
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         set.insert(id).then(|| Claim {
             in_flight: self.in_flight.clone(),
             id,
@@ -317,7 +322,7 @@ impl Uploads {
                 let busy = id.is_some_and(|id| {
                     in_flight
                         .lock()
-                        .unwrap_or_else(|p| p.into_inner())
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
                         .contains(&id)
                 });
                 let expired = read_meta(&path).is_none_or(|meta| meta.created_at < cutoff);
@@ -326,7 +331,7 @@ impl Uploads {
                     if let Some(id) = id {
                         running
                             .lock()
-                            .unwrap_or_else(|p| p.into_inner())
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
                             .remove(&id);
                     }
                     removed += 1;
