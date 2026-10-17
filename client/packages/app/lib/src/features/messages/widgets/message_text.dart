@@ -129,45 +129,7 @@ class MessageBody extends StatelessWidget {
           t,
         )!;
 
-        final widgets = <Widget>[];
-        // Counts only fenced blocks, so a block's index (the shared-run key) is stable regardless of the text around it.
-        var codeBlockIndex = 0;
-        final blocks = splitMessageBlocks(content);
-        var trailed = false;
-        for (final block in blocks) {
-          switch (block) {
-            case TextBlock(:final text):
-              final mds = splitMarkdownBlocks(text);
-              for (final md in mds) {
-                final last =
-                    identical(block, blocks.last) && identical(md, mds.last);
-                trailed = trailed || (last && trailing != null);
-                widgets.add(
-                  _buildMarkdownBlock(
-                    md,
-                    knownUsernames: knownUsernames,
-                    knownRoleNames: knownRoleNames,
-                    customEmoji: customEmoji,
-                    color: baseColor,
-                    trailing: last ? trailing : null,
-                  ),
-                );
-              }
-            case CodeBlock(:final language, :final code):
-              widgets.add(
-                MessageCodeBlockRunner(
-                  language: language,
-                  code: code,
-                  messageId: messageId,
-                  blockIndex: codeBlockIndex++,
-                ),
-              );
-          }
-        }
-
-        if (trailing != null && !trailed) {
-          widgets.add(Padding(padding: _trailingLineInset, child: trailing));
-        }
+        final widgets = _blockWidgets(baseColor);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,6 +147,58 @@ class MessageBody extends StatelessWidget {
     return announceSending
         ? Semantics(container: true, label: 'Sending', child: body)
         : body;
+  }
+
+  List<Widget> _blockWidgets(Color baseColor) {
+    final blocks = splitMessageBlocks(content);
+    final widgets = <Widget>[];
+    // Counts only fenced blocks, so a block's index (the shared-run key) is stable regardless of the text around it.
+    var codeBlockIndex = 0;
+    var trailed = false;
+    for (final block in blocks) {
+      switch (block) {
+        case TextBlock():
+          final texts = _textWidgets(block, baseColor, blocks.last);
+          trailed = trailed || texts.carriesTrailing;
+          widgets.addAll(texts.widgets);
+        case CodeBlock(:final language, :final code):
+          widgets.add(
+            MessageCodeBlockRunner(
+              language: language,
+              code: code,
+              messageId: messageId,
+              blockIndex: codeBlockIndex++,
+            ),
+          );
+      }
+    }
+    if (trailing != null && !trailed) {
+      widgets.add(Padding(padding: _trailingLineInset, child: trailing));
+    }
+    return widgets;
+  }
+
+  ({List<Widget> widgets, bool carriesTrailing}) _textWidgets(
+    TextBlock block,
+    Color color,
+    MessageBlock lastBlock,
+  ) {
+    final mds = splitMarkdownBlocks(block.text);
+    final endsMessage = identical(block, lastBlock);
+    return (
+      widgets: [
+        for (final md in mds)
+          _buildMarkdownBlock(
+            md,
+            knownUsernames: knownUsernames,
+            knownRoleNames: knownRoleNames,
+            customEmoji: customEmoji,
+            color: color,
+            trailing: endsMessage && identical(md, mds.last) ? trailing : null,
+          ),
+      ],
+      carriesTrailing: endsMessage && mds.isNotEmpty && trailing != null,
+    );
   }
 }
 
