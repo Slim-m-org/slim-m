@@ -44,6 +44,7 @@ mod category_overwrites;
 mod channel_notification_prefs;
 mod channel_order;
 mod channel_permissions;
+mod channel_retention;
 mod channel_slow_mode;
 mod channel_validation;
 mod channels;
@@ -233,6 +234,7 @@ pub fn router(state: AppState) -> Router {
         .merge(analytics::routes())
         .merge(attachment_limit::routes())
         .merge(module_schedule::routes())
+        .merge(channel_retention::routes())
         .merge(apps::routes())
         .merge(auth::routes())
         .merge(canvas::routes())

@@ -66,29 +66,33 @@ void main() {
     expect(retentionDeletesHistory(from: 30, to: 30), isFalse);
   });
 
-  testWidgets('renders all three capacity controls together', (tester) async {
-    final client = MockClient((request) async {
-      if (request.url.path == '/space/retention') {
-        return _json({'retention_days': 0});
-      }
-      if (request.url.path == '/space/canvas-cap') {
-        return _json({'object_cap': 20000});
-      }
-      if (request.url.path == '/space/screen-share') {
-        return _json({'max_height': 2160});
-      }
-      return _json({'enabled': false});
-    });
-    final container = _containerFor(client);
-    addTearDown(container.dispose);
+  testWidgets(
+    'renders the capacity controls, and leaves call defaults to the voice pane',
+    (tester) async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/space/retention') {
+          return _json({'retention_days': 0});
+        }
+        if (request.url.path == '/space/canvas-cap') {
+          return _json({'object_cap': 20000});
+        }
+        if (request.url.path == '/space/screen-share') {
+          return _json({'max_height': 2160});
+        }
+        return _json({'enabled': false});
+      });
+      final container = _containerFor(client);
+      addTearDown(container.dispose);
 
-    await tester.pumpWidget(_app(container));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(container));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Message retention'), findsOneWidget);
-    expect(find.text('Canvas object cap'), findsOneWidget);
-    expect(find.text('Screen share quality'), findsOneWidget);
-  });
+      expect(find.text('Message retention'), findsOneWidget);
+      expect(find.text('Canvas object cap'), findsOneWidget);
+      expect(find.text('Screen share quality'), findsNothing);
+      expect(find.text('Noise suppression'), findsNothing);
+    },
+  );
 
   testWidgets(
     'the retention section stays visible while analytics itself is off, '

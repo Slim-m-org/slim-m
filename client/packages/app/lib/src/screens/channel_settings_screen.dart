@@ -26,6 +26,7 @@ import 'channel_settings_danger_zone.dart';
 import 'channel_settings_general_section.dart';
 import 'channel_settings_join_muted_section.dart';
 import 'channel_settings_private_row.dart';
+import 'channel_settings_retention_row.dart';
 import 'channel_settings_rooms_section.dart';
 import 'channel_settings_slow_mode_section.dart';
 import 'settings_screen_scaffold.dart';
@@ -99,6 +100,7 @@ class ChannelSettingsPane extends ConsumerWidget {
     final permissions = ref.watch(myPermissionsProvider);
     final canManageChannels = permissions.hasPermission(Perm.manageChannels);
     final canManageRoles = permissions.hasPermission(Perm.manageRoles);
+    final canManageServer = permissions.hasPermission(Perm.manageServer);
 
     if (!canManageChannels && !canManageRoles) {
       return const SettingsNotice(
@@ -116,6 +118,8 @@ class ChannelSettingsPane extends ConsumerWidget {
             rows: [
               if (canManageRoles) ChannelPrivateRow(channel: channel),
               ChannelSlowModeSection(channel: channel),
+              if (canManageServer && channel.kind != 'dm')
+                ChannelRetentionRow(channelId: channel.id),
               if (channel.kind == 'voice')
                 ChannelJoinMutedSection(channel: channel),
               if (channel.kind == 'voice')

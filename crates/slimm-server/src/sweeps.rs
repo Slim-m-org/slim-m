@@ -430,6 +430,12 @@ pub async fn run_message_retention_sweep_pass(
             record_sweep_run(store, "message_retention", pruned_count as i64).await;
             crate::forward_events::publish_detached(store, hub, &swept.detached).await;
             for message in swept.pruned {
+                if message.was_pinned {
+                    hub.publish(hub::Event::MessageUnpinned {
+                        channel_id: message.channel_id,
+                        message_id: message.message_id,
+                    });
+                }
                 hub.publish(hub::Event::MessageDeleted {
                     channel_id: message.channel_id,
                     message_id: message.message_id,

@@ -26,6 +26,9 @@ abstract final class ActionLabels {
   /// The Space's message retention and canvas cap, not this device's options.
   static const retentionAndLimits = 'Retention and limits';
 
+  /// The Space's call defaults: screen-share quality and noise suppression.
+  static const spaceVoice = 'Voice and screen share';
+
   /// The Space settings group for how the Space is running.
   static const operationsGroup = 'Operations';
 }

@@ -41,6 +41,7 @@ mod channel_create;
 mod channel_notification_prefs;
 mod channel_order;
 mod channel_restricted;
+mod channel_retention;
 mod channel_settings;
 pub(crate) mod channel_slow_mode;
 mod channels;

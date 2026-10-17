@@ -21,7 +21,6 @@ import 'package:slimm_app/src/widgets/command_palette.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'ui_snapshot_fonts.dart';
 import 'ui_snapshot_support.dart';
 
 api.UserProfile _person(
