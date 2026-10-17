@@ -63,14 +63,7 @@ class ReplyQuote extends ConsumerWidget {
               (m) => authorResolution(m, resolved.authorId ?? ''),
             ),
           );
-    final name = resolved == null
-        ? null
-        : authorLabelResolved(
-            authorId: resolved.authorId,
-            cachedDisplayName: resolved.authorDisplayName,
-            resolution: resolution!,
-          );
-    final label = name == null ? null : (pinged ? '@$name' : name);
+    final label = _labelFor(resolved, resolution);
     final attachments = resolved == null
         ? const <api.Attachment>[]
         : ref.watch(
@@ -109,44 +102,69 @@ class ReplyQuote extends ConsumerWidget {
               focusColor: Colors.transparent,
               onFocusChange: onFocusChange,
               borderRadius: BorderRadius.circular(AppRadii.control),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(AppIcons.reply, size: 13, color: tokens.textSecondary),
-                  const SizedBox(width: AppSpacing.s4),
-                  if (showThumb) ...[
-                    ReplyAttachmentThumb(
-                      attachments: attachments,
-                      edge: _quoteThumbEdge,
-                    ),
-                    const SizedBox(width: AppSpacing.s4),
-                  ],
-                  if (label == null)
-                    // A long snippet alone would overflow the row otherwise.
-                    Flexible(
-                      child: Text(
-                        snippet,
-                        style: textStyle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  else
-                    Flexible(
-                      child: AuthorNameLine(
-                        name: label,
-                        profile: resolution?.profile,
-                        style: textStyle.copyWith(fontWeight: AppWeights.semi),
-                        secondary: snippet,
-                        secondaryStyle: textStyle,
-                      ),
-                    ),
-                ],
+              child: _quoteRow(
+                tokens,
+                textStyle,
+                label: label,
+                snippet: snippet,
+                profile: resolution?.profile,
+                thumb: showThumb ? attachments : null,
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  String? _labelFor(Message? resolved, AuthorResolution? resolution) {
+    if (resolved == null) return null;
+    final name = authorLabelResolved(
+      authorId: resolved.authorId,
+      cachedDisplayName: resolved.authorDisplayName,
+      resolution: resolution!,
+    );
+    return pinged ? '@$name' : name;
+  }
+
+  Widget _quoteRow(
+    AppTokens tokens,
+    TextStyle textStyle, {
+    required String? label,
+    required String snippet,
+    required api.UserProfile? profile,
+    required List<api.Attachment>? thumb,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(AppIcons.reply, size: 13, color: tokens.textSecondary),
+        const SizedBox(width: AppSpacing.s4),
+        if (thumb != null) ...[
+          ReplyAttachmentThumb(attachments: thumb, edge: _quoteThumbEdge),
+          const SizedBox(width: AppSpacing.s4),
+        ],
+        if (label == null)
+          // A long snippet alone would overflow the row otherwise.
+          Flexible(
+            child: Text(
+              snippet,
+              style: textStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          )
+        else
+          Flexible(
+            child: AuthorNameLine(
+              name: label,
+              profile: profile,
+              style: textStyle.copyWith(fontWeight: AppWeights.semi),
+              secondary: snippet,
+              secondaryStyle: textStyle,
+            ),
+          ),
+      ],
     );
   }
 }
