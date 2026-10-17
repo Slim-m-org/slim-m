@@ -18,8 +18,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -35,18 +33,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-channel-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -152,7 +138,7 @@ async fn make_admin(store: &Store, user_id: slimm_server::ids::UserId) {
 
 #[tokio::test]
 async fn channel_created_reaches_only_current_viewers() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     // No VIEW_CHANNEL in `@everyone`: bob is the "cannot view it" control.
     store
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
@@ -192,7 +178,7 @@ async fn channel_created_reaches_only_current_viewers() {
 
 #[tokio::test]
 async fn channel_updated_reaches_only_current_viewers() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     store
         .create_role(
             "everyone",
@@ -254,7 +240,7 @@ async fn channel_updated_reaches_only_current_viewers() {
 /// and bob both, not just carol.
 #[tokio::test]
 async fn channel_deleted_reaches_everyone_who_could_view_it_a_moment_before() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     store
         .create_role(
             "everyone",
@@ -312,7 +298,7 @@ async fn channel_deleted_reaches_everyone_who_could_view_it_a_moment_before() {
 
 #[tokio::test]
 async fn overwrite_changed_reaches_only_current_viewers() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     store
         .create_role(
             "everyone",
@@ -388,7 +374,7 @@ async fn overwrite_changed_reaches_only_current_viewers() {
 /// frame itself carries only the channel id.
 #[tokio::test]
 async fn an_overwrite_that_revokes_view_reaches_the_person_it_revoked() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     store
         .create_role(
             "everyone",
@@ -439,7 +425,7 @@ async fn an_overwrite_that_revokes_view_reaches_the_person_it_revoked() {
 /// channel-scoped match instead of the deployment-wide one.
 #[tokio::test]
 async fn category_changed_reaches_a_connection_with_no_view_permission_at_all() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-channel-events-test").await;
     store
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
         .await

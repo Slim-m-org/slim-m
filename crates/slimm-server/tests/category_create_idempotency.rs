@@ -17,8 +17,6 @@ use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::push::PushSender;
@@ -29,18 +27,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-category-create-idempotency-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 /// Builds the router and hands back a fresh event subscription taken before
 /// any request runs, so every test can assert on exactly the events its own
@@ -134,7 +120,7 @@ async fn category_count(app: &Router, token: &str) -> usize {
 
 #[tokio::test]
 async fn create_category_retry_returns_the_same_row_and_publishes_once() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-category-create-idempotency-test").await;
     let (token, _admin_id) = register_admin(&store).await;
     let (app, mut events) = app_with_events(store.clone());
     let baseline = category_count(&app, &token).await;
@@ -175,7 +161,7 @@ async fn create_category_retry_returns_the_same_row_and_publishes_once() {
 
 #[tokio::test]
 async fn create_category_with_a_fresh_id_makes_a_distinct_row() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-category-create-idempotency-test").await;
     let (token, _admin_id) = register_admin(&store).await;
     let (app, _events) = app_with_events(store.clone());
     let baseline = category_count(&app, &token).await;
@@ -210,7 +196,7 @@ async fn create_category_with_a_fresh_id_makes_a_distinct_row() {
 
 #[tokio::test]
 async fn create_category_without_an_id_still_creates() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-category-create-idempotency-test").await;
     let (token, _admin_id) = register_admin(&store).await;
     let (app, _events) = app_with_events(store.clone());
 

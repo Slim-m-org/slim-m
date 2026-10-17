@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::MessageId;
@@ -22,18 +20,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-report-idem");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -80,7 +66,7 @@ async fn json_body(response: axum::response::Response) -> Value {
 /// An admin, a reporter, and one of the admin's messages to report. Returns
 /// the router plus (admin token, reporter token, admin id, message id).
 async fn scene() -> (Router, String, String, String, String, support::TestDbGuard) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-report-idem").await;
     let admin = store
         .create_account("root", "Root", "not-a-real-hash")
         .await

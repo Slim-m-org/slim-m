@@ -8,8 +8,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::media::Media;
@@ -20,18 +18,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-avatars-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -109,7 +95,7 @@ fn png(padding: usize) -> Vec<u8> {
 /// published `ProfileChanged` and the two avatar routes published nothing.
 #[tokio::test]
 async fn changing_an_avatar_announces_the_profile_change() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-avatars-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -165,7 +151,7 @@ async fn changing_an_avatar_announces_the_profile_change() {
 
 #[tokio::test]
 async fn uploading_an_avatar_is_reflected_on_the_profile_and_is_fetchable() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-avatars-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -211,7 +197,7 @@ async fn uploading_an_avatar_is_reflected_on_the_profile_and_is_fetchable() {
 
 #[tokio::test]
 async fn a_user_with_no_avatar_answers_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-avatars-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -242,7 +228,7 @@ async fn a_user_with_no_avatar_answers_not_found() {
 
 #[tokio::test]
 async fn deleting_an_avatar_clears_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-avatars-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -277,7 +263,7 @@ async fn deleting_an_avatar_clears_it() {
 /// a deleted account left its picture behind on disk forever.
 #[tokio::test]
 async fn deleting_an_account_removes_its_avatar_file() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-avatars-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -338,7 +324,7 @@ async fn deleting_an_account_removes_its_avatar_file() {
 
 #[tokio::test]
 async fn a_non_image_avatar_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-avatars-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await

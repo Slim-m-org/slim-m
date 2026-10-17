@@ -21,18 +21,6 @@ use uuid::Uuid;
 
 mod support;
 
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-user-notes-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
-
 fn app(store: Store) -> Router {
     http::router(AppState {
         store,
@@ -123,7 +111,7 @@ async fn get_note_status_and_body(
 
 #[tokio::test]
 async fn a_note_round_trips() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, _alice_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -145,7 +133,7 @@ async fn a_note_round_trips() {
 /// blank one - the same convention `Store::update_me`'s status text follows.
 #[tokio::test]
 async fn an_empty_body_clears_the_note() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, _alice_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -166,7 +154,7 @@ async fn an_empty_body_clears_the_note() {
 /// answered null could not pass this alongside `a_note_round_trips`.
 #[tokio::test]
 async fn a_note_is_invisible_to_everyone_but_its_author() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, alice_id) = register(&store, "alice").await;
     let (bob_token, bob_id) = register(&store, "bob").await;
@@ -204,7 +192,7 @@ async fn a_note_is_invisible_to_everyone_but_its_author() {
 /// subject changes their display name.
 #[tokio::test]
 async fn a_note_survives_the_subjects_rename() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, _alice_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -291,7 +279,7 @@ async fn a_note_is_purged_when_the_author_deletes_their_account() {
 /// only the author's deletion does.
 #[tokio::test]
 async fn a_note_is_not_purged_when_the_subject_deletes_their_account() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let author = store
         .create_account("alice", "Alice", "not-a-real-hash")
         .await
@@ -319,7 +307,7 @@ async fn a_note_is_not_purged_when_the_subject_deletes_their_account() {
 /// `a_deleted_account_looks_like_one_that_never_existed` pins for `getUser`.
 #[tokio::test]
 async fn a_note_about_an_invisible_user_is_masked_identically_to_one_about_a_nonexistent_user() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, _alice_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -365,7 +353,7 @@ async fn a_note_about_an_invisible_user_is_masked_identically_to_one_about_a_non
 /// their own id is real, so there is nothing to hide here.
 #[tokio::test]
 async fn a_note_about_yourself_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, alice_id) = register(&store, "alice").await;
 
@@ -390,7 +378,7 @@ async fn a_note_about_yourself_is_refused() {
 /// characters after trimming.
 #[tokio::test]
 async fn the_length_cap_is_enforced() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let app = app(store.clone());
     let (alice_token, _alice_id) = register(&store, "alice").await;
     let (_bob_token, bob_id) = register(&store, "bob").await;
@@ -419,7 +407,7 @@ async fn the_length_cap_is_enforced() {
 /// `ON CONFLICT ... DO UPDATE` in `Store::set_user_note` exists to keep.
 #[tokio::test]
 async fn a_second_write_updates_in_place_and_keeps_created_at() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-user-notes-test").await;
     let alice = store
         .create_account("alice", "Alice", "not-a-real-hash")
         .await

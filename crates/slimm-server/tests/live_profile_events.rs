@@ -12,8 +12,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -29,18 +27,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-profile-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -134,7 +120,7 @@ fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Bod
 /// re-asks for it rather than trusting a value riding this frame.
 #[tokio::test]
 async fn profile_changed_reaches_everyone_without_leaking_the_new_name() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-profile-events-test").await;
     store
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
         .await

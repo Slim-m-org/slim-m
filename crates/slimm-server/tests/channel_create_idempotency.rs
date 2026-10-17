@@ -16,8 +16,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::ids::MessageId;
@@ -29,18 +27,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-create-idempotency-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 /// Builds the router and hands back a fresh event subscription taken before
 /// any request runs, so every test can assert on exactly the events its own
@@ -133,7 +119,7 @@ async fn channel_count(app: &Router, token: &str) -> usize {
 
 #[tokio::test]
 async fn create_channel_retry_returns_the_same_row_and_publishes_once() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-idempotency-test").await;
     let (token, _admin_id) = register_admin(&store).await;
     let (app, mut events) = app_with_events(store.clone());
     let baseline = channel_count(&app, &token).await;
@@ -174,7 +160,7 @@ async fn create_channel_retry_returns_the_same_row_and_publishes_once() {
 
 #[tokio::test]
 async fn create_channel_with_a_fresh_id_makes_a_distinct_row() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-idempotency-test").await;
     let (token, _admin_id) = register_admin(&store).await;
     let (app, _events) = app_with_events(store.clone());
     let baseline = channel_count(&app, &token).await;
@@ -209,7 +195,7 @@ async fn create_channel_with_a_fresh_id_makes_a_distinct_row() {
 
 #[tokio::test]
 async fn create_channel_without_an_id_still_creates() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-idempotency-test").await;
     let (token, _admin_id) = register_admin(&store).await;
     let (app, _events) = app_with_events(store.clone());
 
@@ -247,7 +233,7 @@ async fn create_channel_without_an_id_still_creates() {
 /// INSERT that hits the same primary key.
 #[tokio::test]
 async fn create_channel_refuses_an_id_already_used_by_a_dm_or_a_thread() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-create-idempotency-test").await;
     let (token, admin_id) = register_admin(&store).await;
     let other = store.create_user("bob", "bob").await.unwrap();
     let dm = store.open_dm(admin_id, other.id).await.unwrap();

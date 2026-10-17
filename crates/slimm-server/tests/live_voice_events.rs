@@ -21,8 +21,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -38,18 +36,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-voice-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn enabled_voice() -> VoiceService {
     VoiceService::for_test(
@@ -154,7 +140,7 @@ fn req(method: &str, uri: &str, token: &str) -> Request<Body> {
 /// carol.
 #[tokio::test]
 async fn a_dm_call_starting_reaches_the_other_participant_but_not_a_stranger() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-events-test").await;
     let (alice_access, _alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
     let (_eve_access, eve_ticket, _eve_id) = user_ticket(&store, "eve").await;
@@ -192,7 +178,7 @@ async fn a_dm_call_starting_reaches_the_other_participant_but_not_a_stranger() {
 /// the first one for a `(user, channel)` pair is news.
 #[tokio::test]
 async fn a_repeated_heartbeat_does_not_republish() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-events-test").await;
     let (alice_access, _alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
     let channel = store.open_dm(alice_id, bob_id).await.unwrap();
@@ -224,7 +210,7 @@ async fn a_repeated_heartbeat_does_not_republish() {
 /// eviction covered in `voice_sweep.rs`.
 #[tokio::test]
 async fn a_clean_hangup_publishes_too() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-events-test").await;
     let (alice_access, _alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
     let channel = store.open_dm(alice_id, bob_id).await.unwrap();
@@ -253,7 +239,7 @@ async fn a_clean_hangup_publishes_too() {
 /// `DELETE`) must not fan out a signal for a call that never changed.
 #[tokio::test]
 async fn forgetting_a_heartbeat_never_recorded_publishes_nothing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-voice-events-test").await;
     let (alice_access, _alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
     let channel = store.open_dm(alice_id, bob_id).await.unwrap();

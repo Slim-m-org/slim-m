@@ -18,8 +18,6 @@ use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::gifs::GifSearch;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
@@ -35,18 +33,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-gif-picker-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, gifs: GifSearch) -> Router {
     http::router(AppState {
@@ -178,7 +164,7 @@ async fn search_preview_select_and_send_round_trip_through_the_fake_provider() {
     let tenor_base = spawn_fake_tenor().await;
     let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
 
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store.clone(), gifs);
     let (token, _user_id) = register(&store, "alice").await;
@@ -267,7 +253,7 @@ async fn trending_returns_results_through_the_fake_provider_and_mints_a_token() 
     let tenor_base = spawn_fake_tenor().await;
     let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
 
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
     let app = app(store.clone(), gifs);
     let (token, _user_id) = register(&store, "alice").await;
 
@@ -297,7 +283,7 @@ async fn trending_returns_results_through_the_fake_provider_and_mints_a_token() 
 
 #[tokio::test]
 async fn with_no_provider_configured_every_route_answers_not_implemented() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
     let app = app(store.clone(), GifSearch::disabled());
     let (token, _user_id) = register(&store, "alice").await;
 
@@ -343,7 +329,7 @@ async fn without_attach_files_the_route_is_forbidden_even_with_a_provider_config
     let tenor_base = spawn_fake_tenor().await;
     let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
 
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
     let app = app(store.clone(), gifs);
     // The first account claims the deployment as admin, whose ADMINISTRATOR bit bypasses this check.
     let _admin = register(&store, "admin").await;
@@ -374,7 +360,7 @@ async fn without_attach_files_the_route_is_forbidden_even_with_a_provider_config
 async fn an_empty_or_over_long_query_is_refused_before_any_provider_call() {
     let tenor_base = spawn_fake_tenor().await;
     let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
     let app = app(store.clone(), gifs);
     let (token, _user_id) = register(&store, "alice").await;
 
@@ -409,7 +395,7 @@ async fn an_empty_or_over_long_query_is_refused_before_any_provider_call() {
 async fn an_unknown_token_reads_as_expired_rather_than_unavailable() {
     let tenor_base = spawn_fake_tenor().await;
     let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
     let app = app(store.clone(), gifs);
     let (token, _user) = register(&store, "root").await;
 

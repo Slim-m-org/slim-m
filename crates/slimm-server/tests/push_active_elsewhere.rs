@@ -7,8 +7,6 @@ use std::time::{Duration, Instant};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::{MessageId, UserId};
@@ -26,18 +24,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-push-active-elsewhere");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -116,7 +102,7 @@ async fn wait_until(mut done: impl FnMut() -> bool) {
 
 #[tokio::test]
 async fn push_skips_a_recipient_active_on_another_device_until_the_window_ends() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-push-active-elsewhere").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let author = store.create_user("author", "Author").await.unwrap().id;
@@ -155,7 +141,7 @@ async fn push_skips_a_recipient_active_on_another_device_until_the_window_ends()
 
 #[tokio::test]
 async fn an_active_viewing_frame_counts_even_with_no_channel_open_and_ends_with_the_socket() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-push-active-elsewhere").await;
     seed_everyone(&store).await;
     let state = state_for(&store);
     let (alice, ticket) = account(&store, "alice").await;

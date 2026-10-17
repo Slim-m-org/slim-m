@@ -17,8 +17,6 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -59,18 +57,6 @@ async fn spawn_sfu(recorder: RecordingRoomService) -> String {
         axum::serve(listener, router).await.unwrap();
     });
     format!("http://{addr}")
-}
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-moderation-evicts-dm-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
 }
 
 fn app(store: Store, voice: VoiceService) -> Router {
@@ -146,7 +132,7 @@ async fn people(store: &Store) -> (String, String, String, String) {
 async fn a_timeout_evicts_the_target_from_a_dm_call_they_are_on() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-evicts-dm-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
@@ -196,7 +182,7 @@ async fn a_timeout_evicts_the_target_from_a_dm_call_they_are_on() {
 async fn hiding_a_dm_does_not_hide_its_call_from_a_timeout() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-evicts-dm-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
@@ -246,7 +232,7 @@ async fn hiding_a_dm_does_not_hide_its_call_from_a_timeout() {
 async fn a_removal_evicts_the_target_from_a_dm_call_they_are_on() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-evicts-dm-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
@@ -291,7 +277,7 @@ async fn a_removal_evicts_the_target_from_a_dm_call_they_are_on() {
 async fn a_target_with_no_dms_is_evicted_with_no_extra_calls() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-moderation-evicts-dm-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),

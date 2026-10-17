@@ -12,8 +12,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -24,18 +22,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-register-gate");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -89,7 +75,7 @@ fn signup(username: &str, invite_code: Option<&str>) -> Value {
 
 /// Claims a fresh deployment with an admin account and returns its token.
 async fn claimed() -> (Store, Router, String, support::TestDbGuard) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-register-gate").await;
     let app = app(store.clone());
     let first = app
         .clone()
@@ -344,7 +330,7 @@ async fn a_failed_signup_does_not_spend_the_invite() {
 /// calling the validator would pass that unit test (TEST11).
 #[tokio::test]
 async fn a_reserved_username_is_refused_at_registration() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-register-gate").await;
     let app = app(store.clone());
 
     // Reserved case-insensitively, and refused before any invite/claim check, so even an unclaimed deployment answers 400 rather than claiming the name.

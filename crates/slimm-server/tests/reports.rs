@@ -7,8 +7,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
@@ -20,18 +18,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-reports-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -145,7 +131,7 @@ async fn file_a_report(
 
 #[tokio::test]
 async fn listing_and_resolving_require_manage_messages() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, _bob_id) = register(&store, "bob").await;
@@ -192,7 +178,7 @@ async fn listing_and_resolving_require_manage_messages() {
 
 #[tokio::test]
 async fn the_queue_carries_the_snapshot_and_resolving_removes_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, _bob_id) = register(&store, "bob").await;
@@ -261,7 +247,7 @@ async fn the_queue_carries_the_snapshot_and_resolving_removes_it() {
 
 #[tokio::test]
 async fn resolution_must_be_resolved_or_dismissed() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, _bob_id) = register(&store, "bob").await;
@@ -284,7 +270,7 @@ async fn resolution_must_be_resolved_or_dismissed() {
 
 #[tokio::test]
 async fn resolving_a_nonexistent_report_is_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
 
@@ -308,7 +294,7 @@ async fn resolving_a_nonexistent_report_is_not_found() {
 /// deliberately kept out of, quietly emptying its queue.
 #[tokio::test]
 async fn a_report_you_cannot_read_is_one_you_cannot_resolve_either() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, _bob_id) = register(&store, "bob").await;

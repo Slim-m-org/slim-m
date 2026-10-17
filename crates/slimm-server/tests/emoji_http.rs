@@ -23,8 +23,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::media::Media;
@@ -35,18 +33,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-emoji-http");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -125,7 +111,7 @@ async fn upload(app: &Router, token: &str, name: &str, body: Vec<u8>) -> axum::r
 /// refusal is a real no-op rather than a soft failure the caller could ignore.
 #[tokio::test]
 async fn writes_require_manage_server() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
     let member = register(&store, "member").await;
@@ -173,7 +159,7 @@ async fn writes_require_manage_server() {
 /// image is content-addressed, so it carries the immutable cache header.
 #[tokio::test]
 async fn reads_are_open_to_every_member() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
     let member = register(&store, "member").await;
@@ -211,7 +197,7 @@ async fn reads_are_open_to_every_member() {
 /// exactly one image.
 #[tokio::test]
 async fn a_duplicate_name_is_a_conflict() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -225,7 +211,7 @@ async fn a_duplicate_name_is_a_conflict() {
 /// The same name in another case or spacing is still the same name.
 #[tokio::test]
 async fn a_duplicate_name_in_another_spelling_is_a_conflict() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -240,7 +226,7 @@ async fn a_duplicate_name_in_another_spelling_is_a_conflict() {
 /// A custom `:bug:` would hide the standard bug emoji, so the name is refused.
 #[tokio::test]
 async fn a_standard_shortcode_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -253,7 +239,7 @@ async fn a_standard_shortcode_is_refused() {
 /// Identical bytes under a second name are allowed and reported.
 #[tokio::test]
 async fn identical_bytes_under_a_new_name_are_reported_not_blocked() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -268,7 +254,7 @@ async fn identical_bytes_under_a_new_name_are_reported_not_blocked() {
 /// fault, so both are 400 rather than anything a retry would fix.
 #[tokio::test]
 async fn an_unusable_name_and_a_non_image_are_bad_requests() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -292,7 +278,7 @@ async fn an_unusable_name_and_a_non_image_are_bad_requests() {
 /// "never was", a 204 to delete.
 #[tokio::test]
 async fn a_malformed_id_is_bad_request_a_missing_one_is_handled() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 

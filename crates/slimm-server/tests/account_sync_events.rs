@@ -9,8 +9,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
@@ -28,18 +26,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-account-sync-events");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -167,7 +153,7 @@ async fn send(state: &AppState, token: &str, channel: ChannelId) -> Value {
 
 #[tokio::test]
 async fn marking_unread_reaches_the_other_device_once_and_nobody_else() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-sync-events").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -211,7 +197,7 @@ async fn marking_unread_reaches_the_other_device_once_and_nobody_else() {
 
 #[tokio::test]
 async fn a_read_frame_says_the_manual_mark_is_cleared() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-sync-events").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -254,7 +240,7 @@ async fn a_read_frame_says_the_manual_mark_is_cleared() {
 
 #[tokio::test]
 async fn a_channel_override_reaches_the_other_device_and_nobody_else() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-sync-events").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);

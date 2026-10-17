@@ -26,18 +26,6 @@ mod support;
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-typing-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
-
 fn state_for(store: &Store, hub: Hub) -> AppState {
     AppState {
         store: store.clone(),
@@ -153,7 +141,7 @@ async fn send_typing(ws: &mut Client, channel_id: &str) {
 /// A typing signal reaches a user who can view the channel.
 #[tokio::test]
 async fn typing_reaches_a_viewer() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-typing-test").await;
     store
         .create_role(
             "everyone",
@@ -182,7 +170,7 @@ async fn typing_reaches_a_viewer() {
 /// the same per-event authorization messages and reactions go through.
 #[tokio::test]
 async fn typing_does_not_reach_a_non_viewer() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-typing-test").await;
     store
         .create_role(
             "everyone",
@@ -223,7 +211,7 @@ async fn typing_does_not_reach_a_non_viewer() {
 /// publishes `typing.stopped` once its TTL elapses.
 #[tokio::test]
 async fn typing_lapses_without_a_refresh() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-typing-test").await;
     store
         .create_role(
             "everyone",
@@ -267,7 +255,7 @@ async fn typing_lapses_without_a_refresh() {
 /// "stopped" let through by the old deadline either.
 #[tokio::test]
 async fn a_refresh_within_the_ttl_does_not_lapse_or_repeat() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-typing-test").await;
     store
         .create_role(
             "everyone",
@@ -313,7 +301,7 @@ async fn a_refresh_within_the_ttl_does_not_lapse_or_repeat() {
 /// out.
 #[tokio::test]
 async fn typing_is_rate_limited() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-typing-test").await;
     store
         .create_role(
             "everyone",
@@ -378,7 +366,7 @@ async fn typing_is_rate_limited() {
 #[tokio::test]
 async fn a_hidden_user_typing_is_not_announced() {
     use slimm_server::presence::Visibility;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-typing-test").await;
     store
         .create_role(
             "everyone",

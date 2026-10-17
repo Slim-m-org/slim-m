@@ -21,8 +21,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -40,18 +38,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-ws-view-cache-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -192,7 +178,7 @@ async fn send_message(state: &AppState, token: &str, channel_id: &str, body: &st
 /// reaches somebody who can no longer read the channel over REST.
 #[tokio::test]
 async fn a_revoked_view_stops_the_very_next_message() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-view-cache-test").await;
     store
         .create_role(
             "everyone",
@@ -253,7 +239,7 @@ async fn a_revoked_view_stops_the_very_next_message() {
 /// also pass: granting a view has to take effect on the next message too.
 #[tokio::test]
 async fn a_granted_view_starts_delivering_at_once() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-view-cache-test").await;
     // No VIEW_CHANNEL: bob starts unable to see anything.
     store
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
@@ -306,7 +292,7 @@ async fn a_granted_view_starts_delivering_at_once() {
 /// the view this way has to stop delivery just as an overwrite does.
 #[tokio::test]
 async fn a_role_edit_that_removes_the_view_stops_delivery() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-ws-view-cache-test").await;
     let everyone = store
         .create_role(
             "everyone",

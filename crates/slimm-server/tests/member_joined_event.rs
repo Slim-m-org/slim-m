@@ -11,8 +11,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::push::PushSender;
@@ -21,18 +19,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-member-joined");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app_with_hub(store: Store, hub: Hub) -> Router {
     http::router(AppState {
@@ -95,7 +81,7 @@ async fn redeem(app: &Router, access_token: &str, code: &str) -> StatusCode {
 /// come after it to have anything consistent to rely on.
 #[tokio::test]
 async fn registering_the_first_account_publishes_member_joined() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-joined").await;
     let hub = Hub::new();
     let app = app_with_hub(store, hub.clone());
 
@@ -117,7 +103,7 @@ async fn registering_the_first_account_publishes_member_joined() {
 
 #[tokio::test]
 async fn redeeming_an_invite_publishes_member_joined() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-joined").await;
     let hub = Hub::new();
     let app = app_with_hub(store.clone(), hub.clone());
 
@@ -148,7 +134,7 @@ async fn redeeming_an_invite_publishes_member_joined() {
 /// one flaky response.
 #[tokio::test]
 async fn a_retried_redemption_publishes_nothing_further() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-member-joined").await;
     let hub = Hub::new();
     let app = app_with_hub(store.clone(), hub.clone());
 

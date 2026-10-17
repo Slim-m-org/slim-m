@@ -5,8 +5,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, MessageId, UserId};
@@ -17,18 +15,6 @@ use slimm_server::store::{NewMessage, Store};
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-mark-channels-read");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -90,7 +76,7 @@ async fn mark(state: &AppState, token: &str, channels: &[ChannelId]) -> (StatusC
 
 #[tokio::test]
 async fn one_request_reads_every_listed_channel_to_its_latest_message() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-mark-channels-read").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -119,7 +105,7 @@ async fn one_request_reads_every_listed_channel_to_its_latest_message() {
 
 #[tokio::test]
 async fn a_channel_the_caller_cannot_view_is_skipped_and_left_alone() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-mark-channels-read").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -151,7 +137,7 @@ async fn a_channel_the_caller_cannot_view_is_skipped_and_left_alone() {
 
 #[tokio::test]
 async fn more_channels_than_the_cap_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-mark-channels-read").await;
     let (_, token) = token_for(&store, "alice").await;
     let ids: Vec<ChannelId> = (0..201).map(|_| ChannelId::generate()).collect();
 

@@ -11,8 +11,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, DeviceId, MessageId, UserId};
@@ -31,18 +29,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-read-state-devices");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -180,7 +166,7 @@ async fn wait_until(mut condition: impl FnMut() -> bool) {
 
 #[tokio::test]
 async fn a_read_on_one_device_reaches_the_same_accounts_other_device_only() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -219,7 +205,7 @@ async fn a_read_on_one_device_reaches_the_same_accounts_other_device_only() {
 
 #[tokio::test]
 async fn sending_advances_your_own_marker_on_every_device_and_nobody_elses() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -254,7 +240,7 @@ async fn sending_advances_your_own_marker_on_every_device_and_nobody_elses() {
 
 #[tokio::test]
 async fn push_skips_a_recipient_who_read_or_is_viewing_the_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let other = store.create_channel("random", "text").await.unwrap();
@@ -310,7 +296,7 @@ async fn push_skips_a_recipient_who_read_or_is_viewing_the_channel() {
 
 #[tokio::test]
 async fn a_viewing_frame_is_recorded_and_forgotten_when_the_socket_closes() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -349,7 +335,7 @@ async fn report_lifecycle(state: &AppState, token: &str, label: &str) {
 
 #[tokio::test]
 async fn a_device_that_reports_background_stops_being_counted_as_viewing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -382,7 +368,7 @@ async fn a_device_that_reports_background_stops_being_counted_as_viewing() {
 
 #[tokio::test]
 async fn a_read_beyond_the_channel_head_announces_the_clamped_marker() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);

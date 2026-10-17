@@ -11,8 +11,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -23,18 +21,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-message-mentions");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -132,7 +118,7 @@ async fn everyone_role(store: &Store) {
 /// else - not the author, not an unmentioned third viewer.
 #[tokio::test]
 async fn a_plain_mention_is_visible_only_to_the_account_it_names() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-mentions").await;
     everyone_role(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store.clone());
@@ -175,7 +161,7 @@ async fn a_plain_mention_is_visible_only_to_the_account_it_names() {
 /// message id.
 #[tokio::test]
 async fn editing_a_message_recomputes_who_it_mentions() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-mentions").await;
     everyone_role(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store.clone());
@@ -233,7 +219,7 @@ async fn editing_a_message_recomputes_who_it_mentions() {
 /// agree on where code starts and ends.
 #[tokio::test]
 async fn a_name_quoted_in_code_mentions_nobody() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-mentions").await;
     everyone_role(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store.clone());

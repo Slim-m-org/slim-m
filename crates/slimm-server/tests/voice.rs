@@ -13,8 +13,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -25,18 +23,6 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-voice-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, voice: VoiceService) -> Router {
     http::router(AppState {
@@ -99,7 +85,7 @@ async fn member(store: &Store, username: &str) -> String {
 
 #[tokio::test]
 async fn connect_is_what_gets_you_a_token() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     // @everyone can see the channel but not connect to it.
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
@@ -127,7 +113,7 @@ async fn connect_is_what_gets_you_a_token() {
 
 #[tokio::test]
 async fn a_listener_gets_a_token_that_cannot_publish() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     store
         .create_role(
             "everyone",
@@ -172,7 +158,7 @@ async fn a_listener_gets_a_token_that_cannot_publish() {
 
 #[tokio::test]
 async fn speak_rights_carry_into_the_token() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     store
         .create_role(
             "everyone",
@@ -210,7 +196,7 @@ async fn speak_rights_carry_into_the_token() {
 /// that would let somebody muted in one room join it anyway.
 #[tokio::test]
 async fn a_channel_denying_connect_beats_the_role_that_grants_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     let everyone = store
         .create_role(
             "everyone",
@@ -249,7 +235,7 @@ async fn a_channel_denying_connect_beats_the_role_that_grants_it() {
 
 #[tokio::test]
 async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_join() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     store
         .create_role(
             "everyone",
@@ -280,7 +266,7 @@ async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_join() {
 
 #[tokio::test]
 async fn a_text_only_deployment_says_so_instead_of_pretending() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     store
         .create_role(
             "everyone",
@@ -316,7 +302,7 @@ async fn a_text_only_deployment_says_so_instead_of_pretending() {
 
 #[tokio::test]
 async fn a_token_requires_authentication() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let app = app(store, enabled_voice());
 
@@ -337,7 +323,7 @@ async fn a_token_requires_authentication() {
 /// as long as the route did not exist.
 #[tokio::test]
 async fn kicking_needs_kick_members_in_that_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     // Enough to join a room, deliberately not enough to remove anyone from it.
     store
         .create_role(
@@ -381,7 +367,7 @@ async fn kicking_needs_kick_members_in_that_channel() {
 /// control, rather than failing as though something went wrong.
 #[tokio::test]
 async fn kicking_without_an_sfu_says_so() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
     store
         .create_role(
             "everyone",

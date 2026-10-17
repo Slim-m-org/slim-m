@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -19,18 +17,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-restricted-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -95,7 +81,7 @@ fn row<'a>(listed: &'a Value, name: &str) -> &'a Value {
 /// still see it and still holds VIEW_CHANNEL in its own `permissions` bit.
 #[tokio::test]
 async fn restricted_reflects_everyones_own_view_not_the_callers() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-restricted-test").await;
     let token = register_admin(&store, "admin").await;
     let everyone_id = store
         .list_roles()
@@ -137,7 +123,7 @@ async fn restricted_reflects_everyones_own_view_not_the_callers() {
 /// A create answers the true value, so a channel made private draws a lock at once.
 #[tokio::test]
 async fn restricted_is_reported_on_a_create_response() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-restricted-test").await;
     let token = register_admin(&store, "admin").await;
     let app = app(store.clone());
 

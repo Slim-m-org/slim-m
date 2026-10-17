@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -18,18 +16,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-invite-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -70,7 +56,7 @@ async fn json_body(response: axum::response::Response) -> Value {
 
 /// An admin (via the bootstrap claim) and an ordinary member.
 async fn fixture() -> (Store, Router, String, String, support::TestDbGuard) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-invite-test").await;
     let auth = Auth::new(2).unwrap();
     let hash = auth
         .hash_password("hunter2hunter2".to_owned())

@@ -12,8 +12,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -23,18 +21,6 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-voice-dm-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, voice: VoiceService) -> Router {
     http::router(AppState {
@@ -133,7 +119,7 @@ async fn voice_token(app: &Router, channel_id: &str, token: &str) -> axum::respo
 /// side, unlike a moderated channel where `SPEAK` can be withheld.
 #[tokio::test]
 async fn either_dm_participant_can_start_or_join_a_call() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-dm-test").await;
     let app = app(store.clone(), enabled_voice());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -160,7 +146,7 @@ async fn either_dm_participant_can_start_or_join_a_call() {
 /// already proves for reading and sending.
 #[tokio::test]
 async fn a_non_participant_cannot_mint_a_token_for_someone_elses_dm() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-dm-test").await;
     let app = app(store.clone(), enabled_voice());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -178,7 +164,7 @@ async fn a_non_participant_cannot_mint_a_token_for_someone_elses_dm() {
 /// how it already removes `SEND_MESSAGES`.
 #[tokio::test]
 async fn blocking_refuses_a_voice_token_in_either_direction() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-dm-test").await;
     let app = app(store.clone(), enabled_voice());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -218,7 +204,7 @@ async fn blocking_refuses_a_voice_token_in_either_direction() {
 /// SFU so the assertion is purely about the permission gate in front of it.
 #[tokio::test]
 async fn dm_voice_roster_is_reachable_only_to_participants() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-dm-test").await;
     let app = app(store.clone(), VoiceService::disabled());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;

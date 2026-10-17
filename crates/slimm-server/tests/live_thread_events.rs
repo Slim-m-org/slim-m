@@ -18,8 +18,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -36,18 +34,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-thread-events-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -156,7 +142,7 @@ async fn json_body(response: axum::response::Response) -> Value {
 /// she must learn nothing either, now or ever.
 #[tokio::test]
 async fn thread_opened_reaches_a_parent_viewer_and_not_someone_denied_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-thread-events-test").await;
     store
         .create_role(
             "everyone",
@@ -236,7 +222,7 @@ async fn thread_opened_reaches_a_parent_viewer_and_not_someone_denied_it() {
 /// must move a bystander's reply count live too, not only its opening.
 #[tokio::test]
 async fn a_reply_in_the_thread_updates_a_parent_viewers_count_live() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-thread-events-test").await;
     store
         .create_role(
             "everyone",

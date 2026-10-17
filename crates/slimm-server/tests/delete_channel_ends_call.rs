@@ -22,8 +22,6 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -60,18 +58,6 @@ async fn spawn_sfu(recorder: RecordingRoomService) -> String {
         axum::serve(listener, router).await.unwrap();
     });
     format!("http://{addr}")
-}
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-delete-channel-ends-call-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
 }
 
 fn app(store: Store, voice: VoiceService) -> Router {
@@ -119,7 +105,7 @@ async fn admin(store: &Store) -> String {
 async fn deleting_a_voice_channel_ends_its_room() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-delete-channel-ends-call-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
@@ -160,7 +146,7 @@ async fn deleting_a_voice_channel_ends_its_room() {
 async fn deleting_a_text_channel_ends_a_room_too_rather_than_trusting_its_kind() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-delete-channel-ends-call-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
@@ -193,7 +179,7 @@ async fn deleting_a_text_channel_ends_a_room_too_rather_than_trusting_its_kind()
 async fn an_idempotent_retry_asks_again_rather_than_assuming_the_first_landed() {
     let recorder = RecordingRoomService::default();
     let sfu_url = spawn_sfu(recorder.clone()).await;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-delete-channel-ends-call-test").await;
     let app = app(
         store.clone(),
         VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
@@ -223,7 +209,7 @@ async fn an_idempotent_retry_asks_again_rather_than_assuming_the_first_landed() 
 /// its channel deletion fail on account of that.
 #[tokio::test]
 async fn a_deployment_with_no_sfu_still_deletes_the_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-delete-channel-ends-call-test").await;
     let app = app(store.clone(), VoiceService::disabled());
     let admin_token = admin(&store).await;
 

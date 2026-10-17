@@ -7,8 +7,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -17,18 +15,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-me-profile-fields-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -119,7 +105,7 @@ async fn register_with_code(
 /// covers.
 #[tokio::test]
 async fn patch_me_sets_pronouns_about_and_colour_and_they_are_durable() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-profile-fields-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -159,7 +145,7 @@ async fn patch_me_sets_pronouns_about_and_colour_and_they_are_durable() {
 /// `status_text` uses.
 #[tokio::test]
 async fn patch_me_with_blank_pronouns_and_about_clears_them() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-profile-fields-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -191,7 +177,7 @@ async fn patch_me_with_blank_pronouns_and_about_clears_them() {
 
 #[tokio::test]
 async fn patch_me_rejects_pronouns_and_about_over_their_caps() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-profile-fields-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -223,7 +209,7 @@ async fn patch_me_rejects_pronouns_and_about_over_their_caps() {
 /// An index outside the closed colour set is a 400, not clamped or wrapped.
 #[tokio::test]
 async fn patch_me_rejects_a_profile_colour_out_of_range() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-profile-fields-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -244,7 +230,7 @@ async fn patch_me_rejects_a_profile_colour_out_of_range() {
 /// derived from its id, so a card is never colourless.
 #[tokio::test]
 async fn an_unset_profile_colour_defaults_to_a_stable_value() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-profile-fields-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -270,7 +256,7 @@ async fn an_unset_profile_colour_defaults_to_a_stable_value() {
 /// same way their status line already is.
 #[tokio::test]
 async fn another_members_pronouns_and_about_are_visible_on_their_public_profile() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-profile-fields-test").await;
     let app = app(store);
     let (alice_token, alice_id) = register(&app, "alice").await;
     let (bob_token, _bob_id) = register_second(&app, &alice_token, "bob").await;
