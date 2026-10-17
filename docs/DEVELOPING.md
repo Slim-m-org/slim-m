@@ -96,6 +96,12 @@ E2E_REBUILD=1 scripts/e2e.sh             # after a client change, or it serves t
 
 See [e2e.md](e2e.md) for how the harness finds controls and what each scenario proves.
 
+A second suite on Playwright Test, with a video of every user for every test, lives in `e2e/` (see [e2e/README.md](../e2e/README.md)):
+
+```bash
+(cd e2e && npm ci && npx playwright install chromium && npm test)
+```
+
 ## The gates CI runs, locally
 
 Each of these fails a pull request in `hygiene.yml`, and each has a local script.

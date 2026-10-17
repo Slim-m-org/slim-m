@@ -24,6 +24,7 @@ Each section below is named for its workflow file.
 | `perf` | changes under `crates/`, `perf/`, the Cargo files; plus published `server-v*` releases, and `workflow_dispatch` with a tag to redo a missed one | benches compile on PRs; on a server release, benches plus five idle RSS runs on both libcs, committed to main as `perf/baselines/<version>.json` |
 | `compose-smoke` | changes to the self-host stack, a weekly schedule, and by hand | `docker compose up` on a fresh box produces a working deployment |
 | `e2e` | every push to `main`; a nightly schedule; by hand; and pull requests only when they touch voice, calls, the canvas, the rtc/api packages, server auth/ws/hub/voice, migrations, the image, the schema or the harness (a superseded PR run is cancelled) | the whole product through two real headless browsers; advisory, not required |
+| `e2e-playwright` | every push to `main`; by hand; and the same path-gated pull requests as `e2e`, plus changes under `e2e/` (a superseded PR run is cancelled) | the product through two real browsers driven by Playwright Test, with a video of each user for every test; advisory, not required |
 | `push-relay-contract` | changes to the server's push path, and by hand | a server-generated envelope through the relay repo's real HTTP handler |
 | `verify-release-checks` | called by `release`, twice, once per component | that this exact commit's own CI completed and succeeded before any publish job runs, on both the release-please and the by-hand tag paths |
 | `copr-catch-up` | a completed `main-builds` run on `main` (any conclusion, cancelled included), a six-hourly schedule, and by hand | submits the client to COPR only when COPR's newest live build is older than `client/pubspec.yaml`, so a `main-builds` run cancelled by a merge storm no longer strands the Linux client; does nothing when COPR is current |
@@ -470,6 +471,15 @@ The browser's own console log goes up beside each failure screenshot, and the se
 That is not padding: the first real run on a runner (30565517095) failed nine scenarios and the screenshots could show only that a channel list was empty, while what settled it was a pair of 404s nothing was capturing. See `docs/e2e.md`.
 
 See `docs/e2e.md` for what the harness actually covers and what it does not.
+
+### e2e-playwright runs the same stack under Playwright Test
+
+`e2e-playwright.yml` boots the stack through `scripts/e2e-stack.sh`, the same script `scripts/e2e.sh` now uses, and runs the suite in `e2e/`.
+Each test gets one browser context per user, so the HTML report carries a video of alice and a video of bob for every test, and a trace to step through.
+The report (`e2e/playwright-report`), the per-test results with their videos (`e2e/test-results`) and the server log upload as the `e2e-playwright-report` artifact on every run, failures included.
+It runs beside the Python harness until the ported scenarios reach parity, and is advisory for the same reason: a real browser and a real SFU can fail for reasons the change under test did not cause.
+Unlike `e2e` it has no nightly schedule yet, so the red-streak watchdog does not read it.
+See `e2e/README.md` for running it locally.
 
 ### red-streak-watchdog closes the "advisory and nobody is watching" gap this section already names
 
