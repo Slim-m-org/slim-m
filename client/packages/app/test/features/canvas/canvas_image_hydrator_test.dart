@@ -146,7 +146,7 @@ void main() {
       addTearDown(hydrator.dispose);
 
       hydrator.hydrate(
-        api.CanvasObject(
+        const api.CanvasObject(
           id: 'a',
           kind: 'stroke',
           zIndex: 1,
@@ -154,14 +154,14 @@ void main() {
           y: 0,
           w: 20,
           h: 20,
-          props: const {'points': <dynamic>[]},
+          props: {'points': <dynamic>[]},
           authorId: 'someone-else',
           seq: 1,
           createdAt: 0,
         ),
       );
       hydrator.hydrate(
-        api.CanvasObject(
+        const api.CanvasObject(
           id: 'a',
           kind: 'image',
           zIndex: 1,
@@ -169,7 +169,7 @@ void main() {
           y: 0,
           w: 20,
           h: 20,
-          props: const {},
+          props: {},
           authorId: 'someone-else',
           seq: 1,
           createdAt: 0,

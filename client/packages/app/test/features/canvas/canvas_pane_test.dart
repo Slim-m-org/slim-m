@@ -357,11 +357,11 @@ void main() {
 
       tester.view.physicalSize = const Size(390 * dpr, viewHeight * dpr);
       tester.view.devicePixelRatio = dpr;
-      tester.view.padding = FakeViewPadding(
+      tester.view.padding = const FakeViewPadding(
         top: topInset * dpr,
         bottom: bottomInset * dpr,
       );
-      tester.view.viewPadding = FakeViewPadding(
+      tester.view.viewPadding = const FakeViewPadding(
         top: topInset * dpr,
         bottom: bottomInset * dpr,
       );

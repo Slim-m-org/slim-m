@@ -84,7 +84,7 @@ void main() {
 
     Future<ScreenShareOutcome> start() => control.setEnabled(
           true,
-          quality: ScreenShareQuality(
+          quality: const ScreenShareQuality(
               ScreenShareResolution.p1440, ScreenShareFps.fps15),
           publish: publish,
           isSharing: () => sharing,
@@ -129,7 +129,8 @@ void main() {
       // Frame rate, not size: size is capped on iOS so every tier shares it.
       expect(
           options.params.encoding!.maxFramerate,
-          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+          const ScreenShareQuality(
+                  ScreenShareResolution.p1440, ScreenShareFps.fps15)
               .fps,
           reason: 'must be this call\'s quality, not a default');
     });
@@ -139,7 +140,7 @@ void main() {
       // Never true on iOS today, but the hand-off's plumbing must not drop it if it were.
       await control.setEnabled(
         true,
-        quality: ScreenShareQuality(
+        quality: const ScreenShareQuality(
             ScreenShareResolution.p1440, ScreenShareFps.fps15),
         includeAudio: true,
         publish: publish,
@@ -465,23 +466,27 @@ void main() {
     /// a control that cannot change anything, which is worse than no control.
     test('an iOS tier still decides frame rate and bitrate', () {
       final smooth = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60),
+        const ScreenShareQuality(
+            ScreenShareResolution.p720, ScreenShareFps.fps60),
         null,
         isIOS: true,
       );
       final crisp = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+        const ScreenShareQuality(
+            ScreenShareResolution.p1440, ScreenShareFps.fps15),
         null,
         isIOS: true,
       );
 
       expect(
           smooth.params.encoding!.maxFramerate,
-          ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60)
+          const ScreenShareQuality(
+                  ScreenShareResolution.p720, ScreenShareFps.fps60)
               .fps);
       expect(
           crisp.params.encoding!.maxFramerate,
-          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+          const ScreenShareQuality(
+                  ScreenShareResolution.p1440, ScreenShareFps.fps15)
               .fps);
       expect(
         smooth.params.encoding!.maxBitrate,
@@ -493,18 +498,21 @@ void main() {
     /// has no extension and no 50 MB budget.
     test('off iOS the chosen tier still sets the capture size', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+        const ScreenShareQuality(
+            ScreenShareResolution.p1440, ScreenShareFps.fps15),
         'screen-1',
         isIOS: false,
       );
 
       expect(
           options.params.dimensions.width,
-          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+          const ScreenShareQuality(
+                  ScreenShareResolution.p1440, ScreenShareFps.fps15)
               .width);
       expect(
           options.params.dimensions.height,
-          ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+          const ScreenShareQuality(
+                  ScreenShareResolution.p1440, ScreenShareFps.fps15)
               .height);
     });
   });

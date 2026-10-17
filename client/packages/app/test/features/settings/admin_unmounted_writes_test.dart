@@ -190,7 +190,7 @@ void main() {
     tester,
   ) async {
     await _size(tester);
-    final channel = Channel(
+    final channel = const Channel(
       id: 'c-general',
       name: 'general',
       kind: 'text',

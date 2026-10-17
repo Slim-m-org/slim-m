@@ -114,15 +114,11 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
+        home: const Scaffold(
           body: Row(
             children: [
-              const SizedBox(
-                width: 44,
-                height: 44,
-                child: PresenceMenuButton(),
-              ),
-              const Expanded(child: AppMemberPane(channelId: 'c1')),
+              SizedBox(width: 44, height: 44, child: PresenceMenuButton()),
+              Expanded(child: AppMemberPane(channelId: 'c1')),
             ],
           ),
         ),

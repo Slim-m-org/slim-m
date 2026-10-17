@@ -267,7 +267,7 @@ void main() {
       final document = CanvasDocument()..setViewport(const Size(1200, 800));
       // Covers the whole viewport so wherever the tile lands sits over it - proving CanvasObjectContextMenu's own hit-catcher never even sees this pointer, not that this particular shape happens to be missed.
       document.applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 'a',
           seq: 1,
           zIndex: 1,
@@ -275,7 +275,7 @@ void main() {
           y: 0,
           w: 1200,
           h: 800,
-          points: const [],
+          points: [],
           width: 0,
           colorKey: 'shape',
           kind: CanvasObjectKind.shape,

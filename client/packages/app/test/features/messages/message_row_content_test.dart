@@ -39,8 +39,8 @@ void main() {
               onSubmitEdit: (_) {},
               onCancelEdit: () {},
             ),
-            extras: MessageExtras(
-              reactions: const [
+            extras: const MessageExtras(
+              reactions: [
                 /// Escaped rather than literal: the hygiene gate forbids emoji
                 /// codepoints in client source, and these are user content standing in
                 /// for a reaction, not interface chrome.
@@ -88,8 +88,8 @@ void main() {
               onSubmitEdit: (_) {},
               onCancelEdit: () {},
             ),
-            extras: MessageExtras(
-              reactions: const [
+            extras: const MessageExtras(
+              reactions: [
                 api.ReactionSummary(
                   emoji: '\u{1F44D}',
                   count: 3,
@@ -128,8 +128,8 @@ void main() {
             onSubmitEdit: (_) {},
             onCancelEdit: () {},
           ),
-          extras: MessageExtras(
-            attachments: const [
+          extras: const MessageExtras(
+            attachments: [
               api.Attachment(
                 id: 'a1',
                 filename: 'notes.txt',
@@ -243,8 +243,8 @@ void main() {
             onSubmitEdit: (_) {},
             onCancelEdit: () {},
           ),
-          extras: MessageExtras(
-            reactions: const [
+          extras: const MessageExtras(
+            reactions: [
               api.ReactionSummary(emoji: 'a', count: 1, reacted: false),
               api.ReactionSummary(emoji: 'b', count: 1, reacted: false),
             ],

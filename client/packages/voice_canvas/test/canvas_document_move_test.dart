@@ -76,7 +76,7 @@ void main() {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document
       ..applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 'pic',
           seq: 3,
           zIndex: 3,
@@ -84,7 +84,7 @@ void main() {
           y: 0,
           w: 20,
           h: 20,
-          points: const [],
+          points: [],
           width: 0,
           colorKey: '',
           kind: CanvasObjectKind.image,

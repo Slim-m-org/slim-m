@@ -73,7 +73,7 @@ class _ServerIdentityChangedStepState extends State<ServerIdentityChangedStep> {
                   style: AppText.caption.copyWith(color: tokens.textSecondary),
                 ),
                 const SizedBox(height: AppSpacing.s24),
-                AppCallout(
+                const AppCallout(
                   tone: AppCalloutTone.warn,
                   child: Text(
                     'The key this server presents does not match the one '

@@ -76,7 +76,7 @@ void main() {
     await store.applyMessage(_forward());
     // What an edit looks like: same id, new content, nothing said about the forward.
     await store.applyMessage(
-      api.Message(
+      const api.Message(
         id: 'm1',
         channelId: 'chan-1',
         authorId: 'user-1',

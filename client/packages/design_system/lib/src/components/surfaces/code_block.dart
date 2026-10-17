@@ -189,7 +189,7 @@ class _AppCodeBlockState extends State<AppCodeBlock> {
               softWrap: false,
               // 13/1.6 are literal in the source; AppText.code (13.5/1.5) is
               // tuned for inline running text rather than a fenced block.
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: AppFonts.mono,
                 fontSize: 13,
                 height: 1.6,

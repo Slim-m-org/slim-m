@@ -102,12 +102,12 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
+        home: const Scaffold(
           body: Column(
             children: [
               // The header watches the same /version the rename refreshes.
-              const RailHeader(),
-              const Expanded(
+              RailHeader(),
+              Expanded(
                 child: SingleChildScrollView(child: InviteLandingSection()),
               ),
             ],

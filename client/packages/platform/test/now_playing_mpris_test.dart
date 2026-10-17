@@ -76,7 +76,7 @@ void main() {
   });
 
   test('one player that breaks the spec does not hide the others', () {
-    final broken = MprisPlayerState(
+    final broken = const MprisPlayerState(
       status: 'Playing',
       metadata: {
         'xesam:title': DBusString('Odd'),

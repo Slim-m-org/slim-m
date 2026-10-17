@@ -41,17 +41,17 @@ void main() {
     });
 
     test('indents every list line a selection touches', () {
-      final value = TextEditingValue(
+      final value = const TextEditingValue(
         text: '- a\n- b\nplain\n- c',
-        selection: const TextSelection(baseOffset: 2, extentOffset: 16),
+        selection: TextSelection(baseOffset: 2, extentOffset: 16),
       );
       expect(indentList(value)!.text, '  - a\n  - b\nplain\n  - c');
     });
 
     test('a selection ending at the start of a line leaves that line', () {
-      final value = TextEditingValue(
+      final value = const TextEditingValue(
         text: '- a\n- b',
-        selection: const TextSelection(baseOffset: 0, extentOffset: 4),
+        selection: TextSelection(baseOffset: 0, extentOffset: 4),
       );
       expect(indentList(value)!.text, '  - a\n- b');
     });

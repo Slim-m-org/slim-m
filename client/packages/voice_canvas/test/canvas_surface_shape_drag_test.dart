@@ -51,7 +51,7 @@ void main() {
 
       expect(
         _shapeDraftPainter(tester).draft.rect,
-        Rect.fromLTWH(20, 20, 100, 60),
+        const Rect.fromLTWH(20, 20, 100, 60),
         reason: 'the box being dragged must be visible before release',
       );
       expect(placedAt, isNull, reason: 'not yet - the pointer is still down');

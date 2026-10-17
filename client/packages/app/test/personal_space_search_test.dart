@@ -36,7 +36,7 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-final _me = api.Me(
+final _me = const api.Me(
   id: 'self',
   username: 'self',
   displayName: 'Self',

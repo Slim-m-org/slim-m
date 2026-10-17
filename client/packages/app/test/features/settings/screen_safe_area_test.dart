@@ -262,11 +262,11 @@ Future<ProviderContainer> _pump(
 }) async {
   tester.view.physicalSize = size * _dpr;
   tester.view.devicePixelRatio = _dpr;
-  tester.view.padding = FakeViewPadding(
+  tester.view.padding = const FakeViewPadding(
     top: _topInset * _dpr,
     bottom: _bottomInset * _dpr,
   );
-  tester.view.viewPadding = FakeViewPadding(
+  tester.view.viewPadding = const FakeViewPadding(
     top: _topInset * _dpr,
     bottom: _bottomInset * _dpr,
   );

@@ -64,9 +64,9 @@ void main() {
     });
 
     test('a non-collapsed selection is left alone', () {
-      final value = TextEditingValue(
+      final value = const TextEditingValue(
         text: '- one',
-        selection: const TextSelection(baseOffset: 0, extentOffset: 3),
+        selection: TextSelection(baseOffset: 0, extentOffset: 3),
       );
       expect(continueList(value), isNull);
     });
@@ -89,9 +89,9 @@ void main() {
 
   group('wrapSelectionWithMarker', () {
     test('wraps a selection in the marker on both sides', () {
-      final value = TextEditingValue(
+      final value = const TextEditingValue(
         text: 'say hello world',
-        selection: const TextSelection(baseOffset: 4, extentOffset: 9),
+        selection: TextSelection(baseOffset: 4, extentOffset: 9),
       );
       final next = wrapSelectionWithMarker(value, '**');
       expect(next.text, 'say **hello** world');

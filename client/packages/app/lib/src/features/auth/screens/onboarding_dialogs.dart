@@ -207,7 +207,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     if (landing != null) return _buildLanding(landing);
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         AppSpacing.s16,
         AppSpacing.s16,
@@ -341,7 +341,7 @@ class ManualServerDialogState extends State<ManualServerDialog> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         AppSpacing.s16,
         AppSpacing.s16,

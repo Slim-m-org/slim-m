@@ -25,7 +25,7 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-final _role = api.Role(
+final _role = const api.Role(
   id: 'role-mod',
   name: 'mod',
   permissions: 0,

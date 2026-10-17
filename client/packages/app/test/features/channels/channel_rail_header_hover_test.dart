@@ -25,9 +25,9 @@ const _tokens = api.TokenPair(
 );
 
 ChannelCategoryRow _category() =>
-    ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0);
+    const ChannelCategoryRow(id: 'cat1', name: 'Lounge', position: 0);
 
-Channel _channel() => Channel(
+Channel _channel() => const Channel(
   id: 'c1',
   name: 'general',
   kind: 'text',

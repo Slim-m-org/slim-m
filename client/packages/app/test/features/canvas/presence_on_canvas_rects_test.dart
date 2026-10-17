@@ -97,7 +97,7 @@ void main() {
   test('a viewport big enough for every untouched tile keeps the layout\'s '
       'own margin-anchored default, unchanged', () {
     final camera = _p('camera-user');
-    final sharing = VoiceParticipant(
+    final sharing = const VoiceParticipant(
       identity: 'screen-user',
       name: 'screen-user',
       isSpeaking: false,
@@ -130,7 +130,7 @@ void main() {
 
   test('a pane too narrow for every untouched tile shifts the whole block '
       'left so the block stops running past the pane edge', () {
-    final sharing = VoiceParticipant(
+    final sharing = const VoiceParticipant(
       identity: 'screen-user',
       name: 'screen-user',
       isSpeaking: false,

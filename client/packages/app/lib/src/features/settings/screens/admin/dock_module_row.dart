@@ -39,7 +39,10 @@ class DockModuleRow extends StatelessWidget {
     api.InstalledDockModule installed,
   ) {
     if (installed.version != entry.version) {
-      return AppBadge(variant: AppBadgeVariant.warn, label: 'Update available');
+      return const AppBadge(
+        variant: AppBadgeVariant.warn,
+        label: 'Update available',
+      );
     }
     return AppBadge(
       variant: AppBadgeVariant.role,

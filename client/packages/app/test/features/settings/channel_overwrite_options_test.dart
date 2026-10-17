@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../members/roles_config_harness.dart';
 
-final _channel = Channel(
+final _channel = const Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -61,7 +61,7 @@ Future<ConfigHarness> _open(WidgetTester tester, Widget child) async {
       ),
       membersProvider.overrideWith(
         (ref) async => [
-          api.UserProfile(
+          const api.UserProfile(
             id: 'kiki',
             username: 'kiki',
             displayName: 'Kiki',

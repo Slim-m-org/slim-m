@@ -163,7 +163,7 @@ class _HandleSpec {
 const double _t = kWindowResizeHandleThickness;
 
 final List<_HandleSpec> _handleSpecs = [
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.top,
     SystemMouseCursors.resizeUpDown,
     top: 0,
@@ -171,7 +171,7 @@ final List<_HandleSpec> _handleSpecs = [
     right: _t,
     height: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.bottom,
     SystemMouseCursors.resizeUpDown,
     bottom: 0,
@@ -179,7 +179,7 @@ final List<_HandleSpec> _handleSpecs = [
     right: _t,
     height: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.left,
     SystemMouseCursors.resizeLeftRight,
     left: 0,
@@ -187,7 +187,7 @@ final List<_HandleSpec> _handleSpecs = [
     bottom: _t,
     width: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.right,
     SystemMouseCursors.resizeLeftRight,
     right: 0,
@@ -195,7 +195,7 @@ final List<_HandleSpec> _handleSpecs = [
     bottom: _t,
     width: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.topLeft,
     SystemMouseCursors.resizeUpLeftDownRight,
     top: 0,
@@ -203,7 +203,7 @@ final List<_HandleSpec> _handleSpecs = [
     width: _t,
     height: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.topRight,
     SystemMouseCursors.resizeUpRightDownLeft,
     top: 0,
@@ -211,7 +211,7 @@ final List<_HandleSpec> _handleSpecs = [
     width: _t,
     height: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.bottomLeft,
     SystemMouseCursors.resizeUpRightDownLeft,
     bottom: 0,
@@ -219,7 +219,7 @@ final List<_HandleSpec> _handleSpecs = [
     width: _t,
     height: _t,
   ),
-  _HandleSpec(
+  const _HandleSpec(
     ResizeEdge.bottomRight,
     SystemMouseCursors.resizeUpLeftDownRight,
     bottom: 0,

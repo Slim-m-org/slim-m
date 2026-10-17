@@ -221,13 +221,13 @@ void roleGroupingTests() {
     });
 
     test('a hoisted role beyond the member\'s own roles gives no section', () {
-      final member = api.UserProfile(
+      final member = const api.UserProfile(
         id: 'p',
         username: 'p',
         displayName: 'Pat',
         createdAt: 0,
-        roleIds: const ['r-x'],
-        roles: const ['X'],
+        roleIds: ['r-x'],
+        roles: ['X'],
         hoistedRoleId: 'r-other',
         hoistedRolePosition: 3,
       );

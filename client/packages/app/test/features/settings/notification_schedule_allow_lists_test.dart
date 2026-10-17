@@ -80,8 +80,18 @@ Future<_Wired> _pump(
     addTearDown(db.close);
     store = _CountingStore(db);
     await store.upsertChannels([
-      api.Channel(id: 'c-general', name: 'general', kind: 'text', createdAt: 0),
-      api.Channel(id: 'c-lounge', name: 'lounge', kind: 'voice', createdAt: 0),
+      const api.Channel(
+        id: 'c-general',
+        name: 'general',
+        kind: 'text',
+        createdAt: 0,
+      ),
+      const api.Channel(
+        id: 'c-lounge',
+        name: 'lounge',
+        kind: 'voice',
+        createdAt: 0,
+      ),
     ]);
   });
   final container = ProviderContainer(

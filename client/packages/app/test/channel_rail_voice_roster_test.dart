@@ -32,7 +32,7 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 4102444800000,
 );
 
-final _channel = Channel(
+final _channel = const Channel(
   id: 'ch-1',
   name: 'General voice',
   kind: 'voice',

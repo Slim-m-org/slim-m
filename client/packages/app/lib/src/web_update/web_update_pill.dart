@@ -36,7 +36,7 @@ class WebUpdatePill extends ConsumerWidget {
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(
-          padding: EdgeInsets.all(
+          padding: const EdgeInsets.all(
             AppSpacing.s16,
           ).copyWith(top: AppSpacing.s16 + clearOfHeader),
           child: _Pill(

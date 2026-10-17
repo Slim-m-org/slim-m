@@ -137,7 +137,7 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
       );
     }
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,

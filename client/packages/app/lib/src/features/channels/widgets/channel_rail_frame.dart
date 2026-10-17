@@ -240,7 +240,7 @@ Widget railSettingsButton(BuildContext context) => Consumer(
       children: [
         button,
         // The dot means "something is waiting" by being there, not by its hue.
-        Positioned(
+        const Positioned(
           top: 2,
           right: 2,
           child: ExcludeSemantics(child: _UpdateDot(key: updateBadgeDotKey)),

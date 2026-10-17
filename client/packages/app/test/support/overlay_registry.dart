@@ -49,7 +49,7 @@ final _png = Uint8List.fromList([
 
 /// One row's worth of `channel_management_test.dart`'s own construction: the
 /// manage sheet needs the local drift row, not the wire `api.Channel`.
-final _localChannel = Channel(
+final _localChannel = const Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',

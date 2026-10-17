@@ -88,7 +88,10 @@ void main() {
     final state = container.read(voiceSettingsControllerProvider);
     expect(
       state.screenShareQuality,
-      ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+      const ScreenShareQuality(
+        ScreenShareResolution.p1440,
+        ScreenShareFps.fps15,
+      ),
     );
     // One check per group, on the saved row.
     expect(find.byIcon(AppIcons.check), findsNWidgets(2));
