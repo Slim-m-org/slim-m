@@ -70,7 +70,11 @@ async fn refresh(app: &Router, refresh_token: &str, extra: Value) -> Value {
     body.as_object_mut()
         .unwrap()
         .extend(extra.as_object().unwrap().clone());
-    let response = app.clone().oneshot(post("/auth/refresh", body)).await.unwrap();
+    let response = app
+        .clone()
+        .oneshot(post("/auth/refresh", body))
+        .await
+        .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     json_body(response).await
 }
@@ -79,10 +83,19 @@ async fn refresh(app: &Router, refresh_token: &str, extra: Value) -> Value {
 async fn a_refresh_updates_the_reported_version_and_a_bare_one_keeps_it() {
     let (store, _guard) = support::new_store("slimm-device-version").await;
     let auth = Auth::new(2).unwrap();
-    let hash = auth.hash_password("hunter2hunter2".to_owned()).await.unwrap();
+    let hash = auth
+        .hash_password("hunter2hunter2".to_owned())
+        .await
+        .unwrap();
     let alice = store.create_account("alice", "Alice", &hash).await.unwrap();
     let signed_in = store
-        .open_session_as(alice.id, "Linux (fedora)", Some("desktop"), Some("0.86.0"), None)
+        .open_session_as(
+            alice.id,
+            "Linux (fedora)",
+            Some("desktop"),
+            Some("0.86.0"),
+            None,
+        )
         .await
         .unwrap();
     let app = app(store);
@@ -106,7 +119,10 @@ async fn a_refresh_updates_the_reported_version_and_a_bare_one_keeps_it() {
 async fn a_refresh_refuses_a_spoofed_version_like_sign_in_does() {
     let (store, _guard) = support::new_store("slimm-device-version-bad").await;
     let auth = Auth::new(2).unwrap();
-    let hash = auth.hash_password("hunter2hunter2".to_owned()).await.unwrap();
+    let hash = auth
+        .hash_password("hunter2hunter2".to_owned())
+        .await
+        .unwrap();
     let alice = store.create_account("alice", "Alice", &hash).await.unwrap();
     let signed_in = store.open_session(alice.id, "phone").await.unwrap();
 

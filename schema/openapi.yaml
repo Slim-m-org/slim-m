@@ -7916,6 +7916,44 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/audit-log:
+    get:
+      operationId: listAdminAuditLog
+      tags: [space]
+      summary: Read the admin audit log, newest first.
+      description: >
+        Gated on MANAGE_SERVER. One entry per successful admin change to the
+        space (settings, roles, channels, categories, permissions, invites,
+        emoji, modules). Member moderation stays in `/reports/history`.
+        `limit` defaults to 50 and is clamped to 1..200; `before` is the id of
+        the oldest entry already seen.
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A page of admin changes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/storage:
     get:
       operationId: getSpaceStorage
@@ -10276,6 +10314,32 @@ components:
           description: >
             What that pass reclaimed, in whatever unit that sweep counts
             (rows removed, files freed): sweep-specific, not always bytes.
+    AdminChange:
+      type: object
+      required: [id, actor_id, action, target_id, detail, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        actor_id:
+          type: [string, "null"]
+          format: uuid
+          description: Null once the actor's account is gone.
+        action:
+          type: string
+          description: Dotted action name such as `role.update` or `channel.delete`.
+        target_id:
+          type: [string, "null"]
+          description: The id of what changed, when the action has one.
+        detail:
+          type: object
+          description: >
+            `fields` lists the request's field names, `name` the name a create
+            or rename set, and `params` any other ids in the route.
+          additionalProperties: true
+        created_at:
+          type: integer
+          format: int64
     SpaceStorage:
       type: object
       required:

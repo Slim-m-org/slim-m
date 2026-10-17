@@ -16,6 +16,7 @@ use sqlx::SqlitePool;
 use crate::ids::{ChannelCategoryId, ChannelId, MessageId, Seq, UserId};
 
 mod account_deletion;
+mod admin_audit;
 mod analytics;
 mod apps;
 mod attachments;
@@ -94,6 +95,7 @@ mod watch_sessions;
 mod webhooks;
 
 pub use account_deletion::DeleteAccountError;
+pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
     ANALYTICS_WINDOW_DAYS, AnalyticsStats, DayCount, MemberAttachmentUsage, MetricSample,
 };

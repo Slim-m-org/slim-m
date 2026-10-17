@@ -24,8 +24,7 @@ use super::messages::parse_uuid;
 use super::user_avatars::{delete_avatar, get_avatar, upload_avatar};
 use super::user_status::{
     PROFILE_COLOR_COUNT, validate_about, validate_profile_color, validate_profile_color_rgb,
-    validate_pronouns,
-    validate_status_text,
+    validate_pronouns, validate_status_text,
 };
 use crate::hub::Event;
 use crate::ids::{RoleId, UserId};
