@@ -8,7 +8,8 @@ function escapeRegExp(text: string): string {
 }
 
 function cssString(text: string): string {
-  return `"${text.replaceAll('\\', String.raw`\\`).replaceAll('"', String.raw`\"`)}"`;
+  const escaped = text.replaceAll('\\', String.raw`\\`).replaceAll('"', String.raw`\"`);
+  return `"${escaped}"`;
 }
 
 /**
