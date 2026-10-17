@@ -145,6 +145,8 @@ from dart_source import strip_block_comments  # noqa: E402
 EXCEPTIONS: dict[tuple[str, int], str] = {}
 
 # Keyed by function name so an edit above a site does not un-allow it; each is a closed menu.
+_MEMBER_ACTIONS = "client/packages/app/lib/src/features/members/widgets/member_actions.dart"
+
 GUARDED_EXCEPTIONS: dict[tuple[str, str], str] = {
     ("client/packages/app/lib/src/features/channels/screens/channel_message_actions.dart", "_reporting"):
         "a message's context menu has closed before the request answers",
@@ -152,11 +154,11 @@ GUARDED_EXCEPTIONS: dict[tuple[str, str], str] = {
         "a message's context menu has closed before the request answers",
     ("client/packages/app/lib/src/features/channels/widgets/manage_category_sheet.dart", "confirmAndDeleteCategory"):
         "the header context menu has closed before the request answers",
-    ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "toggleNotificationScheduleAllowedUser"):
+    (_MEMBER_ACTIONS, "toggleNotificationScheduleAllowedUser"):
         "the member row's context menu has closed before the request answers",
-    ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "messageMember"):
+    (_MEMBER_ACTIONS, "messageMember"):
         "the member card has closed before the request answers",
-    ("client/packages/app/lib/src/features/members/widgets/member_actions.dart", "callMember"):
+    (_MEMBER_ACTIONS, "callMember"):
         "the member card or call menu has closed before the request answers",
     ("client/packages/app/lib/src/features/channels/widgets/row_menu_notifications.dart", "_say"):
         "a row's context menu has closed before the request answers",
