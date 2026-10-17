@@ -79,17 +79,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     // Rebuilds the redirect whenever the session changes, which is what makes
     // sign-out and revocation take effect immediately.
     refreshListenable: _SessionListenable(ref),
-    redirect: (context, state) {
-      final signedIn = session.isSignedIn;
-      final location = state.matchedLocation;
-      final onJoinFlow =
-          location == Routes.signIn || location == Routes.onboarding;
-      // Anywhere in the join flow is left alone, so a signed-out user can walk
-      // back to onboarding to pick a different server or redeem an invite.
-      if (!signedIn) return onJoinFlow ? null : signedOutHome();
-      if (onJoinFlow) return Routes.channels;
-      return null;
-    },
+    redirect: (context, state) => _redirect(
+      signedIn: session.isSignedIn,
+      location: state.matchedLocation,
+      signedOutHome: signedOutHome(),
+    ),
     errorBuilder: (context, state) => const NotFoundScreen(),
     routes: [
       // The join flow fades through like the shell's own pages, so signing in hands off into the app as one motion.
@@ -238,20 +232,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             modalPage(context, const DebugLogScreen()),
       ),
-      GoRoute(
-        path: Routes.threadPattern,
-        pageBuilder: (context, state) {
-          final threadId = state.pathParameters['channelId']!;
-          final width = MediaQuery.sizeOf(context).width;
-          // A cold-opened thread - deep link, reload, notification - docks beside its parent at widths that fit the pane, the same as an in-app open (UX1); below that it stays the modal.
-          if (LayoutClass.fromWidth(width).fitsThreadPane(width)) {
-            return NoTransitionPage<void>(
-              child: _ThreadDockRedirect(threadId: threadId),
-            );
-          }
-          return modalPage(context, ThreadScreen(channelId: threadId));
-        },
-      ),
+      GoRoute(path: Routes.threadPattern, pageBuilder: _threadPage),
       // The shell keeps the channel list alive across conversation changes;
       // the child pages fade through so switching one for another reads as a
       // navigation rather than an instant swap.
@@ -267,49 +248,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               key: const ValueKey('no-channel'),
             ),
             routes: [
-              GoRoute(
-                path: ':channelId',
-                pageBuilder: (context, state) {
-                  final channelId = state.pathParameters['channelId']!;
-                  // Generously over a uuid's 36; see client_transport.dart.
-                  if (channelId.length > 128) {
-                    return fadeThroughPage(
-                      context,
-                      const NoChannelSelected(),
-                      key: const ValueKey('no-channel'),
-                    );
-                  }
-                  return fadeThroughPage(
-                    context,
-                    ConversationPane(
-                      channelId: channelId,
-                      openChat: Routes.opensChat(state.uri),
-                    ),
-                    key: ValueKey('channel-$channelId'),
-                  );
-                },
-              ),
-              GoRoute(
-                path: Routes.messagePattern,
-                pageBuilder: (context, state) {
-                  final channelId = state.pathParameters['channelId']!;
-                  final messageId = state.pathParameters['messageId']!;
-                  // Same bound as the channel route above.
-                  if (channelId.length > 128 || messageId.length > 128) {
-                    return fadeThroughPage(
-                      context,
-                      const NoChannelSelected(),
-                      key: const ValueKey('no-channel'),
-                    );
-                  }
-                  // One page key per channel, so moving between a channel and its links swaps the child, not the page.
-                  return fadeThroughPage(
-                    context,
-                    MessageDeepLink(channelId: channelId, messageId: messageId),
-                    key: ValueKey('channel-$channelId'),
-                  );
-                },
-              ),
+              GoRoute(path: ':channelId', pageBuilder: _channelPage),
+              GoRoute(path: Routes.messagePattern, pageBuilder: _messagePage),
             ],
           ),
         ],
@@ -317,6 +257,66 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+String? _redirect({
+  required bool signedIn,
+  required String location,
+  required String signedOutHome,
+}) {
+  final onJoinFlow = location == Routes.signIn || location == Routes.onboarding;
+  // Anywhere in the join flow is left alone, so a signed-out user can walk
+  // back to onboarding to pick a different server or redeem an invite.
+  if (!signedIn) return onJoinFlow ? null : signedOutHome;
+  if (onJoinFlow) return Routes.channels;
+  return null;
+}
+
+Page<void> _threadPage(BuildContext context, GoRouterState state) {
+  final threadId = state.pathParameters['channelId']!;
+  final width = MediaQuery.sizeOf(context).width;
+  // A cold-opened thread - deep link, reload, notification - docks beside its parent at widths that fit the pane, the same as an in-app open (UX1); below that it stays the modal.
+  if (LayoutClass.fromWidth(width).fitsThreadPane(width)) {
+    return NoTransitionPage<void>(
+      child: _ThreadDockRedirect(threadId: threadId),
+    );
+  }
+  return modalPage(context, ThreadScreen(channelId: threadId));
+}
+
+Page<void> _noChannelPage(BuildContext context) => fadeThroughPage(
+  context,
+  const NoChannelSelected(),
+  key: const ValueKey('no-channel'),
+);
+
+Page<void> _channelPage(BuildContext context, GoRouterState state) {
+  final channelId = state.pathParameters['channelId']!;
+  // Generously over a uuid's 36; see client_transport.dart.
+  if (channelId.length > 128) return _noChannelPage(context);
+  return fadeThroughPage(
+    context,
+    ConversationPane(
+      channelId: channelId,
+      openChat: Routes.opensChat(state.uri),
+    ),
+    key: ValueKey('channel-$channelId'),
+  );
+}
+
+Page<void> _messagePage(BuildContext context, GoRouterState state) {
+  final channelId = state.pathParameters['channelId']!;
+  final messageId = state.pathParameters['messageId']!;
+  // Same bound as the channel route above.
+  if (channelId.length > 128 || messageId.length > 128) {
+    return _noChannelPage(context);
+  }
+  // One page key per channel, so moving between a channel and its links swaps the child, not the page.
+  return fadeThroughPage(
+    context,
+    MessageDeepLink(channelId: channelId, messageId: messageId),
+    key: ValueKey('channel-$channelId'),
+  );
+}
 
 /// Bridges the session stream to a Listenable, which is what GoRouter's
 /// refresh hook takes.
