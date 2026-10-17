@@ -56,6 +56,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   String? _savedPronouns;
   String? _savedAbout;
 
+  /// Why the last save of each field was refused, shown under it until the
+  /// text changes; a refusal used to vanish and leave the text silently unsaved.
+  String? _pronounsError;
+  String? _aboutError;
+
   void _seed(api.Me me) {
     if (_seeded) return;
     _seeded = true;
@@ -78,8 +83,8 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       await ref.read(apiProvider).updateMe(pronouns: text);
       _savedPronouns = text;
       ref.invalidate(meProvider);
-    } on api.ApiException {
-      // Low-stakes; the field keeps the unsaved text rather than a banner.
+    } on api.ApiException catch (e) {
+      if (mounted) setState(() => _pronounsError = 'Not saved: ${e.message}');
     }
   }
 
@@ -90,8 +95,8 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       await ref.read(apiProvider).updateMe(about: text);
       _savedAbout = text;
       ref.invalidate(meProvider);
-    } on api.ApiException {
-      // Same tolerance as _savePronouns.
+    } on api.ApiException catch (e) {
+      if (mounted) setState(() => _aboutError = 'Not saved: ${e.message}');
     }
   }
 
@@ -100,7 +105,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       await ref.read(apiProvider).updateMe(profileColor: index);
       ref.invalidate(meProvider);
     } on api.ApiException {
-      // Same tolerance as _savePronouns.
+      // Low-stakes; the swatch simply stays on the old colour.
     }
   }
 
@@ -139,7 +144,13 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
                   enabled: _seeded,
                   placeholder: 'e.g. she/her',
                   semanticLabel: 'Pronouns',
-                  onChanged: (_) => _publishDraft(),
+                  errorText: _pronounsError,
+                  onChanged: (_) {
+                    if (_pronounsError != null) {
+                      setState(() => _pronounsError = null);
+                    }
+                    _publishDraft();
+                  },
                   onSubmitted: (_) => _pronounsFocus.unfocus(),
                 ),
               ],
@@ -158,7 +169,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
                   enabled: _seeded,
                   placeholder: 'Maintainer. If the build breaks, I broke it.',
                   semanticLabel: 'About',
-                  onChanged: (_) => _publishDraft(),
+                  errorText: _aboutError,
+                  onChanged: (_) {
+                    if (_aboutError != null) setState(() => _aboutError = null);
+                    _publishDraft();
+                  },
                 ),
                 ValueListenableBuilder(
                   valueListenable: _about,
