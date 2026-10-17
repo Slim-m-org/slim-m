@@ -10,8 +10,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -26,18 +24,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-live-moderation-seq-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -141,7 +127,7 @@ async fn timeout(state: &AppState, admin_token: &str, target: slimm_server::ids:
 /// number it saw, which is the signal that its trail has a hole.
 #[tokio::test]
 async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-moderation-seq-test").await;
     let admin = store.create_account("admin", "Admin", "x").await.unwrap();
     store.bootstrap_deployment(admin.id).await.unwrap();
     let admin_token = store
@@ -182,7 +168,7 @@ async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
 /// quiet gap is not reported as a hole.
 #[tokio::test]
 async fn a_quiet_reconnect_sees_the_same_head() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-moderation-seq-test").await;
     let bot = store.create_user("bot", "bot").await.unwrap();
     let addr = serve(state_for(&store)).await;
 
@@ -198,7 +184,7 @@ async fn each_moderation_event_carries_an_increasing_seq() {
     use slimm_server::hub::Event;
     use slimm_server::ids::{RoleId, UserId};
 
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-live-moderation-seq-test").await;
     let bot = store.create_user("bot", "bot").await.unwrap();
     let state = state_for(&store);
     let addr = serve(state.clone()).await;

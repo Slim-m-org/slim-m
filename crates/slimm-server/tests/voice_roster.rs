@@ -14,8 +14,6 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -27,18 +25,6 @@ use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-voice-roster-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, voice: VoiceService) -> Router {
     http::router(AppState {
@@ -136,7 +122,7 @@ fn voice_at(url: &str) -> VoiceService {
 
 #[tokio::test]
 async fn seeing_the_channel_is_what_the_roster_needs() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::NONE, true)
         .await
@@ -163,7 +149,7 @@ async fn seeing_the_channel_is_what_the_roster_needs() {
 
 #[tokio::test]
 async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_view() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -190,7 +176,7 @@ async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_view() {
 
 #[tokio::test]
 async fn the_roster_requires_authentication() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     let channel = store.create_channel("general", "voice").await.unwrap();
     let voice = voice_at(&spawn_room_service(json!([])).await);
     let app = app(store, voice);
@@ -208,7 +194,7 @@ async fn the_roster_requires_authentication() {
 
 #[tokio::test]
 async fn a_text_only_deployment_says_so_instead_of_pretending() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -239,7 +225,7 @@ async fn a_text_only_deployment_says_so_instead_of_pretending() {
 
 #[tokio::test]
 async fn an_unreachable_sfu_answers_service_unavailable_not_an_empty_room() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -266,7 +252,7 @@ async fn an_unreachable_sfu_answers_service_unavailable_not_an_empty_room() {
 
 #[tokio::test]
 async fn a_room_nobody_has_joined_yet_is_an_empty_list() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -293,7 +279,7 @@ async fn a_room_nobody_has_joined_yet_is_an_empty_list() {
 /// before joining, even though the SFU itself does report them as connected.
 #[tokio::test]
 async fn a_hidden_participant_is_omitted_from_everyone_elses_roster_but_their_own() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -391,7 +377,7 @@ async fn a_hidden_participant_is_omitted_from_everyone_elses_roster_but_their_ow
 
 #[tokio::test]
 async fn the_roster_reports_the_call_age_from_the_earliest_listed_join() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -430,7 +416,7 @@ async fn the_roster_reports_the_call_age_from_the_earliest_listed_join() {
 
 #[tokio::test]
 async fn an_empty_room_has_no_call_age() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-roster-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await

@@ -8,8 +8,6 @@ use std::time::Duration;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -24,18 +22,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-canvas-cursor-live");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store, hub: Hub) -> AppState {
     AppState {
@@ -132,7 +118,7 @@ async fn send_cursor(ws: &mut Client, channel_id: &str, x: f64, y: f64) {
 /// cache or a gate that only remembers the view bit would deliver here.
 #[tokio::test]
 async fn a_viewer_with_both_bits_receives_the_cursor() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -154,7 +140,7 @@ async fn a_viewer_with_both_bits_receives_the_cursor() {
 
 #[tokio::test]
 async fn a_member_denied_use_canvas_never_sees_a_cursor() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -185,7 +171,7 @@ async fn a_member_denied_use_canvas_never_sees_a_cursor() {
 #[tokio::test]
 async fn a_hidden_users_cursor_is_not_announced() {
     use slimm_server::presence::Visibility;
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -210,7 +196,7 @@ async fn a_hidden_users_cursor_is_not_announced() {
 /// would otherwise have to defend against a coordinate it can never trust.
 #[tokio::test]
 async fn an_out_of_bounds_cursor_is_dropped() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -231,7 +217,7 @@ async fn an_out_of_bounds_cursor_is_dropped() {
 /// fresh frame still caps how many actually fan out.
 #[tokio::test]
 async fn cursor_frames_are_rate_limited() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;

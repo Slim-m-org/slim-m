@@ -10,8 +10,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -26,18 +24,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-presence-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store, hub: Hub) -> AppState {
     AppState {
@@ -168,7 +154,7 @@ async fn devices_over_rest(state: &AppState, token: &str, target: &str) -> Value
 
 #[tokio::test]
 async fn presence_lists_the_client_kinds_of_every_live_socket() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let addr = serve(state.clone()).await;
     let alice = new_user(&store, "alice").await;
@@ -206,7 +192,7 @@ async fn presence_lists_the_client_kinds_of_every_live_socket() {
 
 #[tokio::test]
 async fn a_session_with_no_recorded_kind_reads_as_unknown() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let addr = serve(state.clone()).await;
     let alice = new_user(&store, "alice").await;
@@ -220,7 +206,7 @@ async fn a_session_with_no_recorded_kind_reads_as_unknown() {
 
 #[tokio::test]
 async fn an_appear_offline_member_leaks_no_client_kind() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = state_for(&store, Hub::new());
     let addr = serve(state.clone()).await;
     let alice = new_user(&store, "alice").await;

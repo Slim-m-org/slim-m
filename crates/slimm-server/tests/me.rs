@@ -7,8 +7,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -18,18 +16,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-me-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -118,7 +104,7 @@ async fn register_with_code(
 /// permissions, so a client can decide which actions to show.
 #[tokio::test]
 async fn get_me_returns_profile_and_base_permissions() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     // No role pre-created: the first account to register claims the
     // unclaimed deployment and is granted an administrator role.
@@ -147,7 +133,7 @@ async fn get_me_returns_profile_and_base_permissions() {
 
 #[tokio::test]
 async fn get_me_requires_authentication() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
 
     let response = app
@@ -160,7 +146,7 @@ async fn get_me_requires_authentication() {
 
 #[tokio::test]
 async fn patch_me_updates_the_display_name() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -195,7 +181,7 @@ async fn patch_me_updates_the_display_name() {
 /// field, so it cannot be used to rename the account.
 #[tokio::test]
 async fn patch_me_cannot_change_the_username() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -216,7 +202,7 @@ async fn patch_me_cannot_change_the_username() {
 
 #[tokio::test]
 async fn patch_me_rejects_a_whitespace_only_name() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -235,7 +221,7 @@ async fn patch_me_rejects_a_whitespace_only_name() {
 
 #[tokio::test]
 async fn patch_me_rejects_a_name_that_is_too_long() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -256,7 +242,7 @@ async fn patch_me_rejects_a_name_that_is_too_long() {
 /// caller may set either alone, or both together.
 #[tokio::test]
 async fn patch_me_sets_the_status_text_and_it_is_durable() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -290,7 +276,7 @@ async fn patch_me_sets_the_status_text_and_it_is_durable() {
 /// "absent means untouched" contract `display_name` gets.
 #[tokio::test]
 async fn patch_me_with_only_a_display_name_leaves_the_status_text_alone() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -324,7 +310,7 @@ async fn patch_me_with_only_a_display_name_leaves_the_status_text_alone() {
 /// string - the same convention a channel's topic already uses.
 #[tokio::test]
 async fn patch_me_with_a_blank_status_clears_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -355,7 +341,7 @@ async fn patch_me_with_a_blank_status_clears_it() {
 
 #[tokio::test]
 async fn patch_me_rejects_a_status_over_eighty_characters() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -377,7 +363,7 @@ async fn patch_me_rejects_a_status_over_eighty_characters() {
 /// `UpdateChannelRequest` already enforces for its own name and topic.
 #[tokio::test]
 async fn patch_me_with_neither_field_is_rejected() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -394,7 +380,7 @@ async fn patch_me_with_neither_field_is_rejected() {
 /// their name.
 #[tokio::test]
 async fn another_members_status_text_is_visible_on_their_public_profile() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-test").await;
     let app = app(store);
     let (alice_token, alice_id) = register(&app, "alice").await;
     let (bob_token, _bob_id) = register_second(&app, &alice_token, "bob").await;

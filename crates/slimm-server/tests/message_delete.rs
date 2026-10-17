@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::ids::UserId;
@@ -21,18 +19,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-message-delete");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -127,7 +113,7 @@ async fn send(app: &Router, channel_id: &str, token: &str, content: &str) -> Val
 /// after a dropped response.
 #[tokio::test]
 async fn author_can_delete_their_own_message_and_it_is_idempotent() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role(
             "everyone",
@@ -176,7 +162,7 @@ async fn author_can_delete_their_own_message_and_it_is_idempotent() {
 /// MANAGE_MESSAGES can.
 #[tokio::test]
 async fn deleting_anothers_message_needs_manage_messages() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role(
             "everyone",
@@ -227,7 +213,7 @@ async fn deleting_anothers_message_needs_manage_messages() {
 /// probe for messages in a hidden channel.
 #[tokio::test]
 async fn deleting_in_a_hidden_channel_cannot_be_used_to_probe() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role("everyone", Permissions::NONE, true)
         .await
@@ -260,7 +246,7 @@ async fn deleting_in_a_hidden_channel_cannot_be_used_to_probe() {
 /// view, is a plain 404.
 #[tokio::test]
 async fn deleting_an_unknown_message_in_a_visible_channel_is_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -289,7 +275,7 @@ async fn deleting_an_unknown_message_in_a_visible_channel_is_not_found() {
 /// moved (thread_reply_count.rs); this proves the live signal fires too.
 #[tokio::test]
 async fn deleting_a_reply_in_a_thread_publishes_thread_updated() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role(
             "everyone",
@@ -356,7 +342,7 @@ async fn deleting_a_reply_in_a_thread_publishes_thread_updated() {
 /// the same call.
 #[tokio::test]
 async fn deleting_in_an_ordinary_channel_publishes_no_thread_updated() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role(
             "everyone",
@@ -399,7 +385,7 @@ async fn deleting_in_an_ordinary_channel_publishes_no_thread_updated() {
 /// publish nothing at all, including no `ThreadUpdated`.
 #[tokio::test]
 async fn a_retry_delete_publishes_nothing_the_second_time() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-message-delete").await;
     store
         .create_role(
             "everyone",

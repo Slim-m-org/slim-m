@@ -16,8 +16,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -35,18 +33,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-reports-changed-ws");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state_for(store: &Store) -> AppState {
     AppState {
@@ -156,7 +142,7 @@ async fn seed_roles(store: &Store) -> slimm_server::ids::RoleId {
 
 #[tokio::test]
 async fn a_moderator_sees_a_filed_report_live_and_a_non_moderator_sees_nothing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-changed-ws").await;
     let moderator_role = seed_roles(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);
@@ -225,7 +211,7 @@ async fn a_moderator_sees_a_filed_report_live_and_a_non_moderator_sees_nothing()
 
 #[tokio::test]
 async fn a_moderator_sees_a_resolved_report_live_and_a_non_moderator_sees_nothing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reports-changed-ws").await;
     let moderator_role = seed_roles(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = state_for(&store);

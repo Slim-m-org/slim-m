@@ -7,8 +7,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -19,18 +17,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-saved-messages");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -133,7 +119,7 @@ async fn save_response(app: &Router, token: &str, message_id: &str) -> axum::res
 /// at the top, because the list is by when it was saved.
 #[tokio::test]
 async fn saving_keeps_a_message_and_orders_by_when_it_was_kept() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role(
             "everyone",
@@ -174,7 +160,7 @@ async fn saving_keeps_a_message_and_orders_by_when_it_was_kept() {
 /// there is no route that takes a user id to get it wrong with.
 #[tokio::test]
 async fn one_persons_saves_are_invisible_to_another() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role(
             "everyone",
@@ -203,7 +189,7 @@ async fn one_persons_saves_are_invisible_to_another() {
 /// is not a licence to keep reading a channel somebody was removed from.
 #[tokio::test]
 async fn losing_sight_of_a_channel_drops_its_saves_from_the_list() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     let everyone = store
         .create_role(
             "everyone",
@@ -256,7 +242,7 @@ async fn losing_sight_of_a_channel_drops_its_saves_from_the_list() {
 /// Saving is idempotent, and must not quietly reorder a list on a double tap.
 #[tokio::test]
 async fn saving_twice_does_not_move_it_to_the_top() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role(
             "everyone",
@@ -293,7 +279,7 @@ async fn saving_twice_does_not_move_it_to_the_top() {
 /// as forbidden, so this cannot be used to probe for one.
 #[tokio::test]
 async fn saving_something_you_cannot_see_is_indistinguishable_from_missing() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role("everyone", Permissions::NONE, true)
         .await
@@ -333,7 +319,7 @@ async fn saving_something_you_cannot_see_is_indistinguishable_from_missing() {
 /// most wants gone.
 #[tokio::test]
 async fn unsaving_works_even_once_the_message_is_gone() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role(
             "everyone",
@@ -388,7 +374,7 @@ async fn unsaving_works_even_once_the_message_is_gone() {
 /// has to name this table like every other per-user one.
 #[tokio::test]
 async fn deleting_an_account_purges_its_saved_list() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role(
             "everyone",
@@ -428,7 +414,7 @@ async fn deleting_an_account_purges_its_saved_list() {
 /// Without this `GET /saved` had no bound at all.
 #[tokio::test]
 async fn saving_stops_at_the_ceiling_but_re_saving_never_does() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-saved-messages").await;
     store
         .create_role(
             "everyone",

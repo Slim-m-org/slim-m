@@ -9,8 +9,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
@@ -22,18 +20,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-edit-history-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -146,7 +132,7 @@ async fn open_channel(store: &Store) -> (String, String) {
 
 #[tokio::test]
 async fn an_unedited_message_has_a_single_version() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-edit-history-test").await;
     let (channel, token) = open_channel(&store).await;
     let app = app(store);
 
@@ -165,7 +151,7 @@ async fn an_unedited_message_has_a_single_version() {
 
 #[tokio::test]
 async fn each_edit_adds_a_version_oldest_first_with_its_own_time() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-edit-history-test").await;
     let (channel, token) = open_channel(&store).await;
     let app = app(store);
 
@@ -195,7 +181,7 @@ async fn each_edit_adds_a_version_oldest_first_with_its_own_time() {
 
 #[tokio::test]
 async fn an_edit_that_changes_nothing_adds_no_version() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-edit-history-test").await;
     let (channel, token) = open_channel(&store).await;
     let app = app(store);
 
@@ -213,7 +199,7 @@ async fn an_edit_that_changes_nothing_adds_no_version() {
 
 #[tokio::test]
 async fn a_deleted_message_exposes_no_history() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-edit-history-test").await;
     let (channel, token) = open_channel(&store).await;
     let app = app(store);
 
@@ -238,7 +224,7 @@ async fn a_deleted_message_exposes_no_history() {
 
 #[tokio::test]
 async fn history_needs_permission_to_view_the_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-edit-history-test").await;
     // @everyone gets nothing; alice is granted what she needs so bob cannot view.
     store
         .create_role("everyone", Permissions::NONE, true)
@@ -274,7 +260,7 @@ async fn history_needs_permission_to_view_the_channel() {
 
 #[tokio::test]
 async fn history_for_a_message_in_another_channel_is_not_found() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-edit-history-test").await;
     let (channel_a, token) = open_channel(&store).await;
     let channel_b = store
         .create_channel("second", "text")

@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -22,18 +20,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-order-validation-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -98,7 +84,7 @@ fn flat_order(channel_ids: &[String]) -> Value {
 /// silently leaving a gap in the order.
 #[tokio::test]
 async fn reorder_refuses_a_list_missing_a_live_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -132,7 +118,7 @@ async fn reorder_refuses_a_list_missing_a_live_channel() {
 /// An id that names no live channel is refused, distinctly from a missing one.
 #[tokio::test]
 async fn reorder_refuses_an_unknown_channel_id() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -167,7 +153,7 @@ async fn reorder_refuses_an_unknown_channel_id() {
 /// silently accepted with the repeat's last position winning.
 #[tokio::test]
 async fn reorder_refuses_a_duplicate_that_also_omits_a_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -202,7 +188,7 @@ async fn reorder_refuses_a_duplicate_that_also_omits_a_channel() {
 /// across two groups, so this also covers a repeat spanning categories.
 #[tokio::test]
 async fn reorder_refuses_a_duplicate_that_names_every_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -238,7 +224,7 @@ async fn reorder_refuses_a_duplicate_that_names_every_channel() {
 /// unknown id is, and it never has to appear in a valid list.
 #[tokio::test]
 async fn reorder_never_names_a_dm_channel() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -285,7 +271,7 @@ async fn reorder_never_names_a_dm_channel() {
 /// unknown channel id already is - checked before anything is written.
 #[tokio::test]
 async fn reorder_refuses_an_unknown_category_id() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -322,7 +308,7 @@ async fn reorder_refuses_an_unknown_category_id() {
 /// so it is a 400 rather than silently matching one shape or the other.
 #[tokio::test]
 async fn reorder_refuses_a_body_naming_neither_shape() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",
@@ -358,7 +344,7 @@ async fn reorder_refuses_a_body_naming_neither_shape() {
 /// silently winning over the other with no way for the caller to tell which.
 #[tokio::test]
 async fn reorder_refuses_a_body_naming_both_shapes() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-validation-test").await;
     store
         .create_role(
             "everyone",

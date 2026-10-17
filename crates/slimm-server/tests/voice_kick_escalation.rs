@@ -9,8 +9,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -21,18 +19,6 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-voice-kick-escalation-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store, voice: VoiceService) -> Router {
     http::router(AppState {
@@ -79,7 +65,7 @@ fn unreachable_voice() -> VoiceService {
 /// than this channel's) is exactly the mistake that would have missed it.
 #[tokio::test]
 async fn kicking_above_your_level_via_a_channel_overwrite_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-kick-escalation-test").await;
     // alice registers first and claims the deployment as its administrator.
     let alice = store
         .create_account("alice", "alice", "not-a-real-hash")
@@ -133,7 +119,7 @@ async fn kicking_above_your_level_via_a_channel_overwrite_is_refused() {
 /// produce; `voice_roster.rs` reads the same 503 the same way.
 #[tokio::test]
 async fn an_administrator_can_still_kick_a_lower_privileged_participant() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-kick-escalation-test").await;
     let alice = store
         .create_account("alice", "alice", "not-a-real-hash")
         .await
@@ -174,7 +160,7 @@ async fn an_administrator_can_still_kick_a_lower_privileged_participant() {
 /// a self-kick is harmless, unlike self-removal from the Space.
 #[tokio::test]
 async fn kicking_yourself_is_not_refused_by_the_escalation_guard() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-kick-escalation-test").await;
     store
         .create_role(
             "everyone",
@@ -229,7 +215,7 @@ async fn kicking_yourself_is_not_refused_by_the_escalation_guard() {
 /// permissions here would let bob eject a carol he can never eject otherwise.
 #[tokio::test]
 async fn a_timeout_on_the_target_is_not_a_lever_to_kick_them() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-voice-kick-escalation-test").await;
     let alice = store
         .create_account("alice", "alice", "not-a-real-hash")
         .await

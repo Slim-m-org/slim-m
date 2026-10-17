@@ -11,8 +11,6 @@ use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::link_preview::LinkPreviews;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
@@ -24,18 +22,6 @@ use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-link-preview-video-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -105,7 +91,7 @@ async fn preview_json(store: Store, token: &str, upstream: &str) -> Value {
 
 #[tokio::test]
 async fn a_page_whose_og_video_is_a_youtube_embed_is_flagged_playable() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-link-preview-video-test").await;
     let token = register(&store, "video_watcher").await;
     let upstream = fake_upstream(
         "<meta property=\"og:title\" content=\"A talk\">\
@@ -120,7 +106,7 @@ async fn a_page_whose_og_video_is_a_youtube_embed_is_flagged_playable() {
 
 #[tokio::test]
 async fn an_ordinary_page_is_not_flagged_playable() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-link-preview-video-test").await;
     let token = register(&store, "reader").await;
     let upstream = fake_upstream("<meta property=\"og:title\" content=\"Just a blog post\">").await;
 
@@ -132,7 +118,7 @@ async fn an_ordinary_page_is_not_flagged_playable() {
 #[tokio::test]
 async fn an_ordinary_page_carries_no_author_and_makes_no_oembed_request() {
     // Only a URL video::detect recognizes as YouTube ever takes the oembed branch that could populate these.
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-link-preview-video-test").await;
     let token = register(&store, "reader").await;
     let upstream = fake_upstream("<meta property=\"og:title\" content=\"Just a blog post\">").await;
 
@@ -143,7 +129,7 @@ async fn an_ordinary_page_carries_no_author_and_makes_no_oembed_request() {
 
 #[tokio::test]
 async fn a_youtube_watch_url_pasted_directly_is_flagged_playable() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-link-preview-video-test").await;
     let token = register(&store, "paster").await;
     // A real watch URL in the page's own og:video, exercising the URL-path branch, not the og:video fallback.
     let upstream = fake_upstream(

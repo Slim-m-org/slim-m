@@ -6,8 +6,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::MessageId;
@@ -18,18 +16,6 @@ use slimm_server::store::{NewMessage, Store};
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-safety-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -77,7 +63,7 @@ async fn open_report_count(store: &Store) -> i64 {
 
 #[tokio::test]
 async fn devices_list_and_sign_out_only_your_own() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-safety-test").await;
     let auth = Auth::new(2).unwrap();
     let hash = auth
         .hash_password("hunter2hunter2".to_owned())
@@ -155,7 +141,7 @@ async fn devices_list_and_sign_out_only_your_own() {
 /// from before migration 0076) reports neither rather than failing.
 #[tokio::test]
 async fn devices_list_reports_client_kind_and_version_when_known() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-safety-test").await;
     let auth = Auth::new(2).unwrap();
     let hash = auth
         .hash_password("hunter2hunter2".to_owned())
@@ -216,7 +202,7 @@ async fn devices_list_reports_client_kind_and_version_when_known() {
 /// tell from one still in active use.
 #[tokio::test]
 async fn devices_list_hides_a_signed_out_device() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-safety-test").await;
     let auth = Auth::new(2).unwrap();
     let hash = auth
         .hash_password("hunter2hunter2".to_owned())
@@ -258,7 +244,7 @@ async fn devices_list_hides_a_signed_out_device() {
 
 #[tokio::test]
 async fn blocking_is_private_idempotent_and_one_directional() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-safety-test").await;
     let auth = Auth::new(2).unwrap();
     let hash = auth
         .hash_password("hunter2hunter2".to_owned())
@@ -338,7 +324,7 @@ async fn blocking_is_private_idempotent_and_one_directional() {
 
 #[tokio::test]
 async fn reporting_a_message_keeps_a_snapshot_and_resists_flooding() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-safety-test").await;
     store
         .create_role(
             "everyone",
@@ -436,7 +422,7 @@ async fn reporting_a_message_keeps_a_snapshot_and_resists_flooding() {
 
 #[tokio::test]
 async fn a_message_you_cannot_see_cannot_be_reported() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-safety-test").await;
     store
         .create_role(
             "everyone",

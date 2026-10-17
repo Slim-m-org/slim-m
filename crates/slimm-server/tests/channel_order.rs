@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -21,18 +19,6 @@ use slimm_server::store::{ChannelOrderGroup, Store};
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-channel-order-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -122,7 +108,7 @@ fn old_shape(channel_ids: &[String]) -> Value {
 
 #[tokio::test]
 async fn manager_can_reorder_channels() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-test").await;
     store
         .create_role(
             "everyone",
@@ -170,7 +156,7 @@ async fn manager_can_reorder_channels() {
 /// `created_at` tiebreak) whichever channel already held position 0.
 #[tokio::test]
 async fn a_new_channel_is_appended_after_a_reorder_has_run() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-test").await;
     store
         .create_role(
             "everyone",
@@ -222,7 +208,7 @@ async fn a_new_channel_is_appended_after_a_reorder_has_run() {
 
 #[tokio::test]
 async fn reordering_without_manage_channels_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -250,7 +236,7 @@ async fn reordering_without_manage_channels_is_forbidden() {
 /// that something moved when it did not.
 #[tokio::test]
 async fn reordering_to_the_same_order_is_a_no_op() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-test").await;
     store
         .create_role(
             "everyone",
@@ -285,7 +271,7 @@ async fn reordering_to_the_same_order_is_a_no_op() {
 /// than a move followed by a reorder.
 #[tokio::test]
 async fn a_cross_category_drag_reassigns_and_repositions_atomically() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-test").await;
     store
         .create_role(
             "everyone",
@@ -347,7 +333,7 @@ async fn a_cross_category_drag_reassigns_and_repositions_atomically() {
 /// until the next client update reaches every phone.
 #[tokio::test]
 async fn an_old_client_sending_channel_ids_alone_still_reorders_and_keeps_categories() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-channel-order-test").await;
     store
         .create_role(
             "everyone",

@@ -9,8 +9,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -19,18 +17,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-me-timeout-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -120,7 +106,7 @@ async fn register_with_code(
 /// view. See MOD6.
 #[tokio::test]
 async fn get_me_reports_the_active_timeout_reason() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-timeout-test").await;
     let app = app(store);
     // The first account to register claims the deployment as its administrator.
     let (admin_token, _admin_id) = register(&app, "alice").await;
@@ -153,7 +139,7 @@ async fn get_me_reports_the_active_timeout_reason() {
 /// `timed_out_until` already follows.
 #[tokio::test]
 async fn get_me_reports_no_timeout_reason_when_not_timed_out() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-timeout-test").await;
     let app = app(store);
     let (token, _user_id) = register(&app, "alice").await;
 
@@ -174,7 +160,7 @@ async fn get_me_reports_no_timeout_reason_when_not_timed_out() {
 /// force at all).
 #[tokio::test]
 async fn a_timed_out_members_public_profile_never_shows_the_reason() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-timeout-test").await;
     let app = app(store);
     let (admin_token, _admin_id) = register(&app, "alice").await;
     let (_bob_token, bob_id) = register_second(&app, &admin_token, "bob").await;

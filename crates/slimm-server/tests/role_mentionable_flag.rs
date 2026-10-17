@@ -11,8 +11,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -21,18 +19,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-role-mentionable-flag");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -88,7 +74,7 @@ async fn register(store: &Store, username: &str) -> (String, String) {
 /// the same way it already is when neither of those two is present.
 #[tokio::test]
 async fn mentionable_can_be_set_at_creation_and_toggled_on_its_own() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-mentionable-flag").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
 
@@ -147,7 +133,7 @@ async fn mentionable_can_be_set_at_creation_and_toggled_on_its_own() {
 /// field's own opt-in-on-fresh-create-only behaviour.
 #[tokio::test]
 async fn mentionable_at_creation_is_not_reapplied_on_a_retried_create() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-mentionable-flag").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let id = uuid::Uuid::now_v7().to_string();

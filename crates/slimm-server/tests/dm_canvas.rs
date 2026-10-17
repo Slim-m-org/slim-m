@@ -14,8 +14,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -25,18 +23,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-dm-canvas-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -139,7 +125,7 @@ async fn place_object(app: &Router, channel_id: &str, token: &str) -> StatusCode
 
 #[tokio::test]
 async fn a_dm_participant_can_use_the_canvas() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dm-canvas-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -166,7 +152,7 @@ async fn a_dm_participant_can_use_the_canvas() {
 /// a message, in either direction.
 #[tokio::test]
 async fn a_blocked_dm_pair_cannot_use_the_canvas_in_either_direction() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dm-canvas-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;
@@ -204,7 +190,7 @@ async fn a_blocked_dm_pair_cannot_use_the_canvas_in_either_direction() {
 /// This pins the behaviour so neither side can drift without a failing test.
 #[tokio::test]
 async fn a_block_hides_the_canvas_from_reads_not_just_writes() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dm-canvas-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;

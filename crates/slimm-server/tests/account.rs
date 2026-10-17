@@ -6,34 +6,20 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::json;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
 use slimm_server::push::PushSender;
 use slimm_server::ratelimit::RateLimiter;
-use slimm_server::store::{NewMessage, OpenError, RefreshOutcome, SendError, Store};
+use slimm_server::store::{NewMessage, OpenError, RefreshOutcome, SendError};
 use tower::ServiceExt;
 
 mod support;
 
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-account-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
-
 #[tokio::test]
 async fn delete_account_anonymizes_content_and_revokes_access() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-test").await;
     let auth = Auth::new(2).unwrap();
     let hash = auth
         .hash_password("correct horse battery".to_owned())
@@ -101,7 +87,7 @@ async fn delete_account_anonymizes_content_and_revokes_access() {
 
 #[tokio::test]
 async fn open_session_refuses_a_deleted_account() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-test").await;
     let account = store
         .create_account("alice", "Alice", "hash")
         .await
@@ -116,7 +102,7 @@ async fn open_session_refuses_a_deleted_account() {
 
 #[tokio::test]
 async fn delete_account_purges_member_channel_overwrites() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -162,7 +148,7 @@ async fn delete_account_purges_member_channel_overwrites() {
 /// the right back (no role, no view access to a channel that has it).
 #[tokio::test]
 async fn delete_account_removes_attachment_uploader_rows() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-test").await;
     let channel = store.create_channel("general", "text").await.unwrap();
     let alice = store
         .create_account("alice", "Alice", "hash")
@@ -213,7 +199,7 @@ async fn delete_account_removes_attachment_uploader_rows() {
 
 #[tokio::test]
 async fn http_delete_account_rejects_the_token_afterward() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-test").await;
     let app = http::router(AppState {
         store,
         auth: Auth::new(2).unwrap(),
@@ -294,7 +280,7 @@ async fn http_delete_account_rejects_the_token_afterward() {
 /// would hold afterwards, and there is no recovery path from that state.
 #[tokio::test]
 async fn the_last_administrator_cannot_strand_a_populated_deployment() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-account-test").await;
     let app = http::router(AppState {
         store,
         auth: Auth::new(2).unwrap(),

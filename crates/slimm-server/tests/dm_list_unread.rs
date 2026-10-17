@@ -13,8 +13,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -24,18 +22,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-dm-unread-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -131,7 +117,7 @@ async fn list_dms(app: &Router, token: &str) -> Vec<Value> {
 /// a mis-join would leak one channel's count onto another.
 #[tokio::test]
 async fn dm_list_keeps_each_conversation_unread_count_distinct() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-dm-unread-test").await;
     let app = app(store.clone());
 
     let (alice_token, _alice_id) = register(&store, "alice").await;

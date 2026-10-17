@@ -11,8 +11,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::media::Media;
@@ -24,18 +22,6 @@ use tower::ServiceExt;
 
 mod support;
 use uuid::Uuid;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-malformed-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 /// Builds a router sharing `store` and `media`, so a test can hand it a
 /// media handle with a small size ceiling instead of the 10 MiB test default.
@@ -118,7 +104,7 @@ async fn assert_uniform_error(
 
 #[tokio::test]
 async fn malformed_json_syntax_is_a_uniform_json_error() {
-    let (store, _db) = new_store().await;
+    let (store, _db) = support::new_store("slimm-malformed-test").await;
     let (token, channel_id) = registered_member(&store).await;
     let app = app(store, Media::for_tests());
 
@@ -140,7 +126,7 @@ async fn malformed_json_syntax_is_a_uniform_json_error() {
 
 #[tokio::test]
 async fn json_missing_a_required_field_is_a_uniform_json_error() {
-    let (store, _db) = new_store().await;
+    let (store, _db) = support::new_store("slimm-malformed-test").await;
     let (token, channel_id) = registered_member(&store).await;
     let app = app(store, Media::for_tests());
 
@@ -168,7 +154,7 @@ async fn json_missing_a_required_field_is_a_uniform_json_error() {
 
 #[tokio::test]
 async fn malformed_query_string_is_a_uniform_json_error() {
-    let (store, _db) = new_store().await;
+    let (store, _db) = support::new_store("slimm-malformed-test").await;
     let (token, channel_id) = registered_member(&store).await;
     let app = app(store, Media::for_tests());
 
@@ -186,7 +172,7 @@ async fn malformed_query_string_is_a_uniform_json_error() {
 
 #[tokio::test]
 async fn oversized_json_body_is_a_uniform_json_error() {
-    let (store, _db) = new_store().await;
+    let (store, _db) = support::new_store("slimm-malformed-test").await;
     let (token, channel_id) = registered_member(&store).await;
     let app = app(store, Media::for_tests());
 
@@ -211,7 +197,7 @@ async fn oversized_json_body_is_a_uniform_json_error() {
 
 #[tokio::test]
 async fn oversized_raw_body_is_a_uniform_json_error() {
-    let (store, _db) = new_store().await;
+    let (store, _db) = support::new_store("slimm-malformed-test").await;
     let (token, _channel_id) = registered_member(&store).await;
     // A tiny ceiling, so exceeding it does not need megabytes of bytes.
     let (root, _mediadir) = support::TestDirGuard::new("slimm-malformed-media");

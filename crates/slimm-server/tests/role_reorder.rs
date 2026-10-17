@@ -10,8 +10,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -21,18 +19,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-role-reorder-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -128,7 +114,7 @@ async fn reorder(app: &Router, token: &str, role_ids: &[&str]) -> axum::response
 /// (highest first) needs to render.
 #[tokio::test]
 async fn reorder_reports_the_new_positions_in_order() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
 
@@ -164,7 +150,7 @@ async fn reorder_reports_the_new_positions_in_order() {
 /// silently reordering a subset.
 #[tokio::test]
 async fn reorder_refuses_a_set_missing_a_live_role() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let extra = create_role(&app, &admin_token, "extra", 0).await;
@@ -178,7 +164,7 @@ async fn reorder_refuses_a_set_missing_a_live_role() {
 /// id is.
 #[tokio::test]
 async fn reorder_refuses_naming_everyone() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let everyone = store
@@ -209,7 +195,7 @@ async fn reorder_refuses_naming_everyone() {
 /// (which is zero, since they hold nothing beyond `@everyone`).
 #[tokio::test]
 async fn cannot_move_a_role_at_or_above_the_callers_own_ceiling() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, bob_id) = register(&store, "bob").await;
@@ -242,7 +228,7 @@ async fn cannot_move_a_role_at_or_above_the_callers_own_ceiling() {
 /// own ceiling - the guard refuses reaching upward, not reordering at all.
 #[tokio::test]
 async fn can_reorder_roles_strictly_below_the_callers_own_ceiling() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
     let (bob_token, bob_id) = register(&store, "bob").await;
@@ -291,7 +277,7 @@ async fn can_reorder_roles_strictly_below_the_callers_own_ceiling() {
 /// ADMINISTRATOR already contains every bit `escalation_guard` compares.
 #[tokio::test]
 async fn an_administrator_bypasses_the_position_ceiling() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
 

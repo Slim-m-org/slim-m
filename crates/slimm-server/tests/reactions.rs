@@ -7,8 +7,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -19,18 +17,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-reactions");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -94,7 +80,7 @@ async fn register(store: &Store, username: &str) -> String {
 /// tap on a slow connection is the normal case rather than an edge case.
 #[tokio::test]
 async fn reacting_twice_is_idempotent() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reactions").await;
     store
         .create_role(
             "everyone",
@@ -162,7 +148,7 @@ async fn reacting_twice_is_idempotent() {
 /// cannot see: an unreadable message and a missing one answer identically.
 #[tokio::test]
 async fn reacting_cannot_probe_for_messages_you_cannot_see() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-reactions").await;
     // @everyone can send and react but NOT view, so the author can post
     // through a role of their own while a stranger sees nothing.
     store

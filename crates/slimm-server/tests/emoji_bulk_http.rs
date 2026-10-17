@@ -18,8 +18,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::emoji::bulk::MAX_BULK_IMAGES;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
@@ -30,18 +28,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-emoji-bulk-http");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -178,7 +164,7 @@ async fn emoji_count(app: &Router, token: &str) -> usize {
 /// itself only spent one.
 #[tokio::test]
 async fn bulk_upload_charges_the_rate_limit_once_for_the_whole_batch() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -217,7 +203,7 @@ async fn bulk_upload_charges_the_rate_limit_once_for_the_whole_batch() {
 /// `MAX_BULK_IMAGES`.
 #[tokio::test]
 async fn bulk_upload_over_the_cap_is_bad_request_not_truncated() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -244,7 +230,7 @@ async fn bulk_upload_over_the_cap_is_bad_request_not_truncated() {
 /// keeps for message ids.
 #[tokio::test]
 async fn an_invalid_image_in_the_batch_leaves_no_earlier_image_written() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -269,7 +255,7 @@ async fn an_invalid_image_in_the_batch_leaves_no_earlier_image_written() {
 /// so an admin retrying a 50-image chunk can tell which file to fix.
 #[tokio::test]
 async fn a_refused_batch_names_the_image_that_broke_it() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -304,7 +290,7 @@ async fn a_refused_batch_names_the_image_that_broke_it() {
 /// conflict, with nothing from the batch written.
 #[tokio::test]
 async fn a_duplicate_name_within_the_batch_is_a_conflict_like_the_single_path() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -325,7 +311,7 @@ async fn a_duplicate_name_within_the_batch_is_a_conflict_like_the_single_path() 
 /// existing emoji is left exactly as it was.
 #[tokio::test]
 async fn a_name_already_taken_is_a_conflict_like_the_single_path() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -345,7 +331,7 @@ async fn a_name_already_taken_is_a_conflict_like_the_single_path() {
 /// Bulk creation takes MANAGE_SERVER exactly like the single upload does.
 #[tokio::test]
 async fn bulk_upload_requires_manage_server() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let _admin = register(&store, "admin").await;
     let member = register(&store, "member").await;
@@ -360,7 +346,7 @@ async fn bulk_upload_requires_manage_server() {
 /// only while the `/emoji` layer outranks the bulk route's far larger one.
 #[tokio::test]
 async fn a_single_upload_over_one_mib_is_refused_by_the_body_limit() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 
@@ -373,7 +359,7 @@ async fn a_single_upload_over_one_mib_is_refused_by_the_body_limit() {
 /// single cap is read and judged by the handler, not cut off at 1 MiB.
 #[tokio::test]
 async fn a_bulk_body_over_one_mib_is_not_cut_off_by_the_single_limit() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
     let app = app(store.clone());
     let admin = register(&store, "admin").await;
 

@@ -8,8 +8,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
@@ -19,18 +17,6 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-categories-test");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn app(store: Store) -> Router {
     http::router(AppState {
@@ -84,7 +70,7 @@ async fn register(store: &Store, username: &str) -> String {
 
 #[tokio::test]
 async fn manager_can_create_rename_and_reposition_a_category() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -129,7 +115,7 @@ async fn manager_can_create_rename_and_reposition_a_category() {
 
 #[tokio::test]
 async fn creating_a_category_without_manage_channels_is_forbidden() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
@@ -154,7 +140,7 @@ async fn creating_a_category_without_manage_channels_is_forbidden() {
 /// `updateChannel` follows.
 #[tokio::test]
 async fn updating_a_category_with_nothing_to_change_is_bad_request() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -185,7 +171,7 @@ async fn updating_a_category_with_nothing_to_change_is_bad_request() {
 /// names as the reason this cannot be a cascading foreign key.
 #[tokio::test]
 async fn deleting_a_category_keeps_its_channels_and_uncategorises_them() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -246,7 +232,7 @@ async fn deleting_a_category_keeps_its_channels_and_uncategorises_them() {
 /// down to zero live channels, since categories decide placement only.
 #[tokio::test]
 async fn the_last_channel_guard_is_unaffected_by_categories() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -307,7 +293,7 @@ async fn the_last_channel_guard_is_unaffected_by_categories() {
 /// and leave the channel in a section nobody chose.
 #[tokio::test]
 async fn a_channel_can_be_created_directly_into_a_category() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -355,7 +341,7 @@ async fn a_channel_can_be_created_directly_into_a_category() {
 /// it can show.
 #[tokio::test]
 async fn creating_into_a_category_that_does_not_exist_is_refused() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -393,7 +379,7 @@ async fn creating_into_a_category_that_does_not_exist_is_refused() {
 /// exactly as it was.
 #[tokio::test]
 async fn creating_without_a_category_still_lands_uncategorised() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",
@@ -427,7 +413,7 @@ async fn creating_without_a_category_still_lands_uncategorised() {
 /// under a live category, so the channel would simply not appear.
 #[tokio::test]
 async fn a_deleted_category_cannot_be_created_into() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-categories-test").await;
     store
         .create_role(
             "everyone",

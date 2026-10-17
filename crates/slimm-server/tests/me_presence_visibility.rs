@@ -8,8 +8,6 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::config::Config;
-use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
@@ -21,18 +19,6 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
-
-async fn new_store() -> (Store, support::TestDbGuard) {
-    let (path, guard) = support::TestDbGuard::new("slimm-me-presence");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
-}
 
 fn state(store: Store) -> AppState {
     AppState {
@@ -147,7 +133,7 @@ async fn two_members() -> (
     (String, String),
     support::TestDbGuard,
 ) {
-    let (store, guard) = new_store().await;
+    let (store, guard) = support::new_store("slimm-me-presence").await;
     let app = app(store);
     let alice = register(&app, "alice").await;
     let bob = register_second(&app, &alice.0, "bob").await;
@@ -198,7 +184,7 @@ async fn no_route_describing_another_member_carries_the_choice() {
 
 #[tokio::test]
 async fn the_frame_other_members_receive_does_not_carry_the_choice() {
-    let (store, _guard) = new_store().await;
+    let (store, _guard) = support::new_store("slimm-me-presence").await;
     let app_state = state(store.clone());
     let app = http::router(app_state.clone());
     let alice = register(&app, "alice").await;
