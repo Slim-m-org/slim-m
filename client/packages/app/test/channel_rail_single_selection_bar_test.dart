@@ -15,7 +15,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/channel_rail_selection_marker.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_selection_marker.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// The layer's own travelling bar, which is not an [AppListRow] marker.

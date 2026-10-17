@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../permissions.dart';
 import '../widgets/message_mentions.dart' show messageMentionsMe;
 import 'blocks_controller.dart';
-import 'channel_notification_overrides_controller.dart';
+import '../features/channels/providers/channel_notification_overrides_controller.dart';
 import 'notification_preference_controller.dart';
 import 'notification_schedule_controller.dart';
 import 'notification_schedule_rules.dart';

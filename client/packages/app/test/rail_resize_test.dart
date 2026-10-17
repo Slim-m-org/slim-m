@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/rail_width_preference.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/rail_drag_handle.dart';
+import 'package:slimm_app/src/features/channels/providers/rail_width_preference.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drag_handle.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<ProviderContainer> _pump(WidgetTester tester) async {

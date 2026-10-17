@@ -17,7 +17,7 @@ import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'channel_permissions_grid.dart';
-import '../../providers/dms.dart' show dmChannelKind;
+import '../../features/channels/providers/dms.dart' show dmChannelKind;
 
 class ChannelPermissionsScreen extends StatelessWidget {
   const ChannelPermissionsScreen({super.key, this.initialChannel});

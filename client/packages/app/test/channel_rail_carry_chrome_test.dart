@@ -13,12 +13,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/channel_rail_selection_marker.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_selection_marker.dart';
 import 'package:slimm_app/src/widgets/context_menu_region.dart';
-import 'package:slimm_app/src/widgets/channel_rail_section_label.dart'
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_section_label.dart'
     show AddChannelGlyph;
-import 'package:slimm_app/src/widgets/rail_drag_lift.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drag_lift.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 

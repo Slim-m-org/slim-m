@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_app/src/desktop/update_watch.dart';
-import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_app/src/widgets/update_status_rows.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:package_info_plus/package_info_plus.dart';

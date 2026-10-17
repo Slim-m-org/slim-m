@@ -26,7 +26,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/bot_ui_uses.dart';
 import '../providers/call_recap.dart';
-import '../providers/last_text_channel.dart';
+import '../features/channels/providers/last_text_channel.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/voice_controller.dart';

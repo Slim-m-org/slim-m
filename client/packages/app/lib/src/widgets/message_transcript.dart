@@ -15,7 +15,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/channel_history.dart';
+import '../features/channels/providers/channel_history.dart';
 import '../providers/sync_controller.dart';
 import 'edit_history_sheet.dart';
 import 'message_context_menu.dart';

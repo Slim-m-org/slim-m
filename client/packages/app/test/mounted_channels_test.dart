@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/mounted_channels.dart';
+import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 
 void main() {
   test('a registered channel is open', () {

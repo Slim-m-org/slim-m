@@ -36,7 +36,7 @@ import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../../providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
-import '../../../providers/channel_permissions.dart';
+import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/picture_in_picture.dart';
 import '../../../providers/voice_controller.dart';

@@ -9,7 +9,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../widgets/channel_rail.dart';
+import '../features/channels/widgets/channel_rail.dart';
 import '../widgets/member_pane.dart';
 
 enum LayoutClass {

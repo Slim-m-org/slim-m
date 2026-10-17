@@ -39,7 +39,7 @@ import '../providers/forward_targets.dart';
 import '../providers/message_extras.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';
-import 'channel_kind_icon.dart';
+import '../features/channels/widgets/channel_kind_icon.dart';
 import 'user_avatar.dart';
 import 'run_guarded.dart';
 import 'sheet_item_list.dart';

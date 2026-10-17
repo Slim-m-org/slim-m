@@ -29,7 +29,7 @@ import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
-import '../../providers/dms.dart' show dmChannelKind;
+import '../../features/channels/providers/dms.dart' show dmChannelKind;
 import '../../providers/member_presence.dart' show membersProvider;
 
 /// The ceiling a resolved list may grow to before it scrolls internally

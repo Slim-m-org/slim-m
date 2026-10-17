@@ -19,10 +19,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/screens/dm_call_pane.dart';
 import 'package:slimm_app/src/screens/voice_join_preview.dart'
     show VoiceRejoinScreen;
-import 'package:slimm_app/src/providers/threads.dart';
+import 'package:slimm_app/src/features/channels/providers/threads.dart';
 import 'package:slimm_app/src/screens/thread_screen.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
-import 'package:slimm_app/src/widgets/channel_search.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/widgets/member_pane.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_api/api.dart' as api;

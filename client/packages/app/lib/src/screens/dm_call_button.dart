@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../providers/voice_controller.dart';
 import 'dm_call_pane.dart';

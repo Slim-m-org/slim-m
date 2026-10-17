@@ -24,7 +24,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../providers/admin_providers.dart';
-import '../../providers/channel_permissions.dart'
+import '../../features/channels/providers/channel_permissions.dart'
     show myVisibleChannelsProvider;
 import '../../features/modules/providers/app_launch.dart';
 import '../../features/modules/providers/code_block_runner.dart';

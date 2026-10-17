@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../format.dart';
-import '../../providers/channel_by_id_provider.dart';
+import '../../features/channels/providers/channel_by_id_provider.dart';
 import '../../providers/display_preferences.dart';
 import '../../providers/voice_call_history.dart';
 import '../../routing/breakpoints.dart';

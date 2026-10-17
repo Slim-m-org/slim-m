@@ -19,14 +19,14 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../providers/saved_messages_controller.dart';
 import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';
 import 'author_label.dart';
-import 'channel_label.dart';
-import 'channel_rail.dart' show selectedChannelId;
+import '../features/channels/widgets/channel_label.dart';
+import '../features/channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'message_jump.dart';
 import 'reply_target_summary.dart' show previewLine;
 import 'run_guarded.dart';

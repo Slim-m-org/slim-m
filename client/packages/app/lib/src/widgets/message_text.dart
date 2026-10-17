@@ -32,11 +32,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../external_link.dart';
 import '../message_link.dart';
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/providers.dart';
 import '../routing/routes.dart';
 import 'app_snackbar.dart';
-import 'channel_rail.dart' show selectedChannelId;
+import '../features/channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../features/emoji/widgets/custom_emoji_image.dart';
 import '../features/emoji/widgets/emoji_name_tip.dart';
 import '../features/emoji/widgets/emoji_names.dart';

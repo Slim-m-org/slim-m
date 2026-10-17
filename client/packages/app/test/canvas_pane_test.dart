@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
-import 'package:slimm_app/src/widgets/channel_header.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_header.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';

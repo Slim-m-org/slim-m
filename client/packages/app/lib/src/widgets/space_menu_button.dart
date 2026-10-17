@@ -15,7 +15,7 @@ import '../providers/admin_providers.dart';
 import '../routing/routes.dart';
 import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
-import 'row_menu_notifications.dart';
+import '../features/channels/widgets/row_menu_notifications.dart';
 import 'saved_messages_sheet.dart';
 import 'space_settings_section.dart';
 

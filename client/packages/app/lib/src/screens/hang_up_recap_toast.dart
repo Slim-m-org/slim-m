@@ -10,7 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/toasts.dart';
 import '../providers/voice_flags.dart';
 import '../routing/breakpoints.dart';

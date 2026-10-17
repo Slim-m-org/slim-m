@@ -16,7 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/providers/composer_focus.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/threads.dart';
+import 'package:slimm_app/src/features/channels/providers/threads.dart';
 import 'package:slimm_app/src/screens/thread_screen.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/message_transcript_widgets.dart';

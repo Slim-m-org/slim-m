@@ -8,7 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/threads.dart';
+import 'package:slimm_app/src/features/channels/providers/threads.dart';
 
 import 'composer_harness.dart';
 

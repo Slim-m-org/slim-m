@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'channel_history.dart';
+import '../features/channels/providers/channel_history.dart';
 import 'message_page_size.dart';
 import 'providers.dart';
 

@@ -17,7 +17,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
-import '../providers/channel_permissions.dart';
+import '../features/channels/providers/channel_permissions.dart';
 import '../providers/providers.dart';
 import '../providers/voice_flags.dart';
 

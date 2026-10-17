@@ -19,14 +19,14 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/call_mini_player.dart';
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/popout_window.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import '../screens/dm_call_pane.dart';
-import 'channel_rail.dart';
+import '../features/channels/widgets/channel_rail.dart';
 
 /// Room kept clear at the bottom of the pane for the composer and its typing
 /// line; the player's bottom corners rest above it.

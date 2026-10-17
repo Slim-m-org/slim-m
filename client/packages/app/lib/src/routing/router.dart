@@ -14,7 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' show TokenPair;
 
 import '../providers/providers.dart';
-import '../providers/threads.dart';
+import '../features/channels/providers/threads.dart';
 import '../screens/not_found_screen.dart';
 import '../screens/admin/account_recovery_screen.dart';
 import '../screens/admin/analytics_screen.dart';
@@ -37,7 +37,7 @@ import '../screens/admin/roles_screen.dart';
 import '../screens/admin/server_metrics_screen.dart';
 import '../screens/admin/storage_screen.dart';
 import '../screens/admin/webhooks_screen.dart';
-import '../screens/channel_settings_screen.dart';
+import '../features/channels/screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../screens/message_deep_link.dart';
 import '../screens/debug_log_screen.dart';

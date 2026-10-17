@@ -22,7 +22,7 @@ import '../permissions.dart';
 import 'message_extras.dart';
 import 'message_search.dart' show ProviderReader;
 import 'providers.dart';
-import 'slow_mode_controller.dart';
+import '../features/channels/providers/slow_mode_controller.dart';
 
 /// Toggles a reaction: off if [wasActive], on otherwise. Applied
 /// optimistically before the request, so a chip responds immediately; a

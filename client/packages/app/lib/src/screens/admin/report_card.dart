@@ -32,7 +32,8 @@ import '../../providers/member_presence.dart' show membersProvider;
 import '../../providers/providers.dart';
 import '../../providers/reports_controller.dart';
 import '../../providers/user_profiles.dart';
-import '../../widgets/channel_rail.dart' show selectedChannelId;
+import '../../features/channels/widgets/channel_rail.dart'
+    show selectedChannelId;
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/message_jump.dart';
 import '../../widgets/message_text.dart';
@@ -40,7 +41,8 @@ import '../../widgets/moderation_unavailable_caption.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_value_row.dart';
-import '../channel_screen.dart' show knownRoleNamesFrom, knownUsernamesFrom;
+import '../../features/channels/screens/channel_screen.dart'
+    show knownRoleNamesFrom, knownUsernamesFrom;
 import 'report_card_actions.dart';
 import 'report_card_labels.dart';
 import 'report_card_quick_actions.dart';

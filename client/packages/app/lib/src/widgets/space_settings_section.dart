@@ -25,7 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
 import '../providers/admin_providers.dart';
-import '../providers/channel_permissions.dart';
+import '../features/channels/providers/channel_permissions.dart';
 import '../routing/routes.dart';
 import '../screens/admin/account_recovery_screen.dart';
 import '../screens/admin/analytics_screen.dart';

@@ -18,7 +18,7 @@ import 'package:slimm_app/src/message_link.dart';
 import 'package:slimm_app/src/providers/message_actions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
-import 'package:slimm_app/src/screens/channel_message_actions.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_message_actions.dart';
 import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';

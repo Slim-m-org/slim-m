@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_app/src/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/widgets/invite_landing_section.dart';
 import 'package:slimm_design_system/design_system.dart';

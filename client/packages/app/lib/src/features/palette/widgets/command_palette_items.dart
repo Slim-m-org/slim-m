@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/dms.dart';
+import '../../channels/providers/dms.dart';
 import '../../../providers/personal_space_visibility.dart';
 import '../../../providers/user_profiles.dart';
 import '../../../routing/routes.dart';

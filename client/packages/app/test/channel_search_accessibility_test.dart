@@ -7,8 +7,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/channel_search_controller.dart';
-import 'package:slimm_app/src/widgets/channel_search.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 
 import 'channel_history_harness.dart';
 

@@ -13,7 +13,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../providers/threads.dart';
+import '../../channels/providers/threads.dart';
 
 class ComposerAutofocus extends ConsumerStatefulWidget {
   const ComposerAutofocus({

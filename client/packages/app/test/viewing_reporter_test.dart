@@ -8,7 +8,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
-import 'package:slimm_app/src/providers/mounted_channels.dart';
+import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 import 'package:slimm_app/src/providers/viewing_reporter.dart';
 
 final _focus = StateProvider<bool>((ref) => true);

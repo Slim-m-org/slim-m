@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/widgets/message_edit_field.dart';
 import 'package:slimm_app/src/widgets/reply_banner.dart';
 import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/providers/channel_permissions.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 
 import 'channel_history_harness.dart';

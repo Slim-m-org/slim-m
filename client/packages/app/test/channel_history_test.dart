@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/channel_history.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
 import 'package:slimm_app/src/providers/message_page_size.dart';
 import 'package:slimm_app/src/providers/retention_policy.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';

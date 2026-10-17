@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/presence_view.dart';
-import 'package:slimm_app/src/widgets/channel_kind_icon.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_kind_icon.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_compact.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_rows.dart';
 import 'package:slimm_data/data.dart';

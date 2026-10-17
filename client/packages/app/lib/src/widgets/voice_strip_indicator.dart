@@ -28,7 +28,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/voice_controller.dart';
 import '../routing/routes.dart';
 import '../screens/dm_call_pane.dart';

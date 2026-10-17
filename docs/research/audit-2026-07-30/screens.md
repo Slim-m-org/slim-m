@@ -107,11 +107,11 @@ A sixth verb with no keyboard route, alongside the five already recorded; existi
 
 ## 4. Live state the screen never reports
 
-**On a phone the channel screen never says the connection dropped** (medium) - `client/packages/app/lib/src/widgets/channel_rail.dart:160`.
+**On a phone the channel screen never says the connection dropped** (medium) - `client/packages/app/lib/src/features/channels/widgets/channel_rail.dart:160`.
 `RailConnectionBar` has one call site, in the rail, which is not on screen at compact width; and at every width the transcript only reports offline when the message list is empty.
 Sends do fail visibly, so the loss is inbound: the user cannot tell whether nobody is talking or nothing is arriving.
 
-**Nothing signals a message arriving while scrolled up, and the read marker advances anyway** (medium) - `client/packages/app/lib/src/screens/channel_screen.dart:224`.
+**Nothing signals a message arriving while scrolled up, and the read marker advances anyway** (medium) - `client/packages/app/lib/src/features/channels/screens/channel_screen.dart:224`.
 `_scrollToLatest` is only ever called from the send path, and `_markReadUpToLatest` runs unconditionally with no reference to scroll position, so the NEW divider has nothing left to anchor against.
 
 **The report queue never refreshes and has no affordance to ask it to** (low) - `client/packages/app/lib/src/providers/admin_providers.dart:30`.
@@ -128,7 +128,7 @@ An invite expiring in ten minutes reads exactly like one expiring in thirty days
 The recorded error-states pass converted 27 SnackBar-only failures; 26 `showSnackBar` call sites remain, 15 of them interpolating `e.message`, and the migration missed the primary screen and every admin screen.
 Confirmed independently by six specialists.
 
-**The channel screen and composer carry seven vanishing failures** (medium) - `client/packages/app/lib/src/screens/channel_message_actions.dart:45`, plus `composer.dart:238` and `:265`.
+**The channel screen and composer carry seven vanishing failures** (medium) - `client/packages/app/lib/src/features/channels/screens/channel_message_actions.dart:45`, plus `composer.dart:238` and `:265`.
 The attachment upload is the sharpest: the file did not attach and four seconds later the only explanation is gone with no verb to act on.
 
 **Invite creation flashes a Dart exception, and a non-API throw wedges the button** (medium) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:113`.
@@ -342,7 +342,7 @@ Conversely, resolving a report goes through the same danger helper (`reports_scr
 
 **Five stale or orphaned doc comments left by the settings redesign** - `client/packages/app/lib/src/screens/personal_settings_screen.dart:11` ("five panes" for seven), an orphaned block at the end of `personal_status_sections.dart` arguing for the design the redesign reversed, and two files claiming "Reached with `go()`, so there is no stack to pop" when every call site pushes - which is the exact reasoning the drill-down navigation finding turns on.
 
-**`_PinPill`'s doc comment describes a gap that closed two passes ago** - `client/packages/app/lib/src/widgets/channel_header.dart:121`, pointing the reader at a known-gaps note that has since been struck.
+**`_PinPill`'s doc comment describes a gap that closed two passes ago** - `client/packages/app/lib/src/features/channels/widgets/channel_header.dart:121`, pointing the reader at a known-gaps note that has since been struck.
 
 **Header action order differs between desktop and phone** - `channel_header.dart:96` against `compact_channel_app_bar.dart:82`: pin/search/members against search/pin/members, for no reason either width motivates.
 

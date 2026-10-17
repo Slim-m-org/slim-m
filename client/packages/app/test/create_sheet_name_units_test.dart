@@ -7,8 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/create_category_sheet.dart';
-import 'package:slimm_app/src/widgets/create_channel_sheet.dart';
+import 'package:slimm_app/src/features/channels/widgets/create_category_sheet.dart';
+import 'package:slimm_app/src/features/channels/widgets/create_channel_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 // 40 astral code points: 80 UTF-16 units; the server's chars().count() is 40, within its 64 limit.

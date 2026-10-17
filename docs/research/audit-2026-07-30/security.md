@@ -51,7 +51,7 @@ Shape: give the HTTP surface the bounds the socket surface already has, and move
 
 ### 3. Blocking filters nothing in a shared channel, while two snackbars promise the messages are hidden - high
 
-`client/packages/app/lib/src/screens/channel_message_actions.dart:191`, `client/packages/app/lib/src/widgets/member_actions.dart:60`
+`client/packages/app/lib/src/features/channels/screens/channel_message_actions.dart:191`, `client/packages/app/lib/src/widgets/member_actions.dart:60`
 
 The block list has exactly four app-side readers, all inside one settings widget (`personal_account_sections.dart:26,98,136`), and `blocksProvider` is `autoDispose`, so it is alive only while `BlockedSection` is mounted.
 Nothing in the transcript, the message row, the member pane, the pinned list, search or the sync controller reads it.

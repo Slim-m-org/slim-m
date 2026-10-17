@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/slow_mode_controller.dart';
+import 'package:slimm_app/src/features/channels/providers/slow_mode_controller.dart';
 
 void main() {
   final base = DateTime.utc(2026, 1, 1, 12);

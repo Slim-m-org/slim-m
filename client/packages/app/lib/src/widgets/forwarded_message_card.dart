@@ -25,12 +25,12 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'package:go_router/go_router.dart';
 
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/display_preferences.dart' show watchUse24Hour;
 import '../providers/user_profiles.dart';
 import 'attachment_gallery.dart';
 import 'author_label.dart';
-import 'channel_label.dart';
+import '../features/channels/widgets/channel_label.dart';
 import 'message_jump.dart';
 import 'message_row_identity.dart' show formatMessageTime;
 import 'user_avatar.dart';

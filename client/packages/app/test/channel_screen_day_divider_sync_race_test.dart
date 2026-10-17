@@ -33,7 +33,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart'
     show StagedSend;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_data/data.dart';

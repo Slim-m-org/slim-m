@@ -11,8 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_app/src/providers/threads.dart';
-import 'package:slimm_app/src/screens/channel_message_actions.dart';
+import 'package:slimm_app/src/features/channels/providers/threads.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_message_actions.dart';
 
 Future<BuildContext> _pumpAtWidth(
   WidgetTester tester,

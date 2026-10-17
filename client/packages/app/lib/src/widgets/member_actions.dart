@@ -17,7 +17,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../providers/member_moderation_error.dart';
-import '../providers/dms.dart' show openDirectMessage;
+import '../features/channels/providers/dms.dart' show openDirectMessage;
 import '../providers/member_presence.dart' show membersProvider;
 import '../providers/notification_schedule_controller.dart';
 import '../providers/providers.dart';

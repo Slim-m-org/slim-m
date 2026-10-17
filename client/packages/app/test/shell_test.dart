@@ -5,7 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/routing/breakpoints.dart';
-import 'package:slimm_app/src/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 void main() {

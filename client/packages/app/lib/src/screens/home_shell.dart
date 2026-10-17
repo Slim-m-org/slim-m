@@ -4,7 +4,8 @@
 /// ([LayoutClass.fitsMemberPane]).
 library;
 
-export 'conversation_pane.dart' show ConversationPane;
+export '../features/channels/screens/conversation_pane.dart'
+    show ConversationPane;
 export 'home_shell_empty_state.dart' show NoChannelSelected;
 
 import 'dart:async';
@@ -25,8 +26,8 @@ import '../providers/admin_providers.dart';
 import '../providers/blocks_controller.dart';
 import '../providers/call_shortcut_registry.dart';
 import '../providers/hold_music_controller.dart';
-import '../providers/channel_notification_overrides_controller.dart';
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_notification_overrides_controller.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/composer/providers/composer_focus.dart';
 import '../features/auth/providers/database_key_store.dart';
 import '../providers/member_selection.dart';
@@ -34,25 +35,25 @@ import '../features/modules/providers/module_sound_settings.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../providers/notification_sound_controller.dart';
 import '../providers/providers.dart';
-import '../providers/rail_width_preference.dart';
+import '../features/channels/providers/rail_width_preference.dart';
 import '../providers/retention_sweep.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
-import '../providers/threads.dart';
+import '../features/channels/providers/threads.dart';
 import '../providers/voice_controller.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import '../widgets/app_panel_reveal.dart';
-import '../widgets/channel_grouping.dart';
+import '../features/channels/widgets/channel_grouping.dart';
 import '../widgets/call_mini_player.dart';
-import '../widgets/channel_rail.dart';
-import '../widgets/channel_rail_frame.dart';
+import '../features/channels/widgets/channel_rail.dart';
+import '../features/channels/widgets/channel_rail_frame.dart';
 import '../features/palette/widgets/command_palette.dart';
 import '../widgets/compact_drawer_scaffold.dart';
 import '../widgets/member_pane.dart';
 import '../widgets/new_device_banner_host.dart';
 import '../widgets/rules_gate_banner_host.dart';
 import '../widgets/push_to_talk_listener.dart';
-import '../widgets/rail_slot.dart';
+import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/transfers_banner.dart';
 import '../widgets/update_banner_host.dart';
 import '../widgets/voice_strip_indicator.dart';

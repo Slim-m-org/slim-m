@@ -14,7 +14,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/channel_grouping.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_grouping.dart';
 import 'package:slimm_data/data.dart';
 
 Channel _channel(

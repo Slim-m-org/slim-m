@@ -7,7 +7,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:slimm_app/src/screens/channel_settings_screen.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.dart';
 import 'package:slimm_app/src/widgets/settings_section_header.dart';
 
 import 'channel_management_harness.dart';

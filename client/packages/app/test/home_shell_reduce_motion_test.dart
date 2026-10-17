@@ -23,7 +23,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/widgets/member_pane.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_api/api.dart' as api;

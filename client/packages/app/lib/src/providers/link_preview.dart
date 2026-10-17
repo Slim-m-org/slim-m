@@ -13,7 +13,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import '../widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../features/channels/widgets/channel_rail_frame.dart'
+    show serverInfoProvider;
 import 'cache_for.dart';
 import 'providers.dart';
 

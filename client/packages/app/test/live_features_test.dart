@@ -23,7 +23,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
-import 'package:slimm_app/src/providers/pins_controller.dart';
+import 'package:slimm_app/src/features/channels/providers/pins_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/typing_controller.dart';
 import 'package:slimm_platform/platform.dart';

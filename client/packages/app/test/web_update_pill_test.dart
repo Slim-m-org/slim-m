@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/web_update/web_update_pill.dart';
-import 'package:slimm_app/src/widgets/compact_channel_app_bar.dart';
+import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_app/src/web_update/web_update_watch.dart';
 import 'package:slimm_design_system/design_system.dart';
 

@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show Attachment;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/threads.dart';
+import '../../channels/providers/threads.dart';
 import 'composer_extras.dart';
 import 'composer_picker_button.dart';
 import 'composer_gif_command.dart';

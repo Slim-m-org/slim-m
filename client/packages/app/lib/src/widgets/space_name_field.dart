@@ -9,7 +9,8 @@ import 'package:slimm_api/api.dart' show InputLimits, SlimmApiSpace;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
-import 'channel_rail_frame.dart' show serverInfoProvider;
+import '../features/channels/widgets/channel_rail_frame.dart'
+    show serverInfoProvider;
 import 'join_policy_row.dart';
 import 'run_guarded.dart';
 

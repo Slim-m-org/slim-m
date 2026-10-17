@@ -15,7 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/screens/channel_not_found.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_not_found.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

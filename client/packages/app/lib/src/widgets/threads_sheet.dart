@@ -16,7 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/threads.dart';
+import '../features/channels/providers/threads.dart';
 import '../routing/breakpoints.dart';
 import '../providers/display_density.dart';
 import '../providers/user_profiles.dart';

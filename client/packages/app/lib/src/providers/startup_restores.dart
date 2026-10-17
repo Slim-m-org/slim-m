@@ -23,7 +23,7 @@ import 'media_preferences.dart';
 import 'message_page_size.dart';
 import 'preference_controller.dart';
 import 'providers.dart';
-import 'rail_width_preference.dart';
+import '../features/channels/providers/rail_width_preference.dart';
 import 'voice_controller.dart';
 
 /// Runs [restore], and on any failure records it and carries on: [name]'s

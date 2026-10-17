@@ -14,7 +14,7 @@ import 'package:slimm_app/src/providers/call_recap.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;

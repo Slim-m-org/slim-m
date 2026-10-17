@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/user_profiles.dart';
-import 'package:slimm_app/src/widgets/channel_search.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_items.dart';
 import 'package:slimm_app/src/widgets/pinned_messages_sheet.dart';
 import 'package:slimm_app/src/widgets/threads_sheet.dart';

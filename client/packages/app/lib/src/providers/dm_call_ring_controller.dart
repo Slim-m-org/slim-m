@@ -32,7 +32,7 @@ import 'package:slimm_platform/platform.dart';
 import '../routing/router.dart';
 import '../routing/routes.dart';
 import 'dm_call.dart';
-import 'ensure_dm_channel.dart';
+import '../features/channels/providers/ensure_dm_channel.dart';
 import 'live_events.dart';
 import 'providers.dart';
 import 'voice_controller.dart';

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/channel_kind_icon.dart';
+import '../../channels/widgets/channel_kind_icon.dart';
 import 'command_palette_items.dart';
 import '../../../widgets/message_row_identity.dart' show formatMessageDay;
 import '../../../widgets/user_avatar.dart';

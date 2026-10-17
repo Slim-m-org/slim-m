@@ -47,7 +47,9 @@ void main() {
       );
 
       final source = codeOnly(
-        File('lib/src/widgets/channel_rail_sections.dart').readAsStringSync(),
+        File(
+          'lib/src/features/channels/widgets/channel_rail_sections.dart',
+        ).readAsStringSync(),
       );
       expect(
         source.contains('voiceControllerProvider') ||
@@ -75,7 +77,7 @@ void main() {
 
       final source = codeOnly(
         File(
-          'lib/src/widgets/channel_rail_channel_rows.dart',
+          'lib/src/features/channels/widgets/channel_rail_channel_rows.dart',
         ).readAsStringSync(),
       );
       expect(

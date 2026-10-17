@@ -10,11 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show ChannelOrderGroup;
-import 'package:slimm_app/src/widgets/channel_rail_reorder.dart';
-import 'package:slimm_app/src/widgets/rail_carry_slot.dart';
-import 'package:slimm_app/src/widgets/rail_drag_lift.dart';
-import 'package:slimm_app/src/widgets/rail_drop_slots.dart';
-import 'package:slimm_app/src/widgets/rail_insertion_line.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_reorder.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_carry_slot.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drag_lift.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drop_slots.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_insertion_line.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

@@ -127,11 +127,12 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
-import '../providers/threads.dart';
+import '../features/channels/providers/threads.dart';
 import '../routing/close_screen.dart';
 import '../routing/routes.dart';
-import '../widgets/compact_channel_app_bar.dart' show ChannelSearchAction;
-import 'channel_screen.dart';
+import '../features/channels/widgets/compact_channel_app_bar.dart'
+    show ChannelSearchAction;
+import '../features/channels/screens/channel_screen.dart';
 
 class ThreadScreen extends ConsumerStatefulWidget {
   const ThreadScreen({required this.channelId, this.onClose, super.key});

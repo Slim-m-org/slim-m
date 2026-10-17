@@ -1,0 +1,217 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The routed conversation pane, split out of `home_shell.dart` for its line budget.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:slimm_design_system/design_system.dart';
+import '../providers/channel_by_id_provider.dart';
+import '../../auth/providers/database_key_store.dart';
+import '../providers/last_text_channel.dart';
+import '../../../providers/toasts.dart';
+import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart'
+    show initialSyncCompleteProvider;
+import '../providers/channel_search_controller.dart';
+import '../../../routing/breakpoints.dart';
+import '../../../routing/routes.dart';
+import '../widgets/compact_channel_app_bar.dart';
+import '../widgets/channel_header.dart';
+import '../../canvas/screens/canvas_pane.dart';
+import 'unlisted_channel.dart';
+import 'channel_screen.dart';
+import '../../../screens/dm_call_pane.dart';
+import '../../../screens/voice_lobby_redirect.dart';
+import '../../../screens/voice_screen.dart';
+import '../../../screens/voice_text_pane.dart';
+import '../../../screens/home_shell.dart';
+
+/// The routed conversation pane: a text channel reads, a voice channel
+/// calls, decided from the local store so it needs no round trip to know
+/// which to show.
+///
+/// [ChannelScreen] renders its own full header (search, the pin pill, the
+/// member-pane toggle) at any width that shows it. At compact width there is
+/// no room for one, and [CompactChannelAppBar] carries the same four
+/// affordances instead. Voice channels have no header of their own either
+/// way, so this still supplies a minimal one at wide layouts, as before. The
+/// canvas replaces all of that: [HomeShell] omits [CompactChannelAppBar]
+/// while it is open, and [_VoiceConversationHeader] below is skipped the same
+/// way, so [CanvasBar] is the only header at every width. `DmCallPane`
+/// follows the identical shape for a DM's call, carrying its own bar.
+class ConversationPane extends ConsumerWidget {
+  const ConversationPane({
+    required this.channelId,
+    this.openChat = false,
+    super.key,
+  });
+
+  final String channelId;
+
+  /// See [VoiceScreen.openChat]; only a voice channel consults it.
+  final bool openChat;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final layout = LayoutClass.of(context);
+    final storeAsync = ref.watch(storeProvider);
+
+    return storeAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.s16),
+          child: AppErrorState(
+            message: localStoreErrorMessage(e),
+            onRetry: () => ref.invalidate(storeProvider),
+          ),
+        ),
+      ),
+      data: (_) => _resolved(context, ref, layout),
+    );
+  }
+
+  Widget _resolved(BuildContext context, WidgetRef ref, LayoutClass layout) {
+    final row = ref.watch(channelByIdProvider(channelId));
+    final channel = row.valueOrNull;
+    // Before the first sync, or before the row has emitted, an unresolved id may just not have arrived yet.
+    if (channel == null &&
+        row.hasValue &&
+        ref.watch(initialSyncCompleteProvider)) {
+      final fallback = fallbackChannel(
+        last: ref.read(lastTextChannelProvider),
+        previous: ref.read(previousTextChannelProvider),
+        gone: channelId,
+      );
+      if (ref.watch(removedRoomsProvider).contains(channelId)) {
+        return _LeaveRemovedRoom(fallback: fallback);
+      }
+      final deletedName = ref.watch(deletedChannelsProvider)[channelId];
+      if (deletedName != null) {
+        return _LeaveRemovedRoom(
+          fallback: fallback,
+          notice: '#$deletedName was deleted',
+        );
+      }
+      return UnlistedChannel(channelId: channelId);
+    }
+    final isVoice = channel?.kind == 'voice';
+    final isLobby = isVoice && channel?.createsRooms == true;
+    final canvasOpen = ref.watch(canvasOpenProvider) == channelId;
+    final dmCallOpen =
+        channel?.kind == 'dm' && ref.watch(dmCallOpenProvider) == channelId;
+    // Keyed by stage, so each pane fades through the one it replaces.
+    final stage = canvasOpen
+        ? 'canvas'
+        : isVoice
+        ? 'voice'
+        : dmCallOpen
+        ? 'dm-call'
+        : 'text';
+    if (stage == 'text' && channel != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final last = ref.read(lastTextChannelProvider.notifier);
+        if (last.state == channelId) return;
+        ref.read(previousTextChannelProvider.notifier).state = last.state;
+        last.state = channelId;
+      });
+    }
+    final body = AppFadeIn(
+      key: ValueKey('pane-$stage'),
+      child: canvasOpen
+          ? CanvasPane(channelId: channelId)
+          : isLobby
+          ? VoiceLobbyRedirect(lobbyId: channelId)
+          : isVoice
+          ? VoiceScreen(channelId: channelId, openChat: openChat)
+          : dmCallOpen
+          ? DmCallPane(channelId: channelId)
+          : ChannelScreen(channelId: channelId),
+    );
+
+    if (!layout.showsBothPanes || !isVoice || isLobby || canvasOpen) {
+      return body;
+    }
+    return Column(
+      children: [
+        _VoiceConversationHeader(
+          channelId: channelId,
+          name: channel?.name ?? '',
+          topic: channel?.topic,
+        ),
+        Expanded(child: body),
+      ],
+    );
+  }
+}
+
+/// A voice channel's one header: [ChannelHeader] with the toggle for
+/// `voice_text_pane.dart`'s chat: docked beside the call where
+/// [LayoutClass.fitsThreadPane] allows it, swapped in over the call below
+/// that, so the toggle is always offered. The chat passes `showHeader: false`,
+/// so this is the only bar.
+class _VoiceConversationHeader extends ConsumerWidget {
+  const _VoiceConversationHeader({
+    required this.channelId,
+    required this.name,
+    this.topic,
+  });
+
+  final String channelId;
+  final String name;
+  final String? topic;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chatOpen = ref.watch(voiceChatPaneVisibleProvider);
+    final search = ref.watch(channelSearchProvider(channelId));
+    void setChatOpen(bool open) =>
+        ref.read(voiceChatPaneVisibleProvider.notifier).state = open;
+    return ChannelHeader(
+      channelId: channelId,
+      name: name,
+      topic: topic,
+      isVoice: true,
+      searchOpen: search.open,
+      // Search lives in the docked chat, so opening it opens the pane it searches.
+      onToggleSearch: () {
+        if (!chatOpen) setChatOpen(true);
+        ref.read(channelSearchProvider(channelId).notifier).toggle();
+      },
+      textChatOpen: chatOpen,
+      onToggleTextChat: () => setChatOpen(!chatOpen),
+    );
+  }
+}
+
+/// A channel removed while still on screen (a temporary room that emptied,
+/// or a deleted channel such as a closed ticket): back to the last text
+/// conversation, or the channel list without one, saying why when [notice]
+/// is set.
+class _LeaveRemovedRoom extends ConsumerStatefulWidget {
+  const _LeaveRemovedRoom({required this.fallback, this.notice});
+
+  final String? fallback;
+  final String? notice;
+
+  @override
+  ConsumerState<_LeaveRemovedRoom> createState() => _LeaveRemovedRoomState();
+}
+
+class _LeaveRemovedRoomState extends ConsumerState<_LeaveRemovedRoom> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final notice = widget.notice;
+      if (notice != null) ref.read(toastsProvider.notifier).show(notice);
+      final fallback = widget.fallback;
+      context.go(fallback == null ? Routes.channels : Routes.channel(fallback));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}

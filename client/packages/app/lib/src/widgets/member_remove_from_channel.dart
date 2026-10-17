@@ -11,8 +11,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
 import '../providers/admin_providers.dart' show rolesProvider;
-import '../providers/channel_by_id_provider.dart';
-import '../providers/channel_permissions.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_permissions.dart';
 import '../providers/member_presence.dart' show channelMembersProvider;
 import '../providers/providers.dart';
 import 'confirm_dialog.dart';

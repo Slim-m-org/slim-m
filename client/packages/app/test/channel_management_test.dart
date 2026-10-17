@@ -13,9 +13,10 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_app/src/widgets/channel_rail.dart' show channelIdInPath;
-import 'package:slimm_app/src/widgets/channel_rail_sections.dart';
-import 'package:slimm_app/src/widgets/rail_insertion_line.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart'
+    show channelIdInPath;
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_insertion_line.dart';
 
 import 'channel_management_harness.dart';
 

@@ -18,7 +18,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 
 api.UserProfile _member(String username) => api.UserProfile(
   id: username,

@@ -8,7 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/sync_controller.dart';
 import '../providers/sync_failure.dart';
-import 'channel_rail_frame.dart';
+import '../features/channels/widgets/channel_rail_frame.dart';
 import 'space_icon.dart';
 
 /// With an icon the dot is its bottom-right badge, as on an avatar; without one it stands alone.

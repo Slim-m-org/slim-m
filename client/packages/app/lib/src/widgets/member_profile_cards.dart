@@ -17,7 +17,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/blocks_controller.dart';
-import '../providers/channel_by_id_provider.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../providers/member_presence.dart';
 import '../providers/providers.dart';
 import '../providers/toasts.dart';

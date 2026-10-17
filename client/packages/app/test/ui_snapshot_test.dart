@@ -23,11 +23,12 @@ import 'package:slimm_app/src/providers/ephemeral_messages.dart'
     show EphemeralMessagesController, ephemeralMessagesProvider;
 import 'package:slimm_app/src/providers/sync_controller.dart'
     show SyncStatus, initialSyncCompleteProvider, syncControllerProvider;
-import 'package:slimm_app/src/providers/threads.dart' show openThreadProvider;
+import 'package:slimm_app/src/features/channels/providers/threads.dart'
+    show openThreadProvider;
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart'
     show canvasOpenProvider;
-import 'package:slimm_app/src/widgets/channel_rail.dart'
+import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart'
     show channelRailExpandedProvider;
 
 import 'support/surface_registry.dart';

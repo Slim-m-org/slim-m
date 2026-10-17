@@ -11,8 +11,8 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/channel_notification_overrides_controller.dart';
-import '../providers/dms.dart';
+import '../features/channels/providers/channel_notification_overrides_controller.dart';
+import '../features/channels/providers/dms.dart';
 import '../providers/personal_space_visibility.dart';
 import '../providers/providers.dart';
 import '../providers/unread_indicator_rules.dart';

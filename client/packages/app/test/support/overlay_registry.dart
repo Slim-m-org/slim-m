@@ -21,7 +21,7 @@ import 'package:slimm_app/src/widgets/camera_source_sheet.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_extras.dart';
 import 'package:slimm_app/src/widgets/confirm_dialog.dart';
-import 'package:slimm_app/src/widgets/create_channel_sheet.dart';
+import 'package:slimm_app/src/features/channels/widgets/create_channel_sheet.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_app/src/widgets/member_profile.dart';
 import 'package:slimm_app/src/widgets/pinned_messages_sheet.dart';

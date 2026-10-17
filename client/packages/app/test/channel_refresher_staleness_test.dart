@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/channel_refresher.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_refresher.dart';
 import 'package:slimm_data/data.dart'
     show CategoryStore, MessageStore, SlimmDatabase;
 

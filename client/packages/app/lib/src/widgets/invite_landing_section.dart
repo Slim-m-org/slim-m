@@ -15,7 +15,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/display_preferences.dart';
 import '../providers/member_presence.dart';
 import '../providers/providers.dart';
-import 'channel_rail_frame.dart' show serverInfoProvider;
+import '../features/channels/widgets/channel_rail_frame.dart'
+    show serverInfoProvider;
 import 'attachment_picker.dart';
 import 'avatar_crop_sheet.dart';
 import 'image_downscale.dart';

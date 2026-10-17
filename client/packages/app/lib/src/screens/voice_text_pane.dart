@@ -31,7 +31,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../routing/breakpoints.dart';
 import '../widgets/app_panel_reveal.dart';
-import 'channel_screen.dart';
+import '../features/channels/screens/channel_screen.dart';
 
 /// Whether the voice channel's docked chat pane is open, at desktop widths.
 /// Defaults closed: opening a voice channel keeps the call stage at full

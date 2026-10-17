@@ -19,7 +19,7 @@ import 'package:slimm_api/api.dart';
 
 import '../permissions.dart';
 import 'blocks_controller.dart';
-import 'dms.dart' show personalSpaceName;
+import '../features/channels/providers/dms.dart' show personalSpaceName;
 import 'providers.dart';
 
 /// One place a message could be forwarded to.

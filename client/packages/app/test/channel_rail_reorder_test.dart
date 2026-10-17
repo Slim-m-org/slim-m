@@ -13,7 +13,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show ChannelOrderGroup;
-import 'package:slimm_app/src/widgets/channel_rail_reorder.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_reorder.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
