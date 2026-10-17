@@ -1,0 +1,3 @@
+# Nothing reads sqlite's memory stats, and keeping them costs a process-wide mutex per allocation (#2240).
+[env]
+LIBSQLITE3_FLAGS = "-DSQLITE_DEFAULT_MEMSTATUS=0"

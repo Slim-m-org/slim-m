@@ -87,8 +87,10 @@ async fn connect(ws: WebSocketUpgrade, State(state): State<AppState>) -> Respons
     let Some(permit) = state.hub.try_connect() else {
         return (StatusCode::SERVICE_UNAVAILABLE, "too many connections").into_response();
     };
+    // tungstenite zero-fills its whole read buffer on every read; 128 KiB by default was most of fan-out's CPU (#2239).
     ws.max_message_size(MAX_FRAME_BYTES)
         .max_frame_size(MAX_FRAME_BYTES)
+        .read_buffer_size(MAX_FRAME_BYTES)
         .on_upgrade(move |socket| serve(socket, state, permit))
 }
 
