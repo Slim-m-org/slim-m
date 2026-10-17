@@ -20,7 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../ui_snapshot_support.dart' show snapshotBoundary;
-import '../voice_controller_harness.dart';
+import '../features/voice/voice_controller_harness.dart';
 
 const callMe = VoiceParticipant(
   identity: 'me',

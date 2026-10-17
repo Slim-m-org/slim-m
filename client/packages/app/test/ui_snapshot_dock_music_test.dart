@@ -17,7 +17,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_call_controls_harness.dart' show InertSession;
+import 'features/voice/voice_call_controls_harness.dart' show InertSession;
 
 VoiceParticipant _me() => const VoiceParticipant(
   identity: 'me',

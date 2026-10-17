@@ -18,7 +18,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_settings_screen_harness.dart';
+import 'features/voice/voice_settings_screen_harness.dart';
 
 void main() {
   setUpAll(loadRealFonts);

@@ -23,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_snapshot_fixtures.dart'
+import 'features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectingState, dmChannelId;
 
 const _scale = TextScaler.linear(2.0);

@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../ui_snapshot_support.dart';
-import '../../voice_controller_harness.dart';
+import '../voice/voice_controller_harness.dart';
 
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpRail(
   WidgetTester tester, {

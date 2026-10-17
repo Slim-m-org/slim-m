@@ -11,7 +11,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart
 import 'package:slimm_rtc/rtc.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 import 'support/fake_blocks.dart';
 
 const _here = VoiceParticipant(

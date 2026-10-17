@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/settings/widgets/personal_account_section
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(

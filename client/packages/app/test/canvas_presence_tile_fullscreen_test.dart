@@ -32,7 +32,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 const _expandLabel = 'Show this tile full screen';
 

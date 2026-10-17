@@ -34,9 +34,9 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart'
 import 'support/surface_registry.dart';
 import 'support/fake_sync.dart';
 import 'ui_snapshot_support.dart';
-import 'voice_snapshot_fixtures.dart'
+import 'features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectedCallState, connectingState;
-import 'voice_snapshot_scenarios.dart';
+import 'features/voice/voice_snapshot_scenarios.dart';
 
 /// `ReportCard`'s own nested resolve needs `renderSurface`'s
 /// `settleNestedResolve` pump, or `expectSettled` catches it as a

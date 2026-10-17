@@ -22,7 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_rtc/rtc.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

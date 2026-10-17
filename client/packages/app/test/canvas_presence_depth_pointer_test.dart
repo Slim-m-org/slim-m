@@ -25,7 +25,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 import 'support/fake_blocks.dart';
 
 /// Camera on: this suite drives the depth control, which an avatar-only

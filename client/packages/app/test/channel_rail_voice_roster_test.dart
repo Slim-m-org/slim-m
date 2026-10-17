@@ -23,7 +23,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',

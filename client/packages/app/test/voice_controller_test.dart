@@ -17,7 +17,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 void main() {
   final harness = VoiceHarness();

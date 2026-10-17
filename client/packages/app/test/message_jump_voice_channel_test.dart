@@ -15,7 +15,8 @@ import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 import 'package:slimm_data/data.dart';
 
 import 'home_shell_harness.dart';
-import 'voice_controller_harness.dart' show RecordingVoiceController;
+import 'features/voice/voice_controller_harness.dart'
+    show RecordingVoiceController;
 
 void main() {
   testWidgets(

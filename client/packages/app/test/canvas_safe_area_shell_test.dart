@@ -22,7 +22,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 /// Live in a different channel than the one whose canvas the tests open.
 const _callElsewhere = VoiceState(

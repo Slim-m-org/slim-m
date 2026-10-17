@@ -10,7 +10,8 @@ import 'package:slimm_app/src/features/settings/providers/notification_schedule_
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_snapshot_fixtures.dart' show SnapshotVoiceController;
+import 'features/voice/voice_snapshot_fixtures.dart'
+    show SnapshotVoiceController;
 
 const _schedule = api.NotificationSchedule(
   timezone: 'UTC',

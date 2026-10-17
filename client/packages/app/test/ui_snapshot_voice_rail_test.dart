@@ -20,7 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-nick',

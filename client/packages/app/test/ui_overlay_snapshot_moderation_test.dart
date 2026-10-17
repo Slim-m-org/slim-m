@@ -38,7 +38,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
-import 'voice_controller_harness.dart' show FakeSession, tokens;
+import 'features/voice/voice_controller_harness.dart' show FakeSession, tokens;
 import 'support/fake_blocks.dart';
 
 const _viewport = Size(1400, 880);

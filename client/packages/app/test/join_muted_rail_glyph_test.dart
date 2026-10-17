@@ -14,7 +14,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_channel_row
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'voice_controller_harness.dart';
+import 'features/voice/voice_controller_harness.dart';
 
 Channel _voice({required bool joinMuted}) => Channel(
   id: 'ch-1',

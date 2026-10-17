@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'home_shell_harness.dart';
-import 'voice_controller_harness.dart' show FixedVoiceController;
+import 'features/voice/voice_controller_harness.dart' show FixedVoiceController;
 
 void main() {
   testWidgets(

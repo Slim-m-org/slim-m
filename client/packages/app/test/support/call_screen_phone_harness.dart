@@ -24,7 +24,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../home_shell_harness.dart';
 import '../ui_snapshot_support.dart' show snapshotBoundary;
-import '../voice_controller_harness.dart';
+import '../features/voice/voice_controller_harness.dart';
 
 const callChannelId = 'c-voice';
 

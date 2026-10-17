@@ -24,7 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/tray/desktop_tray_controller.dart';
 import 'package:tray_manager/tray_manager.dart';
 
-import '../voice_controller_harness.dart';
+import '../features/voice/voice_controller_harness.dart';
 import 'support/fake_desktop_window_port.dart';
 
 const _channel = MethodChannel('tray_manager');

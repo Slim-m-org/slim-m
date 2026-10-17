@@ -19,7 +19,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../voice_controller_harness.dart';
+import '../features/voice/voice_controller_harness.dart';
 import 'canvas_tools_row_fixtures.dart';
 
 /// A connected [VoiceFlags] with sensible defaults, matching what

@@ -42,7 +42,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../support/real_shadows.dart';
-import '../voice_controller_harness.dart';
+import '../features/voice/voice_controller_harness.dart';
 
 const canvasAssembledOutDir = 'build/canvas-assembled-snapshots';
 bool get _writing => Platform.environment['SLIMM_CANVAS_ASSEMBLED'] == '1';

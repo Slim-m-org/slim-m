@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
-import 'voice_call_controls_harness.dart';
+import 'features/voice/voice_call_controls_harness.dart';
 
 const _connected = VoiceFlags(state: VoiceSessionState.connected);
 const _connectedWithCamera = VoiceFlags(

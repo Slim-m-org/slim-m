@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/mid_flight_capture.dart';
 import '../../ui_snapshot_support.dart';
-import '../../voice_controller_harness.dart';
+import '../voice/voice_controller_harness.dart';
 
 Channel _voice(
   String name, {

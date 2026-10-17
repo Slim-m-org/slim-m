@@ -23,7 +23,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../support/reduced_motion_harness.dart';
-import '../../voice_controller_harness.dart' show tokens;
+import '../voice/voice_controller_harness.dart' show tokens;
 
 const _channelId = 'channel-secret';
 

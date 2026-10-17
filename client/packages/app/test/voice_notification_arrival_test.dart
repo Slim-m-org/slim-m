@@ -16,7 +16,8 @@ import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_data/data.dart';
 
 import 'home_shell_harness.dart';
-import 'voice_controller_harness.dart' show RecordingVoiceController;
+import 'features/voice/voice_controller_harness.dart'
+    show RecordingVoiceController;
 
 Future<
   ({

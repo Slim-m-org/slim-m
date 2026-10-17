@@ -17,7 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'ui_snapshot_support.dart';
-import 'voice_settings_screen_harness.dart' show FakeSession;
+import 'features/voice/voice_settings_screen_harness.dart' show FakeSession;
 
 void main() {
   setUpAll(loadRealFonts);

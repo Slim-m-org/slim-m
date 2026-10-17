@@ -23,7 +23,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'support/fake_sync.dart';
-import 'voice_controller_harness.dart' show RecordingVoiceController;
+import 'features/voice/voice_controller_harness.dart'
+    show RecordingVoiceController;
 
 const _tokens = TokenPair(
   userId: 'user-1',

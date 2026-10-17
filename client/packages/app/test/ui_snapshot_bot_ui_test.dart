@@ -27,7 +27,7 @@ import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'features/messages/message_row_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
-import 'voice_call_controls_harness.dart' show InertSession;
+import 'features/voice/voice_call_controls_harness.dart' show InertSession;
 
 const _bots = [
   api.ChannelBotUi(
