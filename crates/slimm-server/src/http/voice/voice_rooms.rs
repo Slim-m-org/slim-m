@@ -11,12 +11,12 @@ use axum::http::request::Parts;
 use axum::routing::{patch, post};
 use serde::Deserialize;
 
-use super::AppState;
-use super::channel_validation::{validate_channel_name, validate_user_limit};
-use super::channels::ChannelDto;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::channel_validation::{validate_channel_name, validate_user_limit};
+use super::super::channels::ChannelDto;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce};
+use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;

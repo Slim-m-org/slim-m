@@ -52,6 +52,11 @@ use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
+pub(super) mod voice_calls;
+pub(super) mod voice_ring;
+pub(super) mod voice_rooms;
+pub(super) mod voice_webhook;
+
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
 
@@ -125,7 +130,7 @@ async fn token(
     }
 
     if let Some(channel) = state.store.channel(channel_id).await? {
-        super::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
+        self::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
     }
 
     // The token's name comes from the account, never from what the caller sends.
@@ -240,7 +245,7 @@ async fn heartbeat(
             ring_id,
             outcome: CallRingOutcome::Answered,
         });
-        super::voice_ring::record_call(
+        self::voice_ring::record_call(
             &state,
             channel_id,
             ring_id,
@@ -297,7 +302,7 @@ async fn forget_heartbeat(
             ring_id,
             outcome: CallRingOutcome::Canceled,
         });
-        super::voice_ring::record_call(
+        self::voice_ring::record_call(
             &state,
             channel_id,
             ring_id,
