@@ -12,7 +12,7 @@ import 'package:slimm_app/src/providers/call_mini_player.dart';
 import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/widgets/call_mini_player.dart';
 import 'package:slimm_app/src/widgets/compact_channel_app_bar.dart';
-import 'package:slimm_app/src/widgets/composer.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/rail_call_summary.dart';
 import 'package:slimm_app/src/widgets/voice_strip_indicator.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;

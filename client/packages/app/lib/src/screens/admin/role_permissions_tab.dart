@@ -16,7 +16,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/app_launch.dart';
 import '../../providers/code_block_runner.dart';
 import '../../providers/providers.dart';
-import '../../providers/slash_command.dart';
+import '../../features/composer/providers/slash_command.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_save_bar.dart';

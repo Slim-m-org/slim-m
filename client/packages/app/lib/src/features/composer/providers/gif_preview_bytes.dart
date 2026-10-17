@@ -13,8 +13,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import 'cache_for.dart';
-import 'providers.dart';
+import '../../../providers/cache_for.dart';
+import '../../../providers/providers.dart';
 
 /// One result grid's worth of thumbnails, generously sized for a full page
 /// of search results without holding on to a previous search's images too.

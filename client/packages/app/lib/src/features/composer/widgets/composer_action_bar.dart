@@ -21,7 +21,7 @@ import 'composer_gif_command.dart';
 import 'composer_picker_panel.dart' show showComposerPickerSheet;
 import 'composer_scrollbar.dart';
 import 'composer_shortcodes.dart';
-import '../../../widgets/poll_composer_sheet.dart';
+import 'poll_composer_sheet.dart';
 
 class ComposerActionBar extends ConsumerWidget {
   const ComposerActionBar({

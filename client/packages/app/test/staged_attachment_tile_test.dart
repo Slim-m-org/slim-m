@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
-import 'package:slimm_app/src/widgets/staged_attachment_tile.dart';
+import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness(Widget child) => MaterialApp(

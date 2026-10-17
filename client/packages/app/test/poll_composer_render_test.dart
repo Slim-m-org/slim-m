@@ -9,7 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/poll_composer_sheet.dart';
+import 'package:slimm_app/src/features/composer/widgets/poll_composer_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';

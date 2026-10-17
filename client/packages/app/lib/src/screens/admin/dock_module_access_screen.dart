@@ -31,7 +31,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/app_launch.dart';
 import '../../providers/code_block_runner.dart';
 import '../../providers/providers.dart';
-import '../../providers/slash_command.dart';
+import '../../features/composer/providers/slash_command.dart';
 import '../../routing/routes.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_section_header.dart';

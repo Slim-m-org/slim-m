@@ -28,7 +28,7 @@ import '../../providers/channel_permissions.dart'
     show myVisibleChannelsProvider;
 import '../../providers/app_launch.dart';
 import '../../providers/code_block_runner.dart';
-import '../../providers/slash_command.dart';
+import '../../features/composer/providers/slash_command.dart';
 import '../../providers/providers.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/confirm_dialog.dart';

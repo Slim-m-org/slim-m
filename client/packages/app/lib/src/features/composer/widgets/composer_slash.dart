@@ -17,7 +17,7 @@ import 'package:slimm_api/api.dart';
 import '../../../api_failure.dart';
 import '../../../providers/app_launch.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/slash_command.dart';
+import '../providers/slash_command.dart';
 import '../../../widgets/app_launcher_sheet.dart';
 
 /// Runs [command] with [args] and applies the outcome: on a non-empty result,

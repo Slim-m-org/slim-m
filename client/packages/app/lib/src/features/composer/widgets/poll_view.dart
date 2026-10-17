@@ -45,7 +45,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'poll_option_row.dart';
 import 'poll_text.dart';
-import 'ranked_poll_view.dart';
+import '../../../widgets/ranked_poll_view.dart';
 
 class PollView extends StatefulWidget {
   const PollView({

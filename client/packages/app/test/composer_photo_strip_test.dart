@@ -12,8 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_photo_strip.dart';
-import 'package:slimm_app/src/widgets/photo_library.dart';
-import 'package:slimm_app/src/widgets/staged_attachment_tile.dart';
+import 'package:slimm_app/src/features/composer/widgets/photo_library.dart';
+import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';

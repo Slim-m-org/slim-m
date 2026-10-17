@@ -18,7 +18,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/threads.dart';
 import 'package:slimm_app/src/screens/thread_screen.dart';
-import 'package:slimm_app/src/widgets/composer.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/widgets/message_transcript_widgets.dart';
 import 'package:slimm_app/src/widgets/thread_parent_card.dart';
 import 'package:slimm_app/src/widgets/user_avatar.dart';

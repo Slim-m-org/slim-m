@@ -31,7 +31,7 @@ import 'message_inline.dart' show extractLinkPreviewUrls;
 import 'message_row_identity.dart';
 import 'message_row_parts.dart';
 import 'message_text.dart';
-import 'poll_view.dart';
+import '../features/composer/widgets/poll_view.dart';
 import 'reactions_row.dart';
 import 'reply_quote.dart';
 

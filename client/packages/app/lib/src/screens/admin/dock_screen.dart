@@ -22,7 +22,7 @@ import '../../providers/admin_providers.dart';
 import '../../providers/app_launch.dart';
 import '../../providers/code_block_runner.dart';
 import '../../providers/providers.dart';
-import '../../providers/slash_command.dart';
+import '../../features/composer/providers/slash_command.dart';
 import '../../routing/routes.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/ring_flush.dart';

@@ -29,7 +29,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'providers.dart';
+import '../../../providers/providers.dart';
 
 final trendingGifsProvider = FutureProvider<List<api.GifResult>>(
   (ref) => ref.watch(apiProvider).fetchTrendingGifs(),

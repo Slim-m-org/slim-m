@@ -15,7 +15,7 @@ import 'composer_code_fence.dart';
 import 'composer_context_menu.dart';
 import 'composer_markdown_shortcuts.dart';
 import 'composer_scrollbar.dart';
-import '../../../widgets/staged_attachment_tile.dart';
+import 'staged_attachment_tile.dart';
 
 /// How many characters past [kMessageMaxChars] the given [length] sits, or
 /// null when it is within the limit. Runs before the send goes out, so the

@@ -24,7 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/message_selection.dart';
 import '../providers/providers.dart';
-import '../widgets/composer.dart';
+import '../features/composer/widgets/composer.dart';
 import '../features/composer/widgets/composer_attachments.dart' show StagedSend;
 import '../features/composer/widgets/composer_autofocus.dart';
 import '../widgets/message_selection_bar.dart';

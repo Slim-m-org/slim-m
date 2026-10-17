@@ -18,12 +18,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../api_failure.dart';
+import '../../../api_failure.dart';
 import '../providers/gif_preview_bytes.dart';
 import '../providers/gif_trending.dart';
-import '../providers/providers.dart';
-import '../features/composer/widgets/composer_attachments.dart';
-import 'image_decode.dart';
+import '../../../providers/providers.dart';
+import 'composer_attachments.dart';
+import '../../../widgets/image_decode.dart';
 
 /// How long a pause in typing must last before a search actually fires, so a
 /// fast typist does not spend a request per keystroke.

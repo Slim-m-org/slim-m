@@ -13,8 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'poll_option_row.dart';
-import 'poll_view.dart' show closesIn;
+import '../features/composer/widgets/poll_option_row.dart';
+import '../features/composer/widgets/poll_view.dart' show closesIn;
 
 class RankedPollBody extends StatefulWidget {
   const RankedPollBody({

@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/slash_command.dart';
+import 'package:slimm_app/src/features/composer/providers/slash_command.dart';
 
 import 'composer_harness.dart';
 

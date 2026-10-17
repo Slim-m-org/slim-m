@@ -18,15 +18,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../api_failure.dart';
-import '../ids.dart';
-import '../providers/message_extras.dart';
-import '../providers/providers.dart';
-import '../features/emoji/widgets/emoji_picker.dart';
+import '../../../api_failure.dart';
+import '../../../ids.dart';
+import '../../../providers/message_extras.dart';
+import '../../../providers/providers.dart';
+import '../../emoji/widgets/emoji_picker.dart';
 import 'poll_view.dart';
-import 'settings_select_row.dart';
-import 'settings_toggle_row.dart';
-import 'text_insert.dart';
+import '../../../widgets/settings_select_row.dart';
+import '../../../widgets/settings_toggle_row.dart';
+import '../../../widgets/text_insert.dart';
 
 /// Mirrors `store::polls::MIN_OPTIONS`: below this a poll is not a choice.
 const _minOptions = 2;

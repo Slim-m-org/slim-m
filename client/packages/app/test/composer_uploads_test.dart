@@ -24,7 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/composer.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 
 import 'composer_harness.dart';

@@ -345,7 +345,7 @@ Measured on this branch, `.g.dart` and `.freezed.dart` excluded.
 | 481 | `rtc/lib/src/voice_session.dart` | the screen-share members (`screenShareNeedsSource`, `screenShareSources`, `setScreenShareEnabled`, `captureOptionsFor`, `_isSharing`, `screenShareViewFor`) as a collaborator over the room, the way `local_audio.dart` took the audio triple. Both siblings record being split out at the 500 ceiling, so the pattern has been reactive twice |
 | 461 | `app/lib/src/providers/push_controller.dart` | the lifecycle-reporting half (`_stateLabel`, `didChangeAppLifecycleState`, the foreground heartbeat, `_reportLifecycle`, 361-446), which shares nothing with registration but a status predicate. At 92% of the hard ceiling |
 | 446 | `design_system/lib/src/app_tokens.dart` | none, deliberately: a flat value catalogue with no seam |
-| 412 | `app/lib/src/widgets/composer.dart` | none named; the duplicated action list (below) comes out of it |
+| 412 | `app/lib/src/features/composer/widgets/composer.dart` | none named; the duplicated action list (below) comes out of it |
 | 409 | `app/lib/src/widgets/member_profile.dart` | none named |
 | 396 | `app/lib/src/screens/onboarding_screen.dart` | none named; the three duplicated address validators are in it |
 | 388 | `app/lib/src/screens/sign_in_screen.dart` | none named |

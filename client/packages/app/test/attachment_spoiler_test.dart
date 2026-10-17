@@ -15,7 +15,7 @@ import 'package:slimm_app/src/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/widgets/attachment_spoiler.dart';
 import 'package:slimm_app/src/widgets/attachment_view.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
-import 'package:slimm_app/src/widgets/staged_attachment_tile.dart';
+import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';
