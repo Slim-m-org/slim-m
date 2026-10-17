@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+name: load
+
+# By hand only: it saturates a runner on purpose and gates nothing (docs/ci.md).
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Which k6 scenario to run"
+        type: choice
+        options: [fanout, http_mix, connect_storm]
+        default: fanout
+      sizes:
+        description: "k6 env sizes as KEY=VALUE pairs, e.g. LISTENERS=200 SENDERS=5 RATE=4 DURATION=30 (see perf/load/README.md)"
+        type: string
+        default: ""
+      profile:
+        description: "Record a samply CPU profile of the server"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SQLX_OFFLINE: "true"
+
+jobs:
+  load:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SCENARIO: ${{ inputs.scenario }}
+      SIZES: ${{ inputs.sizes }}
+      PROFILE: ${{ inputs.profile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+      - name: check the sizes
+        run: |
+          [[ -z "$SIZES" || "$SIZES" =~ ^([A-Z_]+=[0-9,]+)([[:space:]]+[A-Z_]+=[0-9,]+)*$ ]] || { echo "::error::sizes must be KEY=VALUE pairs of digits"; exit 1; }
+      - name: install samply
+        if: ${{ inputs.profile }}
+        run: |
+          cargo install --locked samply
+          sudo sysctl -w kernel.perf_event_paranoid=1
+      - name: run the scenario
+        run: |
+          args=()
+          read -ra pairs <<< "$SIZES"
+          for pair in "${pairs[@]}"; do args+=(-e "$pair"); done
+          flags=()
+          if [ "$PROFILE" = true ]; then flags+=(--profile); fi
+          scripts/load-run.sh "${flags[@]}" "$SCENARIO" "${args[@]}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ always() }}
+        with:
+          name: load-${{ inputs.scenario }}
+          path: perf/load/results
+          if-no-files-found: warn

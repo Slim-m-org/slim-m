@@ -22,6 +22,7 @@ Each section below is named for its workflow file.
 | `advisory-watchdog` | a daily schedule, and by hand | nothing. It opens a deduplicated GitHub issue for a security advisory against a dependency and closes it once the tree is clean; the trigger `licenses` deliberately does not carry |
 | `licenses` | changes to any dependency manifest or lockfile or to `deny.toml`; every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | every Rust crate's and every pub package's license is in the one allowlist |
 | `sonar` | every pull request from this repository (a fork's PR has no secret to scan with) and every push to `main` | advisory SonarQube Cloud analysis (maintainability, duplication, complexity) under the `SONAR_TOKEN` secret, scoped by `sonar-project.properties`; never a required check |
+| `load` | by hand only (workflow_dispatch) | nothing. It boots a disposable local server and runs one k6 scenario (`fanout`, `http_mix` or `connect_storm`) against it, optionally under a samply CPU profile, and uploads the results directory as an artifact. It refuses any non-loopback target and is never a PR check |
 | `perf` | changes under `crates/`, `perf/`, the Cargo files; plus published `server-v*` releases, and `workflow_dispatch` with a tag to redo a missed one | benches compile on PRs; on a server release, benches plus five idle RSS runs on both libcs, committed to main as `perf/baselines/<version>.json` |
 | `compose-smoke` | changes to the self-host stack, a weekly schedule, and by hand | `docker compose up` on a fresh box produces a working deployment |
 | `e2e` | every push to `main`; a nightly schedule; by hand; and pull requests only when they touch voice, calls, the canvas, the rtc/api packages, server auth/ws/hub/voice, migrations, the image, the schema or the harness (a superseded PR run is cancelled) | the whole product through two real headless browsers; advisory, not required |
@@ -390,6 +391,16 @@ GitHub Actions does not support path filters on the `release` event, so the rele
 It has no environment gate, and that is deliberate: it uploads only an intra-run workflow artifact, not a published release asset, so it is exempt for the same reason the release workflow's `server-binaries` build stage is.
 Reviewer-gated Environments are applied at the true publish boundary (GHCR push, release assets, TestFlight), not to build-time artifacts.
 No secrets are used.
+
+
+## load
+
+`load.yml` is `workflow_dispatch` only: it saturates a runner on purpose and gates nothing, so it is neither a PR check nor scheduled.
+A weekly run was considered and left out, because nothing reads the result and a shared 4-core runner is too noisy to compare week to week.
+The inputs are the scenario, a `KEY=VALUE` sizes string (validated to digits, then handed to k6 as `-e` flags) and a profile toggle.
+They reach the steps through `env:`, never pasted into the script.
+The job runs `scripts/load-run.sh`, which boots a local server and refuses any non-loopback target, then uploads `perf/load/results` as an artifact.
+See `perf/load/README.md` for the scenarios and how to read the results.
 
 ## compose-smoke
 
