@@ -13,32 +13,30 @@
 /// participant's camera renders inside their own tile exactly like everyone
 /// else's now - there is no second, enlarged self-preview box any more.
 ///
-/// The stage is automatic and narrow on purpose: a live share always wins
-/// it, and absent one there is no stage at all, just the grid every call
-/// already showed. Chasing "whoever is currently speaking" onto the stage
-/// was considered and dropped - it needs a debounce to avoid flickering
-/// between speakers, real complexity this pass has no measured need for, and
-/// it is not what Discord itself does by default either. An explicit tap-
-/// to-pin affordance was also considered and dropped for now: the same tap a
-/// tile would need for "pin to stage" is the tap [CallParticipantTile]
-/// already spends on opening a participant's profile (the only route to
-/// per-participant volume outside the member pane), and a touch-only device
-/// has no secondary-click to fall back on the way a desktop pointer does.
-/// Resolving that gesture conflict is a real UX decision, not a coin flip,
-/// and it is named as a follow-up rather than guessed at here.
+/// The stage is automatic and narrow on purpose: every live share the viewer
+/// still watches takes it, and absent one there is no stage at all, just the
+/// grid every call already showed. Chasing "whoever is currently speaking"
+/// onto the stage was considered and dropped: it needs a debounce against
+/// flicker and is not what Discord does by default either.
+///
+/// Focus is a button on the share tile, not a tile tap: that tap already
+/// opens the participant's profile.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
 import 'fullscreen_video_overlay.dart';
 import 'local_screen_share_banner.dart';
-import 'screen_share_stage.dart';
+import 'share_stage_controls.dart';
+import 'share_stage_grid.dart';
 import 'voice_reconnect_banner.dart';
 import 'watch_session_bar.dart';
 
@@ -59,7 +57,7 @@ const double _stageAspect = 16 / 9;
 /// The whole in-call body: a compact header, a stage when one is warranted,
 /// and either a horizontal filmstrip (stage present) or a wrapping grid
 /// (nobody sharing) of every participant's own tile.
-class CallStageLayout extends StatelessWidget {
+class CallStageLayout extends ConsumerWidget {
   const CallStageLayout({
     super.key,
     required this.voice,
@@ -99,8 +97,19 @@ class CallStageLayout extends StatelessWidget {
   menuItemsBuilder;
 
   @override
-  Widget build(BuildContext context) {
-    final sharer = stageSharer(voice.participants);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final watch = ref.watch(shareWatchProvider);
+    final watching = ref.read(shareWatchProvider.notifier);
+    final shares = activeShares(
+      voice.participants,
+      stopped: watch.stopped,
+      focusedIdentity: watch.focused,
+    );
+    final opted = stoppedShares(voice.participants, watch.stopped);
+    final focusedIdentity =
+        shares.length > 1 && shares.first.identity == watch.focused
+        ? watch.focused
+        : null;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -130,14 +139,33 @@ class CallStageLayout extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.s12),
               child: AppErrorState(message: voice.error!),
             ),
+          if (opted.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.s12),
+              child: Wrap(
+                spacing: AppSpacing.s8,
+                runSpacing: AppSpacing.s8,
+                children: [
+                  for (final p in opted)
+                    ShareWatchChip(
+                      key: ValueKey('watch-chip-${p.identity}'),
+                      sharerName: p.name,
+                      onWatch: () => watching.watch(p.identity),
+                    ),
+                ],
+              ),
+            ),
           const SizedBox(height: AppSpacing.s12),
           Expanded(
             child: AppFadeIn(
               // Keyed on whether a stage exists, not who is sharing: a hand-off between sharers must not re-fade the whole filmstrip.
-              key: ValueKey(sharer != null ? 'stage' : 'grid'),
-              child: sharer != null
+              key: ValueKey(shares.isNotEmpty ? 'stage' : 'grid'),
+              child: shares.isNotEmpty
                   ? _StageWithFilmstrip(
-                      sharer: sharer,
+                      shares: shares,
+                      focusedIdentity: focusedIdentity,
+                      onStopWatching: watching.stop,
+                      onFocus: watching.focus,
                       participants: voice.participants,
                       controller: controller,
                       onOpenProfile: onOpenProfile,
@@ -159,20 +187,6 @@ class CallStageLayout extends StatelessWidget {
   }
 }
 
-/// The participant whose screen takes the stage: a remote sharer if any is
-/// live, or your own if you are the only one - unlike an earlier version
-/// that excluded the local participant outright and so never showed a
-/// share to somebody sharing alone.
-VoiceParticipant? stageSharer(List<VoiceParticipant> participants) {
-  VoiceParticipant? own;
-  for (final p in participants) {
-    if (!p.isScreenSharing) continue;
-    if (!p.isLocal) return p;
-    own = p;
-  }
-  return own;
-}
-
 class _CallHeader extends StatelessWidget {
   const _CallHeader({required this.voice});
 
@@ -186,19 +200,27 @@ class _CallHeader extends StatelessWidget {
   }
 }
 
-/// The share stage, fixed and always visible, above a horizontal strip of
-/// every participant's own small tile - including the sharer's, since their
-/// camera (or lack of one) is separate from the screen they are sharing.
+/// The share stage above a horizontal strip of every participant's own small
+/// tile - including the sharer's, since their camera is separate from the
+/// screen they share. With several shares and none focused the stage region
+/// is a [ShareGrid]; focused, one share is large and the rest are thumbnails
+/// at the start of the strip.
 class _StageWithFilmstrip extends StatelessWidget {
   const _StageWithFilmstrip({
-    required this.sharer,
+    required this.shares,
+    required this.focusedIdentity,
+    required this.onStopWatching,
+    required this.onFocus,
     required this.participants,
     required this.controller,
     required this.onOpenProfile,
     this.menuItemsBuilder,
   });
 
-  final VoiceParticipant sharer;
+  final List<VoiceParticipant> shares;
+  final String? focusedIdentity;
+  final void Function(String identity) onStopWatching;
+  final void Function(String? identity) onFocus;
   final List<VoiceParticipant> participants;
   final VoiceController controller;
   final void Function(BuildContext anchor, VoiceParticipant participant)
@@ -207,40 +229,73 @@ class _StageWithFilmstrip extends StatelessWidget {
   menuItemsBuilder;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Flexible(
-        // A share is almost always 16:9; fitting the card to that leaves no black band around the video.
-        child: AspectRatio(
-          aspectRatio: _stageAspect,
-          child: ScreenShareStage(
-            sharerName: sharer.name,
-            isLocal: sharer.isLocal,
-            popOutIdentity: sharer.identity,
-            onExpand: () => showFullscreenVideo(
-              context,
-              identity: sharer.identity,
-              label: sharer.isLocal ? 'Your screen' : "${sharer.name}'s screen",
-              kind: FullscreenVideoKind.screenShare,
+  Widget build(BuildContext context) {
+    final strip = SizedBox(
+      width: double.infinity,
+      height: _filmstripHeight,
+      child: _Filmstrip(
+        leading: [
+          if (focusedIdentity != null)
+            for (final other in shares.skip(1))
+              ShareThumbnail(
+                key: ValueKey('share-thumb-${other.identity}'),
+                sharer: other,
+                controller: controller,
+                height: _filmstripHeight - AppSpacing.s16,
+                onFocus: () => onFocus(other.identity),
+              ),
+        ],
+        participants: participants,
+        controller: controller,
+        onOpenProfile: onOpenProfile,
+        menuItemsBuilder: menuItemsBuilder,
+      ),
+    );
+    if (shares.length > 1 && focusedIdentity == null) {
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ShareGrid(
+                  shares: shares,
+                  controller: controller,
+                  onStopWatching: onStopWatching,
+                  onFocus: onFocus,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                strip,
+              ],
             ),
-            child: controller.screenShareViewFor(sharer.identity),
           ),
         ),
-      ),
-      const SizedBox(height: AppSpacing.s12),
-      SizedBox(
-        width: double.infinity,
-        height: _filmstripHeight,
-        child: _Filmstrip(
-          participants: participants,
-          controller: controller,
-          onOpenProfile: onOpenProfile,
-          menuItemsBuilder: menuItemsBuilder,
+      );
+    }
+    final sharer = shares.first;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Flexible(
+          // A share is almost always 16:9; fitting the card to that leaves no black band around the video.
+          child: AspectRatio(
+            aspectRatio: _stageAspect,
+            child: shareStageTile(
+              context,
+              sharer,
+              controller,
+              onStopWatching: () => onStopWatching(sharer.identity),
+              onFocus: shares.length > 1 ? () => onFocus(null) : null,
+              focused: focusedIdentity != null,
+            ),
+          ),
         ),
-      ),
-    ],
-  );
+        const SizedBox(height: AppSpacing.s12),
+        strip,
+      ],
+    );
+  }
 }
 
 /// Enter-only motion: a joiner's tile pops in, while a leaver here reflows
@@ -248,12 +303,15 @@ class _StageWithFilmstrip extends StatelessWidget {
 /// exit the way [AnimatedRosterWrap]'s grid does.
 class _Filmstrip extends StatelessWidget {
   const _Filmstrip({
+    required this.leading,
     required this.participants,
     required this.controller,
     required this.onOpenProfile,
     this.menuItemsBuilder,
   });
 
+  /// Share thumbnails shown ahead of the participant tiles.
+  final List<Widget> leading;
   final List<VoiceParticipant> participants;
   final VoiceController controller;
   final void Function(BuildContext anchor, VoiceParticipant participant)
@@ -266,11 +324,12 @@ class _Filmstrip extends StatelessWidget {
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
       shrinkWrap: true,
-      itemCount: participants.length,
+      itemCount: leading.length + participants.length,
       separatorBuilder: (context, index) =>
           const SizedBox(width: AppSpacing.s12),
       itemBuilder: (context, index) {
-        final participant = participants[index];
+        if (index < leading.length) return Center(child: leading[index]);
+        final participant = participants[index - leading.length];
         return Center(
           // Keyed at the item root so a roster shift never replays the pop.
           key: ValueKey('film-${participant.identity}'),

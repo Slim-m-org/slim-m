@@ -474,6 +474,10 @@ class VoiceController extends StateNotifier<VoiceState>
   void setVideoInterest(Set<String>? tileKeys) =>
       _session.setVideoInterest(tileKeys);
 
+  /// Keeps these tiles unsubscribed whatever the interest says; see [VoiceSession.setVideoBlocked].
+  void setVideoBlocked(Set<String> tileKeys) =>
+      _session.setVideoBlocked(tileKeys);
+
   /// Whether switching cameras is a bare flip (mobile) rather than a picker.
   bool get canFlipCamera => _session.canFlipCamera;
 

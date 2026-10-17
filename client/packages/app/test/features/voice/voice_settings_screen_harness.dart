@@ -180,6 +180,9 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   void setVideoInterest(Set<String>? tileKeys) {}
 
+  @override
+  void setVideoBlocked(Set<String> tileKeys) {}
+
   /// The last sensitivity this session was handed, so a test can assert it
   /// reached the session rather than only the controller's own copy.
   double? lastSpeakingSensitivity;

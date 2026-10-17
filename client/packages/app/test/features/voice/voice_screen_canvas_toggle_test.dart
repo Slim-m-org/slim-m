@@ -115,6 +115,9 @@ class _ConnectedSession with VideoQualityRecorder implements VoiceSession {
   void setVideoInterest(Set<String>? tileKeys) {}
 
   @override
+  void setVideoBlocked(Set<String> tileKeys) {}
+
+  @override
   bool get canFlipCamera => false;
 
   @override

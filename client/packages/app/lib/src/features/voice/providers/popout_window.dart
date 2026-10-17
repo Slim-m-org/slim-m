@@ -8,6 +8,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../desktop/popout/popout_windowing.dart';
 import '../../../providers/app_lock_controller.dart';
 import 'call_mini_player.dart';
+import 'share_watch.dart';
 import 'voice_flags.dart';
 
 /// Null hides every pop-out control: web, and any desktop build without the
@@ -46,5 +47,9 @@ final popOutLiveFeedProvider = Provider<MiniPlayerFeed?>((ref) {
     voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
   );
   if (!connected) return null;
+  final stopped = ref.watch(shareWatchProvider.select((s) => s.stopped));
+  if (feed.kind == FeedKind.screenShare && stopped.contains(feed.identity)) {
+    return null;
+  }
   return _isLive(feed, ref.watch(voiceParticipantsProvider)) ? feed : null;
 });

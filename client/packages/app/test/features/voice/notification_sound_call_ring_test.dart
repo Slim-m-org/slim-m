@@ -72,6 +72,9 @@ class _DeadSession with VideoQualityRecorder implements VoiceSession {
   Widget cameraViewFor(String identity) => throw UnimplementedError();
   @override
   void setVideoInterest(Set<String>? tileKeys) {}
+
+  @override
+  void setVideoBlocked(Set<String> tileKeys) {}
   @override
   bool get supportsInputGate => false;
 

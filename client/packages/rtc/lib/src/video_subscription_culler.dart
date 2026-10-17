@@ -126,6 +126,25 @@ class VideoSubscriptionCuller {
 
   /// The keys some surface currently wants, or null for no opinion.
   Set<String>? get interest => _interest;
+  Set<String> _blocked = const {};
+
+  /// Keys the user asked to stop receiving; these override [interest].
+  Set<String> get blocked => _blocked;
+
+  /// Keys that must stay unsubscribed whatever [interest] says, with no dwell.
+  void setBlocked(Set<String> keys) {
+    if (_disposed) return;
+    _blocked = Set.unmodifiable(keys);
+    for (final key in _blocked) {
+      _cancel(key);
+    }
+  }
+
+  /// Whether [key] may be subscribed given both [interest] and [blocked].
+  bool wants(String key) =>
+      !_blocked.contains(key) &&
+      (_interest == null || _interest!.contains(key));
+
   final Map<String, Timer> _pending = {};
   final Set<String> _due = {};
   bool _disposed = false;
@@ -169,6 +188,17 @@ class VideoSubscriptionCuller {
   }
 
   void _reconcile(VideoSubscriptionRef track) {
+    if (_blocked.contains(track.key)) {
+      _cancel(track.key);
+      if (track.subscribed) {
+        unawaited(
+          track.unsubscribe().catchError(
+                _logRejection(track.key, 'unsubscribe'),
+              ),
+        );
+      }
+      return;
+    }
     final interest = _interest;
     if (interest == null || interest.contains(track.key)) {
       _cancel(track.key);

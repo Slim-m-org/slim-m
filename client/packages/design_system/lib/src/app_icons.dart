@@ -263,6 +263,9 @@ abstract final class AppIcons {
   /// [micOff]/[cameraOff], which mute a signal rather than remove a tile.
   static const IconData tileHide = LucideIcons.eyeOff300;
 
+  /// Giving one screen share the room in a call that has several.
+  static const IconData shareFocus = LucideIcons.focus300;
+
   /// Seeing something as someone else would, such as an invite's landing page.
   static const IconData preview = LucideIcons.eye300;
 

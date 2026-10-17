@@ -316,4 +316,26 @@ void main() {
     expect(videoSubscriptionKind('nonsense'), 'nonsense');
     expect(cullableTrackKinds, {'camera', 'screen'});
   });
+
+  test('a blocked key unsubscribes at once and stays out under null interest',
+      () {
+    fakeAsync((async) {
+      final room = _FakeRoom(['screen:a', 'camera:a']);
+      final wired = _wire(room);
+      wired.culler.setBlocked({'screen:a'});
+      wired.culler.apply(room.refs);
+      expect(room.subscribed, {'camera:a'}, reason: 'no dwell for a block');
+
+      wired.culler.setInterest(null);
+      wired.culler.apply(room.refs);
+      expect(room.subscribed, {'camera:a'},
+          reason: 'null interest keeps it out');
+      expect(wired.culler.wants('screen:a'), isFalse);
+
+      wired.culler.setBlocked(const {});
+      wired.culler.apply(room.refs);
+      expect(room.subscribed, {'screen:a', 'camera:a'});
+      wired.culler.dispose();
+    });
+  });
 }

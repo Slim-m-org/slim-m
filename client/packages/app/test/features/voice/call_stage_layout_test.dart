@@ -210,37 +210,39 @@ void main() {
   );
 
   testWidgets(
-    'a remote sharer takes the stage over a local participant sharing at '
-    'the same time, local listed first',
+    'a remote and a local share both show, in a grid rather than one stage',
     (tester) async {
       final harness = await _connected(tester, const [
         _meSharing,
         _aliceSharing,
-      ]);
+      ], size: const Size(1200, 900));
       addTearDown(harness.dispose);
 
-      expect(find.byType(ScreenShareStage), findsOneWidget);
+      expect(find.byType(ScreenShareStage), findsNWidgets(2));
       expect(find.byKey(const Key('fake-share-view-user-2')), findsOneWidget);
-      expect(find.byKey(const Key('fake-share-view-user-1')), findsNothing);
+      expect(find.byKey(const Key('fake-share-view-user-1')), findsOneWidget);
 
       await _leave(harness);
     },
   );
 
   testWidgets(
-    'a remote sharer takes the stage over a local participant sharing at '
-    'the same time, remote listed first - the order a "last sharer found '
-    'wins" bug would get right by accident',
+    'the grid lists the remote share before the local one whatever the '
+    'roster order',
     (tester) async {
       final harness = await _connected(tester, const [
         _aliceSharing,
         _meSharing,
-      ]);
+      ], size: const Size(1200, 900));
       addTearDown(harness.dispose);
 
-      expect(find.byType(ScreenShareStage), findsOneWidget);
-      expect(find.byKey(const Key('fake-share-view-user-2')), findsOneWidget);
-      expect(find.byKey(const Key('fake-share-view-user-1')), findsNothing);
+      final remote = tester.getTopLeft(
+        find.byKey(const ValueKey('share-tile-user-2')),
+      );
+      final local = tester.getTopLeft(
+        find.byKey(const ValueKey('share-tile-user-1')),
+      );
+      expect(remote.dx, lessThan(local.dx));
 
       await _leave(harness);
     },

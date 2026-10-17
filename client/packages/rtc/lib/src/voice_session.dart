@@ -14,7 +14,8 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, debugPrint, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -307,6 +308,7 @@ class VoiceSession
     _lastDisconnect = null;
     // Whatever a canvas last asked for was about the call that just ended.
     _videoCuller.setInterest(null);
+    _videoCuller.setBlocked(const {});
     if (!_participantsController.isClosed) {
       _participantsController.add(_participants);
     }
@@ -431,6 +433,14 @@ class VoiceSession
   /// says when it unmounts or when it cannot speak for the call at all.
   void setVideoInterest(Set<String>? tileKeys) {
     _videoCuller.setInterest(tileKeys);
+    _applyVideoInterest();
+  }
+
+  /// Keeps the screen-share (or camera) tiles named by [tileKeys] unsubscribed
+  /// whatever the interest says, along with a share's own audio, so a viewer
+  /// who stopped watching pays no bandwidth or decode for it.
+  void setVideoBlocked(Set<String> tileKeys) {
+    _videoCuller.setBlocked(tileKeys);
     _applyVideoInterest();
   }
 

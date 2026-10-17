@@ -128,6 +128,9 @@ class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
   void setVideoInterest(Set<String>? tileKeys) {}
 
   @override
+  void setVideoBlocked(Set<String> tileKeys) {}
+
+  @override
   bool get supportsInputGate => false;
 
   @override
