@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use sqlx::{QueryBuilder, Row};
 
-use super::Store;
+use super::super::Store;
 use crate::ids::{RoleId, UserId};
 
 /// The hoisted role a member is listed under: the highest-position one they hold.

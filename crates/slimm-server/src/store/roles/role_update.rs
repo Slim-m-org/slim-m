@@ -3,8 +3,8 @@
 
 use sqlx::QueryBuilder;
 
-use super::Store;
-use super::roles::{Role, RoleGuardError, administrator_count};
+use super::super::Store;
+use super::{Role, RoleGuardError, administrator_count};
 use crate::ids::RoleId;
 use crate::permissions::Permissions;
 

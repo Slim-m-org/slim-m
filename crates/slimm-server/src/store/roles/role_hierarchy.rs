@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use super::{Role, Store};
+use super::super::{Role, Store};
 use crate::ids::{RoleId, UserId};
 
 /// A role alongside how many members currently hold it, for the roles pane's

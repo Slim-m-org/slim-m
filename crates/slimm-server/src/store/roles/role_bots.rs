@@ -6,8 +6,8 @@
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 
-use super::Store;
-use super::roles::Role;
+use super::super::Store;
+use super::Role;
 
 impl Store {
     /// The role minted for this bot, if it still has one.

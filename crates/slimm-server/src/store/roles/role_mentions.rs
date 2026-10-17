@@ -7,8 +7,8 @@
 
 use sqlx::{QueryBuilder, Row};
 
-use super::Store;
-use super::roles::Role;
+use super::super::Store;
+use super::Role;
 
 impl Store {
     /// Roles named (case-insensitively) any of `names`, excluding

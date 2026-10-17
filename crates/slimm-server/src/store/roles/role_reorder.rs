@@ -10,7 +10,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::{Role, Store};
+use super::super::{Role, Store};
 use crate::ids::RoleId;
 
 /// The result of a successful reorder.
