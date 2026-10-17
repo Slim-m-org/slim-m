@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../composer_attach_harness.dart';
+import '../channels/composer_attach_harness.dart';
 import 'composer_harness.dart';
 
 void main() {

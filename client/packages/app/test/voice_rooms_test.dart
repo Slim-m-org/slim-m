@@ -19,7 +19,7 @@ import 'package:slimm_app/src/features/voice/widgets/voice_room_settings_sheet.d
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'channel_management_harness.dart';
+import 'features/channels/channel_management_harness.dart';
 import 'voice_controller_harness.dart';
 
 const _json = {'content-type': 'application/json'};
