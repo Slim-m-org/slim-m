@@ -81,7 +81,7 @@ app/test/composer_attachments_test.dart
 app/test/composer_autocomplete_items_test.dart
 app/test/composer_autocomplete_query_test.dart
 app/test/composer_bot_mentions_test.dart
-app/test/custom_emoji_id_test.dart
+app/test/features/emoji/custom_emoji_id_test.dart
 app/test/desktop/first_run_tray_notice_test.dart
 app/test/desktop/minimum_window_size_test.dart
 app/test/desktop/relaunch_test.dart
@@ -95,11 +95,11 @@ app/test/desktop/window_geometry_test.dart
 app/test/device_naming_test.dart
 app/test/duration_formats_test.dart
 app/test/edit_history_diff_test.dart
-app/test/effective_category_test.dart
+app/test/features/emoji/effective_category_test.dart
 app/test/effective_me_refresh_test.dart
-app/test/emoji_image_provider_cache_test.dart
+app/test/features/emoji/emoji_image_provider_cache_test.dart
 app/test/emoji_name_test.dart
-app/test/emoji_section_scroll_offset_test.dart
+app/test/features/emoji/emoji_section_scroll_offset_test.dart
 app/test/extract_link_preview_urls_test.dart
 app/test/filed_reports_test.dart
 app/test/flutter_test_config_test.dart
@@ -145,8 +145,8 @@ app/test/features/palette/palette_match_query_test.dart
 app/test/features/palette/palette_result_builders_test.dart
 app/test/perm_groups_test.dart
 app/test/personal_space_visibility_test.dart
-app/test/picker_sections_test.dart
-app/test/picker_tabs_test.dart
+app/test/features/emoji/picker_sections_test.dart
+app/test/features/emoji/picker_tabs_test.dart
 app/test/presence_activity_test.dart
 app/test/presence_tile_geometry_test.dart
 app/test/push_content_preview_settings_test.dart
@@ -154,8 +154,8 @@ app/test/push_key_store_wiring_test.dart
 app/test/push_status_label_test.dart
 app/test/push_to_talk_test.dart
 app/test/rail_offline_shape_test.dart
-app/test/recent_emoji_entries_test.dart
-app/test/recent_emoji_use_test.dart
+app/test/features/emoji/recent_emoji_entries_test.dart
+app/test/features/emoji/recent_emoji_use_test.dart
 app/test/reconnect_backoff_test.dart
 app/test/report_card_labels_test.dart
 app/test/reports_controller_test.dart

@@ -78,12 +78,12 @@ client/packages/app/test/channel_screen_attachment_send_test.dart 3
 client/packages/app/test/channel_screen_test.dart 4
 client/packages/app/test/features/palette/command_palette_test.dart 3
 client/packages/app/test/composer_affordances_test.dart 4
-client/packages/app/test/composer_emoji_test.dart 1
+client/packages/app/test/features/emoji/composer_emoji_test.dart 1
 client/packages/app/test/composer_test.dart 5
 client/packages/app/test/context_menu_reachability_test.dart 1
 client/packages/app/test/emoji_admin_screen_test.dart 1
 client/packages/app/test/emoji_name_test.dart 1
-client/packages/app/test/emoji_picker_test.dart 6
+client/packages/app/test/features/emoji/emoji_picker_test.dart 6
 client/packages/app/test/emoji_wiring_test.dart 1
 client/packages/app/test/fullscreen_image_viewer_test.dart 1
 client/packages/app/test/home_shell_test.dart 1
