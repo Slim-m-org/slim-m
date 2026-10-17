@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 use crate::limits::MAX_USERNAME_CHARS;
 

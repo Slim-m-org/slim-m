@@ -4,7 +4,7 @@
 //! every command call. See migration 0065 for why these live as a row rather
 //! than a media-style file.
 
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 
 impl Store {
     /// A module's stored artifact bytes and the sha256 they were recorded
@@ -30,7 +30,7 @@ impl Store {
 /// install's metadata and its bytes can never diverge. `module_id` must
 /// already exist in `installed_modules` within this same transaction, or the
 /// foreign key fails.
-pub(super) async fn store_module_artifact_tx(
+pub(in crate::store) async fn store_module_artifact_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     module_id: &str,
     sha256: &str,

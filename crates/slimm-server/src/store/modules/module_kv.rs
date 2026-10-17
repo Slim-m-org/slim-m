@@ -3,7 +3,7 @@
 //! Rows are keyed by module id, and the foreign key to `installed_modules`
 //! cascades, so uninstalling a module wipes its data.
 
-use super::Store;
+use super::super::Store;
 
 /// Why a `kv.store` write was refused by the store.
 #[derive(Debug)]

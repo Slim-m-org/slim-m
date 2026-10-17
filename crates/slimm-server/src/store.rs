@@ -52,11 +52,8 @@ use messages::{
 };
 mod moderation_audit;
 mod moderation_history;
-mod module_artifacts;
-mod module_kv;
-mod module_permissions;
-mod module_schedule;
 mod modules;
+use modules::{module_kv, module_permissions};
 mod nicknames;
 mod notification_schedule;
 mod notifications;

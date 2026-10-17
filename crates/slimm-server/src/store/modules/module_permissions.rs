@@ -14,7 +14,7 @@ use std::collections::HashSet;
 
 use uuid::Uuid;
 
-use super::Store;
+use super::super::Store;
 use crate::ids::{RoleId, UserId};
 
 /// One grantable module permission, joined to its module's current display
