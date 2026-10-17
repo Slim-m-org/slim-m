@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/palette/widgets/command_palette_rows.dart
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'command_palette_harness.dart';
+import '../../command_palette_harness.dart';
 
 const _input = Key('command-palette-input');
 

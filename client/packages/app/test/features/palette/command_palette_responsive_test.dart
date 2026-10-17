@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/palette/widgets/command_palette_compact.d
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'command_palette_harness.dart';
+import '../../command_palette_harness.dart';
 
 const _compact = Size(390, 844);
 const _wide = Size(1400, 900);

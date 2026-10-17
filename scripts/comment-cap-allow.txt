@@ -76,7 +76,7 @@ client/packages/app/test/channel_management_test.dart 1
 client/packages/app/test/channel_rail_test.dart 2
 client/packages/app/test/channel_screen_attachment_send_test.dart 3
 client/packages/app/test/channel_screen_test.dart 4
-client/packages/app/test/command_palette_test.dart 3
+client/packages/app/test/features/palette/command_palette_test.dart 3
 client/packages/app/test/composer_affordances_test.dart 4
 client/packages/app/test/composer_emoji_test.dart 1
 client/packages/app/test/composer_test.dart 5

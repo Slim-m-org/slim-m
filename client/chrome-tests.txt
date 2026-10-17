@@ -141,8 +141,8 @@ app/test/module_scene_gradient_test.dart
 app/test/mounted_channels_test.dart
 app/test/notification_sound_playback_volume_test.dart
 app/test/notification_sound_rules_test.dart
-app/test/palette_match_query_test.dart
-app/test/palette_result_builders_test.dart
+app/test/features/palette/palette_match_query_test.dart
+app/test/features/palette/palette_result_builders_test.dart
 app/test/perm_groups_test.dart
 app/test/personal_space_visibility_test.dart
 app/test/picker_sections_test.dart
