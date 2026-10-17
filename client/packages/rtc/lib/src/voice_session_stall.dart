@@ -111,7 +111,7 @@ extension VoiceSessionStall on VoiceSession {
     for (final peer in room.remoteParticipants.values) {
       for (final pub in peer.videoTrackPublications) {
         if (_stallKey(peer.identity, pub.source) != key) continue;
-        debugPrint('video stall: $key, trying ${step.name}');
+        _diag('video stall: $key, trying ${step.name}');
         unawaited(_runStallStep(room, key, pub, step));
         return;
       }
@@ -151,7 +151,7 @@ extension VoiceSessionStall on VoiceSession {
           }
       }
     } catch (e) {
-      debugPrint('video stall: ${step.name} failed: $e');
+      _diag('video stall: ${step.name} failed: $e');
     }
   }
 }

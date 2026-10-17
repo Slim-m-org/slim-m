@@ -10,6 +10,7 @@ mixin VoiceSessionMicRecovery {
   lk.Room? get _room;
   VoiceSessionState get _state;
   MicPort get _mic;
+  LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
   CaptureNoiseSuppression get _capture;
   InputGateMonitor get _gate;
@@ -78,7 +79,10 @@ mixin VoiceSessionMicRecovery {
     await _micStatuses.close();
   }
 
-  void _logMic(String message) => debugPrint('voice: $message');
+  void _logMic(String message) => _diag('voice: $message');
+
+  /// Into the app's debug log when the app wired one, so a tester's export shows it.
+  void _diag(String line) => (_audio.log ?? debugPrint)(line);
 
   void _setMicStatus(MicStatus next) {
     if (next == _micStatus) return;

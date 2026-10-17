@@ -71,7 +71,7 @@ extension VoiceSessionVideo on VoiceSession {
         if (blocked == !pub.subscribed) continue;
         unawaited(
           (blocked ? pub.unsubscribe() : pub.subscribe()).catchError(
-            (Object e) => debugPrint('share audio block: $e'),
+            (Object e) => _diag('share audio block: $e'),
           ),
         );
       }
