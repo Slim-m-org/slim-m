@@ -12,6 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/platform.dart';
 
 void main() {
+  serverSwitchShortcutTests();
+
   test('with no overrides the defaults are all present', () {
     final resolved = resolveBindings();
     expect(resolved.values, contains(AppAction.quickSwitch));
@@ -38,5 +40,23 @@ void main() {
       overrides: {AppAction.quickSwitch: null},
     );
     expect(resolved.values, isNot(contains(AppAction.quickSwitch)));
+  });
+}
+
+void serverSwitchShortcutTests() {
+  group('server switch shortcuts', () {
+    test('are Ctrl or Cmd plus 1 to 9 and collide with nothing else', () {
+      final activators = serverSwitchActivators(forWeb: false);
+      expect(activators, hasLength(9));
+      final taken = defaultBindings(forWeb: false).keys.toSet();
+      for (final activator in activators) {
+        expect(taken, isNot(contains(activator)));
+      }
+      expect(activators.toSet(), hasLength(9));
+    });
+
+    test('are left to the browser on the web build', () {
+      expect(serverSwitchActivators(forWeb: true), isEmpty);
+    });
   });
 }

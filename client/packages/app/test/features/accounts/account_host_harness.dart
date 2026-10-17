@@ -16,9 +16,16 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
     show serverInfoProvider;
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
+
+import '../../support/fake_sync.dart';
+
+/// 'first.example' is shown as 'First', as an admin-chosen name would be.
+String _nameOf(String host) =>
+    host[0].toUpperCase() + host.substring(1, host.indexOf('.'));
 
 /// Stands in for a call on one container: set it to put that account in a call.
 final testCallProvider = StateProvider<VoiceFlags>((ref) => const VoiceFlags());
@@ -56,13 +63,14 @@ class AccountHarness {
       keyStoreProvider.overrideWithValue(keys),
       accountSlotProvider.overrideWithValue(slot),
       accountHostProvider.overrideWith((ref) => host),
+      syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
       voiceFlagsProvider.overrideWith((ref) => ref.watch(testCallProvider)),
       serverInfoProvider.overrideWith(
         (ref) async => api.Version(
           name: 'slim-m',
           version: '1',
           protocol: 1,
-          spaceName: ref.read(serverUrlProvider).host,
+          spaceName: _nameOf(ref.read(serverUrlProvider).host),
         ),
       ),
       storeProvider.overrideWith((ref) async {

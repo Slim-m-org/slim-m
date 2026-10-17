@@ -92,6 +92,7 @@ class RailHeader extends ConsumerWidget {
                 Expanded(
                   child: AccountSwitcherTrigger(
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         SpaceIdentityMark(
                           iconUpdatedAt: server.valueOrNull?.iconUpdatedAt,

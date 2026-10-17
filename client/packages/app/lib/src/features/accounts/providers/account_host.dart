@@ -351,8 +351,17 @@ class AccountHost extends ChangeNotifier {
     }
   }
 
+  bool _notifyQueued = false;
+
+  /// Deferred a microtask, because a container's listeners can fire while the
+  /// widget tree is building and a listener must not mark that tree dirty.
   void _changed() {
-    if (!_disposed) notifyListeners();
+    if (_disposed || _notifyQueued) return;
+    _notifyQueued = true;
+    scheduleMicrotask(() {
+      _notifyQueued = false;
+      if (!_disposed) notifyListeners();
+    });
   }
 
   @override

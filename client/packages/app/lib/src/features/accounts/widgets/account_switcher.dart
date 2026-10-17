@@ -22,6 +22,8 @@ class AccountSwitcherTrigger extends ConsumerStatefulWidget {
 
   final Widget child;
 
+  static const Key triggerKey = Key('account_switcher_trigger');
+
   @override
   ConsumerState<AccountSwitcherTrigger> createState() =>
       _AccountSwitcherTriggerState();
@@ -68,7 +70,7 @@ class _AccountSwitcherTriggerState
         excludeSemantics: true,
         onTap: () => _open(context),
         child: GestureDetector(
-          key: triggerKey,
+          key: AccountSwitcherTrigger.triggerKey,
           behavior: HitTestBehavior.opaque,
           onTap: () {
             AppHaptics.selection();
@@ -97,8 +99,6 @@ class _AccountSwitcherTriggerState
       ),
     );
   }
-
-  static const Key triggerKey = Key('account_switcher_trigger');
 }
 
 /// The servers this device is signed into, and the ways to add or leave one.
@@ -116,7 +116,10 @@ class AccountSwitcherMenu extends ConsumerWidget {
     return AppSheetMenu(
       width: 300,
       children: [
-        const AppMenuLabel('Servers'),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: AppMenuLabel('Servers'),
+        ),
         for (final entry in snapshot.entries)
           _ServerRow(
             entry: entry,

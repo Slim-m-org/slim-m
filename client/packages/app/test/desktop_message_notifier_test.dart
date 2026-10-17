@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/desktop_message_notifier.dart';
@@ -292,6 +293,31 @@ void main() {
     expect(setup.notifications.shown, isEmpty);
     await setup.dispose();
   });
+
+  test(
+    'a focused window still notifies for a server that is not on screen',
+    () async {
+      if (!isDesktopHost) return;
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final setup = await _wire();
+      setup.container.read(accountActiveProvider.notifier).state = false;
+
+      setup.events.add(
+        api.MessageCreated(
+          _message(
+            id: 'm1',
+            authorId: 'alice',
+            authorDisplayName: 'Alice',
+            channelId: 'group-1',
+          ),
+        ),
+      );
+      await _settle(setup);
+
+      expect(setup.notifications.shown, ['Alice in #general: hi']);
+      await setup.dispose();
+    },
+  );
 
   test('a muted channel stays silent', () async {
     if (!isDesktopHost) return;
