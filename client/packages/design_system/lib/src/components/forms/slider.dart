@@ -37,7 +37,6 @@ class AppSlider extends StatefulWidget {
     this.meter,
     this.muted = false,
     this.ticks,
-    this.focusNode,
     this.semanticLabel,
   });
 
@@ -60,7 +59,6 @@ class AppSlider extends StatefulWidget {
   /// nearest the thumb is picked out in accent, so the highlight never
   /// disagrees with where the thumb is.
   final List<String>? ticks;
-  final FocusNode? focusNode;
   final String? semanticLabel;
 
   @override
@@ -68,15 +66,12 @@ class AppSlider extends StatefulWidget {
 }
 
 class _AppSliderState extends State<AppSlider> {
-  late final FocusNode _focusNode;
-  bool _ownsFocusNode = false;
+  final FocusNode _focusNode = FocusNode();
   bool _focused = false;
 
   @override
   void initState() {
     super.initState();
-    _ownsFocusNode = widget.focusNode == null;
-    _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_handleFocusChange);
   }
 
@@ -85,7 +80,7 @@ class _AppSliderState extends State<AppSlider> {
   @override
   void dispose() {
     _focusNode.removeListener(_handleFocusChange);
-    if (_ownsFocusNode) _focusNode.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
