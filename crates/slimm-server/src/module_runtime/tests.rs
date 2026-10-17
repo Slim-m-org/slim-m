@@ -402,6 +402,33 @@ async fn a_fuel_exhausting_module_is_killed_with_a_clean_error() {
     assert!(matches!(err, RunError::ResourceLimited(_)));
 }
 
+/// The echo module plus a large function nothing calls: slow to compile,
+/// instant to run. `salt` makes each copy a fresh digest the cache has not seen.
+fn slow_to_compile_echo_wasm(salt: u32) -> Vec<u8> {
+    let padding: String = (0..120_000)
+        .map(|i| format!("(drop (i32.add (i32.const {i}) (i32.const {salt})))"))
+        .collect();
+    let source =
+        ECHO_UPPER_WAT.replacen("(module", &format!("(module (func $padding {padding})"), 1);
+    wat(&source)
+}
+
+#[tokio::test]
+async fn compiling_a_module_does_not_count_against_its_wall_clock() {
+    let wasm = slow_to_compile_echo_wasm(7);
+    let sha256 = sha256_hex(&wasm);
+    let tight_wall = RunLimits {
+        wall: Duration::from_millis(20),
+        ..GENEROUS
+    };
+
+    let out = ModuleHost::run(wasm, sha256, tight_wall, b"hi".to_vec())
+        .await
+        .expect("a run that is instant once compiled fits a short wall clock");
+
+    assert_eq!(out, b"HI");
+}
+
 #[tokio::test]
 async fn a_module_over_the_memory_cap_is_refused() {
     let wasm = memory_hog_wasm();
