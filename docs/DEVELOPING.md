@@ -9,6 +9,8 @@ From a fresh clone to the server, the client and the end-to-end harness running,
 - Docker, for LiveKit in the end-to-end harness and for the server image.
 - Python 3 for the scripts under `scripts/`, Node for the commit-message lint.
 - Android builds need a Temurin 21 JDK; iOS builds need macOS and Xcode and are otherwise checked in CI.
+- The Android build verifies every Gradle dependency against `client/packages/app/android/gradle/verification-metadata.xml`.
+  After a Flutter upgrade, a plugin bump or an edit under `android/`, run `scripts/android-verification-metadata.sh` and commit the regenerated file; `android-ci` fails on a pull request until it matches.
 
 ## Layout
 
