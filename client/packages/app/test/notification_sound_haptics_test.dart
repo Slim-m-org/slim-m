@@ -15,7 +15,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/notification_sound_controller.dart';
@@ -24,17 +23,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/voice_settings_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
-
-class _NoopPlayer implements SoundPlayer {
-  @override
-  Future<void> play(NotificationSound sound) async {}
-  @override
-  Future<void> loop(NotificationSound sound) async {}
-  @override
-  Future<void> stopLoop() async {}
-  @override
-  Future<void> dispose() async {}
-}
+import 'support/fake_sound_player.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -128,7 +117,7 @@ Future<_Setup> _wireMessage() async {
       notificationSoundControllerProvider.overrideWith(
         (ref) => NotificationSoundController(
           ref,
-          player: _NoopPlayer(),
+          player: SilentSoundPlayer(),
           messageHaptic: () => selectionTicks.add(1),
         ),
       ),
@@ -215,7 +204,7 @@ void main() {
         notificationSoundControllerProvider.overrideWith(
           (ref) => NotificationSoundController(
             ref,
-            player: _NoopPlayer(),
+            player: SilentSoundPlayer(),
             callRingHaptic: () => callRingTicks.add(1),
           ),
         ),
@@ -250,7 +239,7 @@ void main() {
         notificationSoundControllerProvider.overrideWith(
           (ref) => NotificationSoundController(
             ref,
-            player: _NoopPlayer(),
+            player: SilentSoundPlayer(),
             callRingHaptic: () => callRingTicks.add(1),
           ),
         ),

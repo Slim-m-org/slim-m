@@ -30,13 +30,7 @@ import 'package:slimm_app/src/screens/channel_screen.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -85,7 +79,7 @@ void main() {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
-        syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
         apiProvider.overrideWith((ref) {
           final client = api.SlimmApi(
             baseUrl: Uri.parse('http://localhost:8080'),

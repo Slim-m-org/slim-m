@@ -14,15 +14,7 @@ import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
-
-class _FakeSync extends SyncController {
-  _FakeSync(super.ref);
-
-  @override
-  Future<void> start() async {}
-
-  void report(SyncStatus status) => state = status;
-}
+import 'support/fake_sync.dart';
 
 class _CountingSession extends FakeSession {
   int joins = 0;
@@ -56,7 +48,11 @@ void main() {
 
   const delays = [Duration(seconds: 30), Duration(seconds: 30)];
 
-  ({VoiceController controller, _CountingSession session, _FakeSync sync})
+  ({
+    VoiceController controller,
+    _CountingSession session,
+    NoopSyncController sync,
+  })
   build() {
     final session = _CountingSession();
     final controller = harness.controllerWith(
@@ -64,11 +60,12 @@ void main() {
       voiceApi(),
       autoRejoinDelays: delays,
       extraOverrides: [
-        syncControllerProvider.overrideWith((ref) => _FakeSync(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
       ],
     );
     final sync =
-        harness.container.read(syncControllerProvider.notifier) as _FakeSync;
+        harness.container.read(syncControllerProvider.notifier)
+            as NoopSyncController;
     return (controller: controller, session: session, sync: sync);
   }
 

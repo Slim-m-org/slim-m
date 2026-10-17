@@ -16,17 +16,7 @@ import 'package:slimm_app/src/widgets/member_profile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';
-
-/// A fixed block set with no real fetch, the same shape
-/// `personal_account_sections_test.dart` already uses.
-class _FixedBlocks extends BlocksController {
-  _FixedBlocks(super.ref, BlocksState fixed) {
-    state = fixed;
-  }
-
-  @override
-  Future<void> refresh() async {}
-}
+import 'support/fake_blocks.dart';
 
 const _other = api.UserProfile(
   id: 'user-maya',
@@ -41,7 +31,10 @@ Widget _harness(Widget child, {Set<String> blocked = const {}}) =>
         myPermissionsProvider.overrideWithValue(0),
         membersProvider.overrideWith((ref) async => const []),
         blocksProvider.overrideWith(
-          (ref) => _FixedBlocks(ref, BlocksState(ids: blocked, settled: true)),
+          (ref) => FixedBlocksController(
+            ref,
+            BlocksState(ids: blocked, settled: true),
+          ),
         ),
       ],
       child: MaterialApp(

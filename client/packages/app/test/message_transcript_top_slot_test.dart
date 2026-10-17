@@ -25,16 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart';
-
-/// Same noop shape `message_transcript_start_header_test.dart` uses: a real
-/// `SyncController.start` would open a websocket to a server that does not
-/// exist here.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -47,7 +38,7 @@ Widget _app(Widget transcript) => ProviderScope(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-    syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+    syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
   ],
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),

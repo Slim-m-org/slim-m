@@ -24,17 +24,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart';
 import 'ui_snapshot_support.dart';
-
-/// `MessageRowExtras` reaches `messageExtrasProvider` -> `liveEventsProvider`
-/// -> this controller even in a test that builds a transcript directly
-/// rather than through a channel screen, and the real `start()` opens a
-/// websocket to a server that does not exist here.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -61,7 +51,7 @@ List<Override> _overrides() => [
     ref.onDispose(api.close);
     return api;
   }),
-  syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+  syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
 ];
 
 MessageTranscript _transcript({required List<Message> messages}) =>

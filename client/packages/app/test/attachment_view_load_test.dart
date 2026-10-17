@@ -20,6 +20,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/attachment_gallery.dart';
 import 'package:slimm_app/src/widgets/attachment_image_states.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'support/fake_sync.dart';
 
 const _png = <int>[
   0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, //
@@ -48,15 +49,6 @@ api.Attachment _image(int i) => api.Attachment(
 );
 
 const _delays = [Duration(seconds: 1), Duration(seconds: 3)];
-
-class _Sync extends SyncController {
-  _Sync(super.ref);
-
-  @override
-  Future<void> start() async {}
-
-  void report(SyncStatus status) => state = status;
-}
 
 /// Answers each request with the next handler, repeating the last one.
 class _Server {
@@ -95,7 +87,7 @@ Future<ProviderContainer> _pump(
       overrides: [
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         attachmentRetryDelaysProvider.overrideWithValue(_delays),
-        syncControllerProvider.overrideWith(_Sync.new),
+        syncControllerProvider.overrideWith(NoopSyncController.new),
         apiProvider.overrideWith(
           (ref) => api.SlimmApi(
             baseUrl: Uri.parse('http://localhost:8080'),
@@ -263,7 +255,7 @@ void main() {
     await tester.pump();
     expect(find.text('Retry'), findsOneWidget);
 
-    (container.read(syncControllerProvider.notifier) as _Sync)
+    (container.read(syncControllerProvider.notifier) as NoopSyncController)
       ..report(SyncStatus.offline)
       ..report(SyncStatus.live);
     await tester.pump();

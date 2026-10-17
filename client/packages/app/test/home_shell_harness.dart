@@ -17,7 +17,6 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -26,36 +25,8 @@ import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-/// Plays nothing: `HomeShell` watches the real controller, which builds a
-/// real `AudioPlayer` reaching a platform channel with no host under
-/// `tester.runAsync` - the same trap `ui_snapshot_support.dart`'s own
-/// `_SilentPlayer` exists for. Ordinary pump-only tests never notice, since
-/// nothing drives the channel outside real asynchrony.
-class _SilentSoundPlayer implements SoundPlayer {
-  @override
-  Future<void> play(NotificationSound sound) async {}
-
-  @override
-  Future<void> loop(NotificationSound sound) async {}
-
-  @override
-  Future<void> stopLoop() async {}
-
-  @override
-  Future<void> dispose() async {}
-}
-
-/// Stands in for the real [SyncController], which opens a websocket to a
-/// server that does not exist here. `start` is called from the base
-/// constructor, but Dart dispatches virtually even there, so overriding it as
-/// a no-op keeps the real one from ever touching the network.
-class NoopSyncController extends SyncController {
-  NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
+import 'support/fake_sound_player.dart';
 
 /// The compact tests render a real conversation, which fetches its members,
 /// its pins and a window of messages on the way up. None of the three is what
@@ -132,7 +103,7 @@ const tokens = api.TokenPair(
         sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
       syncControllerProvider.overrideWith(NoopSyncController.new),
       notificationSoundControllerProvider.overrideWith(
-        (ref) => NotificationSoundController(ref, player: _SilentSoundPlayer()),
+        (ref) => NotificationSoundController(ref, player: SilentSoundPlayer()),
       ),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(

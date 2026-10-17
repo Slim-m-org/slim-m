@@ -14,13 +14,7 @@ import 'package:slimm_app/src/widgets/forward_message.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _source = data.Message(
   id: 'm1',
@@ -57,7 +51,7 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         storeProvider.overrideWith((ref) async => data.MessageStore(db)),
-        syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
         forwardTargetsProvider.overrideWith(
           (ref, query) async => const [
             ForwardTarget(channelId: 'a', label: 'general', isDm: false),

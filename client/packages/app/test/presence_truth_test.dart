@@ -18,6 +18,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/widgets/channel_rail_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -25,15 +26,6 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-class _StubSyncController extends SyncController {
-  _StubSyncController(super.ref) {
-    state = SyncStatus.live;
-  }
-
-  @override
-  Future<void> start() async {}
-}
 
 /// Answers `/me`, and `/presence` the way the server does: at most 100 ids
 /// per request, a 400 beyond that.
@@ -44,7 +36,7 @@ ProviderContainer _container({
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-    syncControllerProvider.overrideWith(_StubSyncController.new),
+    syncControllerProvider.overrideWith(StubSyncController.new),
     apiProvider.overrideWith((ref) {
       final client = api.SlimmApi(
         baseUrl: Uri.parse('http://localhost:8080'),

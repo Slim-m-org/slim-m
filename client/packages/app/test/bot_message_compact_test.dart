@@ -26,12 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart' as h;
-
-class _NoopSync extends SyncController {
-  _NoopSync(super.ref);
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _rows = [
   api.ComponentRow(
@@ -132,7 +127,7 @@ Future<void> _pump(
           ref.onDispose(client.close);
           return client;
         }),
-        syncControllerProvider.overrideWith((ref) => _NoopSync(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
         messageExtrasProvider.overrideWith(_Extras.new),
         batchProfilesControllerProvider.overrideWith((ref) {
           profiles = BatchProfilesController(ref);

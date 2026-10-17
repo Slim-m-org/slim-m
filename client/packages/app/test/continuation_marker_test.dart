@@ -31,13 +31,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart';
 import 'ui_snapshot_support.dart';
-
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _longBody =
     'the resync path replays every op after the last seen seq, so a client '
@@ -98,7 +92,7 @@ ProviderContainer _container(ContinuationMarker marker) {
         ref.onDispose(api.close);
         return api;
       }),
-      syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+      syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
     ],
   );
   addTearDown(container.dispose);

@@ -32,13 +32,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart';
-
-class _NoopSync extends SyncController {
-  _NoopSync(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _session = api.TokenPair(
   userId: 'self',
@@ -106,7 +100,7 @@ Future<_Rig> _pump(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _session)),
-        syncControllerProvider.overrideWith((ref) => _NoopSync(ref)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
         liveEventsProvider.overrideWithValue(rig.events.stream),
         codeBlockRunnerProvider.overrideWith(
           (ref) async => const [

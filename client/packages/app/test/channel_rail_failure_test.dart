@@ -32,19 +32,9 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'ui_snapshot_support.dart';
+import 'support/fake_sync.dart';
 
 const _railHeight = 880.0;
-
-/// Pinned rather than left to the real controller, which opens a socket to a
-/// server that is not there.
-class _StubSync extends SyncController {
-  _StubSync(super.ref, SyncStatus status) {
-    state = status;
-  }
-
-  @override
-  Future<void> start() async {}
-}
 
 Future<ProviderContainer> _pumpRail(
   WidgetTester tester, {
@@ -63,7 +53,7 @@ Future<ProviderContainer> _pumpRail(
         api.SessionStore(tokens: fixtureTokens),
       ),
       syncControllerProvider.overrideWith(
-        (ref) => _StubSync(ref, SyncStatus.offline),
+        (ref) => StubSyncController(ref, SyncStatus.offline),
       ),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(
@@ -298,7 +288,7 @@ void main() {
         _storeEmpty(),
         syncFailureProvider.overrideWith((ref) => SyncFailure.unreachable),
         syncControllerProvider.overrideWith(
-          (ref) => _StubSync(ref, SyncStatus.connecting),
+          (ref) => StubSyncController(ref, SyncStatus.connecting),
         ),
       ],
     );

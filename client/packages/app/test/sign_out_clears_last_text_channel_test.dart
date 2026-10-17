@@ -9,6 +9,7 @@ import 'package:slimm_app/src/providers/last_text_channel.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',
@@ -17,13 +18,6 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-class _OfflineSyncController extends SyncController {
-  _OfflineSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
-
 void main() {
   test('signing out forgets the last text channel', () async {
     final session = api.SessionStore(tokens: _tokens);
@@ -31,7 +25,7 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(session),
-        syncControllerProvider.overrideWith(_OfflineSyncController.new),
+        syncControllerProvider.overrideWith(NoopSyncController.new),
         storeProvider.overrideWith((ref) async => throw StateError('n/a')),
       ],
     );

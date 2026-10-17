@@ -25,15 +25,7 @@ import 'package:slimm_app/src/widgets/app_launcher_sheet.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-/// See `blocking_test.dart`: the real one opens a websocket to a server that
-/// is not here.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -74,7 +66,7 @@ Future<_Rig> _rig(WidgetTester tester, {int status = 200}) async {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
-      syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+      syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
       appLaunchProvider.overrideWith((ref) async => const [_app]),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(

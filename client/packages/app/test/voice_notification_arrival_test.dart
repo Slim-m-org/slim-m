@@ -14,44 +14,25 @@ import 'package:slimm_app/src/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/screens/channel_screen.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_rtc/rtc.dart';
 
 import 'home_shell_harness.dart';
-import 'voice_controller_harness.dart' show FakeSession;
-
-/// Records every join asked of it and reports that call as connected at
-/// once, so the screen settles on the call stage instead of the connecting
-/// spinner, whose animation never lets `pumpAndSettle` return.
-class _RecordingVoiceController extends VoiceController {
-  _RecordingVoiceController(super.ref) : super(session: FakeSession());
-
-  final joins = <String>[];
-
-  @override
-  Future<void> join(String channelId) async {
-    joins.add(channelId);
-    state = VoiceState(
-      state: VoiceSessionState.connected,
-      channelId: channelId,
-    );
-  }
-}
+import 'voice_controller_harness.dart' show RecordingVoiceController;
 
 Future<
   ({
     ProviderContainer container,
     SlimmDatabase db,
-    _RecordingVoiceController voice,
+    RecordingVoiceController voice,
   })
 >
 _arriveAt(WidgetTester tester, double width, String location) async {
-  late _RecordingVoiceController voice;
+  late RecordingVoiceController voice;
   final s = setup(
     httpClient: quietClient(),
     signedIn: true,
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _RecordingVoiceController(ref),
+        (ref) => voice = RecordingVoiceController(ref),
       ),
     ],
   );

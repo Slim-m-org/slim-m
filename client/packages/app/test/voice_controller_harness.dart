@@ -451,6 +451,22 @@ class FixedVoiceController extends VoiceController {
   }
 }
 
+/// Records each join and reports the call as connected.
+class RecordingVoiceController extends VoiceController {
+  RecordingVoiceController(super.ref) : super(session: FakeSession());
+
+  final joins = <String>[];
+
+  @override
+  Future<void> join(String channelId) async {
+    joins.add(channelId);
+    state = VoiceState(
+      state: VoiceSessionState.connected,
+      channelId: channelId,
+    );
+  }
+}
+
 /// Owns the container so a suite can tear it down in one place.
 class VoiceHarness {
   ProviderContainer? _container;

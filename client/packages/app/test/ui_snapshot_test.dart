@@ -31,6 +31,7 @@ import 'package:slimm_app/src/widgets/channel_rail.dart'
     show channelRailExpandedProvider;
 
 import 'support/surface_registry.dart';
+import 'support/fake_sync.dart';
 import 'ui_snapshot_support.dart';
 import 'voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectedCallState, connectingState;
@@ -215,7 +216,7 @@ final _shellStateSurfaces =
         viewports: phoneAndDesktop,
         overrides: () => [
           syncControllerProvider.overrideWith(
-            (ref) => FixedSyncController(ref, SyncStatus.connecting),
+            (ref) => StubSyncController(ref, SyncStatus.connecting),
           ),
         ],
       ),
@@ -224,7 +225,7 @@ final _shellStateSurfaces =
         viewports: phoneAndDesktop,
         overrides: () => [
           syncControllerProvider.overrideWith(
-            (ref) => FixedSyncController(ref, SyncStatus.live),
+            (ref) => StubSyncController(ref, SyncStatus.live),
           ),
           initialSyncCompleteProvider.overrideWith((ref) => true),
         ],

@@ -29,6 +29,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'support/reduced_motion_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession, tokens;
+import 'support/fake_sync.dart';
 
 const _maya = api.UserProfile(
   id: 'user-maya',
@@ -55,17 +56,6 @@ const _local = VoiceParticipant(
   isScreenSharing: false,
 );
 
-/// "View profile" reads `presenceControllerProvider`, which otherwise pulls
-/// in a real `SyncController` attempting a real socket - never a live server
-/// in a widget test, so it leaves a retry timer pending past the test's own
-/// end. Matches `sign_out_stops_the_ring_test.dart`'s own `_OfflineSyncController`.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
-
 ({ProviderContainer container, FakeSession session}) _wire({
   int permissions = 0,
   List<api.UserProfile> members = const [_maya],
@@ -76,7 +66,7 @@ class _NoopSyncController extends SyncController {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
       myPermissionsProvider.overrideWithValue(permissions),
-      syncControllerProvider.overrideWith(_NoopSyncController.new),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       membersProvider.overrideWith((ref) async => members),
       rolesProvider.overrideWith((ref) async => const <api.Role>[]),
       apiProvider.overrideWith((ref) {

@@ -21,6 +21,7 @@ import 'package:slimm_app/src/providers/dm_call_ring_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',
@@ -28,16 +29,6 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-/// Keeps the real `_endSession` - the method under test - while holding the
-/// constructor off the network, the same stand-in shape
-/// `sign_out_leaves_call_test.dart` already uses.
-class _OfflineSyncController extends SyncController {
-  _OfflineSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
 
 void main() {
   test(
@@ -48,7 +39,7 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(session),
-          syncControllerProvider.overrideWith(_OfflineSyncController.new),
+          syncControllerProvider.overrideWith(NoopSyncController.new),
           // Sign-out clears the local store; that failure is already swallowed.
           storeProvider.overrideWith((ref) async => throw StateError('n/a')),
         ],

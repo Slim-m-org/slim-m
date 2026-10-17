@@ -28,6 +28,7 @@ import 'package:slimm_app/src/widgets/presence_menu.dart';
 import 'package:slimm_app/src/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_sync.dart';
 
 /// The insets of an iPhone with a notch, in logical points, matching
 /// `rail_safe_area_test.dart`: 59 for the status bar, 34 for the home
@@ -44,19 +45,6 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-/// Stands in for the real [SyncController], which opens a websocket from its
-/// own constructor as soon as the session is signed in. Dart dispatches
-/// virtually even from a base constructor, so overriding `start` is enough to
-/// keep it off the network; [status] then fixes the value the footer reads.
-class _StubSyncController extends SyncController {
-  _StubSyncController(super.ref, SyncStatus status) {
-    state = status;
-  }
-
-  @override
-  Future<void> start() async {}
-}
-
 /// A container wired like the app's, with the network swapped for a client
 /// that answers the two endpoints the footer reaches (`/me` for the name and
 /// avatar, `/presence` for a status change) and 404s everything else.
@@ -72,7 +60,7 @@ class _StubSyncController extends SyncController {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       syncControllerProvider.overrideWith(
-        (ref) => _StubSyncController(ref, status),
+        (ref) => StubSyncController(ref, status),
       ),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(

@@ -29,7 +29,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/providers/message_extras.dart';
-import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -61,6 +60,8 @@ import 'support/real_shadows.dart';
 import 'ui_snapshot_channel_settings.dart';
 import 'ui_snapshot_dock.dart';
 import 'ui_snapshot_fixture_data.dart';
+import 'support/fake_sync.dart';
+import 'support/fake_sound_player.dart';
 
 export 'ui_snapshot_fonts.dart'
     show emojiFontPath, loadEmojiFont, loadFontFamily, loadRealFonts;
@@ -129,26 +130,6 @@ const fixtureTokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-/// Real [SyncController] opens a socket to a server that is not there.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
-
-/// [_NoopSyncController] pinned to a chosen [SyncStatus] rather than left at
-/// the constructor's own offline default, for a surface that needs to prove
-/// the connecting/live transcript states rather than the offline one.
-class FixedSyncController extends SyncController {
-  FixedSyncController(super.ref, SyncStatus status) {
-    state = status;
-  }
-
-  @override
-  Future<void> start() async {}
-}
-
 /// A container wired like the app's, with the network and database swapped.
 ///
 /// [extraOverrides] layers on top for a test that needs one more provider
@@ -168,7 +149,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> fixtureContainer({
       sessionProvider.overrideWithValue(
         api.SessionStore(tokens: fixtureTokens),
       ),
-      syncControllerProvider.overrideWith(_NoopSyncController.new),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),
@@ -184,7 +165,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> fixtureContainer({
       // drives the platform channel; the SLIMM_UI_SNAPSHOTS render path does,
       // through tester.runAsync, and the channel has no host in a test.
       notificationSoundControllerProvider.overrideWith(
-        (ref) => NotificationSoundController(ref, player: _SilentPlayer()),
+        (ref) => NotificationSoundController(ref, player: SilentSoundPlayer()),
       ),
       ...extraOverrides,
     ],
@@ -492,17 +473,4 @@ Future<void> renderSurface(
   expect(tester.takeException(), isNull);
 
   await teardownFixture(tester, fixture.container, fixture.db);
-}
-
-/// Plays nothing: a snapshot render is about pixels, and the real player
-/// reaches a platform channel with no host under `tester.runAsync`.
-class _SilentPlayer implements SoundPlayer {
-  @override
-  Future<void> play(NotificationSound sound) async {}
-  @override
-  Future<void> loop(NotificationSound sound) async {}
-  @override
-  Future<void> stopLoop() async {}
-  @override
-  Future<void> dispose() async {}
 }

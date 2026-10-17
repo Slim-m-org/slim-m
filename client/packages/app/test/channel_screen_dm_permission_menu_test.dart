@@ -26,13 +26,7 @@ import 'package:slimm_app/src/widgets/message_context_menu.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {}
-}
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -96,9 +90,7 @@ void main() {
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
           storeProvider.overrideWith((ref) async => store),
-          syncControllerProvider.overrideWith(
-            (ref) => _NoopSyncController(ref),
-          ),
+          syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
           // What the real per-channel route would answer for a DM: DM_BASE never carries MANAGE_MESSAGES.
           channelPermissionsProvider('c1').overrideWith((ref) async => 0),
           apiProvider.overrideWith((ref) {
