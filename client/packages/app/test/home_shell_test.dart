@@ -16,8 +16,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/dm_call_pane.dart';
-import 'package:slimm_app/src/screens/voice_join_preview.dart'
+import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart'
     show VoiceRejoinScreen;
 import 'package:slimm_app/src/features/channels/providers/threads.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';

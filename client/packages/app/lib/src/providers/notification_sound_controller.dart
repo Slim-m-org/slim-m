@@ -35,14 +35,15 @@ import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../audio/notification_sound.dart';
-import 'dm_call_ring_controller.dart';
+import '../features/voice/providers/dm_call_ring_controller.dart';
 import 'live_events.dart';
 import '../features/messages/providers/message_alert_policy.dart';
 import 'notification_sound_rules.dart';
 import 'notification_sound_settings.dart';
 import 'providers.dart';
-import 'voice_controller.dart';
-import 'voice_settings_controller.dart' show voiceSettingsControllerProvider;
+import '../features/voice/providers/voice_controller.dart';
+import '../features/voice/providers/voice_settings_controller.dart'
+    show voiceSettingsControllerProvider;
 
 /// One of [AppHaptics]'s own static cues, injectable so a test can record a
 /// call without a real haptic engine or platform channel - the same seam

@@ -7,10 +7,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/screens/voice_call_controls.dart';
-import 'package:slimm_app/src/screens/voice_join_preview.dart'
+import 'package:slimm_app/src/features/voice/screens/voice_call_controls.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart'
     show VoiceSwitchPrompt;
-import 'package:slimm_app/src/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 

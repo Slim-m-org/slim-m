@@ -6,8 +6,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/camera_source_sheet.dart';
-import 'package:slimm_app/src/widgets/screen_source_sheet.dart';
+import 'package:slimm_app/src/features/voice/widgets/camera_source_sheet.dart';
+import 'package:slimm_app/src/features/voice/widgets/screen_source_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 

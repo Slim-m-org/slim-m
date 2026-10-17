@@ -7,9 +7,9 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart' show kCompactWidth;
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
-import 'package:slimm_app/src/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/widgets/call_participant_tiles.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 
 import 'support/call_header_fixture.dart';
 import 'ui_snapshot_support.dart';

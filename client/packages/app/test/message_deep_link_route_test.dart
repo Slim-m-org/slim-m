@@ -15,7 +15,7 @@ import 'package:slimm_api/api.dart' as api show Channel;
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart';

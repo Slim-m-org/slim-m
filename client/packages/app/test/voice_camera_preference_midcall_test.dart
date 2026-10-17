@@ -3,7 +3,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/voice_settings_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 
 import 'voice_controller_harness.dart';
 

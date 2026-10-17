@@ -7,8 +7,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/widgets/participant_audio_controls.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/widgets/participant_audio_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_controller_harness.dart' show VoiceHarness, FakeSession, voiceApi;

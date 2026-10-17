@@ -19,8 +19,8 @@ import '../providers/channel_by_id_provider.dart';
 import '../providers/channel_search_controller.dart';
 import '../providers/pins_controller.dart';
 import '../../canvas/screens/canvas_open_button.dart';
-import '../../../screens/dm_call_button.dart';
-import '../../../screens/voice_text_pane.dart'
+import '../../voice/screens/dm_call_button.dart';
+import '../../voice/screens/voice_text_pane.dart'
     show VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';

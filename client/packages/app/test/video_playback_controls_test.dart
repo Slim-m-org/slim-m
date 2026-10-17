@@ -15,7 +15,7 @@ import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:slimm_app/src/widgets/video_playback_controls.dart';
+import 'package:slimm_app/src/features/voice/widgets/video_playback_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _harness({

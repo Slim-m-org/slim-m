@@ -13,12 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/call_recap.dart';
-import 'package:slimm_app/src/providers/voice_flags.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart';
-import 'package:slimm_app/src/screens/voice_join_preview.dart';
-import 'package:slimm_app/src/screens/voice_screen.dart';
-import 'package:slimm_app/src/widgets/call_recap_card.dart';
+import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_recap_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A recap for [channelId]; [withAlice] false stands in for a call spent

@@ -7,7 +7,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/voice_camera_failure.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_camera_failure.dart';
 
 import 'voice_controller_harness.dart';
 

@@ -20,7 +20,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/providers/notification_sound_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/voice_settings_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'support/fake_sound_player.dart';

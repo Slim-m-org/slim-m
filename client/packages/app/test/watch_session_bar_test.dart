@@ -16,8 +16,8 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/watch_room.dart';
-import 'package:slimm_app/src/widgets/watch_session_bar.dart';
+import 'package:slimm_app/src/features/voice/providers/watch_room.dart';
+import 'package:slimm_app/src/features/voice/widgets/watch_session_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 final _start = DateTime.utc(2026, 9, 30, 20);

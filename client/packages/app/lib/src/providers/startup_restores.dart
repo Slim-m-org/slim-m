@@ -24,7 +24,7 @@ import '../features/messages/providers/message_page_size.dart';
 import 'preference_controller.dart';
 import 'providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
-import 'voice_controller.dart';
+import '../features/voice/providers/voice_controller.dart';
 
 /// Runs [restore], and on any failure records it and carries on: [name]'s
 /// controller keeps its default, which is always a usable answer.

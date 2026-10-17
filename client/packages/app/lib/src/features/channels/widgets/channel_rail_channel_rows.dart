@@ -17,8 +17,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../messages/providers/unread_indicator_rules.dart';
-import '../../../providers/voice_flags.dart';
-import '../../../providers/voice_roster.dart';
+import '../../voice/providers/voice_flags.dart';
+import '../../voice/providers/voice_roster.dart';
 import 'channel_kind_icon.dart';
 import 'channel_move.dart';
 import 'channel_row_menu.dart';
@@ -26,7 +26,7 @@ import '../../../widgets/context_menu_region.dart';
 import 'rail_join_muted_glyph.dart';
 import 'rail_room_glyphs.dart';
 import 'rail_voice_participants.dart';
-import '../../../widgets/voice_channel_tap.dart';
+import '../../voice/widgets/voice_channel_tap.dart';
 
 /// Pairs a channel row with its kebab, handed to
 /// [AppListRow.trailingExtra] (via [row]'s own builder) rather than composed

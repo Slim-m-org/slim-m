@@ -9,8 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/voice_settings_controller.dart';
-import 'package:slimm_app/src/widgets/push_to_talk_key_row.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
+import 'package:slimm_app/src/features/voice/widgets/push_to_talk_key_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<List<LogicalKeyboardKey>> _pump(WidgetTester tester) async {

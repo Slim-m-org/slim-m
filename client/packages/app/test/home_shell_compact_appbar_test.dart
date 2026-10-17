@@ -5,7 +5,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/dm_call_pane.dart';
+import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_data/data.dart';

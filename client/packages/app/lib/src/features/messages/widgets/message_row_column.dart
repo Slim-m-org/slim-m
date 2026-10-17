@@ -18,7 +18,7 @@ import '../../../providers/providers.dart' show sessionProvider;
 import '../../../widgets/app_surface_view.dart';
 import 'attachment_gallery.dart';
 import '../../members/widgets/bot_ui_failure.dart';
-import '../../../widgets/call_record_view.dart';
+import '../../voice/widgets/call_record_view.dart';
 import 'embed_card.dart';
 import 'forwarded_message_card.dart';
 import 'link_preview_card.dart';

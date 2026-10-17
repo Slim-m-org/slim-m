@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/bot_call_controls.dart';
+import 'package:slimm_app/src/features/voice/widgets/bot_call_controls.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 
 import 'home_shell_harness.dart' show teardown;

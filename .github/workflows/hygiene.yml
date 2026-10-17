@@ -256,7 +256,7 @@ jobs:
             done
             callers=$(grep -rlE 'allowLandscape\(true\)' client/packages/app/lib |
                       xargs -r grep -lE '^[^/]*allowLandscape\(true\)' || true)
-            if [ "$callers" != "client/packages/app/lib/src/widgets/fullscreen_video_overlay.dart" ]; then
+            if [ "$callers" != "client/packages/app/lib/src/features/voice/widgets/fullscreen_video_overlay.dart" ]; then
               echo "::error::only fullscreen_video_overlay.dart may ask for landscape; found: ${callers:-none}"
               fail=1
             fi

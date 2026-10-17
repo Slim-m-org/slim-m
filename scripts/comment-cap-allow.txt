@@ -36,7 +36,7 @@ client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
 client/packages/app/lib/src/providers/providers.dart 4
 client/packages/app/lib/src/providers/push_controller.dart 4
 client/packages/app/lib/src/features/emoji/providers/recent_emoji.dart 1
-client/packages/app/lib/src/providers/voice_controller.dart 4
+client/packages/app/lib/src/features/voice/providers/voice_controller.dart 4
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
 client/packages/app/lib/src/screens/admin/invite_role_grant_picker.dart 1
@@ -44,8 +44,8 @@ client/packages/app/lib/src/features/channels/screens/channel_screen.dart 4
 client/packages/app/lib/src/screens/home_shell.dart 5
 client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart 2
 client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart 5
-client/packages/app/lib/src/screens/voice_call_controls.dart 3
-client/packages/app/lib/src/screens/voice_screen.dart 3
+client/packages/app/lib/src/features/voice/screens/voice_call_controls.dart 3
+client/packages/app/lib/src/features/voice/screens/voice_screen.dart 3
 client/packages/app/lib/src/features/messages/widgets/attachment_view.dart 1
 client/packages/app/lib/src/features/members/widgets/avatar_crop_sheet.dart 1
 client/packages/app/lib/src/features/members/widgets/avatar_settings_section.dart 1

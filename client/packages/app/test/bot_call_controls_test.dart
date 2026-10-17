@@ -16,7 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/bot_call_controls.dart';
+import 'package:slimm_app/src/features/voice/widgets/bot_call_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _jellyfin = api.ChannelBotUi(

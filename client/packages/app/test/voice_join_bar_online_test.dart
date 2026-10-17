@@ -9,8 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/presence_view.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart';
-import 'package:slimm_app/src/screens/voice_idle/voice_join_bar.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_idle/voice_join_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _channel = 'c1';

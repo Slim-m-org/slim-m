@@ -25,7 +25,7 @@ import '../../providers/providers.dart';
 import '../../features/composer/providers/slash_command.dart';
 import '../../routing/routes.dart';
 import '../../widgets/confirm_dialog.dart';
-import '../../widgets/ring_flush.dart';
+import '../../features/voice/widgets/ring_flush.dart';
 import '../../widgets/run_guarded.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';

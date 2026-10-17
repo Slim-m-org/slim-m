@@ -56,7 +56,7 @@ Legend for confidence:
 | Adaptive stream | LiveKit SDK `publication/remote.dart:118-250` | Polls tile `RenderBox` size x devicePixelRatio every 300 ms, debounces settings 1500 ms, pauses the track when no view is visible. |
 | Culling | `video_subscription_culler.dart` | After 3 s with no interest (canvas viewport), fully unsubscribes camera and screen tracks (never audio). Resubscribe is immediate. |
 | Rendering | `camera_view.dart`, `screen_share_view.dart`, `first_frame_gate.dart` | Own `RTCVideoRenderer` per tile with `cachedRenderer`, `fit: cover` (camera) and `contain` (share), first-frame reveal gate. |
-| Local preview pause | `app/lib/src/providers/video_pause.dart` | Own preview only stops drawing when hidden/backgrounded; published track and others' video untouched. |
+| Local preview pause | `app/lib/src/features/voice/providers/video_pause.dart` | Own preview only stops drawing when hidden/backgrounded; published track and others' video untouched. |
 | Camera open | fork `b30c7e5`, `app #2009` | Camera opens on a worker thread (4K UVC took 3.8 s). Pending state in UI. |
 | Server | `docker-compose.voice.yml:48-118` | LiveKit v1.10.1, UDP 50000-50100 (101 ports), TCP 7881, TURN/UDP 3478 + relay 30000-30100, TURN/TLS off, no `congestion_control`, no `enabled_codecs`, no `playout_delay`, no `video` or `pli_throttle` overrides, so all defaults. |
 | Capacity evidence | `docs/sizing.md:195-215` | 1.3 Mbps per subscriber per camera stream; CPU is not the limit, uplink is. |

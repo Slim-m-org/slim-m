@@ -18,7 +18,7 @@ import '../diagnostics/debug_log.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
 import 'debug_log_page.dart';
-import 'media_capability_section.dart';
+import '../features/voice/widgets/media_capability_section.dart';
 import 'settings_detail_row.dart';
 import 'settings_panes.dart';
 

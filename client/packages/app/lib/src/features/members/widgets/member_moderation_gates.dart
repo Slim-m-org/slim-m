@@ -19,7 +19,7 @@ import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/voice_flags.dart';
+import '../../voice/providers/voice_flags.dart';
 
 /// Whether a timeout ending at [until] (Unix milliseconds) still holds.
 bool timeoutActive(int? until) =>

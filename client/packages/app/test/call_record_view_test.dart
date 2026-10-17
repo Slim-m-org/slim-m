@@ -9,7 +9,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/call_record_view.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_record_view.dart';
 
 String labelFor(api.CallOutcome? outcome, {required bool caller, int? ms}) =>
     callRecordLabel(outcome: outcome, viewerIsCaller: caller, durationMs: ms);

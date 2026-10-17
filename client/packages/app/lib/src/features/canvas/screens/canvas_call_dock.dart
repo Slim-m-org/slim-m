@@ -46,12 +46,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../../screens/call_leave_button.dart';
+import '../../voice/screens/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
-import '../../../screens/voice_call_controls.dart';
-import '../../../providers/call_solo.dart';
-import '../../../providers/voice_controller.dart';
-import '../../../providers/voice_flags.dart';
+import '../../voice/screens/voice_call_controls.dart';
+import '../../voice/providers/call_solo.dart';
+import '../../voice/providers/voice_controller.dart';
+import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_dock_toggle.dart';

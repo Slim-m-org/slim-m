@@ -19,10 +19,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/dm_call.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/providers/dm_call.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/voice_join_preview.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 void _noop() {}

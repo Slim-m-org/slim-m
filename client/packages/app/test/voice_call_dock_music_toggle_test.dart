@@ -9,8 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/lounge_tracks.dart';
-import 'package:slimm_app/src/providers/voice_flags.dart';
-import 'package:slimm_app/src/providers/voice_settings_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'support/canvas_call_dock_fixtures.dart';

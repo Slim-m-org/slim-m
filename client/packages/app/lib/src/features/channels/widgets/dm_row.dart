@@ -38,11 +38,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
-import '../../../providers/dm_call_activity.dart';
+import '../../voice/providers/dm_call_activity.dart';
 import '../providers/dms.dart';
 import '../../messages/providers/unread_indicator_rules.dart';
 import '../../../routing/routes.dart';
-import '../../../screens/dm_call_pane.dart' show dmCallOpenProvider;
+import '../../voice/screens/dm_call_pane.dart' show dmCallOpenProvider;
 import '../../../widgets/context_menu_region.dart';
 import 'row_menu_notifications.dart';
 import '../../members/widgets/safety_actions.dart';

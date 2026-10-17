@@ -21,10 +21,10 @@ import '../widgets/channel_header.dart';
 import '../../canvas/screens/canvas_pane.dart';
 import 'unlisted_channel.dart';
 import 'channel_screen.dart';
-import '../../../screens/dm_call_pane.dart';
-import '../../../screens/voice_lobby_redirect.dart';
-import '../../../screens/voice_screen.dart';
-import '../../../screens/voice_text_pane.dart';
+import '../../voice/screens/dm_call_pane.dart';
+import '../../voice/screens/voice_lobby_redirect.dart';
+import '../../voice/screens/voice_screen.dart';
+import '../../voice/screens/voice_text_pane.dart';
 import '../../../screens/home_shell.dart';
 
 /// The routed conversation pane: a text channel reads, a voice channel

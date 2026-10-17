@@ -11,12 +11,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/call_solo.dart';
-import '../../../providers/camera_switch.dart';
-import '../../../providers/voice_controller.dart';
-import '../../../providers/voice_flags.dart';
-import '../../../screens/hold_music_dock_toggle.dart';
-import '../../../screens/voice_call_controls.dart';
+import '../../voice/providers/call_solo.dart';
+import '../../voice/providers/camera_switch.dart';
+import '../../voice/providers/voice_controller.dart';
+import '../../voice/providers/voice_flags.dart';
+import '../../voice/screens/hold_music_dock_toggle.dart';
+import '../../voice/screens/voice_call_controls.dart';
 
 /// One slot's width: the button with its focus-ring reserve, plus the gap before it.
 double dockExtraExtent(BuildContext context) {

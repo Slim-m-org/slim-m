@@ -8,10 +8,10 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart'
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart'
     show voiceRosterProvider;
-import 'package:slimm_app/src/screens/dm_call_pane.dart'
+import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart'
     show dmCallOpenProvider;
 
 import 'voice_snapshot_fixtures.dart';

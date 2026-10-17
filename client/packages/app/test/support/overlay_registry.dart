@@ -17,7 +17,7 @@ import 'package:slimm_app/src/screens/admin/overwrite_target_picker_sheets.dart'
 import 'package:slimm_app/src/screens/admin/role_create_sheet.dart';
 import 'package:slimm_app/src/whats_new/whats_new_content.dart';
 import 'package:slimm_app/src/features/members/widgets/avatar_crop_sheet.dart';
-import 'package:slimm_app/src/widgets/camera_source_sheet.dart';
+import 'package:slimm_app/src/features/voice/widgets/camera_source_sheet.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_extras.dart';
 import 'package:slimm_app/src/widgets/confirm_dialog.dart';
@@ -27,7 +27,7 @@ import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.dart';
 import 'package:slimm_app/src/features/composer/widgets/poll_composer_sheet.dart';
 import 'package:slimm_app/src/features/members/widgets/report_dialog.dart';
-import 'package:slimm_app/src/widgets/screen_source_sheet.dart';
+import 'package:slimm_app/src/features/voice/widgets/screen_source_sheet.dart';
 import 'package:slimm_app/src/widgets/whats_new_sheet.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';

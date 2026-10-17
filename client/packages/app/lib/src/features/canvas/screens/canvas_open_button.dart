@@ -30,7 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../providers/voice_flags.dart';
+import '../../voice/providers/voice_flags.dart';
 import 'canvas_pane.dart';
 
 class CanvasOpenButton extends ConsumerWidget {

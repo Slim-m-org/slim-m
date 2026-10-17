@@ -5,7 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/call_recap.dart';
+import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 VoiceParticipant _p(

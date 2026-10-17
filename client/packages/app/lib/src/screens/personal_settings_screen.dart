@@ -67,7 +67,7 @@ import '../widgets/settings_profile_preview.dart';
 import '../widgets/totp_section.dart';
 import '../widgets/troubleshooting_pane.dart';
 import '../features/auth/widgets/change_password_section.dart';
-import 'voice_settings_screen.dart';
+import '../features/voice/screens/voice_settings_screen.dart';
 import '../action_labels.dart';
 
 class PersonalSettingsScreen extends StatelessWidget {

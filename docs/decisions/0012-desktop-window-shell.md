@@ -55,7 +55,7 @@ This record is that deferral being picked up.
 `AppMotion` and `AppFadeIn` (`client/packages/design_system/lib/src/app_motion.dart`, `app_fade_in.dart`) already implement exactly the "fade in, honour reduce-motion, land at final state with no travel" shape this record needs for the startup animation, with no new token or widget class required.
 `AppIcons` has no window-chrome glyphs yet (no minimize/maximize/close entries; the nearest existing icon, `expand`, is `LucideIcons.maximize2300` for an unrelated canvas control) - three new entries are a real, small cost of this work.
 
-`client/packages/app/lib/src/providers/voice_controller.dart`'s `voiceControllerProvider` (a `StateNotifierProvider<VoiceController, VoiceState>` read once in `main.dart`'s `ProviderContainer`, independent of any widget) is the thing whose lifetime matters for "what happens to a live call when the window is hidden," addressed directly below.
+`client/packages/app/lib/src/features/voice/providers/voice_controller.dart`'s `voiceControllerProvider` (a `StateNotifierProvider<VoiceController, VoiceState>` read once in `main.dart`'s `ProviderContainer`, independent of any widget) is the thing whose lifetime matters for "what happens to a live call when the window is hidden," addressed directly below.
 
 `docs/os_backlog/linux_backlog.md`'s confirmed rule - "never enumerate windows on Linux from any call site... only ever request `SourceType.Screen`" - already means Linux screen share is always a full-screen capture, never a capture of the app's own window or any other single window.
 That rule turns out to matter directly here: it is the reason the "hidden window still holding a capture" trap the owner is worried about cannot happen on Linux today, addressed below.

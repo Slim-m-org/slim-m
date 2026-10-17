@@ -10,7 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
-import 'package:slimm_app/src/widgets/call_stage_layout.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_stage_layout.dart';
 import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
 

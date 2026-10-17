@@ -13,7 +13,7 @@ The owner asked for it twice (backlog #210, then on 2026-10-06: "what if a frien
 ## Decision
 
 The shell stays portrait on phones.
-`FullscreenVideoView` (`client/packages/app/lib/src/widgets/fullscreen_video_overlay.dart`), the one route that shows a call's camera or screen share full screen, asks to rotate while it is up and gives the lock back when it closes, by any path: the close control, Escape, the back gesture, or the feed ending.
+`FullscreenVideoView` (`client/packages/app/lib/src/features/voice/widgets/fullscreen_video_overlay.dart`), the one route that shows a call's camera or screen share full screen, asks to rotate while it is up and gives the lock back when it closes, by any path: the close control, Escape, the back gesture, or the feed ending.
 The watch party is a screen share, so it goes through the same view.
 Canvas landscape is out of scope.
 

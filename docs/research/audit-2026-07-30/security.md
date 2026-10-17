@@ -125,7 +125,7 @@ Shape: one shared validator called from all three entry points, with the LAN exe
 
 ### 7. The SFU URL from the server is joined without requiring wss - low
 
-`client/packages/app/lib/src/providers/voice_controller.dart:169`
+`client/packages/app/lib/src/features/voice/providers/voice_controller.dart:169`
 
 `token.url` comes verbatim off the wire (`models.dart:219`) and is handed to `room.connect` as given (`voice_session.dart:178`), with no scheme check in any of the three files.
 The server explicitly permits plaintext (`voice/mod.rs:367` accepts `ws://` and `http://`, and `voice/tests.rs:152` exercises `ws://10.0.0.100:7880/`).

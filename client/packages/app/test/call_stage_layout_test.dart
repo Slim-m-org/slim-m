@@ -15,12 +15,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart';
-import 'package:slimm_app/src/screens/voice_screen.dart';
-import 'package:slimm_app/src/widgets/call_participant_tiles.dart';
-import 'package:slimm_app/src/widgets/call_roster_motion.dart';
-import 'package:slimm_app/src/widgets/screen_share_stage.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_roster_motion.dart';
+import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 

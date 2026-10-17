@@ -5,7 +5,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/screens/voice_idle/call_timeline_model.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_idle/call_timeline_model.dart';
 
 const _min = 60000;
 

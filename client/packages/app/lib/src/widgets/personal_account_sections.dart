@@ -20,7 +20,7 @@ import '../providers/providers.dart';
 import '../providers/push_controller.dart';
 import '../providers/sync_controller.dart';
 import '../features/members/providers/user_profiles.dart';
-import '../providers/voice_controller.dart';
+import '../features/voice/providers/voice_controller.dart';
 import 'confirm_dialog.dart';
 import '../features/auth/widgets/reauth_sheet.dart';
 import 'run_guarded.dart';

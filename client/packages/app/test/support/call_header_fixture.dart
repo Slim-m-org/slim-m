@@ -11,10 +11,10 @@ import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
-import 'package:slimm_app/src/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';

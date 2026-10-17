@@ -10,12 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:slimm_app/src/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.dart';
-import 'package:slimm_app/src/screens/voice_lobby_redirect.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_lobby_redirect.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_channel_rows.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_room_glyphs.dart';
-import 'package:slimm_app/src/widgets/voice_room_settings_sheet.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_room_settings_sheet.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 

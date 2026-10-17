@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 
 import 'ui_snapshot_support.dart';
 import 'voice_snapshot_fixtures.dart' show SnapshotVoiceController;

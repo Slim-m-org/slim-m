@@ -14,8 +14,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/channel_by_id_provider.dart';
 import '../../../routing/routes.dart';
-import '../../../screens/dm_call_pane.dart';
-import '../../../widgets/call_participant_tiles.dart';
+import '../../voice/screens/dm_call_pane.dart';
+import '../../voice/widgets/call_participant_tiles.dart';
 
 /// The call's channel and duration, standing in for [RailUserFooter]'s
 /// name line while a call elsewhere is live, so the footer stays one bar.

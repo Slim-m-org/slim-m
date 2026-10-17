@@ -14,7 +14,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_settings_screen_harness.dart';

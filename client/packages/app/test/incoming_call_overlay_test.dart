@@ -14,14 +14,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
-import 'package:slimm_app/src/providers/dm_call_ring_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/dm_call_ring_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/screens/dm_call_pane.dart';
-import 'package:slimm_app/src/widgets/incoming_call_overlay.dart';
+import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart';
+import 'package:slimm_app/src/features/voice/widgets/incoming_call_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

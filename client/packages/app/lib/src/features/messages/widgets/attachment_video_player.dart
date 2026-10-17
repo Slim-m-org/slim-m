@@ -27,7 +27,7 @@ import 'attachment_video_source.dart' show AttachmentVideoSource;
 import 'attachment_video_source_io.dart'
     if (dart.library.js_interop) 'attachment_video_source_web.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/video_playback_controls.dart';
+import '../../voice/widgets/video_playback_controls.dart';
 
 /// Half [kMessageColumnMax], the same cap an inline image draws under, and
 /// the same 16:9 box every shipped platform's player fills as it loads

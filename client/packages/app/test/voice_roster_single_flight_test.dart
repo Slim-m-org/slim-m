@@ -13,7 +13,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',

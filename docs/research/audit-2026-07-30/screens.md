@@ -91,10 +91,10 @@ Profiles never carry the everyone role, so every member reads as switched off an
 The evaluator returns everything before overwrites are applied, so Deny cannot reach anyone who holds the bit, and no channel-scoped consumer reads the bit an Allow sets.
 The first of sixteen rows on the hardest screen in the product is a control that cannot do what its label implies.
 
-**Every participant becomes inert once somebody shares a screen** (medium) - `client/packages/app/lib/src/screens/voice_screen.dart:368`.
+**Every participant becomes inert once somebody shares a screen** (medium) - `client/packages/app/lib/src/features/voice/screens/voice_screen.dart:368`.
 `_ParticipantRow` has no tap handler and publishes no semantic action, so the tile's per-participant volume route disappears in exactly the situation where turning one loud person down is what you need.
 
-**The collapsed call strip is not a way back into the call, and never names the channel** (medium) - `client/packages/app/lib/src/widgets/voice_strip_indicator.dart:37`.
+**The collapsed call strip is not a way back into the call, and never names the channel** (medium) - `client/packages/app/lib/src/features/voice/widgets/voice_strip_indicator.dart:37`.
 The only affordance on it hangs up, and its label is a bare participant count while `voice.channelId` sits in the same state object.
 
 **Revoke is offered on an invite nobody can redeem** (low) - `client/packages/app/lib/src/screens/admin/invites_screen.dart:309`, gated on `!revoked` rather than `usable`.
@@ -143,7 +143,7 @@ Compounded by no client-side grant check: `myPermissionsProvider` is not read in
 
 **Devices and Blocked render a load failure as one dead sentence with no retry** (medium) - `client/packages/app/lib/src/widgets/personal_account_sections.dart:47`, while the same file uses the real inline error state 80 lines later.
 
-**A raw exception object is interpolated into the voice join preview's visible copy** (medium) - `client/packages/app/lib/src/providers/voice_controller.dart:177`.
+**A raw exception object is interpolated into the voice join preview's visible copy** (medium) - `client/packages/app/lib/src/features/voice/providers/voice_controller.dart:177`.
 `lastError` is the caught object, centre-aligned under a heading on the screen a self-hoster hits when their SFU is misconfigured.
 Note the sibling path in the same file interpolates it deliberately with a comment defending it, so this is an inconsistency to settle rather than an unambiguous mistake.
 
@@ -209,7 +209,7 @@ This is one token decision, not three screen fixes.
 The app's first three actions get Material's overlay washes instead of the 2px accent focus ring every other row draws, no haptic, and no trailing glyph, so three identically-weighted bordered rectangles read as callouts.
 They also announce their title and description twice - the wrapper has no `container: true` and neither `Text` is excluded, the exact defect the design system already diagnosed and fixed in the component this should use.
 
-**The voice screens hold a third of the app's raw `fontSize` values** (low) - `client/packages/app/lib/src/screens/voice_screen.dart:119`.
+**The voice screens hold a third of the app's raw `fontSize` values** (low) - `client/packages/app/lib/src/features/voice/screens/voice_screen.dart:119`.
 Nine raw sizes across four files, three of them the off-scale 13, a heading that restates `AppText.heading` while dropping its leading, and a hand-rolled 50pt CTA where the largest button token is 40 - so the most-pressed control in a call has no focus ring and no haptic.
 
 **The voice channel header is a second, divergent copy of the channel header** (medium) - `client/packages/app/lib/src/screens/home_shell.dart:203`.
@@ -219,7 +219,7 @@ Measured in the renders: the title jogs 5.5px sideways (s16 against `paneGutter`
 Every painted value reads `value` only; `interactive` reaches only the tap target.
 So in the role editor a permission the caller cannot grant is a switch that looks live and does nothing, with the reason carried by label colour alone, and no caption - while the sibling sheet does supply one.
 
-**The microphone pre-toggle looks like a read-only field and reports itself as neither button nor toggle** (medium) - `client/packages/app/lib/src/screens/voice_screen.dart:249`.
+**The microphone pre-toggle looks like a read-only field and reports itself as neither button nor toggle** (medium) - `client/packages/app/lib/src/features/voice/screens/voice_screen.dart:249`.
 `InkWell` publishes no `button: true` and no `toggled:`, and in the render it is a 42dp bordered box reading "Microphone … on" with no switch, chevron or accent, directly above a filled CTA that looks like the only interactive thing on screen.
 Pre-muting before the mic opens is the screen's stated purpose.
 

@@ -35,7 +35,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_moderation_error.dart';
 import '../providers/member_presence.dart' show membersProvider;
 import '../../../providers/providers.dart';
-import '../../../providers/voice_controller.dart';
+import '../../voice/providers/voice_controller.dart';
 import '../../../widgets/confirm_dialog.dart';
 import 'member_actions.dart';
 import 'member_moderate_view.dart';
@@ -43,8 +43,8 @@ import 'member_moderation_gates.dart';
 import 'member_profile_cards.dart';
 import 'member_profile_push_transition.dart';
 import 'member_profile_show.dart' show memberPopoverWidth;
-import '../../../widgets/participant_actions.dart';
-import '../../../widgets/participant_audio_controls.dart'
+import '../../voice/widgets/participant_actions.dart';
+import '../../voice/widgets/participant_audio_controls.dart'
     show MemberLocalAudioSection;
 import '../../../widgets/run_guarded.dart';
 

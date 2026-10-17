@@ -36,7 +36,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/swipe_down_to_dismiss.dart';
-import '../../../widgets/video_playback_controls.dart';
+import '../../voice/widgets/video_playback_controls.dart';
 
 /// Opens [filename]'s clip full screen, sharing [player]/[controller] with
 /// whatever inline frame is already showing it.
