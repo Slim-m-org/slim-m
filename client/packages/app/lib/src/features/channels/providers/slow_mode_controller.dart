@@ -4,7 +4,7 @@
 /// letting a member type, tap send, and learn about the wait from a 429.
 ///
 /// The server is still the only authority - see
-/// `crates/slimm-server/src/http/channel_slow_mode.rs::enforce_slow_mode` -
+/// `crates/slimm-server/src/http/channels/channel_slow_mode.rs::enforce_slow_mode` -
 /// this only avoids the round trip in the common case. It can under-block
 /// (a second device sent more recently than this one knows, or slow mode
 /// was just raised) or over-block for a beat after a stale local clock; both

@@ -18,11 +18,11 @@ use axum::http::request::Parts;
 use axum::routing::put;
 use serde::Deserialize;
 
-use super::AppState;
-use super::channels::ChannelDto;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce};
+use super::super::messages::parse_uuid;
+use super::ChannelDto;
 use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
@@ -32,7 +32,7 @@ use crate::store::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
 
-/// The channel-ordering route, mounted by [`super::router`].
+/// The channel-ordering route, mounted by [`super::super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/order", put(reorder))

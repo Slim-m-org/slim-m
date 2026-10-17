@@ -5,8 +5,8 @@
 //! `PATCH /channels/{channel_id}` and enforced inline in `POST
 //! /channels/{channel_id}/messages`.
 
-use super::AppState;
-use super::error::ApiError;
+use super::super::AppState;
+use super::super::error::ApiError;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::store::channel_slow_mode::slow_mode_retry_after_seconds;

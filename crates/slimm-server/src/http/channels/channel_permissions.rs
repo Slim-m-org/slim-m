@@ -12,17 +12,17 @@ use axum::extract::{Path, State};
 use axum::routing::get;
 use serde::Serialize;
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AUTHED_READ, AuthedLimited, Json};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AUTHED_READ, AuthedLimited, Json};
+use super::super::messages::parse_uuid;
 use crate::ids::ChannelId;
 use crate::permissions::mask_unless_viewable;
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
 
-/// The channel-permission route, mounted by [`super::router`].
+/// The channel-permission route, mounted by [`super::super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/{channel_id}/permissions", get(get_permissions))

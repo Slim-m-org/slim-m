@@ -23,12 +23,12 @@ use axum::http::request::Parts;
 use axum::routing::{get, patch};
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::channel_slow_mode::validate_slow_mode_seconds;
-use super::channel_validation::{
+use self::channel_slow_mode::validate_slow_mode_seconds;
+use self::channel_validation::{
     JOIN_MUTED_VOICE_ONLY, ROOMS_VOICE_ONLY, validate_channel_name, validate_channel_topic,
     validate_user_limit,
 };
+use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
@@ -38,6 +38,13 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{Channel, ChannelPatch, DM_CHANNEL_KIND, DeleteChannelError};
 use crate::voice::VoiceError;
+
+pub(super) mod channel_notification_prefs;
+pub(super) mod channel_order;
+pub(super) mod channel_permissions;
+pub(super) mod channel_retention;
+pub(super) mod channel_slow_mode;
+pub(super) mod channel_validation;
 
 const CHANNEL_BODY_LIMIT: usize = 4 * 1024;
 

@@ -37,13 +37,11 @@ use canvas::{canvas_media_slots, canvas_object_locks};
 pub mod capability;
 mod categories;
 mod category_overwrites;
-mod channel_notification_prefs;
-mod channel_order;
-mod channel_permissions;
-mod channel_retention;
-mod channel_slow_mode;
-mod channel_validation;
 mod channels;
+use channels::{
+    channel_notification_prefs, channel_order, channel_permissions, channel_retention,
+    channel_slow_mode, channel_validation,
+};
 pub(crate) mod code_fences;
 mod code_runs;
 mod device_client_info;

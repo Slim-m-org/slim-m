@@ -20,10 +20,10 @@ use axum::http::request::Parts;
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::notifications::NotificationPreference;
@@ -33,7 +33,7 @@ use crate::ratelimit::Class;
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
 
-/// The channel-override routes, mounted by [`super::router`].
+/// The channel-override routes, mounted by [`super::super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/notification-preferences/channels", get(list))
