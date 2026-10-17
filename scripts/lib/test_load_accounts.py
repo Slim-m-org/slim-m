@@ -130,7 +130,7 @@ class ObtainTest(CacheDirTest):
         enrolled = [{"username": f"n{i}", "display_name": f"N{i}",
                      "api": FakeApi(f"nt{i}"), "refresh": f"nr{i}",
                      "reused": False} for i in range(2)]
-        with mock.patch.object(LA, "_revive", lambda b, e: (None, None)), \
+        with mock.patch.object(LA, "_revive", return_value=(None, None)), \
                 mock.patch.object(LA, "_login", side_effect=err), \
                 mock.patch.object(LA, "_enrol_all", return_value=enrolled):
             accounts, cached = LA.obtain(URL, 2, "pw", None, self.dir)

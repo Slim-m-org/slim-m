@@ -180,7 +180,7 @@ GUARDED_THEN = re.compile(r"\brunGuarded\((?:.|\n)*?\)\s*\.then\(\(\s*(\w+)\s*\)
 SNACKBAR_CALL = re.compile(r"\bshowAppSnackbar\(")
 TOP_LEVEL_HEADER = re.compile(r"^[A-Za-z_@]")
 TYPE_HEADER = re.compile(r"^(?:abstract\s+|final\s+|base\s+)*(?:class|mixin|extension|enum)\b")
-MEMBER_HEADER = re.compile(r"^  [A-Za-z_]")
+MEMBER_HEADER = re.compile(r"^ {2}[A-Za-z_]")
 
 
 def function_start(lines: list[str], index: int) -> int:

@@ -206,7 +206,7 @@ class PickRequestsTest(unittest.TestCase):
         accounts = [{"display_name": n} for n in names]
         got = seed_conversation._pick_requests(random.Random(1), accounts, 40)
         for _topic, subset, turn_count in got:
-            self.assertTrue(set(subset) <= set(names))
+            self.assertLessEqual(set(subset), set(names))
             self.assertGreaterEqual(len(subset), min(4, len(names)))
             low, high = seed_conversation._TURN_COUNT_RANGE
             self.assertTrue(low <= turn_count <= high)
