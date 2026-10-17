@@ -84,6 +84,13 @@ class InlineMessageLink extends InlineNode {
   final String raw;
 }
 
+/// A `<#channel-id>` token: a link to a channel, resolved to its name at draw
+/// time because only the renderer has the channel list.
+class InlineChannelMention extends InlineNode {
+  const InlineChannelMention(this.channelId);
+  final String channelId;
+}
+
 class InlineBold extends InlineNode {
   const InlineBold(this.children);
   final List<InlineNode> children;
@@ -125,6 +132,7 @@ final RegExp _urlPattern = RegExp(r'https?://[^\s]+');
 /// message body is deliberately not tappable - `deep_links.dart` explains why a
 /// pasted invite must still go through the join flow's own checks.
 final RegExp _messageLinkPattern = RegExp(r'slimm://message\?[^\s]+');
+final RegExp _channelMentionPattern = RegExp(r'<#([0-9A-Fa-f-]{32,36})>');
 final RegExp _emojiPattern = RegExp(r':[A-Za-z0-9_]{1,32}:');
 final RegExp _digitsOnly = RegExp(r'^[0-9]+$');
 final RegExp _wordChar = RegExp(r'[A-Za-z0-9_]');
@@ -412,6 +420,14 @@ List<InlineNode> parseInline(String content) {
         flush();
         nodes.add(InlineMention(content.substring(i, end)));
         i = end;
+        continue;
+      }
+    } else if (ch == '<') {
+      final m = _channelMentionPattern.matchAsPrefix(content, i);
+      if (m != null) {
+        flush();
+        nodes.add(InlineChannelMention(m.group(1)!.toLowerCase()));
+        i = m.end;
         continue;
       }
     } else if (ch == ':') {

@@ -63,6 +63,7 @@ bool _mentions(
         case InlineEmoji():
         case InlineLink():
         case InlineMessageLink():
+        case InlineChannelMention():
           break;
       }
     }
