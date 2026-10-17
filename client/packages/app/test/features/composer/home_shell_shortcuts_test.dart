@@ -263,15 +263,27 @@ void main() {
     await _teardown(tester, setup.container, setup.db);
   });
 
-  testWidgets('opening a channel on desktop puts the caret in its composer', (
+  testWidgets('switching channels on desktop puts the caret in the composer', (
     tester,
   ) async {
     final setup = _setup();
     await MessageStore(setup.db).upsertChannels(const [
       api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
+      api.Channel(id: 'c2', name: 'random', kind: 'text', createdAt: 0),
     ]);
     final router = _conversationRouter('/channels/c1');
     await _pump(tester, setup.container, router);
+    expect(
+      tester
+          .widget<ComposerField>(find.byType(ComposerField))
+          .focusNode
+          .hasFocus,
+      isFalse,
+      reason: 'the first channel shown at launch does not take focus',
+    );
+
+    router.go('/channels/c2');
+    await tester.pumpAndSettle();
 
     final field = tester.widget<ComposerField>(find.byType(ComposerField));
     expect(field.focusNode.hasFocus, isTrue);
@@ -287,9 +299,11 @@ void main() {
     await _pump(tester, setup.container, router);
 
     final field = tester.widget<ComposerField>(find.byType(ComposerField));
-    field.focusNode.unfocus();
-    await tester.pumpAndSettle();
-    expect(field.focusNode.hasFocus, isFalse);
+    expect(
+      field.focusNode.hasFocus,
+      isFalse,
+      reason: 'the shell itself holds focus on launch, not the composer',
+    );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
