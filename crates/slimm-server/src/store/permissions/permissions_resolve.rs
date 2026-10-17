@@ -15,8 +15,8 @@ use std::collections::{HashMap, HashSet};
 
 use sqlx::{QueryBuilder, Row};
 
-use super::dms::{BLOCKED_DENY, DM_BASE, DM_CHANNEL_KIND};
-use super::{Channel, Store};
+use super::super::dms::{BLOCKED_DENY, DM_BASE, DM_CHANNEL_KIND};
+use super::super::{Channel, Store};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 
@@ -28,7 +28,7 @@ use crate::permissions::Permissions;
 /// batch: `ordinary` carries the channel whose overwrites decide it, `dms`
 /// carries the DM channel to look a pair up in, and `dead` needs no query at
 /// all.
-pub(super) struct ResolvedChannels {
+pub(in crate::store) struct ResolvedChannels {
     pub ordinary: Vec<(ChannelId, Channel)>,
     pub dms: Vec<(ChannelId, ChannelId)>,
     pub dead: Vec<ChannelId>,
@@ -67,7 +67,7 @@ impl Store {
     /// any threads among them, round three those parents' channels. Three is
     /// the bound rather than a recursion because a thread hop is a single hop;
     /// see [`ResolvedChannels::place`].
-    pub(super) async fn resolve_permission_channels(
+    pub(in crate::store) async fn resolve_permission_channels(
         &self,
         channel_ids: &[ChannelId],
     ) -> anyhow::Result<ResolvedChannels> {
@@ -124,7 +124,7 @@ impl Store {
     ) -> anyhow::Result<HashMap<ChannelId, Channel>> {
         let mut found = HashMap::with_capacity(ids.len());
         // Chunked under SQLite's bind cap; empty makes no chunks.
-        for chunk in ids.chunks(super::MAX_IDS_PER_QUERY) {
+        for chunk in ids.chunks(super::super::MAX_IDS_PER_QUERY) {
             let mut builder = QueryBuilder::new(
                 "SELECT id, name, kind, topic, position, parent_message_id, category_id, \
                  created_at, slow_mode_seconds, join_muted, creates_rooms, user_limit, \
@@ -148,7 +148,7 @@ impl Store {
                     created_at: row.try_get("created_at")?,
                     slow_mode_seconds: row.try_get("slow_mode_seconds")?,
                     join_muted: row.try_get("join_muted")?,
-                    room: super::ChannelRoom {
+                    room: super::super::ChannelRoom {
                         creates_rooms: row.try_get("creates_rooms")?,
                         user_limit: row.try_get("user_limit")?,
                         owner_id: row.try_get("room_owner_id")?,
@@ -173,7 +173,7 @@ impl Store {
     ) -> anyhow::Result<HashMap<MessageId, ChannelId>> {
         let mut found = HashMap::with_capacity(ids.len());
         // Chunked under SQLite's bind cap; empty makes no chunks.
-        for chunk in ids.chunks(super::MAX_IDS_PER_QUERY) {
+        for chunk in ids.chunks(super::super::MAX_IDS_PER_QUERY) {
             let mut builder =
                 QueryBuilder::new("SELECT id, channel_id FROM messages WHERE id IN (");
             let mut separated = builder.separated(", ");
@@ -197,14 +197,14 @@ impl Store {
     /// per-channel version takes - no row or a caller outside the pair grants
     /// nothing, a block in either direction denies, and a personal space's
     /// other party is the caller themself (see `open_dm`).
-    pub(super) async fn dm_permissions_batch(
+    pub(in crate::store) async fn dm_permissions_batch(
         &self,
         user_id: UserId,
         channel_ids: &[ChannelId],
     ) -> anyhow::Result<HashMap<ChannelId, Permissions>> {
         let mut other_party: HashMap<ChannelId, UserId> = HashMap::new();
         // Chunked under SQLite's bind cap; empty makes no chunks.
-        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY) {
+        for chunk in channel_ids.chunks(super::super::MAX_IDS_PER_QUERY) {
             let mut builder = QueryBuilder::new(
                 "SELECT channel_id, user_a, user_b FROM dm_channels WHERE channel_id IN (",
             );

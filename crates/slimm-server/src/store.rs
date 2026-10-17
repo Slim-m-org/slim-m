@@ -59,8 +59,6 @@ mod notification_schedule;
 mod notifications;
 mod overwrites_batch;
 mod permissions;
-mod permissions_batch;
-mod permissions_resolve;
 mod pins;
 mod poll_runoff;
 mod polls;

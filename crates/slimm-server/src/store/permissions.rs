@@ -11,6 +11,9 @@ use super::Store;
 use crate::ids::{ChannelId, RoleId, UserId};
 use crate::permissions::{Overwrite, Permissions, evaluate};
 
+pub(super) mod permissions_batch;
+pub(super) mod permissions_resolve;
+
 /// One overwrite as stored on a channel: which role or member it targets, and
 /// the allow/deny pair. The listing shape [`Store::channel_overwrites`]
 /// returns, so an editor can read the current rules before changing one.

@@ -14,7 +14,7 @@ The hard part is already built and does not need reinventing.
 `Store::permissions_in_channel` (`crates/slimm-server/src/store/permissions.rs`) already resolves a thread to its parent through `permission_channel`, branches to a wholly different evaluator for a DM through `dm_permissions`, and subtracts a timeout at read time.
 Any new server surface should call this function, not reimplement any part of it.
 
-`Store::channels_where` (`crates/slimm-server/src/store/permissions_batch.rs`), which backs `GET /channels` through `visible_channels`, already computes the full per-channel `Permissions` bitmask for every channel it evaluates.
+`Store::channels_where` (`crates/slimm-server/src/store/permissions/permissions_batch.rs`), which backs `GET /channels` through `visible_channels`, already computes the full per-channel `Permissions` bitmask for every channel it evaluates.
 It calls `evaluate(...).remove(timeout_deny).contains(needed)` and keeps only the boolean.
 The bitmask itself is thrown away.
 `hidden_channels` in `crates/slimm-server/src/http/reports.rs`, which filters `/reports`, does the identical thing a second time: it calls `channels_where(user_id, Permissions::MANAGE_MESSAGES)` and keeps only channel-id membership in a `HashSet`.

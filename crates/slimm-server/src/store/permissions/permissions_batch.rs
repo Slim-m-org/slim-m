@@ -13,10 +13,10 @@
 
 use uuid::Uuid;
 
-use super::Store;
-use super::member_gate::MemberGate;
-use super::permissions::{ChannelOverwrite, RoleContext};
-use super::timeouts::TIMEOUT_DENY;
+use super::super::Store;
+use super::super::member_gate::MemberGate;
+use super::super::timeouts::TIMEOUT_DENY;
+use super::{ChannelOverwrite, RoleContext};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::{Permissions, evaluate, mask_unless_viewable};
 
@@ -94,7 +94,7 @@ impl Store {
             timeout.union(gate.deny_in(Some(requested)))
         };
 
-        if channel.kind == super::dms::DM_CHANNEL_KIND {
+        if channel.kind == super::super::dms::DM_CHANNEL_KIND {
             let Some((user_a, user_b)) = self.dm_pair(channel_id).await? else {
                 return Ok(Vec::new());
             };
@@ -176,7 +176,10 @@ impl Store {
     }
 
     /// The channels this user can view, in rail order.
-    pub async fn visible_channels(&self, user_id: UserId) -> anyhow::Result<Vec<super::Channel>> {
+    pub async fn visible_channels(
+        &self,
+        user_id: UserId,
+    ) -> anyhow::Result<Vec<super::super::Channel>> {
         self.channels_where(user_id, Permissions::VIEW_CHANNEL)
             .await
     }
@@ -194,7 +197,7 @@ impl Store {
     pub async fn visible_channels_with_permissions(
         &self,
         user_id: UserId,
-    ) -> anyhow::Result<Vec<(super::Channel, Permissions, bool)>> {
+    ) -> anyhow::Result<Vec<(super::super::Channel, Permissions, bool)>> {
         Ok(self
             .channel_permissions_all(user_id)
             .await?
@@ -218,7 +221,7 @@ impl Store {
         &self,
         user_id: UserId,
         needed: Permissions,
-    ) -> anyhow::Result<Vec<super::Channel>> {
+    ) -> anyhow::Result<Vec<super::super::Channel>> {
         Ok(self
             .channel_permissions_all(user_id)
             .await?
@@ -248,7 +251,7 @@ impl Store {
     async fn channel_permissions_all(
         &self,
         user_id: UserId,
-    ) -> anyhow::Result<Vec<(super::Channel, Permissions, bool)>> {
+    ) -> anyhow::Result<Vec<(super::super::Channel, Permissions, bool)>> {
         let channels = self.list_channels().await?;
         if channels.is_empty() {
             return Ok(Vec::new());
