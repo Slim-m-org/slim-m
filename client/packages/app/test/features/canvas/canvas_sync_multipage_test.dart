@@ -4,7 +4,7 @@
 ///
 /// The fake feed follows `GET /channels/{id}/canvas/ops`: ops strictly after
 /// `after_seq`, at most 100 per page, and `latest_seq` the channel head on
-/// every page (`crates/slimm-server/src/store/canvas_ops.rs`).
+/// every page (`crates/slimm-server/src/store/canvas/canvas_ops.rs`).
 library;
 
 import 'dart:convert';

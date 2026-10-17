@@ -19,7 +19,7 @@ use crate::ids::{CanvasObjectId, ChannelId, UserId};
 /// `http::canvas_ops`'s own actor-withholding check already singles out.
 /// Called only from the fresh, effective path in `submit_canvas_op`; a
 /// replay writes nothing here, the same reason it publishes nothing.
-pub(super) async fn record_canvas_audit(
+pub(in crate::store) async fn record_canvas_audit(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     actor_id: UserId,

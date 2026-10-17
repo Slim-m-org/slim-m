@@ -11,8 +11,8 @@
 
 use sqlx::SqliteExecutor;
 
-use super::Store;
-use super::canvas::{PlaceError, valid_bounds};
+use super::super::Store;
+use super::{PlaceError, valid_bounds};
 use crate::ids::CanvasObjectId;
 
 impl Store {

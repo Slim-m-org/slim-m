@@ -2,7 +2,7 @@
 //! The canvas op stream: the single ordering authority every canvas mutation
 //! writes into, and the paged catch-up feed a client reads it back through.
 //!
-//! Every mutation, so far only [`super::canvas::Store::place_canvas_object`],
+//! Every mutation, so far only [`super::Store::place_canvas_object`],
 //! allocates one seq from the channel's `canvas` counter and writes exactly
 //! one row here in the same transaction. That is what makes the sequence
 //! dense over ops rather than a high-water mark over a sparse space: a client
@@ -13,8 +13,8 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 
-use super::Store;
-use super::canvas::CanvasObject;
+use super::super::Store;
+use super::CanvasObject;
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 
 /// Past this many ops behind, replaying the feed is no cheaper than a cold
@@ -111,7 +111,7 @@ pub enum CanvasOpBody {
 /// Asserted equal to the object's own `seq` by this call site alone - there is
 /// no FK or CHECK enforcing it - which is the one seam where a second
 /// ordering authority could grow back into the canvas.
-pub(super) async fn insert_place_op(
+pub(in crate::store) async fn insert_place_op(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     seq: i64,

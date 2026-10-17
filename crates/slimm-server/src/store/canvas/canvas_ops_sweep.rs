@@ -41,7 +41,7 @@
 //! held before that op ran - so a client that pages straight across the gap
 //! arrives at the same answer either way.
 
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 
 /// Roughly the roadmap's own number for the op log; unrelated to
 /// `canvas_audit_log`'s own retention, which this sweep never touches.

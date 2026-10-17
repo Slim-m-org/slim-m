@@ -15,14 +15,14 @@ use std::sync::atomic::{AtomicI64, Ordering};
 
 use tokio::sync::OnceCell;
 
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 
 /// Backs [`Store::now_ms_unique`]: an in-memory counter plus a flag for
 /// whether it has been seeded from the database yet. One lives on each
 /// `Store` (see that field's own doc for why that, rather than a process-wide
 /// `static`, is what closes the restart gap [`Store::now_ms_unique`]
 /// documents).
-pub(super) struct CanvasOpClock {
+pub(in crate::store) struct CanvasOpClock {
     last: AtomicI64,
     seeded: OnceCell<()>,
 }
@@ -104,7 +104,7 @@ impl Store {
     /// `canvas_ops_kind_created_at` index turns that into one index descent
     /// per kind - a handful of steps regardless of table size, the same
     /// optimization that also makes the sweep's own per-kind queries cheap.
-    pub(super) async fn now_ms_unique(
+    pub(in crate::store) async fn now_ms_unique(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     ) -> Result<i64, sqlx::Error> {

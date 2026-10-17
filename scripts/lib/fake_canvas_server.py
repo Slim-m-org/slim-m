@@ -4,7 +4,7 @@
 Models what the server does that the seeder depends on: a per-channel op
 stream with a monotonic seq, ops pages clamped to 200 with `has_more`, and a
 `reset` with no ops when the cursor is more than 2000 behind (CANVAS_OP_GAP in
-crates/slimm-server/src/store/canvas_ops.rs).
+crates/slimm-server/src/store/canvas/canvas_ops.rs).
 """
 import io
 import urllib.error

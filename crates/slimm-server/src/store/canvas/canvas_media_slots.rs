@@ -6,8 +6,8 @@
 
 use crate::ids::{ChannelId, UserId};
 
-use super::canvas::valid_bounds;
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
+use super::valid_bounds;
 
 /// The two kinds of media tile a call can put on a canvas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

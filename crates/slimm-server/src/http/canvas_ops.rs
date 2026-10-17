@@ -8,7 +8,7 @@
 //! region's "ask for a smaller viewport" advice is.
 //!
 //! Every mutation writes exactly one op in the same transaction that
-//! allocates its seq (see [`crate::store::canvas_ops`]), which is what makes
+//! allocates its seq (see [`crate::store::canvas::canvas_ops`]), which is what makes
 //! `after_seq` a real cursor: `seq == cursor + 1` is a legitimate gap
 //! detector rather than a heuristic over a sparse space.
 

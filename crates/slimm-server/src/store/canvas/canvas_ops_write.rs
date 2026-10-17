@@ -35,13 +35,13 @@
 //! `super::canvas_ops_apply`, split out once `move` joining `remove`, `clear`
 //! and `restore` crossed the 500-line hard limit.
 
-use super::canvas::next_canvas_seq;
+use super::super::{PlaceError, Store};
 use super::canvas_audit::record_canvas_audit;
 use super::canvas_ops_apply::{
     affected_count_for, apply_move, apply_remove, apply_reorder, apply_restore, current_canvas_seq,
     fetch_op,
 };
-use super::{PlaceError, Store};
+use super::next_canvas_seq;
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 
 /// How many `canvas_op_targets` rows one `INSERT` writes at a time. A
@@ -120,7 +120,7 @@ pub struct SubmittedOp {
     pub affected: i64,
     pub created_at: i64,
     /// Whether this call is what wrote the stored op, the same meaning
-    /// [`super::canvas::Placement::fresh`] carries.
+    /// [`super::Placement::fresh`] carries.
     pub fresh: bool,
     /// The ids a fresh `remove`, `clear` or `restore` actually touched - a
     /// subset of what was named (or, for `clear`, of what the fence covered),

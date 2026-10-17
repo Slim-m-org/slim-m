@@ -22,13 +22,13 @@ use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 /// against the deployment's one writer for a full channel's worth.
 const RESTORE_UNDELETE_BATCH: usize = 500;
 
-pub(super) struct ExistingOp {
-    pub(super) channel_id: ChannelId,
-    pub(super) seq: i64,
-    pub(super) kind: String,
-    pub(super) actor_id: Option<UserId>,
-    pub(super) bound_seq: Option<i64>,
-    pub(super) created_at: i64,
+pub(in crate::store) struct ExistingOp {
+    pub(in crate::store) channel_id: ChannelId,
+    pub(in crate::store) seq: i64,
+    pub(in crate::store) kind: String,
+    pub(in crate::store) actor_id: Option<UserId>,
+    pub(in crate::store) bound_seq: Option<i64>,
+    pub(in crate::store) created_at: i64,
 }
 
 struct ObjectAuth {
@@ -45,7 +45,7 @@ struct ObjectAuth {
 /// Validates every id first, in request order, before touching any row: an id
 /// this caller may not remove must not leave an earlier id in the same batch
 /// removed while the request as a whole fails.
-pub(super) async fn apply_remove(
+pub(in crate::store) async fn apply_remove(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     actor_id: UserId,
@@ -104,7 +104,7 @@ pub(super) async fn apply_remove(
 /// between the dead-check above and the update below - single-writer is what
 /// makes a `false` result here mean the row vanished by some path this module
 /// does not know about, not a race this function lost.
-pub(super) async fn apply_move(
+pub(in crate::store) async fn apply_move(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     actor_id: UserId,
@@ -141,7 +141,7 @@ pub(super) async fn apply_move(
 /// `UPDATE` names only `z_index`, which the R-Tree trigger does not watch (see
 /// migration 0015's `UPDATE OF` clause), so a reorder never touches the
 /// spatial index.
-pub(super) async fn apply_reorder(
+pub(in crate::store) async fn apply_reorder(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     actor_id: UserId,
@@ -208,7 +208,7 @@ pub(super) async fn apply_reorder(
 /// not, and `restoring_a_stale_remove_does_not_reach_past_a_later_independent_removal`
 /// (`tests/canvas_ops/restore_permission.rs`) reproduces the bypass it left
 /// open.
-pub(super) async fn apply_restore(
+pub(in crate::store) async fn apply_restore(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     actor_id: UserId,
@@ -259,7 +259,7 @@ pub(super) async fn apply_restore(
     .fetch_one(&mut **tx)
     .await?;
     // The effective cap, read in this same transaction as the count above it.
-    let cap = super::space::read_canvas_object_cap(&mut **tx).await?;
+    let cap = super::super::space::read_canvas_object_cap(&mut **tx).await?;
     if live + dead.len() as i64 > cap {
         return Err(SubmitOpError::ChannelFull);
     }
@@ -362,7 +362,7 @@ async fn restore_candidates(
     }
 }
 
-pub(super) async fn fetch_op(
+pub(in crate::store) async fn fetch_op(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: CanvasOpId,
 ) -> Result<Option<ExistingOp>, sqlx::Error> {
@@ -442,7 +442,7 @@ async fn fetch_object_for_op(
 
 /// The channel's current canvas head, for the response an `affected == 0`
 /// call gets when no seq was allocated: "the stream stands here, unmoved".
-pub(super) async fn current_canvas_seq(
+pub(in crate::store) async fn current_canvas_seq(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
 ) -> Result<i64, sqlx::Error> {
@@ -463,7 +463,7 @@ pub(super) async fn current_canvas_seq(
 /// `created_at`, and `canvas_ops_write::now_ms_unique` is what makes that
 /// value exact rather than merely likely - see its own doc for why a plain
 /// `now_ms()` was not enough.
-pub(super) async fn affected_count_for(
+pub(in crate::store) async fn affected_count_for(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     op: &ExistingOp,

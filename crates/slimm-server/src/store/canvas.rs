@@ -25,16 +25,27 @@
 use anyhow::Context;
 use sqlx::SqliteExecutor;
 
-use super::canvas_ops::insert_place_op;
+use self::canvas_ops::insert_place_op;
 use super::{Store, now_ms};
 use crate::ids::{CanvasObjectId, ChannelId, Seq, UserId};
 
 // Geometry lives in `canvas_geometry`; re-exported so every existing path holds.
-pub use super::canvas_geometry::{
+pub use self::canvas_geometry::{
     MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL, MIN_CANVAS_OBJECT_CAP,
     WORLD_LIMIT,
 };
-pub(crate) use super::canvas_geometry::{channel_key, valid_bounds};
+pub(crate) use self::canvas_geometry::{channel_key, valid_bounds};
+
+pub(super) mod canvas_audit;
+pub(super) mod canvas_geometry;
+pub(super) mod canvas_media_slots;
+pub(super) mod canvas_move;
+pub(super) mod canvas_object_locks;
+pub(super) mod canvas_op_clock;
+pub(super) mod canvas_ops;
+pub(super) mod canvas_ops_apply;
+pub(super) mod canvas_ops_sweep;
+pub(super) mod canvas_ops_write;
 
 /// A placed canvas object.
 #[derive(Debug, Clone)]

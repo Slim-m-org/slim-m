@@ -25,16 +25,10 @@ mod bot_ui;
 mod bots;
 mod calls;
 mod canvas;
-mod canvas_audit;
-mod canvas_geometry;
-mod canvas_media_slots;
-mod canvas_move;
-mod canvas_object_locks;
-mod canvas_op_clock;
-mod canvas_ops;
-mod canvas_ops_apply;
-mod canvas_ops_sweep;
-mod canvas_ops_write;
+use canvas::{
+    canvas_media_slots, canvas_object_locks, canvas_op_clock, canvas_ops, canvas_ops_sweep,
+    canvas_ops_write,
+};
 mod categories;
 mod category_overwrites;
 mod channel_create;

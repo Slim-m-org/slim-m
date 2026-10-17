@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use super::{Store, now_ms};
+use super::super::{Store, now_ms};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
 /// Why a lock or unlock was refused.
@@ -101,7 +101,7 @@ impl Store {
 
 /// Which of `ids` are locked, read inside an op's own write transaction so a
 /// lock cannot land between the check and the change.
-pub(super) async fn locked_among(
+pub(in crate::store) async fn locked_among(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     ids: &[CanvasObjectId],
 ) -> Result<HashSet<CanvasObjectId>, sqlx::Error> {
