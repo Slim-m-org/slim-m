@@ -36,6 +36,15 @@ bool messageMentionsMe(
   roleNames: {for (final name in roleNames) name.toLowerCase()},
 );
 
+bool _mentionsUser(
+  String name, {
+  required String target,
+  required bool broadcast,
+}) {
+  if (target.isNotEmpty && name == target) return true;
+  return broadcast && (name == 'everyone' || name == 'here');
+}
+
 bool _mentions(
   String content, {
   required String username,
@@ -44,33 +53,26 @@ bool _mentions(
 }) {
   final target = username.toLowerCase();
 
-  bool walk(List<InlineNode> nodes) {
-    for (final node in nodes) {
-      switch (node) {
-        case InlineMention(:final raw):
-          final name = raw.substring(1).toLowerCase();
-          if (target.isNotEmpty && name == target) return true;
-          if (broadcast && (name == 'everyone' || name == 'here')) return true;
-        case InlineRoleMention(:final name):
-          if (roleNames.contains(name.toLowerCase())) return true;
-        case InlineBold(:final children):
-        case InlineItalic(:final children):
-        case InlineStrikethrough(:final children):
-        case InlineSpoiler(:final children):
-          if (walk(children)) return true;
-        case InlineText():
-        case InlineCode():
-        case InlineEmoji():
-        case InlineLink():
-        case InlineMessageLink():
-        case InlineChannelMention():
-          break;
-      }
-    }
-    return false;
-  }
+  bool hit(InlineNode node) => switch (node) {
+    InlineMention(:final raw) => _mentionsUser(
+      raw.substring(1).toLowerCase(),
+      target: target,
+      broadcast: broadcast,
+    ),
+    InlineRoleMention(:final name) => roleNames.contains(name.toLowerCase()),
+    InlineBold(:final children) ||
+    InlineItalic(:final children) ||
+    InlineStrikethrough(:final children) ||
+    InlineSpoiler(:final children) => children.any(hit),
+    InlineText() ||
+    InlineCode() ||
+    InlineEmoji() ||
+    InlineLink() ||
+    InlineMessageLink() ||
+    InlineChannelMention() => false,
+  };
 
   return splitMessageBlocks(
     content,
-  ).whereType<TextBlock>().any((block) => walk(parseInline(block.text)));
+  ).whereType<TextBlock>().any((block) => parseInline(block.text).any(hit));
 }

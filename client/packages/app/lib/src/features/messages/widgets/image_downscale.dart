@@ -49,16 +49,23 @@ Future<Uint8List> downscaledToFit(
   if (longer <= maxEdge && bytes.length <= maxBytes) return bytes;
   var edge = longer < maxEdge ? longer : maxEdge;
   while (true) {
-    final landscape = source.width >= source.height;
+    final size = _fitToEdge(source.width, source.height, edge);
     final shrunk = await minifiedPng(
       bytes,
-      width: landscape ? edge : (edge * source.width / source.height).round(),
-      height: landscape ? (edge * source.height / source.width).round() : edge,
+      width: size.width,
+      height: size.height,
     );
     if (shrunk == null) return bytes;
     if (shrunk.length <= maxBytes || edge <= _minEdge) return shrunk;
     edge = (edge * 0.75).round();
   }
+}
+
+({int width, int height}) _fitToEdge(int width, int height, int edge) {
+  if (width >= height) {
+    return (width: edge, height: (edge * height / width).round());
+  }
+  return (width: (edge * width / height).round(), height: edge);
 }
 
 /// Below this a picture is no use to anyone, so shrinking stops.

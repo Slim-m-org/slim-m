@@ -201,11 +201,7 @@ int _trimUrlEnd(String s, int start, int end) {
       continue;
     }
     if (c == ')' || c == ']' || c == '}') {
-      final open = c == ')'
-          ? '('
-          : c == ']'
-          ? '['
-          : '{';
+      final open = _openerFor(c);
       final opens = _countChar(s, start, end - 1, open);
       final closes = _countChar(s, start, end - 1, c);
       if (closes >= opens) {
@@ -217,6 +213,12 @@ int _trimUrlEnd(String s, int start, int end) {
   }
   return end;
 }
+
+String _openerFor(String closer) => switch (closer) {
+  ')' => '(',
+  ']' => '[',
+  _ => '{',
+};
 
 int _countChar(String s, int start, int end, String ch) {
   var n = 0;
@@ -340,132 +342,132 @@ List<InlineNode> parseInline(String content) {
   }
 
   while (i < content.length) {
-    final ch = content[i];
-
     if (_isEscapeAt(content, i)) {
       buffer.write(content[i + 1]);
       i += 2;
       continue;
     }
-    if (ch == '`') {
-      final end = _codeSpanEnd(content, i);
-      if (end != -1) {
-        flush();
-        nodes.add(InlineCode(content.substring(i + 1, end)));
-        i = end + 1;
-        continue;
-      }
-    } else if (ch == '*' && i + 1 < content.length && content[i + 1] == '*') {
-      final close = _findCloser(content, i + 2, '**');
-      if (close != -1) {
-        flush();
-        nodes.add(InlineBold(parseInline(content.substring(i + 2, close))));
-        i = close + 2;
-        continue;
-      }
-    } else if (ch == '~' && i + 1 < content.length && content[i + 1] == '~') {
-      final close = _findCloser(content, i + 2, '~~');
-      if (close != -1) {
-        flush();
-        nodes.add(
-          InlineStrikethrough(parseInline(content.substring(i + 2, close))),
-        );
-        i = close + 2;
-        continue;
-      }
-    } else if (ch == '|' && i + 1 < content.length && content[i + 1] == '|') {
-      final close = _findCloser(content, i + 2, '||');
-      if (close != -1) {
-        flush();
-        nodes.add(InlineSpoiler(parseInline(content.substring(i + 2, close))));
-        i = close + 2;
-        continue;
-      }
-    } else if (ch == '*') {
-      if (!_isBoundary(content, i + 1)) {
-        final close = _findItalicStarCloser(content, i + 1);
-        if (close != -1) {
-          flush();
-          nodes.add(InlineItalic(parseInline(content.substring(i + 1, close))));
-          i = close + 1;
-          continue;
-        }
-      }
-    } else if (ch == '_') {
-      if (!_isWordAt(content, i - 1) && !_isBoundary(content, i + 1)) {
-        final close = _findItalicUnderscoreCloser(content, i + 1);
-        if (close != -1) {
-          flush();
-          nodes.add(InlineItalic(parseInline(content.substring(i + 1, close))));
-          i = close + 1;
-          continue;
-        }
-      }
-    } else if (ch == '@') {
-      if (i + 1 < content.length && content[i + 1] == '[') {
-        final end = _roleMentionEnd(content, i);
-        if (end != -1) {
-          final name = content.substring(i + 2, end - 1).trim();
-          if (name.isNotEmpty) {
-            flush();
-            nodes.add(InlineRoleMention(name));
-            i = end;
-            continue;
-          }
-        }
-      }
-      final m = _mentionPattern.matchAsPrefix(content, i);
-      if (m != null) {
-        final end = _trimMentionEnd(content, i, m.end);
-        flush();
-        nodes.add(InlineMention(content.substring(i, end)));
-        i = end;
-        continue;
-      }
-    } else if (ch == '<') {
-      final m = _channelMentionPattern.matchAsPrefix(content, i);
-      if (m != null) {
-        flush();
-        nodes.add(InlineChannelMention(m.group(1)!.toLowerCase()));
-        i = m.end;
-        continue;
-      }
-    } else if (ch == ':') {
-      final m = _emojiPattern.matchAsPrefix(content, i);
-      if (m != null && !_readsAsDigitRun(content, m.start, m.end)) {
-        flush();
-        nodes.add(InlineEmoji(m.group(0)!));
-        i = m.end;
-        continue;
-      }
-    } else if (ch == 's' && !_isWordAt(content, i - 1)) {
-      // Same "only starts a token" rule the http match below follows.
-      final m = _messageLinkPattern.matchAsPrefix(content, i);
-      if (m != null) {
-        final end = _trimUrlEnd(content, i, m.end);
-        flush();
-        nodes.add(InlineMessageLink(content.substring(i, end)));
-        i = end;
-        continue;
-      }
-    } else if (ch == 'h' && !_isWordAt(content, i - 1)) {
-      // A URL only starts a token, never mid-word, so a word ending in "...h" before "ttp" is not one. Trailing punctuation is trimmed off the greedy match.
-      final m = _urlPattern.matchAsPrefix(content, i);
-      if (m != null) {
-        final end = _trimUrlEnd(content, i, m.end);
-        flush();
-        nodes.add(InlineLink(content.substring(i, end)));
-        i = end;
-        continue;
-      }
+    final token = _tokenAt(content, i);
+    if (token == null) {
+      buffer.write(content[i]);
+      i++;
+      continue;
     }
-
-    buffer.write(ch);
-    i++;
+    flush();
+    nodes.add(token.node);
+    i = token.end;
   }
 
   flush();
   return nodes;
+}
+
+typedef _Token = ({InlineNode node, int end});
+
+/// The inline token opening at [i], or null when [i] starts no token and is
+/// literal text.
+_Token? _tokenAt(String s, int i) => switch (s[i]) {
+  '`' => _codeSpanToken(s, i),
+  '*' => _starToken(s, i),
+  '~' => _doubledToken(s, i, '~~', InlineStrikethrough.new),
+  '|' => _doubledToken(s, i, '||', InlineSpoiler.new),
+  '_' => _underscoreToken(s, i),
+  '@' => _atToken(s, i),
+  '<' => _channelToken(s, i),
+  ':' => _emojiToken(s, i),
+  's' => _messageLinkToken(s, i),
+  'h' => _linkToken(s, i),
+  _ => null,
+};
+
+bool _doubledAt(String s, int i) => i + 1 < s.length && s[i + 1] == s[i];
+
+_Token? _codeSpanToken(String s, int i) {
+  final end = _codeSpanEnd(s, i);
+  if (end == -1) return null;
+  return (node: InlineCode(s.substring(i + 1, end)), end: end + 1);
+}
+
+_Token? _doubledToken(
+  String s,
+  int i,
+  String delimiter,
+  InlineNode Function(List<InlineNode>) make,
+) {
+  if (!_doubledAt(s, i)) return null;
+  final close = _findCloser(s, i + 2, delimiter);
+  if (close == -1) return null;
+  return (node: make(parseInline(s.substring(i + 2, close))), end: close + 2);
+}
+
+// A `**` that finds no closer stays literal, it never falls back to italic.
+_Token? _starToken(String s, int i) {
+  if (_doubledAt(s, i)) return _doubledToken(s, i, '**', InlineBold.new);
+  if (_isBoundary(s, i + 1)) return null;
+  final close = _findItalicStarCloser(s, i + 1);
+  if (close == -1) return null;
+  return (
+    node: InlineItalic(parseInline(s.substring(i + 1, close))),
+    end: close + 1,
+  );
+}
+
+_Token? _underscoreToken(String s, int i) {
+  if (_isWordAt(s, i - 1) || _isBoundary(s, i + 1)) return null;
+  final close = _findItalicUnderscoreCloser(s, i + 1);
+  if (close == -1) return null;
+  return (
+    node: InlineItalic(parseInline(s.substring(i + 1, close))),
+    end: close + 1,
+  );
+}
+
+_Token? _atToken(String s, int i) {
+  final role = _roleMentionToken(s, i);
+  if (role != null) return role;
+  final m = _mentionPattern.matchAsPrefix(s, i);
+  if (m == null) return null;
+  final end = _trimMentionEnd(s, i, m.end);
+  return (node: InlineMention(s.substring(i, end)), end: end);
+}
+
+_Token? _roleMentionToken(String s, int i) {
+  if (i + 1 >= s.length || s[i + 1] != '[') return null;
+  final end = _roleMentionEnd(s, i);
+  if (end == -1) return null;
+  final name = s.substring(i + 2, end - 1).trim();
+  if (name.isEmpty) return null;
+  return (node: InlineRoleMention(name), end: end);
+}
+
+_Token? _channelToken(String s, int i) {
+  final m = _channelMentionPattern.matchAsPrefix(s, i);
+  if (m == null) return null;
+  return (node: InlineChannelMention(m.group(1)!.toLowerCase()), end: m.end);
+}
+
+_Token? _emojiToken(String s, int i) {
+  final m = _emojiPattern.matchAsPrefix(s, i);
+  if (m == null || _readsAsDigitRun(s, m.start, m.end)) return null;
+  return (node: InlineEmoji(m.group(0)!), end: m.end);
+}
+
+// Same "only starts a token" rule the http match below follows.
+_Token? _messageLinkToken(String s, int i) {
+  if (_isWordAt(s, i - 1)) return null;
+  final m = _messageLinkPattern.matchAsPrefix(s, i);
+  if (m == null) return null;
+  final end = _trimUrlEnd(s, i, m.end);
+  return (node: InlineMessageLink(s.substring(i, end)), end: end);
+}
+
+// A URL only starts a token, never mid-word; trailing punctuation is trimmed off the greedy match.
+_Token? _linkToken(String s, int i) {
+  if (_isWordAt(s, i - 1)) return null;
+  final m = _urlPattern.matchAsPrefix(s, i);
+  if (m == null) return null;
+  final end = _trimUrlEnd(s, i, m.end);
+  return (node: InlineLink(s.substring(i, end)), end: end);
 }
 
 /// The `http(s)` URLs in [content], in order of first appearance and

@@ -28,6 +28,13 @@ class CodeBlock extends MessageBlock {
   final String code;
 }
 
+int _closingFence(List<String> lines, int from) {
+  for (var j = from; j < lines.length; j++) {
+    if (_fenceClose.hasMatch(lines[j])) return j;
+  }
+  return -1;
+}
+
 /// Splits [content] on fenced code. An opening fence with no matching close
 /// anywhere after it is not a fence at all: the line (and everything after,
 /// since there is nowhere else for it to end) renders as plain text instead
@@ -48,13 +55,7 @@ List<MessageBlock> splitMessageBlocks(String content) {
   while (i < lines.length) {
     final open = _fenceOpen.firstMatch(lines[i]);
     if (open != null) {
-      var close = -1;
-      for (var j = i + 1; j < lines.length; j++) {
-        if (_fenceClose.hasMatch(lines[j])) {
-          close = j;
-          break;
-        }
-      }
+      final close = _closingFence(lines, i + 1);
       if (close != -1) {
         flushText();
         final lang = open.group(1)!.trim();
