@@ -4,9 +4,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/composer_autocomplete_items.dart';
-import 'package:slimm_app/src/widgets/composer_autocomplete_query.dart';
-import 'package:slimm_app/src/widgets/composer_gif_command.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_items.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_query.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_gif_command.dart';
 
 List<String> _labels(String term, {required bool gifSearch}) =>
     autocompleteSuggestions(

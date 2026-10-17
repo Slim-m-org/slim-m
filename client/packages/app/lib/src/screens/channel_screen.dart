@@ -30,7 +30,7 @@ import '../routing/breakpoints.dart';
 import '../widgets/blocked_dm_notice.dart';
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
-import '../widgets/composer_attachments.dart' show StagedSend;
+import '../features/composer/widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/channel_search.dart';
 import 'channel_composer_area.dart';
 import 'channel_read_marker.dart';

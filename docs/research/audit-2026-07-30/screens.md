@@ -233,7 +233,7 @@ A 4dp inset on all four sides means a field's drawn edge sits inside every sibli
 
 ## 9. Keyboard and screen reader
 
-**The autocomplete popup is silent** (medium) - `client/packages/app/lib/src/widgets/composer_autocomplete.dart:113`.
+**The autocomplete popup is silent** (medium) - `client/packages/app/lib/src/features/composer/widgets/composer_autocomplete.dart:113`.
 No live region anywhere in the file and focus never moves into it, so up to eight suggestions open above the caret with no announcement that offers exist and none when the selection changes - meaning Enter substitutes text the user never heard about.
 
 **Nav group labels are their own accessible name, uppercased** (medium) - `client/packages/app/lib/src/widgets/settings_panes.dart:239`.
@@ -336,7 +336,7 @@ The clipboard gets a bare 10-character code; the redeeming side needs a server a
 The single place in the app that fills a control with the danger colour, in a hand-rolled copy of a shared dialog whose replacement grew a `cancelLabel` parameter specifically for this caller, with a comment saying so.
 Conversely, resolving a report goes through the same danger helper (`reports_screen.dart:65`), so the desired outcome is re-presented as destructive one tap after being offered as the accent primary.
 
-**The typing indicator sets a human sentence in the monospace face** (low) - `client/packages/app/lib/src/widgets/composer_extras.dart:298`, where every other mono site in the system is a date, time, count or keycap.
+**The typing indicator sets a human sentence in the monospace face** (low) - `client/packages/app/lib/src/features/composer/widgets/composer_extras.dart:298`, where every other mono site in the system is a date, time, count or keycap.
 
 ## 13. Cleanup, and notes that have gone stale
 

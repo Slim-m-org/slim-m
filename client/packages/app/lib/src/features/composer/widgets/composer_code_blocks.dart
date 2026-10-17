@@ -11,7 +11,7 @@ import 'composer_code_fence.dart';
 import 'composer_code_guess.dart';
 import 'composer_code_picker.dart';
 import 'composer_markdown_shortcuts.dart' show wrapSelectionWithMarker;
-import 'text_insert.dart';
+import '../../../widgets/text_insert.dart';
 
 /// Opens the picker and inserts what was chosen at the selection.
 Future<void> insertCodeFromPicker(

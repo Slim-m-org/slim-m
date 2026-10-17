@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/composer_list_indent.dart';
-import 'package:slimm_app/src/widgets/composer_markdown_shortcuts.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_list_indent.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_markdown_shortcuts.dart';
 
 TextEditingValue _at(String text, int offset) => TextEditingValue(
   text: text,

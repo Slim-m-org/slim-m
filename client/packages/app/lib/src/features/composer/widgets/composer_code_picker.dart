@@ -8,9 +8,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/code_block_runner.dart';
+import '../../../providers/code_block_runner.dart';
 import 'composer_extras.dart' show usesSoftKeyboard;
-import 'message_code_langs.dart' show langSpecs;
+import '../../../widgets/message_code_langs.dart' show langSpecs;
 
 /// One row of the picker: [language] is null for inline code and `''` for a
 /// block with no language.

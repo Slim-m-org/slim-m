@@ -20,7 +20,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'composer_attachments.dart';
+import '../features/composer/widgets/composer_attachments.dart';
 
 /// Which native picker a request should open.
 enum AttachmentSource {

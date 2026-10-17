@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'composer_attachments.dart';
+import '../features/composer/widgets/composer_attachments.dart';
 import 'image_decode.dart';
 import 'transfer_meter.dart';
 

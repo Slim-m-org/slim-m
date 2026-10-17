@@ -19,7 +19,7 @@ import 'package:slimm_app/src/whats_new/whats_new_content.dart';
 import 'package:slimm_app/src/widgets/avatar_crop_sheet.dart';
 import 'package:slimm_app/src/widgets/camera_source_sheet.dart';
 import 'package:slimm_app/src/widgets/command_palette.dart';
-import 'package:slimm_app/src/widgets/composer_extras.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_extras.dart';
 import 'package:slimm_app/src/widgets/confirm_dialog.dart';
 import 'package:slimm_app/src/widgets/create_channel_sheet.dart';
 import 'package:slimm_app/src/widgets/emoji_picker.dart';

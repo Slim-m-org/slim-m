@@ -14,14 +14,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show Attachment;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/threads.dart';
+import '../../../providers/threads.dart';
 import 'composer_extras.dart';
 import 'composer_picker_button.dart';
 import 'composer_gif_command.dart';
 import 'composer_picker_panel.dart' show showComposerPickerSheet;
 import 'composer_scrollbar.dart';
 import 'composer_shortcodes.dart';
-import 'poll_composer_sheet.dart';
+import '../../../widgets/poll_composer_sheet.dart';
 
 class ComposerActionBar extends ConsumerWidget {
   const ComposerActionBar({

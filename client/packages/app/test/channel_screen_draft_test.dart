@@ -24,7 +24,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/screens/channel_screen.dart';
 import 'package:slimm_app/src/widgets/composer.dart';
-import 'package:slimm_app/src/widgets/composer_attachments.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 import 'package:slimm_app/src/widgets/staged_attachment_tile.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';

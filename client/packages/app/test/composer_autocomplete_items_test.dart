@@ -6,8 +6,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/composer_autocomplete_items.dart';
-import 'package:slimm_app/src/widgets/composer_autocomplete_query.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_items.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_query.dart';
 
 api.UserProfile _member(String id, String username, [String? display]) =>
     api.UserProfile(

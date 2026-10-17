@@ -13,7 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/composer_picker_panel.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_picker_panel.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _tokens = api.TokenPair(

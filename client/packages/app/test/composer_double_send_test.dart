@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/composer_attachments.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'composer_attach_harness.dart';

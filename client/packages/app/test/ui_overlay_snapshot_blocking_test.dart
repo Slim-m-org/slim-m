@@ -26,7 +26,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/typing_controller.dart';
 import 'package:slimm_app/src/widgets/blocked_dm_notice.dart';
 import 'package:slimm_app/src/widgets/composer.dart';
-import 'package:slimm_app/src/widgets/composer_clipboard_image.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_image.dart';
 import 'package:slimm_app/src/widgets/message_row.dart';
 import 'package:slimm_app/src/widgets/message_row_callbacks.dart';
 

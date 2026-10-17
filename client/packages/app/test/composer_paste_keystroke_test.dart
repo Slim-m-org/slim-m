@@ -11,7 +11,7 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/composer_clipboard_paste.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_paste.dart';
 
 const _channel = MethodChannel('top.npcserver.slimm/clipboard_image');
 

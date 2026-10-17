@@ -14,11 +14,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import '../api_failure.dart';
-import '../providers/app_launch.dart';
-import '../providers/providers.dart';
-import '../providers/slash_command.dart';
-import 'app_launcher_sheet.dart';
+import '../../../api_failure.dart';
+import '../../../providers/app_launch.dart';
+import '../../../providers/providers.dart';
+import '../../../providers/slash_command.dart';
+import '../../../widgets/app_launcher_sheet.dart';
 
 /// Runs [command] with [args] and applies the outcome: on a non-empty result,
 /// replaces the field text with it and [post]s; on an empty-but-ok result,

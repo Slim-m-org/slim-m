@@ -19,7 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/widgets/composer_emoji_browse.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_emoji_browse.dart';
 import 'package:slimm_app/src/widgets/emoji_catalog.dart';
 import 'package:slimm_app/src/widgets/emoji_picker_grid.dart';
 import 'package:slimm_app/src/widgets/emoji_preview_footer.dart';

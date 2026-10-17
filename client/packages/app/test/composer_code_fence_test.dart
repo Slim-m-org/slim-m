@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/composer_code_fence.dart';
-import 'package:slimm_app/src/widgets/composer_code_guess.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_code_fence.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_code_guess.dart';
 
 TextEditingValue _at(String text, [int? caret]) => TextEditingValue(
   text: text,

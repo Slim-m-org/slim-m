@@ -10,9 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/emoji_catalog_provider.dart';
+import '../../../providers/emoji_catalog_provider.dart';
 import 'composer_shortcode_convert.dart';
-import 'custom_emoji_image.dart';
+import '../../../widgets/custom_emoji_image.dart';
 
 class ComposerShortcodes extends ConsumerStatefulWidget {
   const ComposerShortcodes({

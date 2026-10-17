@@ -3,7 +3,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/composer_bot_mentions.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_bot_mentions.dart';
 
 void main() {
   test('finds a mentioned bot among plain text', () {

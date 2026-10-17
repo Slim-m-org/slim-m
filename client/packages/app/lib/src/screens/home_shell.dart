@@ -27,7 +27,7 @@ import '../providers/call_shortcut_registry.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/channel_by_id_provider.dart';
-import '../providers/composer_focus.dart';
+import '../features/composer/providers/composer_focus.dart';
 import '../providers/database_key_store.dart';
 import '../providers/member_selection.dart';
 import '../providers/module_sound_settings.dart';

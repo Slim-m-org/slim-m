@@ -16,7 +16,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'photo_library.dart';
+import '../../../widgets/photo_library.dart';
 
 /// Whether a channel's composer has its photo strip open.
 final photoStripOpenProvider = StateProvider.autoDispose.family<bool, String>(

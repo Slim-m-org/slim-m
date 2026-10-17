@@ -5,7 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/composer_autocomplete_query.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_query.dart';
 
 /// Convenience: the caret at the end of what has been typed so far, which is
 /// where it is in almost every real case.

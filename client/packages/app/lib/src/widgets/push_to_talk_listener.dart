@@ -19,7 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../providers/app_lock_controller.dart';
-import '../providers/composer_focus.dart';
+import '../features/composer/providers/composer_focus.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 

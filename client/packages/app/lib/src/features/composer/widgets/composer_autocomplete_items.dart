@@ -10,7 +10,7 @@ library;
 import 'package:slimm_api/api.dart' as api;
 
 import 'composer_autocomplete_query.dart';
-import 'emoji_catalog.dart';
+import '../../../widgets/emoji_catalog.dart';
 
 /// Most rows to offer at once.
 ///

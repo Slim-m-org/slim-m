@@ -15,9 +15,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../permissions.dart';
 import '../providers/channel_permissions.dart';
-import '../providers/composer_attachment_drop.dart';
+import '../features/composer/providers/composer_attachment_drop.dart';
 import 'app_drop_zone.dart';
-import 'composer_attachments.dart';
+import '../features/composer/widgets/composer_attachments.dart';
 
 /// Whether a drop should even be offered here.
 ///

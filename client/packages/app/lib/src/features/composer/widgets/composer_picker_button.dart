@@ -17,11 +17,12 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'animated_menu_portal.dart';
+import '../../../widgets/animated_menu_portal.dart';
 import 'composer_gif_command.dart';
 import 'composer_picker_layout.dart';
 import 'composer_picker_panel.dart';
-import 'message_context_menu_layout.dart' show menuScreenMargin;
+import '../../../widgets/message_context_menu_layout.dart'
+    show menuScreenMargin;
 
 class ComposerPickerButton extends StatefulWidget {
   const ComposerPickerButton({

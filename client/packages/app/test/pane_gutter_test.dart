@@ -6,7 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/routing/breakpoints.dart';
-import 'package:slimm_app/src/widgets/composer_bot_mention_help.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_bot_mention_help.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_harness.dart';

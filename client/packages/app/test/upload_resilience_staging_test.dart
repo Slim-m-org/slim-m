@@ -7,7 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/composer_attachments.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 
 void main() {
   test('a retry resumes under the same key, and removing a failed upload '

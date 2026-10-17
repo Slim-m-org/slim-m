@@ -17,7 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/widgets/composer_context_menu.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_context_menu.dart';
 
 import 'composer_harness.dart';
 

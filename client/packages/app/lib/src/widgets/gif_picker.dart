@@ -22,7 +22,7 @@ import '../api_failure.dart';
 import '../providers/gif_preview_bytes.dart';
 import '../providers/gif_trending.dart';
 import '../providers/providers.dart';
-import 'composer_attachments.dart';
+import '../features/composer/widgets/composer_attachments.dart';
 import 'image_decode.dart';
 
 /// How long a pause in typing must last before a search actually fires, so a
