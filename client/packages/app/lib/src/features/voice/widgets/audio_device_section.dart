@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_controller.dart';
+import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../settings/widgets/settings_hairline.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -77,6 +78,9 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     final notifier = ref.read(voiceControllerProvider.notifier);
     final settingsNotifier = ref.read(voiceSettingsControllerProvider.notifier);
 
+    final inCall = ref.watch(
+      voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
+    );
     final rows = [
       _DevicePickerRow(
         label: 'Microphone',
@@ -86,6 +90,17 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         devices: _inputs,
         selectedId: settings.audioInputDeviceId,
         onChanged: settingsNotifier.setAudioInputDevice,
+      ),
+      AppListRow(
+        label: 'Reset microphone',
+        subtitle: 'Reopens the microphone if it went quiet in a call.',
+        trailing: AppButton(
+          size: AppButtonSize.sm,
+          label: 'Reset',
+          onPressed: inCall
+              ? () => unawaited(notifier.resetMicrophone())
+              : null,
+        ),
       ),
       _DevicePickerRow(
         label: 'Speaker',

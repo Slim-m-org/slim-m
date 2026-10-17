@@ -65,4 +65,17 @@ mixin VoiceControllerAudioDevicesMixin on StateNotifier<VoiceState> {
     );
     return ok;
   }
+
+  /// Whether the microphone is healthy, coming back, or given up on; see
+  /// [VoiceSession.micStatus].
+  MicStatus get micStatus => _inputSession.micStatus;
+  Stream<MicStatus> get micStatuses => _inputSession.micStatuses;
+
+  /// Settings' stopgap for a mic that went quiet: reopens the capture even
+  /// when the device is unchanged; see [VoiceSession.resetMicrophone].
+  Future<bool> resetMicrophone() async {
+    final ok = await _inputSession.resetMicrophone();
+    if (!ok) state = state.copyWith(error: 'Could not reset the microphone.');
+    return ok;
+  }
 }

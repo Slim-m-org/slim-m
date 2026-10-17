@@ -11,7 +11,6 @@ mixin VoiceSessionInputGate {
   VoiceSessionState get _state;
   AudioDeviceSwitching get _audioSwitching;
   late final MicPort _mic;
-  late final void Function() _afterRestart;
   late final InputGateMonitor _gate;
   late final CaptureNoiseSuppression _capture;
   StreamSubscription<InputGateReading>? _captureReadings;
@@ -27,13 +26,12 @@ mixin VoiceSessionInputGate {
   void _initCapture(
     MicPort? mic,
     Duration? debounce,
-    void Function() afterRestart,
+    Future<void> Function({required bool webrtcNoiseSuppression}) restart,
   ) {
-    _afterRestart = afterRestart;
     _mic = mic ?? LiveKitMicPort(() => _room);
     _capture = CaptureNoiseSuppression(
       supported: _gate.supported,
-      restart: _restartCapture,
+      restart: restart,
       canRestart: () =>
           _state == VoiceSessionState.connected && _mic.open && _gateEnabled,
       onNativeStrongChanged: () => unawaited(_applyInputGate()),
@@ -56,13 +54,6 @@ mixin VoiceSessionInputGate {
           noiseSuppression: _capture.webrtcNoiseSuppression,
         )
       : null;
-
-  Future<void> _restartCapture({required bool webrtcNoiseSuppression}) async {
-    await _mic.restart(
-      _audioSwitching.captureOptions(noiseSuppression: webrtcNoiseSuppression),
-    );
-    _afterRestart();
-  }
 
   /// Your microphone's level and voice state, while in a call.
   Stream<InputGateReading> get inputGateReadings => _gate.readings;

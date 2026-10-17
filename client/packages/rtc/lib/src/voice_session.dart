@@ -24,6 +24,7 @@ import 'audio_gain.dart' as rtc_gain;
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'input_gate.dart';
+import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
 import 'local_audio.dart';
@@ -54,6 +55,7 @@ import 'voice_roster_snapshot.dart';
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_listener_audio.dart';
+part 'voice_session_mic_recovery.dart';
 part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
@@ -72,6 +74,7 @@ class VoiceSession
     with
         VoiceSessionAudioDevices,
         VoiceSessionInputGate,
+        VoiceSessionMicRecovery,
         VoiceSessionListenerAudio {
   VoiceSession({
     RoomFactory? roomFactory,
@@ -82,6 +85,8 @@ class VoiceSession
     MicPort? micPort,
     Duration? captureRestartDebounce,
     void Function(String line)? audioLog,
+    AudioDevices? audioDevices,
+    MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
@@ -94,7 +99,17 @@ class VoiceSession
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
-    _initCapture(micPort, captureRestartDebounce, _followPreferredDevices);
+    _initCapture(micPort, captureRestartDebounce, _restartCapture);
+    if (audioDevices != null) {
+      _audioSwitching = AudioDeviceSwitching(audioDevices);
+    }
+    _initMicRecovery(
+      timing: micRecoveryTiming,
+      // An injected room has no sound stack to watch unless a test brings one.
+      watchDevices: audioDevices != null || roomFactory == null,
+      enable: () => _trySetMicrophone(true),
+      afterRestart: _followPreferredDevices,
+    );
     _screenShare = ScreenShareControl(_broadcast);
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
@@ -505,6 +520,7 @@ class VoiceSession
     await _teardown();
     _cameraSwitching.dispose();
     await _disposeCapture();
+    await _disposeMicRecovery();
     await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();

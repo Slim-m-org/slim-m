@@ -88,16 +88,20 @@ class AudioDeviceSwitching {
 
   /// Forgets a remembered microphone or speaker that is no longer plugged in,
   /// so the next [roomOptions] asks for the system default instead of a device
-  /// the browser would refuse outright.
-  Future<void> forgetUnpluggedPreferences() async {
+  /// the browser would refuse outright. True when the remembered microphone
+  /// was the one dropped, so a live capture on it needs reopening.
+  Future<bool> forgetUnpluggedPreferences() async {
+    var inputDropped = false;
     final input = _preferredInputId;
     if (input != null && resolveAudioDevice(await inputs(), input) == null) {
       _preferredInputId = null;
+      inputDropped = true;
     }
     final output = _preferredOutputId;
     if (output != null && resolveAudioDevice(await outputs(), output) == null) {
       _preferredOutputId = null;
     }
+    return inputDropped;
   }
 
   /// Applies [device] to [room]'s live input when one exists and this
