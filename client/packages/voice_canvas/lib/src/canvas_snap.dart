@@ -109,28 +109,37 @@ List<SnapGuide> _guidesFor(
   List<Rect> targets, {
   required bool vertical,
 }) {
+  return [
+    for (final line in _lines(snapped, vertical))
+      if (_guideAt(line, snapped, targets, vertical: vertical)
+          case final guide?)
+        guide,
+  ];
+}
+
+List<double> _lines(Rect r, bool vertical) =>
+    vertical ? [r.left, r.center.dx, r.right] : [r.top, r.center.dy, r.bottom];
+
+(double, double) _span(Rect r, bool vertical) =>
+    vertical ? (r.top, r.bottom) : (r.left, r.right);
+
+/// The guide through [line], spanning every target it lines up with, or null.
+SnapGuide? _guideAt(
+  double line,
+  Rect snapped,
+  List<Rect> targets, {
+  required bool vertical,
+}) {
   const epsilon = 1e-6;
-  List<double> lines(Rect r) => vertical
-      ? [r.left, r.center.dx, r.right]
-      : [r.top, r.center.dy, r.bottom];
-  (double, double) span(Rect r) =>
-      vertical ? (r.top, r.bottom) : (r.left, r.right);
-  final guides = <SnapGuide>[];
-  for (final line in lines(snapped)) {
-    var (start, end) = span(snapped);
-    var matched = false;
-    for (final t in targets) {
-      if (!lines(t).any((l) => (l - line).abs() < epsilon)) continue;
-      final (s, e) = span(t);
-      start = start < s ? start : s;
-      end = end > e ? end : e;
-      matched = true;
-    }
-    if (matched) {
-      guides.add(
-        SnapGuide(vertical: vertical, position: line, start: start, end: end),
-      );
-    }
+  var (start, end) = _span(snapped, vertical);
+  var matched = false;
+  for (final t in targets) {
+    if (!_lines(t, vertical).any((l) => (l - line).abs() < epsilon)) continue;
+    final (s, e) = _span(t, vertical);
+    start = start < s ? start : s;
+    end = end > e ? end : e;
+    matched = true;
   }
-  return guides;
+  if (!matched) return null;
+  return SnapGuide(vertical: vertical, position: line, start: start, end: end);
 }

@@ -290,26 +290,25 @@ TransportStats? _parseTransport(
 /// One line per sample, for the console.
 String statsLogLine(VideoStatsSample s) {
   final who = '${s.local ? 'out' : 'in'} ${s.source.name} ${s.identity}';
-  final layers = [
-    for (final st in s.streams)
-      [
-        if (st.rid != null) st.rid!,
-        '${st.width ?? '?'}x${st.height ?? '?'}@${_fixed(st.fps, 0)}',
-        '${_mbps(st.bitrateBps)}Mbps',
-        if (st.targetBitrateBps != null) 'target=${_mbps(st.targetBitrateBps)}',
-        if (st.codec != null) st.codec!,
-        if (st.implementation != null) st.implementation!,
-        if (st.limitationReason != null) 'limit=${st.limitationReason}',
-        if (st.freezeCount != null) 'freezes=${st.freezeCount}',
-        if (st.framesDropped != null) 'dropped=${st.framesDropped}',
-      ].join(' '),
-  ];
+  final layers = [for (final st in s.streams) _streamLogPart(st)];
   final t = s.transport;
   final path = t == null
       ? ''
       : ' | rtt=${_fixed(t.rttMs, 0)}ms ${t.localType ?? '?'}/${t.protocol ?? '?'}';
   return '[call-stats] $who ${layers.join(' ; ')}$path';
 }
+
+String _streamLogPart(VideoStreamStats st) => [
+      if (st.rid != null) st.rid!,
+      '${st.width ?? '?'}x${st.height ?? '?'}@${_fixed(st.fps, 0)}',
+      '${_mbps(st.bitrateBps)}Mbps',
+      if (st.targetBitrateBps != null) 'target=${_mbps(st.targetBitrateBps)}',
+      if (st.codec != null) st.codec!,
+      if (st.implementation != null) st.implementation!,
+      if (st.limitationReason != null) 'limit=${st.limitationReason}',
+      if (st.freezeCount != null) 'freezes=${st.freezeCount}',
+      if (st.framesDropped != null) 'dropped=${st.framesDropped}',
+    ].join(' ');
 
 String _fixed(num? v, int digits) =>
     v == null ? '?' : v.toStringAsFixed(digits);

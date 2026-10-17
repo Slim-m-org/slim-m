@@ -100,40 +100,44 @@ class LocalAudioState {
     for (final ref in refs) {
       // Deafened silences everyone; otherwise only the individually muted.
       final silence = deafened || muted.contains(ref.identity);
-      final audible = ref.isAudible();
-
-      if (silence) {
-        if (!audible) continue;
-        try {
-          await ref.disable();
-        } catch (e) {
-          failure = e;
-        }
-        // Whatever was believed about gain stops being true once it is silent.
-        _applied[ref.track] = null;
-        continue;
-      }
-
-      final volume = volumeFor(ref.identity);
-      final last = _applied[ref.track];
-      if (audible && last != null && last.volume == volume) continue;
-
-      Object? here;
-      try {
-        await ref.enable();
-      } catch (e) {
-        here = e;
-      }
-      // After the enable, never before: re-enabling can reset source volume.
-      here = await ref.setVolume(volume) ?? here;
-
-      // Remembered only if it both went cleanly and can be seen to have landed.
-      _applied[ref.track] = here == null && ref.isAudible()
-          ? _AppliedAudio(volume: volume)
-          : null;
+      final here = silence ? await _silence(ref) : await _restore(ref);
       failure = here ?? failure;
     }
     return failure;
+  }
+
+  Future<Object?> _silence(LocalAudioRef ref) async {
+    if (!ref.isAudible()) return null;
+    Object? failure;
+    try {
+      await ref.disable();
+    } catch (e) {
+      failure = e;
+    }
+    // Whatever was believed about gain stops being true once it is silent.
+    _applied[ref.track] = null;
+    return failure;
+  }
+
+  Future<Object?> _restore(LocalAudioRef ref) async {
+    final audible = ref.isAudible();
+    final volume = volumeFor(ref.identity);
+    final last = _applied[ref.track];
+    if (audible && last != null && last.volume == volume) return null;
+
+    Object? here;
+    try {
+      await ref.enable();
+    } catch (e) {
+      here = e;
+    }
+    // After the enable, never before: re-enabling can reset source volume.
+    here = await ref.setVolume(volume) ?? here;
+
+    // Remembered only if it both went cleanly and can be seen to have landed.
+    _applied[ref.track] =
+        here == null && ref.isAudible() ? _AppliedAudio(volume: volume) : null;
+    return here;
   }
 
   /// Weakly keyed, so remembering a track never keeps a finished call's
