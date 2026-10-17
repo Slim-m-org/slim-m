@@ -36,7 +36,7 @@ import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_data/data.dart';

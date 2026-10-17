@@ -59,9 +59,19 @@ class IoDirectRoute implements DirectRoute {
   DateTime? _skipUntil;
   Duration _penalty = _firstPenalty;
   bool _active = false;
+  final _activeChanges = StreamController<bool>.broadcast();
 
   @override
   bool get active => _active;
+
+  @override
+  Stream<bool> get activeChanges => _activeChanges.stream;
+
+  set _isActive(bool value) {
+    if (value == _active) return;
+    _active = value;
+    if (!_activeChanges.isClosed) _activeChanges.add(value);
+  }
 
   @override
   late final http.Client httpClient = _RoutedClient(this);
@@ -74,7 +84,7 @@ class IoDirectRoute implements DirectRoute {
     _next = 0;
     _skipUntil = null;
     _penalty = _firstPenalty;
-    if (parsed.isEmpty) _active = false;
+    if (parsed.isEmpty) _isActive = false;
     _renewPool();
   }
 
@@ -103,7 +113,10 @@ class IoDirectRoute implements DirectRoute {
     old.close();
   }
 
-  void _close() => _client.close(force: true);
+  void _close() {
+    _client.close(force: true);
+    _activeChanges.close();
+  }
 
   Future<ConnectionTask<Socket>> _connect(
     Uri url,
@@ -142,14 +155,14 @@ class IoDirectRoute implements DirectRoute {
         host: url.host,
         context: _context,
       ).timeout(_handshakeTimeout);
-      _active = true;
+      _isActive = true;
       _probing = false;
       _penalty = _firstPenalty;
       _skipUntil = null;
       return socket;
     } on Object {
       raw?.destroy();
-      _active = false;
+      _isActive = false;
       _probing = false;
       _next++;
       _skipUntil = _clock().add(_penalty);

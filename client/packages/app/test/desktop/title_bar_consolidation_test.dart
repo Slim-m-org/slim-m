@@ -18,8 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/title_bar.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
-    show SpaceConnectionDot;
+import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 

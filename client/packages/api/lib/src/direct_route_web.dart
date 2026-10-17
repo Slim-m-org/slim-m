@@ -17,6 +17,9 @@ class _BrowserRoute implements DirectRoute {
   bool get active => false;
 
   @override
+  Stream<bool> get activeChanges => const Stream.empty();
+
+  @override
   void advertise(List<String> addresses) {}
 
   @override

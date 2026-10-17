@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/direct_route.dart';
 import '../providers/sync_controller.dart';
 import '../providers/sync_failure.dart';
-import '../features/channels/widgets/channel_rail_frame.dart';
+import 'space_connection_dot.dart';
 import 'space_icon.dart';
 
 /// With an icon the dot is its bottom-right badge, as on an avatar; without one it stands alone.
@@ -28,13 +29,20 @@ class SpaceIdentityMark extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final direct = ref.watch(directRouteProvider).valueOrNull ?? false;
     if (iconUpdatedAt == null) {
       return Padding(
         padding: const EdgeInsets.only(right: 6),
-        child: SpaceConnectionDot(status: status, failure: failure),
+        child: SpaceConnectionDot(
+          status: status,
+          failure: failure,
+          direct: direct,
+        ),
       );
     }
-    const halo = SpaceConnectionDot.haloedSize;
+    final halo = direct && status == SyncStatus.live
+        ? SpaceConnectionDot.haloedPlugSize
+        : SpaceConnectionDot.haloedSize;
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.s8),
       child: SizedBox.square(
@@ -50,6 +58,7 @@ class SpaceIdentityMark extends ConsumerWidget {
               child: SpaceConnectionDot(
                 status: status,
                 failure: failure,
+                direct: direct,
                 haloed: true,
               ),
             ),
