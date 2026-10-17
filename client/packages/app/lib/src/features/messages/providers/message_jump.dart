@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_data/data.dart' show MessageStore;
 
 import '../../channels/providers/channel_history.dart';
 import 'message_page_size.dart';
@@ -91,20 +92,30 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
         return;
       }
       if (page == maxPages) break;
-      // Seeded from the store, not trusted from the screen: a jump can run before any screen has built a frame for this channel.
-      history.syncOldest(await store.oldestLocalSeq(channelId));
-      // Retried rather than left failed, or one stale failure wedges every jump at page zero forever.
-      if (history.state.failed) {
-        await history.retry();
-      } else {
-        await history.loadOlder();
-      }
-      if (_token != token) return;
-      if (history.state.atStart || history.state.failed) break;
+      if (!await _pageOlder(history, store, channelId, token)) break;
     }
     if (_token == token) {
       state = MessageJumpUnreachable(channelId, messageId, token);
     }
+  }
+
+  /// Pages one step older; false once the jump should stop looking.
+  Future<bool> _pageOlder(
+    ChannelHistoryController history,
+    MessageStore store,
+    String channelId,
+    int token,
+  ) async {
+    // Seeded from the store, not trusted from the screen: a jump can run before any screen has built a frame for this channel.
+    history.syncOldest(await store.oldestLocalSeq(channelId));
+    // Retried rather than left failed, or one stale failure wedges every jump at page zero forever.
+    if (history.state.failed) {
+      await history.retry();
+    } else {
+      await history.loadOlder();
+    }
+    if (_token != token) return false;
+    return !history.state.atStart && !history.state.failed;
   }
 
   /// Called once the arrived message has actually been scrolled to and

@@ -127,9 +127,8 @@ class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
   ) {
     if (!searching) return '${category.label} emoji.';
     final count = results.length;
-    return count == 0
-        ? 'No matches.'
-        : '$count ${count == 1 ? 'result' : 'results'} found.';
+    if (count == 0) return 'No matches.';
+    return '$count ${count == 1 ? 'result' : 'results'} found.';
   }
 
   Map<ShortcutActivator, VoidCallback> _bindings() {

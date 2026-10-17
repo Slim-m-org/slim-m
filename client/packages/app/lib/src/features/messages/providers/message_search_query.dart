@@ -68,6 +68,23 @@ const _hasPrefix = 'has:';
 const _afterPrefix = 'after:';
 const _beforePrefix = 'before:';
 
+const _prefixes = [
+  _fromPrefix,
+  _inPrefix,
+  _hasPrefix,
+  _afterPrefix,
+  _beforePrefix,
+];
+
+({String prefix, String value})? _operandOf(String token) {
+  for (final prefix in _prefixes) {
+    if (token.startsWith(prefix) && token.length > prefix.length) {
+      return (prefix: prefix, value: token.substring(prefix.length));
+    }
+  }
+  return null;
+}
+
 /// Splits [raw] on whitespace and classifies each token: a recognised
 /// operator prefix with a non-empty value after it is consumed, anything
 /// else - including a bare `word:` this list does not name, and an operator
@@ -83,21 +100,20 @@ ParsedSearchQuery parseSearchQuery(String raw) {
 
   for (final token in raw.trim().split(RegExp(r'\s+'))) {
     if (token.isEmpty) continue;
-    if (token.startsWith(_fromPrefix) && token.length > _fromPrefix.length) {
-      from = token.substring(_fromPrefix.length);
-    } else if (token.startsWith(_inPrefix) && token.length > _inPrefix.length) {
-      inChannel = token.substring(_inPrefix.length);
-    } else if (token.startsWith(_hasPrefix) &&
-        token.length > _hasPrefix.length) {
-      hasValues.add(token.substring(_hasPrefix.length));
-    } else if (token.startsWith(_afterPrefix) &&
-        token.length > _afterPrefix.length) {
-      afterDate = token.substring(_afterPrefix.length);
-    } else if (token.startsWith(_beforePrefix) &&
-        token.length > _beforePrefix.length) {
-      beforeDate = token.substring(_beforePrefix.length);
-    } else {
-      remaining.add(token);
+    final operand = _operandOf(token);
+    switch (operand?.prefix) {
+      case _fromPrefix:
+        from = operand!.value;
+      case _inPrefix:
+        inChannel = operand!.value;
+      case _hasPrefix:
+        hasValues.add(operand!.value);
+      case _afterPrefix:
+        afterDate = operand!.value;
+      case _beforePrefix:
+        beforeDate = operand!.value;
+      default:
+        remaining.add(token);
     }
   }
 
