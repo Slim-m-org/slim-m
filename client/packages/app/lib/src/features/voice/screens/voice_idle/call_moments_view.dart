@@ -147,12 +147,14 @@ String momentSentence(
     CallMomentKind.shared =>
       '$who shared a screen · ${formatSpan(moment.durationMs ?? 0)}',
     CallMomentKind.canvas => _canvasSentence(who, moment),
-    CallMomentKind.ended =>
-      canvasObjectCount > 0
-          ? 'Call ended · canvas kept $canvasObjectCount '
-                '${canvasObjectCount == 1 ? 'object' : 'objects'}'
-          : 'Call ended',
+    CallMomentKind.ended => _endedSentence(canvasObjectCount),
   };
+}
+
+String _endedSentence(int canvasObjectCount) {
+  if (canvasObjectCount <= 0) return 'Call ended';
+  final noun = canvasObjectCount == 1 ? 'object' : 'objects';
+  return 'Call ended · canvas kept $canvasObjectCount $noun';
 }
 
 String _canvasSentence(String who, CallMoment moment) {

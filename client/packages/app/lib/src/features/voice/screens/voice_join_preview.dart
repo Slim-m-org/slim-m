@@ -346,47 +346,13 @@ class VoiceRejoinScreen extends ConsumerWidget {
                       mergeLeftNotice: showsPlainLeftNotice,
                     ),
                     const SizedBox(height: AppSpacing.s16),
-                    if (errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.s12),
-                        child: AppErrorState(message: errorMessage!),
-                      )
-                    else if (recap case final recap? when recap.isWorthShowing)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.s12),
-                        child: CallRecapCard(recap: recap),
-                      )
-                    else if (wasInCall && !rosterConfirmedEmpty)
-                      // An empty roster already folded this into _WhoIsHere above.
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.s12),
-                        child: Text(
-                          'You left this call.',
-                          textAlign: TextAlign.center,
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                      ),
+                    ..._statusRows(
+                      tokens,
+                      rosterConfirmedEmpty: rosterConfirmedEmpty,
+                    ),
                     // No button for a failure a retry cannot fix.
                     if (canRetry) ...[
-                      FilledButton(
-                        onPressed: onRetry,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: tokens.accentFill,
-                          foregroundColor: tokens.accentOn,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.s16,
-                          ),
-                        ),
-                        child: Text(
-                          errorMessage != null
-                              ? 'Try again'
-                              : wasInCall
-                              ? 'Rejoin call'
-                              : 'Join call',
-                        ),
-                      ),
+                      _retryButton(tokens),
                       const SizedBox(height: AppSpacing.s8),
                     ],
                     AppButton(
@@ -406,6 +372,52 @@ class VoiceRejoinScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  List<Widget> _statusRows(
+    AppTokens tokens, {
+    required bool rosterConfirmedEmpty,
+  }) {
+    final error = errorMessage;
+    final Widget? row;
+    if (error != null) {
+      row = AppErrorState(message: error);
+    } else if (recap case final recap? when recap.isWorthShowing) {
+      row = CallRecapCard(recap: recap);
+    } else if (wasInCall && !rosterConfirmedEmpty) {
+      // An empty roster already folded this into _WhoIsHere above.
+      row = Text(
+        'You left this call.',
+        textAlign: TextAlign.center,
+        style: AppText.caption.copyWith(color: tokens.textSecondary),
+      );
+    } else {
+      row = null;
+    }
+    if (row == null) return const [];
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+        child: row,
+      ),
+    ];
+  }
+
+  String get _retryLabel {
+    if (errorMessage != null) return 'Try again';
+    return wasInCall ? 'Rejoin call' : 'Join call';
+  }
+
+  Widget _retryButton(AppTokens tokens) {
+    return FilledButton(
+      onPressed: onRetry,
+      style: FilledButton.styleFrom(
+        backgroundColor: tokens.accentFill,
+        foregroundColor: tokens.accentOn,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+      ),
+      child: Text(_retryLabel),
     );
   }
 }
