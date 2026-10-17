@@ -32,7 +32,7 @@ class RegisterAccountsTest(unittest.TestCase):
         with patch.object(e2e_api.Api, "call", fake_call):
             accounts = seed_accounts.register_accounts(
                 "http://x", 1, "pw", "code", "seed", username_tag="")
-        self.assertEqual(accounts[0]["reused"], False)
+        self.assertFalse(accounts[0]["reused"])
         self.assertEqual(accounts[0]["api"].token, "tok")
         self.assertIsNotNone(accounts[0]["api"].relogin)
 
@@ -51,7 +51,7 @@ class RegisterAccountsTest(unittest.TestCase):
             accounts = seed_accounts.register_accounts(
                 "http://x", 1, "pw", "code", "seed", username_tag="")
         self.assertEqual(calls, ["/auth/register", "/auth/login"])
-        self.assertEqual(accounts[0]["reused"], True)
+        self.assertTrue(accounts[0]["reused"])
         self.assertEqual(accounts[0]["api"].token, "tok2")
 
     def test_a_400_from_a_claimed_invite_only_deployment_still_reuses_the_persona(self):
@@ -65,7 +65,7 @@ class RegisterAccountsTest(unittest.TestCase):
         with patch.object(e2e_api.Api, "call", fake_call):
             accounts = seed_accounts.register_accounts(
                 "http://x", 1, "pw", None, "seed", username_tag="")
-        self.assertEqual(accounts[0]["reused"], True)
+        self.assertTrue(accounts[0]["reused"])
 
     def test_a_400_whose_login_also_fails_keeps_the_invite_hint(self):
         def fake_call(self, method, path, body=None, **kwargs):

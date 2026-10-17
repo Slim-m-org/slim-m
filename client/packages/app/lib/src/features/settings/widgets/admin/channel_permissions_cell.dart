@@ -15,11 +15,10 @@ enum CellState {
   deny;
 
   /// The state a pending (allow, deny) pair puts [bit] in.
-  static CellState resolve(int allow, int deny, int bit) => allow & bit != 0
-      ? CellState.allow
-      : deny & bit != 0
-      ? CellState.deny
-      : CellState.inherit;
+  static CellState resolve(int allow, int deny, int bit) {
+    if (allow & bit != 0) return CellState.allow;
+    return deny & bit != 0 ? CellState.deny : CellState.inherit;
+  }
 }
 
 /// The painted chip, shared by [Cell] and the legend so the two cannot drift.
@@ -44,6 +43,13 @@ class CellChip extends StatelessWidget {
   final bool changed;
   final double width;
   final double height;
+
+  Color _lift(AppTokens tokens) {
+    if (pressed) return tokens.textPrimary.withValues(alpha: 0.14);
+    return hovered
+        ? tokens.textPrimary.withValues(alpha: 0.07)
+        : Colors.transparent;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,11 +80,7 @@ class CellChip extends StatelessWidget {
         AppIcons.shapeArrow,
       ),
     };
-    final lift = pressed
-        ? tokens.textPrimary.withValues(alpha: 0.14)
-        : hovered
-        ? tokens.textPrimary.withValues(alpha: 0.07)
-        : Colors.transparent;
+    final lift = _lift(tokens);
     return AnimatedScale(
       scale: pressed ? 0.92 : 1,
       duration: const Duration(milliseconds: 90),

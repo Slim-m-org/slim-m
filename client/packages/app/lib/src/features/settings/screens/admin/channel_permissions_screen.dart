@@ -136,20 +136,7 @@ class _ChannelList extends ConsumerWidget {
           children: [
             for (final c in snapshot.data ?? const <Channel>[])
               if (c.kind != dmChannelKind)
-                AppListRow(
-                  leading: Icon(
-                    c.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
-                    size: AppSizes.icon16,
-                  ),
-                  label: c.name,
-                  trailing: (c.restricted ?? false)
-                      ? const Icon(
-                          AppIcons.restrictedChannel,
-                          size: AppSizes.icon16,
-                        )
-                      : null,
-                  onTap: () => onPick(c),
-                ),
+                _ChannelPickRow(channel: c, onPick: onPick),
           ],
         );
         // The routed screen gives a bounded height; the Space settings pane already scrolls.
@@ -159,6 +146,29 @@ class _ChannelList extends ConsumerWidget {
               : card,
         );
       },
+    );
+  }
+}
+
+class _ChannelPickRow extends StatelessWidget {
+  const _ChannelPickRow({required this.channel, required this.onPick});
+
+  final Channel channel;
+  final ValueChanged<Channel> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final restricted = channel.restricted ?? false;
+    return AppListRow(
+      leading: Icon(
+        channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+        size: AppSizes.icon16,
+      ),
+      label: channel.name,
+      trailing: restricted
+          ? const Icon(AppIcons.restrictedChannel, size: AppSizes.icon16)
+          : null,
+      onTap: () => onPick(channel),
     );
   }
 }

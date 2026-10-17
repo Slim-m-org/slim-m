@@ -70,7 +70,7 @@ void main() {
     test('an edit op flagged forwarded_removed clears the snapshot, even '
         'with its content collapsed', () async {
       await store.applyMessage(
-        api.Message(
+        const api.Message(
           id: 'm1',
           channelId: 'chan-1',
           authorId: 'user-1',
@@ -79,7 +79,7 @@ void main() {
           content: 'my note',
           createdAt: 1000,
           editedAt: null,
-          forwarded: const api.ForwardedMessage(
+          forwarded: api.ForwardedMessage(
             messageId: 'o',
             channelId: 'chan-1',
             authorId: 'user-2',

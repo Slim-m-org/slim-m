@@ -47,8 +47,8 @@ void main() {
     // for the two rows, and colour indices past the six-entry palette.
     await tester.pumpWidget(
       _host(
-        FingerprintDisplay(
-          identity: const api.ServerIdentity(
+        const FingerprintDisplay(
+          identity: api.ServerIdentity(
             publicKey: 'not-really-base64',
             fingerprint: 'short',
             fingerprintGroups: ['dead', 'beef'],
@@ -72,8 +72,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _host(
-        FingerprintDisplay(
-          identity: const api.ServerIdentity(
+        const FingerprintDisplay(
+          identity: api.ServerIdentity(
             publicKey: '',
             fingerprint: '',
             fingerprintGroups: [],

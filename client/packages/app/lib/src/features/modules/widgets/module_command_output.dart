@@ -53,62 +53,17 @@ class ModuleCommandOutput extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final output = result.output;
     final moduleId = this.moduleId;
     final command = this.command;
     if (result.ok && output != null && moduleId != null && command != null) {
       final scene = parseModuleScene(output);
       if (scene != null) {
-        final messageId = this.messageId;
-        final blockIndex = this.blockIndex;
-        // Shared when this scene belongs to a message: each action stores and broadcasts, so everyone watching sees the same evolving scene.
-        final shared = messageId != null && blockIndex != null;
-        // The full-screen route outlives this widget, so its closures hold the container, never ref.
-        final container = ProviderScope.containerOf(context, listen: false);
-        Future<api.RunModuleCommandResult> run(String input) => shared
-            ? container
-                  .read(apiProvider)
-                  .runCodeBlock(
-                    messageId: messageId,
-                    blockIndex: blockIndex,
-                    moduleId: moduleId,
-                    command: command,
-                    input: input,
-                  )
-            : container
-                  .read(apiProvider)
-                  .runModuleCommand(
-                    moduleId: moduleId,
-                    command: command,
-                    input: input,
-                  );
-        // The other half of "never plays without interaction": see NotesOp's own doc comment for the full defence.
-        void notes(List<SceneNote> played) {
-          if (!container.read(moduleSoundSettingsProvider)) return;
-          unawaited(
-            container.read(moduleSoundPlayerProvider).playNotes(played),
-          );
-        }
-
-        return ModuleSceneView(
-          initial: scene,
-          runCommand: run,
-          onNotes: notes,
-          // Only a message-scoped board has a screen of its own to go to.
-          onExpand: shared
-              ? () => showModuleSceneFullscreen(
-                  context,
-                  initial: scene,
-                  runCommand: run,
-                  onNotes: notes,
-                  title: moduleId,
-                )
-              : null,
-        );
+        return _sceneView(context, scene, moduleId, command);
       }
     }
 
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     final isError = !result.ok;
     final text = (isError ? result.error : result.output) ?? '';
     // Recessed (sunken), not raised like the code block above it, so the result reads as the answer that came out of the code, not more code.
@@ -158,6 +113,58 @@ class ModuleCommandOutput extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _sceneView(
+    BuildContext context,
+    ModuleScene scene,
+    String moduleId,
+    String command,
+  ) {
+    final messageId = this.messageId;
+    final blockIndex = this.blockIndex;
+    // Shared when this scene belongs to a message: each action stores and broadcasts, so everyone watching sees the same evolving scene.
+    final shared = messageId != null && blockIndex != null;
+    // The full-screen route outlives this widget, so its closures hold the container, never ref.
+    final container = ProviderScope.containerOf(context, listen: false);
+    Future<api.RunModuleCommandResult> run(String input) => shared
+        ? container
+              .read(apiProvider)
+              .runCodeBlock(
+                messageId: messageId,
+                blockIndex: blockIndex,
+                moduleId: moduleId,
+                command: command,
+                input: input,
+              )
+        : container
+              .read(apiProvider)
+              .runModuleCommand(
+                moduleId: moduleId,
+                command: command,
+                input: input,
+              );
+    // The other half of "never plays without interaction": see NotesOp's own doc comment for the full defence.
+    void notes(List<SceneNote> played) {
+      if (!container.read(moduleSoundSettingsProvider)) return;
+      unawaited(container.read(moduleSoundPlayerProvider).playNotes(played));
+    }
+
+    return ModuleSceneView(
+      initial: scene,
+      runCommand: run,
+      onNotes: notes,
+      // Only a message-scoped board has a screen of its own to go to.
+      onExpand: shared
+          ? () => showModuleSceneFullscreen(
+              context,
+              initial: scene,
+              runCommand: run,
+              onNotes: notes,
+              title: moduleId,
+            )
+          : null,
     );
   }
 }

@@ -27,7 +27,7 @@ void main() {
   );
 
   test('multiple URLs are capped at the default of 2', () {
-    final content =
+    const content =
         'https://a.example https://b.example https://c.example https://d.example';
     expect(extractLinkPreviewUrls(content), [
       'https://a.example',
@@ -36,7 +36,7 @@ void main() {
   });
 
   test('a caller can widen or narrow the cap', () {
-    final content = 'https://a.example https://b.example https://c.example';
+    const content = 'https://a.example https://b.example https://c.example';
     expect(extractLinkPreviewUrls(content, max: 1), ['https://a.example']);
     expect(extractLinkPreviewUrls(content, max: 3), [
       'https://a.example',

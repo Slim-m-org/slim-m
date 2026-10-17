@@ -143,6 +143,14 @@ AppMenuItem markSpaceReadMenuItem(
   );
 }
 
+Future<void> _set(
+  ChannelNotificationOverridesController notifier,
+  String channelId,
+  api.NotificationPreference preference,
+) => preference == api.NotificationPreference.nothing
+    ? notifier.mute(channelId)
+    : notifier.mentionsOnly(channelId);
+
 /// Mute, mentions only and off-hours entries for [channelId].
 ///
 /// Read fresh when the menu opens rather than watched: the row itself already
@@ -176,9 +184,7 @@ List<AppMenuItem> notificationMenuItems(
         'change this conversation\'s notifications',
         () => current == preference
             ? notifier.clear(channelId)
-            : preference == api.NotificationPreference.nothing
-            ? notifier.mute(channelId)
-            : notifier.mentionsOnly(channelId),
+            : _set(notifier, channelId, preference),
       ),
     );
   }

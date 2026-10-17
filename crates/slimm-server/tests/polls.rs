@@ -570,7 +570,7 @@ async fn poll_vote_event_never_reveals_the_voter() {
     let expected: std::collections::BTreeSet<String> =
         ["type", "channel_id", "message_id", "options"]
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
     assert_eq!(
         top_level_keys, expected,
@@ -581,7 +581,7 @@ async fn poll_vote_event_never_reveals_the_voter() {
             option.as_object().unwrap().keys().cloned().collect();
         let expected_option: std::collections::BTreeSet<String> = ["position", "votes"]
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         assert_eq!(
             keys, expected_option,

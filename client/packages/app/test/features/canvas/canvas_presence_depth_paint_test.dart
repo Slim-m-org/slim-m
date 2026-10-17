@@ -92,7 +92,7 @@ void main() {
       addTearDown(document.dispose);
       // One opaque stroke crosses both tiles, answering all four samples.
       document.applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 'crossbar',
           seq: 1,
           zIndex: 1,

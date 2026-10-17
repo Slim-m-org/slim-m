@@ -156,152 +156,39 @@ class _ChannelCategorySectionsState
 
   @override
   Widget build(BuildContext context) {
-    final channels = widget.channels;
-    final categories = widget.categories;
-    final selectedId = widget.selectedId;
-    final canManage = widget.canManage;
-    final onReorder = widget.onReorder;
-    final collapsed = ref.watch(collapsedCategoriesProvider);
-    final byCategory = channelsByCategory(channels);
-    final implicitEmpty = (byCategory[null] ?? const <Channel>[]).isEmpty;
+    final byCategory = channelsByCategory(widget.channels);
     // An empty category is a drop target for a manager and a dead header for
     // anyone else; migration 0031's unconditional Text/Voice seed gives every
     // fresh deployment two of them (the 2026-08-11 review's M8). The implicit
-    // section gets the same structural treatment now - see `header` for why
+    // section gets the same structural treatment now - see `_header` for why
     // it still renders as nothing while empty and idle.
     final sections = <ChannelSection>[
       for (final section in <ChannelSection>[
         (null, byCategory[null] ?? const []),
-        for (final category in categories)
+        for (final category in widget.categories)
           (category, byCategory[category.id] ?? const []),
       ])
-        if (canManage || section.$2.isNotEmpty) section,
+        if (widget.canManage || section.$2.isNotEmpty) section,
     ];
-
-    // Every channel hangs off its header rather than sharing its left edge, which is what read as floating rows between dividers.
-    //
-    // A collapsed category's rows render as zero-height rather than being
-    // left out of `sections`/`_items` entirely: `ReorderableChannelRows`
-    // builds its reorder payload from exactly the items it renders, and
-    // dropping a collapsed category's channels from that payload would tell
-    // the server to clear its membership the next time any other channel
-    // moves. Zero size keeps every channel's identity and position in the
-    // list - just invisible and unreachable by a drag - while collapsed.
-    final overrides = ref.watch(channelNotificationOverridesProvider);
-
-    // Breaking out of a collapsed category is an unread indicator like any other, so it reads the same rule the rows do.
-    Widget row(Channel channel, bool longPressDrags, {bool carried = false}) {
-      final pinnedOpen =
-          channel.id == selectedId ||
-          unreadIndicatorFor(
-            channelOverride: overrides.overrideFor(channel.id),
-            isDm: false,
-            unread: false,
-            mentioned: channel.mentionedSeq > channel.lastReadSeq,
-            manuallyUnread: false,
-          ).mentioned;
-      if (channel.categoryId != null &&
-          collapsed.contains(channel.categoryId) &&
-          !pinnedOpen) {
-        return const SizedBox.shrink();
-      }
-      Widget body(Widget? kebab) => channel.kind == 'voice'
-          ? VoiceChannelRow(
-              channel: channel,
-              selected: channel.id == selectedId,
-              trailingExtra: kebab,
-            )
-          : _TextChannelRow(
-              channel: channel,
-              selected: channel.id == selectedId,
-              trailingExtra: kebab,
-            );
-      // The lifted copy is just the face of the row: no menu, kebab or hover.
-      if (carried) return body(null);
-      return Padding(
-        padding: const EdgeInsets.only(left: kRailRowInset),
-        child: SelectionMarkerTarget(
-          selected: channel.id == selectedId,
-          child: ManagedChannelRow(
-            canManage: canManage,
-            reorderable: longPressDrags,
-            menuKey: _menuKeys.putIfAbsent(
-              channel.id,
-              GlobalKey<ContextMenuRegionState>.new,
-            ),
-            move: ChannelMoveActions(
-              canMove: (delta) =>
-                  groupsAfterStep(
-                    sections,
-                    channel.id,
-                    delta,
-                    collapsed: collapsed,
-                  ) !=
-                  null,
-              move: (delta) {
-                final groups = groupsAfterStep(
-                  sections,
-                  channel.id,
-                  delta,
-                  collapsed: collapsed,
-                );
-                if (groups != null) onReorder(groups);
-              },
-            ),
-            channel: channel,
-            row: body,
-          ),
-        ),
-      );
-    }
-
-    Widget header(ChannelCategoryRow? category, {bool carried = false}) {
-      // Structurally always an item (see _dragging's doc comment); nothing while idle and empty.
-      if (category == null && implicitEmpty && !_dragging) {
-        return const SizedBox.shrink();
-      }
-      // Any section, the implicit uncategorised one included: it is a real place a channel can live.
-      final label = SectionLabel(
-        category?.name ?? 'Channels',
-        collapsed: collapsed.contains(category?.id),
-        onToggle: category == null
-            ? null
-            : () => unawaited(
-                ref
-                    .read(collapsedCategoriesProvider.notifier)
-                    .toggle(category.id),
-              ),
-        trailingBuilder: !canManage
-            ? null
-            : (revealed, onFocusChange) => AddChannelGlyph(
-                categoryId: category?.id,
-                categoryName: category?.name ?? 'Channels',
-                revealed: revealed && !carried,
-                onFocusChange: onFocusChange,
-              ),
-      );
-      // Only a real category has a menu; the null section is the id-less implicit 'Channels' bucket.
-      if (category == null || carried) return label;
-      return CategoryHeaderMenu(
-        category: category,
-        categories: categories,
-        collapsed: collapsed,
-        label: label,
-        channels: byCategory[category.id] ?? const [],
-        canManage: canManage,
-      );
-    }
+    final view = _RailView(
+      sections: sections,
+      byCategory: byCategory,
+      collapsed: ref.watch(collapsedCategoriesProvider),
+      overrides: ref.watch(channelNotificationOverridesProvider),
+    );
 
     return ReorderableChannelRows(
       sections: sections,
-      canManage: canManage,
-      onReorder: onReorder,
-      rowBuilder: row,
-      carriedRowBuilder: (channel) => row(channel, true, carried: true),
+      canManage: widget.canManage,
+      onReorder: widget.onReorder,
+      rowBuilder: (channel, longPressDrags) =>
+          _row(view, channel, longPressDrags),
+      carriedRowBuilder: (channel) => _row(view, channel, true, carried: true),
       carriedRowInset: kRailRowInset,
-      headerBuilder: header,
-      carriedHeaderBuilder: (category) => header(category, carried: true),
-      collapsed: collapsed,
+      headerBuilder: (category) => _header(view, category),
+      carriedHeaderBuilder: (category) =>
+          _header(view, category, carried: true),
+      collapsed: view.collapsed,
       onReorderCategories: (ids) => unawaited(
         ref.read(categoryOrderControllerProvider.notifier).reorder(ids),
       ),
@@ -310,6 +197,150 @@ class _ChannelCategorySectionsState
       onHeldInPlace: (channel) => _menuKeys[channel.id]?.currentState?.open(),
     );
   }
+
+  // A collapsed category's rows render as zero-height rather than being
+  // left out of `sections`/`_items` entirely: `ReorderableChannelRows`
+  // builds its reorder payload from exactly the items it renders, and
+  // dropping a collapsed category's channels from that payload would tell
+  // the server to clear its membership the next time any other channel
+  // moves. Zero size keeps every channel's identity and position in the
+  // list - just invisible and unreachable by a drag - while collapsed.
+  //
+  // Every channel hangs off its header rather than sharing its left edge, which is what read as floating rows between dividers.
+  Widget _row(
+    _RailView view,
+    Channel channel,
+    bool longPressDrags, {
+    bool carried = false,
+  }) {
+    final selected = channel.id == widget.selectedId;
+    if (_hiddenByCollapse(view, channel, selected: selected)) {
+      return const SizedBox.shrink();
+    }
+    Widget body(Widget? kebab) => channel.kind == 'voice'
+        ? VoiceChannelRow(
+            channel: channel,
+            selected: selected,
+            trailingExtra: kebab,
+          )
+        : _TextChannelRow(
+            channel: channel,
+            selected: selected,
+            trailingExtra: kebab,
+          );
+    // The lifted copy is just the face of the row: no menu, kebab or hover.
+    if (carried) return body(null);
+    return Padding(
+      padding: const EdgeInsets.only(left: kRailRowInset),
+      child: SelectionMarkerTarget(
+        selected: selected,
+        child: ManagedChannelRow(
+          canManage: widget.canManage,
+          reorderable: longPressDrags,
+          menuKey: _menuKeys.putIfAbsent(
+            channel.id,
+            GlobalKey<ContextMenuRegionState>.new,
+          ),
+          move: _moveActions(view, channel),
+          channel: channel,
+          row: body,
+        ),
+      ),
+    );
+  }
+
+  // Breaking out of a collapsed category is an unread indicator like any other, so it reads the same rule the rows do.
+  bool _hiddenByCollapse(
+    _RailView view,
+    Channel channel, {
+    required bool selected,
+  }) {
+    final categoryId = channel.categoryId;
+    if (categoryId == null || !view.collapsed.contains(categoryId)) {
+      return false;
+    }
+    final mentioned = unreadIndicatorFor(
+      channelOverride: view.overrides.overrideFor(channel.id),
+      isDm: false,
+      unread: false,
+      mentioned: channel.mentionedSeq > channel.lastReadSeq,
+      manuallyUnread: false,
+    ).mentioned;
+    return !selected && !mentioned;
+  }
+
+  ChannelMoveActions _moveActions(_RailView view, Channel channel) {
+    List<ChannelOrderGroup>? after(int delta) => groupsAfterStep(
+      view.sections,
+      channel.id,
+      delta,
+      collapsed: view.collapsed,
+    );
+    return ChannelMoveActions(
+      canMove: (delta) => after(delta) != null,
+      move: (delta) {
+        final groups = after(delta);
+        if (groups != null) widget.onReorder(groups);
+      },
+    );
+  }
+
+  Widget _header(
+    _RailView view,
+    ChannelCategoryRow? category, {
+    bool carried = false,
+  }) {
+    final implicitEmpty = (view.byCategory[null] ?? const <Channel>[]).isEmpty;
+    // Structurally always an item (see _dragging's doc comment); nothing while idle and empty.
+    if (category == null && implicitEmpty && !_dragging) {
+      return const SizedBox.shrink();
+    }
+    // Any section, the implicit uncategorised one included: it is a real place a channel can live.
+    final label = SectionLabel(
+      category?.name ?? 'Channels',
+      collapsed: view.collapsed.contains(category?.id),
+      onToggle: category == null
+          ? null
+          : () => unawaited(
+              ref
+                  .read(collapsedCategoriesProvider.notifier)
+                  .toggle(category.id),
+            ),
+      trailingBuilder: !widget.canManage
+          ? null
+          : (revealed, onFocusChange) => AddChannelGlyph(
+              categoryId: category?.id,
+              categoryName: category?.name ?? 'Channels',
+              revealed: revealed && !carried,
+              onFocusChange: onFocusChange,
+            ),
+    );
+    // Only a real category has a menu; the null section is the id-less implicit 'Channels' bucket.
+    if (category == null || carried) return label;
+    return CategoryHeaderMenu(
+      category: category,
+      categories: widget.categories,
+      collapsed: view.collapsed,
+      label: label,
+      channels: view.byCategory[category.id] ?? const [],
+      canManage: widget.canManage,
+    );
+  }
+}
+
+/// What one build of the rail resolved once, shared by its row and header builders.
+class _RailView {
+  const _RailView({
+    required this.sections,
+    required this.byCategory,
+    required this.collapsed,
+    required this.overrides,
+  });
+
+  final List<ChannelSection> sections;
+  final Map<String?, List<Channel>> byCategory;
+  final Set<String> collapsed;
+  final ChannelNotificationOverridesState overrides;
 }
 
 class _TextChannelRow extends ConsumerWidget {

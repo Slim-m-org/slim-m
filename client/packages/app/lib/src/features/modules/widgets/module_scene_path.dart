@@ -73,12 +73,8 @@ List<ScenePathStep> parseScenePathData(String d) {
   if (d.length > sceneMaxPathChars) return const [];
   final tokens = _tokenise(d);
   final steps = <ScenePathStep>[];
+  final pen = _Pen();
   var i = 0;
-  // The pen, and the subpath start that close returns it to.
-  var x = 0.0;
-  var y = 0.0;
-  var startX = 0.0;
-  var startY = 0.0;
   String? command;
 
   while (i < tokens.length && steps.length < sceneMaxPathSteps) {
@@ -86,11 +82,7 @@ List<ScenePathStep> parseScenePathData(String d) {
     if (token is String) {
       command = token;
       i++;
-      if (command == 'Z' || command == 'z') {
-        steps.add(const ScenePathStep(ScenePathKind.close, []));
-        x = startX;
-        y = startY;
-      }
+      if (command == 'Z' || command == 'z') steps.add(pen.close());
       continue;
     }
     if (command == null) return steps;
@@ -101,47 +93,79 @@ List<ScenePathStep> parseScenePathData(String d) {
     if (args == null) return steps;
     i += needed;
     final relative = command == command.toLowerCase();
+    final upper = command.toUpperCase();
 
-    switch (command.toUpperCase()) {
-      case 'M':
-        x = relative ? x + args[0] : args[0];
-        y = relative ? y + args[1] : args[1];
-        startX = x;
-        startY = y;
-        steps.add(ScenePathStep(ScenePathKind.move, [x, y]));
-        // A repeated coordinate pair after M is an implicit L, as in SVG.
-        command = relative ? 'l' : 'L';
-      case 'L':
-        x = relative ? x + args[0] : args[0];
-        y = relative ? y + args[1] : args[1];
-        steps.add(ScenePathStep(ScenePathKind.line, [x, y]));
-      case 'H':
-        x = relative ? x + args[0] : args[0];
-        steps.add(ScenePathStep(ScenePathKind.line, [x, y]));
-      case 'V':
-        y = relative ? y + args[0] : args[0];
-        steps.add(ScenePathStep(ScenePathKind.line, [x, y]));
-      case 'Q':
-        final cx = relative ? x + args[0] : args[0];
-        final cy = relative ? y + args[1] : args[1];
-        x = relative ? x + args[2] : args[2];
-        y = relative ? y + args[3] : args[3];
-        steps.add(ScenePathStep(ScenePathKind.quad, [cx, cy, x, y]));
-      case 'C':
-        final c1x = relative ? x + args[0] : args[0];
-        final c1y = relative ? y + args[1] : args[1];
-        final c2x = relative ? x + args[2] : args[2];
-        final c2y = relative ? y + args[3] : args[3];
-        x = relative ? x + args[4] : args[4];
-        y = relative ? y + args[5] : args[5];
-        steps.add(
-          ScenePathStep(ScenePathKind.cubic, [c1x, c1y, c2x, c2y, x, y]),
-        );
-      default:
-        return steps;
-    }
+    final step = pen.draw(upper, relative, args);
+    if (step == null) return steps;
+    steps.add(step);
+    // A repeated coordinate pair after M is an implicit L, as in SVG.
+    if (upper == 'M') command = relative ? 'l' : 'L';
   }
   return steps;
+}
+
+/// The pen, and the subpath start that close returns it to.
+class _Pen {
+  double x = 0;
+  double y = 0;
+  double startX = 0;
+  double startY = 0;
+
+  static double _at(double current, double value, bool relative) =>
+      relative ? current + value : value;
+
+  ScenePathStep close() {
+    x = startX;
+    y = startY;
+    return const ScenePathStep(ScenePathKind.close, []);
+  }
+
+  /// The step [upper] draws with [args], or null for a command this grammar lacks.
+  ScenePathStep? draw(String upper, bool relative, List<double> args) {
+    switch (upper) {
+      case 'M':
+        _moveTo(args, relative);
+        startX = x;
+        startY = y;
+        return ScenePathStep(ScenePathKind.move, [x, y]);
+      case 'L':
+        _moveTo(args, relative);
+        return ScenePathStep(ScenePathKind.line, [x, y]);
+      case 'H':
+        x = _at(x, args[0], relative);
+        return ScenePathStep(ScenePathKind.line, [x, y]);
+      case 'V':
+        y = _at(y, args[0], relative);
+        return ScenePathStep(ScenePathKind.line, [x, y]);
+      case 'Q':
+        return _quad(args, relative);
+      case 'C':
+        return _cubic(args, relative);
+      default:
+        return null;
+    }
+  }
+
+  void _moveTo(List<double> args, bool relative) {
+    x = _at(x, args[0], relative);
+    y = _at(y, args[1], relative);
+  }
+
+  ScenePathStep _quad(List<double> args, bool relative) {
+    final cx = _at(x, args[0], relative);
+    final cy = _at(y, args[1], relative);
+    _moveTo(args.sublist(2), relative);
+    return ScenePathStep(ScenePathKind.quad, [cx, cy, x, y]);
+  }
+
+  ScenePathStep _cubic(List<double> args, bool relative) {
+    final c1x = _at(x, args[0], relative);
+    final c1y = _at(y, args[1], relative);
+    final c2x = _at(x, args[2], relative);
+    final c2y = _at(y, args[3], relative);
+    _moveTo(args.sublist(4), relative);
+    return ScenePathStep(ScenePathKind.cubic, [c1x, c1y, c2x, c2y, x, y]);
+  }
 }
 
 /// How many numbers a command consumes per repetition, or 0 if it is not one
@@ -175,21 +199,33 @@ List<double>? _numbers(List<Object> tokens, int from, int count) {
 /// after an exponent letter never ends a number, so a hostile string can keep
 /// one open for its whole length.
 List<Object> _tokenise(String d) {
-  final tokens = <Object>[];
-  var start = -1;
-  var hasDot = false;
-
-  void flush(int end) {
-    if (start < 0) return;
-    scenePathWork += end - start;
-    final parsed = double.tryParse(d.substring(start, end));
-    if (parsed != null && parsed.isFinite) tokens.add(parsed);
-    start = -1;
-    hasDot = false;
-  }
-
+  final tokeniser = _Tokeniser(d);
   for (var i = 0; i < d.length; i++) {
     scenePathWork++;
+    tokeniser.consume(i);
+  }
+  tokeniser.flush(d.length);
+  return tokeniser.tokens;
+}
+
+class _Tokeniser {
+  _Tokeniser(this.d);
+
+  final String d;
+  final tokens = <Object>[];
+  int _start = -1;
+  bool _hasDot = false;
+
+  void flush(int end) {
+    if (_start < 0) return;
+    scenePathWork += end - _start;
+    final parsed = double.tryParse(d.substring(_start, end));
+    if (parsed != null && parsed.isFinite) tokens.add(parsed);
+    _start = -1;
+    _hasDot = false;
+  }
+
+  void consume(int i) {
     final c = d[i];
     if (_isCommand(c)) {
       flush(i);
@@ -197,17 +233,23 @@ List<Object> _tokenise(String d) {
     } else if (c == ',' || c.trim().isEmpty) {
       flush(i);
     } else if (c == '-' || c == '+') {
-      // A sign mid-number starts the next one, unless it follows an exponent.
-      if (start >= 0 && !_isExponent(d.codeUnitAt(i - 1))) flush(i);
-      if (start < 0) start = i;
+      _sign(i);
     } else {
-      if (c == '.' && hasDot) flush(i);
-      if (start < 0) start = i;
-      if (c == '.') hasDot = true;
+      _digit(c, i);
     }
   }
-  flush(d.length);
-  return tokens;
+
+  void _sign(int i) {
+    // A sign mid-number starts the next one, unless it follows an exponent.
+    if (_start >= 0 && !_isExponent(d.codeUnitAt(i - 1))) flush(i);
+    if (_start < 0) _start = i;
+  }
+
+  void _digit(String c, int i) {
+    if (c == '.' && _hasDot) flush(i);
+    if (_start < 0) _start = i;
+    if (c == '.') _hasDot = true;
+  }
 }
 
 bool _isExponent(int codeUnit) => codeUnit == 0x65 || codeUnit == 0x45;

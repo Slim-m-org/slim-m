@@ -84,7 +84,7 @@ void main() {
       return (rich.textSpan! as TextSpan).style!.color!;
     }
 
-    final tokens = AppTokens.light;
+    const tokens = AppTokens.light;
     expect(inkNow(), tokens.textSecondary);
 
     setDim(() => dim = false);

@@ -82,30 +82,23 @@ class AppAsyncView<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    if (value.error != null) {
-      // Kept and shown below rather than discarded; see this class's own doc.
-      final stale = value.data;
-      if (stale != null) {
-        final banner = Padding(
-          padding: const EdgeInsets.all(AppSpacing.s12),
-          child: AppErrorState(message: errorMessage, onRetry: onRetry),
-        );
-        // Which layout is safe follows the constraint actually given here.
-        return LayoutBuilder(
-          builder: (context, constraints) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: constraints.hasBoundedHeight
-                ? MainAxisSize.max
-                : MainAxisSize.min,
-            children: [
-              banner,
-              constraints.hasBoundedHeight
-                  ? Expanded(child: data(context, stale))
-                  : data(context, stale),
-            ],
-          ),
-        );
-      }
+    if (value.error != null) return _errored();
+
+    final resolved = value.data;
+    if (resolved == null) return _loading(tokens);
+
+    if (emptyMessage != null && (isEmpty?.call(resolved) ?? false)) {
+      return _empty(tokens);
+    }
+
+    // A resolve settles in once on mount; later data rebuilds swap in place.
+    return AppFadeIn(child: data(context, resolved));
+  }
+
+  Widget _errored() {
+    // Kept and shown below rather than discarded; see this class's own doc.
+    final stale = value.data;
+    if (stale == null) {
       return _wrap(
         Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
@@ -113,47 +106,61 @@ class AppAsyncView<T> extends StatelessWidget {
         ),
       );
     }
+    final banner = Padding(
+      padding: const EdgeInsets.all(AppSpacing.s12),
+      child: AppErrorState(message: errorMessage, onRetry: onRetry),
+    );
+    // Which layout is safe follows the constraint actually given here.
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize:
+            constraints.hasBoundedHeight ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          banner,
+          constraints.hasBoundedHeight
+              ? Expanded(child: data(context, stale))
+              : data(context, stale),
+        ],
+      ),
+    );
+  }
 
-    final resolved = value.data;
-    if (resolved == null) {
-      return _wrap(
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            if (loadingMessage != null) ...[
-              const SizedBox(height: AppSpacing.s12),
-              Text(
-                loadingMessage!,
-                style: AppText.body.copyWith(color: tokens.textSecondary),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    if (emptyMessage != null && (isEmpty?.call(resolved) ?? false)) {
-      return AppFadeIn(
-        child: _wrap(
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: Text(
-              emptyMessage!,
-              textAlign: center ? TextAlign.center : TextAlign.start,
+  Widget _loading(AppTokens tokens) {
+    return _wrap(
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          if (loadingMessage != null) ...[
+            const SizedBox(height: AppSpacing.s12),
+            Text(
+              loadingMessage!,
               style: AppText.body.copyWith(color: tokens.textSecondary),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _empty(AppTokens tokens) {
+    return AppFadeIn(
+      child: _wrap(
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.s16),
+          child: Text(
+            emptyMessage!,
+            textAlign: center ? TextAlign.center : TextAlign.start,
+            style: AppText.body.copyWith(color: tokens.textSecondary),
           ),
         ),
-      );
-    }
-
-    // A resolve settles in once on mount; later data rebuilds swap in place.
-    return AppFadeIn(child: data(context, resolved));
+      ),
+    );
   }
 }
 

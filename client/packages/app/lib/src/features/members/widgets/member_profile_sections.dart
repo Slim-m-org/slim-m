@@ -185,7 +185,7 @@ String _sentenceCase(String? word) => word == null || word.isEmpty
 Color? profileRingColor(api.UserProfile profile) {
   final index = profile.profileColor;
   if (index == null) return null;
-  final cursors = AppCanvasColors.cursors;
+  const cursors = AppCanvasColors.cursors;
   return cursors[index % cursors.length];
 }
 

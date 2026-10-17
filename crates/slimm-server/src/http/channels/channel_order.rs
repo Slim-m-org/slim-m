@@ -258,7 +258,10 @@ mod tests {
     fn group(category: Option<&str>, channels: &[&str]) -> ReorderGroupRequest {
         ReorderGroupRequest {
             category_id: category.map(str::to_owned),
-            channel_ids: channels.iter().map(|s| s.to_string()).collect(),
+            channel_ids: channels
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
         }
     }
 

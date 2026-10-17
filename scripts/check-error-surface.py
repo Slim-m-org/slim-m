@@ -170,7 +170,7 @@ BARE_CATCH_HEADER = re.compile(
     r"^(?P<indent>[ \t]*)(?:\}[ \t]*)?catch[ \t]*\([^)]*\)[ \t]*\{[ \t]*$"
 )
 CATCH_ERROR_HEADER = re.compile(
-    r"^(?P<indent>[ \t]*)[^\n]*\.catchError\([ \t]*\([^)]*\)[ \t]*\{[ \t]*$"
+    r"^(?P<indent>[ \t]*)(?:\S[^\n]*)?\.catchError\([ \t]*\([^)]*\)[ \t]*\{[ \t]*$"
 )
 SHOWS_SNACKBAR = re.compile(r"ScaffoldMessenger|SnackBar\(|showAppSnackbar\(")
 
@@ -180,7 +180,7 @@ GUARDED_THEN = re.compile(r"\brunGuarded\((?:.|\n)*?\)\s*\.then\(\(\s*(\w+)\s*\)
 SNACKBAR_CALL = re.compile(r"\bshowAppSnackbar\(")
 TOP_LEVEL_HEADER = re.compile(r"^[A-Za-z_@]")
 TYPE_HEADER = re.compile(r"^(?:abstract\s+|final\s+|base\s+)*(?:class|mixin|extension|enum)\b")
-MEMBER_HEADER = re.compile(r"^  [A-Za-z_]")
+MEMBER_HEADER = re.compile(r"^ {2}[A-Za-z_]")
 
 
 def function_start(lines: list[str], index: int) -> int:
@@ -230,7 +230,7 @@ def guarded_snackbars(source: str):
         arguments = call_arguments(source, match.end() - 1)
         for name in sorted(bound):
             if re.search(rf"\b{re.escape(name)}\b", arguments):
-                header = re.search(r"(\w+)\s*\(", lines[start])
+                header = re.search(r"\b(\w+)\s*\(", lines[start])
                 yield line + 1, header.group(1) if header else ""
                 break
 

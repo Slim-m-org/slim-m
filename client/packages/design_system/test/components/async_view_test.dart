@@ -50,7 +50,7 @@ void main() {
       await _pump(
         tester,
         AppAsyncView<List<int>>(
-          value: AppAsyncState(data: const [1, 2, 3], error: 'boom'),
+          value: const AppAsyncState(data: [1, 2, 3], error: 'boom'),
           data: (context, list) => Text('${list.length} items'),
           errorMessage: 'Could not load the list.',
           onRetry: () => retried = true,
@@ -76,7 +76,7 @@ void main() {
           children: [
             Expanded(
               child: AppAsyncView<List<int>>(
-                value: AppAsyncState(data: const [1, 2, 3], error: 'boom'),
+                value: const AppAsyncState(data: [1, 2, 3], error: 'boom'),
                 data: (context, list) => ListView.builder(
                   itemCount: list.length,
                   itemBuilder: (context, i) => Text('row ${list[i]}'),
@@ -106,7 +106,7 @@ void main() {
             body: ListView(
               children: [
                 AppAsyncView<List<int>>(
-                  value: AppAsyncState(data: const [1, 2, 3], error: 'boom'),
+                  value: const AppAsyncState(data: [1, 2, 3], error: 'boom'),
                   data: (context, list) => Column(
                     children: [
                       for (final n in list) Text('row $n'),

@@ -38,7 +38,7 @@ void main() {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'make this channel not give me notis',
                           style: AppText.body,
                         ),

@@ -10,7 +10,7 @@
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-static NAMES: LazyLock<HashSet<&'static str>> =
+static NAMES: LazyLock<HashSet<&str>> =
     LazyLock::new(|| include_str!("builtin_names.txt").lines().collect());
 
 /// True when `name` (already normalised) is a standard emoji's shortcode.

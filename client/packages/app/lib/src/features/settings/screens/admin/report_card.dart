@@ -165,40 +165,17 @@ class _ReportCardState extends ConsumerState<ReportCard>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final report = widget.report;
     final profiles = ref.watch(batchProfilesControllerProvider);
     // A reconnect clears the cache and a rename evicts an id; ask again for what went missing.
     ref.listen(batchProfilesControllerProvider, (_, _) => _requestProfiles());
-    final me = ref.watch(meProvider).valueOrNull;
-    final mine = ref.watch(myPermissionsProvider);
-    final knownUsernames = knownUsernamesFrom(ref.watch(membersProvider));
-    final knownRoleNames = knownRoleNamesFrom(ref.watch(membersProvider));
-    final customEmoji = ref.watch(customEmojiIndexProvider);
-
-    final isMessageReport = report.subjectKind == api.ReportSubject.message;
-    final isPrivateBotReport =
-        report.subjectKind == api.ReportSubject.ephemeralMessage;
-    final hasAuthor = isMessageReport || isPrivateBotReport;
-    final targetUserId = hasAuthor ? report.subjectAuthorId : report.subjectId;
-    final targetName = hasAuthor
-        ? authorHeadline(report.subjectAuthorId, profiles)
-        : subjectHeadline(report.subjectId, profiles);
-    final isSelf = targetUserId != null && me != null && targetUserId == me.id;
-
-    final canJump = isMessageReport && report.channelId != null;
-    final jumpEnabled = canJump && (_channelReachable ?? false);
-    // This report's own channel figure, never mine - a DM's never carries it.
-    final canDeleteMessage =
-        isMessageReport &&
-        (report.channelPermissions?.hasPermission(Perm.manageMessages) ??
-            false);
-    final canTimeOut =
-        targetUserId != null && !isSelf && mine.hasPermission(Perm.kickMembers);
-    final canRemove =
-        targetUserId != null && !isSelf && mine.hasPermission(Perm.banMembers);
-    final hasQuickActions =
-        canJump || canDeleteMessage || canTimeOut || canRemove;
+    final facts = _ReportFacts(
+      report: report,
+      profiles: profiles,
+      meId: ref.watch(meProvider).valueOrNull?.id,
+      permissions: ref.watch(myPermissionsProvider),
+      channelReachable: _channelReachable ?? false,
+    );
 
     return SettingsSectionCard(
       title: switch (report.subjectKind) {
@@ -207,47 +184,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
         api.ReportSubject.user => 'Reported user',
       },
       children: [
-        SettingsCardBlock(
-          gap: AppSpacing.s8,
-          children: [
-            ReportLabeledValue(
-              // 'Subject' rather than repeating the card's own title.
-              label: isMessageReport
-                  ? 'Reported author'
-                  : isPrivateBotReport
-                  ? 'Reported bot'
-                  : 'Subject',
-              value: targetName,
-            ),
-            Text(
-              report.reason,
-              style: AppText.body.copyWith(color: tokens.textPrimary),
-            ),
-            if (isPrivateBotReport)
-              Text(
-                'The server kept no copy. This is the text the reporter says they were shown.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            if (report.snapshot != null)
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.s8),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceSunken,
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                ),
-                // Bounded and scrolling, not clipped, so one long paste cannot grow past the rest.
-                constraints: const BoxConstraints(maxHeight: 160),
-                child: SingleChildScrollView(
-                  child: MessageBody(
-                    content: report.snapshot!,
-                    knownUsernames: knownUsernames,
-                    knownRoleNames: knownRoleNames,
-                    customEmoji: customEmoji,
-                  ),
-                ),
-              ),
-          ],
-        ),
+        _subjectBlock(facts),
         SettingsValueRow(
           label: 'Reporter',
           value: reporterLabel(report.reporterId, profiles),
@@ -260,9 +197,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
           ),
         ),
         // Only shown when it would clarify something: without either bit, no quick actions was already the ordinary reason.
-        if (isSelf &&
-            (mine.hasPermission(Perm.kickMembers) ||
-                mine.hasPermission(Perm.banMembers)))
+        if (facts.isSelf && facts.canModerateAnyone)
           const SettingsCardBlock(
             children: [
               ModerationUnavailableCaption(
@@ -271,85 +206,189 @@ class _ReportCardState extends ConsumerState<ReportCard>
               ),
             ],
           ),
-        if (hasQuickActions)
-          SettingsCardBlock(
-            children: [
-              ReportQuickActions(
-                busy: _busy,
-                jumpEnabled: canJump ? jumpEnabled : null,
-                onJump: canJump ? _jump : null,
-                onDelete: canDeleteMessage
-                    ? () => unawaited(
-                        _runQuickAction(
-                          (g) => deleteReportedMessage(
-                            context,
-                            ref,
-                            g,
-                            channelId: report.channelId!,
-                            messageId: report.subjectId,
-                            reportId: report.id,
-                          ),
-                        ),
-                      )
-                    : null,
-                onRemove: canRemove
-                    ? () => unawaited(
-                        _runQuickAction(
-                          (g) => removeReportedAuthor(
-                            context,
-                            ref,
-                            g,
-                            userId: targetUserId,
-                            name: targetName,
-                            reportId: report.id,
-                          ),
-                        ),
-                      )
-                    : null,
-                onTimeOut: canTimeOut
-                    ? (d) => unawaited(
-                        _runQuickAction(
-                          (g) => timeOutReportedAuthor(
-                            ref,
-                            g,
-                            userId: targetUserId,
-                            duration: d,
-                            reportId: report.id,
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-            ],
-          ),
-        SettingsCardBlock(
-          gap: AppSpacing.s12,
-          children: [
-            if (actionError != null)
-              AppErrorState(message: actionError!, onDismiss: clearActionError),
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: AppSpacing.s8,
-              runSpacing: AppSpacing.s8,
-              children: [
-                AppButton(
-                  label: 'Dismiss',
-                  icon: AppIcons.dismiss,
-                  disabled: _busy,
-                  onPressed: () => _resolve(api.ReportResolution.dismissed),
-                ),
-                AppButton(
-                  label: 'Resolve',
-                  icon: AppIcons.check,
-                  variant: AppButtonVariant.primary,
-                  disabled: _busy,
-                  onPressed: () => _resolve(api.ReportResolution.resolved),
-                ),
-              ],
-            ),
-          ],
-        ),
+        if (facts.hasQuickActions)
+          SettingsCardBlock(children: [_quickActions(facts)]),
+        _resolveBlock(),
       ],
     );
   }
+
+  Widget _subjectBlock(_ReportFacts facts) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final report = widget.report;
+    final snapshot = report.snapshot;
+    return SettingsCardBlock(
+      gap: AppSpacing.s8,
+      children: [
+        // 'Subject' rather than repeating the card's own title.
+        ReportLabeledValue(label: facts.subjectLabel, value: facts.targetName),
+        Text(
+          report.reason,
+          style: AppText.body.copyWith(color: tokens.textPrimary),
+        ),
+        if (facts.isPrivateBotReport)
+          Text(
+            'The server kept no copy. This is the text the reporter says they were shown.',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        if (snapshot != null) _snapshotBox(tokens, snapshot),
+      ],
+    );
+  }
+
+  Widget _snapshotBox(AppTokens tokens, String snapshot) {
+    final members = ref.watch(membersProvider);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.s8),
+      decoration: BoxDecoration(
+        color: tokens.surfaceSunken,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      // Bounded and scrolling, not clipped, so one long paste cannot grow past the rest.
+      constraints: const BoxConstraints(maxHeight: 160),
+      child: SingleChildScrollView(
+        child: MessageBody(
+          content: snapshot,
+          knownUsernames: knownUsernamesFrom(members),
+          knownRoleNames: knownRoleNamesFrom(members),
+          customEmoji: ref.watch(customEmojiIndexProvider),
+        ),
+      ),
+    );
+  }
+
+  Widget _quickActions(_ReportFacts facts) {
+    final report = widget.report;
+    final targetUserId = facts.targetUserId;
+    return ReportQuickActions(
+      busy: _busy,
+      jumpEnabled: facts.canJump ? facts.jumpEnabled : null,
+      onJump: facts.canJump ? _jump : null,
+      onDelete: facts.canDeleteMessage
+          ? () => unawaited(
+              _runQuickAction(
+                (g) => deleteReportedMessage(
+                  context,
+                  ref,
+                  g,
+                  channelId: report.channelId!,
+                  messageId: report.subjectId,
+                  reportId: report.id,
+                ),
+              ),
+            )
+          : null,
+      onRemove: facts.canRemove
+          ? () => unawaited(
+              _runQuickAction(
+                (g) => removeReportedAuthor(
+                  context,
+                  ref,
+                  g,
+                  userId: targetUserId!,
+                  name: facts.targetName,
+                  reportId: report.id,
+                ),
+              ),
+            )
+          : null,
+      onTimeOut: facts.canTimeOut
+          ? (d) => unawaited(
+              _runQuickAction(
+                (g) => timeOutReportedAuthor(
+                  ref,
+                  g,
+                  userId: targetUserId!,
+                  duration: d,
+                  reportId: report.id,
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _resolveBlock() => SettingsCardBlock(
+    gap: AppSpacing.s12,
+    children: [
+      if (actionError != null)
+        AppErrorState(message: actionError!, onDismiss: clearActionError),
+      Wrap(
+        alignment: WrapAlignment.end,
+        spacing: AppSpacing.s8,
+        runSpacing: AppSpacing.s8,
+        children: [
+          AppButton(
+            label: 'Dismiss',
+            icon: AppIcons.dismiss,
+            disabled: _busy,
+            onPressed: () => _resolve(api.ReportResolution.dismissed),
+          ),
+          AppButton(
+            label: 'Resolve',
+            icon: AppIcons.check,
+            variant: AppButtonVariant.primary,
+            disabled: _busy,
+            onPressed: () => _resolve(api.ReportResolution.resolved),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+/// What a report and the viewer's permissions allow, derived once per build.
+class _ReportFacts {
+  _ReportFacts({
+    required this.report,
+    required this.profiles,
+    required this.meId,
+    required this.permissions,
+    required this.channelReachable,
+  });
+
+  final api.Report report;
+  final Map<String, api.UserProfile?> profiles;
+  final String? meId;
+  final int permissions;
+  final bool channelReachable;
+
+  bool get isMessageReport => report.subjectKind == api.ReportSubject.message;
+  bool get isPrivateBotReport =>
+      report.subjectKind == api.ReportSubject.ephemeralMessage;
+  bool get _hasAuthor => isMessageReport || isPrivateBotReport;
+
+  String? get targetUserId =>
+      _hasAuthor ? report.subjectAuthorId : report.subjectId;
+
+  String get targetName => _hasAuthor
+      ? authorHeadline(report.subjectAuthorId, profiles)
+      : subjectHeadline(report.subjectId, profiles);
+
+  String get subjectLabel {
+    if (isMessageReport) return 'Reported author';
+    return isPrivateBotReport ? 'Reported bot' : 'Subject';
+  }
+
+  bool get isSelf => targetUserId != null && targetUserId == meId;
+
+  bool get canJump => isMessageReport && report.channelId != null;
+  bool get jumpEnabled => canJump && channelReachable;
+
+  // This report's own channel figure, never mine - a DM's never carries it.
+  bool get canDeleteMessage =>
+      isMessageReport &&
+      (report.channelPermissions?.hasPermission(Perm.manageMessages) ?? false);
+
+  bool get _canActOnTarget => targetUserId != null && !isSelf;
+  bool get canTimeOut =>
+      _canActOnTarget && permissions.hasPermission(Perm.kickMembers);
+  bool get canRemove =>
+      _canActOnTarget && permissions.hasPermission(Perm.banMembers);
+  bool get canModerateAnyone =>
+      permissions.hasPermission(Perm.kickMembers) ||
+      permissions.hasPermission(Perm.banMembers);
+
+  bool get hasQuickActions =>
+      canJump || canDeleteMessage || canTimeOut || canRemove;
 }

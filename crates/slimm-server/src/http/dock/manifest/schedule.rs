@@ -88,7 +88,7 @@ mod tests {
     }
 
     fn caps(list: &[&str]) -> Vec<String> {
-        list.iter().map(|c| c.to_string()).collect()
+        list.iter().map(std::string::ToString::to_string).collect()
     }
 
     #[test]

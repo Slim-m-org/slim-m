@@ -291,43 +291,45 @@ String describeCanvasActivityEntry(
   String? Function(String userId)? nameFor,
 }) {
   final who = entry.actorId == null ? null : nameFor?.call(entry.actorId!);
-  switch (entry.kind) {
-    case CanvasActivityKind.placed:
-      final what = switch (entry.objectKind) {
-        'image' => 'an image',
-        'note' => 'a note',
-        'shape' => 'a shape',
-        _ => 'a stroke',
-      };
-      final detail = entry.detail == null ? '' : ': ${entry.detail}';
-      return who == null
-          ? 'Someone placed $what$detail.'
-          : '$who placed $what$detail.';
-    case CanvasActivityKind.moved:
-      return who == null ? 'An object was moved.' : '$who moved an object.';
-    case CanvasActivityKind.reordered:
-      return who == null
+  return switch (entry.kind) {
+    CanvasActivityKind.placed => _describePlaced(entry, who),
+    CanvasActivityKind.moved =>
+      who == null ? 'An object was moved.' : '$who moved an object.',
+    CanvasActivityKind.reordered =>
+      who == null
           ? "An object's stacking order changed."
-          : "$who changed an object's stacking order.";
-    case CanvasActivityKind.removed:
-      final what = entry.count == 1 ? 'An object' : '${entry.count} objects';
-      final verb = entry.count == 1 ? 'was' : 'were';
-      return who == null
-          ? '$what $verb removed.'
-          : '$who removed ${what.toLowerCase()}.';
-    case CanvasActivityKind.cleared:
-      return who == null
-          ? 'The canvas was cleared.'
-          : '$who cleared the canvas.';
-    case CanvasActivityKind.restored:
-      final what = entry.count == 1 ? 'An object' : '${entry.count} objects';
-      final verb = entry.count == 1 ? 'was' : 'were';
-      return who == null
-          ? '$what $verb restored.'
-          : '$who restored ${what.toLowerCase()}.';
-    case CanvasActivityKind.resynced:
-      return 'The canvas reloaded from the server.';
-  }
+          : "$who changed an object's stacking order.",
+    CanvasActivityKind.removed => _describeCounted(entry.count, who, 'removed'),
+    CanvasActivityKind.cleared =>
+      who == null ? 'The canvas was cleared.' : '$who cleared the canvas.',
+    CanvasActivityKind.restored => _describeCounted(
+      entry.count,
+      who,
+      'restored',
+    ),
+    CanvasActivityKind.resynced => 'The canvas reloaded from the server.',
+  };
+}
+
+String _describePlaced(CanvasActivityEntry entry, String? who) {
+  final what = switch (entry.objectKind) {
+    'image' => 'an image',
+    'note' => 'a note',
+    'shape' => 'a shape',
+    _ => 'a stroke',
+  };
+  final detail = entry.detail == null ? '' : ': ${entry.detail}';
+  return who == null
+      ? 'Someone placed $what$detail.'
+      : '$who placed $what$detail.';
+}
+
+String _describeCounted(int count, String? who, String pastParticiple) {
+  final what = count == 1 ? 'An object' : '$count objects';
+  final verb = count == 1 ? 'was' : 'were';
+  return who == null
+      ? '$what $verb $pastParticiple.'
+      : '$who $pastParticiple ${what.toLowerCase()}.';
 }
 
 String _kindLabel(CanvasActivityKind kind) => switch (kind) {

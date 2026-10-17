@@ -71,8 +71,11 @@ jobs:
 
       - name: stage binary
         id: stage
+        env:
+          SERVER_VERSION: ${{ inputs.server_version }}
+          ARCH: ${{ matrix.arch }}
         run: |
-          name="slimm-server-${{ inputs.server_version }}-linux-${{ matrix.arch }}"
+          name="slimm-server-${SERVER_VERSION}-linux-${ARCH}"
           file "target/release/slimm-server" | grep -q "static" || { echo "::error::the binary is not statically linked"; exit 1; }
           install -Dm755 "target/release/slimm-server" "dist/${name}"
           echo "name=${name}" >> "$GITHUB_OUTPUT"

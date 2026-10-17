@@ -95,12 +95,12 @@ mod tests {
     use super::*;
 
     fn caps(list: &[&str]) -> Vec<String> {
-        list.iter().map(|c| c.to_string()).collect()
+        list.iter().map(std::string::ToString::to_string).collect()
     }
 
     fn raw(hosts: &[&str], local: bool) -> Option<RawNetwork> {
         Some(RawNetwork {
-            hosts: hosts.iter().map(|h| h.to_string()).collect(),
+            hosts: hosts.iter().map(std::string::ToString::to_string).collect(),
             local,
         })
     }

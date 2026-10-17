@@ -36,7 +36,7 @@ client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
 client/packages/app/lib/src/providers/providers.dart 4
 client/packages/app/lib/src/providers/push_controller.dart 4
 client/packages/app/lib/src/features/emoji/providers/recent_emoji.dart 1
-client/packages/app/lib/src/features/voice/providers/voice_controller.dart 4
+client/packages/app/lib/src/features/voice/providers/voice_controller.dart 3
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
 client/packages/app/lib/src/features/settings/screens/admin/invite_role_grant_picker.dart 1
@@ -46,7 +46,6 @@ client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart 2
 client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart 5
 client/packages/app/lib/src/features/voice/widgets/voice_call_controls.dart 3
 client/packages/app/lib/src/features/voice/screens/voice_screen.dart 3
-client/packages/app/lib/src/features/messages/widgets/attachment_view.dart 1
 client/packages/app/lib/src/features/members/widgets/avatar_crop_sheet.dart 1
 client/packages/app/lib/src/features/members/widgets/avatar_settings_section.dart 1
 client/packages/app/lib/src/features/channels/widgets/channel_header.dart 3
@@ -67,7 +66,6 @@ client/packages/app/lib/src/features/messages/widgets/message_edit_field.dart 2
 client/packages/app/lib/src/features/messages/widgets/message_row.dart 2
 client/packages/app/lib/src/features/messages/widgets/message_row_identity.dart 1
 client/packages/app/lib/src/features/messages/widgets/message_row_parts.dart 1
-client/packages/app/lib/src/features/messages/widgets/message_transcript.dart 1
 client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart 1
 client/packages/app/lib/src/features/members/widgets/presence_menu.dart 2
 client/packages/app/lib/src/widgets/server_fingerprint_step.dart 1

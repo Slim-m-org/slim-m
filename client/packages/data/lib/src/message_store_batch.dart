@@ -22,18 +22,7 @@ Future<void> _applyMessagesBatched(
           in await (db.select(db.messages)..where((m) => m.id.isIn(ids))).get())
         row.id: row,
     };
-
-    // Same stale-and-pending rules as applyMessage, resolved once against the pre-read rows and across duplicate ids in the batch (highest seq wins; an equal seq lets the later copy overwrite, as a re-apply does).
-    final winners = <String, api.Message>{};
-    for (final message in incoming) {
-      final chosen = winners[message.id];
-      if (chosen != null && chosen.seq > message.seq) continue;
-      final prior = stored[message.id];
-      if (prior != null && !prior.pending && prior.seq > message.seq) {
-        continue;
-      }
-      winners[message.id] = message;
-    }
+    final winners = _batchWinners(incoming, stored);
     if (winners.isEmpty) return;
 
     await db.batch((batch) {
@@ -42,19 +31,10 @@ Future<void> _applyMessagesBatched(
       ]);
     });
 
-    final furthest = <String, int>{};
-    final furthestMention = <String, int>{};
-    for (final message in winners.values) {
-      final current = furthest[message.channelId];
-      if (current == null || message.seq > current) {
-        furthest[message.channelId] = message.seq;
-      }
-      if (!message.mentionsMe) continue;
-      final currentMention = furthestMention[message.channelId];
-      if (currentMention == null || message.seq > currentMention) {
-        furthestMention[message.channelId] = message.seq;
-      }
-    }
+    final furthest = _furthestSeqByChannel(winners.values);
+    final furthestMention = _furthestSeqByChannel(
+      winners.values.where((m) => m.mentionsMe),
+    );
     for (final entry in furthest.entries) {
       await store._advanceCursor(entry.key, entry.value);
     }
@@ -62,4 +42,31 @@ Future<void> _applyMessagesBatched(
       await store._advanceMentionCursor(entry.key, entry.value);
     }
   });
+}
+
+// Same stale-and-pending rules as applyMessage, resolved once against the pre-read rows and across duplicate ids in the batch (highest seq wins; an equal seq lets the later copy overwrite, as a re-apply does).
+Map<String, api.Message> _batchWinners(
+  List<api.Message> incoming,
+  Map<String, MessageRow> stored,
+) {
+  final winners = <String, api.Message>{};
+  for (final message in incoming) {
+    final chosen = winners[message.id];
+    if (chosen != null && chosen.seq > message.seq) continue;
+    final prior = stored[message.id];
+    if (prior != null && !prior.pending && prior.seq > message.seq) continue;
+    winners[message.id] = message;
+  }
+  return winners;
+}
+
+Map<String, int> _furthestSeqByChannel(Iterable<api.Message> messages) {
+  final furthest = <String, int>{};
+  for (final message in messages) {
+    final current = furthest[message.channelId];
+    if (current == null || message.seq > current) {
+      furthest[message.channelId] = message.seq;
+    }
+  }
+  return furthest;
 }

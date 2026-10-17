@@ -145,16 +145,21 @@ class CanvasImageHydrator {
       try {
         return await client.fetchAttachment(attachmentId);
       } on api.ApiException catch (error) {
-        if (!_isTransient(error) || attempt >= imageFetchAttempts) rethrow;
-        final named = error is api.RateLimitedException
-            ? error.retryAfter
-            : null;
-        if (named != null && named > rateLimitMaxWait) rethrow;
-        await wait(named ?? backoff);
+        final delay = _retryDelay(error, attempt, backoff);
+        if (delay == null) rethrow;
+        await wait(delay);
         backoff *= 2;
         if (_disposed) rethrow;
       }
     }
+  }
+
+  /// Null means give up and surface the error.
+  Duration? _retryDelay(api.ApiException error, int attempt, Duration backoff) {
+    if (!_isTransient(error) || attempt >= imageFetchAttempts) return null;
+    final named = error is api.RateLimitedException ? error.retryAfter : null;
+    if (named != null && named > rateLimitMaxWait) return null;
+    return named ?? backoff;
   }
 
   static bool _isTransient(api.ApiException error) =>

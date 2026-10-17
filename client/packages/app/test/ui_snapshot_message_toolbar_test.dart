@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'features/messages/message_row_harness.dart';
 import 'ui_snapshot_support.dart';
 
-MessageActions get _own => MessageActions(
+MessageActions get _own => const MessageActions(
   canReply: true,
   onReply: noop,
   canEdit: true,

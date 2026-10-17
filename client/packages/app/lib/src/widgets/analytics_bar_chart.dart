@@ -229,7 +229,7 @@ class _BarsPainter extends CustomPainter {
     // The height the stated maximum describes, so the number names a real line.
     if (drawGridline) {
       canvas.drawLine(
-        Offset(0, 0.5),
+        const Offset(0, 0.5),
         Offset(size.width, 0.5),
         Paint()
           ..color = gridlineColor.withValues(alpha: 0.5)

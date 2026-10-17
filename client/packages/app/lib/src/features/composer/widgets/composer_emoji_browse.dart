@@ -186,9 +186,9 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   /// at once.
   String _announcement(bool searching, int resultCount) {
     if (!searching) return 'Browse all emoji.';
-    return resultCount == 0
-        ? 'No matches.'
-        : '$resultCount ${resultCount == 1 ? 'result' : 'results'} found.';
+    if (resultCount == 0) return 'No matches.';
+    final noun = resultCount == 1 ? 'result' : 'results';
+    return '$resultCount $noun found.';
   }
 
   Map<ShortcutActivator, VoidCallback> _bindings() {

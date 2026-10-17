@@ -17,7 +17,7 @@ spec="${1:?usage: copr-snapshot-release.sh <spec> [rev]}"
 rev="${2:-HEAD}"
 
 base="$(sed -n 's/^Release:[[:space:]]*\([0-9][0-9]*\)\([^0-9].*\)\{0,1\}$/\1/p' "$spec" | head -n1)"
-if [ -z "$base" ]; then
+if [[ -z "$base" ]]; then
   echo "no integer Release: line in ${spec}" >&2
   exit 1
 fi

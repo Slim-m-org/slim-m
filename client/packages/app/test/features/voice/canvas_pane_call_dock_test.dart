@@ -94,7 +94,7 @@ void main() {
   for (final (label, state, expectControls) in [
     (
       'a failed call auto-rejoining in this channel keeps',
-      VoiceState(
+      const VoiceState(
         channelId: 'c1',
         state: VoiceSessionState.failed,
         rejoining: true,
@@ -103,7 +103,7 @@ void main() {
     ),
     (
       'an auto-rejoin attempt in flight in this channel keeps',
-      VoiceState(
+      const VoiceState(
         channelId: 'c1',
         state: VoiceSessionState.connecting,
         joining: true,
@@ -113,12 +113,12 @@ void main() {
     ),
     (
       'a failed call that is not rejoining drops',
-      VoiceState(channelId: 'c1', state: VoiceSessionState.failed),
+      const VoiceState(channelId: 'c1', state: VoiceSessionState.failed),
       false,
     ),
     (
       'an auto-rejoin in a different channel does not give this canvas',
-      VoiceState(
+      const VoiceState(
         channelId: 'elsewhere',
         state: VoiceSessionState.failed,
         rejoining: true,

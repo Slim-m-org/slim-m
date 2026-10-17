@@ -37,7 +37,7 @@ void main() {
     /// product's own 44-48dp touch-target floor, and a caller on a touch
     /// surface has to be able to widen it.
     test('an explicit hitRadius widens what a corner catches', () {
-      final justOutsideDefault = Offset(100 + resizeHandleHitRadius + 1, 100);
+      const justOutsideDefault = Offset(100 + resizeHandleHitRadius + 1, 100);
       expect(
         hitTestResizeHandle(_box, justOutsideDefault, 1),
         isNull,
@@ -60,7 +60,7 @@ void main() {
       'balloons zoomed in',
       () {
         // At zoom 1 the hit radius is resizeHandleHitRadius world units.
-        final justOutsideAtZoom1 = Offset(
+        const justOutsideAtZoom1 = Offset(
           100 + resizeHandleHitRadius + 1,
           100,
         );
@@ -79,7 +79,7 @@ void main() {
       'becomes unhittable zoomed out',
       () {
         // Zoomed out 10x, the same screen radius covers 10x the world space.
-        final farInWorldSpace = Offset(
+        const farInWorldSpace = Offset(
           100 + resizeHandleHitRadius * 5,
           100,
         );

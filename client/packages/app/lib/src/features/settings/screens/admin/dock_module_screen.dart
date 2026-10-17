@@ -163,23 +163,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
         .valueOrNull
         ?.installedFor(manifest.id);
     final approved = _approvedFor(manifest, current);
-    final asked = newConsentCapabilities(manifest, current);
-    final verified = dockIsVerified(widget.source);
-    if (dockNeedsConsent(
-      newCapabilities: asked,
-      verified: verified,
-      firstInstall: !wasInstalled,
-    )) {
-      final agreed = await showDockInstallConsent(
-        context,
-        manifest: manifest,
-        capabilities: asked,
-        verified: verified,
-        isUpdate: wasInstalled,
-        localNetwork: _localFor(manifest, current, approved),
-      );
-      if (!agreed || !mounted) return;
-    }
+    if (!await _consented(manifest, current, approved, wasInstalled)) return;
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: wasInstalled
@@ -205,7 +189,39 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
         _localNetwork = null;
       }
     });
-    if (!ok) return;
+    if (ok) await _afterInstall(manifest, wasInstalled);
+  }
+
+  /// False when the admin declined or left the screen; true when no consent was due.
+  Future<bool> _consented(
+    api.DockManifest manifest,
+    api.InstalledDockModule? current,
+    Set<String> approved,
+    bool wasInstalled,
+  ) async {
+    final asked = newConsentCapabilities(manifest, current);
+    final verified = dockIsVerified(widget.source);
+    final needed = dockNeedsConsent(
+      newCapabilities: asked,
+      verified: verified,
+      firstInstall: !wasInstalled,
+    );
+    if (!needed) return true;
+    final agreed = await showDockInstallConsent(
+      context,
+      manifest: manifest,
+      capabilities: asked,
+      verified: verified,
+      isUpdate: wasInstalled,
+      localNetwork: _localFor(manifest, current, approved),
+    );
+    return agreed && mounted;
+  }
+
+  Future<void> _afterInstall(
+    api.DockManifest manifest,
+    bool wasInstalled,
+  ) async {
     showAppSnackbar(
       context,
       wasInstalled
@@ -218,18 +234,17 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     ref.invalidate(codeBlockRunnerProvider);
     ref.invalidate(slashCommandProvider);
     ref.invalidate(appLaunchProvider);
-    if (!wasInstalled && mounted) {
-      // Installed is not usable until somebody is granted it; see that screen's doc.
-      if (manifest.permissions.isNotEmpty) {
-        unawaited(
-          context.push(
-            Routes.adminDockModuleAccess(manifest.id, source: widget.source),
-          ),
-        );
-      } else {
-        // Nothing to grant, so there is no later moment to turn it on at.
-        await _setEnabled(manifest.name, true);
-      }
+    if (wasInstalled || !mounted) return;
+    // Installed is not usable until somebody is granted it; see that screen's doc.
+    if (manifest.permissions.isNotEmpty) {
+      unawaited(
+        context.push(
+          Routes.adminDockModuleAccess(manifest.id, source: widget.source),
+        ),
+      );
+    } else {
+      // Nothing to grant, so there is no later moment to turn it on at.
+      await _setEnabled(manifest.name, true);
     }
   }
 

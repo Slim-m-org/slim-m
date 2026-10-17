@@ -10,7 +10,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.dart';
 import 'package:slimm_data/data.dart' show Channel;
 
-final _general = Channel(
+const _general = Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -29,7 +29,7 @@ final channelSettingsFixtureRoute = GoRoute(
   path: Routes.channelSettings,
   pageBuilder: (context, state) => modalPage(
     context,
-    ChannelSettingsScreen(
+    const ChannelSettingsScreen(
       args: ChannelSettingsRouteArgs(channel: _general, wasOpen: false),
     ),
   ),

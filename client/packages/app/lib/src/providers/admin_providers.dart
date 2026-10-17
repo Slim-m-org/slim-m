@@ -111,50 +111,63 @@ final channelOverwritesSyncedProvider = FutureProvider.autoDispose
 /// the editor showing a stale allow/deny pair.
 final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
   final selfId = ref.read(sessionProvider).tokens?.userId;
-  // ref.invalidate on a never-watched provider mounts and fetches it.
-  void refreshVisibleChannels() {
-    if (ref.exists(myVisibleChannelsProvider)) {
-      ref.invalidate(myVisibleChannelsProvider);
-    }
-  }
-
-  final sub = ref.read(liveEventsProvider).listen((event) {
-    if (event is api.RoleChanged || event is api.MemberRoleChanged) {
-      ref.invalidate(rolesProvider);
-      ref.invalidate(meProvider);
-      ref.invalidate(channelPermissionsProvider);
-      refreshVisibleChannels();
-      // A module-permission grant/revoke publishes RoleChanged too.
-      if (event is api.RoleChanged &&
-          ref.exists(roleModulePermissionsProvider(event.roleId))) {
-        ref.invalidate(roleModulePermissionsProvider(event.roleId));
-      }
-    } else if (event is api.MemberTimeoutChanged && event.userId == selfId) {
-      ref.invalidate(meProvider);
-      ref.invalidate(channelPermissionsProvider);
-      refreshVisibleChannels();
-    } else if (event is api.JoinGateChanged &&
-        (event.userId == null || event.userId == selfId)) {
-      ref.invalidate(channelPermissionsProvider);
-      refreshVisibleChannels();
-      if (ref.exists(spaceRulesProvider)) ref.invalidate(spaceRulesProvider);
-    } else if (event is api.OverwriteChanged) {
-      ref.invalidate(channelPermissionsProvider(event.channelId));
-      if (ref.exists(channelOverwritesProvider(event.channelId))) {
-        ref.invalidate(channelOverwritesProvider(event.channelId));
-      }
-      if (ref.exists(channelOverwritesSyncedProvider(event.channelId))) {
-        ref.invalidate(channelOverwritesSyncedProvider(event.channelId));
-      }
-      // An overwrite can grant or revoke view, so who the channel lists is now wrong.
-      if (ref.exists(channelMembersProvider(event.channelId))) {
-        ref.invalidate(channelMembersProvider(event.channelId));
-      }
-      refreshVisibleChannels();
-    }
-  });
+  final sub = ref
+      .read(liveEventsProvider)
+      .listen((event) => _applyRoleEvent(ref, event, selfId));
   ref.onDispose(() => unawaited(sub.cancel()));
 });
+
+void _applyRoleEvent(Ref ref, Object event, String? selfId) {
+  if (event is api.RoleChanged || event is api.MemberRoleChanged) {
+    _onRoleChanged(ref, event);
+  } else if (event is api.MemberTimeoutChanged && event.userId == selfId) {
+    ref.invalidate(meProvider);
+    ref.invalidate(channelPermissionsProvider);
+    _refreshVisibleChannels(ref);
+  } else if (event is api.JoinGateChanged &&
+      (event.userId == null || event.userId == selfId)) {
+    ref.invalidate(channelPermissionsProvider);
+    _refreshVisibleChannels(ref);
+    if (ref.exists(spaceRulesProvider)) ref.invalidate(spaceRulesProvider);
+  } else if (event is api.OverwriteChanged) {
+    _onOverwriteChanged(ref, event);
+  }
+}
+
+// ref.invalidate on a never-watched provider mounts and fetches it.
+void _refreshVisibleChannels(Ref ref) {
+  if (ref.exists(myVisibleChannelsProvider)) {
+    ref.invalidate(myVisibleChannelsProvider);
+  }
+}
+
+void _onRoleChanged(Ref ref, Object event) {
+  ref.invalidate(rolesProvider);
+  ref.invalidate(meProvider);
+  ref.invalidate(channelPermissionsProvider);
+  _refreshVisibleChannels(ref);
+  // A module-permission grant/revoke publishes RoleChanged too.
+  if (event is api.RoleChanged &&
+      ref.exists(roleModulePermissionsProvider(event.roleId))) {
+    ref.invalidate(roleModulePermissionsProvider(event.roleId));
+  }
+}
+
+void _onOverwriteChanged(Ref ref, api.OverwriteChanged event) {
+  final id = event.channelId;
+  ref.invalidate(channelPermissionsProvider(id));
+  if (ref.exists(channelOverwritesProvider(id))) {
+    ref.invalidate(channelOverwritesProvider(id));
+  }
+  if (ref.exists(channelOverwritesSyncedProvider(id))) {
+    ref.invalidate(channelOverwritesSyncedProvider(id));
+  }
+  // An overwrite can grant or revoke view, so who the channel lists is now wrong.
+  if (ref.exists(channelMembersProvider(id))) {
+    ref.invalidate(channelMembersProvider(id));
+  }
+  _refreshVisibleChannels(ref);
+}
 
 /// Every custom emoji in the deployment, oldest first.
 ///

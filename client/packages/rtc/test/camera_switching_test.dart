@@ -29,13 +29,13 @@ void main() {
     });
 
     test('a failure with no reason reports the bare cause unwrapped', () {
-      final result = CameraToggleResult.failed('boom', null);
+      const result = CameraToggleResult.failed('boom', null);
       expect(result.ok, isFalse);
       expect(result.error, same('boom'));
     });
 
     test('a failure with a reason wraps the cause in a CameraFailure', () {
-      final result = CameraToggleResult.failed(
+      const result = CameraToggleResult.failed(
         'boom',
         CameraFailureReason.permissionDenied,
       );

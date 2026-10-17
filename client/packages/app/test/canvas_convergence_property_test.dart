@@ -121,7 +121,7 @@ void expectConverged(
 void main() {
   group('canvas convergence', () {
     // Fewer seeds as JavaScript, which runs this about ten times slower; the point there is JS number semantics, not volume.
-    final seeds = kIsWeb ? 10 : 40;
+    const seeds = kIsWeb ? 10 : 40;
     test(
       'randomised logs converge across delivery patterns',
       timeout: const Timeout(Duration(minutes: 2)),

@@ -90,7 +90,7 @@ pub(super) struct Version {
 /// Which routes are mounted is a property of the binary, not of the request
 /// or the deployment's configuration, so asking once is the whole answer; the
 /// alternative is rebuilding the router on every unauthenticated `/version`.
-static CAPABILITIES: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+static CAPABILITIES: std::sync::OnceLock<Vec<&str>> = std::sync::OnceLock::new();
 
 async fn capabilities(state: AppState) -> Vec<&'static str> {
     if let Some(cached) = CAPABILITIES.get() {

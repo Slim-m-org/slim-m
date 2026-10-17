@@ -34,7 +34,7 @@ void main() {
   test('authorId threads from the input to the stored stroke', () {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document.applyPlaced(
-      CanvasStrokeInput(
+      const CanvasStrokeInput(
         id: 'a',
         seq: 1,
         zIndex: 1,
@@ -42,7 +42,7 @@ void main() {
         y: 0,
         w: 10,
         h: 10,
-        points: const [0, 0, 10, 10],
+        points: [0, 0, 10, 10],
         width: 3,
         colorKey: 'annotation',
         authorId: 'alice',
@@ -66,7 +66,7 @@ void main() {
   test('a one-point stroke (a tapped dot) is placed as a real object', () {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document.applyPlaced(
-      CanvasStrokeInput(
+      const CanvasStrokeInput(
         id: 'dot',
         seq: 1,
         zIndex: 1,
@@ -74,7 +74,7 @@ void main() {
         y: 5,
         w: 0,
         h: 0,
-        points: const [0, 0],
+        points: [0, 0],
         width: 3,
         colorKey: 'annotation',
       ),
@@ -276,7 +276,7 @@ void main() {
         ..applyPlaced(stroke('a'))
         ..applyPlaced(stroke('b'))
         ..applyPlaced(
-          CanvasStrokeInput(
+          const CanvasStrokeInput(
             id: 'c',
             seq: 1,
             zIndex: 1,
@@ -284,7 +284,7 @@ void main() {
             y: 0,
             w: 10,
             h: 10,
-            points: const [],
+            points: [],
             width: 0,
             colorKey: '',
             kind: CanvasObjectKind.image,

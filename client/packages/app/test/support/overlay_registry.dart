@@ -49,7 +49,7 @@ final _png = Uint8List.fromList([
 
 /// One row's worth of `channel_management_test.dart`'s own construction: the
 /// manage sheet needs the local drift row, not the wire `api.Channel`.
-final _localChannel = Channel(
+const _localChannel = Channel(
   id: 'c-general',
   name: 'general',
   kind: 'text',
@@ -130,7 +130,7 @@ final overlays = <String, FutureOr<void> Function(BuildContext, WidgetRef)>{
   // The three channel permissions grid picker sheets, spot-checked before.
   'channel-picker-sheet': (context, ref) => showAppSheet<Channel>(
     context,
-    builder: (context) => ChannelPickerSheet(channels: [_localChannel]),
+    builder: (context) => const ChannelPickerSheet(channels: [_localChannel]),
   ),
   'role-picker-sheet': (context, ref) => showAppSheet<api.Role>(
     context,

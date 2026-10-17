@@ -159,75 +159,19 @@ class _CallControlsState extends ConsumerState<CallControls> {
     // mainAxisSize.min: this row sizes to its own content now that it has no
     // full-width bar to fill, so whatever floating card embeds it - alone or
     // beside a canvas's own controls - can size itself to match.
-    final row = Row(
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Consumer(
-          builder: (context, ref, _) => CallDockButton(
-            icon: voice.microphoneEnabled && listenOnly == null
-                ? AppIcons.mic
-                : AppIcons.micOff,
-            tooltip:
-                listenOnly ??
-                labelWithShortcut(
-                  voice.microphoneEnabled
-                      ? 'Mute'
-                      : voice.joinedMuted
-                      ? joinedMutedHint
-                      : 'Unmute',
-                  AppAction.toggleMuteCall,
-                ),
-            // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
-            active: false,
-            unavailable: listenOnly != null,
-            destructive: !voice.microphoneEnabled && listenOnly == null,
-            level: voice.microphoneEnabled
-                ? ref.watch(localMicLevelProvider)
-                : null,
-            onPressed: widget.controller.toggleMicrophone,
-          ),
-        ),
+        _micButton(voice, listenOnly),
         if (widget.controller.supportsAudioOutputSelection) ...[
           const SizedBox(width: AppSpacing.s8),
-          CallDockButton(
-            icon: AppIcons.speaker,
-            tooltip: 'Switch speaker',
-            active: false,
-            pending: _speakerSwitchInFlight,
-            onPressed: () {
-              if (_speakerSwitchInFlight) return;
-              unawaited(_switchSpeaker(context));
-            },
-          ),
+          _speakerButton(context),
         ],
         const SizedBox(width: AppSpacing.s8),
-        CallDockButton(
-          icon: voice.cameraEnabled && listenOnly == null
-              ? AppIcons.camera
-              : AppIcons.cameraOff,
-          tooltip:
-              listenOnly ??
-              labelWithShortcut(
-                voice.cameraEnabled ? 'Turn off camera' : 'Turn on camera',
-                AppAction.toggleCameraCall,
-              ),
-          active: false,
-          unavailable: listenOnly != null,
-          pending: voice.cameraPending,
-          onPressed: () => unawaited(widget.controller.toggleCamera()),
-        ),
+        _cameraButton(voice, listenOnly),
         if (voice.cameraEnabled && canSwitchCamera(ref, widget.controller)) ...[
           const SizedBox(width: AppSpacing.s8),
-          CallDockButton(
-            icon: AppIcons.switchCamera,
-            tooltip: 'Switch camera',
-            active: false,
-            pending: _cameraSwitchInFlight,
-            onPressed: () {
-              if (_cameraSwitchInFlight) return;
-              unawaited(_switchCamera(context));
-            },
-          ),
+          _switchCameraButton(context),
         ],
         // At touch density the pair's leading half sits flush right in its hit box, so the gap before it is widened to keep the row's rhythm.
         SizedBox(width: pairedAtTouch ? AppSpacing.s16 : AppSpacing.s8),
@@ -236,19 +180,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
           optionsLabel: 'Screen share options',
           options: shareOptions,
           showCaret: showCaret,
-          child: CallDockButton(
-            icon: AppIcons.screenShare,
-            tooltip: _shareTooltip(voice),
-            active: voice.screenSharing,
-            holdOpensOptions: !showCaret,
-            // Pending is its own look, never the active one: the lit
-            // button over a share nobody could see was the whole bug.
-            pending: voice.awaitingBroadcast,
-            onPressed: () {
-              if (_shareRequestInFlight) return;
-              unawaited(_share(context));
-            },
-          ),
+          child: _shareButton(context, voice, showCaret: showCaret),
         ),
         if (widget.extraControl case final extra?) ...[
           const SizedBox(width: AppSpacing.s8),
@@ -256,7 +188,99 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ],
       ],
     );
-    return row;
+  }
+
+  Widget _micButton(VoiceFlags voice, String? listenOnly) {
+    return Consumer(
+      builder: (context, ref, _) => CallDockButton(
+        icon: voice.microphoneEnabled && listenOnly == null
+            ? AppIcons.mic
+            : AppIcons.micOff,
+        tooltip: listenOnly ?? _micTooltip(voice),
+        // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
+        active: false,
+        unavailable: listenOnly != null,
+        destructive: !voice.microphoneEnabled && listenOnly == null,
+        level: voice.microphoneEnabled
+            ? ref.watch(localMicLevelProvider)
+            : null,
+        onPressed: widget.controller.toggleMicrophone,
+      ),
+    );
+  }
+
+  static String _micTooltip(VoiceFlags voice) {
+    final String label;
+    if (voice.microphoneEnabled) {
+      label = 'Mute';
+    } else {
+      label = voice.joinedMuted ? joinedMutedHint : 'Unmute';
+    }
+    return labelWithShortcut(label, AppAction.toggleMuteCall);
+  }
+
+  Widget _speakerButton(BuildContext context) {
+    return CallDockButton(
+      icon: AppIcons.speaker,
+      tooltip: 'Switch speaker',
+      active: false,
+      pending: _speakerSwitchInFlight,
+      onPressed: () {
+        if (_speakerSwitchInFlight) return;
+        unawaited(_switchSpeaker(context));
+      },
+    );
+  }
+
+  Widget _cameraButton(VoiceFlags voice, String? listenOnly) {
+    return CallDockButton(
+      icon: voice.cameraEnabled && listenOnly == null
+          ? AppIcons.camera
+          : AppIcons.cameraOff,
+      tooltip:
+          listenOnly ??
+          labelWithShortcut(
+            voice.cameraEnabled ? 'Turn off camera' : 'Turn on camera',
+            AppAction.toggleCameraCall,
+          ),
+      active: false,
+      unavailable: listenOnly != null,
+      pending: voice.cameraPending,
+      onPressed: () => unawaited(widget.controller.toggleCamera()),
+    );
+  }
+
+  Widget _switchCameraButton(BuildContext context) {
+    return CallDockButton(
+      icon: AppIcons.switchCamera,
+      tooltip: 'Switch camera',
+      active: false,
+      pending: _cameraSwitchInFlight,
+      onPressed: () {
+        if (_cameraSwitchInFlight) return;
+        unawaited(_switchCamera(context));
+      },
+    );
+  }
+
+  Widget _shareButton(
+    BuildContext context,
+    VoiceFlags voice, {
+    required bool showCaret,
+  }) {
+    return CallDockButton(
+      icon: AppIcons.screenShare,
+      tooltip: _shareTooltip(voice),
+      active: voice.screenSharing,
+      holdOpensOptions: !showCaret,
+      // Pending is its own look, never the active one: the lit
+      // button over a share nobody could see was the whole bug.
+      pending: voice.awaitingBroadcast,
+      onPressed: () {
+        if (_shareRequestInFlight) return;
+        unawaited(_share(context));
+      },
+    );
   }
 
   static String _shareTooltip(VoiceFlags voice) {
@@ -340,25 +364,9 @@ class _CallControlsState extends ConsumerState<CallControls> {
       final settings = ref.read(voiceSettingsControllerProvider);
       final quality = settings.screenShareQuality;
 
-      String? sourceId;
-      if (controller.screenShareNeedsSource) {
-        // Mandatory: capture cannot find a source nothing asked to list.
-        final sources = await controller.screenShareSources();
-        if (sources.isEmpty) return;
-        // On Linux the portal's own picker is the real choice; see DesktopSources.
-        if (sources.length == 1 || !controller.screenShareSourcePickerUseful) {
-          sourceId = sources.first.id;
-        } else {
-          if (!context.mounted) return;
-          final chosen = await showScreenSourceSheet(
-            context,
-            sources,
-            selectedId: _lastSourceId,
-          );
-          if (chosen == null) return;
-          sourceId = chosen.id;
-        }
-      }
+      final pick = await _pickSource(context, controller);
+      if (!pick.proceed) return;
+      final sourceId = pick.id;
       // The call can end while a picker or the source list is open.
       final voice = widget.voice;
       if (!mounted ||
@@ -376,6 +384,27 @@ class _CallControlsState extends ConsumerState<CallControls> {
     } finally {
       if (mounted) setState(() => _shareRequestInFlight = false);
     }
+  }
+
+  Future<({bool proceed, String? id})> _pickSource(
+    BuildContext context,
+    VoiceController controller,
+  ) async {
+    if (!controller.screenShareNeedsSource) return (proceed: true, id: null);
+    // Mandatory: capture cannot find a source nothing asked to list.
+    final sources = await controller.screenShareSources();
+    if (sources.isEmpty) return (proceed: false, id: null);
+    // On Linux the portal's own picker is the real choice; see DesktopSources.
+    if (sources.length == 1 || !controller.screenShareSourcePickerUseful) {
+      return (proceed: true, id: sources.first.id);
+    }
+    if (!context.mounted) return (proceed: false, id: null);
+    final chosen = await showScreenSourceSheet(
+      context,
+      sources,
+      selectedId: _lastSourceId,
+    );
+    return (proceed: chosen != null, id: chosen?.id);
   }
 
   /// The space-wide screen-share ceiling, or `null` on any failure to fetch

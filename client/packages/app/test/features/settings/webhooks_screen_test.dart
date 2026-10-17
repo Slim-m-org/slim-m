@@ -139,7 +139,7 @@ void main() {
     addTearDown(db.close);
     final store = MessageStore(db);
     await store.upsertChannels([
-      Channel(id: 'chan-1', name: 'alerts', kind: 'text', createdAt: 0),
+      const Channel(id: 'chan-1', name: 'alerts', kind: 'text', createdAt: 0),
     ]);
     return store;
   }

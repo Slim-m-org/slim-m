@@ -278,38 +278,44 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
     }
     return SheetItemList(
       itemCount: filtered.length,
-      itemBuilder: (context, i) {
-        final target = filtered[i];
-        final sendingHere = _sendingToChannelId == target.channelId;
-        final busy = _sendingToChannelId != null;
-        return AppListRow(
-          // A DM is a person; one generic glyph made them all look alike.
-          leading: target.isDm && target.userId != null
-              ? UserAvatar.known(
-                  userId: target.userId!,
-                  avatarUpdatedAt: target.avatarUpdatedAt,
-                  name: target.label,
-                  size: AppAvatarSize.s24,
-                )
-              : target.isDm
-              ? const Icon(AppIcons.account)
-              : ChannelKindIcon(
-                  isVoice: target.isVoice,
-                  restricted: target.restricted,
-                  color: tokens.textSecondary,
-                  size: AppSizes.icon20,
-                ),
-          label: target.label,
-          trailing: sendingHere
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : null,
-          onTap: busy ? null : () => unawaited(_send(target)),
-        );
-      },
+      itemBuilder: (context, i) => _targetRow(filtered[i], tokens),
+    );
+  }
+
+  Widget _targetRow(ForwardTarget target, AppTokens tokens) {
+    final sendingHere = _sendingToChannelId == target.channelId;
+    final busy = _sendingToChannelId != null;
+    return AppListRow(
+      leading: _leadingFor(target, tokens),
+      label: target.label,
+      trailing: sendingHere
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : null,
+      onTap: busy ? null : () => unawaited(_send(target)),
+    );
+  }
+
+  Widget _leadingFor(ForwardTarget target, AppTokens tokens) {
+    // A DM is a person; one generic glyph made them all look alike.
+    final userId = target.userId;
+    if (target.isDm && userId != null) {
+      return UserAvatar.known(
+        userId: userId,
+        avatarUpdatedAt: target.avatarUpdatedAt,
+        name: target.label,
+        size: AppAvatarSize.s24,
+      );
+    }
+    if (target.isDm) return const Icon(AppIcons.account);
+    return ChannelKindIcon(
+      isVoice: target.isVoice,
+      restricted: target.restricted,
+      color: tokens.textSecondary,
+      size: AppSizes.icon20,
     );
   }
 }

@@ -24,11 +24,11 @@ String? fallbackChannel({
   required String? last,
   required String? previous,
   required String gone,
-}) => last != null && last != gone
-    ? last
-    : previous != null && previous != gone
-    ? previous
-    : null;
+}) {
+  if (last != null && last != gone) return last;
+  if (previous != null && previous != gone) return previous;
+  return null;
+}
 
 /// Temporary rooms (decision 0065) removed this session, so a screen still
 /// showing one can leave for [lastTextChannelProvider] instead of reading as

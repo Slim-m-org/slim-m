@@ -35,14 +35,17 @@ List<CanvasHiddenTile> hiddenCanvasTiles({
   for (final key in overrides.hiddenKeys) {
     final participant = byIdentity[presenceTileIdentity(key)];
     if (participant == null) continue;
-    final isScreen = presenceTileKind(key) == screenTrackKind;
-    final label = isScreen
-        ? '${presenceScreenLabel(participant)} share'
-        : (participant.isLocal
-              ? 'Your camera'
-              : "${participant.name}'s camera");
-    tiles.add(CanvasHiddenTile(key: key, label: label));
+    tiles.add(
+      CanvasHiddenTile(key: key, label: _hiddenLabel(key, participant)),
+    );
   }
   tiles.sort((a, b) => a.label.compareTo(b.label));
   return tiles;
+}
+
+String _hiddenLabel(String key, VoiceParticipant participant) {
+  if (presenceTileKind(key) == screenTrackKind) {
+    return '${presenceScreenLabel(participant)} share';
+  }
+  return participant.isLocal ? 'Your camera' : "${participant.name}'s camera";
 }

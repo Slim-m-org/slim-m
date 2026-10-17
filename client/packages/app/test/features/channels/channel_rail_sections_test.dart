@@ -280,7 +280,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => Scaffold(
+          builder: (context, state) => const Scaffold(
             body: DirectMessagesSection(channels: [], selectedId: null),
           ),
         ),

@@ -68,7 +68,7 @@ class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,

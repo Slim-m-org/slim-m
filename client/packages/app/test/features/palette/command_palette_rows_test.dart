@@ -22,14 +22,14 @@ import '../../command_palette_harness.dart';
 
 const _input = Key('command-palette-input');
 
-final _kiki = api.UserProfile(
+const _kiki = api.UserProfile(
   id: 'other',
   username: 'kiki',
   displayName: 'Kiki',
   createdAt: 0,
-  roles: const ['Moderator'],
+  roles: ['Moderator'],
 );
-final _modLog = api.UserProfile(
+const _modLog = api.UserProfile(
   id: 'modlog',
   username: 'modlog',
   displayName: 'Mod Log',

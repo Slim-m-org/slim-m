@@ -79,22 +79,7 @@ class ConversationPane extends ConsumerWidget {
     if (channel == null &&
         row.hasValue &&
         ref.watch(initialSyncCompleteProvider)) {
-      final fallback = fallbackChannel(
-        last: ref.read(lastTextChannelProvider),
-        previous: ref.read(previousTextChannelProvider),
-        gone: channelId,
-      );
-      if (ref.watch(removedRoomsProvider).contains(channelId)) {
-        return _LeaveRemovedRoom(fallback: fallback);
-      }
-      final deletedName = ref.watch(deletedChannelsProvider)[channelId];
-      if (deletedName != null) {
-        return _LeaveRemovedRoom(
-          fallback: fallback,
-          notice: '#$deletedName was deleted',
-        );
-      }
-      return UnlistedChannel(channelId: channelId);
+      return _unresolved(ref);
     }
     final isVoice = channel?.kind == 'voice';
     final isLobby = isVoice && channel?.createsRooms == true;
@@ -102,32 +87,20 @@ class ConversationPane extends ConsumerWidget {
     final dmCallOpen =
         channel?.kind == 'dm' && ref.watch(dmCallOpenProvider) == channelId;
     // Keyed by stage, so each pane fades through the one it replaces.
-    final stage = canvasOpen
-        ? 'canvas'
-        : isVoice
-        ? 'voice'
-        : dmCallOpen
-        ? 'dm-call'
-        : 'text';
-    if (stage == 'text' && channel != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final last = ref.read(lastTextChannelProvider.notifier);
-        if (last.state == channelId) return;
-        ref.read(previousTextChannelProvider.notifier).state = last.state;
-        last.state = channelId;
-      });
-    }
+    final stage = _stage(
+      canvasOpen: canvasOpen,
+      isVoice: isVoice,
+      dmCallOpen: dmCallOpen,
+    );
+    if (stage == 'text' && channel != null) _rememberTextChannel(ref);
     final body = AppFadeIn(
       key: ValueKey('pane-$stage'),
-      child: canvasOpen
-          ? CanvasPane(channelId: channelId)
-          : isLobby
-          ? VoiceLobbyRedirect(lobbyId: channelId)
-          : isVoice
-          ? VoiceScreen(channelId: channelId, openChat: openChat)
-          : dmCallOpen
-          ? DmCallPane(channelId: channelId)
-          : ChannelScreen(channelId: channelId),
+      child: _pane(
+        canvasOpen: canvasOpen,
+        isLobby: isLobby,
+        isVoice: isVoice,
+        dmCallOpen: dmCallOpen,
+      ),
     );
 
     if (!layout.showsBothPanes || !isVoice || isLobby || canvasOpen) {
@@ -143,6 +116,56 @@ class ConversationPane extends ConsumerWidget {
         Expanded(child: body),
       ],
     );
+  }
+
+  Widget _unresolved(WidgetRef ref) {
+    final fallback = fallbackChannel(
+      last: ref.read(lastTextChannelProvider),
+      previous: ref.read(previousTextChannelProvider),
+      gone: channelId,
+    );
+    if (ref.watch(removedRoomsProvider).contains(channelId)) {
+      return _LeaveRemovedRoom(fallback: fallback);
+    }
+    final deletedName = ref.watch(deletedChannelsProvider)[channelId];
+    if (deletedName == null) return UnlistedChannel(channelId: channelId);
+    return _LeaveRemovedRoom(
+      fallback: fallback,
+      notice: '#$deletedName was deleted',
+    );
+  }
+
+  String _stage({
+    required bool canvasOpen,
+    required bool isVoice,
+    required bool dmCallOpen,
+  }) {
+    if (canvasOpen) return 'canvas';
+    if (isVoice) return 'voice';
+    if (dmCallOpen) return 'dm-call';
+    return 'text';
+  }
+
+  Widget _pane({
+    required bool canvasOpen,
+    required bool isLobby,
+    required bool isVoice,
+    required bool dmCallOpen,
+  }) {
+    if (canvasOpen) return CanvasPane(channelId: channelId);
+    if (isLobby) return VoiceLobbyRedirect(lobbyId: channelId);
+    if (isVoice) return VoiceScreen(channelId: channelId, openChat: openChat);
+    if (dmCallOpen) return DmCallPane(channelId: channelId);
+    return ChannelScreen(channelId: channelId);
+  }
+
+  void _rememberTextChannel(WidgetRef ref) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final last = ref.read(lastTextChannelProvider.notifier);
+      if (last.state == channelId) return;
+      ref.read(previousTextChannelProvider.notifier).state = last.state;
+      last.state = channelId;
+    });
   }
 }
 

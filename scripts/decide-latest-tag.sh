@@ -22,7 +22,8 @@ package="${path#*/}"
 
 # GHCR's listing lives under orgs/ or users/ depending on who owns the image; the repo moved between the two.
 list_tags() {
-  gh api --paginate "$1/${owner}/packages/container/${package}/versions" \
+  local owner_kind="$1"
+  gh api --paginate "${owner_kind}/${owner}/packages/container/${package}/versions" \
     --jq '.[].metadata.container.tags[]' 2>&1
 }
 

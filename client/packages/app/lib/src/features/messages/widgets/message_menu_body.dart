@@ -64,9 +64,23 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
 
   List<Widget> _primaryPage(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    return [
+      QuickReactionRow(
+        reacted: widget.reacted,
+        onPick: widget.onPickReaction,
+        onMore: widget.onAddReaction,
+        close: widget.close,
+      ),
+      for (final group in [_replyGroup(tokens), _keepGroup(), _lastGroup()])
+        if (group.isNotEmpty) ...[const AppMenuDivider(), ...group],
+      ...botMenuItems(_a.botSections, widget.close),
+    ];
+  }
+
+  List<Widget> _replyGroup(AppTokens tokens) {
     // See MessageActions.hasExistingThread's own doc comment for why "Reply" stays offered here.
     final showThreadHint = _a.canReply && _a.hasExistingThread;
-    final reply = [
+    return [
       if (_a.canReply)
         AppMenuItem(
           label: 'Reply',
@@ -97,7 +111,10 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
           onTap: () => _run(_a.onEdit),
         ),
     ];
-    final keep = [
+  }
+
+  List<Widget> _keepGroup() {
+    return [
       AppMenuItem(
         label: 'Copy text',
         leading: AppIcons.copy,
@@ -129,7 +146,10 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
           onTap: () => _run(_a.onTogglePin),
         ),
     ];
-    final last = [
+  }
+
+  List<Widget> _lastGroup() {
+    return [
       if (_hasMore)
         AppMenuItem(
           label: 'More',
@@ -144,17 +164,6 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
           tone: AppMenuItemTone.danger,
           onTap: () => _run(_a.onDelete),
         ),
-    ];
-    return [
-      QuickReactionRow(
-        reacted: widget.reacted,
-        onPick: widget.onPickReaction,
-        onMore: widget.onAddReaction,
-        close: widget.close,
-      ),
-      for (final group in [reply, keep, last])
-        if (group.isNotEmpty) ...[const AppMenuDivider(), ...group],
-      ...botMenuItems(_a.botSections, widget.close),
     ];
   }
 

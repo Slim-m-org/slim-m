@@ -12,7 +12,8 @@ void main() {
   group('the space-wide screen-share ceiling', () {
     test('leaves a tier already inside it untouched', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60),
+        const ScreenShareQuality(
+            ScreenShareResolution.p720, ScreenShareFps.fps60),
         null,
         isIOS: false,
         maxHeight: 2160,
@@ -20,12 +21,14 @@ void main() {
 
       expect(
         options.params.dimensions.height,
-        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60)
+        const ScreenShareQuality(
+                ScreenShareResolution.p720, ScreenShareFps.fps60)
             .height,
       );
       expect(
         options.params.dimensions.width,
-        ScreenShareQuality(ScreenShareResolution.p720, ScreenShareFps.fps60)
+        const ScreenShareQuality(
+                ScreenShareResolution.p720, ScreenShareFps.fps60)
             .width,
       );
     });
@@ -33,7 +36,8 @@ void main() {
     test('clamps a taller tier down to it, scaling width to match', () {
       // crisp is 2560x1440; a 720 ceiling must halve both, not just height.
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+        const ScreenShareQuality(
+            ScreenShareResolution.p1440, ScreenShareFps.fps15),
         null,
         isIOS: false,
         maxHeight: 720,
@@ -45,7 +49,8 @@ void main() {
 
     test('leaves frame rate and bitrate alone: it bounds size only', () {
       final options = ScreenShareControl.captureOptionsFor(
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15),
+        const ScreenShareQuality(
+            ScreenShareResolution.p1440, ScreenShareFps.fps15),
         null,
         isIOS: false,
         maxHeight: 720,
@@ -53,12 +58,14 @@ void main() {
 
       expect(
         options.params.encoding!.maxFramerate,
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+        const ScreenShareQuality(
+                ScreenShareResolution.p1440, ScreenShareFps.fps15)
             .fps,
       );
       expect(
         options.params.encoding!.maxBitrate,
-        ScreenShareQuality(ScreenShareResolution.p1440, ScreenShareFps.fps15)
+        const ScreenShareQuality(
+                ScreenShareResolution.p1440, ScreenShareFps.fps15)
             .maxBitrate,
       );
     });

@@ -86,39 +86,45 @@ class ModuleSceneFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final ratio = aspect <= 0 ? 1.0 : aspect;
-    if (fillAvailable) {
-      // Not AspectRatio: given this host's tight height and merely bounded width, it re-derives width from height, has that clamped back down without revisiting height, and returns the full tight rect - so fit by hand against both bounds instead.
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final maxWidth = constraints.hasBoundedWidth
-              ? constraints.maxWidth
-              : constraints.maxHeight * ratio;
-          final maxHeight = constraints.hasBoundedHeight
-              ? constraints.maxHeight
-              : constraints.maxWidth / ratio;
-          var width = maxWidth;
-          var height = width / ratio;
-          if (height > maxHeight) {
-            height = maxHeight;
-            width = height * ratio;
-          }
-          return Center(
-            child: SizedBox(
-              width: width,
-              height: height,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: child,
+    if (fillAvailable) return _buildFilled(tokens, ratio);
+    return _buildInline(context, tokens, ratio);
+  }
+
+  Widget _buildFilled(AppTokens tokens, double ratio) {
+    // Not AspectRatio: given this host's tight height and merely bounded width, it re-derives width from height, has that clamped back down without revisiting height, and returns the full tight rect - so fit by hand against both bounds instead.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : constraints.maxHeight * ratio;
+        final maxHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : constraints.maxWidth / ratio;
+        var width = maxWidth;
+        var height = width / ratio;
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = height * ratio;
+        }
+        return Center(
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: tokens.borderSubtle),
+                borderRadius: BorderRadius.circular(AppRadii.control),
               ),
+              clipBehavior: Clip.antiAlias,
+              child: child,
             ),
-          );
-        },
-      );
-    }
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInline(BuildContext context, AppTokens tokens, double ratio) {
     final windowHeight = MediaQuery.sizeOf(context).height;
     return LayoutBuilder(
       builder: (context, constraints) {

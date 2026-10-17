@@ -201,11 +201,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
-          home: Scaffold(
+          home: const Scaffold(
             body: Center(
               child: ContextMenuRegion(
                 itemsBuilder: _items,
-                child: const SizedBox(key: _rowKey, width: 100, height: 40),
+                child: SizedBox(key: _rowKey, width: 100, height: 40),
               ),
             ),
           ),

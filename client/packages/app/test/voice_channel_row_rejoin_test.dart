@@ -23,7 +23,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'features/voice/voice_controller_harness.dart';
 
-final _channel = Channel(
+const _channel = Channel(
   id: 'ch-1',
   name: 'General voice',
   kind: 'voice',

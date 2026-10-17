@@ -114,75 +114,98 @@ class WatchRoom {
 ///
 /// A failed read surfaces as the provider's error rather than being
 /// swallowed; the bar keeps the last good sample on screen meanwhile.
-final watchRoomProvider = StreamProvider.autoDispose.family<WatchRoom?, String>((
-  ref,
-  channelId,
-) {
-  final client = ref.watch(apiProvider);
-  final clock = ref.watch(watchClockProvider);
-  final controller = StreamController<WatchRoom?>();
-  WatchRoom? current;
-  ({String bot, int epoch})? ended;
-  var applied = 0;
+final watchRoomProvider = StreamProvider.autoDispose.family<WatchRoom?, String>(
+  (ref, channelId) {
+    final feed = _WatchRoomFeed(
+      client: ref.watch(apiProvider),
+      clock: ref.watch(watchClockProvider),
+      channelId: channelId,
+    );
+    final sub = ref.read(liveEventsProvider).listen((event) {
+      if (event is api.WatchTick && event.channelId == channelId) {
+        feed.onTick(event);
+      }
+    });
+    ref.onDispose(() {
+      unawaited(sub.cancel());
+      unawaited(feed.close());
+    });
+    unawaited(feed.load());
+    return feed.stream;
+  },
+);
 
-  void emit(WatchRoom? room) {
-    current = room;
-    applied++;
-    if (!controller.isClosed) controller.add(room);
+class _WatchRoomFeed {
+  _WatchRoomFeed({
+    required this.client,
+    required this.clock,
+    required this.channelId,
+  });
+
+  final api.SlimmApi client;
+  final DateTime Function() clock;
+  final String channelId;
+  final StreamController<WatchRoom?> _controller =
+      StreamController<WatchRoom?>();
+  WatchRoom? _current;
+  ({String bot, int epoch})? _ended;
+  int _applied = 0;
+
+  Stream<WatchRoom?> get stream => _controller.stream;
+
+  Future<void> close() => _controller.close();
+
+  void _emit(WatchRoom? room) {
+    _current = room;
+    _applied++;
+    if (!_controller.isClosed) _controller.add(room);
   }
 
-  bool supersedes(api.WatchSession s) {
-    final over = ended;
+  bool _supersedes(api.WatchSession s) {
+    final over = _ended;
     if (over != null && s.botUserId == over.bot && s.epoch <= over.epoch) {
       return false;
     }
-    final room = current;
+    final room = _current;
     return room == null || room.isNotNewerThan(s);
   }
 
   Future<void> load() async {
-    final appliedBefore = applied;
+    final appliedBefore = _applied;
     final api.WatchSession? session;
     try {
       session = await client.getWatchSession(channelId);
     } catch (error, stack) {
-      if (!controller.isClosed) controller.addError(error, stack);
+      if (!_controller.isClosed) _controller.addError(error, stack);
       return;
     }
-    if (controller.isClosed) return;
+    if (_controller.isClosed) return;
     if (session == null) {
       // A sample that landed while this read was in flight is newer than its 404.
-      if (applied == appliedBefore) emit(null);
-    } else if (supersedes(session)) {
-      emit(WatchRoom.fromSession(session, clock()));
+      if (_applied == appliedBefore) _emit(null);
+    } else if (_supersedes(session)) {
+      _emit(WatchRoom.fromSession(session, clock()));
     }
   }
 
   void onTick(api.WatchTick tick) {
-    final room = current;
+    final room = _current;
     if (tick.ended) {
-      if (room != null &&
-          room.botUserId == tick.botUserId &&
-          tick.epoch >= room.epoch) {
-        ended = (bot: tick.botUserId, epoch: tick.epoch);
-        emit(null);
-      }
-      return;
-    }
-    if (room == null || !room.isSameSession(tick)) {
+      _onEnded(room, tick);
+    } else if (room == null || !room.isSameSession(tick)) {
       if (room == null || tick.epoch >= room.epoch) unawaited(load());
-      return;
+    } else if (tick.sampledAtMs >= room.sampledAtMs) {
+      _emit(room.afterTick(tick));
     }
-    if (tick.sampledAtMs >= room.sampledAtMs) emit(room.afterTick(tick));
   }
 
-  final sub = ref.read(liveEventsProvider).listen((event) {
-    if (event is api.WatchTick && event.channelId == channelId) onTick(event);
-  });
-  ref.onDispose(() {
-    unawaited(sub.cancel());
-    unawaited(controller.close());
-  });
-  unawaited(load());
-  return controller.stream;
-});
+  void _onEnded(WatchRoom? room, api.WatchTick tick) {
+    if (room == null ||
+        room.botUserId != tick.botUserId ||
+        tick.epoch < room.epoch) {
+      return;
+    }
+    _ended = (bot: tick.botUserId, epoch: tick.epoch);
+    _emit(null);
+  }
+}

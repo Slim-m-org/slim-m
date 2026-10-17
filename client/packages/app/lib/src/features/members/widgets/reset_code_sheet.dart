@@ -119,7 +119,7 @@ class _ResetCodeSheet extends ConsumerWidget {
 
     return Padding(
       // The sheet supplies the top inset at every width; adding one here doubled it.
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,

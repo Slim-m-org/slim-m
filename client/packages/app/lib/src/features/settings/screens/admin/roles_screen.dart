@@ -36,12 +36,12 @@ class RolesScreen extends StatelessWidget {
   const RolesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => SettingsScreenScaffold(
+  Widget build(BuildContext context) => const SettingsScreenScaffold(
     title: 'Roles',
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
     scrollable: false,
-    child: const RolesPane(),
+    child: RolesPane(),
   );
 }
 
@@ -299,22 +299,26 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     trailing: role.isManagedByBot
         ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot')
         : null,
-    trailingExtra: dragIndex == null
-        // @everyone cannot be dragged but keeps the handle's width so the member counts line up.
-        ? const SizedBox(width: AppSizes.icon16)
-        : ReorderableDragStartListener(
-            index: dragIndex,
-            // Faded in place rather than swapped in, so hovering never changes the row's shape.
-            child: AnimatedOpacity(
-              opacity: showHandle || AppTouchTargets.of(context) ? 1 : 0,
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              child: Icon(
-                AppIcons.dragHandle,
-                size: AppSizes.icon16,
-                color: Theme.of(context).extension<AppTokens>()!.textSecondary,
-              ),
-            ),
-          ),
+    trailingExtra: _dragHandle(dragIndex, showHandle: showHandle),
     onTap: () => widget.onSelect(role.id),
   );
+
+  Widget _dragHandle(int? dragIndex, {required bool showHandle}) {
+    // @everyone cannot be dragged but keeps the handle's width so the member counts line up.
+    if (dragIndex == null) return const SizedBox(width: AppSizes.icon16);
+    final visible = showHandle || AppTouchTargets.of(context);
+    return ReorderableDragStartListener(
+      index: dragIndex,
+      // Faded in place rather than swapped in, so hovering never changes the row's shape.
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: AppMotion.reduced(context, AppMotion.fast),
+        child: Icon(
+          AppIcons.dragHandle,
+          size: AppSizes.icon16,
+          color: Theme.of(context).extension<AppTokens>()!.textSecondary,
+        ),
+      ),
+    );
+  }
 }
