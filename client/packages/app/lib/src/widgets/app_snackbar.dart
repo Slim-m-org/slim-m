@@ -1,50 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Every SnackBar this app shows, in one place.
-///
-/// Only for failures now: a genuine success confirmation goes through
-/// `toastsProvider` instead (see `providers/toasts.dart`), per
-/// `docs/design/desktop-vs-mobile.md`'s "never a toast for an error" rule.
-/// The sites left here all pass a failure sentence, sometimes alongside a
-/// success one picked by the same call (`failure ?? succeeded`), which stays
-/// on this path rather than being split, since routing only the failure half
-/// through here while its sibling success goes through a toast would leave
-/// one call site with two different confirmation mechanisms for the same
-/// action.
-///
-/// `ScaffoldMessengerState.showSnackBar` drives its own entrance and exit
-/// with a plain `AnimationController` the messenger creates once and keys to
-/// nothing this app controls - the identical gap the motion pass already
-/// closed for `showDialog` and `showModalBottomSheet` inside `showAppSheet`
-/// (`sheet.dart`). `snackBarAnimationStyle` is the framework's own documented
-/// escape hatch for exactly this, the same one `showAppSheet` already reaches
-/// for, so a call through here honours `AppMotion.isReduced` rather than only
-/// the platform's own reduce-motion switch.
-///
-/// Fourteen call sites reached `ScaffoldMessenger` directly before this, one
-/// of them (`personal_space_menu.dart`) already resolving it through
-/// `maybeOf` rather than `.of` for no reason tied to its own behaviour, and
-/// none customising duration, an action, or the default
-/// `SnackBarBehavior.fixed` - so there was nothing to standardise there
-/// beyond routing every one of them through here. A raw
-/// [ScaffoldMessengerState.showSnackBar] call anywhere else in this app
-/// silently drops the motion override; call [showAppSnackbar] instead, and
-/// `reduce_motion_gate_test.dart` fails if a new one appears.
-///
-/// `HomeShell` puts the rail, the conversation pane and the member pane in
-/// one shared `Scaffold` at wide layout, so a floating `SnackBar` triggered
-/// from the rail or a popover positions itself against the whole shell's own
-/// bottom edge - the same band `canvas_call_dock.dart`'s call controls float
-/// in whenever a call is open. Every show here reads
-/// `bottomDockReservationProvider` and pads the bottom by that much, so the
-/// snackbar clears the dock instead of covering its leave-call button.
-///
-/// That read only covers a dock already at its final height when the
-/// snackbar goes up. `_SnackbarDockGrowth` covers the other direction: a
-/// dock that appears, or grows from its one-row shape to its taller
-/// two-row one, while an unrelated snackbar shown before it is still on
-/// screen. A shrink is left alone on purpose - a smaller or vanished dock
-/// only leaves surplus padding under an already-clear snackbar, never a
-/// cover, so there is nothing there worth a reshow's visual reset.
+/// Every SnackBar this app shows, for failures only; a success goes through
+/// `toastsProvider`. Going through here applies the reduced-motion setting,
+/// which a raw `showSnackBar` call skips (`reduce_motion_gate_test.dart`
+/// catches one), and pads the bar clear of the call dock, reshowing it if
+/// the dock appears or grows while it is up.
 library;
 
 import 'dart:math' as math;

@@ -1,51 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A tapped image, opened over the app: pinch to zoom, drag to pan, and
-/// either a swipe down or the close control to leave.
-///
-/// A message can carry several images, and tapping one used to open exactly
-/// that one with no way to reach its siblings. The viewer is a gallery now:
-/// the whole message's images page left and right, the header says which of
-/// how many, and the arrow keys work where there is a keyboard. Each page is
-/// a [FullscreenImagePage]; this file owns the backdrop, the header and the
-/// paging.
-///
-/// The tapped image is handed its bytes rather than an id, so it cannot start
-/// a second fetch: the only way in is a tap on an image already showing those
-/// exact bytes, and passing them down is what makes "still loading" and "a
-/// fetch failed" unreachable states for that page. Its siblings have no such
-/// guarantee - nothing has fetched them - so they load through
-/// `attachmentBytesProvider` and do render those two states. That asymmetry is
-/// deliberate: the page the reader tapped must never flash a spinner.
-///
-/// A decode failure is reachable on the tapped page too: `AttachmentView`'s
-/// own inline thumbnail offers this route as its only tap target even once its
-/// bytes have already failed to decode there, so the same bytes are tried
-/// again here rather than assuming they will now succeed -
-/// [FullscreenDecodeFailure] is what stops that retry from surfacing as an
-/// uncaught exception.
-///
-/// A `Hero` flight carries the tapped image from its thumbnail into this
-/// viewer, and only that page takes the tag: a sibling has no thumbnail this
-/// route flew from, and two pages sharing one tag would throw. The tag choice
-/// is the whole trick: an attachment is
-/// content-addressed, so one id legitimately rides on more than one message
-/// (`models_attachments.dart`), and two rows showing the same image with one
-/// shared id-based tag would throw the moment a flight starts. Each
-/// `AttachmentView` therefore mints its own identity `Object` as the tag and
-/// hands the same object here, so tags are unique per mounted thumbnail by
-/// construction. Callers with no thumbnail to fly from pass no tag and keep
-/// the plain fade.
-///
-/// The backdrop is black in both themes: a surface token would tint the
-/// letterbox around a photo, and the controls are themed dark to match rather
-/// than following the app's brightness.
-///
-/// This route is pushed on the root navigator, above any Scaffold, so
-/// nothing upstream supplies the [Material] ancestor [Text] and [Icon] rely
-/// on for their default style; without one Flutter renders them in its own
-/// debug fallback (red text, a double yellow underline) rather than the
-/// theme's, which reads as a colour bug and is not one. `build` below wraps
-/// its content in a transparent [Material] for exactly this reason.
+/// A tapped image opened over the app, paging through every image on its
+/// message. The tapped page gets the bytes already on screen so it never
+/// shows a spinner; siblings load their own. Only the tapped page carries
+/// the Hero tag, minted per thumbnail because one content-addressed image
+/// can appear on several messages. The backdrop is black in both themes,
+/// and a transparent [Material] gives the root-navigator route text styles.
 library;
 
 import 'package:flutter/material.dart';

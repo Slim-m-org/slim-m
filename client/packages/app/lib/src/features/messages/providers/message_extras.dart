@@ -1,54 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Reactions, attachments, polls, and a thread reply summary, kept in memory
-/// rather than in the local database.
+/// Reactions, attachments, polls and thread summaries, held in memory rather
+/// than in the local database: every REST fetch carries them in full, so a
+/// restart rehydrates them without a schema change.
 ///
-/// `client/packages/data` has no columns for any of the four, and this is
-/// deliberate rather than an oversight: every REST fetch that returns a
-/// [api.Message] (send, list, sync, search) already carries all four in
-/// full, so re-fetching the channel's recent messages on open (see
-/// [ChannelScreen]) re-hydrates this cache correctly after a restart without
-/// a schema migration. What would not survive a restart cleanly is any
-/// state this cache holds that a REST fetch cannot reconstruct - and there
-/// is none: even a locally-cast vote or reaction is only ever an optimistic
-/// preview of what the next broadcast or fetch confirms anyway.
-///
-/// The one hazard this exists to guard against: the server builds a live
-/// `message.created`/`message.edited` frame from a bare DTO that omits
-/// reactions, attachments, poll, and thread data (a known Phase 4 server gap
-/// this client must not try to fix). [applyMessage] merges rather than
-/// overwrites, so that omission can only ever fail to add new information -
-/// it can never erase a better answer this cache already has cached from a
-/// REST fetch. The one field a REST fetch is authoritative enough to shrink is
-/// reactions, so [applyMessages] alone lets an empty reaction list win - that
-/// is what lets a reaction removed back to zero actually clear. A thread
-/// opening, or gaining a reply, reaches an already-open
-/// channel live through `Event::ThreadUpdated` instead - see
-/// [_applyThreadUpdated] - which closes the gap
-/// `docs/decisions/0005-threads.md` once named for `thread_channel_id`.
-///
-/// Nothing used to prune one entry at a time, because no consumer had a
-/// reachability answer to prune against: search, pins, the command palette
-/// and the transcript's own paged window all render extras for messages
-/// outside any one channel's visible rows, and an over-eager prune shows a
-/// message with its reactions missing until some later fetch happens to
-/// include it again, which is worse than the memory. [retain] is the bulk
-/// answer `providers/retention_sweep.dart` now has for that question - every
-/// id still held for a channel some `ChannelScreen` has open right now, which
-/// covers every one of those four surfaces because none of them can render a
-/// message from a channel that is not open (see that file's own doc for why).
-/// It drops everything else in one state write, never one id at a time,
-/// which is what keeps a message still on screen from ever losing its
-/// reactions mid-render the way a per-id prune risked.
-///
-/// That memory is real, not free: each entry retains a reaction list, an
-/// attachment list and a poll, and history pagination
-/// (`providers/channel_history.dart`) can now pull thousands of messages
-/// through [MessageExtrasController.applyMessages] in one session. [clear] is
-/// the one point this does get dropped in bulk, on sign-out
-/// (`SyncController._endSession`), for the same reason the message store
-/// itself is wiped there: the local database is one file for the whole app,
-/// and whoever signs in next on this device must not still find a stranger's
-/// reactions cached.
+/// A live frame omits them, so [applyMessage] merges and never erases; only a
+/// fetched page ([applyMessages]) may clear reactions. [retain] drops whatever
+/// no open channel holds, in one write so a message on screen never loses its
+/// reactions mid-render, and [clear] empties it on sign-out.
 library;
 
 import 'dart:async';
@@ -212,24 +170,9 @@ class MessageExtrasController
   void applyMessage(api.Message message) =>
       _set(message.id, _merged(message, state[message.id]));
 
-  /// For a REST fetch's whole page at once (a channel screen hydrating its
-  /// visible window on open, or a page of older history).
-  ///
-  /// This fetch is authoritative for reactions - it enriches them in full and
-  /// per-viewer - so unlike [applyMessage] it lets an empty reaction list win,
-  /// clearing a reaction that was removed back to zero while this client was
-  /// away. Without that, a live frame's merge could never fall through to an
-  /// empty list and the stale tally would show forever (CQ3). The other fields
-  /// still merge: a poll and an attachment set are fixed once a message
-  /// exists, and a thread's reply count only climbs, so `??` on those can only
-  /// ever add - and, unlike a blanket replace, a slower fetch that predates a
-  /// live `ThreadUpdated` cannot null a freshly-opened thread's affordance back
-  /// out again (it would not reappear until the next reply or reload).
-  ///
-  /// One state write for the whole page, deliberately: this used to call
-  /// [applyMessage] in a loop, so hydrating a 50-message window published 50
-  /// successive whole-map copies and rebuilt every listener 50 times for one
-  /// fetch.
+  /// Applies a fetched page in one state write. A fetch is authoritative for
+  /// reactions, so an empty list clears a tally removed while away; the other
+  /// fields still merge, so a slower fetch cannot undo a live thread update.
   void applyMessages(Iterable<api.Message> messages) {
     final next = {...state};
     var changed = false;

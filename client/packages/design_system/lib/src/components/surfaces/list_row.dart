@@ -51,47 +51,6 @@ class AppStrongLabelScope extends InheritedWidget {
   bool updateShouldNotify(AppStrongLabelScope oldWidget) => false;
 }
 
-/// A single-line row: optional leading content, a label, an optional `meta`
-/// caption, an optional trailing widget, and four states that combine freely.
-///
-/// - [selected]: a soft accent fill, plus a left accent marker unless an
-///   [AppSelectionMarkerScope] above says an ancestor draws one. One of the
-///   seven closed accent roles.
-/// - [unread]: the source lifts both colour (`text-secondary` to
-///   `text-primary`) and weight (regular to medium) for `selected || unread`
-///   alike, so unread's *distinguishing* cue from selected is the dot, shown
-///   only when [trailing] is absent (a trailing count badge already carries
-///   the same meaning, so the dot would be redundant next to it). [muted]
-///   suppresses this lift: a row that still passes [unread] while muted reads
-///   no brighter than a read one, since mute is a request to be left alone
-///   that an unread lift would otherwise fight. Which rows pass it at all is
-///   the caller's rule rather than this component's - under
-///   `docs/decisions/0049-per-channel-notification-behaviour.md` a muted
-///   channel passes neither flag unless its reader hand-marked it unread.
-/// - [mentioned]: a diamond in place of the unread dot's circle, painted in
-///   [AppTokens.accentFill] instead of [AppTokens.textPrimary] - "unread
-///   badge" and "mentions of you" are two of the seven closed accent roles
-///   (`docs/decisions/0004-visual-identity-review.md`). Colour used to be the
-///   only cue between them, which loses the distinction for anyone who
-///   cannot separate the two hues; shape now carries it instead, and colour
-///   only reinforces it. Implies [unread] visually (a mention is always
-///   unread) but is read independently, so a caller need not also pass
-///   `unread: true`; a row that is both still renders only the one diamond,
-///   never a second dot alongside it.
-/// - [muted]: dims the leading and trailing content to `opacity: 0.62`, but
-///   deliberately not the label. The source dimmed the whole row, and doing
-///   that here dragged an offline member's name below the AA contrast floor
-///   (`textSecondary` is already near it); the icon and badge carry the
-///   de-emphasis while the name stays readable. Not `textDisabled` either:
-///   that means "not actionable", which a muted channel still is.
-/// - [touch]: raises the row to [AppSizes.rowTouch]; nothing else about the
-///   row changes. Left unset it follows [AppTouchTargets.of].
-///
-/// Keyboard focus draws a full-row outline in [AppTokens.focusRing]; selection
-/// draws a left marker plus a fill in [AppTokens.accentSoft]. The two tokens
-/// are byte-identical in every theme, so they are kept apart by shape rather
-/// than colour: a row can be selected, unread, and focused all at once with
-/// every state still legible (see the combined case in the test file).
 /// Marks a subtree whose selection marker is drawn by an ancestor, so the
 /// rows inside it do not draw their own.
 ///
@@ -112,6 +71,21 @@ class AppSelectionMarkerScope extends InheritedWidget {
   bool updateShouldNotify(AppSelectionMarkerScope oldWidget) => false;
 }
 
+/// A single-line row with optional leading content, a meta caption and a
+/// trailing widget, and states that combine freely:
+///
+/// - [selected]: a soft accent fill and a left marker, unless an
+///   [AppSelectionMarkerScope] above draws the marker.
+/// - [unread]: a brighter, heavier label and a dot when there is no trailing
+///   badge; [muted] cancels the lift, since mute asks to be left alone.
+/// - [mentioned]: a diamond instead of the dot, so shape and not only colour
+///   tells a mention from unread.
+/// - [muted]: dims the leading and trailing content but not the label, which
+///   would otherwise fall below the contrast floor.
+/// - [touch]: the taller touch row height; unset, it follows the density.
+///
+/// Focus is a full-row outline and selection a left marker, kept apart by
+/// shape because their colour tokens are identical.
 class AppListRow extends StatefulWidget {
   const AppListRow({
     super.key,
@@ -206,20 +180,9 @@ class AppListRow extends StatefulWidget {
   /// separate the two hues - can tell the two apart without reading colour.
   static const Key mentionDotKey = Key('app_list_row_mention_dot');
 
-  /// The height a row built here takes, for a sibling that must line up with
-  /// one rather than centre against the taller column it sits in.
-  ///
-  /// Grows past the design's own fixed row height once Dynamic Type scales
-  /// the label past what that height can hold, rather than clipping it
-  /// harder into the ellipsis - "row height must never animate" is about
-  /// motion, never about staying fixed at every text scale, and this is
-  /// still a plain, non-animated value read fresh on every build. Never
-  /// shrinks below the fixed height, which stays the floor at the
-  /// platform's default text size.
-  ///
-  /// [hasSubtitle] adds room for the second line [subtitle] renders, the same
-  /// way Dynamic Type adds room for a taller label: a static value, read
-  /// fresh on every build, never animated in.
+  /// The height a row takes, for a sibling that must line up with it. It grows
+  /// with the text scale rather than clipping the label, and never shrinks
+  /// below the fixed height.
   static double heightFor(
     BuildContext context, {
     bool? touch,
