@@ -24,7 +24,6 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'package:go_router/go_router.dart';
 
-import '../../members/providers/bot_ui_uses.dart';
 import '../providers/call_recap.dart';
 import '../../channels/providers/last_text_channel.dart';
 import '../providers/dm_call_ring_controller.dart';
@@ -376,12 +375,7 @@ class _InCallState extends ConsumerState<_InCall> {
     // autoDispose: hold the roster while a call is shown, or a tile's menu and card read it unloaded.
     ref.listen(membersProvider, (_, _) {});
     final controller = ref.read(voiceControllerProvider.notifier);
-    final botGroups = isDm
-        ? const <BotCallGroup>[]
-        : botCallGroups(
-            ref.watch(channelBotUiProvider(channelId)).valueOrNull ?? const [],
-            {for (final p in voice.participants) p.identity},
-          );
+    final botControls = isDm ? null : botCallControlsFor(ref, channelId);
 
     return Stack(
       children: [
@@ -414,12 +408,7 @@ class _InCallState extends ConsumerState<_InCall> {
                   controller: controller,
                   voice: VoiceFlags.from(voice),
                   canvasChannelId: isDm ? null : channelId,
-                  botControls: botGroups.isEmpty
-                      ? null
-                      : BotCallControls(
-                          channelId: channelId,
-                          groups: botGroups,
-                        ),
+                  botControls: botControls,
                 ),
               ),
             ),

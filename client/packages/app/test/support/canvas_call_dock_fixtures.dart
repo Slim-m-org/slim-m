@@ -9,6 +9,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -50,11 +52,13 @@ pumpCanvasCallDock(
   bool compact = false,
   Brightness brightness = Brightness.dark,
   Key? boundaryKey,
+  List<api.ChannelBotUi> bots = const [],
 }) async {
   final session = withCall ? FakeSession() : null;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      channelBotUiProvider.overrideWith((ref, _) async => bots),
       if (session != null)
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: session),
@@ -62,13 +66,19 @@ pumpCanvasCallDock(
     ],
   );
   addTearDown(container.dispose);
+  // Held open: autoDispose would otherwise leave a disposal timer behind when a test re-pumps.
+  container.listen(channelBotUiProvider('c1'), (_, _) {});
   final controller = withCall
       ? container.read(voiceControllerProvider.notifier)
       : null;
   final dock = CanvasCallDock(
     call: controller == null
         ? null
-        : CallDockData(voice: callVoice, controller: controller),
+        : CallDockData(
+            voice: callVoice,
+            controller: controller,
+            channelId: 'c1',
+          ),
     canvas: canvas,
     compact: compact,
   );
