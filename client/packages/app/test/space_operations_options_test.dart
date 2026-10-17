@@ -21,6 +21,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/screens/admin/analytics_screen.dart';
 import 'package:slimm_app/src/screens/admin/performance_screen.dart';
 import 'package:slimm_app/src/screens/admin/server_metrics_screen.dart';
+import 'package:slimm_app/src/screens/admin/space_voice_screen.dart';
 import 'package:slimm_app/src/screens/admin/storage_screen.dart';
 import 'package:slimm_app/src/screens/space_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -128,7 +129,7 @@ void main() {
     tester,
   ) async {
     final patches = <Map<String, dynamic>>[];
-    await _pump(tester, const PerformancePane(), (r) {
+    await _pump(tester, const SpaceVoicePane(), (r) {
       if (r.url.path == '/space/settings') {
         if (r.method == 'PATCH') patches.add(_body(r));
         return _json({

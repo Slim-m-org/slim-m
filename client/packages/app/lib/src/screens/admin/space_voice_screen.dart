@@ -5,7 +5,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../action_labels.dart';
 import '../../routing/routes.dart';

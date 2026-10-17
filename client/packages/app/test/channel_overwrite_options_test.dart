@@ -158,26 +158,30 @@ void main() {
     expect(edit['deny'], 0);
   });
 
-  testWidgets('the pane shows the chosen channel with a Change button', (
+  testWidgets('the pane shows the chosen channel with an All channels button', (
     tester,
   ) async {
     await _open(tester, ChannelPermissionsPane(initialChannel: _channel));
     expect(find.text('general'), findsWidgets);
     expect(find.text('Permission overwrites'), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'Change'), findsOneWidget);
+    expect(find.widgetWithText(AppButton, 'All channels'), findsOneWidget);
   });
 
-  testWidgets('a locked pane has no header or Change button', (tester) async {
+  testWidgets('a locked pane has no header or All channels button', (
+    tester,
+  ) async {
     await _open(
       tester,
       ChannelPermissionsPane(initialChannel: _channel, lockChannel: true),
     );
     expect(find.text('Permission overwrites'), findsNothing);
-    expect(find.text('Change'), findsNothing);
+    expect(find.text('All channels'), findsNothing);
   });
 
-  testWidgets('with no channel the pane offers to choose one', (tester) async {
+  // The channel list itself is admin_unmounted_writes_test's 'every channel is listed'.
+  testWidgets('with no channel the pane shows no grid yet', (tester) async {
     await _open(tester, const ChannelPermissionsPane());
-    expect(find.text('Choose a channel'), findsOneWidget);
+    expect(find.text('Permission overwrites'), findsNothing);
+    expect(find.byType(ChannelPermissionsGrid), findsNothing);
   });
 }
