@@ -6,11 +6,11 @@
 //! `migrations/0059_message_forwards.sql` for why the origin is snapshotted
 //! here instead of resolved live the way a reply's parent is.
 //! Deleting or ageing out the origin removes its copies; see
-//! [`super::forward_cascade`].
+//! [`super::super::forward_cascade`].
 
 use sqlx::QueryBuilder;
 
-use super::Store;
+use super::super::Store;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 /// The origin a forward is written from.
@@ -184,7 +184,7 @@ impl Store {
 /// Records what a message was forwarded from, inside the transaction that
 /// inserts the message itself - so a forward is never visible as a plain
 /// message that lost its provenance.
-pub(super) async fn insert_forward(
+pub(in crate::store) async fn insert_forward(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     message_id: MessageId,
     origin: &ForwardOrigin,

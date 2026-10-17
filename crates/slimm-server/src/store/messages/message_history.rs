@@ -3,7 +3,7 @@
 //! `message_edits` rows [`Store::edit_message`] writes. Split out of
 //! `messages.rs` to keep that file under the line ceiling.
 
-use super::Store;
+use super::super::Store;
 use super::message_reads::fetch_message;
 use crate::ids::MessageId;
 

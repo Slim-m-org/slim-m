@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The message write paths: send, edit and delete, over embedded SQLite. The
-//! read paths (list, fetch by id) are [`super::message_reads`], split out to
-//! stay under the file budget. Full-text search is [`super::message_search`].
+//! read paths (list, fetch by id) are [`self::message_reads`], split out to
+//! stay under the file budget. Full-text search is [`self::message_search`].
 //!
 //! Two invariants live here and are covered by tests:
 //!
@@ -22,13 +22,25 @@ use anyhow::Context;
 pub(in crate::store) mod row;
 mod send;
 
+use self::message_forwards::ForwardOrigin;
+use self::message_ops::insert_message_op;
+use self::message_reads::fetch_message;
 use super::attachments::{LinkError, release_message_attachments};
-use super::message_forwards::ForwardOrigin;
-use super::message_ops::insert_message_op;
-use super::message_reads::fetch_message;
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
+
+pub(super) mod message_components;
+pub(super) mod message_embeds;
+pub(super) mod message_forwards;
+pub(super) mod message_history;
+pub(super) mod message_mentions;
+pub(super) mod message_ops;
+pub(super) mod message_reads;
+pub(super) mod message_retention;
+pub(super) mod message_search;
+pub(super) mod messages_bulk;
+pub(super) mod messages_bulk_window;
 
 /// The outcome of a send, which is idempotent and so may be a retry.
 #[derive(Debug, Clone)]

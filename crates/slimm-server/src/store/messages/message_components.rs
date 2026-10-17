@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Buttons on a bot's message: a side table, never a column on
-//! [`super::Message`]. See `docs/decisions/0039-bot-message-buttons.md`.
+//! [`super::super::Message`]. See `docs/decisions/0039-bot-message-buttons.md`.
 
 use sqlx::Row;
 
 use crate::components::ComponentRow;
 use crate::ids::MessageId;
 
-use super::Store;
+use super::super::Store;
 
 impl Store {
     /// Replaces the message's buttons whole; an empty list clears them.

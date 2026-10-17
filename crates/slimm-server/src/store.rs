@@ -50,18 +50,11 @@ mod interactions;
 mod invites;
 mod member_gate;
 mod members_bulk;
-mod message_components;
-mod message_embeds;
-mod message_forwards;
-mod message_history;
-mod message_mentions;
-mod message_ops;
-mod message_reads;
-mod message_retention;
-mod message_search;
 mod messages;
-mod messages_bulk;
-mod messages_bulk_window;
+use messages::{
+    message_embeds, message_forwards, message_history, message_ops, message_retention,
+    message_search, messages_bulk,
+};
 mod moderation_audit;
 mod moderation_history;
 mod module_artifacts;

@@ -8,7 +8,7 @@ use std::collections::HashSet;
 
 use sqlx::QueryBuilder;
 
-use super::Store;
+use super::super::Store;
 use crate::ids::{MessageId, UserId};
 
 impl Store {

@@ -7,7 +7,7 @@ use sqlx::SqliteConnection;
 
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 use crate::store::Message;
-use crate::store::message_reads::fetch_message_including_deleted;
+use crate::store::messages::message_reads::fetch_message_including_deleted;
 
 pub(in crate::store) struct NewRow<'a> {
     pub channel_id: ChannelId,

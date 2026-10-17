@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Embeds: a side table, never a column on [`super::Message`]. See
+//! Embeds: a side table, never a column on [`super::super::Message`]. See
 //! `docs/decisions/0030-incoming-webhooks.md`.
 
 use crate::ids::MessageId;
 
-use super::Store;
+use super::super::Store;
 
 /// One field on an embed - Discord's own `name`/`value`/`inline` shape.
 #[derive(Debug, Clone)]
@@ -84,7 +84,7 @@ impl From<NewEmbed> for Embed {
 
 /// Writes `embeds` inside the caller's transaction, so a message and its
 /// embeds can commit or roll back together.
-pub(super) async fn insert_embeds(
+pub(in crate::store) async fn insert_embeds(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     message_id: MessageId,
     embeds: &[NewEmbed],
@@ -177,7 +177,7 @@ impl Store {
     }
 
     /// Every embed for each of `message_ids`, ordered by position, batched
-    /// like [`super::attachments_for_messages`].
+    /// like [`super::super::attachments_for_messages`].
     pub async fn embeds_for_messages(
         &self,
         message_ids: &[MessageId],

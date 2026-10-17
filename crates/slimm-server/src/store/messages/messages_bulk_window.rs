@@ -10,7 +10,7 @@
 //! `(channel, author, since)` predicate into an id list, and hands that
 //! straight to [`Store::bulk_delete_messages`].
 
-use super::Store;
+use super::super::Store;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 impl Store {

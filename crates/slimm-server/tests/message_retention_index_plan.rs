@@ -82,7 +82,7 @@ fn assert_no_scan(plan: &[String], what: &str) {
 #[tokio::test]
 async fn the_content_prune_pass_never_scans_messages() {
     let (pool, _guard) = new_pool("retention-content-plan").await;
-    let source = read_source("src/store/message_retention.rs");
+    let source = read_source("src/store/messages/message_retention.rs");
     let sql = extract_containing(&source, "FROM messages");
     let plan = plan_of(&pool, &sql, &[0, 200]).await;
     assert_no_scan(&plan, "the content-prune pass");
@@ -91,7 +91,7 @@ async fn the_content_prune_pass_never_scans_messages() {
 #[tokio::test]
 async fn the_op_log_reclaim_pass_never_scans_message_ops() {
     let (pool, _guard) = new_pool("retention-op-plan").await;
-    let source = read_source("src/store/message_retention.rs");
+    let source = read_source("src/store/messages/message_retention.rs");
     let sql = extract_containing(&source, "DELETE FROM message_ops");
     let plan = plan_of(&pool, &sql, &[0, 2_000]).await;
     assert_no_scan(&plan, "the op-log reclaim pass");

@@ -6,7 +6,7 @@
 
 use sqlx::SqliteExecutor;
 
-use super::{Message, Store};
+use super::super::{Message, Store};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
 impl Store {
@@ -78,7 +78,7 @@ impl Store {
 /// Like [`fetch_message`] but sees a deleted row too, for the send
 /// idempotency probe: a retried id must match whether or not the first send's
 /// message has since been deleted.
-pub(super) async fn fetch_message_including_deleted<'e, E>(
+pub(in crate::store) async fn fetch_message_including_deleted<'e, E>(
     executor: E,
     id: MessageId,
 ) -> anyhow::Result<Option<Message>>
@@ -103,7 +103,7 @@ where
     Ok(message)
 }
 
-pub(super) async fn fetch_message<'e, E>(
+pub(in crate::store) async fn fetch_message<'e, E>(
     executor: E,
     id: MessageId,
 ) -> anyhow::Result<Option<Message>>

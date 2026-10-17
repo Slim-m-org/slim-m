@@ -13,12 +13,12 @@
 //! Density is the whole property, and it holds because every real mutation
 //! allocates exactly one seq and writes exactly one row in the same
 //! transaction. A mutation that changes nothing writes no row and allocates
-//! no seq, which is why [`super::Store::edit_message`] answers three ways
+//! no seq, which is why [`super::super::Store::edit_message`] answers three ways
 //! rather than two.
 
 use sqlx::{Sqlite, Transaction};
 
-use super::Store;
+use super::super::Store;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 /// One page of a channel's message op stream, with the head it was read
@@ -85,7 +85,7 @@ impl MessageOpKind {
 /// The wire already withholds this field on every kind, so a client cannot
 /// tell the two apart, and that is the point: an automated prune reads no
 /// differently from a moderator whose account has since been anonymised.
-pub(super) async fn insert_message_op(
+pub(in crate::store) async fn insert_message_op(
     tx: &mut Transaction<'_, Sqlite>,
     channel_id: ChannelId,
     message_id: MessageId,

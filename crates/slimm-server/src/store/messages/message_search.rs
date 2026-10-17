@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Full-text search over messages, split out of [`super::messages`] when that
+//! Full-text search over messages, split out of [`super`] when that
 //! file crossed the 500-line hard ceiling.
 //!
 //! Its own file rather than a section of that one because it is the only
@@ -16,7 +16,7 @@
 
 use sqlx::{QueryBuilder, Row};
 
-use super::{Message, Store};
+use super::super::{Message, Store};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
 /// Why a full-text search failed.

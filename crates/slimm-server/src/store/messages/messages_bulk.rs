@@ -25,10 +25,10 @@
 
 use sqlx::QueryBuilder;
 
-use super::attachments::release_message_attachments;
+use super::super::attachments::release_message_attachments;
+use super::super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
+use super::super::{Store, now_ms};
 use super::message_ops::insert_message_op;
-use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
-use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 
 /// What one bulk delete did, per message it actually deleted.
@@ -41,7 +41,7 @@ pub struct BulkDeletion {
     pub deleted: Vec<DeletedMessage>,
     pub freed_attachments: Vec<String>,
     /// What happened to the forwarded copies of the originals, in any channel.
-    pub cascade: super::ForwardCascade,
+    pub cascade: super::super::ForwardCascade,
 }
 
 #[derive(Debug)]
@@ -212,9 +212,13 @@ impl Store {
         }
 
         let deleted_ids: Vec<MessageId> = deleted.iter().map(|d| d.message_id).collect();
-        let cascade =
-            super::forward_cascade::cascade_to_copies(&mut tx, &deleted_ids, Some(actor_id), now)
-                .await?;
+        let cascade = super::super::forward_cascade::cascade_to_copies(
+            &mut tx,
+            &deleted_ids,
+            Some(actor_id),
+            now,
+        )
+        .await?;
 
         for subject_id in subjects {
             record_moderation_audit(

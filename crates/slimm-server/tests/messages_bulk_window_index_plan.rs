@@ -93,7 +93,7 @@ fn assert_seeks_the_window_index(plan: &[String]) {
 #[tokio::test]
 async fn selecting_an_authors_recent_messages_seeks_the_window_index() {
     let (pool, _guard) = new_pool("slimm-bulk-window-plan").await;
-    let source = source_of("src/store/messages_bulk_window.rs");
+    let source = source_of("src/store/messages/messages_bulk_window.rs");
     let sql = extract_raw_containing(&source, "FROM messages");
 
     let plan = plan_of(&pool, &sql).await;
