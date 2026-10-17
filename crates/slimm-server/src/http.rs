@@ -70,17 +70,11 @@ mod member_nicknames;
 mod members;
 mod members_bulk;
 mod members_list;
-mod message_components;
-mod message_dto;
-mod message_enrich;
-mod message_forwards;
-mod message_get;
-mod message_history;
-mod message_mentions;
-mod message_validation;
 mod messages;
-mod messages_bulk;
-mod messages_bulk_window;
+use messages::{
+    message_components, message_dto, message_enrich, message_mentions, message_validation,
+    messages_bulk, messages_bulk_window,
+};
 mod metrics;
 mod module_caller;
 mod module_commands;

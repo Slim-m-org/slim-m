@@ -33,10 +33,10 @@ use axum::http::request::Parts;
 use axum::routing::post;
 use serde::Deserialize;
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce};
+use super::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -124,7 +124,7 @@ async fn bulk_delete(
 
 /// Deletes `ids` in one transaction, then fans the result out: one event per
 /// message, the cascades, one reply-summary refresh, and the freed files.
-pub(super) async fn delete_and_publish(
+pub(in crate::http) async fn delete_and_publish(
     state: &AppState,
     channel_id: ChannelId,
     ids: &[MessageId],
@@ -153,7 +153,7 @@ pub(super) async fn delete_and_publish(
     super::message_forwards::publish_cascaded(state, outcome.cascade).await;
     // One reply-summary refresh for the whole batch; see `threads::notify_reply`.
     if !outcome.deleted.is_empty() {
-        super::threads::notify_reply(state, channel_id).await;
+        super::super::threads::notify_reply(state, channel_id).await;
     }
     for hex in &outcome.freed_attachments {
         crate::blobs::release(&state.store, &state.media, hex).await;

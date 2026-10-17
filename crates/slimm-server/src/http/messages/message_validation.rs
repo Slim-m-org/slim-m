@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Bounds on a message's text and its id, shared by every route that takes
-//! either. Split out of [`super::messages`] when that file reached the
+//! either. Split out of [`super`] when that file reached the
 //! 500-line ceiling.
 
 use uuid::Uuid;
 
-use super::error::ApiError;
+use super::super::error::ApiError;
 
 /// Longest a single message may be, in characters.
 const MESSAGE_MAX_CHARS: usize = 4000;
@@ -18,7 +18,7 @@ const MESSAGE_MAX_CHARS: usize = 4000;
 /// The over-limit reply names how far over and what the limit is, rather
 /// than a bare "too long": a client composing a long paste (logs, say) needs
 /// the number to trim by, not just the fact that it failed.
-pub(super) fn validate_content(content: &str, empty_ok: bool) -> Result<&str, ApiError> {
+pub(in crate::http) fn validate_content(content: &str, empty_ok: bool) -> Result<&str, ApiError> {
     if !empty_ok && content.trim().is_empty() {
         return Err(ApiError::BadRequest("message content must not be empty"));
     }

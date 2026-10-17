@@ -3,7 +3,7 @@
 //! resolving an origin at send time, and attaching it to a page of messages
 //! on the way out.
 //!
-//! Its own module rather than a section of [`super::messages`], which is
+//! Its own module rather than a section of [`super`], which is
 //! already within seventy lines of the hard file ceiling, and because the
 //! feature reads better in one piece than split across the send route, the
 //! DTO and the enricher.
@@ -21,8 +21,8 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use super::AppState;
-use super::error::ApiError;
+use super::super::AppState;
+use super::super::error::ApiError;
 use crate::hub::Event;
 use crate::ids::{MessageId, UserId};
 use crate::permissions::Permissions;
@@ -126,7 +126,7 @@ pub(crate) async fn for_messages(
 
 /// Tells live clients what became of the forwarded copies of a deleted
 /// message, in whichever channels they live, then reclaims files they freed.
-pub(super) async fn publish_cascaded(state: &AppState, cascade: ForwardCascade) {
+pub(in crate::http) async fn publish_cascaded(state: &AppState, cascade: ForwardCascade) {
     crate::forward_events::publish_detached(&state.store, &state.hub, &cascade.detached).await;
     let mut channels = Vec::new();
     for copy in cascade.deleted {
@@ -149,6 +149,6 @@ pub(super) async fn publish_cascaded(state: &AppState, cascade: ForwardCascade) 
         }
     }
     for channel_id in channels {
-        super::threads::notify_reply(state, channel_id).await;
+        super::super::threads::notify_reply(state, channel_id).await;
     }
 }

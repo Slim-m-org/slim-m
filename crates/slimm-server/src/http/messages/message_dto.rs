@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The wire shape a message answers with, split out of [`super::messages`]
+//! The wire shape a message answers with, split out of [`super`]
 //! when that file crossed the 500-line hard ceiling again (it had already
 //! been split once, for [`super::message_enrich`]). This is the type only;
 //! every route that builds or enriches one still lives in `messages.rs` and
@@ -7,10 +7,10 @@
 
 use serde::Serialize;
 
-use super::apps::AppSurfaceDto;
-use super::embeds::EmbedDto;
+use super::super::apps::AppSurfaceDto;
+use super::super::embeds::EmbedDto;
+use super::super::polls::PollDto;
 use super::message_forwards::ForwardedDto;
-use super::polls::PollDto;
 use crate::store::{AttachmentSummary, CallRecord as StoreCallRecord, Message, MessageRevision};
 
 #[derive(Serialize)]
@@ -78,13 +78,13 @@ pub(crate) struct MessageDto {
     /// The poll this message carries, if any. Always present as a key (never
     /// omitted): `null` means this message is not a poll, the same "always
     /// there, empty or null means genuinely none" convention `reactions`
-    /// already follows. Set by [`super::polls::attach_polls`], not by this
+    /// already follows. Set by [`super::super::polls::attach_polls`], not by this
     /// conversion, since a bare `Message` has nowhere to read poll data from.
     pub(crate) poll: Option<PollDto>,
     /// The app this message launches, if any. Always present as a key: `null`
     /// means this message launches no app - the same "always there, null means
     /// genuinely none" convention `poll` follows. Set by
-    /// [`super::apps::attach_app_surfaces`], not by this conversion, since a
+    /// [`super::super::apps::attach_app_surfaces`], not by this conversion, since a
     /// bare `Message` has nowhere to read it from. The surface's live, shared
     /// state is not here: it rides `code_runs` at block 0, like a run block.
     pub(crate) app_surface: Option<AppSurfaceDto>,
@@ -212,7 +212,7 @@ pub(crate) struct CodeRunDto {
 impl MessageDto {
     /// Roughly what this row costs a `/sync` response, for the shared byte
     /// budget - content plus every embed's own text.
-    pub(super) fn wire_cost(&self) -> usize {
+    pub(in crate::http) fn wire_cost(&self) -> usize {
         let embeds: usize = self
             .embeds
             .iter()

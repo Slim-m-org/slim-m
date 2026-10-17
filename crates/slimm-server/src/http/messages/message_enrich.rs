@@ -2,7 +2,7 @@
 //! Turning a page of stored messages into the DTOs every read route answers
 //! with, reactions and polls attached.
 //!
-//! Split out of [`super::messages`] when that file crossed the 500-line hard
+//! Split out of [`super`] when that file crossed the 500-line hard
 //! ceiling. Its own file rather than a section of that one because it belongs
 //! to no single route: list, full-text search, sync and the pinned-message
 //! list all enrich a page the same way, and doing it per route is how the
@@ -10,10 +10,10 @@
 //! same message fetched by list carried them. Forwards are attached here
 //! for that same reason.
 
-use super::AppState;
-use super::embeds;
+use super::super::AppState;
+use super::super::embeds;
 use super::message_dto::{CallDto, CodeRunDto};
-use super::messages::{AttachmentDto, MessageDto, ReactionDto};
+use super::{AttachmentDto, MessageDto, ReactionDto};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::Message;
 
@@ -115,7 +115,7 @@ pub(crate) async fn with_reactions(
         dtos.push(dto);
     }
     // Paired positionally: the loop above pushes one `dtos` entry per `ids` entry.
-    super::polls::attach_polls(&state.store, viewer, &ids, &mut dtos).await?;
-    super::apps::attach_app_surfaces(&state.store, &ids, &mut dtos).await?;
+    super::super::polls::attach_polls(&state.store, viewer, &ids, &mut dtos).await?;
+    super::super::apps::attach_app_surfaces(&state.store, &ids, &mut dtos).await?;
     Ok(dtos)
 }

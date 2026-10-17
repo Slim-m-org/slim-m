@@ -2,7 +2,7 @@
 //! Where a forwarded message came from.
 //!
 //! A side table rather than columns on `messages`, and read in the batch
-//! [`crate::http::message_enrich`] already runs. See
+//! [`crate::http::messages::message_enrich`] already runs. See
 //! `migrations/0059_message_forwards.sql` for why the origin is snapshotted
 //! here instead of resolved live the way a reply's parent is.
 //! Deleting or ageing out the origin removes its copies; see
@@ -45,7 +45,7 @@ pub struct ForwardSource {
 ///
 /// The origin's channel is deliberately not joined: the client resolves the
 /// name from the channel list it already holds, so a name it is not entitled
-/// to never leaves the server. See [`crate::http::message_forwards`].
+/// to never leaves the server. See [`crate::http::messages::message_forwards`].
 #[derive(Debug, Clone)]
 pub struct ForwardSummary {
     pub origin: ForwardOrigin,

@@ -18,15 +18,14 @@ use axum::http::request::Parts;
 use axum::routing::get;
 use serde::Deserialize;
 
+use self::message_get::get_message;
+use self::message_history::history;
 use super::AppState;
 use super::attachment_ids::parse_attachment_ids;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::embeds;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
-use super::message_components;
-use super::message_get::get_message;
-use super::message_history::history;
 use super::post_commit::after_commit;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId};
@@ -34,9 +33,20 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{Edited, NewMessage};
 
-pub(crate) use super::message_dto::{AttachmentDto, MessageDto, ReactionDto};
-pub(crate) use super::message_validation::parse_uuid;
-pub(super) use super::message_validation::validate_content;
+pub(crate) use self::message_dto::{AttachmentDto, MessageDto, ReactionDto};
+pub(crate) use self::message_validation::parse_uuid;
+
+pub(super) mod message_components;
+pub(super) mod message_dto;
+pub(super) mod message_enrich;
+pub(super) mod message_forwards;
+pub(super) mod message_get;
+pub(super) mod message_history;
+pub(super) mod message_mentions;
+pub(super) mod message_validation;
+pub(super) mod messages_bulk;
+pub(super) mod messages_bulk_window;
+pub(super) use self::message_validation::validate_content;
 
 /// Message bodies carry one text field; cap it generously but bounded.
 const MESSAGE_BODY_LIMIT: usize = 64 * 1024;
@@ -203,7 +213,7 @@ async fn send(
             let named = MessageId(parse_uuid(raw)?);
             match stored_already {
                 true => None,
-                false => Some(super::message_forwards::resolve(&state, ctx.user_id, named).await?),
+                false => Some(self::message_forwards::resolve(&state, ctx.user_id, named).await?),
             }
         }
         None => None,
@@ -256,7 +266,7 @@ async fn send(
     let reply_ping = match sent.message.reply_to_id.filter(|_| mention_reply) {
         Some(parent) => after_commit(
             "its reply ping",
-            super::message_mentions::reply_ping_target(&state, channel_id, ctx.user_id, parent)
+            self::message_mentions::reply_ping_target(&state, channel_id, ctx.user_id, parent)
                 .await,
         ),
         None => None,
@@ -264,7 +274,7 @@ async fn send(
     // Also on a retry, which repairs mentions its first attempt failed to store; resolving is idempotent.
     after_commit(
         "its mentions",
-        super::message_mentions::resolve_and_store(
+        self::message_mentions::resolve_and_store(
             &state,
             channel_id,
             ctx.user_id,
@@ -338,7 +348,7 @@ async fn list(
         .store
         .list_messages(channel_id, params.before, limit)
         .await?;
-    let dtos = super::message_enrich::with_reactions(&state, ctx.user_id, messages).await?;
+    let dtos = self::message_enrich::with_reactions(&state, ctx.user_id, messages).await?;
     Ok(Json(dtos))
 }
 
@@ -395,7 +405,7 @@ async fn delete(
 
     let outcome = state.store.delete_message(message_id, ctx.user_id).await?;
     if outcome.deleted {
-        super::message_forwards::publish_cascaded(&state, outcome.cascade).await;
+        self::message_forwards::publish_cascaded(&state, outcome.cascade).await;
         state.hub.publish(Event::MessageDeleted {
             op_seq: outcome.op_seq,
             channel_id,
@@ -499,10 +509,10 @@ async fn edit(
             let author = message.author_id.unwrap_or(ctx.user_id);
             // A reply's ping is not in its text, so an edit keeps it only if the send stored one.
             let reply_ping =
-                super::message_mentions::kept_reply_ping(&state, channel_id, author, message.id)
+                self::message_mentions::kept_reply_ping(&state, channel_id, author, message.id)
                     .await?;
             // Content changed, so the mention set may have too; see resolve_and_store's own doc for the author-vs-editor choice below.
-            super::message_mentions::resolve_and_store(
+            self::message_mentions::resolve_and_store(
                 &state,
                 channel_id,
                 author,

@@ -6,7 +6,7 @@
 //! content-changing edit and a poll's caption all resolve mentions the same
 //! way instead of three near-identical inline blocks.
 
-use super::AppState;
+use super::super::AppState;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 /// Resolves who `content` (written by `author_id` in `channel_id`) mentions

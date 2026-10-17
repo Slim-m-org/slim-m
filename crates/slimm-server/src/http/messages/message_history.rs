@@ -6,11 +6,11 @@
 
 use axum::extract::{Path, State};
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{AUTHED_READ, AuthedLimited, Json};
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{AUTHED_READ, AuthedLimited, Json};
 use super::message_dto::MessageRevisionDto;
-use super::messages::parse_uuid;
+use super::parse_uuid;
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
 

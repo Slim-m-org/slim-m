@@ -11,11 +11,11 @@ use axum::http::request::Parts;
 use axum::routing::put;
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
-use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
-use super::interactions::{answer, own_interaction};
-use super::messages::parse_uuid;
+use super::super::AppState;
+use super::super::error::ApiError;
+use super::super::extract::{Authed, Json, enforce};
+use super::super::interactions::{answer, own_interaction};
+use super::parse_uuid;
 use crate::components::{self, ComponentRow};
 use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
@@ -37,7 +37,7 @@ pub fn routes() -> Router<AppState> {
 /// `raw` checked against the caps. Only a bot may attach buttons, and saying
 /// so beats dropping them silently: the caller is a program that would
 /// otherwise never learn its buttons were discarded.
-pub(super) async fn honored_for_send(
+pub(in crate::http) async fn honored_for_send(
     state: &AppState,
     caller: UserId,
     raw: Vec<ComponentRow>,
@@ -48,12 +48,13 @@ pub(super) async fn honored_for_send(
     if !state.store.is_bot(caller).await? {
         return Err(ApiError::Forbidden);
     }
-    components::validate(raw, super::hidden_chars::is_hidden_char).map_err(ApiError::BadRequest)
+    components::validate(raw, super::super::hidden_chars::is_hidden_char)
+        .map_err(ApiError::BadRequest)
 }
 
 /// Stores `rows` on a fresh send, or on a retry whose first attempt stored
 /// none, then reads back what the message really has.
-pub(super) async fn store_and_reload(
+pub(in crate::http) async fn store_and_reload(
     state: &AppState,
     message_id: MessageId,
     fresh: bool,
@@ -104,7 +105,7 @@ async fn set_components(
         .as_deref()
         .map(|raw| parse_uuid(raw).map(InteractionId))
         .transpose()?;
-    let rows = components::validate(req.components, super::hidden_chars::is_hidden_char)
+    let rows = components::validate(req.components, super::super::hidden_chars::is_hidden_char)
         .map_err(ApiError::BadRequest)?;
     let needed = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
     if !state.store.is_bot(ctx.user_id).await?
