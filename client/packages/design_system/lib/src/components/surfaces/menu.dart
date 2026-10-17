@@ -239,75 +239,6 @@ class _AppMenuItemState extends State<AppMenuItem> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final active = widget.onTap != null;
-    final touch = widget.touch ?? AppTouchTargets.of(context);
-    // An item with no action is dimmed throughout, so it cannot pass for one that works.
-    final ink = active ? _toneColor(tokens) : tokens.textDisabled;
-    // The source dims the icon to text-secondary for the normal tone even
-    // though the label is text-primary; danger keeps icon and label in step.
-    final iconInk = active && widget.tone == AppMenuItemTone.normal
-        ? tokens.textSecondary
-        : ink;
-
-    final trailing = widget.trailing ??
-        (widget.selected
-            ? Icon(
-                AppIcons.check,
-                size: AppSizes.icon16,
-                color: tokens.accent,
-              )
-            : null);
-
-    // The tint rides AppListRow's fast hover clock; density is still layout.
-    final content = AnimatedContainer(
-      duration: AppMotion.reduced(context, AppMotion.fast),
-      curve: AppMotion.entrance,
-      height: touch ? AppSizes.rowTouchMenu : AppSizes.controlMd,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: widget.selected
-            ? tokens.accentSoft
-            : (_hovered || _pressed
-                ? tokens.surfaceSunken
-                : Colors.transparent),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      foregroundDecoration: _focused
-          ? BoxDecoration(
-              border: Border.all(color: tokens.focusRing, width: 2),
-              borderRadius: BorderRadius.circular(AppRadii.control),
-            )
-          : null,
-      child: Row(
-        spacing: touch ? AppSpacing.s12 : AppSpacing.s8,
-        children: [
-          if (widget.leading != null)
-            Icon(widget.leading, size: AppSizes.icon16, color: iconInk),
-          Expanded(
-            // Excluded because the Semantics wrapper below already names this
-            // item; merging the two doubles the announcement.
-            child: ExcludeSemantics(
-              child: Text(
-                widget.label,
-                overflow: TextOverflow.ellipsis,
-                style: (touch ? AppText.body : AppText.ui).copyWith(color: ink),
-              ),
-            ),
-          ),
-          if (trailing != null || widget.submenu)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              // 6 is literal in the source, not on the --space-* grid.
-              spacing: 6,
-              children: [
-                if (trailing != null) trailing,
-                if (widget.submenu)
-                  Icon(AppIcons.chevronRight,
-                      size: 12, color: tokens.textSecondary),
-              ],
-            ),
-        ],
-      ),
-    );
 
     return Semantics(
       label: widget.semanticLabel ?? widget.label,
@@ -336,8 +267,79 @@ class _AppMenuItemState extends State<AppMenuItem> {
                   widget.onTap!();
                 }
               : null,
-          child: content,
+          child: _content(tokens, active),
         ),
+      ),
+    );
+  }
+
+  Color _fill(AppTokens tokens) {
+    if (widget.selected) return tokens.accentSoft;
+    return _hovered || _pressed ? tokens.surfaceSunken : Colors.transparent;
+  }
+
+  Widget? _trailingIcon(AppTokens tokens) {
+    if (widget.trailing != null) return widget.trailing;
+    if (!widget.selected) return null;
+    return Icon(AppIcons.check, size: AppSizes.icon16, color: tokens.accent);
+  }
+
+  Widget _content(AppTokens tokens, bool active) {
+    final touch = widget.touch ?? AppTouchTargets.of(context);
+    // An item with no action is dimmed throughout, so it cannot pass for one that works.
+    final ink = active ? _toneColor(tokens) : tokens.textDisabled;
+    // The source dims the icon to text-secondary for the normal tone even
+    // though the label is text-primary; danger keeps icon and label in step.
+    final iconInk = active && widget.tone == AppMenuItemTone.normal
+        ? tokens.textSecondary
+        : ink;
+    final trailing = _trailingIcon(tokens);
+
+    // The tint rides AppListRow's fast hover clock; density is still layout.
+    return AnimatedContainer(
+      duration: AppMotion.reduced(context, AppMotion.fast),
+      curve: AppMotion.entrance,
+      height: touch ? AppSizes.rowTouchMenu : AppSizes.controlMd,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: _fill(tokens),
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      foregroundDecoration: _focused
+          ? BoxDecoration(
+              border: Border.all(color: tokens.focusRing, width: 2),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            )
+          : null,
+      child: Row(
+        spacing: touch ? AppSpacing.s12 : AppSpacing.s8,
+        children: [
+          if (widget.leading != null)
+            Icon(widget.leading, size: AppSizes.icon16, color: iconInk),
+          Expanded(
+            // Excluded because the Semantics wrapper above already names this
+            // item; merging the two doubles the announcement.
+            child: ExcludeSemantics(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: (touch ? AppText.body : AppText.ui).copyWith(color: ink),
+              ),
+            ),
+          ),
+          if (trailing != null || widget.submenu)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              // 6 is literal in the source, not on the --space-* grid.
+              spacing: 6,
+              children: [
+                if (trailing != null) trailing,
+                if (widget.submenu)
+                  Icon(AppIcons.chevronRight,
+                      size: 12, color: tokens.textSecondary),
+              ],
+            ),
+        ],
       ),
     );
   }

@@ -272,153 +272,16 @@ class _AppListRowState extends State<AppListRow> {
     );
     final radius = BorderRadius.circular(carded ? 0 : AppRadii.control);
 
-    // `mentioned` joins `selected`/`unread`'s lift; `muted` suppresses the unread half of it, since only a mention breaks through mute.
-    final emphasised =
-        widget.selected || widget.mentioned || (widget.unread && !widget.muted);
-    final labelStyle = AppText.ui.copyWith(
-      color: emphasised || AppStrongLabelScope.of(context)
-          ? tokens.textPrimary
-          : tokens.textSecondary,
-      fontWeight: emphasised ? AppWeights.medium : AppWeights.regular,
-    );
-
-    Widget? trailingContent = widget.trailing;
-    // The dot pops in (scale and fade) to confirm the state change, then sits
-    // still: the motion spec forbids it ever pulsing while resting.
-    trailingContent ??= (widget.unread || widget.mentioned)
-        ? TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: AppMotion.reduced(context, AppMotion.base),
-            curve: AppMotion.entrance,
-            builder: (context, t, child) => Opacity(
-              opacity: t,
-              child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
-            ),
-            child: _dotFor(
-              mentioned: widget.mentioned,
-              color: widget.mentioned ? tokens.accentFill : tokens.textPrimary,
-            ),
-          )
-        : null;
-
     final content = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: carded ? AppCardRowScope.inset : AppSpacing.s8,
       ),
       child: LayoutBuilder(
-        builder: (context, box) => Row(
-          spacing: AppSpacing.s8,
-          children: [
-            // Excluded for the same reason the label below is: an avatar names
-            // itself, so a member row announced its name twice.
-            if (widget.leading != null)
-              ExcludeSemantics(
-                child: Opacity(
-                  opacity: widget.muted ? 0.62 : 1,
-                  child: widget.leading!,
-                ),
-              ),
-            Expanded(
-              // Excluded because the Semantics wrapper below already names this
-              // row; without it a screen reader announces "general, general".
-              child: ExcludeSemantics(
-                child: AppListRowLabel(
-                  label: widget.label,
-                  subtitle: widget.subtitle,
-                  subtitleIcon: widget.subtitleIcon,
-                  labelStyle: labelStyle,
-                ),
-              ),
-            ),
-            if (widget.meta != null)
-              // Sized to its text and capped, not Flexible: a Flexible beside the
-              // Expanded label split the free space in half and floated the
-              // value mid-row instead of against the trailing edge.
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
-                child: Text(
-                  widget.meta!,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ),
-            if (trailingContent != null)
-              Opacity(
-                opacity: widget.muted ? 0.62 : 1,
-                child: trailingContent,
-              ),
-            if (widget.trailingExtra != null) widget.trailingExtra!,
-          ],
-        ),
-      ),
-    );
-
-    // Two fill layers on the motion spec's two clocks: the selection tint
-    // fades over the panel duration while hover shifts at press speed, and
-    // one AnimatedContainer cannot serve both.
-    // Height on a plain box: density is layout, not motion, and animating it
-    // smears a settings change. The AnimatedContainer carries only the tint.
-    final visual = SizedBox(
-      height: rowHeight,
-      child: AnimatedContainer(
-        duration: AppMotion.reduced(context, AppMotion.base),
-        curve: AppMotion.entrance,
-        decoration: BoxDecoration(
-          color: widget.selected ? tokens.accentSoft : Colors.transparent,
-          borderRadius: radius,
-        ),
-        foregroundDecoration: _focused
-            ? BoxDecoration(
-                border: Border.all(color: tokens.focusRing, width: 2),
-                borderRadius: radius,
-              )
-            : null,
-        child: Stack(
-          // Expand, or the row's content takes its intrinsic height and a Stack
-          // aligns it top-start: the icon, label and unread dot all sat above
-          // the centre of a 30pt row, and higher still on a 44pt touch one.
-          fit: StackFit.expand,
-          children: [
-            AnimatedContainer(
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              curve: AppMotion.entrance,
-              decoration: BoxDecoration(
-                color: !widget.selected && (_pressed || _hovered)
-                    ? tokens.surfaceRaised
-                    : Colors.transparent,
-                borderRadius: radius,
-              ),
-            ),
-            content,
-            if (widget.selected && !AppSelectionMarkerScope.ownedAbove(context))
-              Positioned(
-                left: 0,
-                top: 5,
-                bottom: 5,
-                width: 2,
-                // Grows from centre (scaleY 0 to 1) as selection arrives, per
-                // the motion spec; a tween rather than an implicit container so
-                // the growth also plays on the frame the marker first mounts.
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: AppMotion.reduced(context, AppMotion.base),
-                  curve: AppMotion.entrance,
-                  builder: (context, t, child) => Transform.scale(
-                    scaleY: t,
-                    child: child,
-                  ),
-                  child: DecoratedBox(
-                    key: AppListRow.selectionMarkerKey,
-                    decoration: BoxDecoration(
-                      color: tokens.accentFill,
-                      // A literal 2px in the source rather than an AppRadii
-                      // step; ported as-is rather than rounded to a token.
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+        builder: (context, box) => _row(
+          tokens,
+          box,
+          _labelStyle(tokens),
+          _trailingContent(tokens),
         ),
       ),
     );
@@ -444,35 +307,200 @@ class _AppListRowState extends State<AppListRow> {
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
         onShowHoverHighlight: (v) => setState(() => _hovered = v),
         onShowFocusHighlight: (v) => setState(() => _focused = v),
-        actions: widget.onTap == null
-            ? const <Type, Action<Intent>>{}
-            : <Type, Action<Intent>>{
-                ActivateIntent: CallbackAction<ActivateIntent>(
-                  onInvoke: (_) => widget.onTap!(),
-                ),
-              },
-        child: GestureDetector(
-          onTapDown: widget.onTap == null
-              ? null
-              : (_) => setState(() => _pressed = true),
-          onTapUp: widget.onTap == null
-              ? null
-              : (_) => setState(() => _pressed = false),
-          onTapCancel: widget.onTap == null
-              ? null
-              : () => setState(() => _pressed = false),
-          onTap: widget.onTap == null
-              ? null
-              : () {
-                  AppHaptics.selection();
-                  widget.onTap!();
-                },
-          // Muted dims the leading and trailing content only, never the
-          // label: textSecondary is already near the AA floor, and scaling
-          // the whole row's opacity dragged offline member names to 3.7:1.
-          child: visual,
+        actions: _activateActions(),
+        child: _gestures(_visual(tokens, rowHeight, radius, content)),
+      ),
+    );
+  }
+
+  TextStyle _labelStyle(AppTokens tokens) {
+    // `mentioned` joins `selected`/`unread`'s lift; `muted` suppresses the unread half of it, since only a mention breaks through mute.
+    final emphasised =
+        widget.selected || widget.mentioned || (widget.unread && !widget.muted);
+    return AppText.ui.copyWith(
+      color: emphasised || AppStrongLabelScope.of(context)
+          ? tokens.textPrimary
+          : tokens.textSecondary,
+      fontWeight: emphasised ? AppWeights.medium : AppWeights.regular,
+    );
+  }
+
+  Widget? _trailingContent(AppTokens tokens) {
+    if (widget.trailing != null) return widget.trailing;
+    if (!widget.unread && !widget.mentioned) return null;
+    // The dot pops in (scale and fade) to confirm the state change, then sits
+    // still: the motion spec forbids it ever pulsing while resting.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: AppMotion.reduced(context, AppMotion.base),
+      curve: AppMotion.entrance,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+      ),
+      child: _dotFor(
+        mentioned: widget.mentioned,
+        color: widget.mentioned ? tokens.accentFill : tokens.textPrimary,
+      ),
+    );
+  }
+
+  Widget _row(
+    AppTokens tokens,
+    BoxConstraints box,
+    TextStyle labelStyle,
+    Widget? trailingContent,
+  ) {
+    return Row(
+      spacing: AppSpacing.s8,
+      children: [
+        // Excluded for the same reason the label below is: an avatar names
+        // itself, so a member row announced its name twice.
+        if (widget.leading != null)
+          ExcludeSemantics(
+            child: Opacity(
+              opacity: widget.muted ? 0.62 : 1,
+              child: widget.leading!,
+            ),
+          ),
+        Expanded(
+          // Excluded because the Semantics wrapper below already names this
+          // row; without it a screen reader announces "general, general".
+          child: ExcludeSemantics(
+            child: AppListRowLabel(
+              label: widget.label,
+              subtitle: widget.subtitle,
+              subtitleIcon: widget.subtitleIcon,
+              labelStyle: labelStyle,
+            ),
+          ),
+        ),
+        if (widget.meta != null)
+          // Sized to its text and capped, not Flexible: a Flexible beside the
+          // Expanded label split the free space in half and floated the
+          // value mid-row instead of against the trailing edge.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
+            child: Text(
+              widget.meta!,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+        if (trailingContent != null)
+          Opacity(opacity: widget.muted ? 0.62 : 1, child: trailingContent),
+        if (widget.trailingExtra != null) widget.trailingExtra!,
+      ],
+    );
+  }
+
+  // Two fill layers on the motion spec's two clocks: the selection tint
+  // fades over the panel duration while hover shifts at press speed, and
+  // one AnimatedContainer cannot serve both.
+  // Height on a plain box: density is layout, not motion, and animating it
+  // smears a settings change. The AnimatedContainer carries only the tint.
+  Widget _visual(
+    AppTokens tokens,
+    double rowHeight,
+    BorderRadius radius,
+    Widget content,
+  ) {
+    final hoverFill = !widget.selected && (_pressed || _hovered);
+    return SizedBox(
+      height: rowHeight,
+      child: AnimatedContainer(
+        duration: AppMotion.reduced(context, AppMotion.base),
+        curve: AppMotion.entrance,
+        decoration: BoxDecoration(
+          color: widget.selected ? tokens.accentSoft : Colors.transparent,
+          borderRadius: radius,
+        ),
+        foregroundDecoration: _focused
+            ? BoxDecoration(
+                border: Border.all(color: tokens.focusRing, width: 2),
+                borderRadius: radius,
+              )
+            : null,
+        child: Stack(
+          // Expand, or the row's content takes its intrinsic height and a Stack
+          // aligns it top-start: the icon, label and unread dot all sat above
+          // the centre of a 30pt row, and higher still on a 44pt touch one.
+          fit: StackFit.expand,
+          children: [
+            AnimatedContainer(
+              duration: AppMotion.reduced(context, AppMotion.fast),
+              curve: AppMotion.entrance,
+              decoration: BoxDecoration(
+                color: hoverFill ? tokens.surfaceRaised : Colors.transparent,
+                borderRadius: radius,
+              ),
+            ),
+            content,
+            if (widget.selected && !AppSelectionMarkerScope.ownedAbove(context))
+              _selectionMarker(tokens),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _selectionMarker(AppTokens tokens) {
+    return Positioned(
+      left: 0,
+      top: 5,
+      bottom: 5,
+      width: 2,
+      // Grows from centre (scaleY 0 to 1) as selection arrives, per
+      // the motion spec; a tween rather than an implicit container so
+      // the growth also plays on the frame the marker first mounts.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: AppMotion.reduced(context, AppMotion.base),
+        curve: AppMotion.entrance,
+        builder: (context, t, child) => Transform.scale(
+          scaleY: t,
+          child: child,
+        ),
+        child: DecoratedBox(
+          key: AppListRow.selectionMarkerKey,
+          decoration: BoxDecoration(
+            color: tokens.accentFill,
+            // A literal 2px in the source rather than an AppRadii
+            // step; ported as-is rather than rounded to a token.
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<Type, Action<Intent>> _activateActions() {
+    final onTap = widget.onTap;
+    if (onTap == null) return const <Type, Action<Intent>>{};
+    return <Type, Action<Intent>>{
+      ActivateIntent: CallbackAction<ActivateIntent>(
+        onInvoke: (_) => onTap(),
+      ),
+    };
+  }
+
+  Widget _gestures(Widget visual) {
+    final onTap = widget.onTap;
+    return GestureDetector(
+      onTapDown: onTap == null ? null : (_) => setState(() => _pressed = true),
+      onTapUp: onTap == null ? null : (_) => setState(() => _pressed = false),
+      onTapCancel:
+          onTap == null ? null : () => setState(() => _pressed = false),
+      onTap: onTap == null
+          ? null
+          : () {
+              AppHaptics.selection();
+              onTap();
+            },
+      // Muted dims the leading and trailing content only, never the
+      // label: textSecondary is already near the AA floor, and scaling
+      // the whole row's opacity dragged offline member names to 3.7:1.
+      child: visual,
     );
   }
 }
