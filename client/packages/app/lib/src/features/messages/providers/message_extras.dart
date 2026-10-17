@@ -200,28 +200,30 @@ class MessageExtrasController
     MessageExtras? existing, {
     bool authoritative = false,
   }) => MessageExtras(
-    reactions: authoritative || message.reactions.isNotEmpty
-        ? message.reactions
-        : existing?.reactions ?? const [],
-    attachments: message.attachments.isNotEmpty
-        ? message.attachments
-        : existing?.attachments ?? const [],
+    reactions: _list(
+      message.reactions,
+      existing?.reactions,
+      replace: authoritative,
+    ),
+    attachments: _list(message.attachments, existing?.attachments),
     // Same rule as reactions: a REST fetch replaces; a bare live frame (no code_runs) cannot clobber a result already held.
-    codeRuns: authoritative || message.codeRuns.isNotEmpty
-        ? message.codeRuns
-        : existing?.codeRuns ?? const [],
+    codeRuns: _list(
+      message.codeRuns,
+      existing?.codeRuns,
+      replace: authoritative,
+    ),
     poll: message.poll ?? existing?.poll,
     appSurface: message.appSurface ?? existing?.appSurface,
     call: message.call ?? existing?.call,
     // Same rule as components: a bot can replace or clear them, so a REST fetch replaces.
-    embeds: authoritative || message.embeds.isNotEmpty
-        ? message.embeds
-        : existing?.embeds ?? const [],
+    embeds: _list(message.embeds, existing?.embeds, replace: authoritative),
     webhookUsername: message.webhookUsername ?? existing?.webhookUsername,
     // Same rule as reactions: a REST fetch replaces, so buttons a bot cleared while this client was away go.
-    components: authoritative || message.components.isNotEmpty
-        ? message.components
-        : existing?.components ?? const [],
+    components: _list(
+      message.components,
+      existing?.components,
+      replace: authoritative,
+    ),
     threadChannelId: message.threadChannelId ?? existing?.threadChannelId,
     threadReplyCount: message.threadReplyCount ?? existing?.threadReplyCount,
     threadLastReplyAt: message.threadLastReplyAt ?? existing?.threadLastReplyAt,
@@ -231,6 +233,15 @@ class MessageExtrasController
         ? message.mentionsMe
         : message.mentionsMe || (existing?.mentionsMe ?? false),
   );
+
+  static List<T> _list<T>(
+    List<T> fresh,
+    List<T>? known, {
+    bool replace = false,
+  }) {
+    if (replace || fresh.isNotEmpty) return fresh;
+    return known ?? const [];
+  }
 
   /// Replaces the cached tallies from a broadcast, carrying `reacted` over from
   /// what this client already knew: it is per-viewer and never broadcast (see
@@ -308,38 +319,50 @@ class MessageExtrasController
   void applyLocalReactionToggle(String messageId, String emoji, bool active) {
     final existing = extrasFor(messageId).reactions;
     final index = existing.indexWhere((r) => r.emoji == emoji);
-    final List<api.ReactionSummary> next;
-    if (active) {
-      next = [...existing];
-      if (index >= 0) {
-        final current = next[index];
-        if (!current.reacted) {
-          next[index] = api.ReactionSummary(
-            emoji: emoji,
-            count: current.count + 1,
-            reacted: true,
-          );
-        }
-      } else {
-        next.add(api.ReactionSummary(emoji: emoji, count: 1, reacted: true));
-      }
-    } else {
-      next = [...existing];
-      if (index >= 0) {
-        final current = next[index];
-        final count = current.reacted ? current.count - 1 : current.count;
-        if (count <= 0) {
-          next.removeAt(index);
-        } else {
-          next[index] = api.ReactionSummary(
-            emoji: emoji,
-            count: count,
-            reacted: false,
-          );
-        }
-      }
-    }
+    final next = active
+        ? _withReaction(existing, emoji, index)
+        : _withoutReaction(existing, index);
     _set(messageId, extrasFor(messageId).copyWith(reactions: next));
+  }
+
+  List<api.ReactionSummary> _withReaction(
+    List<api.ReactionSummary> existing,
+    String emoji,
+    int index,
+  ) {
+    final next = [...existing];
+    if (index < 0) {
+      return next
+        ..add(api.ReactionSummary(emoji: emoji, count: 1, reacted: true));
+    }
+    final current = next[index];
+    if (current.reacted) return next;
+    next[index] = api.ReactionSummary(
+      emoji: emoji,
+      count: current.count + 1,
+      reacted: true,
+    );
+    return next;
+  }
+
+  List<api.ReactionSummary> _withoutReaction(
+    List<api.ReactionSummary> existing,
+    int index,
+  ) {
+    final next = [...existing];
+    if (index < 0) return next;
+    final current = next[index];
+    final count = current.reacted ? current.count - 1 : current.count;
+    if (count <= 0) {
+      next.removeAt(index);
+    } else {
+      next[index] = api.ReactionSummary(
+        emoji: current.emoji,
+        count: count,
+        reacted: false,
+      );
+    }
+    return next;
   }
 
   /// Merges a broadcast tally into the cached poll, dropping it when no poll is
