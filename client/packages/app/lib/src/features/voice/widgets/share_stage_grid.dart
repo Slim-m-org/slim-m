@@ -34,6 +34,7 @@ Widget shareStageTile(
   VoidCallback? onStopWatching,
   VoidCallback? onFocus,
   bool focused = false,
+  bool showCaption = true,
 }) => ScreenShareStage(
   sharerName: sharer.name,
   isLocal: sharer.isLocal,
@@ -41,6 +42,7 @@ Widget shareStageTile(
   onStopWatching: onStopWatching,
   onFocus: onFocus,
   focused: focused,
+  showCaption: showCaption,
   onExpand: () => showFullscreenVideo(
     context,
     identity: sharer.identity,
@@ -100,6 +102,7 @@ class ShareGrid extends StatelessWidget {
                         controller,
                         onStopWatching: () => onStopWatching(share.identity),
                         onFocus: () => onFocus(share.identity),
+                        showCaption: false,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.s4),
