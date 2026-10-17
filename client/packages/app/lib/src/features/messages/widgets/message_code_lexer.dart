@@ -45,112 +45,131 @@ const _punctuation = {
   '@',
 };
 
-List<AppCodeSpan> _lexLine(String line, LangSpec spec) {
-  final spans = <AppCodeSpan>[];
-  final n = line.length;
-  var i = 0;
+List<AppCodeSpan> _lexLine(String line, LangSpec spec) =>
+    _LineLexer(line, spec).lex();
 
-  void add(String text, AppCodeRole role) {
+/// Consumes [line] left to right; each `_take*` step claims a token at the
+/// cursor and reports whether it did.
+class _LineLexer {
+  _LineLexer(this.line, this.spec);
+
+  final String line;
+  final LangSpec spec;
+  final List<AppCodeSpan> _spans = [];
+  int _i = 0;
+
+  int get _n => line.length;
+
+  List<AppCodeSpan> lex() {
+    while (_i < _n) {
+      if (_takeLineComment() ||
+          _takeBlockComment() ||
+          _takeString() ||
+          _takeNumber() ||
+          _takeWord()) {
+        continue;
+      }
+      final c = line[_i];
+      _add(
+        c,
+        _punctuation.contains(c) ? AppCodeRole.punctuation : AppCodeRole.plain,
+      );
+      _i++;
+    }
+    return _spans.isEmpty ? const [AppCodeSpan('')] : _spans;
+  }
+
+  void _add(String text, AppCodeRole role) {
     if (text.isEmpty) return;
-    if (spans.isNotEmpty && spans.last.role == role) {
-      spans[spans.length - 1] = AppCodeSpan(spans.last.text + text, role);
+    if (_spans.isNotEmpty && _spans.last.role == role) {
+      _spans[_spans.length - 1] = AppCodeSpan(_spans.last.text + text, role);
     } else {
-      spans.add(AppCodeSpan(text, role));
+      _spans.add(AppCodeSpan(text, role));
     }
   }
 
-  bool matchesAt(String needle, int at) =>
-      at + needle.length <= n &&
+  bool _matchesAt(String needle, int at) =>
+      at + needle.length <= _n &&
       line.substring(at, at + needle.length) == needle;
 
-  while (i < n) {
-    final c = line[i];
-
-    final lineComment = spec.lineComment;
-    if (lineComment != null && matchesAt(lineComment, i)) {
-      add(line.substring(i), AppCodeRole.comment);
-      break;
-    }
-
-    final block = spec.blockComment;
-    if (block != null && matchesAt(block.$1, i)) {
-      final end = line.indexOf(block.$2, i + block.$1.length);
-      if (end == -1) {
-        add(line.substring(i), AppCodeRole.comment);
-        break;
-      }
-      final stop = end + block.$2.length;
-      add(line.substring(i, stop), AppCodeRole.comment);
-      i = stop;
-      continue;
-    }
-
-    if (spec.stringChars.contains(c)) {
-      var j = i + 1;
-      while (j < n) {
-        if (line[j] == r'\' && j + 1 < n) {
-          j += 2;
-          continue;
-        }
-        if (line[j] == c) {
-          j++;
-          break;
-        }
-        j++;
-      }
-      add(line.substring(i, j), AppCodeRole.string);
-      i = j;
-      continue;
-    }
-
-    if (_isDigit(c.codeUnitAt(0))) {
-      var j = i;
-      while (j < n && (_isDigit(line.codeUnitAt(j)) || line[j] == '_')) {
-        j++;
-      }
-      if (j < n &&
-          line[j] == '.' &&
-          j + 1 < n &&
-          _isDigit(line.codeUnitAt(j + 1))) {
-        j++;
-        while (j < n && (_isDigit(line.codeUnitAt(j)) || line[j] == '_')) {
-          j++;
-        }
-      }
-      while (j < n && _isIdentChar(line.codeUnitAt(j))) {
-        j++;
-      }
-      add(line.substring(i, j), AppCodeRole.number);
-      i = j;
-      continue;
-    }
-
-    if (_isIdentStart(c.codeUnitAt(0))) {
-      var j = i + 1;
-      while (j < n && _isIdentChar(line.codeUnitAt(j))) {
-        j++;
-      }
-      final word = line.substring(i, j);
-      final key = spec.caseInsensitiveKeywords ? word.toUpperCase() : word;
-      add(
-        word,
-        spec.keywords.contains(key) ? AppCodeRole.keyword : AppCodeRole.plain,
-      );
-      i = j;
-      continue;
-    }
-
-    if (_punctuation.contains(c)) {
-      add(c, AppCodeRole.punctuation);
-      i++;
-      continue;
-    }
-
-    add(c, AppCodeRole.plain);
-    i++;
+  bool _takeLineComment() {
+    final marker = spec.lineComment;
+    if (marker == null || !_matchesAt(marker, _i)) return false;
+    _add(line.substring(_i), AppCodeRole.comment);
+    _i = _n;
+    return true;
   }
 
-  return spans.isEmpty ? const [AppCodeSpan('')] : spans;
+  bool _takeBlockComment() {
+    final block = spec.blockComment;
+    if (block == null || !_matchesAt(block.$1, _i)) return false;
+    final end = line.indexOf(block.$2, _i + block.$1.length);
+    final stop = end == -1 ? _n : end + block.$2.length;
+    _add(line.substring(_i, stop), AppCodeRole.comment);
+    _i = stop;
+    return true;
+  }
+
+  bool _takeString() {
+    final quote = line[_i];
+    if (!spec.stringChars.contains(quote)) return false;
+    final stop = _stringEnd(quote);
+    _add(line.substring(_i, stop), AppCodeRole.string);
+    _i = stop;
+    return true;
+  }
+
+  int _stringEnd(String quote) {
+    var j = _i + 1;
+    while (j < _n) {
+      if (line[j] == r'\' && j + 1 < _n) {
+        j += 2;
+      } else if (line[j] == quote) {
+        return j + 1;
+      } else {
+        j++;
+      }
+    }
+    return j;
+  }
+
+  bool _takeNumber() {
+    if (!_isDigit(line.codeUnitAt(_i))) return false;
+    var j = _digitsEnd(_i);
+    if (j + 1 < _n && line[j] == '.' && _isDigit(line.codeUnitAt(j + 1))) {
+      j = _digitsEnd(j + 1);
+    }
+    while (j < _n && _isIdentChar(line.codeUnitAt(j))) {
+      j++;
+    }
+    _add(line.substring(_i, j), AppCodeRole.number);
+    _i = j;
+    return true;
+  }
+
+  int _digitsEnd(int from) {
+    var j = from;
+    while (j < _n && (_isDigit(line.codeUnitAt(j)) || line[j] == '_')) {
+      j++;
+    }
+    return j;
+  }
+
+  bool _takeWord() {
+    if (!_isIdentStart(line.codeUnitAt(_i))) return false;
+    var j = _i + 1;
+    while (j < _n && _isIdentChar(line.codeUnitAt(j))) {
+      j++;
+    }
+    final word = line.substring(_i, j);
+    final key = spec.caseInsensitiveKeywords ? word.toUpperCase() : word;
+    _add(
+      word,
+      spec.keywords.contains(key) ? AppCodeRole.keyword : AppCodeRole.plain,
+    );
+    _i = j;
+    return true;
+  }
 }
 
 /// Renders [code] (the text between a fence's markers) as classified lines

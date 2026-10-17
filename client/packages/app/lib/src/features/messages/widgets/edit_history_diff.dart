@@ -16,6 +16,8 @@
 /// pieces that would misrender the chip or link it becomes.
 library;
 
+import 'dart:math' as math;
+
 import 'message_fences.dart';
 
 /// Which side of a diff a span or block came from.
@@ -55,14 +57,7 @@ List<DiffBlock> diffMessage(String oldText, String newText) {
   final b = splitMessageBlocks(newText);
   final n = a.length;
   final m = b.length;
-  final dp = List.generate(n + 1, (_) => List<int>.filled(m + 1, 0));
-  for (var i = n - 1; i >= 0; i--) {
-    for (var j = m - 1; j >= 0; j--) {
-      dp[i][j] = _alignable(a[i], b[j])
-          ? dp[i + 1][j + 1] + 1
-          : (dp[i + 1][j] >= dp[i][j + 1] ? dp[i + 1][j] : dp[i][j + 1]);
-    }
-  }
+  final dp = _lcsTable(a, b, _alignable);
   final blocks = <DiffBlock>[];
   var i = 0;
   var j = 0;
@@ -132,6 +127,40 @@ DiffBlock _wholeBlock(MessageBlock block, DiffKind kind) => switch (block) {
 
 final RegExp _tokenPattern = RegExp(r'\s+|\S+');
 
+/// Suffix-indexed longest-common-subsequence lengths: `dp[i][j]` is the LCS of
+/// `a[i..]` and `b[j..]`.
+List<List<int>> _lcsTable<T>(List<T> a, List<T> b, bool Function(T, T) same) {
+  final n = a.length;
+  final m = b.length;
+  final dp = List.generate(n + 1, (_) => List<int>.filled(m + 1, 0));
+  for (var i = n - 1; i >= 0; i--) {
+    for (var j = m - 1; j >= 0; j--) {
+      dp[i][j] = same(a[i], b[j])
+          ? dp[i + 1][j + 1] + 1
+          : math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  return dp;
+}
+
+int _commonHead(List<String> a, List<String> b) {
+  var head = 0;
+  while (head < a.length && head < b.length && a[head] == b[head]) {
+    head++;
+  }
+  return head;
+}
+
+int _commonTail(List<String> a, List<String> b, int head) {
+  var tail = 0;
+  while (tail < a.length - head &&
+      tail < b.length - head &&
+      a[a.length - 1 - tail] == b[b.length - 1 - tail]) {
+    tail++;
+  }
+  return tail;
+}
+
 /// Diffs [oldText] against [newText] word by word (see the file doc comment
 /// for what counts as a word), merging adjacent same-side tokens into one
 /// span so a run of several added words is one span, not one per word.
@@ -139,16 +168,8 @@ List<DiffSpan> diffWords(String oldText, String newText) {
   final a = _tokenPattern.allMatches(oldText).map((m) => m[0]!).toList();
   final b = _tokenPattern.allMatches(newText).map((m) => m[0]!).toList();
   // An edit is usually a small change in a big message; only the middle needs the quadratic table.
-  var head = 0;
-  while (head < a.length && head < b.length && a[head] == b[head]) {
-    head++;
-  }
-  var tail = 0;
-  while (tail < a.length - head &&
-      tail < b.length - head &&
-      a[a.length - 1 - tail] == b[b.length - 1 - tail]) {
-    tail++;
-  }
+  final head = _commonHead(a, b);
+  final tail = _commonTail(a, b, head);
   final spans = <DiffSpan>[];
   for (var k = 0; k < head; k++) {
     _push(spans, a[k], DiffKind.equal);
@@ -167,14 +188,7 @@ List<DiffSpan> diffWords(String oldText, String newText) {
 void _diffMiddle(List<DiffSpan> spans, List<String> a, List<String> b) {
   final n = a.length;
   final m = b.length;
-  final dp = List.generate(n + 1, (_) => List<int>.filled(m + 1, 0));
-  for (var i = n - 1; i >= 0; i--) {
-    for (var j = m - 1; j >= 0; j--) {
-      dp[i][j] = a[i] == b[j]
-          ? dp[i + 1][j + 1] + 1
-          : (dp[i + 1][j] >= dp[i][j + 1] ? dp[i + 1][j] : dp[i][j + 1]);
-    }
-  }
+  final dp = _lcsTable(a, b, (x, y) => x == y);
   var i = 0;
   var j = 0;
   while (i < n && j < m) {
