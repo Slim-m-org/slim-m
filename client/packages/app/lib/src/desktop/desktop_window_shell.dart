@@ -26,6 +26,7 @@ import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
+import 'display_server.dart';
 import 'first_run_tray_notice.dart';
 import 'splash_mapped_wait.dart';
 import 'startup_state.dart' show startupLeavingProvider;
@@ -80,6 +81,27 @@ class DesktopWindowShell {
   /// it with no import cycle: this file already imports that one.
   static const splashWindowSize = kSplashWindowSize;
 
+  static bool Function() _positionSupported = windowPositionSupported;
+
+  /// Test-only seam for the Wayland rule, since a test runs on this Linux box.
+  @visibleForTesting
+  static set debugPositionSupported(bool Function() probe) =>
+      _positionSupported = probe;
+
+  @visibleForTesting
+  static void debugEnablePersistence() =>
+      _controller?.enableGeometryPersistence();
+
+  /// Writes any pending geometry, then destroys the window through [port].
+  static Future<void> quit(DesktopWindowPort port) async {
+    try {
+      await _controller?.flush();
+    } catch (error) {
+      debugPrint('desktop: flushing geometry on quit failed: $error');
+    }
+    await port.destroy();
+  }
+
   static DesktopWindowController? _controller;
   static DesktopTrayController? _trayController;
   static bool _active = false;
@@ -113,6 +135,7 @@ class DesktopWindowShell {
     _framelessApplied = false;
     _handoffTargetSize = null;
     _handoffFillsDisplay = false;
+    _positionSupported = windowPositionSupported;
   }
 
   /// Flips the two flags [DesktopChrome] reads, so a widget test can render
@@ -234,9 +257,7 @@ class DesktopWindowShell {
   ///
   /// Bounded and swallowed the same way [applyInitialGeometry] is: a hang or
   /// throw here must not strand the app hidden with nothing to reveal it.
-  /// [DesktopWindowController.enableGeometryPersistence] is flipped
-  /// unconditionally afterwards, success or failure, so a failure here never
-  /// leaves persistence disabled for the rest of the run. [splashFloor] is
+  /// Persistence stays off until [revealAfterHandoff] has settled the view. [splashFloor] is
   /// how long the splash must have been on screen once mapped. [fadeOut] is
   /// how long the splash content dissolves before its window hides.
   static Future<void> prepareHandoff(
@@ -255,7 +276,6 @@ class DesktopWindowShell {
     } catch (error) {
       debugPrint('desktop: splash handoff geometry failed: $error');
     }
-    _controller?.enableGeometryPersistence();
   }
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
@@ -264,10 +284,13 @@ class DesktopWindowShell {
     final prefs = await container.read(preferencesProvider.future);
     final saved = WindowGeometryStore(prefs).read() ?? WindowGeometry.fallback;
     // Size clamp before the display clamp so a saved size below the floor is never restored where the OS minimum is not honored (Wayland); see clampSizeToMinimum.
-    final geometry = clampToAttachedDisplays(
+    final sized = clampToAttachedDisplays(
       clampSizeToMinimum(saved),
       await _port.allDisplays(),
     );
+    final geometry = _positionSupported()
+        ? sized
+        : sized.copyWith(clearPosition: true);
 
     await _port.setResizable(true);
     // After the splash, which is deliberately smaller than this floor.
@@ -339,6 +362,14 @@ class DesktopWindowShell {
   /// completion, so the bound protects a log line, not a caller.
   static Future<void> revealAfterHandoff() async {
     if (currentDesktopPlatform() == null) return;
+    try {
+      await _reveal();
+    } finally {
+      _controller?.enableGeometryPersistence();
+    }
+  }
+
+  static Future<void> _reveal() async {
     try {
       await _port.show();
     } catch (error) {
@@ -487,6 +518,7 @@ class DesktopWindowShell {
       store: store,
       platform: platform,
       trayAvailable: trayAvailable,
+      positionSupported: _positionSupported,
       onShow: (action) => _offerFirstRunNoticeIfNeeded(container, action),
     )..start();
 

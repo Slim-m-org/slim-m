@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The splash window is frameless on Linux, so until the real app mounts its
-/// title bar the splash itself must carry the only way to move or close it.
+/// title bar the splash itself must carry the way to move it, and nothing to close it.
 library;
 
 import 'dart:io';
@@ -13,7 +13,9 @@ import '../support/code_only.dart';
 import 'support/fake_desktop_window_port.dart';
 
 void main() {
-  testWidgets('the splash drags the window and closes it', (tester) async {
+  testWidgets('the splash drags the window and has no close button', (
+    tester,
+  ) async {
     final port = FakeDesktopWindowPort();
     await tester.pumpWidget(StartupApp(windowPort: port));
     // The loading line moves for as long as the splash is up, so frames are pumped rather than settled.
@@ -31,9 +33,21 @@ void main() {
     await tester.dragFrom(box.center, const Offset(40, 10));
     expect(port.startDraggingCalls, 1);
 
-    await tester.tap(find.bySemanticsLabel('Close'));
-    await tester.pump();
-    expect(port.destroyCalls, 1);
+    expect(find.bySemanticsLabel('Close'), findsNothing);
+    expect(find.byType(IconButton), findsNothing);
+    expect(port.destroyCalls, 0);
+  });
+
+  testWidgets('the splash clips to rounded corners only when asked', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const StartupApp(rounded: true));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(ClipRRect), findsOneWidget);
+
+    await tester.pumpWidget(const StartupApp());
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(ClipRRect), findsNothing);
   });
 
   testWidgets('without a window port the splash draws no chrome', (

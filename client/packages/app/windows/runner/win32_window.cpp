@@ -16,6 +16,13 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+/// Corner preference attribute and its rounded value, redefined for SDKs older
+/// than 10.0.22000.0. Windows 10 rejects the attribute, which is ignored.
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+constexpr int kCornerPreferenceRound = 2;  // DWMWCP_ROUND
+
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -145,6 +152,10 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   UpdateTheme(window);
+
+  // Rounds the whole HWND, so the splash needs no Flutter-side clip here.
+  DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE,
+                        &kCornerPreferenceRound, sizeof(kCornerPreferenceRound));
 
   return OnCreate();
 }
