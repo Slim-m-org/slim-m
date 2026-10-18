@@ -101,10 +101,10 @@ impl HttpFetcher for ReqwestFetcher {
         request: FetchRequest,
         remaining: Duration,
     ) -> Result<FetchResponse, FetchRefused> {
-        let Some(budget) = remaining.checked_sub(RUN_HEADROOM) else {
+        if remaining <= RUN_HEADROOM {
             return Err(FetchRefused(TIMED_OUT.into()));
-        };
-        let budget = budget.min(FETCH_TIMEOUT);
+        }
+        let budget = (remaining - RUN_HEADROOM).min(FETCH_TIMEOUT);
         self.handle.block_on(fetch(self.policy, request, budget))
     }
 }
