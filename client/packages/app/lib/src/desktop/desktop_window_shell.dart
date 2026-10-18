@@ -17,7 +17,6 @@ library;
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
-import 'package:flutter/widgets.dart' show Size, WidgetsBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -404,60 +403,11 @@ class DesktopWindowShell {
     } catch (error) {
       debugPrint('desktop: post-reveal frame wait failed: $error');
     }
-    await _awaitMetricsAtHandoffSize();
-  }
-
-  /// Waits, bounded, for the view to actually report the size
-  /// [_applyFinalGeometry] asked for.
-  ///
-  /// This is what keeps the real UI from ever laying out at the splash's
-  /// 380px. `main.dart` flips `appReadyProvider` only after this returns, so
-  /// the first frame of the real app is built against the window it is
-  /// really in. Without it the flip races the compositor's own metrics, and
-  /// on a launch that loses the race the whole app builds at
-  /// [LayoutClass.compact] - a desktop window rendering the phone layout,
-  /// which the owner reported twice. Measured on their KDE Wayland session:
-  /// one launch in three built the real UI at 380 logical pixels.
-  ///
-  /// A maximized or fullscreen run state has no size of ours to match, so it
-  /// waits for the view to stop reporting the splash's size instead; without
-  /// that the real UI built at 380px and a first-launch sheet latched the
-  /// phone presentation for good. Fails open on the timeout, because a window
-  /// whose metrics never arrive must still get its app: a wrong layout is
-  /// recoverable by resizing, a splash that never leaves is not.
-  static Future<void> _awaitMetricsAtHandoffSize() async {
-    final target = _handoffTargetSize;
-    if (target == null && !_handoffFillsDisplay) return;
-    final deadline = DateTime.now().add(_setupTimeout);
-    while (DateTime.now().isBefore(deadline)) {
-      final size = _currentViewSize();
-      final reached = target != null
-          ? viewMatchesSize(size, target)
-          : viewHasLeftSplash(size);
-      if (reached) return;
-      try {
-        await SchedulerBinding.instance.endOfFrame.timeout(_metricsPollStep);
-      } catch (_) {
-        // A frame that never came is not a reason to stop asking.
-      }
-    }
-    debugPrint(
-      'desktop: view never reported the handoff size $target; '
-      'last seen ${_currentViewSize()}',
+    await awaitViewAtHandoffSize(
+      target: _handoffTargetSize,
+      fillsDisplay: _handoffFillsDisplay,
+      timeout: _setupTimeout,
     );
-  }
-
-  /// How long one poll waits for a frame before re-reading the view size: a
-  /// hidden or idle window can go a while without painting, and the size may
-  /// change without one.
-  static const _metricsPollStep = Duration(milliseconds: 100);
-
-  static Size? _currentViewSize() {
-    final view = WidgetsBinding.instance.platformDispatcher.implicitView;
-    if (view == null) return null;
-    final ratio = view.devicePixelRatio;
-    if (ratio <= 0) return null;
-    return view.physicalSize / ratio;
   }
 
   /// Registers the receiving end of the runners' notification that a second

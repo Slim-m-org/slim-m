@@ -75,6 +75,19 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'account-devices',
+    'Connections',
+    description: 'Accounts shown on your profile.',
+    keywords: ['discord', 'link', 'linked accounts'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'account-devices',
+    'Discord',
+    keywords: ['connections', 'link', 'unlink'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'account-devices',
     'Devices',
     description: 'Everywhere this account is signed in.',
     keywords: ['sessions', 'sign out', 'logout', 'version'],
