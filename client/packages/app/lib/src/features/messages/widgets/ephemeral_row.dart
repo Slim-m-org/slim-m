@@ -191,11 +191,13 @@ class _FooterLink extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-            child: Text(
-              label,
-              style: AppText.caption.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.medium,
+            child: SelectionContainer.disabled(
+              child: Text(
+                label,
+                style: AppText.caption.copyWith(
+                  color: tokens.textPrimary,
+                  fontWeight: AppWeights.medium,
+                ),
               ),
             ),
           ),

@@ -67,7 +67,11 @@ class AttachmentSpoilerCover extends StatelessWidget {
                   ),
                 ),
                 Positioned.fill(
-                  child: Center(child: _SpoilerPill(tokens: tokens)),
+                  child: Center(
+                    child: SelectionContainer.disabled(
+                      child: _SpoilerPill(tokens: tokens),
+                    ),
+                  ),
                 ),
               ],
             ),

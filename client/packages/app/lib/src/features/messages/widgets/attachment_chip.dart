@@ -58,48 +58,50 @@ class _AttachmentChipState extends ConsumerState<AttachmentChip>
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
               onTap: _save,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s12,
-                  vertical: AppSpacing.s8,
-                ),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceRaised,
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Flexible, not a bare Text: a long real filename would otherwise overflow the row.
-                    Flexible(
-                      child: Text(
-                        attachment.filename,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.ui.copyWith(color: tokens.textPrimary),
+              child: SelectionContainer.disabled(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s12,
+                    vertical: AppSpacing.s8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceRaised,
+                    border: Border.all(color: tokens.borderSubtle),
+                    borderRadius: BorderRadius.circular(AppRadii.control),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Flexible, not a bare Text: a long real filename would otherwise overflow the row.
+                      Flexible(
+                        child: Text(
+                          attachment.filename,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.ui.copyWith(color: tokens.textPrimary),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.s8),
-                    Text(
-                      formatByteSize(attachment.size),
-                      style: AppText.caption.copyWith(
-                        color: tokens.textSecondary,
+                      const SizedBox(width: AppSpacing.s8),
+                      Text(
+                        formatByteSize(attachment.size),
+                        style: AppText.caption.copyWith(
+                          color: tokens.textSecondary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.s8),
-                    saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            AppIcons.download,
-                            size: AppSizes.icon16,
-                            color: tokens.textSecondary,
-                          ),
-                  ],
+                      const SizedBox(width: AppSpacing.s8),
+                      saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              AppIcons.download,
+                              size: AppSizes.icon16,
+                              color: tokens.textSecondary,
+                            ),
+                    ],
+                  ),
                 ),
               ),
             ),

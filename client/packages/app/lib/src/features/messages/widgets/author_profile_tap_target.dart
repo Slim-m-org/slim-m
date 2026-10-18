@@ -115,7 +115,7 @@ class _AuthorProfileTapTargetState
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  widget.child,
+                  SelectionContainer.disabled(child: widget.child),
                   // Only mounted while focus-highlighted, so a pointer-only run draws nothing extra.
                   if (_focused)
                     Positioned.fill(

@@ -156,7 +156,11 @@ class _PollOptionRowState extends State<PollOptionRow> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.s8,
                     ),
-                    child: _content(tokens, percent),
+                    child: widget.onTap == null
+                        ? _content(tokens, percent)
+                        : SelectionContainer.disabled(
+                            child: _content(tokens, percent),
+                          ),
                   ),
                 ],
               ),
