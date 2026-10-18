@@ -39,6 +39,7 @@ part 'client_module_commands.dart';
 part 'client_module_permissions.dart';
 part 'client_bots.dart';
 part 'client_category_permissions.dart';
+part 'client_linked_accounts.dart';
 part 'client_notification_schedule.dart';
 part 'client_presence.dart';
 part 'client_push.dart';
