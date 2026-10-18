@@ -232,4 +232,82 @@ void main() {
     expect(await get(r, '/a'), 'public');
     expect(dialled, isEmpty);
   });
+
+  test('retryNow ends a back-off at once, so a large upload goes direct',
+      () async {
+    final (direct, _) = await _server('direct', _host);
+    var reachable = false;
+    final r = IoDirectRoute(
+      Uri.parse('https://$_host:$_port'),
+      context: _trusting,
+      connectPublic: (host, port) =>
+          Socket.connect(InternetAddress.loopbackIPv4, public.port),
+      connectDirect: (host, port) => reachable
+          ? Socket.connect(InternetAddress.loopbackIPv4, direct.port)
+          : Future.error(const SocketException('unreachable')),
+      clock: () => now,
+    );
+    addTearDown(r.httpClient.close);
+    r.advertise(['10.0.0.100:$_port']);
+    expect(await get(r, '/a'), 'public');
+    reachable = true;
+    expect(await get(r, '/b'), 'public', reason: 'still backing off');
+
+    r.retryNow();
+    expect(await get(r, '/c'), 'direct');
+    expect(r.active, isTrue);
+  });
+
+  group('pinned clients for the connection test', () {
+    test('the direct client reaches the advertised address and no other',
+        () async {
+      final (direct, directSeen) = await _server('direct', _host);
+      directTarget = direct.port;
+      final r = route()..advertise([lan]);
+      final pinned = r.pinnedClient(direct: true)!;
+      addTearDown(pinned.close);
+
+      final body =
+          (await pinned.get(Uri.parse('https://$_host:$_port/x'))).body;
+      expect(body, 'direct');
+      expect(publicSeen, isEmpty);
+    });
+
+    test('the direct client does not fall back when the address is wrong',
+        () async {
+      final (impostor, _) = await _server('impostor', 'other.test');
+      directTarget = impostor.port;
+      final r = route()..advertise([lan]);
+      final pinned = r.pinnedClient(direct: true)!;
+      addTearDown(pinned.close);
+
+      await expectLater(
+        pinned.get(Uri.parse('https://$_host:$_port/x')),
+        throwsA(anything),
+      );
+      expect(publicSeen, isEmpty);
+    });
+
+    test('the public client stays public while an address is advertised',
+        () async {
+      final (direct, directSeen) = await _server('direct', _host);
+      directTarget = direct.port;
+      final r = route()..advertise([lan]);
+      final pinned = r.pinnedClient(direct: false)!;
+      addTearDown(pinned.close);
+
+      final body =
+          (await pinned.get(Uri.parse('https://$_host:$_port/x'))).body;
+      expect(body, 'public');
+      expect(directSeen, isEmpty);
+    });
+
+    test('there is no direct client without an advertised address', () {
+      final r = route();
+      expect(r.hasAddresses, isFalse);
+      expect(r.pinnedClient(direct: true), isNull);
+      r.advertise([lan]);
+      expect(r.hasAddresses, isTrue);
+    });
+  });
 }

@@ -75,6 +75,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     Duration Function(int attempt) backoff = _defaultBackoff,
     Duration stallLimit = kUploadStallLimit,
   }) async {
+    _retryDirectRoute();
     final known = length > sessionThreshold
         ? capabilities ??
             await _patiently(

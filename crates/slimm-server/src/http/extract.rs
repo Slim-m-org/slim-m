@@ -175,6 +175,12 @@ pub(crate) const MODULE: u8 = 11;
 /// Presenting a second factor; see [`Class::Totp`].
 pub(crate) const TOTP: u8 = 12;
 
+/// The connection test's latency ping; see [`Class::DiagnosticPing`].
+pub(crate) const DIAGNOSTIC_PING: u8 = 13;
+
+/// The connection test's speed transfers; see [`Class::DiagnosticTransfer`].
+pub(crate) const DIAGNOSTIC_TRANSFER: u8 = 14;
+
 /// Panics on an unknown code rather than falling back.
 ///
 /// It used to end `_ => Class::Refresh`, which meant a new code compiled clean
@@ -197,6 +203,8 @@ fn class_of(code: u8) -> Class {
         GIF => Class::Gif,
         LINK_PREVIEW => Class::LinkPreview,
         AUTHED_READ => Class::AuthedRead,
+        DIAGNOSTIC_PING => Class::DiagnosticPing,
+        DIAGNOSTIC_TRANSFER => Class::DiagnosticTransfer,
         other => unreachable!("no rate-limit class for code {other}"),
     }
 }
@@ -370,6 +378,8 @@ mod tests {
             (GIF, Class::Gif),
             (LINK_PREVIEW, Class::LinkPreview),
             (AUTHED_READ, Class::AuthedRead),
+            (super::DIAGNOSTIC_PING, Class::DiagnosticPing),
+            (super::DIAGNOSTIC_TRANSFER, Class::DiagnosticTransfer),
         ];
         let mut seen = std::collections::HashSet::new();
         for (code, class) in pairs {

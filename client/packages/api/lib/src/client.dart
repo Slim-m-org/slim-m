@@ -5,10 +5,12 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'connection_test.dart';
 import 'direct_route.dart';
 import 'exceptions.dart';
 import 'logging/app_log.dart';
@@ -26,6 +28,7 @@ part 'client_bot_ui.dart';
 part 'client_watch_session.dart';
 part 'client_channel_admin.dart';
 part 'client_canvas.dart';
+part 'client_diagnostics.dart';
 part 'client_direct_route.dart';
 part 'client_dms.dart';
 part 'client_dock.dart';
