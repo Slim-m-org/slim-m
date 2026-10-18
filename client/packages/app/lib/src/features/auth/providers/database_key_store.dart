@@ -46,6 +46,12 @@ String localStoreErrorMessage(Object error) => switch (error) {
   DatabaseEncryptionUnavailable() =>
     'This build cannot encrypt the saved copy of your messages, so it will '
         'not store them. Nothing was written or deleted.',
+  DatabaseInUseElsewhere() =>
+    'Another copy of slim-m is using the saved copy of your messages. Quit '
+        'it, including from the system tray, then try again.',
+  DatabaseUnopenable() =>
+    'The saved copy of your messages could not be opened or replaced. Try '
+        'again, and if it keeps failing, restart your computer.',
   _ => 'Could not load this screen.',
 };
 
@@ -99,5 +105,5 @@ String _resetMessage(DatabaseResetReason reason) =>
     reason == DatabaseResetReason.keyMissing
     ? 'This device lost the key to its saved messages, so they were cleared '
           'and are downloading again from the server.'
-    : "This device's saved messages could not be read, so they were cleared "
-          'and are downloading again from the server.';
+    : "This device's saved messages could not be opened, so they were "
+          'cleared and are downloading again from the server.';

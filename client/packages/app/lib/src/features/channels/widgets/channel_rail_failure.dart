@@ -48,6 +48,12 @@ RailFailure localStoreRailFailure(Object error) => RailFailure(
           'cannot be read.',
     DatabaseEncryptionUnavailable() =>
       'This build cannot keep channels on this device.',
+    DatabaseInUseElsewhere() =>
+      'Another copy of slim-m is using the saved channels. Quit it, '
+          'including from the system tray, then retry.',
+    DatabaseUnopenable() =>
+      'The saved channels could not be opened or replaced. Retry, or '
+          'restart your computer.',
     // Named, so a screenshot of this is enough to know what failed.
     _ =>
       'The channel list saved on this device could not be opened '

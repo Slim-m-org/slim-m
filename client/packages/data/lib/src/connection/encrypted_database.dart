@@ -139,6 +139,8 @@ Future<PreparedDatabase> _prepare(File file, DatabaseKeyStore keys) async {
           _deleteDatabase(file);
         case _Probe.damaged:
           _quarantine(file);
+        case _Probe.unavailable:
+          return (key: stored, reset: null);
       }
       return (key: stored, reset: DatabaseResetReason.unreadable);
   }
@@ -315,24 +317,35 @@ void _restrictToOwner(File file) {
 bool _startsWithPlainHeader(File file) =>
     _stateOf(file) == _FileState.plaintext;
 
-enum _Probe { opens, wrongKey, damaged }
+enum _Probe { opens, wrongKey, damaged, unavailable }
 
 /// Tells a wrong key (the file does not decrypt at all) from a file that
 /// decrypts but is damaged, because the second is worth keeping.
+///
+/// A file that is busy or refuses to open says nothing about its contents, so
+/// it is left alone for the caller's own retry to judge.
 _Probe _probe(File file, String key) {
-  final db = sqlite3.open(file.path);
+  Database? opened;
   try {
+    final db = opened = sqlite3.open(file.path);
     applyDatabaseKey(db, key);
     _sanitized(() => db.select('SELECT count(*) FROM sqlite_master'));
     return _Probe.opens;
   } on DatabaseCipherException catch (error) {
     if (error.resultCode == _sqliteNotADatabase) return _Probe.wrongKey;
     if (error.resultCode == _sqliteCorrupt) return _Probe.damaged;
+    if (_isUnavailable(error.resultCode)) return _Probe.unavailable;
+    rethrow;
+  } on SqliteException catch (error) {
+    if (_isUnavailable(error.resultCode)) return _Probe.unavailable;
     rethrow;
   } finally {
-    db.close();
+    opened?.close();
   }
 }
+
+bool _isUnavailable(int resultCode) =>
+    const {5, 6, 10, 14}.contains(resultCode);
 
 bool _isUnreadable(int resultCode) =>
     resultCode == _sqliteNotADatabase || resultCode == _sqliteCorrupt;

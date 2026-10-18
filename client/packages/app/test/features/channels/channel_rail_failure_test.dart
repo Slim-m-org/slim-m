@@ -110,8 +110,8 @@ Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
 
 /// A store that will not open, the way a locked or unreachable keychain leaves
 /// it: the branch that produced the owner's screenshot.
-Override _storeFails() =>
-    databaseProvider.overrideWith((ref) => throw _keyUnavailable);
+Override _storeFails([Object error = _keyUnavailable]) =>
+    databaseProvider.overrideWith((ref) => throw error);
 
 /// A store that opens and is genuinely empty, which is what a device that has
 /// never managed a single successful refresh holds.
@@ -155,6 +155,37 @@ void main() {
       box.width,
       lessThanOrEqualTo(248),
       reason: 'it stays inside the rail it belongs to',
+    );
+
+    await _teardown(tester, container);
+  });
+
+  testWidgets('a store another copy of slim-m holds says to quit that copy', (
+    tester,
+  ) async {
+    final container = await _pumpRail(
+      tester,
+      overrides: [_storeFails(const DatabaseInUseElsewhere('busy'))],
+    );
+
+    expect(find.textContaining('Another copy of slim-m'), findsOneWidget);
+    expect(find.textContaining('system tray'), findsOneWidget);
+    expect(find.textContaining('DriftRemoteException'), findsNothing);
+
+    await _teardown(tester, container);
+  });
+
+  testWidgets('a store that can be neither opened nor replaced says so', (
+    tester,
+  ) async {
+    final container = await _pumpRail(
+      tester,
+      overrides: [_storeFails(const DatabaseUnopenable('denied'))],
+    );
+
+    expect(
+      find.textContaining('could not be opened or replaced'),
+      findsOneWidget,
     );
 
     await _teardown(tester, container);
