@@ -153,6 +153,7 @@ class VoiceSession
   // room.events.listen returns a cancel function rather than a
   // StreamSubscription, so this holds the canceller itself.
   lk.CancelListenFunc? _cancelEvents;
+  void Function()? _stopArrivalWatch;
 
   final _stateController = StreamController<VoiceSessionState>.broadcast();
   final _participantsController =

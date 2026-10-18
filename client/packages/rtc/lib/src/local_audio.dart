@@ -92,6 +92,31 @@ class LocalAudioState {
 
   bool isMuted(String identity) => muted.contains(identity);
 
+  /// The gain a track must start at before the next [applyTo] pass reaches it,
+  /// or null when it may play untouched. Silence is 0.
+  double? arrivalGain(String identity, LocalAudioChannel channel) {
+    final silent = deafened ||
+        muted.contains(identity) ||
+        (channel == LocalAudioChannel.screen && screenMuted.contains(identity));
+    if (silent) return 0;
+    final volume = volumeFor(identity, channel: channel);
+    return volume == kDefaultParticipantVolume ? null : volume;
+  }
+
+  /// Holds the freshly attached track [trackId] at its [arrivalGain] through
+  /// [hold], so a listener's choice is in force from its first sample.
+  void holdArrival(
+    Iterable<LocalAudioRef> refs,
+    String trackId,
+    void Function(String trackId, double gain) hold,
+  ) {
+    for (final ref in refs) {
+      if (ref.trackId != trackId) continue;
+      final gain = arrivalGain(ref.identity, ref.channel);
+      if (gain != null) hold(trackId, gain);
+    }
+  }
+
   void setScreenMuted(String identity, bool value) {
     value ? screenMuted.add(identity) : screenMuted.remove(identity);
   }
