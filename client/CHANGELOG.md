@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.113.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.112.1...client-v0.113.0) (2026-10-18)
+
+
+### Features
+
+* resource audit, media compression, connection test, faster routes, channel notification defaults, voice lounge menus and screen share fixes ([#2262](https://github.com/Slim-m-org/slim-m/issues/2262)) ([8ac735b](https://github.com/Slim-m-org/slim-m/commit/8ac735be182f8ce9361e84a5e851834ae4616f0d))
+
 ## [0.112.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.112.0...client-v0.112.1) (2026-10-18)
 
 
