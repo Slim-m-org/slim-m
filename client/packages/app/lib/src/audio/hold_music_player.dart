@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lounge_tracks.dart';
+import 'releasable_player.dart';
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 
 abstract class HoldMusicPlayer {
@@ -30,15 +31,18 @@ abstract class HoldLoopOutput {
 }
 
 class _AudioPlayersOutput implements HoldLoopOutput {
-  /// Built on first use, so a session that never plays music never touches the audio plugin.
-  AudioPlayer? _created;
-  AudioPlayer get _player => _created ??= AudioPlayer();
+  /// Built on first use and disposed on every stop, so an idle app holds no native player.
+  final _player = ReleasablePlayer<AudioPlayer>(
+    AudioPlayer.new,
+    (player) => player.dispose(),
+  );
 
   @override
   Future<void> play(String asset) async {
-    await _player.stop();
-    await _player.setReleaseMode(ReleaseMode.loop);
-    await _player.play(
+    final player = _player.current;
+    await player.stop();
+    await player.setReleaseMode(ReleaseMode.loop);
+    await player.play(
       AssetSource(asset),
       volume: holdMusicVolume,
       ctx: AudioPlayersSoundPlayer.sharedAmbientContext,
@@ -46,10 +50,10 @@ class _AudioPlayersOutput implements HoldLoopOutput {
   }
 
   @override
-  Future<void> stop() async => _created?.stop();
+  Future<void> stop() => _player.release();
 
   @override
-  Future<void> dispose() async => _created?.dispose();
+  Future<void> dispose() => _player.release();
 }
 
 class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
@@ -67,7 +71,12 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
   Future<void> start() async {
     _active = true;
     final generation = _generation;
-    await _output.play(_track.asset);
+    try {
+      await _output.play(_track.asset);
+    } catch (_) {
+      // A stop that landed mid-start disposed the player under it.
+      if (generation == _generation) rethrow;
+    }
     if (generation != _generation) await _output.stop();
   }
 
