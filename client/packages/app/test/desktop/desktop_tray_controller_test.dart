@@ -115,6 +115,34 @@ void main() {
     },
   );
 
+  for (final (windows, extension) in [(true, '.ico'), (false, '.png')]) {
+    test(
+      'start sets a $extension tray icon when windows is $windows',
+      () async {
+        final harness = VoiceHarness();
+        harness.controllerWith(FakeSession(), voiceApi());
+        addTearDown(harness.dispose);
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_channel, (call) async {
+              calls.add(call);
+              return true;
+            });
+        final controller = DesktopTrayController(
+          port: FakeDesktopWindowPort(),
+          container: harness.container,
+          windows: windows,
+        );
+
+        await controller.start();
+        controller.dispose();
+
+        final icon = calls.firstWhere((call) => call.method == 'setIcon');
+        expect((icon.arguments as Map)['iconPath'], endsWith(extension));
+      },
+    );
+  }
+
   test('a backend with no setToolTip handler still gets a populated context '
       'menu', () async {
     final harness = VoiceHarness();

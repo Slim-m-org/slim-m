@@ -56,7 +56,10 @@ class DesktopTrayController with TrayListener {
     required this.port,
     required this.container,
     this.host,
-  });
+    bool? windows,
+  }) : _windows = windows ?? isWindowsHost;
+
+  final bool _windows;
 
   final DesktopWindowPort port;
 
@@ -149,9 +152,7 @@ class DesktopTrayController with TrayListener {
   /// which is the bug as a person meets it, whichever call actually threw.
   Future<void> _setIcon() async {
     try {
-      await TrayManager.instance.setIcon(
-        trayIconPathFor(windows: isWindowsHost),
-      );
+      await TrayManager.instance.setIcon(trayIconPathFor(windows: _windows));
     } catch (error, stack) {
       // A default icon is a worse tray; a menu-less one is no tray at all.
       AppLog.warning(
