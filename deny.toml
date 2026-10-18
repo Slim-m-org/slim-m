@@ -28,6 +28,8 @@ allow = [
   "Unicode-3.0",
   "Unlicense",
   "CDLA-Permissive-2.0",
+  # jpeg-decoder (media compression): a permissive BSD-style notice-only license.
+  "IJG",
 ]
 confidence-threshold = 0.9
 # A license only the Dart half uses is not an unused Rust allowance.
