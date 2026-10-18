@@ -5773,6 +5773,92 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /diagnostics/ping:
+    get:
+      operationId: diagnosticsPing
+      tags: [system]
+      summary: Answer at once, for the connection test's latency.
+      description: >
+        The connection test times several of these and takes the median. The
+        answer is tiny on purpose, so the time is the path, not the work.
+        Rate limited per account.
+      responses:
+        "200":
+          description: The server's clock.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsPing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /diagnostics/download:
+    get:
+      operationId: diagnosticsDownload
+      tags: [system]
+      summary: Send throwaway bytes, for the connection test's download speed.
+      description: >
+        Streams `bytes` of incompressible filler as `application/octet-stream`
+        with `Cache-Control: no-store`. `bytes` is 1 to 26214400 (25 MiB) and
+        defaults to 1 MiB; a value outside that range is refused with 400, never
+        trimmed. Touches neither disk nor database. Rate limited per account,
+        far tighter than ordinary reads.
+      parameters:
+        - name: bytes
+          in: query
+          required: false
+          description: How many bytes to send.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Exactly `bytes` bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /diagnostics/upload:
+    post:
+      operationId: diagnosticsUpload
+      tags: [system]
+      summary: Take and discard bytes, for the connection test's upload speed.
+      description: >
+        Reads the body to the end and throws it away. The body may be at most
+        26214400 bytes (25 MiB): a larger declared `Content-Length` is refused
+        with 413 before any of it is read, and an undeclared body is cut off with
+        413 once it passes the cap. `duration_ms` is how long the server spent
+        reading, which a proxy that buffers the whole request first will make
+        look shorter than the sender's own timing. Rate limited per account,
+        far tighter than ordinary writes.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: What was received.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsUpload"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /push/quiet-hours:
     get:
       operationId: getQuietHours
@@ -14937,6 +15023,28 @@ components:
             type: string
           description: >-
             `host:port` entries; empty when the operator has not set any.
+
+    DiagnosticsPing:
+      type: object
+      required: [server_time_ms]
+      properties:
+        server_time_ms:
+          type: integer
+          format: int64
+          description: The server clock in Unix milliseconds.
+
+    DiagnosticsUpload:
+      type: object
+      required: [bytes, duration_ms]
+      properties:
+        bytes:
+          type: integer
+          format: int64
+          description: How many bytes arrived.
+        duration_ms:
+          type: integer
+          format: int64
+          description: Milliseconds the server spent reading the body.
 
     QuietHoursResponse:
       type: object

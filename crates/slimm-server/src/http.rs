@@ -77,6 +77,7 @@ use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,
     messages_bulk, messages_bulk_window,
 };
+mod diagnostics;
 mod direct_route;
 mod metrics;
 mod module_caller;
@@ -211,6 +212,7 @@ pub fn router(state: AppState) -> Router {
     // Fresh per call, like `state.limiter`; see `route_timing`'s own doc.
     let route_timings = route_timing::RouteTimings::new();
     let uploads = attachments::upload_routes()
+        .merge(diagnostics::transfer_routes())
         .route_layer(axum::middleware::from_fn(route_timing::record))
         .layer(Extension(route_timings.clone()))
         .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
@@ -239,6 +241,7 @@ pub fn router(state: AppState) -> Router {
         .merge(channels::routes())
         .merge(channel_order::routes())
         .merge(channel_permissions::routes())
+        .merge(diagnostics::ping_routes())
         .merge(direct_route::routes())
         .merge(dock::routes())
         .merge(emoji::routes())

@@ -109,6 +109,15 @@ const UNCOVERED: &[(&str, &str)] = &[
          listener instead.",
     ),
     (
+        "diagnosticsDownload",
+        "answers raw filler bytes, not JSON; tests/diagnostics.rs drives the size, the cap and the 400.",
+    ),
+    (
+        "diagnosticsUpload",
+        "takes a raw byte body this script's JSON helpers cannot send; tests/diagnostics.rs \
+         drives the 200, the 413 and the rate limit.",
+    ),
+    (
         "receiveLiveKitWebhook",
         "authenticated by a signed JWT this fixture's script has no LiveKit key pair to \
          mint, never a session - see docs/decisions/0032-voice-participant-webhooks.md. \

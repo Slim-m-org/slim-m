@@ -23,6 +23,15 @@ class _RecordingRoute implements DirectRoute {
   bool get active => false;
 
   @override
+  bool get hasAddresses => false;
+
+  @override
+  void retryNow() {}
+
+  @override
+  http.Client? pinnedClient({required bool direct}) => null;
+
+  @override
   Stream<bool> get activeChanges => const Stream.empty();
 
   @override

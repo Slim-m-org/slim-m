@@ -14,4 +14,7 @@ extension SlimmApiDirectRoute on SlimmApi {
         if (entry is String) entry,
     ]);
   }
+
+  /// Tries the server's own network again at once; see [DirectRoute.retryNow].
+  void _retryDirectRoute() => _route?.retryNow();
 }

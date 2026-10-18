@@ -423,6 +423,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'troubleshooting',
+    'Connection test',
+    description: 'Latency and speed to the server.',
+    keywords: ['speed', 'ping', 'latency', 'lan', 'cloudflare', 'network'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
     'Run setup again',
     description: 'Profile, notifications and voice, one step at a time.',
     keywords: ['onboarding', 'welcome', 'tour', 'first run', 'setup'],

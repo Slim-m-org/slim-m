@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Troubleshooting pane: the device check, call stats, a setup replay and,
+/// The Troubleshooting pane: the device check, connection test, call stats, a setup replay and,
 /// beside a nav, the debug log as an inner page of the same pane.
 ///
 /// A phone has no room for a second level inside a pane, so the row pushes the
@@ -18,6 +18,7 @@ import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_filter.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
+import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import '../../voice/widgets/media_capability_section.dart';
 import 'settings_detail_row.dart';
@@ -43,7 +44,12 @@ class TroubleshootingPane extends ConsumerWidget {
         Offstage(
           offstage: open,
           child: const MediaCapabilitySection(
-            extraRows: [_DebugLogRow(), CallStatsRow(), RunSetupAgainRow()],
+            extraRows: [
+              ConnectionTestRow(),
+              _DebugLogRow(),
+              CallStatsRow(),
+              RunSetupAgainRow(),
+            ],
           ),
         ),
         if (open) const DebugLogPage(),

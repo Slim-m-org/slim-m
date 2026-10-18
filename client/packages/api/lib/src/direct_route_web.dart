@@ -20,6 +20,16 @@ class _BrowserRoute implements DirectRoute {
   Stream<bool> get activeChanges => const Stream.empty();
 
   @override
+  void retryNow() {}
+
+  @override
+  bool get hasAddresses => false;
+
+  @override
+  http.Client? pinnedClient({required bool direct}) =>
+      direct ? null : http.Client();
+
+  @override
   void advertise(List<String> addresses) {}
 
   @override
