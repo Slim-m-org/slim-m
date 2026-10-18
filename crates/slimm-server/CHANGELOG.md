@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.96.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.95.0...server-v0.96.0) (2026-10-18)
+
+
+### Features
+
+* live canvas, measured voice tests, settings and Spotify move, new sounds, windows installer fixes, and the push foreground fix ([#2257](https://github.com/Slim-m-org/slim-m/issues/2257)) ([08b9f5d](https://github.com/Slim-m-org/slim-m/commit/08b9f5d786a02a85b2c3930f40e18c4f93ef9ea5))
+
+
+### Bug Fixes
+
+* **server:** log why a push was skipped, and a backgrounded device stops marking the account active ([#2255](https://github.com/Slim-m-org/slim-m/issues/2255)) ([1eafc74](https://github.com/Slim-m-org/slim-m/commit/1eafc742559eab857bae7e1f0d7e3dd5b29d8e82))
+
 ## [0.95.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.94.0...server-v0.95.0) (2026-10-18)
 
 
