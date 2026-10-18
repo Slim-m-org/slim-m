@@ -5,6 +5,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -36,7 +37,8 @@ class MicPreviewController extends StateNotifier<MicPreviewReading> {
   MicPreviewController(this._ref)
     : super(const MicPreviewReading(MicPreviewStatus.idle)) {
     _ref.listen(micPreviewBlockedProvider, (_, _) => _sync());
-    _ref.listen(appFocusedProvider, (_, _) => _sync());
+    // The lifecycle notifier itself: a derived provider waits for a frame, and none comes once hidden.
+    _ref.listen(appLifecycleProvider, (_, _) => _sync());
     _ref.listen(
       voiceSettingsControllerProvider.select((s) => s.audioInputDeviceId),
       (_, id) => unawaited(_preview?.start(id)),
@@ -64,7 +66,7 @@ class MicPreviewController extends StateNotifier<MicPreviewReading> {
     final wanted =
         _holds > 0 &&
         !_ref.read(micPreviewBlockedProvider) &&
-        _ref.read(appFocusedProvider);
+        _ref.read(appLifecycleProvider) == AppLifecycleState.resumed;
     if (wanted && _preview == null) {
       final preview = _preview = _ref.read(micPreviewFactoryProvider)();
       _readings = preview.readings.listen((r) => state = r);

@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:slimm_api/api.dart' show LogLevel;
 
+import 'input_gate.dart' show kInputGateDisplayInterval;
 import 'strong_inactivity.dart';
 import 'voice_log.dart';
 
@@ -109,7 +110,11 @@ class CaptureNoiseSuppression {
     onNativeStrongChanged();
   }
 
-  void onReading({required bool strongActive, required bool micOpen}) {
+  void onReading({
+    required bool strongActive,
+    required bool micOpen,
+    Duration step = kInputGateDisplayInterval,
+  }) {
     if (!supported || !_strong || !micOpen) {
       _tracker.reset();
       return;
@@ -118,7 +123,7 @@ class CaptureNoiseSuppression {
       _reportedActive = true;
       _log('Strong noise suppression is running on this microphone');
     }
-    if (_tracker.add(strongActive: strongActive) && !_fallback) {
+    if (_tracker.add(strongActive: strongActive, step: step) && !_fallback) {
       _fallback = true;
       _log(
         'Strong noise suppression cannot run on this microphone; using standard',

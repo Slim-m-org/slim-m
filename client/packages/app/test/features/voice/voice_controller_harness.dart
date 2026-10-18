@@ -36,6 +36,9 @@ const tokens = TokenPair(
 /// Implemented rather than subclassed so that adding a method to the real
 /// session is a compile error here, not a silently untested path.
 class FakeSession with VideoQualityRecorder implements VoiceSession {
+  /// Every value the controller passed to [setLevelDisplayed].
+  final levelDisplayedCalls = <bool>[];
+
   FakeSession({
     this.joinOutcome = VoiceSessionState.connected,
     this.microphoneGranted = true,
@@ -284,6 +287,11 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   @override
   double get inputThresholdDb => -50;
+
+  @override
+  void setLevelDisplayed(bool displayed) {
+    levelDisplayedCalls.add(displayed);
+  }
 
   @override
   void setAutoInputThreshold(bool enabled) {}

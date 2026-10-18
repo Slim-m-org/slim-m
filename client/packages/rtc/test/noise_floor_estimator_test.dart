@@ -115,4 +115,27 @@ void main() {
     expect(estimator.thresholdDb, -45);
     expect(estimator.floorDb, isNull);
   });
+
+  test('a slower poll counts for the time it spans', () {
+    final fast = NoiseFloorEstimator(initialThresholdDb: -50);
+    final slow = NoiseFloorEstimator(initialThresholdDb: -50);
+    for (var i = 0; i < _s(60); i++) {
+      fast.add(-55);
+    }
+    for (var i = 0; i < 60 * 5; i++) {
+      slow.add(-55, interval: const Duration(milliseconds: 200));
+    }
+    expect(slow.floorDb, fast.floorDb);
+    expect(slow.thresholdDb, closeTo(fast.thresholdDb, 0.01));
+  });
+
+  test('warm-up is the same time at a slow poll', () {
+    final estimator = NoiseFloorEstimator(initialThresholdDb: -50);
+    for (var i = 0; i < 14; i++) {
+      estimator.add(-70, interval: const Duration(milliseconds: 200));
+    }
+    expect(estimator.floorDb, isNull, reason: '2.8 s is under the 3 s warm-up');
+    estimator.add(-70, interval: const Duration(milliseconds: 200));
+    expect(estimator.floorDb, -70);
+  });
 }

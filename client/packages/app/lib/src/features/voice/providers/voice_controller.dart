@@ -16,6 +16,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../../api_failure.dart';
 import 'call_recap.dart';
+import 'level_display.dart';
 import 'noise_suppression.dart';
 import '../../../providers/providers.dart';
 import 'voice_auto_rejoin.dart';
@@ -77,6 +78,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
+    listenLevelDisplayed(_ref, _session.setLevelDisplayed);
     _states = _session.states.listen(_onSessionState);
     _participants = _session.participantChanges.listen((p) {
       _activity.observe(p);

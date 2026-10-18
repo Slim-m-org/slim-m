@@ -27,6 +27,7 @@ class InputGateReading {
     required this.levelDb,
     required this.voice,
     this.strongActive = false,
+    this.step = kInputGateDisplayInterval,
   });
 
   /// The loudest 10ms frame since the last reading, in dBFS: the signal that
@@ -42,6 +43,30 @@ class InputGateReading {
   /// Whether rnnoise processed the last frame; false when it is off, or on a
   /// plugin too old to resample a capture that is not 48 kHz.
   final bool strongActive;
+
+  /// The poll interval this reading covers, so consumers that count time
+  /// stay right when the rate changes.
+  final Duration step;
+}
+
+/// How often the gate is read while a meter is on screen and the app is focused.
+const Duration kInputGateDisplayInterval = Duration(milliseconds: 50);
+
+/// How fast the gate is read, as a multiple of the display interval.
+enum InputGateRate {
+  /// A meter or speaking ring is on screen in a focused app.
+  display(1),
+
+  /// Nothing is displayed but automatic sensitivity is adapting: 200 ms.
+  adapt(4),
+
+  /// Nothing is displayed: 1 s, enough for the dead-mic watchdog (10 s) and
+  /// the Strong fallback (2 s).
+  watch(20);
+
+  const InputGateRate(this.multiple);
+
+  final int multiple;
 }
 
 /// [levelDb] as 0 to 1 across the meter's range.
@@ -52,17 +77,19 @@ double inputLevelFraction(double levelDb) =>
 /// voice state. Does nothing where [supportsInputGate] is false.
 class InputGateMonitor {
   InputGateMonitor({
-    this.interval = const Duration(milliseconds: 50),
+    Duration interval = kInputGateDisplayInterval,
     Future<Object?> Function(String method, [Object? args])? invoke,
     bool? supported,
-  })  : _invoke = invoke ?? _invokeNative,
+  })  : displayInterval = interval,
+        _invoke = invoke ?? _invokeNative,
         _supported = supported ?? supportsInputGate;
 
   /// A monitor that never touches the platform, for a session whose room is
   /// not a real one.
   InputGateMonitor.disabled() : this(supported: false);
 
-  final Duration interval;
+  /// The display rate; every other [InputGateRate] is a multiple of it.
+  final Duration displayInterval;
   final bool _supported;
   final Future<Object?> Function(String method, [Object? args]) _invoke;
 
@@ -70,6 +97,8 @@ class InputGateMonitor {
   Timer? _timer;
   bool _polling = false;
   bool _voice = false;
+  InputGateRate _rate = InputGateRate.display;
+  void Function()? _onVoiceChanged;
 
   /// Readings while started, about every [interval].
   Stream<InputGateReading> get readings => _levels.stream;
@@ -80,6 +109,23 @@ class InputGateMonitor {
   bool get voice => _voice;
 
   bool get running => _timer != null;
+
+  InputGateRate get rate => _rate;
+
+  Duration get interval => displayInterval * _rate.multiple;
+
+  /// Whether readings come fast enough to draw a meter or a speaking ring.
+  bool get fast => running && _rate == InputGateRate.display;
+
+  /// Changes the poll rate; a running monitor keeps its voice callback.
+  void setRate(InputGateRate next) {
+    if (next == _rate) return;
+    _rate = next;
+    final onVoiceChanged = _onVoiceChanged;
+    if (_timer == null || onVoiceChanged == null) return;
+    _timer!.cancel();
+    _timer = Timer.periodic(interval, (_) => _poll(onVoiceChanged));
+  }
 
   static Future<Object?> _invokeNative(String method, [Object? args]) =>
       rtc.WebRTC.invokeMethod<Object?, Object?>(method, args);
@@ -112,12 +158,14 @@ class InputGateMonitor {
   /// [onVoiceChanged] runs whenever the voice state flips.
   void start(void Function() onVoiceChanged) {
     if (!_supported || _timer != null) return;
+    _onVoiceChanged = onVoiceChanged;
     _timer = Timer.periodic(interval, (_) => _poll(onVoiceChanged));
   }
 
   void stop() {
     _timer?.cancel();
     _timer = null;
+    _onVoiceChanged = null;
     _voice = false;
   }
 
@@ -131,6 +179,7 @@ class InputGateMonitor {
         levelDb: (raw['levelDb'] as num?)?.toDouble() ?? kInputFloorDb,
         voice: raw['voice'] == true,
         strongActive: raw['strongNoiseSuppression'] == true,
+        step: kInputGateDisplayInterval * _rate.multiple,
       );
       if (!_levels.isClosed) _levels.add(reading);
       if (reading.voice != _voice) {

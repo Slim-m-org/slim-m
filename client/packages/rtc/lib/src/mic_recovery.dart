@@ -31,7 +31,7 @@ class MicRecoveryTiming {
     this.silentCooldown = const Duration(seconds: 30),
     this.maxSilentRestarts = 3,
     this.deviceDebounce = const Duration(seconds: 1),
-    this.senderPoll = const Duration(seconds: 1),
+    this.senderPoll = const Duration(seconds: 2),
   });
 
   final Duration retryBase;

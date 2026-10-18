@@ -101,6 +101,7 @@ class VoiceSession
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
+    _gate.setRate(InputGateRate.watch);
     _initCapture(micPort, captureRestartDebounce, _restartCapture);
     if (audioDevices != null) {
       _audioSwitching = AudioDeviceSwitching(audioDevices);

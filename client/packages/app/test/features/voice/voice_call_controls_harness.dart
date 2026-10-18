@@ -187,6 +187,9 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   double get inputThresholdDb => -50;
 
   @override
+  void setLevelDisplayed(bool displayed) {}
+
+  @override
   void setAutoInputThreshold(bool enabled) {}
 
   @override

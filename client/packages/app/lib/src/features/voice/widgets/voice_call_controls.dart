@@ -45,6 +45,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show MicStatus, VoiceSessionState;
 
+import 'level_display_hold.dart';
 import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
 import '../../../providers/providers.dart' show apiProvider;
@@ -200,20 +201,24 @@ class _CallControlsState extends ConsumerState<CallControls> {
         final speaking = voice.microphoneEnabled && listenOnly == null;
         final trouble = speaking ? micStatus.trouble : null;
         final lost = micStatus == MicStatus.unavailable;
-        return CallDockButton(
-          icon: speaking && !lost ? AppIcons.mic : AppIcons.micOff,
-          tooltip: listenOnly ?? trouble ?? _micTooltip(voice),
-          // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
-          active: false,
-          pending: micStatus == MicStatus.reconnecting && trouble != null,
-          unavailable: listenOnly != null,
-          destructive: (!voice.microphoneEnabled || lost) && listenOnly == null,
-          level: voice.microphoneEnabled
-              ? ref.watch(localMicLevelProvider)
-              : null,
-          onPressed: trouble != null && lost
-              ? () => unawaited(widget.controller.resetMicrophone())
-              : widget.controller.toggleMicrophone,
+        return LevelDisplayHold(
+          active: voice.microphoneEnabled,
+          child: CallDockButton(
+            icon: speaking && !lost ? AppIcons.mic : AppIcons.micOff,
+            tooltip: listenOnly ?? trouble ?? _micTooltip(voice),
+            // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
+            active: false,
+            pending: micStatus == MicStatus.reconnecting && trouble != null,
+            unavailable: listenOnly != null,
+            destructive:
+                (!voice.microphoneEnabled || lost) && listenOnly == null,
+            level: voice.microphoneEnabled
+                ? ref.watch(localMicLevelProvider)
+                : null,
+            onPressed: trouble != null && lost
+                ? () => unawaited(widget.controller.resetMicrophone())
+                : widget.controller.toggleMicrophone,
+          ),
         );
       },
     );

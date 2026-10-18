@@ -3,36 +3,47 @@
 /// by the settings note and the capture fallback so they never disagree.
 library;
 
-/// About 2 s of consecutive inactive polls at the gate's 50 ms interval.
-const int kStrongInactivePolls = 40;
+import 'input_gate.dart' show kInputGateDisplayInterval;
 
-/// Active polls in a row before the verdict clears, so one stray frame does
-/// not flicker it.
+/// How long Strong must read inactive before the verdict.
+const Duration kStrongInactiveFor = Duration(seconds: 2);
+
+/// How long it must read active before the verdict clears, so one stray frame
+/// does not flicker it.
+const Duration kStrongActiveFor = Duration(milliseconds: 500);
+
+/// The same two windows as polls at the display rate.
+const int kStrongInactivePolls = 40;
 const int kStrongActivePolls = 10;
 
 class StrongInactivityTracker {
-  int _inactive = 0;
-  int _active = 0;
+  Duration _inactive = Duration.zero;
+  Duration _active = Duration.zero;
   bool _inactiveVerdict = false;
 
   /// Whether Strong has been inactive long enough to report.
   bool get inactive => _inactiveVerdict;
 
-  /// Feeds one poll and returns [inactive].
-  bool add({required bool strongActive}) {
+  /// Feeds one poll covering [step] and returns [inactive].
+  bool add({
+    required bool strongActive,
+    Duration step = kInputGateDisplayInterval,
+  }) {
     if (strongActive) {
-      _inactive = 0;
-      if (++_active >= kStrongActivePolls) _inactiveVerdict = false;
+      _inactive = Duration.zero;
+      _active += step;
+      if (_active >= kStrongActiveFor) _inactiveVerdict = false;
     } else {
-      _active = 0;
-      if (++_inactive >= kStrongInactivePolls) _inactiveVerdict = true;
+      _active = Duration.zero;
+      _inactive += step;
+      if (_inactive >= kStrongInactiveFor) _inactiveVerdict = true;
     }
     return _inactiveVerdict;
   }
 
   void reset() {
-    _inactive = 0;
-    _active = 0;
+    _inactive = Duration.zero;
+    _active = Duration.zero;
     _inactiveVerdict = false;
   }
 }

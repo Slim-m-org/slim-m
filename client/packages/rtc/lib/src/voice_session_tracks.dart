@@ -171,9 +171,9 @@ extension VoiceSessionTracks on VoiceSession {
       snapshotParticipants(
         room,
         speakingSensitivity: _speakingSensitivity,
-        localVoice: _gate.running ? _gate.voice : null,
+        localVoice: _gate.fast ? _gate.voice : null,
       ),
-      skipLocal: _gate.running,
+      skipLocal: _gate.fast,
     );
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer =

@@ -27,7 +27,9 @@ export 'src/input_gate.dart'
         InputGateReading,
         inputLevelFraction,
         kDefaultInputThresholdDb,
-        kInputFloorDb;
+        kInputFloorDb,
+        kInputGateDisplayInterval,
+        InputGateRate;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/mic_port.dart';

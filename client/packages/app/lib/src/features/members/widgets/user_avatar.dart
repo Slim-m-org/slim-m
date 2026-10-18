@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/app_lifecycle.dart';
 import '../providers/avatar_bytes.dart';
 import '../providers/presence_devices.dart';
 import '../providers/presence_view.dart';
@@ -93,7 +94,7 @@ class UserAvatar extends ConsumerWidget {
         );
       }
     }
-    return AppAvatar(
+    final avatar = AppAvatar(
       name: name,
       // The id, so one person keeps one colour across every name form and every rename; see AppAvatar.tintKey.
       tintKey: id,
@@ -110,6 +111,11 @@ class UserAvatar extends ConsumerWidget {
       ringColor: ringColor,
       semanticLabel: semanticLabel,
       placeholder: placeholder,
+    );
+    // The ring's pulse is a ticker; an unfocused window should not run it.
+    return TickerMode(
+      enabled: !speaking || ref.watch(appFocusedProvider),
+      child: avatar,
     );
   }
 }
