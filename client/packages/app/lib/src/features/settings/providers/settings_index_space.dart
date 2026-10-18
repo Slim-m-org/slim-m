@@ -142,6 +142,13 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry('analytics', 'Active hours, last 30 days (UTC)'),
   SettingsEntry('analytics', 'Server memory use', keywords: ['ram']),
   SettingsEntry('analytics', 'Attachment storage by member'),
+  SettingsEntry(
+    'audit-log',
+    'Audit log',
+    description: 'Every change admins made to this Space.',
+    keywords: ['history', 'changes', 'admin', 'log'],
+    conditional: true,
+  ),
   SettingsEntry('server-metrics', 'System', keywords: ['cpu', 'memory']),
   SettingsEntry('server-metrics', 'Request volume by class'),
   SettingsEntry('server-metrics', 'Slowest routes', keywords: ['latency']),
