@@ -11,6 +11,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -83,6 +84,14 @@ class AccountHost extends ChangeNotifier {
   AccountRuntime? get callElsewhere {
     for (final r in _runtimes) {
       if (r.inCall && r != _active) return r;
+    }
+    return null;
+  }
+
+  /// The account that is in a call, on screen or not.
+  AccountRuntime? get callRuntime {
+    for (final r in _runtimes) {
+      if (r.inCall) return r;
     }
     return null;
   }
@@ -202,6 +211,12 @@ class AccountHost extends ChangeNotifier {
       _changed();
     });
     runtime._cancels.add(changes.cancel);
+    // See SessionStore.describeRejection for why a sign-out needs a reason.
+    final endings = session.endings.listen(
+      (reason) =>
+          container.read(debugLogProvider.notifier).record('session', reason),
+    );
+    runtime._cancels.add(endings.cancel);
 
     final unread = container.listen<AsyncValue<AccountUnread>>(
       accountUnreadProvider,

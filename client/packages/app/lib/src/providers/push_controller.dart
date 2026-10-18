@@ -11,6 +11,9 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../desktop/desktop_window_shell.dart';
+import '../features/accounts/providers/account_providers.dart';
+import '../features/accounts/providers/notification_target.dart';
+import 'notification_tap_router.dart' show openChannelOnOwner;
 import 'providers.dart';
 import 'push_content_preview_settings.dart';
 import 'push_status.dart';
@@ -37,7 +40,15 @@ final fcmTokenChannelProvider = Provider<FcmTokenChannel>(
 /// as the two above - a test can substitute one that reports "denied"
 /// without a real Android device or plugin channel behind it.
 final localNotificationsProvider = Provider<LocalNotifications>(
-  (ref) => LocalNotifications(onActivated: DesktopWindowShell.raise),
+  (ref) => LocalNotifications(
+    onActivated: (payload) async {
+      await DesktopWindowShell.raise();
+      final host = ref.read(accountHostProvider);
+      final target = NotificationTarget.decode(payload);
+      if (host == null || target == null) return;
+      await openChannelOnOwner(host, target.channelId, origin: target.origin);
+    },
+  ),
 );
 
 /// Registers this device's push token and encryption public key, and reports

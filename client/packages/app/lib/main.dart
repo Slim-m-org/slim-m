@@ -123,11 +123,14 @@ AccountHost _createAccountHost() {
   final keyStore = createPersistentKeyStore();
   final emojiCache = createEmojiImageCache();
   final accounts = AccountStore(keyStore);
+  // One log for every account, since the error hooks are global.
+  final debugLog = DebugLog();
   late final AccountHost host;
   host = AccountHost(
     store: accounts,
     createContainer: (slot) => ProviderContainer(
       overrides: [
+        debugLogProvider.overrideWith((ref) => debugLog),
         emojiImageCacheProvider.overrideWithValue(emojiCache),
         keyStoreProvider.overrideWithValue(keyStore),
         accountSlotProvider.overrideWithValue(slot),

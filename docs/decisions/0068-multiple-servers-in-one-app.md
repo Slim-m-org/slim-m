@@ -87,7 +87,7 @@ Global, shared by every container because they live in `SharedPreferences` and a
 Per account, because the data is keyed by server-issued ids or lives in the account's database: drafts, read state, the channel list, per-channel notification settings, the notification schedule, blocks, and everything fetched from the server.
 UUIDv7 ids do not collide across servers, so id-keyed preferences are already safe.
 
-Not yet per account, and listed under what is left: the desktop tray, which stays bound to the first container.
+The desktop tray follows the accounts: its call controls act on the account that is in a call, and its status and preferences items on the one on screen.
 
 ## Inactive servers stay live
 
@@ -133,10 +133,14 @@ The last account stays as a signed-out entry, as an install does today.
 
 Built: account index and migration, per-account session handles and database files, a container per account, the switcher menu and sheet, Ctrl+1 to Ctrl+9, unread badges from live background sync, the call pill, add and sign out.
 
+Also built: notification taps and links land on the right server.
+A desktop banner carries its server and channel as its payload, and a tap switches to that server before opening the channel.
+A push carries only a channel id, so the app opens the channel on the account whose local store has it, and on the one on screen when none does.
+A message link switches to the server it names, and an invite for a server not in the list opens the add flow with the invite filled in.
+Diagnostics write to one log shared by every account, and every account's session endings are recorded in it.
+
 Left, each a real gap rather than a deferral for its own sake:
 
-- The desktop tray's call controls and presence menu stay bound to the first container, so with a call on another account they act on the wrong one.
-- A notification tap does not yet identify its server, so a tap on a background account's notification opens the active account.
-- Deep links and invite links open in the active account.
-- Diagnostics (the debug log and error hooks) are installed on the first container only.
+- A push for a channel the device has never synced cannot name its server, so it opens on the account on screen. Naming the server in the push envelope needs a server and native change.
+- Android background notifications are still sealed and carry no channel, so a tap only raises the app.
 - Real-device behaviour of several sockets and push registrations on mobile has not been measured.

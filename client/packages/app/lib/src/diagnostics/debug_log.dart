@@ -6,8 +6,6 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/providers.dart';
-
 enum DiagnosticSeverity { info, warning, error }
 
 /// One thing worth telling the user about after the fact.
@@ -88,10 +86,6 @@ final debugLogProvider = StateNotifierProvider<DebugLog, List<DiagnosticEvent>>(
 /// app, which is the specific crash it was added for.
 void installDiagnostics(ProviderContainer container) {
   final log = container.read(debugLogProvider.notifier);
-
-  // See SessionStore.describeRejection for why a sign-out needs a reason.
-  final sessions = container.read(sessionProvider);
-  sessions.endings.listen((reason) => log.record('session', reason));
 
   final previousOnError = FlutterError.onError;
   FlutterError.onError = (details) {

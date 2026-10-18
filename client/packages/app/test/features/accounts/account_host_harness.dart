@@ -36,7 +36,8 @@ String sessionJson(String userId) =>
     '{"user_id":"$userId","access_token":"a-$userId","refresh_token":"r-$userId","access_expires_at":0}';
 
 class AccountHarness {
-  AccountHarness({InMemoryKeyStore? keys}) : keys = keys ?? InMemoryKeyStore() {
+  AccountHarness({InMemoryKeyStore? keys, this.extraOverrides = const []})
+    : keys = keys ?? InMemoryKeyStore() {
     store = AccountStore(this.keys);
     host = AccountHost(
       store: store,
@@ -51,6 +52,7 @@ class AccountHarness {
   }
 
   final InMemoryKeyStore keys;
+  final List<Override> extraOverrides;
   late final AccountStore store;
   late final AccountHost host;
   final databases = <SlimmDatabase>[];
@@ -60,6 +62,7 @@ class AccountHarness {
 
   ProviderContainer _container(AccountSlot slot) => ProviderContainer(
     overrides: [
+      ...extraOverrides,
       keyStoreProvider.overrideWithValue(keys),
       accountSlotProvider.overrideWithValue(slot),
       accountHostProvider.overrideWith((ref) => host),

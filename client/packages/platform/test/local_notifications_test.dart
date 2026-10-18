@@ -87,23 +87,29 @@ void main() {
         () async {
       final spy = _SpyPlugin();
       var activations = 0;
+      String? seen;
       final notifications = LocalNotifications(
         plugin: spy,
         isAndroid: false,
         isLinux: true,
-        onActivated: () async => activations++,
+        onActivated: (payload) async {
+          activations++;
+          seen = payload;
+        },
       );
       await notifications.show('New message',
-          channel: LocalAlertChannel.messages);
+          channel: LocalAlertChannel.messages, payload: 'where');
 
       expect(spy.onResponse, isNotNull);
       spy.onResponse!(
         const NotificationResponse(
           notificationResponseType:
               NotificationResponseType.selectedNotification,
+          payload: 'where',
         ),
       );
       expect(activations, 1);
+      expect(seen, 'where');
     });
   });
 
