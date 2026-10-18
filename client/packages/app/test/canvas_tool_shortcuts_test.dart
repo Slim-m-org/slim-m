@@ -129,7 +129,7 @@ void main() {
   ) async {
     await _pump(
       tester,
-      CanvasPaneFixture(viewportStatus: 500),
+      CanvasPaneFixture(viewportStatus: 403),
       const Size(1000, 700),
     );
     expect(

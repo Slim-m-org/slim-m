@@ -40,12 +40,10 @@ const canvasUnavailableMessage = 'The canvas is not available in this channel.';
 /// Shown for any other failed canvas fetch.
 const canvasLoadFailedMessage = 'The canvas could not be loaded.';
 
-/// Whether [error] says placing would fail the same way again: a refusal, a
-/// timeout freeze, or a canvas that never loaded. Any other banner (a failed
-/// reorder or delete, an unreadable image) leaves drawing available.
+/// Whether [error] says placing would fail the same way again: a refusal or a
+/// timeout freeze. Any other banner, a failed load included, leaves drawing available.
 bool canvasErrorBlocksDrawing(String? error) =>
     error != null &&
     (error == _drawRefusedMessage ||
         error == canvasUnavailableMessage ||
-        error == canvasLoadFailedMessage ||
         error.startsWith(_timedOutPrefix));

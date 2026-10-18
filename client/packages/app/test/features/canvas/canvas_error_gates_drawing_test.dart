@@ -98,16 +98,17 @@ void main() {
     expect(_penEnabled(tester), isFalse);
   });
 
-  testWidgets('a canvas that failed to load disables the Pen button', (
-    tester,
-  ) async {
-    final container = await _pump(tester);
+  testWidgets(
+    'a canvas that failed to load keeps the Pen button, since it retries by itself',
+    (tester) async {
+      final container = await _pump(tester);
 
-    _report(container, CanvasEngine.genericLoadError);
-    await tester.pumpAndSettle();
+      _report(container, CanvasEngine.genericLoadError);
+      await tester.pumpAndSettle();
 
-    expect(_penEnabled(tester), isFalse);
-  });
+      expect(_penEnabled(tester), isTrue);
+    },
+  );
 
   testWidgets(
     'the right-click menu agrees with the overflow menu on a refusal',

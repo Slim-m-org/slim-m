@@ -273,14 +273,13 @@ class CanvasOpsController {
     required String? selfId,
   }) {
     if (_dragBatch.length >= maxRemoveIdsPerOp) return;
-    final id = hitTestStroke(
-      document,
-      world,
-      allowed: (stroke) =>
-          !isLocked(stroke.id) &&
-          (manageCanvas ||
-              (stroke.authorId != null && stroke.authorId == selfId)),
-    );
+    bool allowed(CanvasStroke stroke) =>
+        !isLocked(stroke.id) &&
+        (manageCanvas ||
+            (stroke.authorId != null && stroke.authorId == selfId));
+    final id =
+        hitTestStroke(document, world, allowed: allowed) ??
+        hitTestBoxAt(document, world, allowed: allowed);
     if (id == null || !_dragBatch.add(id)) return;
     document.removeObject(id);
     document.refresh();

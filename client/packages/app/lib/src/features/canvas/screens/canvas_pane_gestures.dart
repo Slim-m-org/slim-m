@@ -97,6 +97,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// gesture change.
   void _selectPlaced(String objectId) {
     if (!_mounted) return;
+    // Undoable like a stroke: placing is an edit, and Ctrl+Z must take it back.
+    _ops.recordDraw([objectId]);
     _document.selectedObjectId.value = objectId;
     _refresh(() => _tool = CanvasTool.pan);
   }
@@ -162,7 +164,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   Future<void> _onClear() async {
-    await _ops.clear(_sync.asOfSeq ?? 0);
+    // Fenced on the newest head this client can read; a stale one would leave later ink standing.
+    await _sync.catchUp();
+    final fence = _sync.asOfSeq;
+    if (fence == null) {
+      _engine.reportError('The canvas could not be cleared.');
+      return;
+    }
+    await _ops.clear(fence);
     _refresh();
   }
 
