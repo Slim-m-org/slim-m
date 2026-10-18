@@ -62,9 +62,9 @@ void main() {
     test('a window capped to a smaller display is moved back onto it', () {
       // 965x717 saved at 122,16, restored on a 150 percent scaled 853x485 screen.
       const scaled = DisplayArea(x: 0, y: 0, width: 853, height: 485);
-      final geometry = WindowGeometry(
-        windowedSize: const WindowSize(width: 965, height: 717),
-        position: const WindowRect(x: 122, y: 16, width: 965, height: 717),
+      const geometry = WindowGeometry(
+        windowedSize: WindowSize(width: 965, height: 717),
+        position: WindowRect(x: 122, y: 16, width: 965, height: 717),
       );
 
       final clamped = clampToAttachedDisplays(geometry, [scaled]);
