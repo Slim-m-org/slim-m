@@ -14,7 +14,10 @@ The gate measures each frame's RMS level in dBFS and, when the frame is below th
 Opening takes a 5 ms fade, so the start of a word is not clipped by more than that.
 Silence is cheap on the wire: with Opus DTX a closed gate measured about 8 to 112 bytes a second against about 2 KB a second open.
 
-It also tracks voice detection (above the threshold within the hold) whether or not it is silencing, and keeps a meter that rises instantly and falls 1.5 dB a frame.
+It also tracks voice detection (above the threshold within the hold) whether or not it is silencing, and keeps a meter.
+The meter is the loudest 10 ms frame since the app last asked, so it is the same per-frame level the threshold is compared with: after the platform's noise suppression and rnnoise, before the gate.
+An earlier meter fell 1.5 dB a frame from its last peak, which kept the bar over the line for up to 160 ms after a single keyboard click that the gate had already ignored.
+The settings bar fills in the accent colour while the gate is open and in a neutral one while it is closed, because the hold keeps the gate open for 300 ms after the bar drops below the line.
 With Strong on, the gate also reads rnnoise's speech probability: it opens at once when speech is likely (above 0.6) and the level is over the threshold, otherwise only after the level stays 15 dB over the threshold for two frames, so a single keyboard click does not open it; the hold drops to 100 ms when speech is unlikely.
 The app reads both through `getInputGate` about every 50 ms during a call (`InputGateMonitor` in `slimm_rtc`).
 The local speaking ring follows that voice state directly; remote rings still come from the SFU.

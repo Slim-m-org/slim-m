@@ -257,7 +257,127 @@ Script and raw output are in `~/.slimm-scratch/tmp/mic-ab/`, not in the repo.
 - Which Android echo canceller (hardware vs software) the Java ADM selects in flutter-webrtc 1.6.0.
 - Whether livekit_client 2.10.0 on desktop honours `setAudioProcessingOptions` through our fork.
 
-## 6. Source list
+## 6. Measured 2026-10-18: Strong at any mic, and what the input bar shows
+
+The first measurements of the real Linux plugin on this Fedora 44 and PipeWire box, in a call against a local `livekit-server` 1.10.1, received by a second participant.
+Everything here is reproducible with the rig described under "How it was measured".
+
+### 6.1 What the plugin sees on Linux
+
+Virtual sources at 16000, 22050, 44100, 48000 and 96000 Hz, mono, stereo and four channels, all reached the capture chain as mono 48 kHz, 480-sample frames, one `Process` call per 10 ms (200 calls in 2 s).
+PipeWire converts rate and channel count before libwebrtc's ADM sees the stream, so on Linux the resampling path in `flutter_noise_suppressor.cc` is never taken.
+It matters where the ADM hands the audio processing module a non-48 kHz mic: Windows (WASAPI shared mode, Bluetooth hands-free at 16 kHz) and libwebrtc's own 16 and 32 kHz internal rates.
+That path was checked on its own instead, with the same noisy-speech file resampled to each rate and run through `NoiseSuppressor` frame by frame (6 s of fan and keyboard, 16 s of speech, 6 s of fan and keyboard):
+
+| rate | noise before speech (dBFS) | speech (dBFS) | envelope match | soft-tail change (dB) |
+|---|---|---|---|---|
+| 8000 | -96.3 | -21.5 | 0.884 | -10.5 |
+| 16000 | -96.4 | -21.5 | 0.952 | -4.7 |
+| 32000 | -96.3 | -21.5 | 0.959 | -3.8 |
+| 44100 | -96.4 | -21.5 | 0.959 | -3.6 |
+| 48000 | -126.2 | -21.5 | 0.957 | -4.2 |
+| 96000 | -96.3 | -21.5 | 0.959 | -3.9 |
+
+Strong is running at every rate (2816 of 2816 frames), speech level is unchanged, and the added delay is 0.4 to 2.3 ms (18 samples at the lower rate, 35 at 96 kHz).
+8 kHz only differs because a 4 kHz band carries less of the speech.
+The rest is not measurable below -90 dBFS, which is digital silence for this purpose.
+
+Odd mics, 48 kHz, offline through the same stage (input to output):
+
+| mic | noise before speech | speech level | envelope match |
+|---|---|---|---|
+| speech 23 dB too quiet | -62.7 to -116.1 | -44.2 to -44.5 | 0.886 to 0.936 |
+| DC offset of 8% | -21.9 to -116.7 | -18.5 to -21.5 | 0.684 to 0.958 |
+| 14 dB too hot, clipped | -25.8 to -106.9 | -8.0 to -8.3 | 0.890 to 0.948 |
+| 50 Hz hum at -30 dBFS | -38.6 to -101.8 | -27.0 to -27.5 | 0.795 to 0.941 |
+
+### 6.2 Off, Standard and Strong in a call
+
+Input: a 28 s file with 6 s of fan, hum and keyboard clicks (-40 dBFS RMS), 16 s of two espeak and flite sentences at -22 dBFS over the same noise, then 6 s of the noise again.
+Measured on the receiving side, input gate off, so this is suppression alone.
+"Noise between words" is the level in the pauses inside the utterance.
+The unprocessed file reads -39.7 / -40.0 / -41.3 / -21.2 with envelope match 0.886.
+Every cell is one run, and the noise cells are an average level over a few seconds, so differences of 1 to 3 dB are not meaningful.
+
+| mic rate | channels | mode | noise before speech (dBFS) | noise after speech (dBFS) | noise between words (dBFS) | speech (dBFS) | envelope match | Strong running |
+|---|---|---|---|---|---|---|---|---|
+| 16000 | 1 | Off | -34.8 | -38.2 | -37.1 | -15.6 | 0.871 | no |
+| 16000 | 1 | Standard | -43.9 | -48.4 | -43.8 | -14.8 | 0.908 | no |
+| 16000 | 1 | Strong | -76.4 | -103.7 | -54.6 | -14.5 | 0.95 | yes |
+| 22050 | 1 | Off | -33.6 | -37.9 | -36.9 | -15.7 | 0.877 | no |
+| 22050 | 1 | Standard | -41.9 | -46.9 | -44.3 | -14.8 | 0.925 | no |
+| 22050 | 1 | Strong | -92.3 | -107.2 | -54.5 | -15.7 | 0.952 | yes |
+| 44100 | 1 | Off | -33.3 | -37.9 | -36.7 | -15.6 | 0.873 | no |
+| 44100 | 1 | Standard | -41.5 | -46.8 | -44.5 | -14.8 | 0.924 | no |
+| 44100 | 1 | Strong | -101.3 | -97.9 | -56.3 | -14.5 | 0.957 | yes |
+| 48000 | 1 | Off | -34.6 | -38.0 | -37.3 | -15.6 | 0.88 | no |
+| 48000 | 1 | Standard | -41.5 | -47.4 | -44.1 | -14.8 | 0.925 | no |
+| 48000 | 1 | Strong | -77.5 | -85.5 | -54.1 | -15.7 | 0.952 | yes |
+| 96000 | 1 | Off | -33.3 | -37.7 | -36.7 | -15.6 | 0.881 | no |
+| 96000 | 1 | Standard | -41.7 | -46.8 | -44.0 | -14.8 | 0.924 | no |
+| 96000 | 1 | Strong | -82.9 | -95.8 | -51.6 | -15.7 | 0.951 | yes |
+| 16000 | 2 (same on all) | Off | -34.6 | -36.1 | -36.5 | -15.0 | 0.868 | no |
+| 16000 | 2 (same on all) | Standard | -43.4 | -48.3 | -44.3 | -14.8 | 0.923 | no |
+| 16000 | 2 (same on all) | Strong | -106.8 | -102.2 | -55.1 | -14.5 | 0.953 | yes |
+| 44100 | 2 (same on all) | Off | -34.5 | -35.9 | -37.1 | -15.0 | 0.882 | no |
+| 44100 | 2 (same on all) | Standard | -41.3 | -46.8 | -44.6 | -14.8 | 0.921 | no |
+| 44100 | 2 (same on all) | Strong | -71.6 | -71.3 | -54.7 | -15.1 | 0.953 | yes |
+| 96000 | 2 (same on all) | Off | -34.5 | -36.1 | -36.7 | -15.0 | 0.879 | no |
+| 96000 | 2 (same on all) | Standard | -41.6 | -47.6 | -44.7 | -14.8 | 0.924 | no |
+| 96000 | 2 (same on all) | Strong | -84.1 | -99.5 | -55.4 | -15.1 | 0.957 | yes |
+| 44100 | 2 (first only) | Off | -40.7 | -38.1 | -38.4 | -16.5 | 0.876 | no |
+| 44100 | 2 (first only) | Standard | -48.6 | -49.7 | -48.2 | -16.5 | 0.926 | no |
+| 44100 | 2 (first only) | Strong | -86.3 | -99.8 | -54.9 | -16.3 | 0.95 | yes |
+| 48000 | 4 (same on all) | Off | -34.7 | -38.0 | -36.7 | -15.6 | 0.878 | no |
+| 48000 | 4 (same on all) | Standard | -42.0 | -48.1 | -43.8 | -14.8 | 0.926 | no |
+| 48000 | 4 (same on all) | Strong | -84.1 | -90.1 | -55.1 | -15.1 | 0.958 | yes |
+| 48000 | 4 (first only) | Off | -46.7 | -43.0 | -44.2 | -22.0 | 0.875 | no |
+| 48000 | 4 (first only) | Standard | -54.6 | -55.0 | -53.8 | -22.0 | 0.927 | no |
+| 48000 | 4 (first only) | Strong | -103.6 | -97.9 | -62.4 | -22.1 | 0.953 | yes |
+
+What it shows:
+
+- Off leaves the fan and clicks 5 dB louder than the input, because libwebrtc's gain control raises the quiet parts. Standard takes about 8 dB off. Strong takes the noise to the point where the receiver hears digital silence (-70 to -107 dBFS), and between words it leaves -52 to -56 dBFS against -44 for Standard.
+- Speech level is the same in all three (-14.5 to -15.7 dBFS after gain control), and Strong's envelope follows the clean speech better (0.95 against 0.92 and 0.87).
+- The rate and the channel layout made no difference to Strong, as 6.1 predicts. A four-channel or left-only source comes out 1 to 7 dB quieter in every mode because PipeWire averages the channels into the mono stream.
+- Strong was running in every run (the app's `strongNoiseSuppression` flag read true on every poll), so the "not running" note and the fallback to Standard stay quiet on this box.
+
+The soft-tail column in the raw output (level change of the quietest word endings) was within 4 dB of the input for Strong and Standard and about +10 dB for Off, where noise fills the tails; no run clipped (0.000% of samples at full scale).
+
+### 6.3 What the input bar shows
+
+The bar is `levelDb` from `getInputGate`: the level of the frames the gate decides on, which is after libwebrtc's own suppression and gain control and after rnnoise, before the gate.
+So it is already the post-suppression signal, not the raw capture.
+Measured with the gate off, the bar tracked the received level with a correlation of 0.88 to 0.92 for Off, Standard and Strong.
+
+What did not line up was the bar's smoothing, not its source.
+The old meter rose instantly and fell 1.5 dB per frame from the last peak.
+A single click at -25 dBFS therefore kept it above a -50 dBFS line for 16 frames while the gate had looked at one frame, and the 300 ms hold keeps the gate open long after the bar has dropped.
+Noise only (fan and 5 clicks a second), default -50 dBFS line, gate on, over 18 s:
+
+| mode | line | bar over the line | gate open | receiver hears something |
+|---|---|---|---|---|
+| Standard | -50 | 36% | 80% | 87% |
+| Standard | -40 | 17% | 68% | 74% |
+| Strong | -50 | 0% | 0% | 0% |
+| Strong | -40 | 0% | 0% | 0% |
+
+With Standard, clicks open the gate and the hold keeps it open, so the bar sat under the line for most of the time the audio was going out.
+Strong with the fan and keyboard never opened it, and the bar never crossed the line.
+
+Two changes (fork 61d8b3e and this repo):
+
+- `getInputGate` now returns the loudest frame since the previous poll, which is exactly what the threshold test compares, with no decay. Measured against the sent audio in 50 ms windows with Standard and the same noise: the bar agreed with the received signal being over the line in 84% of windows before and 89% after, and bar-over-the-line-while-no-frame-was-over dropped from 14% to 10% (the rest is codec and alignment jitter in this measurement).
+- The settings bar draws in the accent colour while the gate is open and in a neutral one while it is closed, so the hold is visible instead of looking like the gate ignoring the bar. The speaking ring was already the gate's own state.
+
+### How it was measured
+
+`livekit-server` 1.10.1 on its own ports, a small Flutter Linux app that joins with the real `VoiceSession` (or a bare room with libwebrtc suppression off, for Off) and logs `getInputGate` every 50 ms, a null sink per rate and channel count with `PULSE_SOURCE` pointing the app at its monitor, and a Python participant that records the track.
+Speech is espeak-ng and flite, not a recorded voice, so numbers for a real voice will differ a little.
+Alignment of the received file to the input is by cross-correlation of the energy envelopes.
+Every PipeWire module was unloaded afterwards and the default devices were never changed.
+
+## 7. Source list
 - WebRTC APM header: https://webrtc.googlesource.com/src/+/refs/heads/main/api/audio/audio_processing.h
 - WebRTC voice engine (ApplyOptions): https://webrtc.googlesource.com/src/+/refs/heads/main/media/engine/webrtc_voice_engine.cc
 - WebRTC Windows core audio: https://webrtc.googlesource.com/src/+/refs/heads/main/modules/audio_device/win/core_audio_utility_win.cc and core_audio_base_win.cc

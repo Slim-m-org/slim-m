@@ -36,6 +36,7 @@ class AppSlider extends StatefulWidget {
     this.divisions,
     this.tall = false,
     this.meter,
+    this.meterActive = true,
     this.muted = false,
     this.ticks,
     this.semanticLabel,
@@ -57,6 +58,10 @@ class AppSlider extends StatefulWidget {
   /// [value]. Not tied to [min]/[max]: in the source design it is a
   /// separate real-time signal, not a second position on the same scale.
   final double? meter;
+
+  /// False draws [meter] in a neutral tone, for a level that is not being
+  /// used, such as a microphone the input gate is silencing.
+  final bool meterActive;
   final bool muted;
 
   /// Labels spread evenly beneath the track, from [min] to [max]. The one
@@ -134,7 +139,7 @@ class _AppSliderState extends State<AppSlider> {
       borderColor: tokens.borderSubtle,
       trackColor: trackColor,
       fillColor: fillColor,
-      meterColor: tokens.accentSoft,
+      meterColor: widget.meterActive ? tokens.accentSoft : tokens.borderStrong,
       meterFraction: meterFraction,
     );
     final thumb = TroughThumbShape(
