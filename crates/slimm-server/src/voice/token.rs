@@ -53,7 +53,7 @@ pub(super) fn http_url_for(url: &str) -> anyhow::Result<String> {
         Some(("ws", rest)) => format!("http://{rest}"),
         Some(("https", _)) | Some(("http", _)) => trimmed.to_owned(),
         _ => anyhow::bail!(
-            "SLIMM_LIVEKIT_URL ({url}) must start with wss://, ws://, https:// or http://"
+            "LiveKit address ({url}) must start with wss://, ws://, https:// or http://"
         ),
     };
     Ok(swapped)

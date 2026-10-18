@@ -148,8 +148,11 @@ impl VoiceService {
     pub fn new(config: &Config) -> anyhow::Result<Self> {
         let inner = match config.livekit_settings() {
             Some((url, key, secret)) => {
-                let service_url = http_url_for(&url)?;
-                tracing::info!(%url, "voice enabled");
+                let service_url = match config.livekit_service_url() {
+                    Some(internal) => http_url_for(&internal)?,
+                    None => http_url_for(&url)?,
+                };
+                tracing::info!(%url, %service_url, "voice enabled");
                 Some(std::sync::Arc::new(Enabled {
                     url,
                     api_key: key,
@@ -202,6 +205,13 @@ impl VoiceService {
 
     pub fn is_enabled(&self) -> bool {
         self.inner.is_some()
+    }
+
+    #[cfg(test)]
+    fn room_service_url(&self) -> Option<&str> {
+        self.inner
+            .as_deref()
+            .map(|enabled| enabled.service_url.as_str())
     }
 
     /// Whether the configured SFU answers right now, for the `/metrics`

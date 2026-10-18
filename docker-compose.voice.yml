@@ -41,6 +41,7 @@ services:
       SLIMM_LIVEKIT_URL: wss://${LIVEKIT_DOMAIN:?set LIVEKIT_DOMAIN in .env to enable voice}
       SLIMM_LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?LIVEKIT_API_KEY must be set in .env, see deploy/README.md}
       SLIMM_LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET must be set in .env to a random value of at least 32 characters}
+      SLIMM_LIVEKIT_SERVICE_URL: http://livekit:7880
 
   caddy:
     # Caddy fronts LiveKit's WSS signaling, so it needs the domain and the

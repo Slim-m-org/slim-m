@@ -38,6 +38,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_LIVEKIT_URL` | unset | The address clients can reach LiveKit on, for example `wss://livekit.example.com`. | voice overlay only |
 | `SLIMM_LIVEKIT_API_KEY` | unset | The key LiveKit knows this deployment by. | voice overlay only |
 | `SLIMM_LIVEKIT_API_SECRET` | unset | The matching secret. Set all three LiveKit variables or none; with none, every voice route answers 501. | voice overlay only |
+| `SLIMM_LIVEKIT_SERVICE_URL` | derived from `SLIMM_LIVEKIT_URL` | Where this server reaches LiveKit for roster and kick calls, for example `http://livekit:7880` on the compose network. Set it when `SLIMM_LIVEKIT_URL` goes out through a proxy such as Cloudflare, which adds roughly 100 ms to every call. | voice overlay only |
 | `SLIMM_PUSH_RELAY_URL` | unset | Base URL of the push relay. `http://` is refused unless it is loopback or private-range. | no |
 | `SLIMM_PUSH_RELAY_KEY` | unset | Bearer key sent to the relay. Set both push variables or neither; with neither, push is off and the server says so once at startup. | no |
 | `SLIMM_ADDONS_REPO` | `Slim-m-org/slim-addons` | The `owner/repo` the Dock reads as the official module source, always from `raw.githubusercontent.com`. The older `NC1107/slim-addons` is tried too. | no |
