@@ -31,7 +31,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// What went wrong fetching a preview. Coarse on purpose: a caller never
 /// learns whether a blocked address existed, only that no preview was made.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum FetchError {
     /// The URL, or a redirect it reached, points somewhere this server must
     /// not dial, or is not a valid http(s) URL.

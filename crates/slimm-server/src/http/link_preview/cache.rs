@@ -11,9 +11,12 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
+use axum::body::Bytes;
+
 use crate::store::now_ms;
 
 use super::extract::Preview;
+use super::fetch::FetchError;
 use super::image_token;
 use super::video::VideoInfo;
 
@@ -34,6 +37,9 @@ pub(super) enum Outcome {
 }
 
 type InFlight = std::sync::Arc<tokio::sync::OnceCell<Outcome>>;
+
+/// One upstream image fetch shared by every request for the same token while it runs.
+pub(super) type ImageFlight = std::sync::Arc<tokio::sync::OnceCell<Result<Bytes, FetchError>>>;
 
 /// The key a URL is cached under: parsed and re-serialized, so case in the
 /// scheme and host, a default port and a `#fragment` (never sent upstream)
@@ -65,7 +71,7 @@ pub(super) struct CachedPreview {
 }
 
 struct CachedImage {
-    bytes: Vec<u8>,
+    bytes: Bytes,
     inserted_at: i64,
 }
 
@@ -75,6 +81,7 @@ pub(super) struct Cache {
     misses: Mutex<HashMap<String, i64>>,
     in_flight: Mutex<HashMap<String, InFlight>>,
     images: Mutex<HashMap<String, CachedImage>>,
+    image_in_flight: Mutex<HashMap<String, ImageFlight>>,
 }
 
 impl Cache {
@@ -85,6 +92,7 @@ impl Cache {
             misses: Mutex::new(HashMap::new()),
             in_flight: Mutex::new(HashMap::new()),
             images: Mutex::new(HashMap::new()),
+            image_in_flight: Mutex::new(HashMap::new()),
         }
     }
 
@@ -118,6 +126,25 @@ impl Cache {
             .is_some_and(|current| std::sync::Arc::ptr_eq(current, cell))
         {
             in_flight.remove(key);
+        }
+    }
+
+    /// The image fetch every concurrent request for [token] shares.
+    pub(super) fn image_in_flight(&self, token: &str) -> ImageFlight {
+        lock(&self.image_in_flight)
+            .entry(token.to_owned())
+            .or_default()
+            .clone()
+    }
+
+    /// Forgets [cell] once it has resolved, unless a newer fetch replaced it.
+    pub(super) fn finish_image(&self, token: &str, cell: &ImageFlight) {
+        let mut in_flight = lock(&self.image_in_flight);
+        if in_flight
+            .get(token)
+            .is_some_and(|current| std::sync::Arc::ptr_eq(current, cell))
+        {
+            in_flight.remove(token);
         }
     }
 
@@ -165,7 +192,7 @@ impl Cache {
     }
 
     /// The already-fetched bytes for an image token, if still fresh.
-    pub(super) fn image_bytes(&self, token: &str) -> Option<Vec<u8>> {
+    pub(super) fn image_bytes(&self, token: &str) -> Option<Bytes> {
         lock(&self.images)
             .get(token)
             .filter(|c| now_ms() - c.inserted_at < CACHE_TTL_MS)
@@ -174,7 +201,7 @@ impl Cache {
 
     /// Records the fetched bytes for an image token, so the next viewer of
     /// the same card is served from memory rather than a fresh outbound fetch.
-    pub(super) fn store_image_bytes(&self, token: &str, bytes: Vec<u8>) {
+    pub(super) fn store_image_bytes(&self, token: &str, bytes: Bytes) {
         let now = now_ms();
         let mut images = lock(&self.images);
         sweep(&mut images, |c| c.inserted_at, now);
@@ -261,8 +288,8 @@ mod tests {
         let cached = cache.insert("https://example.com", preview_with_image());
         let token = cached.image_token.unwrap();
         assert!(cache.image_bytes(&token).is_none());
-        cache.store_image_bytes(&token, vec![1, 2, 3]);
-        assert_eq!(cache.image_bytes(&token).unwrap(), vec![1, 2, 3]);
+        cache.store_image_bytes(&token, Bytes::from_static(&[1, 2, 3]));
+        assert_eq!(cache.image_bytes(&token).unwrap().as_ref(), &[1, 2, 3]);
     }
 
     #[test]

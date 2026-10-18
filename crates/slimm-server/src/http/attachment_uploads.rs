@@ -248,6 +248,7 @@ async fn complete(
         )
         .await?;
     drop(placing);
+    state.media.prewarm_preview(&finished.hex_id, content_type);
     Ok((
         StatusCode::CREATED,
         Json(AttachmentDto::from(AttachmentSummary {

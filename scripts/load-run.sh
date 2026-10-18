@@ -108,6 +108,7 @@ LAUNCHER_PID=""
 stop_server() {
   [[ -z "${K6_NAME:-}" ]] || docker rm -f "$K6_NAME" >/dev/null 2>&1 || true
   [[ -n "$SAMPLER_PID" ]] && kill "$SAMPLER_PID" 2>/dev/null || true
+  [[ -n "${FAKE_LIVEKIT_PID:-}" ]] && kill "$FAKE_LIVEKIT_PID" 2>/dev/null || true
   if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill -TERM "$SERVER_PID" 2>/dev/null || true
     for _ in $(seq 1 100); do
@@ -128,6 +129,14 @@ export SLIMM_DATABASE_PATH="$WORK/data/slimm.db"
 export SLIMM_ATTACHMENTS_DIR="$WORK/data/media"
 export SLIMM_TRUST_PROXY_HOPS=1
 export SLIMM_LOG="${SLIMM_LOG:-warn}"
+FAKE_LIVEKIT_PID=""
+if [[ "${LOAD_FAKE_LIVEKIT:-0}" = 1 ]]; then
+  FAKE_LIVEKIT_PORT=$((PORT + 1))
+  python3 "$ROOT/scripts/lib/load_fake_livekit.py" "$FAKE_LIVEKIT_PORT" "${LOAD_FAKE_LIVEKIT_DELAY_MS:-40}" "$RESULTS/fake-livekit-calls.txt" &
+  FAKE_LIVEKIT_PID=$!
+  export SLIMM_LIVEKIT_URL="ws://127.0.0.1:$FAKE_LIVEKIT_PORT"
+  export SLIMM_LIVEKIT_API_KEY=loadkey SLIMM_LIVEKIT_API_SECRET=load-secret-at-least-32-characters-long
+fi
 ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
 
 SAMPLY="${SAMPLY:-samply}"
@@ -186,7 +195,7 @@ sample_k6 &
 K6_SAMPLER_PID=$!
 K6_STATUS=0
 docker run --rm --name "$K6_NAME" --network host "${K6_PIN[@]}" --user "$(id -u):$(id -g)" --ulimit nofile=1048576:1048576 \
-  -v "$ROOT/perf/load:/load:ro" -v "$RESULTS:/results" \
+  -v "$ROOT/perf/load:/load:ro" -v "$RESULTS:/results" -v "${LOAD_FIXTURES:-$ROOT/perf/load}:/fixtures:ro" \
   -e BASE_URL="$BASE" -e OWNER_TOKEN="$OWNER_TOKEN" -e RESULTS_DIR=/results \
   "$K6_IMAGE" run --quiet "$@" "/load/$SCENARIO.js" 2>&1 | tee "$RESULTS/k6.log" || K6_STATUS=${PIPESTATUS[0]}
 
@@ -210,6 +219,11 @@ if [[ "$PROFILE" = 1 && -f "$RESULTS/profile.json.gz" ]]; then
   LOAD_START=$(sed -n 's/.*load-start \([0-9]*\).*/\1/p' "$RESULTS/k6.log" | head -1)
   python3 "$ROOT/scripts/lib/load_profile.py" "$RESULTS/profile.json.gz" 30 "${LOAD_START:-0}" >"$RESULTS/profile-top.txt" || true
   echo "top       $RESULTS/profile-top.txt   (samples from after seeding only)"
+  if command -v inferno-flamegraph >/dev/null; then
+    python3 "$ROOT/scripts/lib/load_folded.py" "$RESULTS/profile.json.gz" "${LOAD_START:-0}" |
+      inferno-flamegraph --title "slimm-server $SCENARIO" >"$RESULTS/flamegraph.svg" || true
+    echo "flame     $RESULTS/flamegraph.svg"
+  fi
   echo "profile   samply load $RESULTS/profile.json.gz   (opens the Firefox Profiler)"
 fi
 exit "$K6_STATUS"

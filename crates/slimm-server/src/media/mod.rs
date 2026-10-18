@@ -36,6 +36,7 @@ mod image_header;
 mod linked_avatar;
 pub mod originals;
 pub mod preview;
+mod preview_scale;
 mod stream;
 mod upload_session;
 pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
