@@ -50,6 +50,10 @@ String imageCacheLimitLabel(int megabytes) => switch (megabytes) {
 /// Flutter's own entry-count cap, which No limit lifts along with the bytes.
 const int _defaultImageCacheEntries = 1000;
 
+/// No limit's caps: far past any real heap, and below 2^53 so the web holds them exactly.
+const int _noLimitBytes = 1000000000000000;
+const int _noLimitEntries = 1000000000;
+
 class ImageCacheLimitController extends StateNotifier<int>
     implements RestorablePreference {
   ImageCacheLimitController(this._ref) : super(defaultImageCacheLimitMb) {
@@ -90,9 +94,8 @@ class ImageCacheLimitController extends StateNotifier<int>
   void _apply(int megabytes) {
     final cache = PaintingBinding.instance.imageCache;
     if (megabytes == imageCacheNoLimitMb) {
-      // Below 2^53 so the same value holds on the web, where ints are doubles.
-      cache.maximumSizeBytes = 1 << 50;
-      cache.maximumSize = 1 << 30;
+      cache.maximumSizeBytes = _noLimitBytes;
+      cache.maximumSize = _noLimitEntries;
       return;
     }
     cache.maximumSizeBytes = megabytes << 20;
