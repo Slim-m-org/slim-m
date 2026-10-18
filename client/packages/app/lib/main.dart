@@ -245,6 +245,11 @@ Future<void> _initAndroidPush() async {
   }
 }
 
+/// Linux and Windows hide the native title bar for the splash; macOS keeps it.
+bool get _splashIsFrameless =>
+    currentDesktopPlatform() == DesktopPlatform.linux ||
+    currentDesktopPlatform() == DesktopPlatform.windows;
+
 /// The root. Which surface is shown follows the session, enforced by the
 /// router's redirect: a revoked session lands on sign-in from wherever the user
 /// was, without any screen checking for itself. How it looks follows the
@@ -260,9 +265,7 @@ class SlimMApp extends ConsumerWidget {
         prompt: ref.watch(startupPromptProvider),
         leaving: ref.watch(startupLeavingProvider),
         rounded: currentDesktopPlatform() == DesktopPlatform.linux,
-        windowPort: currentDesktopPlatform() == DesktopPlatform.linux
-            ? DesktopWindowShell.port
-            : null,
+        windowPort: _splashIsFrameless ? DesktopWindowShell.port : null,
       );
     }
 

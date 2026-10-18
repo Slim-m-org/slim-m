@@ -28,6 +28,7 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   int restoreCalls = 0;
   int centerCalls = 0;
   int hideTitleBarCalls = 0;
+  int showTitleBarCalls = 0;
   final List<ResizeEdge> startResizingCalls = [];
 
   WindowSize? lastSize;
@@ -106,6 +107,8 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   Future<void> setPreventClose(bool value) async {}
   @override
   Future<void> hideTitleBar() async => hideTitleBarCalls++;
+  @override
+  Future<void> showTitleBar() async => showTitleBarCalls++;
   @override
   Future<void> setResizable(bool value) async => lastResizable = value;
   @override
