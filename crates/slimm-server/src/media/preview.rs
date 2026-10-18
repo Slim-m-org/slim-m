@@ -83,17 +83,36 @@ impl Previews {
     /// An empty derived file records that the original is the answer, so a
     /// picture that cannot or need not shrink is judged once, not per request.
     pub async fn resolve(&self, hex: &str, original: &Path, bucket: u32) -> io::Result<Preview> {
+        self.resolve_with(hex, original, bucket, derive).await
+    }
+
+    /// The permit moves into the blocking task, so a cancelled request cannot free the gate
+    /// while its decode is still running.
+    async fn resolve_with<F>(
+        &self,
+        hex: &str,
+        original: &Path,
+        bucket: u32,
+        derive: F,
+    ) -> io::Result<Preview>
+    where
+        F: FnOnce(&Path, u32) -> io::Result<Option<Vec<u8>>> + Send + 'static,
+    {
         let path = self.path(hex, bucket);
         if let Some(found) = existing(&path).await? {
             return Ok(found);
         }
-        let _permit = self.gate.acquire().await.map_err(io::Error::other)?;
+        let permit = Arc::clone(&self.gate)
+            .acquire_owned()
+            .await
+            .map_err(io::Error::other)?;
         if let Some(found) = existing(&path).await? {
             return Ok(found);
         }
         let original = original.to_path_buf();
         let target = path.clone();
         tokio::task::spawn_blocking(move || {
+            let _permit = permit;
             let derived = derive(&original, bucket)?;
             write_atomic(&target, derived.as_deref().unwrap_or_default())?;
             Ok(derived.map_or(Preview::Original, |_| Preview::Derived(target)))
@@ -272,6 +291,45 @@ mod tests {
             .encode(img.as_raw(), 1600, 1200, ExtendedColorType::Rgb8)
             .unwrap();
         out
+    }
+
+    #[tokio::test]
+    async fn a_cancelled_request_keeps_the_gate_until_its_decode_finishes() {
+        let previews = Previews::new(
+            std::env::temp_dir().join(format!("slimm-preview-{}", uuid::Uuid::now_v7())),
+        );
+        std::fs::create_dir_all(&previews.dir).unwrap();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+
+        let first = previews.clone();
+        let request = tokio::spawn(async move {
+            first
+                .resolve_with("aa", Path::new("x"), 320, move |_, _| {
+                    started_tx.send(()).unwrap();
+                    release_rx.recv().unwrap();
+                    Ok(None)
+                })
+                .await
+        });
+        tokio::task::spawn_blocking(move || started_rx.recv().unwrap())
+            .await
+            .unwrap();
+        request.abort();
+        let _ = request.await;
+
+        assert_eq!(
+            previews.gate.available_permits(),
+            0,
+            "the decode still holds the gate"
+        );
+        release_tx.send(()).unwrap();
+        let _free =
+            tokio::time::timeout(std::time::Duration::from_secs(5), previews.gate.acquire())
+                .await
+                .expect("the gate frees once the decode ends")
+                .unwrap();
+        std::fs::remove_dir_all(&previews.dir).unwrap();
     }
 
     #[test]
