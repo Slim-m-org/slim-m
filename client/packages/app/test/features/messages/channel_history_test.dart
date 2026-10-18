@@ -244,6 +244,22 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('opening a thread with nothing stored shows the history the '
+      'server holds', (tester) async {
+    final harness = await mountChannel(
+      tester,
+      serverSeqs: _range(1, 5),
+      seededSeqs: const [],
+      syncStatus: SyncStatus.live,
+    );
+    await flush(tester);
+
+    expect(await _storedIds(harness.db), hasLength(5));
+    expect(find.byType(ChannelStartHeader), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
   testWidgets('a genuinely empty, live channel is welcomed rather than shown a '
       'permanent spinner', (tester) async {
     await mountChannel(
