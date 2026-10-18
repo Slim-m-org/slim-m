@@ -6,6 +6,31 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/src/global_hotkeys_channel.dart';
 import 'package:slimm_platform/src/global_hotkeys_portal.dart';
 
+class _RecordingBus extends DBusClient {
+  _RecordingBus() : super(DBusAddress.unix(path: '/nonexistent'));
+  final calls = <String>[];
+  var closed = false;
+
+  @override
+  Future<DBusMethodSuccessResponse> callMethod({
+    String? destination,
+    required DBusObjectPath path,
+    String? interface,
+    required String name,
+    Iterable<DBusValue> values = const [],
+    DBusSignature? replySignature,
+    bool noReplyExpected = false,
+    bool noAutoStart = false,
+    bool allowInteractiveAuthorization = false,
+  }) async {
+    calls.add('${path.value} $interface.$name');
+    return DBusMethodSuccessResponse();
+  }
+
+  @override
+  Future<void> close() async => closed = true;
+}
+
 const _ptt = GlobalHotkeyBinding(
   id: GlobalHotkeyId.pushToTalk,
   description: 'Push to talk',
@@ -163,5 +188,24 @@ void main() {
       GlobalHotkeyPhase.lost,
     );
     expect(hookEventFromCall(const MethodCall('event', {'id': 'x'})), isNull);
+  });
+
+  test('unbinding everything closes the portal session', () async {
+    final bus = _RecordingBus();
+    final source = PortalGlobalHotkeySource(clientFactory: () => bus)
+      ..adoptSessionForTest(_session);
+    await source.bind(const []);
+    expect(bus.calls, ['$_session org.freedesktop.portal.Session.Close']);
+    await source.bind(const []);
+    expect(bus.calls, hasLength(1));
+    await source.dispose();
+  });
+
+  test('dispose closes a live session', () async {
+    final bus = _RecordingBus();
+    final source = PortalGlobalHotkeySource(clientFactory: () => bus)
+      ..adoptSessionForTest(_session);
+    await source.dispose();
+    expect(bus.calls, ['$_session org.freedesktop.portal.Session.Close']);
   });
 }

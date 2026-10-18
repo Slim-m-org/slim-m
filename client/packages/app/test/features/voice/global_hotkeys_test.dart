@@ -233,6 +233,27 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a key-up seen by the window ends a global hold that lost its own',
+    (tester) async {
+      final c = await connect(tester);
+      await global(
+        tester,
+        c.source,
+        GlobalHotkeyId.pushToTalk,
+        GlobalHotkeyPhase.pressed,
+      );
+      expect(c.voice.state.microphoneEnabled, isTrue);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyV);
+      await tester.pump();
+
+      expect(c.voice.state.microphoneEnabled, isFalse);
+      await c.voice.leave();
+    },
+  );
+
   testWidgets('the global mute shortcut toggles the mic once per press', (
     tester,
   ) async {

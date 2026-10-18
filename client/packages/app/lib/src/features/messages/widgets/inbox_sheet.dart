@@ -55,14 +55,18 @@ class _InboxSheetState extends ConsumerState<_InboxSheet>
     with GuardedActionState<_InboxSheet> {
   bool _busy = false;
 
-  Future<void> _markAllRead(List<InboxEntry> entries) async {
+  Future<void> _markAllRead() async {
     setState(() => _busy = true);
     await guard(
       whatFailed: 'mark everything read',
-      action: () => markChannelsRead(
-        ProviderScope.containerOf(context, listen: false),
-        [for (final entry in entries) entry.channel.id],
-      ),
+      action: () async {
+        final ids = await ref.refresh(inboxUnreadIdsProvider.future);
+        if (!mounted) return;
+        await markChannelsRead(
+          ProviderScope.containerOf(context, listen: false),
+          ids,
+        );
+      },
     );
     if (mounted) setState(() => _busy = false);
   }
@@ -90,9 +94,7 @@ class _InboxSheetState extends ConsumerState<_InboxSheet>
                   label: 'Mark all read',
                   variant: AppButtonVariant.ghost,
                   icon: AppIcons.check,
-                  onPressed: entries.isEmpty || _busy
-                      ? null
-                      : () => _markAllRead(entries),
+                  onPressed: entries.isEmpty || _busy ? null : _markAllRead,
                 ),
               ],
             ),

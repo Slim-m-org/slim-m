@@ -2,11 +2,15 @@
 /// One container per account: restore, switching and what stays apart.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/accounts/providers/account.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_unread.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
+import 'package:slimm_app/src/providers/disk_byte_cache.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -24,6 +28,20 @@ class _LockedKeys extends InMemoryKeyStore {
     if (unreadable.contains(handle)) throw StateError('locked');
     return super.read(handle);
   }
+}
+
+class _PreviewCache implements ByteCache {
+  final entries = <String>{};
+
+  @override
+  Future<Uint8List?> read(String key) async => null;
+
+  @override
+  Future<void> write(String key, Uint8List bytes) async {}
+
+  @override
+  Future<void> removeWithPrefix(String prefix) async =>
+      entries.removeWhere((k) => k.startsWith(prefix));
 }
 
 api.Message _message(String id, int seq) => api.Message(
@@ -329,6 +347,25 @@ void main() {
         expect((await h.store.load()).byOrigin(_a), isNull);
       },
     );
+
+    test('removing an account clears its cached previews', () async {
+      final cache = _PreviewCache();
+      final scope = attachmentPreviewScope(Uri.parse(_a));
+      final other = attachmentPreviewScope(Uri.parse(_b));
+      cache.entries.addAll(['$scope-x-320', '$other-x-320']);
+      h = AccountHarness(
+        extraOverrides: [
+          attachmentPreviewCacheProvider.overrideWithValue(cache),
+        ],
+      );
+      await h.seed(_a, user: 'ann', active: true);
+      await h.seed(_b, user: 'bea');
+      await h.boot();
+
+      await h.host.removeAccount(_a);
+
+      expect(cache.entries, {'$other-x-320'});
+    });
 
     test('the last account stays as a signed-out entry', () async {
       h = AccountHarness();

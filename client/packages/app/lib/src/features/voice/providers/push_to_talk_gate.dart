@@ -58,6 +58,13 @@ class PushToTalkGate {
     if (_holds.isEmpty) unawaited(_voice.setPushToTalkHeld(false));
   }
 
+  /// The window saw the key go up, which settles a global hold whose own key-up never arrived.
+  void keyWentUp() {
+    if (_holds.isEmpty) return;
+    _holds.clear();
+    unawaited(_voice.setPushToTalkHeld(false));
+  }
+
   /// Forgets every hold without touching the mic, for when push-to-talk is switched off.
   void reset() => _holds.clear();
 

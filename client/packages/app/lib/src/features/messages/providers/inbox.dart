@@ -29,13 +29,14 @@ class InboxEntry {
 /// Entries shown at most, so a long absence cannot build a thousand rows.
 const inboxLimit = 100;
 
-/// Channels the rail would light, in the order the inbox lists them.
-Future<List<InboxEntry>> buildInbox(
-  MessageStore store,
+typedef _Waiting = ({Channel channel, bool mentioned});
+
+/// Channels the rail would light, with whether a mention is waiting.
+List<_Waiting> _waiting(
   Iterable<Channel> channels,
   ChannelNotificationOverridesState overrides,
-) async {
-  final entries = <InboxEntry>[];
+) {
+  final waiting = <_Waiting>[];
   for (final channel in channels) {
     final indicator = unreadIndicatorFor(
       channelOverride: overrides.overrideFor(channel.id),
@@ -45,27 +46,42 @@ Future<List<InboxEntry>> buildInbox(
       manuallyUnread: channel.manuallyUnread ?? false,
     );
     if (!indicator.unread && !indicator.mentioned) continue;
-    entries.add(
-      InboxEntry(
-        channel: channel,
-        mentioned: indicator.mentioned,
-        unread: channel.cursor - channel.lastReadSeq,
-        message: indicator.mentioned
-            ? await store.messageAtSeq(channel.id, channel.mentionedSeq)
-            : await _newest(store, channel.id),
-      ),
-    );
+    waiting.add((channel: channel, mentioned: indicator.mentioned));
   }
+  return waiting;
+}
+
+/// Every channel the inbox would list, uncut by [inboxLimit], for "Mark all read".
+List<String> unreadChannelIds(
+  Iterable<Channel> channels,
+  ChannelNotificationOverridesState overrides,
+) => [for (final w in _waiting(channels, overrides)) w.channel.id];
+
+/// Channels the rail would light, in the order the inbox lists them.
+Future<List<InboxEntry>> buildInbox(
+  MessageStore store,
+  Iterable<Channel> channels,
+  ChannelNotificationOverridesState overrides,
+) async {
+  final waiting = _waiting(channels, overrides);
+  final messages = await store.inboxMessages({
+    for (final w in waiting)
+      w.channel.id: w.mentioned ? w.channel.mentionedSeq : null,
+  });
+  final entries = [
+    for (final w in waiting)
+      InboxEntry(
+        channel: w.channel,
+        mentioned: w.mentioned,
+        unread: w.channel.cursor - w.channel.lastReadSeq,
+        message: messages[w.channel.id],
+      ),
+  ];
   entries.sort((a, b) {
     if (a.mentioned != b.mentioned) return a.mentioned ? -1 : 1;
     return (b.message?.createdAt ?? 0).compareTo(a.message?.createdAt ?? 0);
   });
   return entries.take(inboxLimit).toList(growable: false);
-}
-
-Future<Message?> _newest(MessageStore store, String channelId) async {
-  final latest = await store.channelSnapshot(channelId, limit: 1);
-  return latest.isEmpty ? null : latest.last;
 }
 
 final inboxProvider = StreamProvider.autoDispose<List<InboxEntry>>((
@@ -76,4 +92,14 @@ final inboxProvider = StreamProvider.autoDispose<List<InboxEntry>>((
   yield* store.watchChannels().asyncMap(
     (channels) => buildInbox(store, channels, overrides),
   );
+});
+
+/// Ids of every unread channel, read at the moment "Mark all read" is pressed.
+final inboxUnreadIdsProvider = FutureProvider.autoDispose<List<String>>((
+  ref,
+) async {
+  final store = await ref.watch(storeProvider.future);
+  final overrides = ref.watch(channelNotificationOverridesProvider);
+  final channels = await store.watchChannels().first;
+  return unreadChannelIds(channels, overrides);
 });

@@ -73,7 +73,7 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
     if (event is KeyDownEvent) {
       gate.press(HoldSource.inWindow);
     } else {
-      gate.release(HoldSource.inWindow);
+      gate.keyWentUp();
     }
     return false;
   }
