@@ -28,6 +28,11 @@ class _FakeMic implements MicPort {
   @override
   bool get hasTrack => published;
 
+  double? senderLevel;
+
+  @override
+  Future<double?> senderLevelDb() async => senderLevel;
+
   @override
   bool get open => published && !muted;
 

@@ -34,6 +34,11 @@ class _FakeMic implements MicPort {
   @override
   bool get hasTrack => published;
 
+  double? senderLevel;
+
+  @override
+  Future<double?> senderLevelDb() async => senderLevel;
+
   @override
   bool get open => published && !muted;
 
@@ -78,6 +83,7 @@ class _FakeMic implements MicPort {
 
 class _Devices implements AudioDevices {
   List<AudioDevice> mics = const [];
+  AudioDevice? systemDefault;
   final changes = StreamController<void>.broadcast();
 
   @override
@@ -87,7 +93,7 @@ class _Devices implements AudioDevices {
   Future<List<AudioDevice>> outputs() async => const [];
 
   @override
-  Future<AudioDevice?> systemDefaultInput() async => null;
+  Future<AudioDevice?> systemDefaultInput() async => systemDefault;
 
   @override
   Future<AudioDevice?> systemDefaultOutput() async => null;
@@ -104,10 +110,11 @@ const _timing = MicRecoveryTiming(
   silentCooldown: Duration(milliseconds: 30),
   maxSilentRestarts: 2,
   deviceDebounce: Duration(milliseconds: 20),
+  senderPoll: Duration(milliseconds: 5),
 );
 
 class _Rig {
-  _Rig({this.levelDb = -40.0, bool strong = false}) {
+  _Rig({this.levelDb = -40.0, bool strong = false, bool gate = true}) {
     session = VoiceSession(
       roomFactory: _EmptyRoom.new,
       micPort: mic,
@@ -119,7 +126,7 @@ class _Rig {
         invoke: (method, [args]) async => method == 'getInputGate'
             ? {'levelDb': levelDb, 'voice': false}
             : null,
-        supported: true,
+        supported: gate,
       ),
     );
     if (strong) session.setStrongNoiseSuppression(true);
@@ -321,5 +328,83 @@ void main() {
 
     await rig.session.setMicrophoneEnabled(true);
     expect(rig.mic.open, isTrue);
+  });
+
+  test('a host without the gate restarts a capture the sender reports silent',
+      () async {
+    final rig = _Rig(gate: false);
+    addTearDown(rig.session.dispose);
+    await rig.join();
+    rig.mic.senderLevel = kInputFloorDb;
+
+    await _until(() => rig.mic.restarts.length == 2);
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    expect(rig.mic.restarts, hasLength(2));
+  });
+
+  test('a host without the gate leaves a live or quiet capture alone',
+      () async {
+    final rig = _Rig(gate: false);
+    addTearDown(rig.session.dispose);
+    await rig.join();
+    rig.mic.senderLevel = senderLevelToDb(0.0001);
+
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    expect(rig.mic.restarts, isEmpty);
+  });
+
+  test('silence that outlasts every restart is reported, then clears',
+      () async {
+    final rig = _Rig(gate: false);
+    addTearDown(rig.session.dispose);
+    await rig.join();
+    rig.mic.senderLevel = kInputFloorDb;
+
+    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    expect(rig.mic.restarts, hasLength(2));
+
+    rig.mic.senderLevel = -30;
+    await _until(() => rig.session.micStatus == MicStatus.ok);
+  });
+
+  test('retrying after giving up restores the status and the budget', () async {
+    final rig = _Rig(gate: false);
+    addTearDown(rig.session.dispose);
+    await rig.join();
+    rig.mic.senderLevel = kInputFloorDb;
+    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+
+    expect(await rig.session.resetMicrophone(), isTrue);
+
+    expect(rig.session.micStatus, MicStatus.ok);
+  });
+
+  test('a new system default microphone moves a capture that follows it',
+      () async {
+    final rig = _Rig();
+    rig.devices.systemDefault = const AudioDevice(id: 'a', label: 'a');
+    addTearDown(rig.session.dispose);
+    await rig.join();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    rig.devices.systemDefault = const AudioDevice(id: 'b', label: 'b');
+    rig.devices.changes.add(null);
+
+    await _until(() => rig.mic.restarts.length == 1);
+  });
+
+  test('a speaker change does not reopen a capture on the same default',
+      () async {
+    final rig = _Rig();
+    rig.devices.systemDefault = const AudioDevice(id: 'a', label: 'a');
+    addTearDown(rig.session.dispose);
+    await rig.join();
+
+    rig.devices.changes.add(null);
+    await _settle();
+
+    expect(rig.mic.restarts, isEmpty);
   });
 }

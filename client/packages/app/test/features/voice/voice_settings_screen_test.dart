@@ -57,23 +57,20 @@ void main() {
   });
 
   testWidgets(
-    'out of a call, the meter says so instead of showing a live level',
+    'out of a call, the meter rests until the preview reports a level',
     (tester) async {
       await tester.pumpWidget(
         wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Join a voice call to see your live input level'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Join a voice'), findsNothing);
       final tween = tester
           .widget<TweenAnimationBuilder<double>>(
             find.byType(TweenAnimationBuilder<double>),
           )
           .tween;
-      expect(tween.end, 6.0);
+      expect(tween.end, 0.0);
     },
   );
 
@@ -119,10 +116,6 @@ void main() {
     ]);
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Join a voice call to see your live input level'),
-      findsNothing,
-    );
     final tween = tester
         .widget<TweenAnimationBuilder<double>>(
           find.byType(TweenAnimationBuilder<double>),

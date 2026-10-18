@@ -103,3 +103,20 @@ Measured on 2026-10-13 against `livekit-server` 1.10.1 with LiveKit's Python SDK
 
 The last row is what `docker-compose.voice.yml` ships.
 Clearing that fast would flicker between words, so the client keeps a ring lit for 300 ms after the SFU drops it (`SpeakingHold` in `slimm_rtc`); the local ring on a host with the input gate already has the gate's own hold and skips this.
+
+## Level outside a call
+
+Owner, 2026-10-18: the setup step and Voice settings said "Join a voice channel to see your level here", and a Reset microphone row asked the user to repair a mic by hand.
+libwebrtc only runs its audio processing (and so the gate and its meter) while a track is being sent, so a plain `getUserMedia` track has no level to read.
+`LoopbackMicSource` in `slimm_rtc` therefore sends the track to a second peer connection in the same process and mutes what arrives, so nothing plays.
+On Linux and Windows the level is `getInputGate`, the same post-suppression reading a call shows; elsewhere it is the sender's `media-source` `audioLevel`, which is not gated or run through rnnoise.
+`MicPreviewController` opens it while a screen holds it (`MicPreviewHold`), a call is not connecting or connected, and the app is focused, and closes it the moment any of those stops.
+Changing the microphone picker restarts the preview on the new device.
+This path has been unit and widget tested against fakes; it has not been run on real hardware.
+
+## Dead-mic recovery
+
+There is no Reset microphone row.
+A lost track, an unplugged chosen microphone, a new system default (when the capture follows the default) and a capture that reads digital silence for 10 s while unmuted each reopen the capture with a backoff (`MicRecovery`, `SilentMicWatchdog`).
+Hosts without the gate read the sender's own level once a second for the silence check, counting only exact zero as silence.
+Only when recovery gives up does the mic button say "Microphone unavailable, tap to retry", through the existing inline call surface.

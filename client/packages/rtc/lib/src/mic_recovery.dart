@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' show ln10, log;
 
 import 'input_gate.dart' show kInputFloorDb;
 
@@ -14,7 +15,7 @@ enum MicStatus {
   /// The mic was lost and a re-enable is pending or running.
   reconnecting,
 
-  /// Recovery gave up; a tap on the mic button or Reset microphone retries.
+  /// Recovery gave up; a tap on the mic button retries.
   unavailable,
 }
 
@@ -27,6 +28,7 @@ class MicRecoveryTiming {
     this.silentCooldown = const Duration(seconds: 30),
     this.maxSilentRestarts = 3,
     this.deviceDebounce = const Duration(seconds: 1),
+    this.senderPoll = const Duration(seconds: 1),
   });
 
   final Duration retryBase;
@@ -40,6 +42,9 @@ class MicRecoveryTiming {
   final Duration silentCooldown;
   final int maxSilentRestarts;
   final Duration deviceDebounce;
+
+  /// How often a host without the input gate reads the capture's level.
+  final Duration senderPoll;
 }
 
 /// Re-enables a lost microphone with a growing delay, for as long as the user
@@ -145,17 +150,26 @@ class MicRecovery {
 }
 
 /// Notices an unmuted mic that reads digital silence and asks for a capture
-/// restart, a bounded number of times.
+/// restart, a bounded number of times, then reports that it gave up.
 class SilentMicWatchdog {
   SilentMicWatchdog({
     required this.timing,
     required this.onSilent,
+    this.onGaveUp,
+    this.onRecovered,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final MicRecoveryTiming timing;
   final void Function() onSilent;
+
+  /// Silence outlasted every restart; the user has to be told.
+  final void Function()? onGaveUp;
+
+  /// A live level came back after [onGaveUp].
+  final void Function()? onRecovered;
   final DateTime Function() _now;
+  bool _gaveUp = false;
 
   DateTime? _silentSince;
   DateTime? _nextAllowed;
@@ -167,13 +181,23 @@ class SilentMicWatchdog {
     if (levelDb > kInputFloorDb + 1) {
       _silentSince = null;
       _restarts = 0;
+      if (_gaveUp) {
+        _gaveUp = false;
+        onRecovered?.call();
+      }
       return;
     }
     final now = _now();
     final since = _silentSince ??= now;
     if (now.difference(since) < timing.silence) return;
     final allowed = _nextAllowed;
-    if (_restarts >= timing.maxSilentRestarts) return;
+    if (_restarts >= timing.maxSilentRestarts) {
+      if (!_gaveUp) {
+        _gaveUp = true;
+        onGaveUp?.call();
+      }
+      return;
+    }
     if (allowed != null && now.isBefore(allowed)) return;
     _restarts++;
     _silentSince = null;
@@ -185,5 +209,12 @@ class SilentMicWatchdog {
     _silentSince = null;
     _nextAllowed = null;
     _restarts = 0;
+    _gaveUp = false;
   }
 }
+
+/// A capture level as the watchdog reads it: only exact digital silence counts
+/// as the floor, so a quiet room under strong suppression never trips it.
+double senderLevelToDb(double audioLevel) => audioLevel <= 0
+    ? kInputFloorDb
+    : (20 * log(audioLevel) / ln10).clamp(kInputFloorDb + 2, 0.0);

@@ -23,6 +23,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart' hide Message;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/fake_mic_preview.dart';
 import '../voice/voice_snapshot_fixtures.dart' show SnapshotVoiceController;
 
 final harnessNow = DateTime.utc(2026, 10, 18, 12);
@@ -97,6 +98,7 @@ Future<FirstRunRig> pumpFirstRun(
   final push = FakePush(pushStatus);
   final container = ProviderContainer(
     overrides: [
+      fakeMicPreview(FakeMicSource()),
       sessionProvider.overrideWithValue(
         api.SessionStore(
           tokens: const api.TokenPair(
