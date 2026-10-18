@@ -10,6 +10,7 @@ library;
 import 'dart:async';
 
 import 'package:dbus/dbus.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'global_hotkeys.dart';
 import 'global_hotkeys_keys.dart';
@@ -134,6 +135,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     List<GlobalHotkeyBinding> bindings,
   ) async {
     if (bindings.isEmpty) {
+      await _closeSession();
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     }
     try {
@@ -155,6 +157,32 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     } on Object {
       _endSession();
       return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
+    }
+  }
+
+  @visibleForTesting
+  // ignore: use_setters_to_change_properties
+  void adoptSessionForTest(String handle) => _session = handle;
+
+  /// Releases the portal's grab on every approved key; the next bind re-creates.
+  Future<void> _closeSession() async {
+    final handle = _session;
+    if (handle == null) return;
+    for (final subscription in _listening) {
+      unawaited(subscription.cancel());
+    }
+    _listening.clear();
+    _session = null;
+    try {
+      await _bus.callMethod(
+        destination: _portalName,
+        path: DBusObjectPath(handle),
+        interface: _sessionInterface,
+        name: 'Close',
+        replySignature: DBusSignature(''),
+      );
+    } on Object {
+      // The session may already be gone; the grab is released either way.
     }
   }
 
@@ -238,6 +266,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
 
   @override
   Future<void> dispose() async {
+    await _closeSession();
     _endSession();
     await _events.close();
     await _client?.close();
