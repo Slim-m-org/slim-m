@@ -37,6 +37,7 @@ class UserAvatar extends ConsumerWidget {
     this.ringColor,
     this.semanticLabel,
     this.placeholder,
+    this.image,
   }) : _known = null;
 
   const UserAvatar.known({
@@ -51,6 +52,7 @@ class UserAvatar extends ConsumerWidget {
     this.ringColor,
     this.semanticLabel,
     this.placeholder,
+    this.image,
   }) : _known = (avatarUpdatedAt,);
 
   final String name;
@@ -67,26 +69,29 @@ class UserAvatar extends ConsumerWidget {
   /// Drawn instead of initials on a square avatar with no picture (a bot).
   final Widget? placeholder;
 
+  /// A picture that is not this person's own, such as a linked account's; skips the avatar lookup.
+  final ImageProvider? image;
+
   final (int?,)? _known;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final id = userId;
-    final version = id == null
+    final version = id == null || image != null
         ? null
         : _known != null
         ? _known.$1
         : ref.watch(_avatarVersionProvider(id));
-    ImageProvider? image;
+    ImageProvider? picture = image;
     // A null version is the server's "no avatar", so asking would only 404.
-    if (id != null && version != null) {
+    if (picture == null && id != null && version != null) {
       final bytes = ref
           .watch(avatarBytesProvider((userId: id, updatedAt: version)))
           .valueOrNull;
       if (bytes != null) {
         // 3x the painted pixels, floored at a 2x ratio for a compositor that scales without telling Flutter; the 512px source affords it. See decodeEdge.
         final edge = decodeEdge(context, size, minRatio: 2, oversample: 3);
-        image = ResizeImage(
+        picture = ResizeImage(
           MemoryImage(bytes),
           width: edge,
           height: edge,
@@ -98,7 +103,7 @@ class UserAvatar extends ConsumerWidget {
       name: name,
       // The id, so one person keeps one colour across every name form and every rename; see AppAvatar.tintKey.
       tintKey: id,
-      image: image,
+      image: picture,
       size: size,
       shape: shape,
       status: presence && id != null
