@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.94.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.93.1...server-v0.94.0) (2026-10-18)
+
+
+### Features
+
+* autoplay gifs, composer caret on channel open, call a member, and emoji in profile fields ([#2241](https://github.com/Slim-m-org/slim-m/issues/2241)) ([5b6ad56](https://github.com/Slim-m-org/slim-m/commit/5b6ad56d7b6ec0d9f7067068d04f6f3f79f38548))
+* server switcher, audit log, discord link, custom profile colour, settings search, stream volume, and the sign-out fix ([#2248](https://github.com/Slim-m-org/slim-m/issues/2248)) ([f6adbb8](https://github.com/Slim-m-org/slim-m/commit/f6adbb8320ac65c492176883e0f5dc6c9cbdafbd))
+
 ## [0.93.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.93.0...server-v0.93.1) (2026-10-17)
 
 
