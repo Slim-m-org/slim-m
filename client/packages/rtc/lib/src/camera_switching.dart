@@ -131,13 +131,13 @@ class CameraSwitching {
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'devices', e, stack);
+      reportFailure(LogTag.voice, 'turn the camera on or off', e, stack);
       if (!enabled) return CameraToggleResult.failed(e, null);
       bool? hasDevice;
       try {
         hasDevice = (await _devices.list()).isNotEmpty;
       } catch (error, stack) {
-        reportFailure(LogTag.voice, 'devices', error, stack);
+        reportFailure(LogTag.voice, 'list cameras', error, stack);
         hasDevice = null;
       }
       return CameraToggleResult.failed(

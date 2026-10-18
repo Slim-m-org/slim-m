@@ -70,7 +70,7 @@ EmojiZipPlan planEmojiPicks(
       try {
         entries.addAll(decodeEmojiZipEntries(pick.bytes));
       } on ZipTooLargeException catch (error, stack) {
-        reportFailure(LogTag.media, 'pick files', error, stack);
+        reportFailure(LogTag.media, 'read an emoji zip file', error, stack);
         refused.add(
           SkippedZipEntry(
             fileName: pick.fileName,
@@ -78,7 +78,12 @@ EmojiZipPlan planEmojiPicks(
           ),
         );
       } catch (error, stack) {
-        reportFailure(LogTag.media, 'pick files', error, stack);
+        reportFailure(
+          LogTag.media,
+          'read the chosen emoji files',
+          error,
+          stack,
+        );
         refused.add(
           SkippedZipEntry(
             fileName: pick.fileName,

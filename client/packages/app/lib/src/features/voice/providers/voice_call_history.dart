@@ -38,7 +38,7 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
       } on api.NotFoundException catch (error, stack) {
         api.AppLog.swallowed(
           api.LogTag.voice,
-          'family failed, ignored',
+          'This channel has no call history on the server',
           error,
           stack,
         );

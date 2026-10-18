@@ -27,7 +27,10 @@ Future<String> resolveDeviceName() async {
     );
   } catch (error, stack) {
     AppLog.swallowed(
-        LogTag.platform, 'resolve device name failed, ignored', error, stack);
+        LogTag.platform,
+        'Could not read the device model; using a generic device name',
+        error,
+        stack);
     return deviceDisplayName;
   }
 }

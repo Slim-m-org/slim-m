@@ -69,7 +69,7 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
     try {
       picks = await ref.read(emojiFilesPickerProvider)();
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.media, 'choose', error, stack);
+      api.reportFailure(api.LogTag.media, 'choose emoji files', error, stack);
       _refuse('Could not open the file picker.');
       return;
     }
@@ -155,10 +155,10 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
           .uploadCustomEmoji(upload.bytes, name: upload.name);
       if (mounted && created.sameImageAs != null) _sameImage = created;
     } on api.ConflictException catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'upload one', e, stack);
+      api.reportFailure(api.LogTag.media, 'upload an emoji', e, stack);
       reason = '${emojiShortcode(upload.name)} was refused: ${e.message}.';
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'upload one', e, stack);
+      api.reportFailure(api.LogTag.media, 'upload an emoji', e, stack);
       reason = describeApiFailure(
         'add the ${emojiShortcode(upload.name)} emoji',
         e,
@@ -180,7 +180,12 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
             api.EmojiBulkImage(name: u.name, bytes: u.bytes),
         ]);
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(api.LogTag.media, 'upload one', e, stack);
+        api.reportFailure(
+          api.LogTag.media,
+          'upload a batch of emoji',
+          e,
+          stack,
+        );
         reason = describeApiFailure('add ${chunk.length} emoji', e);
       }
       results.addAll([
@@ -198,7 +203,12 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
       if (mounted) ref.invalidate(customEmojiProvider);
       if (mounted) setState(() => _sameImage = null);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'use existing', e, stack);
+      api.reportFailure(
+        api.LogTag.media,
+        'replace an existing emoji',
+        e,
+        stack,
+      );
       _refuse(describeApiFailure('remove the ${added.shortcode} emoji', e));
     }
     if (mounted) setState(() => _running = false);

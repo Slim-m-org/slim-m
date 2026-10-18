@@ -45,7 +45,7 @@ abstract class EnumPreferenceController<T extends Enum> extends StateNotifier<T>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
-        'The fallback is always a usable answer',
+        'Could not read a saved setting; using its default',
         error,
         stack,
       );
@@ -75,7 +75,7 @@ abstract class BoolPreferenceController extends StateNotifier<bool>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
-        'Off is always a usable answer',
+        'Could not read a saved setting; leaving it off',
         error,
         stack,
       );
@@ -113,7 +113,7 @@ abstract class IntPreferenceController extends StateNotifier<int>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
-        'The fallback is always a usable answer',
+        'Could not read a saved setting; using its default',
         error,
         stack,
       );

@@ -89,7 +89,7 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
       await _store.save(fresh);
       return fresh;
     } on SpotifyAuthException catch (error, stack) {
-      reportFailure(LogTag.ui, 'refresh', error, stack);
+      reportFailure(LogTag.ui, 'refresh the Spotify sign-in', error, stack);
       await _store.clear();
       await _onRevoked?.call();
       return null;

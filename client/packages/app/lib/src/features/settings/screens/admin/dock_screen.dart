@@ -173,7 +173,7 @@ class _DockPaneState extends ConsumerState<DockPane>
       );
       return lostAccess ? _UpdateOutcome.needsApproval : _UpdateOutcome.updated;
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'update all', error, stack);
+      api.reportFailure(api.LogTag.ui, 'update a module', error, stack);
       return _UpdateOutcome.failed;
     }
   }

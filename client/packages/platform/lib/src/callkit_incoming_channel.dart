@@ -72,12 +72,12 @@ class CallKitIncomingChannel {
           .whereType<CallKitIncomingEvent>()
           .toList();
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'take pending failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not read the pending incoming call', error, stack);
       return const [];
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'take pending failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not read the pending incoming call', error, stack);
       return const [];
     }
   }
@@ -89,11 +89,17 @@ class CallKitIncomingChannel {
     try {
       await _channel.invokeMethod<void>('endCall', {'id': callId});
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(LogTag.platform,
-          'Best-effort: the call may already be gone', error, stack);
+      AppLog.swallowed(
+          LogTag.platform,
+          'Could not end the system call; it may already be over',
+          error,
+          stack);
     } on MissingPluginException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.platform, 'No native side to end anything on', error, stack);
+          LogTag.platform,
+          'This build has no system call screen to end a call on',
+          error,
+          stack);
     }
   }
 

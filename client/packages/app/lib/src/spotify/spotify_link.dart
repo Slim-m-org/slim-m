@@ -123,7 +123,7 @@ class SpotifyLinker {
     try {
       return await _ref.read(spotifyLauncherProvider)(uri);
     } on Object catch (error, stack) {
-      AppLog.swallowed(LogTag.ui, 'launch failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.ui, 'Could not open Spotify', error, stack);
       return false;
     }
   }
@@ -181,16 +181,21 @@ class SpotifyLinker {
       await _ref.read(shareSpotifyProvider.notifier).markLinked();
       return true;
     } on SpotifyAuthException catch (e, stack) {
-      reportFailure(LogTag.ui, 'complete', e, stack);
+      reportFailure(LogTag.ui, 'link Spotify', e, stack);
       _fail('Spotify did not link: ${e.message}.');
     } on TimeoutException catch (error, stack) {
-      AppLog.swallowed(LogTag.ui, 'complete failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.ui,
+        'Spotify took too long to answer',
+        error,
+        stack,
+      );
       _fail('Spotify took too long to answer. Try again.');
     } on http.ClientException catch (error, stack) {
-      reportFailure(LogTag.ui, 'complete', error, stack);
+      reportFailure(LogTag.ui, 'link Spotify', error, stack);
       _fail('Could not reach Spotify. Check the connection and retry.');
     } on Object catch (error, stack) {
-      reportFailure(LogTag.ui, 'complete', error, stack);
+      reportFailure(LogTag.ui, 'link Spotify', error, stack);
       _fail('Spotify sent a reply this app could not read. Try again.');
     }
     return false;
@@ -200,7 +205,7 @@ class SpotifyLinker {
     try {
       return await client.profileName(token).timeout(_exchangeTimeout);
     } on Object catch (error, stack) {
-      reportFailure(LogTag.ui, 'profile name', error, stack);
+      reportFailure(LogTag.ui, 'read the Spotify profile name', error, stack);
       return null;
     }
   }

@@ -42,7 +42,7 @@ class CanvasMediaSlotSync {
     try {
       page = await client.canvasMediaSlots(channelId);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'fetch', error, stack);
+      api.reportFailure(api.LogTag.ui, 'load canvas media slots', error, stack);
       return;
     }
     for (final slot in page.slots) {
@@ -76,7 +76,12 @@ class CanvasMediaSlotSync {
         sentToBack: state.sentToBack,
       );
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'commit', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'save a canvas media slot',
+        error,
+        stack,
+      );
       // Best-effort; see this method's own doc.
     }
   }

@@ -33,7 +33,7 @@ Future<bool> wipeKeychainOnFreshInstall(ProviderContainer container) async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.auth,
-      'wipe keychain on fresh install failed, ignored',
+      'Could not clear leftover sign-ins from a previous install',
       error,
       stack,
     );
@@ -61,7 +61,7 @@ Future<bool> restoreAccountSession(
     container.read(sessionProvider).set(tokens);
     return true;
   } catch (error, stack) {
-    reportFailure(LogTag.auth, 'wipe keychain on fresh install', error, stack);
+    reportFailure(LogTag.auth, 'restore the saved session', error, stack);
     runtime.slot.restoreFailed = true;
     return false;
   }

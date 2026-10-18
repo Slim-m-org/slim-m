@@ -89,9 +89,12 @@ class TroubleshootingHeading extends ConsumerWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final empty = ref.watch(debugLogProvider).isEmpty;
     void back() => ref.read(debugLogOpenProvider.notifier).state = false;
+    final copyLabel = ref.watch(debugLogFilterProvider).isActive
+        ? 'Copy shown'
+        : 'Copy all';
 
     return SizedBox(
-      height: 40,
+      height: AppSizes.controlLg,
       child: Row(
         spacing: AppSpacing.s8,
         children: [
@@ -129,18 +132,20 @@ class TroubleshootingHeading extends ConsumerWidget {
               ),
             ),
           ),
-          AppButton(
-            label: ref.watch(debugLogFilterProvider).isActive
-                ? 'Copy shown'
-                : 'Copy all',
+          AppIconButton(
             icon: AppIcons.copy,
+            semanticLabel: copyLabel,
+            tooltip: copyLabel,
+            iconSize: AppSizes.icon16,
             onPressed: empty
                 ? null
                 : () => unawaited(copyDebugLog(context, ref)),
           ),
-          AppButton(
-            label: 'Clear',
-            variant: AppButtonVariant.ghost,
+          AppIconButton(
+            icon: AppIcons.delete,
+            semanticLabel: 'Clear',
+            tooltip: 'Clear',
+            iconSize: AppSizes.icon16,
             onPressed: empty ? null : ref.read(debugLogProvider.notifier).clear,
           ),
         ],

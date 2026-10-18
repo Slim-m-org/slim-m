@@ -167,7 +167,7 @@ class CanvasCommitQueue {
       }
       return false;
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'send', error, stack);
+      api.reportFailure(api.LogTag.ui, 'send a canvas change', error, stack);
       if (_closed) return false;
       if (_retryable(error) && !lastAttempt) return true;
       _armedForRemoval.remove(commit.id);

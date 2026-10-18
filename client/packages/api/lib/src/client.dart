@@ -95,8 +95,8 @@ class SessionStore {
     _changes.add(tokens);
     if (_onChange case final onChange?) {
       // Caught, or an uncaught error here would poison every later onChange (see FileKeyStore).
-      _pending = _pending.then((_) => onChange(tokens)).catchError(
-          ignoreError(LogTag.net, 'a session-change listener failed, ignored'));
+      _pending = _pending.then((_) => onChange(tokens)).catchError(ignoreError(
+          LogTag.net, 'A listener for session changes threw; ignoring it'));
     }
   }
 

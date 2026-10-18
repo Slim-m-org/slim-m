@@ -22,7 +22,7 @@ List<String> fingerprintGroupsOf(api.ServerIdentity identity) {
   } on FormatException catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.auth,
-      'fingerprint groups of failed, ignored',
+      'The server identity key is not valid base64',
       error,
       stack,
     );

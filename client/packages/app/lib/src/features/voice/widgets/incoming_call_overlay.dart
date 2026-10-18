@@ -117,7 +117,7 @@ Future<void> _raiseWindow() async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.voice,
-      'Best-effort; see this function\'s own doc',
+      'Could not bring the window forward for the incoming call',
       error,
       stack,
     );

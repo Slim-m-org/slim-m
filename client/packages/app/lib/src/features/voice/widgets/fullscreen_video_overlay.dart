@@ -118,7 +118,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.voice,
-        'Best-effort: an odd compositor must not stop the video showing',
+        'Could not make the window fullscreen; showing the video anyway',
         error,
         stack,
       );
@@ -134,7 +134,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
       } on StateError catch (error, stack) {
         AppLog.swallowed(
           LogTag.voice,
-          'The whole app is going down with this route; nothing to restore',
+          'The app is closing, so there is nothing to restore',
           error,
           stack,
         );
@@ -143,10 +143,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
         port
             .setFullScreen(false)
             .catchError(
-              ignoreError(
-                LogTag.platform,
-                'leaving window fullscreen is best effort',
-              ),
+              ignoreError(LogTag.platform, 'Could not leave window fullscreen'),
             ),
       );
     });

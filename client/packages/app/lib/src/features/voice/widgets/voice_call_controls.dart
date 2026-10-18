@@ -431,7 +431,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
       final version = await ref.read(apiProvider).version();
       return version.screenShareMaxHeight;
     } catch (error, stack) {
-      reportFailure(LogTag.voice, 'screen share ceiling', error, stack);
+      reportFailure(
+        LogTag.voice,
+        "read the server's screen share quality limit",
+        error,
+        stack,
+      );
       return null;
     }
   }

@@ -131,7 +131,7 @@ class _RosterPoller {
     } on api.NotConfiguredException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
-        'poll failed, ignored',
+        'Could not refresh who is in the call; will try again',
         error,
         stack,
       );

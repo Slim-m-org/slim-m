@@ -94,7 +94,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
     } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'set state failed, ignored',
+        'The report was not found; hiding its status',
         error,
         stack,
       );
@@ -105,7 +105,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
         _error = 'No longer available.';
       });
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'load the report status', e, stack);
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -185,7 +185,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
     } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'set state failed, ignored',
+        'The report was not found; hiding its status',
         error,
         stack,
       );
@@ -196,7 +196,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
         _error = 'No report found with that ID.';
       });
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'check the report status', e, stack);
       if (!mounted) return;
       setState(() {
         _busy = false;

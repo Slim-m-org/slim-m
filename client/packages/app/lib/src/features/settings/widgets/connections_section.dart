@@ -47,7 +47,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
         } on api.NotConfiguredException catch (error, stack) {
           api.AppLog.swallowed(
             api.LogTag.ui,
-            'link failed, ignored',
+            'Could not start the Discord link',
             error,
             stack,
           );

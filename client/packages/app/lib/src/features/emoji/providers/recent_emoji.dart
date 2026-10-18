@@ -32,7 +32,7 @@ class RecentEmojiController extends StateNotifier<List<String>> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'Falls back to an empty shelf; the picker still works without one',
+        'Could not read recent emoji; starting with none',
         error,
         stack,
       );
@@ -51,7 +51,7 @@ class RecentEmojiController extends StateNotifier<List<String>> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'Best-effort: the shelf still reflects the pick for this session even if it does not survive a restart',
+        'Could not save recent emoji; kept for this session only',
         error,
         stack,
       );

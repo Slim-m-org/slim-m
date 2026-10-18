@@ -169,7 +169,7 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
         window: cappedChannelWindow(state.window + older.length),
       );
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.data, 'load older', error, stack);
+      api.reportFailure(api.LogTag.data, 'load older messages', error, stack);
       // Not only ApiException: the store write above can fail too, and either must not wedge loading.
       if (!mounted) return;
       state = state.copyWith(loading: false, failed: true);

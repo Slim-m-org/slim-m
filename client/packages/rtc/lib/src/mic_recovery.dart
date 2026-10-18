@@ -5,7 +5,10 @@ library;
 
 import 'dart:async';
 
+import 'package:slimm_api/api.dart' show LogLevel;
+
 import 'input_gate.dart' show kInputFloorDb;
+import 'voice_log.dart';
 
 enum MicStatus {
   /// Nothing is wrong, or the user has the mic muted.
@@ -61,7 +64,7 @@ class MicRecovery {
   /// Brings a working, unmuted track back; false or a throw means it failed.
   final Future<bool> Function() enable;
   final void Function(MicStatus status) onStatus;
-  final void Function(String message) log;
+  final VoiceLog log;
 
   Timer? _timer;
   bool _running = false;
@@ -73,7 +76,7 @@ class MicRecovery {
   /// The track went away without the user asking; retry with backoff.
   void onLost(String reason) {
     if (_disposed || !wanted() || busy) return;
-    log('mic lost ($reason), reconnecting');
+    log('Microphone lost ($reason); reconnecting', level: LogLevel.warning);
     onStatus(MicStatus.reconnecting);
     _schedule();
   }
@@ -81,7 +84,7 @@ class MicRecovery {
   /// Retries now with a fresh budget; true when the mic came back.
   Future<bool> recoverNow(String reason) async {
     if (_disposed || !wanted() || _running) return false;
-    log('mic recovery requested ($reason)');
+    log('Reconnecting the microphone ($reason)');
     _timer?.cancel();
     _timer = null;
     _attempts = 0;
@@ -122,20 +125,23 @@ class MicRecovery {
     try {
       ok = await enable();
     } on Object catch (e) {
-      log('mic re-enable threw: $e');
+      log('Could not re-enable the microphone: $e', level: LogLevel.warning);
     } finally {
       _running = false;
     }
     if (_disposed) return ok;
     if (ok) {
       _attempts = 0;
-      log('mic back after recovery');
+      log('Microphone is back after reconnecting');
       onStatus(MicStatus.ok);
       return true;
     }
     _attempts++;
     if (_attempts >= timing.maxRetries) {
-      log('mic recovery gave up after $_attempts attempts');
+      log(
+        'Gave up reconnecting the microphone after $_attempts attempts',
+        level: LogLevel.error,
+      );
       onStatus(MicStatus.unavailable);
       return false;
     }

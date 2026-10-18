@@ -78,7 +78,11 @@ List<int>? _bytes(List<int> Function(String) parse, String host) {
   try {
     return parse(host);
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.net, 'bytes failed, ignored', error, stack);
+    AppLog.swallowed(
+        LogTag.net,
+        'The direct route address is malformed; using the normal route',
+        error,
+        stack);
     return null;
   }
 }

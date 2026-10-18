@@ -97,14 +97,14 @@ class ChannelRefresher {
     } on NotFoundException catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'hydrate read markers failed, ignored',
+        'This server does not support read markers; skipping them',
         error,
         stack,
       );
       await _hydratePerChannel(api, store, isCurrent: isCurrent);
       return;
     } on ApiException catch (error, stack) {
-      reportFailure(LogTag.ui, 'hydrate read markers', error, stack);
+      reportFailure(LogTag.ui, 'load read markers', error, stack);
       return;
     }
     for (final read in states) {
@@ -138,7 +138,12 @@ class ChannelRefresher {
             manuallyUnread: read.manuallyUnread,
           );
         } on ApiException catch (error, stack) {
-          reportFailure(LogTag.ui, 'wait', error, stack);
+          reportFailure(
+            LogTag.ui,
+            'load the read marker for a channel',
+            error,
+            stack,
+          );
           // Best-effort: the next refresh retries; until then it just reads as unread.
         }
       }),

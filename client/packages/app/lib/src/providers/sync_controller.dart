@@ -281,12 +281,7 @@ class SyncController extends StateNotifier<SyncStatus> {
           _ref.read,
           store,
           isCurrent: () => generation == _generation,
-        ).catchError(
-          ignoreError(
-            LogTag.sync,
-            'resending failed messages is retried on the next connect',
-          ),
-        ),
+        ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
       );
     } catch (error, stack) {
       reportFailure(LogTag.sync, 'connect to the server', error, stack, {
@@ -467,7 +462,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.sync,
-        'Nothing useful to do here, and the sign-out itself already succeeded',
+        'Could not clear local data after signing out',
         error,
         stack,
       );

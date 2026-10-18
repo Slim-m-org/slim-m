@@ -74,7 +74,12 @@ class VoiceCallClock {
       _anchored = true;
       return _now().subtract(age);
     } on Object catch (error, stack) {
-      reportFailure(LogTag.voice, 'server start', error, stack);
+      reportFailure(
+        LogTag.voice,
+        'read the call start time from the server',
+        error,
+        stack,
+      );
       return null;
     }
   }

@@ -97,7 +97,7 @@ String? get deviceHostName {
     return name.isEmpty ? null : name;
   } catch (error, stack) {
     AppLog.swallowed(
-        LogTag.platform, 'usable label failed, ignored', error, stack);
+        LogTag.platform, 'Could not read the computer name', error, stack);
     return null;
   }
 }

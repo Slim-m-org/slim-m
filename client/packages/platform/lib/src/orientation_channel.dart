@@ -27,8 +27,8 @@ class OrientationChannel {
       return await _channel.invokeMethod<bool>('allowLandscape', allowed) ??
           false;
     } catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'allow landscape failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not change the allowed screen orientation', error, stack);
       return false;
     }
   }

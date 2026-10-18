@@ -93,10 +93,12 @@ class ChannelGlobalHotkeySource implements GlobalHotkeySource {
           ? const GlobalHotkeyAvailability.available(hookAvailableMessage)
           : const GlobalHotkeyAvailability.unavailable(hookFailedMessage);
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'probe failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not register the global shortcuts', error, stack);
       return const GlobalHotkeyAvailability.unavailable(hookFailedMessage);
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'probe failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not register the global shortcuts', error, stack);
       return const GlobalHotkeyAvailability.unavailable(hookFailedMessage);
     }
   }
@@ -109,7 +111,7 @@ class ChannelGlobalHotkeySource implements GlobalHotkeySource {
     } on Object catch (error, stack) {
       AppLog.swallowed(
           LogTag.platform,
-          'Best effort: the runner also unhooks when its window is destroyed',
+          'Could not release the global shortcuts; the window closing releases them',
           error,
           stack);
     }

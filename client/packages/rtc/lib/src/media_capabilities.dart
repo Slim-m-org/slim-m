@@ -61,7 +61,8 @@ class MediaCapabilities {
       }
       return CapabilityResult.available('$tracks audio track(s)');
     } catch (e, stack) {
-      AppLog.swallowed(LogTag.voice, 'microphone failed, ignored', e, stack);
+      AppLog.swallowed(
+          LogTag.voice, 'Could not check the microphone', e, stack);
       return CapabilityResult.unavailable('$e');
     }
   }
@@ -79,7 +80,7 @@ class MediaCapabilities {
       }
       return CapabilityResult.available('$tracks video track(s)');
     } catch (e, stack) {
-      AppLog.swallowed(LogTag.voice, 'camera failed, ignored', e, stack);
+      AppLog.swallowed(LogTag.voice, 'Could not check the camera', e, stack);
       return CapabilityResult.unavailable('$e');
     }
   }
@@ -102,7 +103,7 @@ class MediaCapabilities {
       return CapabilityResult.available('$sources source(s)');
     } catch (e, stack) {
       AppLog.swallowed(
-          LogTag.voice, 'screen capture failed, ignored', e, stack);
+          LogTag.voice, 'Could not check screen capture', e, stack);
       return CapabilityResult.unavailable('$e');
     }
   }

@@ -338,7 +338,7 @@ class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
       if (context.mounted) ref.invalidate(webhooksProvider);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'rename the webhook', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure("rename ${widget.webhook.label}", e);

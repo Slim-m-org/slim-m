@@ -89,7 +89,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
         widget.askForCode ? _codeText : null,
       );
     } on Object catch (error, stack) {
-      reportFailure(LogTag.auth, 'set state', error, stack);
+      reportFailure(LogTag.auth, 'change the password', error, stack);
       failure = 'Something went wrong. Try again.';
     }
     if (!mounted) return;

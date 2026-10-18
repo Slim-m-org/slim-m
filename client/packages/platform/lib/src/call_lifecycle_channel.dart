@@ -71,11 +71,12 @@ class CallLifecycleChannel {
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
-          'No CallKit call to report; the room itself is unaffected',
+          'The system call screen is not available; the call itself is unaffected',
           error,
           stack);
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(LogTag.voice, 'on call failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.voice, 'Could not tell the system a call started',
+          error, stack);
       // As above: a build with no native handler for this channel.
     }
   }
@@ -88,12 +89,12 @@ class CallLifecycleChannel {
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
-          'Nothing reported yet, or CallKit unavailable; the state is unaffected',
+          'The system call screen is not available; the call itself is unaffected',
           error,
           stack);
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.voice, 'call connected failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.voice,
+          'Could not tell the system a call connected', error, stack);
       // As above.
     }
   }
@@ -106,12 +107,12 @@ class CallLifecycleChannel {
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
-          'Nothing reported, which is the state this call wanted anyway',
+          'The system call screen is not available; nothing to end',
           error,
           stack);
     } on MissingPluginException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.voice, 'call ended failed, ignored', error, stack);
+          LogTag.voice, 'Could not tell the system a call ended', error, stack);
       // As above.
     }
   }

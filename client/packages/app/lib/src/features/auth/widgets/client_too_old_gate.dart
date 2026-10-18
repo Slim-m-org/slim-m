@@ -79,7 +79,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
         LogTag.auth,
-        'open release failed, ignored',
+        'Could not open the release page',
         error,
         stack,
       );
@@ -99,12 +99,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
         mode: LaunchMode.externalApplication,
       );
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.auth,
-        'open test flight failed, ignored',
-        error,
-        stack,
-      );
+      AppLog.swallowed(LogTag.auth, 'Could not open TestFlight', error, stack);
       opened = false;
     }
     if (!mounted || opened) return;

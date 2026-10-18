@@ -35,7 +35,7 @@ Future<bool> reportedChannelReachable(WidgetRef ref, String channelId) async {
   } catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.ui,
-      'reported channel reachable failed, ignored',
+      'Could not check whether the reported channel is available locally',
       error,
       stack,
     );

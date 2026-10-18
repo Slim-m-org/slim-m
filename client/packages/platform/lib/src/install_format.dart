@@ -121,8 +121,8 @@ bool _flatpakInfoExists() {
   try {
     return File('/.flatpak-info').existsSync();
   } catch (error, stack) {
-    AppLog.swallowed(
-        LogTag.platform, 'flatpak info exists failed, ignored', error, stack);
+    AppLog.swallowed(LogTag.platform,
+        'Could not check whether this is a Flatpak install', error, stack);
     return false;
   }
 }

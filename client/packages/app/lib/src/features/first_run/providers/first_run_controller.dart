@@ -64,7 +64,7 @@ class FirstRunController extends StateNotifier<FirstRunState> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Never the reason the shell fails to open; a missed welcome costs little',
+        'Could not check whether to show the welcome screen; skipping it',
         error,
         stack,
       );

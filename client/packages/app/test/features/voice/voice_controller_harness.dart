@@ -497,7 +497,10 @@ class VoiceHarness {
   /// after [controllerWith] has built one.
   ProviderContainer get container => _container!;
 
-  void dispose() => _container?.dispose();
+  void dispose() {
+    AppLog.install(null);
+    _container?.dispose();
+  }
 
   /// What the controller recorded for the user to read back in settings.
   List<DiagnosticEvent> log(VoiceController _) =>
@@ -549,6 +552,7 @@ class VoiceHarness {
       ],
     );
     _container = container;
+    AppLog.install(container.read(debugLogProvider.notifier));
     return container.read(voiceControllerProvider.notifier);
   }
 }

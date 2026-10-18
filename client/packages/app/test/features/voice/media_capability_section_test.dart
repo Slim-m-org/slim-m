@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show AppLog;
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/widgets/media_capability_section.dart';
@@ -102,7 +103,11 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
+    AppLog.install(container.read(debugLogProvider.notifier));
+    addTearDown(() {
+      AppLog.install(null);
+      container.dispose();
+    });
 
     await tester.pumpWidget(_wrap(container));
     await tester.tap(find.text('Check this device'));
@@ -122,7 +127,7 @@ void main() {
 
     final entries = container.read(debugLogProvider);
     expect(entries, isNotEmpty);
-    expect(entries.first.source, 'capabilities');
+    expect(entries.first.source, 'voice');
     expect(entries.first.level, DiagnosticSeverity.info);
   });
 
@@ -136,7 +141,11 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
+    AppLog.install(container.read(debugLogProvider.notifier));
+    addTearDown(() {
+      AppLog.install(null);
+      container.dispose();
+    });
 
     await tester.pumpWidget(_wrap(container));
     await tester.tap(find.text('Check this device'));
@@ -157,7 +166,7 @@ void main() {
 
     final entries = container.read(debugLogProvider);
     expect(entries, isNotEmpty);
-    expect(entries.first.source, 'capabilities');
+    expect(entries.first.source, 'voice');
     expect(entries.first.level, DiagnosticSeverity.warning);
   });
 
@@ -172,7 +181,11 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
+    AppLog.install(container.read(debugLogProvider.notifier));
+    addTearDown(() {
+      AppLog.install(null);
+      container.dispose();
+    });
 
     await tester.pumpWidget(_wrap(container));
     await tester.tap(find.text('Check this device'));

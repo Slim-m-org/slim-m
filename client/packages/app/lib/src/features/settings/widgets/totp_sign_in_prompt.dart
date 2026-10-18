@@ -46,7 +46,12 @@ Future<bool> promptForTotpCode(
             );
         return null;
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(api.LogTag.auth, 'show totp code sheet', e, stack);
+        api.reportFailure(
+          api.LogTag.auth,
+          'verify the two-factor code',
+          e,
+          stack,
+        );
         return _failure(e);
       }
     },

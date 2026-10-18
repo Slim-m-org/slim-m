@@ -157,11 +157,15 @@ class ApnsTokenChannel {
       return _resultOf(token);
     } on MissingPluginException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.platform, 'complete failed, ignored', error, stack);
+          LogTag.platform,
+          'This build has no Apple push registration; waiting for a token',
+          error,
+          stack);
       _pending = null;
       return const ApnsTokenPending();
     } on PlatformException catch (e, stack) {
-      AppLog.swallowed(LogTag.platform, 'complete failed, ignored', e, stack);
+      AppLog.swallowed(
+          LogTag.platform, 'Apple push registration failed', e, stack);
       _pending = null;
       return ApnsRegistrationFailed(e.message ?? e.code);
     }
@@ -176,12 +180,12 @@ class ApnsTokenChannel {
     try {
       return await _channel.invokeMethod<String>('getVoipToken');
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'cached voip token failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'This build has no stored VoIP push token', error, stack);
       return null;
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'cached voip token failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'This build has no stored VoIP push token', error, stack);
       return null;
     }
   }

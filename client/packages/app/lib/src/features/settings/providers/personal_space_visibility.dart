@@ -72,7 +72,7 @@ class PersonalSpaceVisibilityController extends StateNotifier<bool> {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'A prefs store that cannot be read leaves the row visible, the safer default',
+        'Could not read the saved visibility; showing it',
         error,
         stack,
       );
@@ -97,7 +97,7 @@ class PersonalSpaceVisibilityController extends StateNotifier<bool> {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'Best effort: a write failure must not stop the row hiding for this session',
+        'Could not save the visibility; applied for this session only',
         error,
         stack,
       );

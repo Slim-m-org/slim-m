@@ -95,7 +95,7 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
           .read(toastsProvider.notifier)
           .show('Channel settings saved.', severity: AppToastSeverity.success);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'save the channel settings', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('save the changes', e));
       }

@@ -181,7 +181,12 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
     try {
       return await ref.read(apiProvider).previewSpaceMessageRetention(days);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'preview count', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'preview how many messages the retention change removes',
+        error,
+        stack,
+      );
       return null;
     }
   }

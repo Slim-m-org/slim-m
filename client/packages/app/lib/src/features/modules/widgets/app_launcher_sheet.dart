@@ -54,11 +54,11 @@ Future<bool> launchApp({
     ref.read(messageExtrasProvider.notifier).applyMessage(sent);
     return true;
   } on api.ApiException catch (e, stack) {
-    api.reportFailure(api.LogTag.ui, 'launch the app', e, stack);
+    api.reportFailure(api.LogTag.ui, 'open the app', e, stack);
     onError?.call(describeApiFailure('launch ${app.name}', e));
     return false;
   } catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'launch the app', error, stack);
+    api.reportFailure(api.LogTag.ui, 'open the app', error, stack);
     onError?.call('Could not launch ${app.name}.');
     return false;
   }

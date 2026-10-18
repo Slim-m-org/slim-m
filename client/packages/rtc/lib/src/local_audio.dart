@@ -14,7 +14,9 @@ import 'dart:async';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart';
-import 'package:slimm_api/api.dart' show LogTag, reportFailure;
+import 'package:slimm_api/api.dart' show LogLevel, LogTag, reportFailure;
+
+import 'voice_log.dart';
 
 /// Which of one person's audio a gain or mute is about: their microphone, or
 /// the sound of the screen they are sharing. Keyed apart because they are
@@ -47,7 +49,7 @@ class _AppliedAudio {
 
 class LocalAudioState {
   /// Receives one line per gain push, for the app's debug log.
-  void Function(String line)? log;
+  VoiceLog? log;
 
   /// Silences every remote participant.
   bool deafened = false;
@@ -212,7 +214,7 @@ class LocalAudioState {
       try {
         failure = await _applyOne(ref) ?? failure;
       } catch (e, stack) {
-        reportFailure(LogTag.voice, 'pass', e, stack);
+        reportFailure(LogTag.voice, 'apply participant volumes', e, stack);
         failure = e;
       }
     }
@@ -233,7 +235,7 @@ class LocalAudioState {
         try {
           await ref.disable();
         } catch (e, stack) {
-          reportFailure(LogTag.voice, 'apply one', e, stack);
+          reportFailure(LogTag.voice, "mute a participant's audio", e, stack);
           failure = e;
         }
       }
@@ -250,14 +252,15 @@ class LocalAudioState {
     try {
       await ref.enable();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'apply one', e, stack);
+      reportFailure(LogTag.voice, "unmute a participant's audio", e, stack);
       here = e;
     }
     // After the enable, never before: re-enabling can reset source volume.
     here = await ref.setVolume(volume) ?? here;
     log?.call(
-      'gain ${ref.channel.name} ${ref.identity} x$volume '
-      'track=${ref.trackId} ${here == null ? 'ok' : 'failed: $here'}',
+      'Volume x$volume for ${ref.channel.name} audio of ${ref.identity} '
+      '(track ${ref.trackId}): ${here == null ? 'applied' : 'failed: $here'}',
+      level: here == null ? LogLevel.debug : LogLevel.warning,
     );
 
     // Remembered only if it both went cleanly and can be seen to have landed.

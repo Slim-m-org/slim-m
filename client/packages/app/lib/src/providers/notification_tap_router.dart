@@ -76,7 +76,7 @@ Future<AccountRuntime?> _ownerOf(AccountHost host, String channelId) async {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.push,
-        'A store that will not open cannot own the channel; try the next account',
+        "Could not open this account's data to find the channel; trying the next account",
         error,
         stack,
       );

@@ -54,7 +54,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
       case ScreenShareOutcome.failed:
         final cause = _shareSession.lastError;
         _log(
-          'Screen share ${enabled ? 'start' : 'stop'} failed',
+          'Could not ${enabled ? 'start' : 'stop'} the screen share',
           detail: cause,
         );
         state = state.copyWith(

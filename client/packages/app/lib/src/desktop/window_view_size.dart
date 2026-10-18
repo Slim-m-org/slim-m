@@ -58,7 +58,7 @@ Future<void> awaitViewAtHandoffSize({
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'A frame that never came is not a reason to stop asking',
+        'Waiting for the next frame failed; asking again',
         error,
         stack,
       );
@@ -66,7 +66,7 @@ Future<void> awaitViewAtHandoffSize({
   }
   AppLog.warning(
     LogTag.platform,
-    'view never reported the handoff size',
+    'The app view never reached the window size after startup',
     context: {'target': target, 'lastSeen': currentViewSize()},
   );
 }

@@ -123,7 +123,11 @@ void main() {
         ),
       ],
     );
-    addTearDown(c.dispose);
+    api.AppLog.install(c.read(debugLogProvider.notifier));
+    addTearDown(() {
+      api.AppLog.install(null);
+      c.dispose();
+    });
     return c;
   }
 

@@ -26,7 +26,12 @@ class NotificationTarget {
       if (origin.isEmpty || channelId.isEmpty) return null;
       return NotificationTarget(origin: origin, channelId: channelId);
     } on FormatException catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'decode failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.auth,
+        'A notification carried a target that could not be read; ignoring it',
+        error,
+        stack,
+      );
       return null;
     }
   }

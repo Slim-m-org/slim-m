@@ -184,7 +184,12 @@ class MessageAlertPolicy {
       _selfFailedAt = null;
       _selfFailedForId = null;
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'mentions self', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'look up who you are for mention alerts',
+        error,
+        stack,
+      );
       // Keeps the cache for this account, if there is one.
       _selfFailedAt = DateTime.now();
       _selfFailedForId = selfId;
@@ -198,7 +203,12 @@ class MessageAlertPolicy {
     try {
       return (await client.getUser(selfId)).roles;
     } on Object catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'role names', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'look up your roles for mention alerts',
+        error,
+        stack,
+      );
       return const [];
     }
   }
@@ -216,7 +226,12 @@ class MessageAlertPolicy {
         final parent = await _ref.read(apiProvider).getThreadParent(channelId);
         _parentChannels[channelId] = parent.parentChannelId;
       } on api.ApiException catch (error, stack) {
-        api.reportFailure(api.LogTag.ui, 'role names', error, stack);
+        api.reportFailure(
+          api.LogTag.ui,
+          'look up the parent channel of a thread for alerts',
+          error,
+          stack,
+        );
         return null;
       }
     }
@@ -253,7 +268,12 @@ class MessageAlertPolicy {
       _canSend[channelId] = (value: value, at: DateTime.now());
       return value;
     } on Object catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'can send in', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'check whether you can send in a channel',
+        error,
+        stack,
+      );
       return cached?.value ?? true;
     }
   }
@@ -287,7 +307,7 @@ class MessageAlertPolicy {
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'can send in failed, ignored',
+        'Could not read the notification setting in time; using the default',
         error,
         stack,
       );

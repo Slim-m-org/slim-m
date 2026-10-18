@@ -84,7 +84,7 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
       }
       return true;
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save step', e, stack);
+      api.reportFailure(api.LogTag.ui, 'save the welcome step', e, stack);
       _error = 'Not saved: ${e.message}';
       return false;
     }
@@ -107,7 +107,7 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'save notify choice failed, ignored',
+        'The server has no notification setting to save; skipping it',
         error,
         stack,
       );

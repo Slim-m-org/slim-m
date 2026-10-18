@@ -15,7 +15,6 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../api_failure.dart';
-import '../../../diagnostics/debug_log.dart';
 import 'call_recap.dart';
 import 'noise_suppression.dart';
 import '../../../providers/providers.dart';
@@ -61,8 +60,8 @@ class VoiceController extends StateNotifier<VoiceState>
   }) : _session =
            session ??
            VoiceSession(
-             audioLog: (line) =>
-                 _ref.read(debugLogProvider.notifier).record('voice', line),
+             audioLog: (line, {level = api.LogLevel.info}) =>
+                 api.AppLog.at(level, api.LogTag.voice, line),
            ),
        _callLifecycle = callLifecycle ?? CallLifecycleChannel(),
        _heartbeat = VoiceCallHeartbeat(
@@ -163,7 +162,7 @@ class VoiceController extends StateNotifier<VoiceState>
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       _heartbeat.stop();
-      _log('Call ended: ${dropped.name}', detail: dropped.message);
+      _log('The call ended: ${dropped.name}', detail: dropped.message);
       _endCallForDrop(dropped);
       return;
     }
@@ -238,16 +237,16 @@ class VoiceController extends StateNotifier<VoiceState>
     } on api.NotConfiguredException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
-        'join failed, ignored',
+        'This server has no voice set up',
         error,
         stack,
       );
       _failJoin(superseded, 'This Space has no voice configured.');
     } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.voice, 'join', error, stack);
+      api.reportFailure(api.LogTag.voice, 'join the call', error, stack);
       _failJoin(superseded, 'You do not have permission to join this channel.');
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.voice, 'join', e, stack);
+      api.reportFailure(api.LogTag.voice, 'join the call', e, stack);
       _failJoin(
         superseded,
         describeApiFailure('join the call', e),
@@ -256,7 +255,7 @@ class VoiceController extends StateNotifier<VoiceState>
     } catch (e) {
       // Joining is automatic now, so nothing asks first; an exception no other clause names must still fail cleanly.
       if (!superseded()) {
-        _log('Join failed with an unexpected error', detail: e);
+        _log('Could not join the call', detail: e, level: api.LogLevel.error);
       }
       _failJoin(superseded, 'Could not join the call.', retryable: true);
     } finally {
@@ -402,7 +401,7 @@ class VoiceController extends StateNotifier<VoiceState>
     final (got, cause) = await setCameraWithin(_session, want);
     if (generation != _callGeneration) return;
     if (cause != null) {
-      _log('Camera ${want ? 'on' : 'off'} failed', detail: cause);
+      _log('Could not turn the camera ${want ? 'on' : 'off'}', detail: cause);
     }
     state = state.copyWith(
       cameraPending: false,
@@ -519,9 +518,11 @@ class VoiceController extends StateNotifier<VoiceState>
   VoiceSession get _shareSession => _session;
 
   @override
-  void _log(String message, {Object? detail}) => _ref
-      .read(debugLogProvider.notifier)
-      .record('voice', message, detail: detail);
+  void _log(
+    String message, {
+    Object? detail,
+    api.LogLevel level = api.LogLevel.warning,
+  }) => api.AppLog.at(level, api.LogTag.voice, message, error: detail);
 
   @override
   void dispose() {

@@ -126,7 +126,7 @@ class CallStatsSampler {
     } catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
-          'A track that went away between listing and reading is just skipped',
+          'A video track ended before its stats could be read; skipping it',
           error,
           stack);
     }

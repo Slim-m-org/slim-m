@@ -33,7 +33,7 @@ String? takeRolledBack({required File rolledBack, required File record}) {
   } on FileSystemException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'A marker that cannot be removed is reported again next start; harmless',
+      'Could not clear the update rollback marker; it will be shown again next start',
       error,
       stack,
     );
@@ -50,7 +50,12 @@ String? _read(File file) {
     final text = file.readAsStringSync().trim();
     return parseVersion(text) == null ? null : text;
   } on FileSystemException catch (error, stack) {
-    AppLog.swallowed(LogTag.platform, 'read failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.platform,
+      'Could not read the update rollback marker',
+      error,
+      stack,
+    );
     return null;
   }
 }

@@ -23,6 +23,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/rtc.dart';
 
 /// One remote audio track that really does hold what was pushed to it.
@@ -514,7 +515,8 @@ void main() {
   test('every push is logged with identity, source, gain, track and result',
       () async {
     final lines = <String>[];
-    final state = LocalAudioState()..log = lines.add;
+    final state = LocalAudioState()
+      ..log = (m, {level = LogLevel.info}) => lines.add(m);
     final track = _FakeTrack('maya', channel: LocalAudioChannel.screen);
     state.setVolumeFor('maya', 1.5, channel: LocalAudioChannel.screen);
 
@@ -523,7 +525,8 @@ void main() {
     state.setVolumeFor('maya', 0.5, channel: LocalAudioChannel.screen);
     await state.applyToRefs([track.ref]);
 
-    expect(lines.first, 'gain screen maya x1.5 track=maya ok');
+    expect(lines.first, contains('x1.5 for screen audio of maya'));
+    expect(lines.first, contains('applied'));
     expect(lines.last, contains('x0.5'));
     expect(lines.last, contains('failed: Bad state: boom'));
   });

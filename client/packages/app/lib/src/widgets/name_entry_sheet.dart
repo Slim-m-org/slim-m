@@ -83,14 +83,14 @@ class _NameEntrySheetState extends State<NameEntrySheet> {
       Navigator.of(context).pop();
       afterClose?.call();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'create the item', e, stack);
       if (mounted) {
         setState(
           () => _error = describeApiFailure('create the ${widget.noun}', e),
         );
       }
     } on NameEntryPartialFailure catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'create the item', e, stack);
       if (mounted) setState(() => _error = e.message);
     } finally {
       // Any escape, not just ApiException, must not wedge "Creating..." on.

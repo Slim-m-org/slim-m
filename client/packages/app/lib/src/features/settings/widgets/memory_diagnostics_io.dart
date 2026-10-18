@@ -15,7 +15,7 @@ int? currentResidentBytes() {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.ui,
-      'current resident bytes failed, ignored',
+      "Could not read the app's memory use",
       error,
       stack,
     );

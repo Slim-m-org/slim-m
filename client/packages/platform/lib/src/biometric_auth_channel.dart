@@ -73,7 +73,10 @@ class BiometricAuthChannel {
           : BiometricSupport.unsupported;
     } catch (error, stack) {
       AppLog.swallowed(
-          LogTag.auth, 'check support failed, ignored', error, stack);
+          LogTag.auth,
+          'Could not check whether biometric sign-in is available',
+          error,
+          stack);
       return BiometricSupport.error;
     }
   }
@@ -91,13 +94,14 @@ class BiometricAuthChannel {
       final ok = await _auth.authenticate(localizedReason: reason);
       return ok ? BiometricAuthResult.success : BiometricAuthResult.failure;
     } on LocalAuthException catch (e, stack) {
-      AppLog.swallowed(LogTag.auth, 'authenticate failed, ignored', e, stack);
+      AppLog.swallowed(
+          LogTag.auth, 'Biometric sign-in did not succeed', e, stack);
       return e.code == LocalAuthExceptionCode.noCredentialsSet
           ? BiometricAuthResult.unavailable
           : BiometricAuthResult.failure;
     } catch (error, stack) {
       AppLog.swallowed(
-          LogTag.auth, 'authenticate failed, ignored', error, stack);
+          LogTag.auth, 'Biometric sign-in did not succeed', error, stack);
       return BiometricAuthResult.failure;
     }
   }

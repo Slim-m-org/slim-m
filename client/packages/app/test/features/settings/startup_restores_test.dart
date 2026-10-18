@@ -10,6 +10,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_api/api.dart' show AppLog;
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/desktop_splash_preference.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
@@ -28,7 +29,15 @@ ProviderContainer _unreadable() {
       ),
     ],
   );
-  addTearDown(container.dispose);
+  return _wired(container);
+}
+
+ProviderContainer _wired(ProviderContainer container) {
+  AppLog.install(container.read(debugLogProvider.notifier));
+  addTearDown(() {
+    AppLog.install(null);
+    container.dispose();
+  });
   return container;
 }
 
@@ -39,13 +48,14 @@ Future<ProviderContainer> _readable(Map<String, Object> values) async {
   final container = ProviderContainer(
     overrides: [preferencesProvider.overrideWith((ref) async => prefs)],
   );
-  addTearDown(container.dispose);
-  return container;
+  return _wired(container);
 }
 
 List<String> _recorded(ProviderContainer container) => [
   for (final event in container.read(debugLogProvider))
-    if (event.source == 'startup') event.message,
+    if (event.message.startsWith('Could not restore the saved') ||
+        event.message.startsWith('Startup step'))
+      event.message,
 ];
 
 void main() {
@@ -82,7 +92,7 @@ void main() {
         'push to talk',
         'audio devices',
       ]) {
-        expect(recorded, contains('could not restore $name'));
+        expect(recorded, contains('saved $name setting'));
       }
     });
 
@@ -111,14 +121,16 @@ void main() {
 
   group('runStartupStep', () {
     test('a step that throws is recorded and does not escape', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+      final container = _wired(ProviderContainer());
 
       await runStartupStep(container, 'update check', () async {
         throw StateError('boom');
       });
 
-      expect(_recorded(container).single, contains('update check failed'));
+      expect(
+        _recorded(container).single,
+        contains('Startup step "update check" failed'),
+      );
     });
 
     test('a step that works runs and records nothing', () async {

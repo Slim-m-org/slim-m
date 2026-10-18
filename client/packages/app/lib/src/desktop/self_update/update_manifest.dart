@@ -80,7 +80,7 @@ Future<bool> manifestSignatureIsValid({
   } on FormatException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'host architecture failed, ignored',
+      'The update signature is not valid base64',
       error,
       stack,
     );
@@ -95,7 +95,7 @@ Future<bool> manifestSignatureIsValid({
     } on FormatException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'host architecture failed, ignored',
+        'An update signing key is not valid base64',
         error,
         stack,
       );
