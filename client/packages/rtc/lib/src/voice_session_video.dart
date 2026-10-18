@@ -29,8 +29,8 @@ extension VoiceSessionVideo on VoiceSession {
   Iterable<RemoteVideoPublicationRef> _remoteVideoPublications(
     lk.Room room,
   ) sync* {
-    for (final participant in room.remoteParticipants.values) {
-      for (final pub in participant.videoTrackPublications) {
+    for (final participant in room.remoteParticipants.values.toList()) {
+      for (final pub in participant.videoTrackPublications.toList()) {
         yield (
           identity: participant.identity,
           source: pub.source,
