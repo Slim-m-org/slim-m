@@ -42,7 +42,10 @@ class _RecordingJump extends MessageJumpController {
 
 void main() {
   final link = Uri.parse(
-    buildInviteLink(server: Uri.parse('https://chat.example:8443'), code: 'C1'),
+    buildDeepInviteLink(
+      server: Uri.parse('https://chat.example:8443'),
+      code: 'C1',
+    ),
   );
 
   group('inviteFromDeepLink', () {

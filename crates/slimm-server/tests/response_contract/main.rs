@@ -69,6 +69,10 @@ const UNCOVERED: &[(&str, &str)] = &[
          tests/discord_link.rs drives every outcome of it.",
     ),
     (
+        "inviteLandingPage",
+        "answers HTML to a browser, not JSON; tests/invite_page.rs drives both outcomes.",
+    ),
+    (
         "kickVoiceParticipant",
         "the only path to its 204 goes through a reachable LiveKit room service, \
          which this harness has none of. Nothing is lost by not driving it: the \

@@ -1750,6 +1750,42 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /invite/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        description: The invite code.
+        schema:
+          type: string
+    get:
+      operationId: inviteLandingPage
+      tags: [invites]
+      summary: The page an https invite link opens.
+      description: >
+        Unauthenticated, rate limited like `/invites/{code}/check`, and an
+        HTML page for a browser. A usable code shows the space name, icon and
+        member count with buttons that open the app (`slimm://join`), the web
+        client at `/app` when this deployment serves it, and the downloads. An
+        unusable code answers one fixed 404 page whatever the reason, so it
+        cannot be used to mine codes.
+      security: []
+      responses:
+        "200":
+          description: A usable invite.
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Expired, spent, revoked, or never issued.
+          content:
+            text/html:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /space/banner:
     get:
       operationId: getSpaceBanner

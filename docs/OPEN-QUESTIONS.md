@@ -384,16 +384,11 @@ That was the right call *given the premise* - that release-please forces both pa
 **Confirmed by events, struck 2026-08-11.** The server has gone from 0.22.x to 0.35.0 and the client from 0.19.x to 0.36.0 since this landed, so both output-key sets and both directions of the conflict have been exercised many times over.
 No release-PR conflict of the kind sections 6 and 9 describe has recurred; the one release-PR problem since was a different mechanism entirely (a queued run cancelled out of its own concurrency group, keyed on the ref rather than the commit), recorded in CLAUDE.md rather than here.
 
-## 21. The web client is built and served nowhere (2026-09-02)
+## 21. Invite links are https, with a landing page (updated 2026-10-18)
 
-`client-ci` runs `flutter build web --release` on every change and `e2e` builds it again to drive two real browsers, so the web client provably compiles and provably works.
-Nothing then serves it.
-`deploy/Caddyfile` routes exactly two names - the API domain to `server:8080` and the LiveKit domain to `livekit:7880` - the Rust server has no static-file or SPA-fallback route, and the live deployment's own root answers 404.
+The web client is now an optional image (`slim-m-web`, `COMPOSE_PROFILES=web`, routed at `/app`), and the live deployment serves it.
+Invites are shared as `https://<server>/invite/<code>`: the server answers that path with a small self-contained page showing the space and offering "Open in slim-m" (`slimm://join`), "Open in browser" (shown only when `/app/version.json` answers, so a deployment without the web client degrades to the app and download links) and the downloads.
+The `slimm://` form is still accepted wherever a link is pasted or tapped, and the https form is accepted when pasted into "join a server".
+A proxy that routes only some paths to the server (the live Traefik rule keeps `/app`, `/privacy` and `/support` elsewhere) needs nothing extra, because `/invite/` falls to the server.
 
-**Deliberately parked, not overlooked.** The owner's answer on 2026-09-02 was "not now, revisit later", recorded here so it stops looking like an oversight to whoever finds it next.
-
-**What it blocks, concretely.** Any invite, message or channel link that wants to open in a browser. That is why invite links are `slimm://join?server=...&code=...` and not `https://<host>/invite/<code>`: with nowhere to host, an https link would look clickable and open a 404, which is worse for the person receiving it than a bare code. See `client/packages/app/lib/src/invite_link.dart`.
-It is also why the QR half of tap-to-add is not built - a QR is only worth anything if the URL inside it resolves.
-
-**What answering it would take.** Either a static-file route on the server (which self-hosters get for free, no Caddy edit) or a third block in the Caddyfile serving the built assets. Both are small; the question is a product one - whether a browser should be able to reach a Space at all, or whether the desktop and mobile apps are deliberately the only doors.
-If the answer ever becomes yes, `invite_link.dart` documents its own migration path: the same link can become https, and the `slimm://` scheme stays as the thing that opens the installed app.
+What it unblocks and is not built yet: a QR for tap-to-add, and https links to channels and messages.

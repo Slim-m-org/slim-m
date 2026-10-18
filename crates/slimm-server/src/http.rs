@@ -60,6 +60,7 @@ pub mod gifs;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
 mod interactions;
+mod invite_page;
 mod invites;
 mod join_gate;
 pub mod link_preview;
@@ -230,6 +231,7 @@ pub fn router(state: AppState) -> Router {
         .merge(dock::routes())
         .merge(emoji::routes())
         .merge(invites::routes())
+        .merge(invite_page::routes())
         .merge(members::routes())
         .merge(member_nicknames::routes())
         .merge(members_bulk::routes())

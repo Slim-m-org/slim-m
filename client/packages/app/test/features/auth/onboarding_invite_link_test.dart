@@ -138,10 +138,22 @@ void main() {
     expect(result.invite, 'CODE123');
   });
 
+  testWidgets('a pasted https invite link fills in both fields too', (
+    tester,
+  ) async {
+    final result = await _pasteIntoDialog(
+      tester,
+      'https://chat.example/invite/abc234',
+    );
+
+    expect(result.probed, Uri.parse('https://chat.example'));
+    expect(result.invite, 'abc234');
+  });
+
   testWidgets('userinfo smuggled through a link is stripped before it is '
       'probed or kept, exactly as a typed one is', (tester) async {
     // The reduction stops dart:io turning userinfo into a Basic auth header on every later request.
-    final link = buildInviteLink(
+    final link = buildDeepInviteLink(
       server: Uri.parse('https://user:pass@chat.example/ignored?also=ignored'),
       code: 'CODE123',
     );
@@ -166,13 +178,13 @@ void main() {
       'becomes a request path', (tester) async {
     final result = await _pasteIntoDialog(
       tester,
-      'https://chat.example/invite/abc234',
+      'https://chat.example/channels/abc234',
     );
 
     expect(result.chosen, isNull);
     expect(result.probed, isNull, reason: 'nothing was sent to any server');
     expect(find.textContaining('web address'), findsOneWidget);
-    expect(find.textContaining('slimm://join'), findsOneWidget);
+    expect(find.textContaining('was sent to you'), findsOneWidget);
     expect(find.textContaining('server refused'), findsNothing);
   });
 

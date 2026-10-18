@@ -29,18 +29,35 @@ void main() {
     expect(parsed!.server, server);
   });
 
-  test('it is not an https link, so it cannot look like a page that works', () {
+  test('the shared form is an https invite page link', () {
     final link = buildInviteLink(
       server: Uri.parse('https://slim.npc-server.top'),
       code: 'ABC123',
     );
 
+    expect(link, 'https://slim.npc-server.top/invite/ABC123');
+  });
+
+  test('the slimm:// form still builds and reads back', () {
+    final server = Uri.parse('https://slim.npc-server.top');
+    final link = buildDeepInviteLink(server: server, code: 'ABC123');
+
     expect(link.startsWith('slimm://join'), isTrue);
-    expect(
-      link.startsWith('http'),
-      isFalse,
-      reason: 'nothing serves the web client, so an https link would 404',
-    );
+    expect(parseInviteLink(link)!.server, server);
+    expect(parseInviteLink(link)!.code, 'ABC123');
+  });
+
+  test('a pasted https invite link names the server and the code', () {
+    final parsed = parseInviteLink(' https://chat.example:8443/invite/abc234 ');
+
+    expect(parsed!.server, Uri.parse('https://chat.example:8443'));
+    expect(parsed.code, 'abc234');
+  });
+
+  test('an https link that is not an invite page is not one', () {
+    expect(parseInviteLink('https://chat.example/invite'), isNull);
+    expect(parseInviteLink('https://chat.example/invites/abc'), isNull);
+    expect(parseInviteLink('https://chat.example/app/join'), isNull);
   });
 
   group('things that are not invite links', () {

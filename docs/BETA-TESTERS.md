@@ -7,11 +7,10 @@ This page covers the rest: the things that have never been confirmed on real har
 
 ## Say this before they install
 
-**Invite links are `slimm://`, not `https://`.**
-An invite is `slimm://join?server=...&code=...`, which opens the installed app.
-There is no web page behind it, so an `https://` version of the same link 404s.
-Send the `slimm://` link, or send the bare code and the server address.
-This is a deliberate decision, not an oversight - see `docs/OPEN-QUESTIONS.md` item 21.
+**Invite links are `https://<server>/invite/<code>`.**
+Chat apps make them clickable, and the page they open offers to open the app or the web client.
+The older `slimm://join?server=...&code=...` form still works, and so does a bare code plus the server address.
+See `docs/OPEN-QUESTIONS.md` item 21.
 
 **A link to one message is `slimm://message?...` and works the other way round.**
 "Copy link" on a message produces one, and tapping it opens the app on that message.

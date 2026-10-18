@@ -125,7 +125,7 @@ void main() {
 
       links.add(
         Uri.parse(
-          buildInviteLink(
+          buildDeepInviteLink(
             server: Uri.parse('https://third.example'),
             code: 'abc',
           ),

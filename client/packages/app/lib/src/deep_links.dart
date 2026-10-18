@@ -34,23 +34,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+export 'invite_pending.dart';
 import 'features/accounts/providers/account_host.dart';
 import 'features/accounts/providers/account.dart' show originOf;
 import 'features/accounts/providers/account_providers.dart';
 import 'invite_link.dart';
+import 'invite_pending.dart';
 import 'message_link.dart';
 import 'providers/providers.dart';
 import 'routing/router.dart';
 import 'routing/routes.dart';
 import 'spotify/spotify_callback.dart';
 import 'features/messages/widgets/message_jump.dart';
-
-/// The invite a tapped link carried, waiting for the onboarding screen to
-/// consume it (it opens the redeem dialog prefilled and resets this to
-/// null). Null whenever no tap is pending.
-final tappedInviteProvider = StateProvider<({Uri server, String code})?>(
-  (ref) => null,
-);
 
 /// The platform's deep-link URIs. `app_links` replays the launching link to
 /// a new subscriber, so one stream covers both a cold start from a tap and

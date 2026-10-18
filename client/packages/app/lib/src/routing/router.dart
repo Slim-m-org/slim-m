@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' show TokenPair;
 
+import '../invite_pending.dart';
 import '../providers/providers.dart';
 import '../features/channels/providers/threads.dart';
 import '../screens/not_found_screen.dart';
@@ -80,11 +81,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     // Rebuilds the redirect whenever the session changes, which is what makes
     // sign-out and revocation take effect immediately.
     refreshListenable: _SessionListenable(ref),
-    redirect: (context, state) => _redirect(
-      signedIn: session.isSignedIn,
-      location: state.matchedLocation,
-      signedOutHome: signedOutHome(),
-    ),
+    redirect: (context, state) =>
+        (session.isSignedIn ? null : claimWebInvite(ref, state.uri)) ??
+        _redirect(
+          signedIn: session.isSignedIn,
+          location: state.matchedLocation,
+          signedOutHome: signedOutHome(),
+        ),
     errorBuilder: (context, state) => const NotFoundScreen(),
     routes: [
       // The join flow fades through like the shell's own pages, so signing in hands off into the app as one motion.
