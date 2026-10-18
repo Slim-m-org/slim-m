@@ -40,7 +40,7 @@ impl Store {
         expires_at: i64,
     ) -> anyhow::Result<()> {
         let now = now_ms();
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin_write().await?;
         sqlx::query!("DELETE FROM link_states WHERE expires_at <= ?", now)
             .execute(&mut *tx)
             .await?;

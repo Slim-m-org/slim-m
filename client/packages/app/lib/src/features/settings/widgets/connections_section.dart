@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
+import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
@@ -64,7 +65,12 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
       if (focused && was == false) ref.invalidate(myLinkedAccountsProvider);
     });
     final links = ref.watch(myLinkedAccountsProvider);
-    final unavailable = ref.watch(discordLinkUnavailableProvider);
+    final offered = ref
+        .watch(serverInfoProvider)
+        .valueOrNull
+        ?.discordLinkEnabled;
+    final unavailable =
+        offered == false || ref.watch(discordLinkUnavailableProvider);
     final discord = links.valueOrNull
         ?.where((link) => link.isDiscord)
         .firstOrNull;

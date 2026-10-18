@@ -137,6 +137,27 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('a server without Discord hides the section up front', (
+    tester,
+  ) async {
+    final h = await _pump(tester, (request) {
+      if (request.url.path == '/version') {
+        return _json(200, {
+          'name': 'slim-m',
+          'version': '0.94.0',
+          'protocol': 1,
+          'discord_link_enabled': false,
+        });
+      }
+      if (request.url.path == '/me/links') return _json(200, []);
+      return _json(404, {});
+    });
+
+    expect(find.text('Connections'), findsNothing);
+    expect(h.requests, isNot(contains('POST /me/links/discord/start')));
+    await _unmount(tester);
+  });
+
   testWidgets('linked: shows the name and Unlink removes it', (tester) async {
     var linked = true;
     final h = await _pump(tester, (request) {
