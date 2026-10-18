@@ -9,6 +9,7 @@ project(runner LANGUAGES CXX)
 add_executable(${BINARY_NAME} WIN32
   "clipboard_image_channel.cpp"
   "flutter_window.cpp"
+  "global_hotkeys_channel.cpp"
   "main.cpp"
   "now_playing_channel.cpp"
   "single_instance.cpp"
