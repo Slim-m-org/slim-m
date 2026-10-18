@@ -57,6 +57,7 @@ import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/transfers_banner.dart';
 import '../widgets/update_banner_host.dart';
+import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
@@ -362,7 +363,10 @@ class HomeShell extends ConsumerWidget {
         nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
       if (previousChannel != null)
         previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
-      if (muteCall != null) muteCall: () => call()?.toggleMute(),
+      if (muteCall != null)
+        muteCall: () => ref
+            .read(pushToTalkGateProvider)
+            .toggleMute(HoldSource.inWindow, () => call()?.toggleMute()),
       if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
       if (shareCall != null) shareCall: () => call()?.toggleShare(),
       if (leaveCall != null) leaveCall: () => call()?.leave(),

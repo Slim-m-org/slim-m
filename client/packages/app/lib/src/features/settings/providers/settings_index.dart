@@ -202,6 +202,14 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Mute shortcut',
+    description: 'Works when slim-m is in the background.',
+    keywords: ['mute', 'hotkey', 'keybind', 'global'],
+    conditional: true,
+    available: _desktop,
+  ),
+  SettingsEntry(
+    'voice',
     'Join with camera on',
     description: 'Calls still connect without a camera.',
     keywords: ['video', 'webcam'],

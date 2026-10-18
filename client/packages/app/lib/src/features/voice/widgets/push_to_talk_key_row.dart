@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The push-to-talk key, as one compact row: the current key as a key cap
 /// and a Change button that waits for the next key pressed. Escape cancels.
-/// Any single key works; the listener only sees keys while the app window
-/// is focused, so there is nothing global to register.
+/// Any single key works. Whether it also works with another app focused is
+/// the status line under the row, from the global hotkey source.
 library;
 
 import 'package:flutter/material.dart';
@@ -79,7 +79,6 @@ class _PushToTalkKeyRowState extends State<PushToTalkKeyRow> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Focus(
       focusNode: _capture,
       onKeyEvent: _onKey,
@@ -93,7 +92,11 @@ class _PushToTalkKeyRowState extends State<PushToTalkKeyRow> {
           spacing: AppSpacing.s8,
           children: [
             if (!_listening)
-              _KeyCap(label: pushToTalkKeyName(widget.current), tokens: tokens),
+              ShortcutKeyCap(
+                label: pushToTalkKeyName(widget.current),
+                semanticLabel:
+                    'Push-to-talk key: ${pushToTalkKeyName(widget.current)}',
+              ),
             AppButton(
               label: _listening ? 'Cancel' : 'Change',
               size: AppButtonSize.sm,
@@ -107,36 +110,44 @@ class _PushToTalkKeyRowState extends State<PushToTalkKeyRow> {
   }
 }
 
-class _KeyCap extends StatelessWidget {
-  const _KeyCap({required this.label, required this.tokens});
+/// A key (or chord) drawn as a key cap.
+class ShortcutKeyCap extends StatelessWidget {
+  const ShortcutKeyCap({
+    super.key,
+    required this.label,
+    required this.semanticLabel,
+  });
 
   final String label;
-  final AppTokens tokens;
+  final String semanticLabel;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Push-to-talk key: $label',
-    excludeSemantics: true,
-    child: Container(
-      constraints: const BoxConstraints(minWidth: AppSizes.controlSm),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s8,
-        vertical: AppSpacing.s4,
-      ),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tokens.surfaceSunken,
-        border: Border.all(color: tokens.borderStrong),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: Text(
-        label,
-        style: AppText.caption.copyWith(
-          fontFamily: AppFonts.mono,
-          fontWeight: AppWeights.semi,
-          color: tokens.textPrimary,
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: AppSizes.controlSm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s8,
+          vertical: AppSpacing.s4,
+        ),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: tokens.surfaceSunken,
+          border: Border.all(color: tokens.borderStrong),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+        ),
+        child: Text(
+          label,
+          style: AppText.caption.copyWith(
+            fontFamily: AppFonts.mono,
+            fontWeight: AppWeights.semi,
+            color: tokens.textPrimary,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
