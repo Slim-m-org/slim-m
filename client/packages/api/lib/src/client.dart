@@ -43,6 +43,7 @@ part 'client_notification_schedule.dart';
 part 'client_presence.dart';
 part 'client_push.dart';
 part 'client_roles.dart';
+part 'client_admin_audit.dart';
 part 'client_space.dart';
 part 'client_threads.dart';
 part 'client_totp.dart';

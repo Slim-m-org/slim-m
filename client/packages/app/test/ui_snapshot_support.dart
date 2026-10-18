@@ -43,6 +43,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/removed_members_sc
 import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/server_metrics_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/audit_log_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
@@ -267,6 +268,11 @@ GoRouter fixtureRouter(String location) => GoRouter(
       path: '/settings/storage',
       pageBuilder: (context, state) =>
           modalPage(context, const StorageScreen()),
+    ),
+    GoRoute(
+      path: '/settings/audit-log',
+      pageBuilder: (context, state) =>
+          modalPage(context, const AuditLogScreen()),
     ),
     GoRoute(
       path: '/settings/server-metrics',
