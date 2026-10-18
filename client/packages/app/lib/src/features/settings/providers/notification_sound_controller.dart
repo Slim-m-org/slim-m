@@ -40,6 +40,9 @@ import '../../../providers/live_events.dart';
 import '../../messages/providers/message_alert_policy.dart';
 import 'notification_sound_rules.dart';
 import 'notification_sound_settings.dart';
+import 'ui_sound_settings.dart';
+import '../../channels/providers/mounted_channels.dart';
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_settings_controller.dart'
@@ -56,9 +59,13 @@ class NotificationSoundController {
     SoundPlayer? player,
     HapticsCue? messageHaptic,
     HapticsCue? callRingHaptic,
+    HapticsCue? mentionHaptic,
+    HapticsCue? toggleHaptic,
   }) : _player = player ?? AudioPlayersSoundPlayer(),
        _messageHaptic = messageHaptic ?? AppHaptics.selection,
-       _callRingHaptic = callRingHaptic ?? AppHaptics.impact {
+       _callRingHaptic = callRingHaptic ?? AppHaptics.impact,
+       _mentionHaptic = mentionHaptic ?? AppHaptics.warning,
+       _toggleHaptic = toggleHaptic ?? AppHaptics.impact {
     _messages = _ref.read(liveEventsProvider).listen(_onServerEvent);
     _voiceSub = _ref.listen<VoiceState>(
       voiceControllerProvider,
@@ -68,15 +75,39 @@ class NotificationSoundController {
       dmCallRingControllerProvider.select((s) => s.visibleIncoming),
       _onIncomingRingChanged,
     );
+    _outgoingSub = _ref.listen<OutgoingDmCallRing?>(
+      dmCallRingControllerProvider.select((s) => s.outgoing),
+      _onOutgoingRingChanged,
+    );
+    _sentSub = _ref.listen<int>(
+      messageSentSignalProvider,
+      (_, _) => _playUi(NotificationSound.messageSent),
+    );
+    _ref.read(hapticsSettingsProvider);
   }
 
   final Ref _ref;
   final SoundPlayer _player;
   final HapticsCue _messageHaptic;
   final HapticsCue _callRingHaptic;
+  final HapticsCue _mentionHaptic;
+  final HapticsCue _toggleHaptic;
   late final StreamSubscription<api.ServerEvent> _messages;
   late final ProviderSubscription<VoiceState> _voiceSub;
   late final ProviderSubscription<IncomingDmCallRing?> _ringSub;
+  late final ProviderSubscription<OutgoingDmCallRing?> _outgoingSub;
+  late final ProviderSubscription<int> _sentSub;
+  bool _ringbackPlaying = false;
+
+  bool get _uiSounds => _ref.read(uiSoundSettingsProvider);
+
+  void _haptic(HapticsCue cue) {
+    if (_ref.read(hapticsSettingsProvider)) cue();
+  }
+
+  void _playUi(NotificationSound sound) {
+    if (_uiSounds) unawaited(_player.play(sound));
+  }
 
   /// Who was already in the call the moment [voiceControllerProvider] last
   /// read [VoiceSessionState.connected], excluding this device's own
@@ -94,20 +125,87 @@ class NotificationSoundController {
   }
 
   Future<void> _onMessageCreated(api.Message message) async {
-    if (!_ref.read(messageSoundSettingsProvider)) return;
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
     if (alert == null) return;
-    await _player.play(
-      messageSoundKind(isDm: alert.isDm, mentionsSelf: alert.mentionsSelf),
-    );
-    _messageHaptic();
+    if (_isInView(message.channelId) && !alert.mentionsSelf && _uiSounds) {
+      await _player.play(NotificationSound.messageReceivedInView);
+      return;
+    }
+    if (_ref.read(messageSoundSettingsProvider)) {
+      await _player.play(
+        messageSoundKind(isDm: alert.isDm, mentionsSelf: alert.mentionsSelf),
+      );
+    }
+    _haptic(alert.mentionsSelf ? _mentionHaptic : _messageHaptic);
   }
+
+  /// The channel is on screen in a focused window, so the message needs a
+  /// nudge rather than a notification.
+  bool _isInView(String channelId) =>
+      _ref.read(appFocusedProvider) &&
+      _ref.read(mountedChannelsProvider).openChannelIds.contains(channelId);
 
   // --- Voice roster (member join/leave) and call failures (error) ---
 
   void _onVoiceStateChanged(VoiceState? previous, VoiceState next) {
     _handleVoiceError(previous, next);
     _handleRosterChange(previous, next);
+    _handleOwnCallCues(previous, next);
+  }
+
+  /// Only this device's own actions: joining, leaving, muting and deafening.
+  /// A mic change while push-to-talk is on is the key being held, not a toggle.
+  void _handleOwnCallCues(VoiceState? previous, VoiceState next) {
+    if (previous == null) return;
+    final wasIn = previous.state == VoiceSessionState.connected;
+    final isIn = next.state == VoiceSessionState.connected;
+    if (!wasIn && isIn && !previous.rejoining) {
+      _playUi(NotificationSound.selfJoin);
+    } else if (wasIn && !isIn && !next.rejoining) {
+      _stopRingback();
+      _playUi(NotificationSound.selfLeave);
+    }
+    if (!wasIn || !isIn) return;
+    if (previous.deafened != next.deafened) {
+      _toggleCue(
+        next.deafened
+            ? NotificationSound.deafenOn
+            : NotificationSound.deafenOff,
+      );
+    } else if (previous.microphoneEnabled != next.microphoneEnabled &&
+        !_ref.read(voiceSettingsControllerProvider).pushToTalkEnabled) {
+      _toggleCue(
+        next.microphoneEnabled
+            ? NotificationSound.muteOff
+            : NotificationSound.muteOn,
+      );
+    }
+  }
+
+  void _toggleCue(NotificationSound sound) {
+    _playUi(sound);
+    _haptic(_toggleHaptic);
+  }
+
+  // --- An outgoing DM call (ringback) ---
+
+  void _onOutgoingRingChanged(
+    OutgoingDmCallRing? previous,
+    OutgoingDmCallRing? next,
+  ) {
+    if (next == null) {
+      _stopRingback();
+      return;
+    }
+    if (!_uiSounds) return;
+    _ringbackPlaying = true;
+    unawaited(_player.loop(NotificationSound.ringback));
+  }
+
+  void _stopRingback() {
+    if (!_ringbackPlaying) return;
+    _ringbackPlaying = false;
+    unawaited(_player.stopLoop());
   }
 
   void _handleVoiceError(VoiceState? previous, VoiceState next) {
@@ -138,6 +236,7 @@ class NotificationSoundController {
     };
     final diff = diffRoster(_rosterBaseline, current);
     _rosterBaseline = diff.baseline;
+    if (diff.joined.isNotEmpty) _stopRingback();
     if (diff.joined.isEmpty && diff.left.isEmpty) return;
     if (!_ref.read(voiceSettingsControllerProvider).joinLeaveSoundsEnabled) {
       return;
@@ -175,13 +274,15 @@ class NotificationSoundController {
     }
     if (ring.channelId == _ref.read(voiceControllerProvider).channelId) return;
     unawaited(_player.loop(NotificationSound.callRing));
-    _callRingHaptic();
+    _haptic(_callRingHaptic);
   }
 
   void dispose() {
     unawaited(_messages.cancel());
     _voiceSub.close();
     _ringSub.close();
+    _outgoingSub.close();
+    _sentSub.close();
     unawaited(_player.dispose());
   }
 }

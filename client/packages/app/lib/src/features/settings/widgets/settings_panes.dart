@@ -24,6 +24,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/close_screen.dart';
 import 'settings_section_header.dart';
+import 'settings_search.dart';
+import '../providers/settings_index.dart';
 
 part 'settings_panes_chrome.dart';
 
@@ -113,9 +115,13 @@ class SettingsPanesScaffold extends StatefulWidget {
     this.footer,
     this.initialPaneId,
     this.onPaneChanged,
+    this.searchEntries = const [],
   });
 
   final String title;
+
+  /// What the search field above the nav can find; empty hides the field.
+  final List<SettingsEntry> searchEntries;
 
   /// The pane shown first; on a phone this opens straight into it.
   ///
@@ -143,6 +149,13 @@ class SettingsPanesScaffold extends StatefulWidget {
 
 class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
   late String? _selectedId = widget.initialPaneId;
+  final _highlight = ValueNotifier<String?>(null);
+
+  @override
+  void dispose() {
+    _highlight.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(SettingsPanesScaffold oldWidget) {
@@ -174,7 +187,10 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SettingsHighlight(notifier: _highlight, child: _layout(context));
+
+  Widget _layout(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
     final panes = _allPanes;
@@ -200,6 +216,16 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
       );
     }
 
+    void onSelect(String id) {
+      final pane = panes.where((p) => p.id == id).firstOrNull;
+      final route = pane?.compactRoute;
+      if (!wide && route != null) {
+        context.push(route);
+        return;
+      }
+      _select(id);
+    }
+
     final nav = _Nav(
       groups: widget.groups,
       rail: wide,
@@ -207,14 +233,13 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
       // Wide only: on compact no lit row is ever visible beside its pane.
       showSelection: wide,
       footer: widget.footer,
-      onSelect: (id) {
-        final pane = panes.where((p) => p.id == id).firstOrNull;
-        final route = pane?.compactRoute;
-        if (!wide && route != null) {
-          context.push(route);
-          return;
-        }
-        _select(id);
+      searchEntries: settingsEntriesFor(widget.searchEntries, {
+        for (final pane in panes) pane.id,
+      }),
+      onSelect: onSelect,
+      onSearchOpen: (entry) {
+        _highlight.value = entry.label;
+        onSelect(entry.pane);
       },
     );
 
@@ -388,10 +413,14 @@ class _Nav extends StatelessWidget {
     required this.selectedId,
     required this.showSelection,
     required this.onSelect,
+    required this.searchEntries,
+    required this.onSearchOpen,
     this.footer,
   });
 
   final List<SettingsPaneGroup> groups;
+  final List<SettingsEntry> searchEntries;
+  final ValueChanged<SettingsEntry> onSearchOpen;
 
   /// Inside the wide layout's nav column, which already pads and titles it.
   final bool rail;
@@ -402,39 +431,23 @@ class _Nav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final list = _list(context);
     return Column(
       children: [
         Expanded(
-          child: rail
-              ? ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    for (final (index, group) in groups.indexed) ...[
-                      if (group.label case final label?)
-                        _GroupLabel(label, first: index == 0)
-                      else
-                        const SizedBox(height: AppSpacing.s20),
-                      for (final pane in group.panes) _row(context, pane),
-                    ],
-                  ],
-                )
-              // Compact: each group a raised card on the page, the same two tones the wide nav and its panes show.
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s16,
-                    0,
-                    AppSpacing.s16,
-                    AppSpacing.s16,
-                  ),
-                  children: [
+          child: searchEntries.isEmpty
+              ? list
+              : SettingsSearchArea(
+                  entries: searchEntries,
+                  paneLabels: {
                     for (final group in groups)
-                      SettingsSectionCard(
-                        title: group.label,
-                        children: [
-                          for (final pane in group.panes) _row(context, pane),
-                        ],
-                      ),
-                  ],
+                      for (final pane in group.panes) pane.id: pane.label,
+                  },
+                  onOpen: onSearchOpen,
+                  padding: rail
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+                  child: list,
                 ),
         ),
         if (footer != null)
@@ -446,6 +459,40 @@ class _Nav extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  Widget _list(BuildContext context) {
+    return rail
+        ? ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              for (final (index, group) in groups.indexed) ...[
+                if (group.label case final label?)
+                  _GroupLabel(label, first: index == 0)
+                else
+                  const SizedBox(height: AppSpacing.s20),
+                for (final pane in group.panes) _row(context, pane),
+              ],
+            ],
+          )
+        // Compact: each group a raised card on the page, the same two tones the wide nav and its panes show.
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s16,
+            ),
+            children: [
+              for (final group in groups)
+                SettingsSectionCard(
+                  title: group.label,
+                  children: [
+                    for (final pane in group.panes) _row(context, pane),
+                  ],
+                ),
+            ],
+          );
   }
 
   Widget _row(BuildContext context, SettingsPane pane) {

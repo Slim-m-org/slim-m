@@ -44,6 +44,7 @@ class SettingsProfilePreview extends ConsumerWidget {
 
     return SettingsSectionCard(
       title: 'How others see you',
+      topGap: kDenseSectionTopGap,
       description: 'Updates as you edit below.',
       children: [
         ColoredBox(

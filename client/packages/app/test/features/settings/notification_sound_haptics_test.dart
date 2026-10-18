@@ -170,7 +170,7 @@ void main() {
     await setup.dispose();
   });
 
-  test('turning message sounds off silences the message haptic too', () async {
+  test('turning message sounds off leaves the message haptic alone', () async {
     final setup = await _wireMessage();
     setup.container.read(messageSoundSettingsProvider);
     await pumpEventQueue();
@@ -189,7 +189,7 @@ void main() {
     );
     await pumpEventQueue();
 
-    expect(setup.selectionTicks, isEmpty);
+    expect(setup.selectionTicks, [1]);
     await setup.dispose();
   });
 
