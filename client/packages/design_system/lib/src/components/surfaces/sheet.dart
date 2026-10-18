@@ -85,6 +85,8 @@ Future<T?> showAppSheet<T>(
   if (MediaQuery.sizeOf(context).width < kCompactWidth) {
     return showModalBottomSheet<T>(
       context: context,
+      // A nested navigator (the phone shell's) can end above the home indicator, leaving a strip of page under the sheet.
+      useRootNavigator: true,
       isScrollControlled: true,
       // Material's handle reserves a 48dp box above every sheet; this one is a slim bar.
       showDragHandle: false,
@@ -136,10 +138,8 @@ class _SheetHandle extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: () => Navigator.of(context).maybePop(),
         child: Padding(
-          padding: const EdgeInsets.only(
-            top: AppSpacing.s8,
-            bottom: AppSpacing.s8,
-          ),
+          // No gap below: the first row (a title or the quick reactions) brings its own.
+          padding: const EdgeInsets.only(top: AppSpacing.s8),
           child: Center(
             child: Container(
               width: 32,
