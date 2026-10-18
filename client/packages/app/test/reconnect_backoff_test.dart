@@ -9,6 +9,7 @@ library;
 
 import 'dart:math';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/reconnect_backoff.dart';
 
@@ -88,6 +89,38 @@ void main() {
         const Duration(seconds: 1),
         reason: 'reset must restart from attempt one, not continue climbing',
       );
+    });
+  });
+
+  group('ReconnectBackoff stability', () {
+    test('a connection that drops within the window keeps the backoff', () {
+      fakeAsync((async) {
+        final backoff = ReconnectBackoff(random: _FixedRandom(0));
+        expect(backoff.next(), const Duration(seconds: 1));
+        backoff.connected();
+        async.elapse(const Duration(seconds: 5));
+        backoff.dropped();
+        async.elapse(const Duration(minutes: 5));
+        expect(backoff.stable, isFalse);
+        expect(backoff.next(), const Duration(seconds: 2));
+        backoff.connected();
+        async.elapse(const Duration(seconds: 5));
+        backoff.dropped();
+        expect(backoff.next(), const Duration(seconds: 4));
+      });
+    });
+
+    test('a connection that stays live resets the backoff', () {
+      fakeAsync((async) {
+        final backoff = ReconnectBackoff(random: _FixedRandom(0));
+        backoff.next();
+        backoff.next();
+        backoff.connected();
+        async.elapse(connectionStableAfter);
+        expect(backoff.stable, isTrue);
+        backoff.dropped();
+        expect(backoff.next(), const Duration(seconds: 1));
+      });
     });
   });
 }

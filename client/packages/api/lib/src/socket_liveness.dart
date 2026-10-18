@@ -34,8 +34,28 @@ class SocketLiveness {
     _timer ??= Timer.periodic(interval, (_) => _beat());
   }
 
+  Completer<void>? _awaiting;
+
   /// Any inbound frame counts, not only a pong.
-  void heard() => _heard = true;
+  void heard() {
+    _heard = true;
+    final waiting = _awaiting;
+    if (waiting != null && !waiting.isCompleted) waiting.complete();
+  }
+
+  /// Pings now and says whether anything came back within [timeout].
+  Future<bool> probe({Duration timeout = const Duration(seconds: 5)}) async {
+    final waiting = _awaiting ??= Completer<void>();
+    ping();
+    try {
+      await waiting.future.timeout(timeout);
+      return true;
+    } on TimeoutException {
+      return false;
+    } finally {
+      if (identical(_awaiting, waiting)) _awaiting = null;
+    }
+  }
 
   void stop() {
     _timer?.cancel();
