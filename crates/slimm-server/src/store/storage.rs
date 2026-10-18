@@ -94,7 +94,7 @@ impl Store {
     ) -> anyhow::Result<Vec<ChannelStorage>> {
         let rows = sqlx::query!(
             r#"SELECT c.id AS "channel_id!: ChannelId", c.name AS "name!",
-                      SUM(a.size) AS "bytes!: i64"
+                      SUM(a.size + a.original_size) AS "bytes!: i64"
                FROM (SELECT DISTINCT m.channel_id, ma.sha256
                      FROM message_attachments ma
                      JOIN messages m ON m.id = ma.message_id

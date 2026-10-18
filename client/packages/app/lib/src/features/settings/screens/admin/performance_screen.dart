@@ -30,6 +30,7 @@ import '../settings_screen_scaffold.dart';
 import 'attachment_limit_section.dart';
 import 'canvas_cap_section.dart';
 import 'link_previews_section.dart';
+import 'media_compression_section.dart';
 import '../../../../action_labels.dart';
 
 class PerformanceScreen extends StatelessWidget {
@@ -56,6 +57,7 @@ class PerformancePane extends StatelessWidget {
       _RetentionSection(),
       CanvasCapSection(),
       AttachmentLimitSection(),
+      MediaCompressionSection(),
       LinkPreviewsSection(),
     ],
   );

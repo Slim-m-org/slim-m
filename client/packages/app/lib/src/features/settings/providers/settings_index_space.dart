@@ -165,6 +165,39 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['upload', 'file size', 'max size'],
   ),
   SettingsEntry(
+    'performance',
+    'Photo compression',
+    description: 'Shrink photos when they are uploaded.',
+    keywords: ['image', 'resize', 'shrink', 'upload', 'heic', 'size'],
+  ),
+  SettingsEntry(
+    'performance',
+    'Compress photos',
+    description: 'Large photos are resized and saved smaller.',
+    keywords: ['image', 'resize', 'shrink', 'upload', 'heic', 'jpeg'],
+  ),
+  SettingsEntry(
+    'performance',
+    'File types',
+    description: 'Photo formats that get compressed.',
+    keywords: ['extension', 'jpg', 'png', 'heic', 'webp'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'performance',
+    'Photo metadata',
+    description: 'Details stored inside a photo file.',
+    keywords: ['exif', 'location', 'gps', 'privacy'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'performance',
+    'Keep originals',
+    description: 'Also store each photo as sent, offered as a download.',
+    keywords: ['original', 'raw', 'full size'],
+    conditional: true,
+  ),
+  SettingsEntry(
     'analytics',
     'Record Space analytics',
     description:

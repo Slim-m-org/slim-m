@@ -77,7 +77,9 @@ mod removals;
 mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
+mod attachment_originals;
 mod login_throttle;
+mod media_compression;
 mod safety;
 mod saved_messages;
 mod sessions;
@@ -105,7 +107,8 @@ pub use analytics::{
     ANALYTICS_WINDOW_DAYS, AnalyticsStats, DayCount, MemberAttachmentUsage, MetricSample,
 };
 pub use apps::{AppSurface, CreateAppSurfaceError};
-pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE};
+pub use attachment_originals::KeptOriginal;
+pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
 pub use bootstrap::Bootstrap;
 pub use bot_commands::{
     BotCommand, BotCommandRegistration, MAX_BOT_COMMAND_DESCRIPTION_LEN, MAX_BOT_COMMAND_NAME_LEN,
@@ -143,6 +146,7 @@ pub use interactions::{Interaction, InteractionKind};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
 pub use login_throttle::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS};
+pub use media_compression::{MediaCompression, MediaCompressionUpdate, default_extensions};
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};

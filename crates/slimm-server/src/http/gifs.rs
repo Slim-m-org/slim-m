@@ -495,6 +495,7 @@ async fn select(
             content_type: content_type.to_owned(),
             size,
             spoiler: false,
+            original: None,
         })),
     ))
 }

@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT sha256 AS \"sha256!: Vec<u8>\", filename AS \"filename!\",\n                      content_type AS \"content_type!\", size AS \"size!\",\n                      original_size AS \"original_size!\", original_filename AS \"original_filename!\"\n               FROM attachments WHERE sha256 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "sha256!: Vec<u8>",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "filename!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "content_type!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "size!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "original_size!",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "original_filename!",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "123201a4146b5746ef6561172f573ce9f7b7c263c99c7128dfb310bcf55d270b"
+}

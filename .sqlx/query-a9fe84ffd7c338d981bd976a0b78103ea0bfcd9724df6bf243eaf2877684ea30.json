@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT COALESCE(SUM(size), 0) AS \"total!: i64\" FROM attachments",
+  "query": "SELECT COALESCE(SUM(size + original_size), 0) AS \"total!: i64\" FROM attachments",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "02bcf45c7964faebd65f29b8e1eda8b21c9f32b19483ec5e48b12303657d4565"
+  "hash": "a9fe84ffd7c338d981bd976a0b78103ea0bfcd9724df6bf243eaf2877684ea30"
 }

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT media_compress AS \"enabled!: bool\", media_compress_types AS \"types!\",\n                      media_metadata AS \"metadata!\", media_keep_original AS \"keep!: bool\"\n               FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "enabled!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "types!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "metadata!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "keep!: bool",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "294935569d32f5ce56e8e015ce1faffc7a3beef40996d5efda970e77397ab016"
+}

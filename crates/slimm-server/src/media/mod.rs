@@ -30,8 +30,10 @@ use std::time::Duration;
 use futures_util::Stream;
 use uuid::Uuid;
 
+pub mod compress;
 mod content_type;
 mod image_header;
+pub mod originals;
 pub mod preview;
 mod stream;
 mod upload_session;
@@ -372,6 +374,7 @@ impl Media {
 
     pub async fn delete_attachment(&self, sha256_hex: &str) -> io::Result<()> {
         self.previews.delete(sha256_hex).await?;
+        remove(self.original_path(sha256_hex)).await?;
         remove(self.attachment_path(sha256_hex)).await
     }
 

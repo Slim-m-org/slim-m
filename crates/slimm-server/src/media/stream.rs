@@ -72,6 +72,11 @@ impl PendingAttachment {
         &self.sniff_prefix
     }
 
+    /// Where the streamed bytes wait until they are committed or abandoned.
+    pub fn path(&self) -> &Path {
+        &self.temp_path
+    }
+
     /// Places the streamed bytes at their content-hash path, or drops the temp
     /// file when those exact bytes are already stored - content addressing
     /// means an identical upload is one stored copy, not a second. Atomic
@@ -90,8 +95,14 @@ impl PendingAttachment {
     /// owns removing the temp file itself on a failed rename, best-effort,
     /// so the failure cannot leave an orphaned temp file behind.
     pub async fn commit(mut self) -> io::Result<()> {
-        let temp_path = std::mem::take(&mut self.temp_path);
         let final_path = std::mem::take(&mut self.final_path);
+        self.commit_at(final_path).await
+    }
+
+    /// [`commit`](Self::commit) to a path of the caller's choosing, for bytes
+    /// stored under another attachment's name (a kept original).
+    pub async fn commit_at(mut self, final_path: PathBuf) -> io::Result<()> {
+        let temp_path = std::mem::take(&mut self.temp_path);
         match commit_temp(temp_path.clone(), final_path).await {
             Ok(()) => {
                 self.committed = true;

@@ -17,6 +17,7 @@
 
 mod authorization;
 mod binding;
+mod compression;
 mod filenames;
 mod fixtures;
 mod message_filenames;

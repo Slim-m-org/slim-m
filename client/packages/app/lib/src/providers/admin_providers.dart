@@ -226,6 +226,12 @@ final spaceAttachmentLimitProvider =
       (ref) => ref.watch(apiProvider).spaceAttachmentLimit(),
     );
 
+/// The photo compression settings, `GET /space/media-compression`.
+final spaceMediaCompressionProvider =
+    FutureProvider.autoDispose<api.SpaceMediaCompression>(
+      (ref) => ref.watch(apiProvider).spaceMediaCompression(),
+    );
+
 /// Operator-visible storage usage and sweep health, `GET /space/storage`.
 /// Always computed - unlike [spaceAnalyticsProvider] there is no toggle. See
 /// `screens/admin/storage_screen.dart`.

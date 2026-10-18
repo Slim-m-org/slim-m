@@ -130,6 +130,19 @@ async fn upload(
     }
 
     let filename = media::sanitize_display_filename(params.filename.as_deref().unwrap_or("file"));
+    if let Some(replacement) = super::attachment_compress::prepare(
+        &state,
+        pending.path(),
+        pending.size(),
+        pending.sniff_prefix(),
+        &filename,
+    )
+    .await?
+    {
+        let received = super::attachment_compress::Received::Pending(pending);
+        let summary = replacement.store(&state, ctx.user_id, received).await?;
+        return Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary))));
+    }
     let hex_id = pending.hex_id().to_owned();
     let size = pending.size() as i64;
     let sha256 = media::from_hex(&hex_id).expect("a hex id from sha256 is well-formed hex");
@@ -154,6 +167,7 @@ async fn upload(
             content_type: content_type.to_owned(),
             size,
             spoiler: false,
+            original: None,
         })),
     ))
 }
@@ -206,6 +220,8 @@ fn upload_stream_error(err: StreamError) -> ApiError {
 struct FetchParams {
     /// Asks for a bounded-size preview of a still image; see [`super::attachment_preview`].
     w: Option<u32>,
+    /// Asks for the uploaded original kept beside a compressed copy.
+    original: Option<bool>,
 }
 
 /// Serves stored bytes back, gated on the same VIEW_CHANNEL a caller needs to
@@ -251,6 +267,9 @@ async fn fetch(
         .attachment_summary(&sha256)
         .await?
         .ok_or(ApiError::NotFound("attachment not found"))?;
+    if params.original == Some(true) {
+        return super::attachment_original::serve(&state, &attachment_id, &sha256, &headers).await;
+    }
     if let Some(width) = params.w
         && let Some(response) =
             super::attachment_preview::serve(&state.media, &attachment_id, &meta, width, &headers)
@@ -299,30 +318,19 @@ pub(crate) fn serve(bytes: Vec<u8>, content_type: &str, filename: &str) -> Respo
 /// the stored value already was: it is cheap and idempotent, and it means the
 /// response never depends on every future write path having remembered to.
 pub(super) fn apply_asset_headers(headers: &mut HeaderMap, content_type: &str, filename: &str) {
-    let disposition_kind = if media::is_inline(content_type) {
+    let kind = if media::is_inline(content_type) {
         "inline"
     } else {
         "attachment"
     };
-    let display = media::sanitize_display_filename(filename);
-    let ascii = media::sanitize_filename(&display);
-    let disposition = if ascii == display {
-        format!("{disposition_kind}; filename=\"{ascii}\"")
-    } else {
-        let encoded = media::rfc5987_encode(&display);
-        format!("{disposition_kind}; filename=\"{ascii}\"; filename*=UTF-8''{encoded}")
-    };
+    let disposition = content_disposition(kind, filename);
 
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_str(content_type)
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
-    // The ASCII fallback and RFC 5987 encoding keep this printable ASCII, so it cannot fail; the
-    // fallback keeps a future change to that guarantee a response, not a panic.
-    let disposition_value = HeaderValue::from_str(&disposition)
-        .unwrap_or_else(|_| HeaderValue::from_static("attachment"));
-    headers.insert(header::CONTENT_DISPOSITION, disposition_value);
+    headers.insert(header::CONTENT_DISPOSITION, disposition);
     // Not a named constant in the `http` crate (it is a non-standard header),
     // unlike Content-Type and Content-Disposition above.
     headers.insert(
@@ -333,6 +341,21 @@ pub(super) fn apply_asset_headers(headers: &mut HeaderMap, content_type: &str, f
         header::CACHE_CONTROL,
         HeaderValue::from_static(IMMUTABLE_CACHE),
     );
+}
+
+/// The `Content-Disposition` for `filename`, sanitized again here so a response never depends
+/// on every write path having done it. The ASCII fallback and RFC 5987 encoding keep the value
+/// printable ASCII, so it cannot fail; the fallback keeps a future change a response, not a panic.
+pub(super) fn content_disposition(kind: &str, filename: &str) -> HeaderValue {
+    let display = media::sanitize_display_filename(filename);
+    let ascii = media::sanitize_filename(&display);
+    let disposition = if ascii == display {
+        format!("{kind}; filename=\"{ascii}\"")
+    } else {
+        let encoded = media::rfc5987_encode(&display);
+        format!("{kind}; filename=\"{ascii}\"; filename*=UTF-8''{encoded}")
+    };
+    HeaderValue::from_str(&disposition).unwrap_or_else(|_| HeaderValue::from_static("attachment"))
 }
 
 /// Refuses the upload if storing `incoming` bytes would put the deployment over
