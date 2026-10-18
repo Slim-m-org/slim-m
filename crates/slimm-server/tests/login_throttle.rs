@@ -7,9 +7,6 @@ use axum::Router;
 use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
 use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS, Store};
 use tower::ServiceExt;
@@ -28,19 +25,10 @@ fn now_ms() -> i64 {
 
 /// Trusts one proxy hop so each request can arrive from a different address.
 fn app(store: Store, auth: Auth) -> Router {
-    http::router(AppState {
-        store,
-        auth,
-        hub: Hub::new(),
-        limiter: RateLimiter::with_trusted_hops(1),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store)
+        .auth(auth)
+        .limiter(RateLimiter::with_trusted_hops(1))
+        .router()
 }
 
 async fn login_from(
