@@ -22,13 +22,13 @@ const DEFAULT_WAIT: Duration = Duration::from_secs(30);
 
 /// Bytes of estimated peak memory compression may hold at once.
 #[derive(Debug, Clone)]
-pub struct CompressionBudget {
+pub struct MemoryBudget {
     semaphore: Arc<Semaphore>,
     total_units: usize,
     wait: Duration,
 }
 
-impl CompressionBudget {
+impl MemoryBudget {
     /// A budget of `total_bytes`, whose waiting jobs give up after `wait`.
     pub fn new(total_bytes: u64, wait: Duration) -> Self {
         let total_units = usize::try_from(total_bytes / UNIT).unwrap_or(usize::MAX >> 4);
@@ -70,14 +70,14 @@ mod tests {
 
     #[tokio::test]
     async fn a_job_larger_than_the_whole_budget_is_refused_at_once() {
-        let budget = CompressionBudget::new(10 * MIB, Duration::from_secs(60));
+        let budget = MemoryBudget::new(10 * MIB, Duration::from_secs(60));
         assert!(budget.admit(11 * MIB).await.is_none());
         assert!(budget.admit(10 * MIB).await.is_some());
     }
 
     #[tokio::test]
     async fn a_job_waits_for_room_and_gives_up_after_the_wait() {
-        let budget = CompressionBudget::new(10 * MIB, SHORT);
+        let budget = MemoryBudget::new(10 * MIB, SHORT);
         let first = budget.admit(8 * MIB).await.unwrap();
         assert!(
             budget.admit(4 * MIB).await.is_none(),
@@ -89,7 +89,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_queued_job_runs_when_the_running_one_finishes() {
-        let budget = CompressionBudget::new(10 * MIB, Duration::from_secs(30));
+        let budget = MemoryBudget::new(10 * MIB, Duration::from_secs(30));
         let first = budget.admit(8 * MIB).await.unwrap();
         let waiting = tokio::spawn({
             let budget = budget.clone();
@@ -103,16 +103,10 @@ mod tests {
 
     #[test]
     fn the_budget_leaves_headroom_below_the_limit() {
-        let to_units = |b: &CompressionBudget| b.total_units as u64;
-        assert_eq!(
-            to_units(&CompressionBudget::for_limit(Some(512 * MIB))),
-            384
-        );
-        assert_eq!(
-            to_units(&CompressionBudget::for_limit(Some(256 * MIB))),
-            160
-        );
-        assert_eq!(to_units(&CompressionBudget::for_limit(Some(64 * MIB))), 0);
-        assert_eq!(to_units(&CompressionBudget::for_limit(None)), 1024);
+        let to_units = |b: &MemoryBudget| b.total_units as u64;
+        assert_eq!(to_units(&MemoryBudget::for_limit(Some(512 * MIB))), 384);
+        assert_eq!(to_units(&MemoryBudget::for_limit(Some(256 * MIB))), 160);
+        assert_eq!(to_units(&MemoryBudget::for_limit(Some(64 * MIB))), 0);
+        assert_eq!(to_units(&MemoryBudget::for_limit(None)), 1024);
     }
 }

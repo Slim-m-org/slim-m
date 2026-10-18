@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 
-use slimm_server::media::{CompressionBudget, Media};
+use slimm_server::media::{Media, MemoryBudget};
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
@@ -444,8 +444,8 @@ const MIB: u64 = 1024 * 1024;
 
 #[tokio::test]
 async fn a_photo_too_big_for_the_memory_budget_is_stored_as_sent() {
-    let tiny = CompressionBudget::new(8 * MIB, Duration::from_millis(50));
-    let space = space_with(Media::for_tests().with_compression_budget(tiny)).await;
+    let tiny = MemoryBudget::new(8 * MIB, Duration::from_millis(50));
+    let space = space_with(Media::for_tests().with_memory_budget(tiny)).await;
     configure(&space, json!({"enabled": true})).await;
     let photo = phone_photo();
     let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
@@ -455,8 +455,8 @@ async fn a_photo_too_big_for_the_memory_budget_is_stored_as_sent() {
 
 #[tokio::test]
 async fn jobs_that_fit_one_at_a_time_queue_and_all_compress() {
-    let room_for_one = CompressionBudget::new(40 * MIB, Duration::from_secs(30));
-    let space = space_with(Media::for_tests().with_compression_budget(room_for_one)).await;
+    let room_for_one = MemoryBudget::new(40 * MIB, Duration::from_secs(30));
+    let space = space_with(Media::for_tests().with_memory_budget(room_for_one)).await;
     configure(&space, json!({"enabled": true})).await;
     let photo = phone_photo();
     let names: Vec<String> = (0..3).map(|i| format!("IMG_{i}.jpg")).collect();
@@ -467,4 +467,24 @@ async fn jobs_that_fit_one_at_a_time_queue_and_all_compress() {
     for one in stored {
         assert!(one["size"].as_u64().unwrap() < photo.len() as u64 * 9 / 10);
     }
+}
+
+#[tokio::test]
+async fn a_preview_with_no_memory_to_decode_serves_the_original() {
+    let tiny = MemoryBudget::new(8 * MIB, Duration::from_millis(50));
+    let space = space_with(Media::for_tests().with_memory_budget(tiny)).await;
+    let photo = phone_photo();
+    let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
+    let (status, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "?w=320").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, photo);
+}
+
+#[tokio::test]
+async fn a_preview_with_room_is_a_smaller_derived_file() {
+    let space = space().await;
+    let photo = phone_photo();
+    let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
+    let (_, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "?w=320").await;
+    assert!(body.len() < photo.len());
 }

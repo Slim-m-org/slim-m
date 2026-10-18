@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use tokio::sync::OwnedSemaphorePermit;
 
 use super::Media;
-use super::compress_budget::CompressionBudget;
+use super::memory_budget::MemoryBudget;
 
 /// Appended to an attachment's name for the original kept beside it.
 pub const ORIGINAL_SUFFIX: &str = ".orig";
@@ -21,13 +21,14 @@ impl Media {
     }
 
     /// Reserves room to compress a file whose peak memory is estimated at `estimate` bytes.
-    pub async fn admit_compression(&self, estimate: u64) -> Option<OwnedSemaphorePermit> {
-        self.compression.admit(estimate).await
+    pub async fn admit_memory(&self, estimate: u64) -> Option<OwnedSemaphorePermit> {
+        self.memory.admit(estimate).await
     }
 
     /// Replaces the compression memory budget, so a test can shrink it.
-    pub fn with_compression_budget(mut self, budget: CompressionBudget) -> Self {
-        self.compression = budget;
+    pub fn with_memory_budget(mut self, budget: MemoryBudget) -> Self {
+        self.memory = budget.clone();
+        self.previews.use_budget(budget);
         self
     }
 

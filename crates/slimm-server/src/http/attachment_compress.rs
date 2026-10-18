@@ -68,7 +68,7 @@ pub(super) async fn prepare(
         return Ok(None);
     };
     // The source bytes are reserved before they are read, the rest of the peak once it is known.
-    let Some(mut slot) = state.media.admit_compression(size).await else {
+    let Some(mut slot) = state.media.admit_memory(size).await else {
         return Ok(None);
     };
     let bytes = match tokio::fs::read(path).await {
@@ -84,7 +84,7 @@ pub(super) async fn prepare(
     let estimate = compress::peak_bytes(candidate, size, &compress::DEFAULT_SETTINGS);
     match state
         .media
-        .admit_compression(estimate.saturating_sub(size))
+        .admit_memory(estimate.saturating_sub(size))
         .await
     {
         Some(rest) => slot.merge(rest),
@@ -197,6 +197,9 @@ impl Replacement {
             }
         }
         drop(placing);
+        state
+            .media
+            .prewarm_preview(&hex_id, compressed.content_type);
         Ok(AttachmentSummary {
             id: hex_id,
             filename,
