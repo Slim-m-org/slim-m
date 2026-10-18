@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use self::channel_slow_mode::validate_slow_mode_seconds;
 use self::channel_validation::{
     JOIN_MUTED_VOICE_ONLY, ROOMS_VOICE_ONLY, validate_channel_name, validate_channel_topic,
-    validate_user_limit,
+    validate_default_notification, validate_user_limit,
 };
 use super::AppState;
 use super::error::ApiError;
@@ -36,7 +36,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Channel, ChannelPatch, DM_CHANNEL_KIND, DeleteChannelError};
+use crate::store::{Channel, ChannelDefaults, ChannelPatch, DM_CHANNEL_KIND, DeleteChannelError};
 use crate::voice::VoiceError;
 
 pub(super) mod channel_notification_prefs;
@@ -112,6 +112,9 @@ pub(crate) struct ChannelDto {
     /// Whether joining this voice channel starts with the mic off. A
     /// default members can override, not a lock; always present.
     join_muted: bool,
+    /// What members with no choice of their own get here: `everything`,
+    /// `mentions` or `nothing`. Always present.
+    default_notification: &'static str,
     /// A voice lobby that makes a room per person; see decision 0065.
     creates_rooms: bool,
     /// The most people a voice channel's call takes, 0 for no limit.
@@ -146,6 +149,7 @@ impl From<Channel> for ChannelDto {
             permissions: None,
             slow_mode_seconds: channel.slow_mode_seconds,
             join_muted: channel.join_muted,
+            default_notification: channel.default_notification.as_str(),
             creates_rooms: channel.room.creates_rooms,
             user_limit: channel.room.user_limit,
             room_owner_id: channel.room.owner_id.map(|id| id.to_string()),
@@ -195,6 +199,10 @@ struct CreateRequest {
     /// Absent or false leaves the default off.
     #[serde(default)]
     join_muted: Option<bool>,
+    /// The notification level members get here until they choose their own.
+    /// Absent means `everything`. Needs MANAGE_CHANNELS like the rest of create.
+    #[serde(default)]
+    default_notification: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -217,6 +225,10 @@ struct UpdateChannelRequest {
     /// Absent leaves the join-muted default unchanged; present replaces it.
     #[serde(default)]
     join_muted: Option<bool>,
+    /// Absent leaves the default notification level unchanged; members' own
+    /// choices are never rewritten.
+    #[serde(default)]
+    default_notification: Option<String>,
     /// Voice only: makes this channel a lobby for temporary rooms.
     #[serde(default)]
     creates_rooms: Option<bool>,
@@ -288,6 +300,12 @@ async fn create(
     if req.join_muted == Some(true) && kind != "voice" {
         return Err(ApiError::BadRequest(JOIN_MUTED_VOICE_ONLY));
     }
+    let default_notification = req
+        .default_notification
+        .as_deref()
+        .map(validate_default_notification)
+        .transpose()?
+        .unwrap_or_default();
     let id = req
         .id
         .as_deref()
@@ -315,7 +333,10 @@ async fn create(
             kind,
             category_id,
             private_to,
-            req.join_muted == Some(true),
+            ChannelDefaults {
+                join_muted: req.join_muted == Some(true),
+                notification: default_notification,
+            },
         )
         .await?;
     let channel = created.channel;
@@ -363,10 +384,16 @@ async fn update(
         .map(validate_slow_mode_seconds)
         .transpose()?;
     let user_limit = req.user_limit.map(validate_user_limit).transpose()?;
+    let default_notification = req
+        .default_notification
+        .as_deref()
+        .map(validate_default_notification)
+        .transpose()?;
     if name.is_none()
         && topic.is_none()
         && slow_mode_seconds.is_none()
         && req.join_muted.is_none()
+        && default_notification.is_none()
         && req.creates_rooms.is_none()
         && user_limit.is_none()
     {
@@ -399,6 +426,7 @@ async fn update(
                 topic: topic.as_ref().map(|t| t.as_deref()),
                 slow_mode_seconds,
                 join_muted: req.join_muted,
+                default_notification,
                 creates_rooms: req.creates_rooms,
                 user_limit,
                 room_locked: None,

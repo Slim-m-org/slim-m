@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_data/src/database.dart';
 
 import 'support/v22_columns.dart';
+import 'support/v24_columns.dart';
 
 Future<void> _downgradeToV18(File file) async {
   final db = SlimmDatabase(NativeDatabase(file));
@@ -30,6 +31,7 @@ Future<void> _downgradeToV18(File file) async {
     'ALTER TABLE messages DROP COLUMN forwarded_removed',
   );
   await dropV22Columns(db);
+  await dropV24Columns(db);
   await db.customStatement('PRAGMA user_version = 18');
   await db.close();
 }

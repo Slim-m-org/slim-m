@@ -39,7 +39,7 @@ List<_Waiting> _waiting(
   final waiting = <_Waiting>[];
   for (final channel in channels) {
     final indicator = unreadIndicatorFor(
-      channelOverride: overrides.overrideFor(channel.id),
+      channelOverride: overrides.effectiveFor(channel),
       isDm: channel.dmParticipantId != null,
       unread: channel.cursor > channel.lastReadSeq,
       mentioned: channel.mentionedSeq > channel.lastReadSeq,

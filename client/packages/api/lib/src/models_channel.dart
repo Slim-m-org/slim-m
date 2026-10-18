@@ -3,6 +3,7 @@
 library;
 
 import 'models_attachments.dart';
+import 'models_notification_preference.dart';
 
 /// A text or voice channel.
 class Channel {
@@ -20,6 +21,7 @@ class Channel {
     this.permissions,
     this.slowModeSeconds = 0,
     this.joinMuted = false,
+    this.defaultNotification = NotificationPreference.everything,
     this.restricted,
     this.createsRooms = false,
     this.userLimit = 0,
@@ -92,6 +94,11 @@ class Channel {
   /// member can override, not a lock; false for a server too old to send it.
   final bool joinMuted;
 
+  /// What a member with no choice of their own for this channel gets;
+  /// [NotificationPreference.everything] means no default, and is also what a
+  /// server too old to send it reads as.
+  final NotificationPreference defaultNotification;
+
   /// Whether `@everyone` lacks VIEW_CHANNEL here, so the channel is hidden
   /// from ordinary members. Identical for every caller, unlike
   /// [permissions]. Null on a server too old to send it, which reads the
@@ -132,6 +139,9 @@ class Channel {
         permissions: json['permissions'] as int?,
         slowModeSeconds: json['slow_mode_seconds'] as int? ?? 0,
         joinMuted: json['join_muted'] as bool? ?? false,
+        defaultNotification: NotificationPreference.parse(
+          json['default_notification'] as String? ?? 'everything',
+        ),
         restricted: json['restricted'] as bool?,
         createsRooms: json['creates_rooms'] as bool? ?? false,
         userLimit: json['user_limit'] as int? ?? 0,

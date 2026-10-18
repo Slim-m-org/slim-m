@@ -199,7 +199,14 @@ async fn a_private_create_that_fails_leaves_no_channel_behind() {
     let id = ChannelId::generate();
 
     let err = store
-        .create_channel_with_id(id, "secret", "text", None, Some(creator.id), false)
+        .create_channel_with_id(
+            id,
+            "secret",
+            "text",
+            None,
+            Some(creator.id),
+            Default::default(),
+        )
         .await
         .expect_err("no @everyone role exists yet to deny against");
     assert!(matches!(err, CreateChannelError::MissingEveryoneRole));

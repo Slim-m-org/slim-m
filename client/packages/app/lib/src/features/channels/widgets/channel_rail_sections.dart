@@ -260,7 +260,7 @@ class _ChannelCategorySectionsState
       return false;
     }
     final mentioned = unreadIndicatorFor(
-      channelOverride: view.overrides.overrideFor(channel.id),
+      channelOverride: view.overrides.effectiveFor(channel),
       isDm: false,
       unread: false,
       mentioned: channel.mentionedSeq > channel.lastReadSeq,
@@ -360,7 +360,7 @@ class _TextChannelRow extends ConsumerWidget {
     // Read state is untouched by this; only what the row draws about it changes.
     final override = ref.watch(
       channelNotificationOverridesProvider.select(
-        (s) => s.overrideFor(channel.id),
+        (s) => s.effectiveFor(channel),
       ),
     );
     final muted = override == NotificationPreference.nothing;
