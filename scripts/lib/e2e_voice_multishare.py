@@ -29,7 +29,6 @@ SHOW_ALL = "Show all shares"
 FRESH_SECONDS = 2.0
 # Longer than the cull's 3s dwell plus LiveKit's 1.5s settings debounce.
 HIDDEN_WINDOW_SECONDS = 4.0
-HIDDEN_FRAMES_TOLERATED = 5
 
 
 def _sharing(room_id):
@@ -102,15 +101,15 @@ def _area(video):
 
 
 def _hidden_shares_stop_decoding(c, pc, every):
-    """In a text channel nothing shows a share, so none is received or decoded."""
+    """In a text channel only the mini player's one feed may keep decoding."""
     c.click(L.TEXT_CHANNEL, settle=8)
     first = pc.inbound_frames()
     time.sleep(HIDDEN_WINDOW_SECONDS)
-    grew = pc.inbound_frames() - first
-    print(f"  carol in a text channel: {grew} frames decoded in "
-          f"{HIDDEN_WINDOW_SECONDS:.0f}s")
-    assert grew <= HIDDEN_FRAMES_TOLERATED, \
-        f"hidden shares kept decoding: {grew} frames"
+    after = pc.inbound_frames()
+    growing = [k for k, n in after.items() if n - first.get(k, 0) > 5]
+    print(f"  carol in a text channel: {len(growing)} of {len(after)} "
+          f"inbound videos still decoding")
+    assert len(growing) <= 1, f"hidden shares kept decoding: {growing}"
     c.click(L.VOICE_CHANNEL, settle=2)
     wait_for_videos(pc, every, 2)
     print("  and returning to the lounge decodes both again")

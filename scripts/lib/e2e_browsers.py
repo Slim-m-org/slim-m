@@ -83,12 +83,12 @@ def _stop(proc, grace=15):
             continue
 
 
-@contextlib.contextmanager
 def work_dir():
     """Where e2e.sh keeps its files; it exports E2E_WORK, so the fallback is for a lone import."""
     return os.environ.get("E2E_WORK") or os.path.join(tempfile.gettempdir(), "e2e")
 
 
+@contextlib.contextmanager
 def browser(name, wav, work=None):
     """A headless Chrome on the port reserved for `name`, killed on exit."""
     port = EXTRA_PORTS[name]
