@@ -94,6 +94,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         "user_b",
         OnDelete::Keep("the other half of the same pair; see user_a"),
     ),
+    ("admin_audit_log", "actor_id", OnDelete::Anonymize),
     ("dm_hides", "user_id", OnDelete::Purge),
     ("invite_redemptions", "user_id", OnDelete::Purge),
     (
@@ -118,6 +119,8 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         ),
     ),
     ("pending_members", "user_id", OnDelete::Purge),
+    ("link_states", "user_id", OnDelete::Purge),
+    ("linked_accounts", "user_id", OnDelete::Purge),
     ("message_forwards", "origin_author_id", OnDelete::Anonymize),
     ("message_mentions", "user_id", OnDelete::Purge),
     ("message_ops", "actor_id", OnDelete::Anonymize),

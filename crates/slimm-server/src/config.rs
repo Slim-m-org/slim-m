@@ -164,6 +164,18 @@ pub struct Config {
     /// as unset.
     #[serde(default, deserialize_with = "blank_as_none")]
     pub code_runner_url: Option<String>,
+
+    /// The Discord application members link their accounts through
+    /// (`/me/links/discord/start`). All three set turns linking on; blank
+    /// reads as unset, and a deployment without them simply has no Discord
+    /// link. The redirect URI must be the one registered with Discord,
+    /// ending in `/links/discord/callback` on this server's public address.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub discord_client_id: Option<String>,
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub discord_client_secret: Option<String>,
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub discord_redirect_uri: Option<String>,
 }
 
 fn default_port() -> u16 {
@@ -225,6 +237,9 @@ impl Default for Config {
             trust_proxy_hops: 0,
             addons_repo: default_addons_repo(),
             code_runner_url: None,
+            discord_client_id: None,
+            discord_client_secret: None,
+            discord_redirect_uri: None,
         }
     }
 }

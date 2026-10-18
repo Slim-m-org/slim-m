@@ -63,6 +63,7 @@ mod interactions;
 mod invites;
 mod join_gate;
 pub mod link_preview;
+pub mod linked_accounts;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
 mod messages;
@@ -283,6 +284,7 @@ pub fn router(state: AppState) -> Router {
         .merge(user_notes::routes())
         .merge(gifs::routes())
         .merge(link_preview::routes())
+        .merge(linked_accounts::routes())
         .merge(attachments::routes())
         // Matched routes only, like the timing layer below; see `admin_audit`.
         .route_layer(axum::middleware::from_fn_with_state(

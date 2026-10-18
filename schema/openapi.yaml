@@ -1052,6 +1052,146 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /me/links:
+    get:
+      operationId: listMyLinkedAccounts
+      tags: [users]
+      summary: The accounts the caller has linked from elsewhere.
+      responses:
+        "200":
+          description: The caller's linked accounts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkedAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /me/links/discord/start:
+    post:
+      operationId: startDiscordLink
+      tags: [users]
+      summary: Start linking a Discord account.
+      description: >
+        Answers Discord's authorize URL for the client to open in a browser.
+        It carries a one-time state, valid for ten minutes, that ties the
+        callback to the caller. Only the `identify` scope is requested.
+        501 when the server has no Discord application configured.
+      responses:
+        "200":
+          description: Where to send the browser.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: Discord linking is not configured on this server.
+  /me/links/discord:
+    delete:
+      operationId: unlinkDiscord
+      tags: [users]
+      summary: Remove the caller's Discord link, if any.
+      responses:
+        "204":
+          description: No Discord link remains.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /links/discord/callback:
+    get:
+      operationId: discordLinkCallback
+      tags: [users]
+      summary: Where Discord sends the browser back after authorizing.
+      description: >
+        Unauthenticated: the one-time `state` from `/me/links/discord/start`
+        names the member. Spends the state, trades `code` for a token, reads
+        the Discord account and stores the link. Answers a short HTML page
+        for the browser tab in every case; an expired, replayed or unknown
+        state stores nothing.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Linked, or cancelled by the member.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: A missing, expired or used state, or no code.
+          content:
+            text/html:
+              schema:
+                type: string
+        "409":
+          description: That Discord account is linked to another member.
+          content:
+            text/html:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          description: Discord did not answer.
+          content:
+            text/html:
+              schema:
+                type: string
+  /users/{userId}/links:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listUserLinkedAccounts
+      tags: [users]
+      summary: The accounts a member has linked, for their profile.
+      responses:
+        "200":
+          description: That member's linked accounts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkedAccount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /users/{userId}/note:
     parameters:
       - name: userId
@@ -10338,6 +10478,20 @@ components:
             or rename set, and `params` any other ids in the route.
           additionalProperties: true
         created_at:
+          type: integer
+          format: int64
+    LinkedAccount:
+      type: object
+      required: [provider, username, display_name, linked_at]
+      properties:
+        provider:
+          type: string
+          enum: [discord]
+        username:
+          type: string
+        display_name:
+          type: [string, "null"]
+        linked_at:
           type: integer
           format: int64
     SpaceStorage:

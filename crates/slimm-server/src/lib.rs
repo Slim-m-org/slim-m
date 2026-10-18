@@ -149,7 +149,11 @@ pub async fn run() -> anyhow::Result<()> {
         code_runner,
     };
     sweeps::spawn_module_schedule_sweep(state.clone());
-    let app = cors.apply(http::router(state));
+    let mut router = http::router(state);
+    if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
+        router = router.layer(axum::Extension(discord));
+    }
+    let app = cors.apply(router);
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     let listener = TcpListener::bind(addr)
         .await
