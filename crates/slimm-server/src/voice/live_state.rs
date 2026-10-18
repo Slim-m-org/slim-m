@@ -149,7 +149,9 @@ impl RoomLiveState {
     /// outlives the room it was about.
     pub fn forget_room(&self, channel_id: ChannelId) {
         let mut state = lock(&self.state);
-        state.participants.retain(|(channel, _), _| *channel != channel_id);
+        state
+            .participants
+            .retain(|(channel, _), _| *channel != channel_id);
         state.ended.retain(|(channel, _), _| *channel != channel_id);
     }
 }
