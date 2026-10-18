@@ -7,10 +7,11 @@
 /// same seam `sign_in_error.dart` already took - a self-contained piece with no
 /// state of its own, driven entirely by what it is handed.
 ///
-/// The username and password rules are stated only while creating an account:
-/// they are what a newcomer needs before choosing, and to someone signing in
-/// with a password they already have they read as the app doubting it. The
-/// server still names the field when it rejects either.
+/// The password rule is stated only while creating an account, and the username
+/// rule only once a keystroke breaks it: the field drops a disallowed character
+/// or one past the limit, and saying why at that moment beats a line of fine
+/// print that is always there. The server still names the field when it
+/// rejects either.
 library;
 
 import 'package:flutter/material.dart';
@@ -68,21 +69,10 @@ class SignInCredentialFields extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LabeledField(
-            label: 'Username',
-            helper: creatingAccount ? usernameRule : null,
-            child: AppInput(
-              maxLength: InputLimits.username,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(usernameCharacters),
-              ],
-              controller: username,
-              errorText: errorFor(SignInErrorField.username),
-              autocorrect: false,
-              autofillHints: const [AutofillHints.username],
-              textInputAction: TextInputAction.next,
-              semanticLabel: 'Username',
-            ),
+          UsernameField(
+            controller: username,
+            explainRejections: creatingAccount,
+            serverError: errorFor(SignInErrorField.username),
           ),
           if (creatingAccount && askDisplayName) ...[
             const SizedBox(height: AppSpacing.s16),
@@ -129,5 +119,74 @@ class SignInCredentialFields extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// The username input, which says why a keystroke did nothing only when one did.
+class UsernameField extends StatefulWidget {
+  const UsernameField({
+    super.key,
+    required this.controller,
+    required this.explainRejections,
+    this.serverError,
+  });
+
+  final TextEditingController controller;
+
+  /// Only while creating an account; signing in never needs the rule.
+  final bool explainRejections;
+  final String? serverError;
+
+  @override
+  State<UsernameField> createState() => _UsernameFieldState();
+}
+
+class _UsernameFieldState extends State<UsernameField> {
+  bool _rejected = false;
+
+  late final _formatter = _ReportingFilter(
+    onEdit: (rejected) {
+      if (rejected == _rejected || !mounted) return;
+      setState(() => _rejected = rejected);
+    },
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final explain = widget.explainRejections && _rejected;
+    return LabeledField(
+      label: 'Username',
+      child: AppInput(
+        maxLength: InputLimits.username,
+        inputFormatters: [_formatter],
+        controller: widget.controller,
+        errorText: widget.serverError ?? (explain ? usernameRule : null),
+        autocorrect: false,
+        autofillHints: const [AutofillHints.username],
+        textInputAction: TextInputAction.next,
+        semanticLabel: 'Username',
+      ),
+    );
+  }
+}
+
+/// Drops what a username cannot hold, and reports whether this edit tried to.
+class _ReportingFilter extends TextInputFormatter {
+  _ReportingFilter({required this.onEdit});
+
+  final ValueChanged<bool> onEdit;
+  final _allow = FilteringTextInputFormatter.allow(usernameCharacters);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final filtered = _allow.formatEditUpdate(oldValue, newValue);
+    final tooLong = filtered.text.length > InputLimits.username;
+    if (newValue.text != oldValue.text) {
+      onEdit(filtered.text != newValue.text || tooLong);
+    }
+    return filtered;
   }
 }
