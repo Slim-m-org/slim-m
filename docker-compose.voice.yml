@@ -27,6 +27,14 @@
 # and one that does ask should fail loudly rather than come up with voice
 # silently broken.
 
+# The same hardening docker-compose.yml gives every service; YAML anchors do not cross files.
+x-hardened: &hardened
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
 services:
   server:
     environment:
@@ -46,6 +54,7 @@ services:
       - ./deploy/caddy-voice:/etc/caddy/conf.d:ro
 
   livekit:
+    <<: *hardened
     # Pinned to an exact release and its digest; check github.com/livekit/livekit/releases for newer patches.
     image: livekit/livekit-server:v1.10.1@sha256:698a13999b4b2285866a32903724884b1e10c03259526391d9b3a72d9b73bbb4
     restart: unless-stopped

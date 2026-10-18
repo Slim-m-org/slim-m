@@ -76,6 +76,7 @@ mod removals;
 mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
+mod login_throttle;
 mod safety;
 mod saved_messages;
 mod sessions;
@@ -138,6 +139,7 @@ pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
 pub use interactions::{Interaction, InteractionKind};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
+pub use login_throttle::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS};
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};
@@ -397,6 +399,9 @@ pub struct Store {
     /// that outlived the process. See that method's own doc for why a fresh,
     /// unseeded clock is the exact gap the seeding step closes.
     canvas_op_clock: Arc<canvas_op_clock::CanvasOpClock>,
+    /// Seals the secrets read back later (two-factor). A bare [`Store::new`] holds a throwaway
+    /// key, so a process that should keep them must call [`Store::with_data_key`].
+    data_key: Arc<crate::data_key::DataKey>,
 }
 
 impl Store {
@@ -404,7 +409,14 @@ impl Store {
         Self {
             pool,
             canvas_op_clock: Arc::default(),
+            data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
         }
+    }
+
+    /// The same store sealing secrets with `key`.
+    pub fn with_data_key(mut self, key: crate::data_key::DataKey) -> Self {
+        self.data_key = Arc::new(key);
+        self
     }
 
     /// Confirms the database answers a trivial query. Backs the liveness probe.

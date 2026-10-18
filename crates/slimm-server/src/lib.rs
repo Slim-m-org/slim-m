@@ -12,6 +12,7 @@ pub mod code_runner;
 pub mod components;
 pub mod config;
 pub mod cors;
+pub mod data_key;
 pub mod db;
 pub mod emoji;
 pub mod ephemeral;
@@ -111,7 +112,9 @@ pub async fn run() -> anyhow::Result<()> {
     let cors = cors::CorsPolicy::new(&config)?;
     let pool = db::connect(&config).await?;
 
-    let store = store::Store::new(pool);
+    let data_key = data_key::DataKey::load(config.data_key.as_deref(), &config.database_path)?;
+    let store = store::Store::new(pool).with_data_key(data_key);
+    store.seal_totp_secrets().await?;
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;
     sweeps::spawn_token_sweep(store.clone());

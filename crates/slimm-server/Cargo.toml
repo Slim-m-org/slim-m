@@ -37,6 +37,7 @@ totp-rs.workspace = true
 futures-util.workspace = true
 tokio-util.workspace = true
 crypto_box.workspace = true
+crypto_secretbox.workspace = true
 reqwest.workspace = true
 url.workspace = true
 ed25519-dalek.workspace = true

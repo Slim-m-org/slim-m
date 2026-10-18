@@ -60,6 +60,13 @@ On the common self-host shape the gain is also smaller than it looks: the key wo
 So it is deferred rather than rejected. It becomes worth doing when there is a real key-management story to hang it on - a key that is not in the same directory as the data, and a documented "you must keep this" path - and at that point it should cover more than this one column.
 Until then the honest statement is the one above: a database leak lets an attacker generate codes, and still does not give them a password.
 
+### Update, 2026-10-18: now encrypted
+
+The owner approved doing it, with a key that stays out of the database: `SLIMM_DATA_KEY`, or a 0600 `slimm-data.key` beside the database file, created on first start.
+Secrets are sealed with XSalsa20-Poly1305, each bound to its own row, and rows stored in the clear by earlier versions are sealed at the next start.
+The trade-off weighed above is accepted and documented: losing the key kills the stored factors, recovered by clearing them, and the key must be backed up apart from the database (docs/OPERATING.md, The data key).
+The file shares a directory with the data by default, so it defends against a copied database or replica, not against a host compromise; `SLIMM_DATA_KEY` in `.env` is the way to separate them further.
+
 ## Verification, the window, and replay
 
 A code is accepted within one thirty-second step either side of the current one, so at most ninety seconds.

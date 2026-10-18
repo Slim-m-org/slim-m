@@ -2,6 +2,7 @@
 //! Sending a sealed batch and acting on what the relay reports back.
 
 use std::collections::HashSet;
+use std::sync::atomic::Ordering;
 
 use super::Enabled;
 use super::envelope::SealedMessage;
@@ -18,6 +19,8 @@ pub(super) struct Triage<'a> {
     pub(super) delivered: HashSet<UserId>,
     /// Devices whose token the relay reports dead.
     pub(super) dead: Vec<&'a SealedMessage>,
+    /// How many results the relay refused as `forbidden`.
+    pub(super) forbidden: usize,
     /// How many results carried a status this server does not recognize.
     pub(super) unrecognized: usize,
 }
@@ -34,7 +37,8 @@ impl<'a> Triage<'a> {
                     triage.delivered.insert(message.user_id);
                 }
                 Some(RelayStatus::Unregistered) => triage.dead.push(message),
-                Some(RelayStatus::Forbidden | RelayStatus::Error | RelayStatus::NotAttempted) => {}
+                Some(RelayStatus::Forbidden) => triage.forbidden += 1,
+                Some(RelayStatus::Error | RelayStatus::NotAttempted) => {}
                 None => triage.unrecognized += 1,
             }
         }
@@ -64,6 +68,16 @@ pub(super) async fn send_and_prune(
     let triage = Triage::of(messages, &results);
     for message in &triage.dead {
         clear_dead(store, message).await;
+    }
+    if triage.forbidden > 0 {
+        enabled
+            .forbidden
+            .fetch_add(triage.forbidden as u64, Ordering::Relaxed);
+        tracing::warn!(
+            count = triage.forbidden,
+            what,
+            "push: relay refused devices as forbidden; this server's key is not allowed to deliver to them"
+        );
     }
     if triage.unrecognized > 0 {
         tracing::warn!(
@@ -120,12 +134,19 @@ mod tests {
 
     #[test]
     fn triage_sorts_every_relay_status_for_every_push_path() {
-        let messages = [sealed("a"), sealed("b"), sealed("c"), sealed("d")];
+        let messages = [
+            sealed("a"),
+            sealed("b"),
+            sealed("c"),
+            sealed("d"),
+            sealed("e"),
+        ];
         let results = [
             result("a", "delivered"),
             result("b", "unregistered"),
             result("c", "brand_new_status"),
             result("d", "error"),
+            result("e", "forbidden"),
             result("not-in-this-batch", "delivered"),
         ];
         let triage = Triage::of(&messages, &results);
@@ -133,5 +154,6 @@ mod tests {
         assert_eq!(triage.dead.len(), 1);
         assert_eq!(triage.dead[0].token, "b");
         assert_eq!(triage.unrecognized, 1);
+        assert_eq!(triage.forbidden, 1);
     }
 }

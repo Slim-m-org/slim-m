@@ -2526,6 +2526,7 @@ dependencies = [
  "base64",
  "criterion",
  "crypto_box",
+ "crypto_secretbox",
  "ed25519-dalek",
  "envy",
  "futures-util",

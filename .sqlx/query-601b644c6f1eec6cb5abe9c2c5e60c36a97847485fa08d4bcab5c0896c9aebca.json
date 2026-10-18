@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT failures, last_failure_at FROM login_throttle WHERE user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "failures",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_failure_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "601b644c6f1eec6cb5abe9c2c5e60c36a97847485fa08d4bcab5c0896c9aebca"
+}

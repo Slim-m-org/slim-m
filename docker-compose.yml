@@ -29,8 +29,17 @@
 # running `docker compose up -d`. See deploy/README.md for the full
 # walkthrough.
 
+# Shared container hardening: read-only root, no capabilities, no new privileges (deploy/README.md).
+x-hardened: &hardened
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
 services:
   server:
+    <<: *hardened
     # Set SLIMM_VERSION in .env to pin a release, and bump it on every upgrade:
     # a stale tag predates every security fix since. See deploy/README.md.
     image: ghcr.io/slim-m-org/slim-m-server:${SLIMM_VERSION:-latest}
@@ -44,6 +53,8 @@ services:
       # peer is trusted instead, which behind any proxy puts every
       # unauthenticated caller in one rate-limit bucket; deploy/README.md.
       SLIMM_TRUST_PROXY_HOPS: ${SLIMM_TRUST_PROXY_HOPS:-1}
+      # Empty means the key lives in /data/slimm-data.key; docs/OPERATING.md, The data key.
+      SLIMM_DATA_KEY: ${SLIMM_DATA_KEY:-}
       SLIMM_MAX_TOTAL_ATTACHMENT_BYTES: ${SLIMM_MAX_TOTAL_ATTACHMENT_BYTES:-}
       # Empty means no floor; the server reads an empty value as unset.
       SLIMM_MIN_CLIENT_VERSION: ${SLIMM_MIN_CLIENT_VERSION:-}
@@ -62,6 +73,9 @@ services:
       # empty var as Some(""), so the voice gate would light up on three blank
       # strings and the server would refuse to start. docker-compose.voice.yml
       # adds all three with `:?`; see deploy/README.md.
+    # The server writes only under /data (the volume below); /tmp is scratch.
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     volumes:
       # The whole directory is the volume (SLIMM_DATABASE_PATH defaults to
       # /data/slimm.db) so Litestream can see the database file and its WAL.
@@ -89,6 +103,13 @@ services:
           memory: 128M
 
   caddy:
+    <<: *hardened
+    # Binding 80 and 443 is the one capability Caddy keeps.
+    cap_add:
+      - NET_BIND_SERVICE
+    # Scratch for the trust-store install of Caddy's local CA; Let's Encrypt never needs it.
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     # Pinned to an exact release and its digest, so a repointed tag cannot
     # change what a fresh pull runs; check hub.docker.com/_/caddy/tags for newer patches.
     image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
@@ -110,13 +131,16 @@ services:
     healthcheck:
       # Caddy's local admin API, enabled by default and bound to localhost
       # inside the container - a reachable 2019 means Caddy has loaded a config.
-      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:2019/config/"]
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:2019/config/"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
 
   litestream:
+    <<: *hardened
+    # /data belongs to the server's user, and root without CAP_DAC_OVERRIDE cannot write there.
+    user: "65532:65532"
     # Held on 0.3.x deliberately: 0.5 replaced the replica format (WAL segments
     # became LTX), so moving is a migration. See deploy/README.md.
     image: litestream/litestream:0.3.14@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5
@@ -141,6 +165,10 @@ services:
       "s3://${LITESTREAM_S3_BUCKET}/${LITESTREAM_S3_PATH:-slimm}?endpoint=${LITESTREAM_S3_ENDPOINT}&region=${LITESTREAM_S3_REGION:-auto}"
 
   web:
+    <<: *hardened
+    # nginx keeps its pid and temp files here.
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     # Opt-in (COMPOSE_PROFILES=web); pinned by the same SLIMM_VERSION as the server, routed from your proxy: deploy/README.md.
     image: ghcr.io/slim-m-org/slim-m-web:${SLIMM_VERSION:-latest}
     profiles:

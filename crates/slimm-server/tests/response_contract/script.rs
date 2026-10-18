@@ -398,6 +398,7 @@ async fn push_calls(c: &mut Contract, root: &str, channel: &str, bob_id: &str) {
     )
     .await;
     channel_notification_override_calls(c, root, channel).await;
+    c.get("getDirectRoute", "/direct-route", root).await;
     quiet_hours_calls(c, root).await;
     notification_schedule_calls::notification_schedule_calls(c, root, channel, bob_id).await;
     c.bare("deregisterPush", "DELETE", "/push", root).await;

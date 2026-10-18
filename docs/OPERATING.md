@@ -20,6 +20,7 @@ To set one of those you need a compose override file that adds it to the `server
 | --- | --- | --- | --- |
 | `SLIMM_PORT` | `8080` | TCP port for HTTP and WebSocket. | no, the image sets 8080 |
 | `SLIMM_DATABASE_PATH` | `data/slimm.db` | The SQLite file. | no, the image sets `/data/slimm.db` |
+| `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | no |
 | `SLIMM_ATTACHMENTS_DIR` | `data/media` | Where attachment and avatar bytes live, beside the database. | no, the image sets `/data/media` |
 | `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | no |
 | `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES` | unset, no ceiling | Most bytes held in attachments and custom emoji together. Over it is a 507. Avatars are outside it. | yes, example sets 2 GiB |
@@ -28,7 +29,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy |
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |
-| `SLIMM_DIRECT_ADDRESSES` | unset | Comma-separated `host:port` where native clients on your own network reach the same TLS endpoint directly, for example `10.0.0.100:443`, so they skip Cloudflare or another proxy. Clients verify the certificate against the public hostname. Shown publicly in `/version`. | yes |
+| `SLIMM_DIRECT_ADDRESSES` | unset | Comma-separated `host:port` where native clients on your own network reach the same TLS endpoint directly, for example `10.0.0.100:443`, so they skip Cloudflare or another proxy. Clients verify the certificate against the public hostname, and only dial a private or loopback IP literal on the server's own port. Served to signed-in clients at `GET /direct-route`, never in the unauthenticated `/version`. | yes |
 | `SLIMM_LINK_PREVIEWS` | `false` | Unfurl pasted links into preview cards. Makes the server fetch member-supplied URLs behind an SSRF guard (decision 0019). | yes |
 | `SLIMM_GIF_PROVIDER` | unset | `tenor` or `klipy`. Set it with the key or neither. An unrecognised value stops startup. | yes |
 | `SLIMM_GIF_API_KEY` | unset | Your key for that provider. | yes |
@@ -78,7 +79,30 @@ The operator sets the deployment policy in Space settings, under Invites, Two-fa
 
 Five wrong codes in a row lock the factor for 15 minutes.
 A code works once, within 30 seconds either side of the current step.
-The secret is stored so the server can recompute codes, which means a copy of the database file lets an attacker generate codes for enrolled accounts, though not passwords (decision 0048 explains the trade).
+The secret has to be stored so the server can recompute codes, so it is encrypted with a key that does not live in the database (see below).
+A copy of the database file alone, a Litestream replica included, cannot generate codes for enrolled accounts.
+
+### The data key
+
+The key is read from `SLIMM_DATA_KEY` when that is set, otherwise from `slimm-data.key` next to the database file.
+The file is created the first time the server starts, with mode 0600, and holds 32 random bytes as base64.
+Secrets stored in the clear by an earlier version are encrypted the next time the server starts, with no action on your side.
+
+**Back the key up, and back it up apart from the database.**
+Litestream and `scripts/backup.py` carry the database, not this file, which is the point of keeping them separate.
+A database restored without its key cannot open the stored two-factor secrets, so those members cannot complete a two-factor sign-in.
+The server logs an error at start-up when that is the case.
+Recovery is the same as for a lost authenticator: an administrator or `slimm-server clear-totp <username>` clears the factor and the member enrols again.
+With the compose deployment the file lives in the `slimm_data` volume at `/data/slimm-data.key`; set `SLIMM_DATA_KEY` in `.env` instead if you would rather keep the key with your other secrets.
+Generate one with `openssl rand -base64 32`.
+
+## Signing in
+
+A wrong password counts against the account as well as against the caller's address, so a guesser who rotates addresses is still slowed.
+After 10 wrong passwords in a row each further one doubles a delay that starts at 15 seconds and never passes 15 minutes.
+While the delay runs, sign-in for that account answers 401 like any wrong password, even with the right one, and takes as long as one that was checked, so it does not reveal whether the account exists.
+A correct password clears the count, and so does 15 minutes without a wrong one.
+The delay is capped on purpose: somebody who knows a username can slow its owner down but cannot lock them out for good.
 
 ### When someone loses their authenticator
 
@@ -191,7 +215,7 @@ Litestream, if you enable it, streams only the database.
 `scripts/backup.py` takes a consistent snapshot of the database and mirrors the attachment and avatar files it references, with `--keep N` to prune old snapshots.
 `scripts/restore-drill.py` restores the newest snapshot to a scratch path, runs `PRAGMA integrity_check`, and checks every referenced file exists with a matching hash.
 It exits non-zero on any problem.
-Neither script backs up `.env`, which holds your LiveKit and Litestream secrets.
+Neither script backs up `.env`, which holds your LiveKit and Litestream secrets, or `slimm-data.key`, the key that opens the stored two-factor secrets (see [The data key](#the-data-key)).
 The commands, the container invocation and the sensitivity of a snapshot are in [deploy/README.md](../deploy/README.md#backups-optional).
 Take a backup immediately before upgrading, because migrations only go forward.
 

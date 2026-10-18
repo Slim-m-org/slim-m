@@ -147,7 +147,8 @@ Without the voice overlay it simply has no SFU, which is the expected answer rat
 Litestream is off by default because it needs a real S3-compatible bucket.
 To turn it on: fill in the `LITESTREAM_*` values in `.env`, uncomment `COMPOSE_PROFILES=litestream`, then re-run `docker compose up -d`.
 
-**Litestream replicates only the SQLite database file. Attachment and avatar bytes are not covered.**
+**Litestream replicates only the SQLite database file. Attachment and avatar bytes are not covered, and neither is `slimm-data.key`, the key that opens the stored two-factor secrets (docs/OPERATING.md, The data key).**
+Back that key up apart from the replica: a restore without it leaves two-factor members unable to sign in until an administrator clears their factor.
 They live on disk beside the database, at `SLIMM_ATTACHMENTS_DIR` (default `/data/media` inside the container, so the same `slimm_data` volume as the database), specifically because multi-megabyte blobs in the SQLite file would bloat what Litestream streams for no benefit.
 That means restoring from a Litestream replica brings back every message and its attachment references, but not the attachment files themselves; a client would render broken images and failed downloads for anything uploaded since the last time `/data/media` was backed up some other way.
 
@@ -576,6 +577,15 @@ The host currently unpacks a hand-built tarball into an nginx container through 
 3. Point the Traefik service at port 8080 instead of 80, since the image runs unprivileged. Keep the router rule as it is. It strips `/app` today and the image answers either way, so nothing about routing changes.
 4. `docker compose pull web && docker compose up -d web`, then open the app and check `curl -s https://<host>/app/version.json` names a build id.
 5. Delete the old unpacked bundle directory once the new container has served a day.
+
+## Container hardening
+
+Every service runs with a read-only root filesystem, all Linux capabilities dropped and `no-new-privileges`, set once in the `x-hardened` block at the top of `docker-compose.yml`.
+What must be written is a volume or a tmpfs: the server writes under `/data`, Caddy under `/data` and `/config`, and the server, Caddy and the web image get a small `/tmp`.
+Caddy keeps only `NET_BIND_SERVICE`.
+Litestream runs as uid 65532, the user the server image runs as, because the database files belong to that user and root without capabilities cannot write beside them.
+If you add a service or an overlay of your own, merge the same block in (`<<: *hardened`) and give it the volume or tmpfs it writes to.
+`docker inspect <container>` shows `ReadonlyRootfs` and `CapDrop` for each.
 
 ## Verifying the images
 
