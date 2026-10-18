@@ -25,6 +25,7 @@ mod analytics;
 mod apps;
 mod attachment_ids;
 mod attachment_limit;
+mod attachment_preview;
 mod attachment_range;
 mod attachment_uploads;
 mod attachments;

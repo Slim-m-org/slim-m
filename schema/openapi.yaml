@@ -4097,7 +4097,26 @@ paths:
         `Content-Range`; an unsatisfiable range answers 416; a multi-range or
         malformed value is ignored and the whole body is returned. This is what
         lets a large download resume and a video or audio file seek.
+
+
+        `w` asks for a preview of a still JPEG, PNG or WebP instead of the
+        original: the longest side is rounded up to 320, 640 or 1280 pixels
+        (anything above 1280 gets 1280), the EXIF orientation is applied and
+        all metadata is dropped. The preview is a JPEG, or a lossless WebP for
+        a picture with transparency or flat graphics, and is generated once
+        and stored next to the original. An animated picture, any other type,
+        a picture too large to decode, one that is no smaller as a preview,
+        and one that fails to decode are answered with the original bytes
+        and the original's content type, so a caller must read the response
+        `Content-Type` rather than assume the preview's. A value that is not a
+        non-negative integer answers 400.
       parameters:
+        - name: w
+          in: query
+          required: false
+          description: Preview width in pixels; see the operation description.
+          schema:
+            type: integer
         - name: Range
           in: header
           required: false
