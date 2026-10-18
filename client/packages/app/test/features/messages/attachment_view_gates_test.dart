@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_reveal.dart';
@@ -92,6 +93,10 @@ void main() {
     var fetched = false;
     final container = _container([
       attachmentBytesProvider(_png.id).overrideWith((ref) async {
+        fetched = true;
+        return Uint8List.fromList(const [1, 2, 3, 4]);
+      }),
+      attachmentPreviewBytesProvider.overrideWith((ref, key) async {
         fetched = true;
         return Uint8List.fromList(const [1, 2, 3, 4]);
       }),

@@ -16,8 +16,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
+import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_page.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// A 64x64 solid PNG. Real bytes, so `Image.memory` decodes them, and big
@@ -54,7 +56,10 @@ const _svg = api.Attachment(
 
 Widget _app(api.Attachment attachment, List<Override> overrides) {
   return ProviderScope(
-    overrides: overrides,
+    overrides: [
+      attachmentPreviewBytesProvider.overrideWith((ref, key) async => _png),
+      ...overrides,
+    ],
     child: MaterialApp(
       theme: buildTheme(Brightness.dark, AppTokens.dark),
       home: Scaffold(
@@ -131,6 +136,36 @@ double _scale(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets(
+    'the viewer opens on the inline preview and swaps to the original '
+    'when it arrives',
+    (tester) async {
+      final original = Completer<Uint8List>();
+      final full = Uint8List.fromList([..._png, 0]);
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          _app(_image, [
+            attachmentBytesProvider.overrideWith((ref, id) => original.future),
+          ]),
+        );
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Image).first);
+      await tester.pumpAndSettle();
+
+      FullscreenImagePage page() =>
+          tester.widget<FullscreenImagePage>(find.byType(FullscreenImagePage));
+      expect(page().bytes, _png, reason: 'no spinner while the original loads');
+
+      original.complete(full);
+      await tester.pumpAndSettle();
+
+      expect(page().bytes, full);
+    },
+  );
+
   testWidgets('tapping an image opens it fullscreen and closing returns', (
     tester,
   ) async {
@@ -252,6 +287,9 @@ void main() {
     await tester.pumpWidget(
       _app(_image, [
         attachmentBytesProvider.overrideWith((ref, id) => pending.future),
+        attachmentPreviewBytesProvider.overrideWith(
+          (ref, key) => pending.future,
+        ),
       ]),
     );
     await tester.pump();
@@ -268,7 +306,7 @@ void main() {
     var attempts = 0;
     await tester.pumpWidget(
       _app(_image, [
-        attachmentBytesProvider.overrideWith((ref, id) {
+        attachmentPreviewBytesProvider.overrideWith((ref, key) {
           attempts++;
           return Future<Uint8List>.error(StateError('gone'));
         }),
@@ -291,8 +329,8 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         _app(_image, [
-          attachmentBytesProvider.overrideWith(
-            (ref, id) async => Uint8List.fromList(const [1, 2, 3, 4]),
+          attachmentPreviewBytesProvider.overrideWith(
+            (ref, key) async => Uint8List.fromList(const [1, 2, 3, 4]),
           ),
         ]),
       );

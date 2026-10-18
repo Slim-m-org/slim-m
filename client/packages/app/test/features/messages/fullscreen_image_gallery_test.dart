@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_page.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
@@ -75,7 +76,10 @@ Widget _row(
   // The production rule, not a copy: filtering here would prove nothing.
   final images = openableImages(attachments);
   return ProviderScope(
-    overrides: overrides,
+    overrides: [
+      attachmentPreviewBytesProvider.overrideWith((ref, key) async => _png),
+      ...overrides,
+    ],
     child: MaterialApp(
       theme: buildTheme(Brightness.dark, AppTokens.dark),
       home: Scaffold(

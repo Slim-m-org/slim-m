@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The inline preview asks the server for a bounded size, keeps what comes
+/// back on disk, and reads it from there on the next view or launch.
+library;
+
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
+import 'package:slimm_app/src/providers/disk_byte_cache.dart';
+import 'package:slimm_app/src/providers/providers.dart';
+
+const _tokens = api.TokenPair(
+  userId: 'me',
+  accessToken: 'access',
+  refreshToken: 'refresh',
+  accessExpiresAt: 0,
+);
+
+class _MemoryCache implements ByteCache {
+  final entries = <String, Uint8List>{};
+
+  @override
+  Future<Uint8List?> read(String key) async => entries[key];
+
+  @override
+  Future<void> write(String key, Uint8List bytes) async => entries[key] = bytes;
+}
+
+ProviderContainer _container(ByteCache cache, List<Uri> requests) {
+  final container = ProviderContainer(
+    overrides: [
+      sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+      attachmentPreviewCacheProvider.overrideWithValue(cache),
+      apiProvider.overrideWith(
+        (ref) => api.SlimmApi(
+          baseUrl: Uri.parse('http://localhost:8080'),
+          session: ref.watch(sessionProvider),
+          httpClient: MockClient((request) async {
+            requests.add(request.url);
+            return http.Response.bytes([1, 2, 3], 200);
+          }),
+        ),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+Future<Uint8List> _read(ProviderContainer c, String id, int bucket) =>
+    c.read(attachmentPreviewBytesProvider((id: id, bucket: bucket)).future);
+
+void main() {
+  test('a width rounds up to the server bucket that covers it', () {
+    expect(attachmentPreviewBucket(1), 320);
+    expect(attachmentPreviewBucket(320), 320);
+    expect(attachmentPreviewBucket(321), 640);
+    expect(attachmentPreviewBucket(1281), 1280);
+  });
+
+  test('a miss asks the server for the bucket and stores the answer', () async {
+    final requests = <Uri>[];
+    final cache = _MemoryCache();
+
+    final bytes = await _read(_container(cache, requests), 'img', 640);
+
+    expect(bytes, [1, 2, 3]);
+    expect(requests.single.path, '/attachments/img');
+    expect(requests.single.queryParameters, {'w': '640'});
+    await Future<void>.delayed(Duration.zero);
+    expect(cache.entries['img-640'], [1, 2, 3]);
+  });
+
+  test('a second launch over the same cache makes no request', () async {
+    final cache = _MemoryCache();
+    final first = <Uri>[];
+    await _read(_container(cache, first), 'img', 640);
+    await Future<void>.delayed(Duration.zero);
+
+    final second = <Uri>[];
+    final bytes = await _read(_container(cache, second), 'img', 640);
+
+    expect(first, hasLength(1));
+    expect(second, isEmpty);
+    expect(bytes, [1, 2, 3]);
+  });
+
+  test('a different bucket is a different entry', () async {
+    final cache = _MemoryCache();
+    final requests = <Uri>[];
+    final container = _container(cache, requests);
+
+    await _read(container, 'img', 320);
+    await _read(container, 'img', 1280);
+
+    expect(requests.map((u) => u.queryParameters['w']), ['320', '1280']);
+  });
+
+  group('DiskByteCache', () {
+    late Directory dir;
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('byte-cache-'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    int sizeOnDisk() => dir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .fold(0, (sum, f) => sum + f.lengthSync());
+
+    test(
+      'stays under its ceiling and drops the stalest entries first',
+      () async {
+        final cache = DiskByteCache(
+          dirName: 'c',
+          ceilingBytes: 250,
+          directory: dir,
+        );
+
+        for (var i = 0; i < 6; i++) {
+          await cache.write('k$i', Uint8List(100));
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+
+        expect(sizeOnDisk(), lessThanOrEqualTo(250));
+        expect(await cache.read('k5'), isNotNull);
+        expect(await cache.read('k0'), isNull);
+      },
+    );
+
+    test('a batched trim overshoots by at most the batch', () async {
+      final cache = DiskByteCache(
+        dirName: 'c',
+        ceilingBytes: 300,
+        trimEveryWrites: 4,
+        directory: dir,
+      );
+
+      for (var i = 0; i < 12; i++) {
+        await cache.write('k$i', Uint8List(100));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+
+      expect(sizeOnDisk(), lessThanOrEqualTo(300 + 3 * 100));
+    });
+  });
+}

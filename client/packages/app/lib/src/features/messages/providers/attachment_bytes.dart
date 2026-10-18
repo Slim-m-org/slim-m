@@ -2,9 +2,9 @@
 /// Fetches and caches one attachment's raw bytes.
 ///
 /// In-memory only, per session: an attachment is content-addressed and
-/// immutable once uploaded, so there is nothing to invalidate, but caching
-/// it to disk on top of the server's own storage was not worth the extra
-/// surface for what a self-hosted friend group's message history holds.
+/// immutable once uploaded, so there is nothing to invalidate. The inline
+/// previews are what persist on disk (`attachment_preview_bytes.dart`); this
+/// is the original, fetched when an image is opened, copied or saved.
 library;
 
 import 'dart:typed_data';
@@ -49,6 +49,33 @@ Duration _waitBefore(Object error, Duration backoff) {
   return asked > _longestRateLimitWait ? _longestRateLimitWait : asked;
 }
 
+/// Fetches with [attachmentRetryDelaysProvider]'s waits between attempts on a
+/// transient failure; [isDisposed] stops the waiting once nobody is watching.
+Future<Uint8List> fetchAttachmentRetrying(
+  Ref ref,
+  Future<FetchedBytes> Function() fetch, {
+  required bool Function() isDisposed,
+  required void Function() onGiveUp,
+}) async {
+  final delays = ref.read(attachmentRetryDelaysProvider);
+  for (var attempt = 0; ; attempt++) {
+    try {
+      return (await fetch()).bytes;
+    } catch (error) {
+      final retry =
+          attempt < delays.length &&
+          isTransientAttachmentFailure(error) &&
+          !isDisposed();
+      if (!retry) {
+        onGiveUp();
+        rethrow;
+      }
+      await Future<void>.delayed(_waitBefore(error, delays[attempt]));
+      if (isDisposed()) rethrow;
+    }
+  }
+}
+
 final attachmentBytesProvider = FutureProvider.autoDispose
     .family<Uint8List, String>((ref, attachmentId) async {
       // Far fewer than the avatars': an attachment can be megabytes.
@@ -56,23 +83,11 @@ final attachmentBytesProvider = FutureProvider.autoDispose
       var disposed = false;
       ref.onDispose(() => disposed = true);
       final api = ref.watch(apiProvider);
-      final delays = ref.read(attachmentRetryDelaysProvider);
-      for (var attempt = 0; ; attempt++) {
-        try {
-          final fetched = await api.fetchAttachment(attachmentId);
-          return fetched.bytes;
-        } catch (error) {
-          final retry =
-              attempt < delays.length &&
-              isTransientAttachmentFailure(error) &&
-              !disposed;
-          if (!retry) {
-            // A cached failure would replay for every later view of this image.
-            _recent.release(attachmentId);
-            rethrow;
-          }
-          await Future<void>.delayed(_waitBefore(error, delays[attempt]));
-          if (disposed) rethrow;
-        }
-      }
+      return fetchAttachmentRetrying(
+        ref,
+        () => api.fetchAttachment(attachmentId),
+        isDisposed: () => disposed,
+        // A cached failure would replay for every later view of this image.
+        onGiveUp: () => _recent.release(attachmentId),
+      );
     });

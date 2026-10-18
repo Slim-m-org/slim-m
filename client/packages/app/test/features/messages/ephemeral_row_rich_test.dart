@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/ephemeral_messages.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -78,6 +79,9 @@ Future<List<http.Request>> _pump(
       attachmentBytesProvider(
         _file.id,
       ).overrideWith((ref) async => Uint8List.fromList(const [1, 2, 3])),
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => Uint8List.fromList(const [1, 2, 3]),
+      ),
       apiProvider.overrideWith((ref) {
         final built = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),

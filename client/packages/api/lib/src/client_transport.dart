@@ -131,8 +131,12 @@ extension SlimmApiTransport on SlimmApi {
   /// rather than JSON (an attachment or an avatar fetch): the same one-shot
   /// refresh-and-retry and error mapping, without a JSON decode that would
   /// only fail on a body that was never JSON to begin with.
-  Future<FetchedBytes> _fetchBytes(String path, {bool isRetry = false}) async {
-    final request = http.Request('GET', _requestUri(path, null));
+  Future<FetchedBytes> _fetchBytes(
+    String path, {
+    Map<String, String>? query,
+    bool isRetry = false,
+  }) async {
+    final request = http.Request('GET', _requestUri(path, query));
     final token = session.tokens?.accessToken;
     if (token == null) {
       throw const UnauthorizedException('not signed in');
@@ -147,7 +151,7 @@ extension SlimmApiTransport on SlimmApi {
 
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await refresh();
-      return _fetchBytes(path, isRetry: true);
+      return _fetchBytes(path, query: query, isRetry: true);
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

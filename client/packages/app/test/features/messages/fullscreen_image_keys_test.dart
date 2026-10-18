@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -44,6 +45,7 @@ Future<FocusNode> _openViewer(
     ProviderScope(
       overrides: [
         attachmentBytesProvider.overrideWith((ref, id) async => _png),
+        attachmentPreviewBytesProvider.overrideWith((ref, key) async => _png),
       ],
       child: MediaQuery(
         data: MediaQueryData(disableAnimations: reduceMotion),

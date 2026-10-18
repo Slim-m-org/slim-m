@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/messages/providers/media_preferences.dart';
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
@@ -166,7 +166,7 @@ void main() {
         ),
         overrides: [
           ..._carrying('p', const [_photo]),
-          attachmentBytesProvider(_photo.id).overrideWith((ref) async {
+          attachmentPreviewBytesProvider.overrideWith((ref, key) async {
             fetched = true;
             return Uint8List.fromList(const [1, 2, 3, 4]);
           }),
@@ -221,7 +221,7 @@ void main() {
             (ref) => SharedPreferences.getInstance(),
           ),
           ..._carrying('p', const [_photo]),
-          attachmentBytesProvider(_photo.id).overrideWith((ref) async {
+          attachmentPreviewBytesProvider.overrideWith((ref, key) async {
             fetched = true;
             return Uint8List.fromList(const [1, 2, 3, 4]);
           }),
