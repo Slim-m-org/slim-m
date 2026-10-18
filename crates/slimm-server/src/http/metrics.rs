@@ -44,6 +44,7 @@ async fn metrics(
     write_route_latency(&mut body, &route_timings);
     write_pool(&mut body, &state);
     write_connections(&mut body, &state);
+    write_push_relay(&mut body, &state);
     write_memory_admission(&mut body, &state);
     write_voice(&mut body, &state).await;
 
@@ -158,6 +159,19 @@ fn write_requests(out: &mut String, state: &AppState) {
             count.refused
         ));
     }
+}
+
+/// Messages the push relay refused as `forbidden`: a nonzero count means a device is not
+/// receiving this server's pushes, so the operator should look at the relay.
+fn write_push_relay(out: &mut String, state: &AppState) {
+    out.push_str(
+        "# HELP slimm_push_relay_forbidden_total Push messages the relay refused as forbidden since process start.\n",
+    );
+    out.push_str("# TYPE slimm_push_relay_forbidden_total counter\n");
+    out.push_str(&format!(
+        "slimm_push_relay_forbidden_total {}\n",
+        state.push.relay_forbidden_total()
+    ));
 }
 
 fn write_connections(out: &mut String, state: &AppState) {

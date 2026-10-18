@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT locked_until FROM login_throttle WHERE user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "locked_until",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8c88c0c584232a8985d17da442744be1ab17f34eda1c075b496db5739be27af3"
+}

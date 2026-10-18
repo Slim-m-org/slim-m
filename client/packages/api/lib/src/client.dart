@@ -24,6 +24,7 @@ part 'client_bot_ui.dart';
 part 'client_watch_session.dart';
 part 'client_channel_admin.dart';
 part 'client_canvas.dart';
+part 'client_direct_route.dart';
 part 'client_dms.dart';
 part 'client_dock.dart';
 part 'client_emoji.dart';
@@ -243,7 +244,6 @@ class SlimmApi {
   Future<Version> version() async {
     final json = await _send('GET', '/version', authenticated: false);
     final version = Version.fromJson(json as Map<String, dynamic>);
-    _route?.advertise(version.directAddresses);
     return version;
   }
 

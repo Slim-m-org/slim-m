@@ -78,7 +78,7 @@ class IoDirectRoute implements DirectRoute {
 
   @override
   void advertise(List<String> addresses) {
-    final parsed = parseDirectAddresses(addresses);
+    final parsed = parseDirectAddresses(addresses, publicPort: _base.port);
     if (_same(parsed, _addresses)) return;
     _addresses = parsed;
     _next = 0;

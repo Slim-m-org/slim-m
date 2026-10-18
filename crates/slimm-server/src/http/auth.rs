@@ -286,8 +286,13 @@ async fn login(
     }
 
     let credentials = state.store.find_credentials(&req.username).await?;
+    // A throttled account still runs the decoy and answers like a wrong password.
+    let throttled = match &credentials {
+        Some((user_id, _)) => state.store.login_throttled(*user_id).await?,
+        None => false,
+    };
     let verified = match &credentials {
-        Some((_, hash)) => {
+        Some((_, hash)) if !throttled => {
             state
                 .auth
                 .verify_password(req.password, hash.clone())
@@ -295,7 +300,7 @@ async fn login(
         }
         // Spend a comparable amount of time so a missing account is not
         // distinguishable from a wrong password by response latency.
-        None => {
+        _ => {
             state.auth.verify_decoy().await?;
             false
         }
@@ -304,9 +309,14 @@ async fn login(
     let Some((user_id, _)) = credentials else {
         return Err(ApiError::Unauthorized);
     };
-    if !verified {
+    if throttled {
         return Err(ApiError::Unauthorized);
     }
+    if !verified {
+        state.store.record_login_failure(user_id).await?;
+        return Err(ApiError::Unauthorized);
+    }
+    state.store.clear_login_throttle(user_id).await?;
 
     if state.store.totp_required_at_sign_in(user_id).await? {
         let challenge = state

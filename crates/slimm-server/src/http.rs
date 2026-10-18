@@ -71,6 +71,7 @@ use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,
     messages_bulk, messages_bulk_window,
 };
+mod direct_route;
 mod metrics;
 mod module_caller;
 mod module_commands;
@@ -227,6 +228,7 @@ pub fn router(state: AppState) -> Router {
         .merge(channels::routes())
         .merge(channel_order::routes())
         .merge(channel_permissions::routes())
+        .merge(direct_route::routes())
         .merge(dock::routes())
         .merge(emoji::routes())
         .merge(invites::routes())

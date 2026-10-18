@@ -54,6 +54,7 @@ mod sealing;
 mod security;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::config::Config;
 use crate::ids::{CallRingId, ChannelId, MessageId, Seq, UserId};
@@ -84,6 +85,9 @@ struct Enabled {
     http: reqwest::Client,
     send_url: String,
     key: String,
+    /// Messages the relay refused as `forbidden` since start, i.e. a device it will not
+    /// deliver to for this server's key.
+    forbidden: AtomicU64,
 }
 
 impl PushSender {
@@ -121,6 +125,7 @@ impl PushSender {
                     http,
                     send_url: format!("{}/v1/send", url.trim_end_matches('/')),
                     key: key.clone(),
+                    forbidden: AtomicU64::new(0),
                 }))
             }
             _ => {
@@ -144,6 +149,14 @@ impl PushSender {
             inner: None,
             debounce: Arc::new(Debounce::new(DEFAULT_DEBOUNCE_WINDOW_MS)),
         }
+    }
+
+    /// How many messages the relay has refused as `forbidden` since start; always zero for a
+    /// disabled sender.
+    pub fn relay_forbidden_total(&self) -> u64 {
+        self.inner
+            .as_ref()
+            .map_or(0, |enabled| enabled.forbidden.load(Ordering::Relaxed))
     }
 
     /// Whether this sender will actually reach a relay.

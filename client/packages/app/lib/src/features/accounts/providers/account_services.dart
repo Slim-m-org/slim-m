@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/desktop_message_notifier.dart';
+import '../../../providers/direct_route_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
 import '../../../providers/retention_sweep.dart';
@@ -26,6 +27,7 @@ import '../../../providers/admin_providers.dart';
 void startAccountServices(ProviderContainer container) {
   container.read(syncControllerProvider);
   container.read(pushControllerProvider);
+  container.read(directRouteProvider);
   container.read(desktopMessageNotifierProvider);
   container.listen(blocksProvider, (_, _) {});
   container.listen(channelNotificationOverridesProvider, (_, _) {});
