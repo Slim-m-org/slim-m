@@ -6,6 +6,7 @@
 
 mod capabilities;
 mod compiled;
+mod gate;
 mod host;
 mod kv;
 mod limits;
@@ -13,10 +14,14 @@ mod net;
 mod post;
 mod sliced;
 
+#[doc(hidden)]
+pub use crate::net_guard::treat_loopback_as_lan_for_tests;
 pub use capabilities::CapabilitySurface;
 pub use host::{ModuleHost, RunError};
 pub use kv::{InMemoryKv, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES};
-pub use limits::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS, RunLimits};
+pub use limits::{
+    MAX_FETCH_MS, MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS, NET_FETCH_WALL_FLOOR_MS, RunLimits,
+};
 pub use net::{
     FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_RESPONSE_BODY_BYTES, host_allowed,
 };

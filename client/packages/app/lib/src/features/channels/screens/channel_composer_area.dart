@@ -125,6 +125,8 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
       channelId: channelId,
       channelName: widget.channelName,
       onSend: widget.onSend,
+      replyToId: widget.replyingTo?.id,
+      onCommandPosted: widget.onCancelReply,
     );
     return Column(
       mainAxisSize: MainAxisSize.min,

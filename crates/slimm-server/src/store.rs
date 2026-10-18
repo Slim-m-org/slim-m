@@ -55,7 +55,7 @@ use messages::{
 mod moderation_audit;
 mod moderation_history;
 mod modules;
-use modules::{module_kv, module_permissions};
+use modules::{module_kv, module_permissions, module_stats};
 mod nicknames;
 mod notification_schedule;
 mod notifications;
@@ -152,6 +152,7 @@ pub use module_kv::KvSetError;
 pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
 };
+pub use module_stats::{ModuleRunStat, RunResult, StorageUsage};
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
     ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits, ModuleSchedule,

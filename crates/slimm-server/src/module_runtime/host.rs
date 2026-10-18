@@ -13,7 +13,8 @@ use wasmi::{
 };
 
 use super::capabilities::CapabilitySurface;
-use super::compiled::{compiled_module, shared_engine};
+use super::compiled::{cached_module, compiled_module, shared_engine};
+use super::gate;
 use super::limits::{MAX_RESPONSE_BYTES, RunLimits, store_limits};
 use super::sliced::{FuelBudget, call_sliced};
 use crate::media::to_hex;
@@ -42,6 +43,8 @@ pub enum RunError {
     ResourceLimited(String),
     /// The wall-clock cap elapsed before `run` returned.
     Timeout,
+    /// Too many modules were already running to take this one in time.
+    Busy,
 }
 
 impl fmt::Display for RunError {
@@ -55,6 +58,7 @@ impl fmt::Display for RunError {
             RunError::Trap(detail) => write!(f, "module trapped: {detail}"),
             RunError::ResourceLimited(detail) => write!(f, "module exceeded its limits: {detail}"),
             RunError::Timeout => write!(f, "module timed out"),
+            RunError::Busy => write!(f, "the module host is busy; try again in a moment"),
         }
     }
 }
@@ -103,18 +107,45 @@ impl ModuleHost {
         input: Vec<u8>,
         surface: CapabilitySurface,
     ) -> Result<Vec<u8>, RunError> {
-        let digest = to_hex(&Sha256::digest(&wasm));
-        if digest != expected_sha256 {
-            return Err(RunError::HashMismatch);
-        }
+        Self::run_loading(&expected_sha256, (limits, input, surface), || async {
+            Ok(wasm)
+        })
+        .await
+    }
 
-        // The wall cap is the module's own run time: compiling it is the host's cost, paid once.
-        let module = tokio::task::spawn_blocking(move || compiled_module(&digest, &wasm))
-            .await
-            .map_err(|_| RunError::Trap("module compile did not complete".to_owned()))??;
+    /// As [`run_with_capabilities`](Self::run_with_capabilities), but the
+    /// artifact is read through `load` only when `sha256` has not been
+    /// verified and compiled before, so a repeated run of an unchanged
+    /// module never touches its stored bytes.
+    pub async fn run_loading<F, Fut>(
+        sha256: &str,
+        (limits, input, surface): (RunLimits, Vec<u8>, CapabilitySurface),
+        load: F,
+    ) -> Result<Vec<u8>, RunError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<Vec<u8>, RunError>>,
+    {
+        let permit = gate::shared().acquire().await?;
+        let module = match cached_module(sha256) {
+            Some(module) => module,
+            None => {
+                let wasm = load().await?;
+                let digest = to_hex(&Sha256::digest(&wasm));
+                if digest != sha256 {
+                    return Err(RunError::HashMismatch);
+                }
+                // The wall cap is the module's own run time: compiling it is the host's cost, paid once.
+                tokio::task::spawn_blocking(move || compiled_module(&digest, &wasm))
+                    .await
+                    .map_err(|_| RunError::Trap("module compile did not complete".to_owned()))??
+            }
+        };
         let wall = limits.wall;
         let deadline = Instant::now() + wall;
+        // The slot is held until the blocking thread ends, not until the caller gives up.
         let task = tokio::task::spawn_blocking(move || {
+            let _slot = permit;
             run_sync(&module, limits, &input, (surface, deadline))
         });
         match tokio::time::timeout(wall, task).await {
@@ -263,7 +294,11 @@ fn host_call(mut caller: Caller<'_, HostState>, req_ptr: i32, req_len: i32) -> i
     };
 
     // The borrow of `caller` ends when `dispatch` returns its owned bytes, so the alloc/write below can take `caller` mutably.
-    let response = caller.data_mut().surface.dispatch(&request);
+    let deadline = caller.data().deadline;
+    let response = caller
+        .data_mut()
+        .surface
+        .dispatch_before(&request, Some(deadline));
 
     let Some(Extern::Func(alloc)) = caller.get_export("alloc") else {
         return 0;

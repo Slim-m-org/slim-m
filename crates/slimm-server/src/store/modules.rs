@@ -20,6 +20,7 @@ pub(super) mod module_artifacts;
 pub(super) mod module_kv;
 pub(super) mod module_permissions;
 pub(super) mod module_schedule;
+pub(super) mod module_stats;
 
 /// One installed module, as recorded at its last install.
 #[derive(Debug, Clone)]

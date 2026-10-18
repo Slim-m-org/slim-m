@@ -109,6 +109,7 @@ mod space_banner;
 mod space_icon;
 mod still_picture;
 mod storage;
+mod surface_state;
 mod sync;
 mod sync_ops;
 mod threads;

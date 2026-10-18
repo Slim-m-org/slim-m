@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The real dialler behind a module's `net.fetch`: reqwest with the shared
 //! address guard (decision 0019), no redirects, and a capped body. Public
-//! addresses only, unless the admin gave the separate local network approval.
+//! addresses only, unless the admin gave the separate local network approval,
+//! which lifts only the private LAN ranges (see [`crate::net_guard`]).
 
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -10,66 +11,119 @@ use reqwest::header::{CONTENT_TYPE, HeaderName, HeaderValue, LOCATION};
 use tokio::runtime::Handle;
 
 use crate::module_runtime::{
-    FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_RESPONSE_BODY_BYTES,
+    FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_FETCH_MS, MAX_RESPONSE_BODY_BYTES,
 };
-use crate::net_guard::{GuardResolver, is_blocked};
+use crate::net_guard::{
+    GuardResolver, LanGuardResolver, OwnAddresses, allowed_with_local_approval, is_blocked,
+};
 
 /// A run's wall clock is at most 10 s; one request may not take most of it.
-const FETCH_TIMEOUT: Duration = Duration::from_secs(5);
+const FETCH_TIMEOUT: Duration = Duration::from_millis(MAX_FETCH_MS);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
-const LOCAL_REFUSED: &str = "local network addresses need the admin's local network approval";
+const TIMED_OUT: &str = "net.fetch timed out";
+const LOCAL_REFUSED: &str = "only public addresses and private network devices can be reached, and private ones need the admin's local network approval";
+/// What a run must keep in hand after a fetch to answer and return.
+const RUN_HEADROOM: Duration = Duration::from_millis(150);
+
+/// Which addresses a fetcher may dial.
+#[derive(Clone, Copy)]
+enum Policy {
+    Public,
+    /// Public, plus private LAN ranges: the admin's local network approval.
+    Lan,
+    /// Anything at all, so a test can reach the loopback listener it binds.
+    #[cfg(test)]
+    Anything,
+}
 
 pub(super) struct ReqwestFetcher {
     handle: Handle,
-    allow_local: bool,
+    policy: Policy,
 }
 
 impl ReqwestFetcher {
     pub(super) fn new(handle: Handle, allow_local: bool) -> Self {
+        let policy = if allow_local {
+            Policy::Lan
+        } else {
+            Policy::Public
+        };
+        Self { handle, policy }
+    }
+
+    #[cfg(test)]
+    fn unguarded(handle: Handle) -> Self {
         Self {
             handle,
-            allow_local,
+            policy: Policy::Anything,
         }
     }
 }
 
 /// One client per address policy, shared so connections and TLS setup are reused.
-fn client(allow_local: bool) -> &'static reqwest::Client {
+fn client(policy: Policy) -> &'static reqwest::Client {
     static PUBLIC: OnceLock<reqwest::Client> = OnceLock::new();
-    static LOCAL: OnceLock<reqwest::Client> = OnceLock::new();
-    let cell = if allow_local { &LOCAL } else { &PUBLIC };
-    cell.get_or_init(|| {
+    static LAN: OnceLock<reqwest::Client> = OnceLock::new();
+    #[cfg(test)]
+    static ANYTHING: OnceLock<reqwest::Client> = OnceLock::new();
+    let base = || {
         reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             // A proxy would do the DNS lookup the guard exists to check.
             .no_proxy()
-            .timeout(FETCH_TIMEOUT)
             .connect_timeout(CONNECT_TIMEOUT)
-            .dns_resolver(Arc::new(GuardResolver {
-                allow_private: allow_local,
-            }))
             .user_agent(concat!("slim-m-module/", env!("CARGO_PKG_VERSION")))
+    };
+    let build = |builder: reqwest::ClientBuilder| {
+        builder
             .build()
             .expect("a static reqwest client config builds")
-    })
+    };
+    match policy {
+        Policy::Public => PUBLIC.get_or_init(|| {
+            build(base().dns_resolver(Arc::new(GuardResolver {
+                allow_private: false,
+            })))
+        }),
+        Policy::Lan => LAN.get_or_init(|| build(base().dns_resolver(Arc::new(LanGuardResolver)))),
+        #[cfg(test)]
+        Policy::Anything => ANYTHING.get_or_init(|| {
+            build(base().dns_resolver(Arc::new(GuardResolver {
+                allow_private: true,
+            })))
+        }),
+    }
 }
 
 impl HttpFetcher for ReqwestFetcher {
-    fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, FetchRefused> {
-        self.handle.block_on(fetch(self.allow_local, request))
+    fn fetch(
+        &self,
+        request: FetchRequest,
+        remaining: Duration,
+    ) -> Result<FetchResponse, FetchRefused> {
+        let Some(budget) = remaining.checked_sub(RUN_HEADROOM) else {
+            return Err(FetchRefused(TIMED_OUT.into()));
+        };
+        let budget = budget.min(FETCH_TIMEOUT);
+        self.handle.block_on(fetch(self.policy, request, budget))
     }
 }
 
-async fn fetch(allow_local: bool, request: FetchRequest) -> Result<FetchResponse, FetchRefused> {
+async fn fetch(
+    policy: Policy,
+    request: FetchRequest,
+    budget: Duration,
+) -> Result<FetchResponse, FetchRefused> {
     // A literal address never reaches the resolver, so it is judged here.
     if let Some(host) = request.url.host()
         && let Some(ip) = literal_ip(&host)
-        && !allow_local
-        && is_blocked(ip)
+        && !literal_allowed(policy, ip)
     {
         return Err(FetchRefused(LOCAL_REFUSED.into()));
     }
-    let mut builder = client(allow_local).request(request.method, request.url);
+    let mut builder = client(policy)
+        .request(request.method, request.url)
+        .timeout(budget);
     for (name, value) in request.headers {
         let (Ok(name), Ok(value)) = (
             HeaderName::from_bytes(name.as_bytes()),
@@ -113,6 +167,15 @@ async fn fetch(allow_local: bool, request: FetchRequest) -> Result<FetchResponse
     })
 }
 
+fn literal_allowed(policy: Policy, ip: std::net::IpAddr) -> bool {
+    match policy {
+        Policy::Public => !is_blocked(ip),
+        Policy::Lan => allowed_with_local_approval(ip, &OwnAddresses::detect()),
+        #[cfg(test)]
+        Policy::Anything => true,
+    }
+}
+
 fn literal_ip(host: &url::Host<&str>) -> Option<std::net::IpAddr> {
     match host {
         url::Host::Ipv4(v4) => Some((*v4).into()),
@@ -131,7 +194,7 @@ fn describe(err: reqwest::Error) -> FetchRefused {
         source = e.source();
     }
     let reason = if err.is_timeout() {
-        "net.fetch timed out"
+        TIMED_OUT
     } else if err.is_connect() {
         "net.fetch could not connect"
     } else {

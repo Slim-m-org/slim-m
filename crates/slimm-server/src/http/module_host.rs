@@ -128,7 +128,29 @@ fn surface_posting_as(
         footer,
         user_id,
         channel,
+        reply_to: None,
     }))
+}
+
+/// Posts what a slash command printed as the member who ran it, labelled as the
+/// module's so the output can never pass for the member's own words.
+pub(crate) async fn post_command_output(
+    state: &AppState,
+    module: &InstalledModule,
+    (user_id, channel): (UserId, ChannelId),
+    (content, reply_to): (&str, Option<MessageId>),
+) -> Result<MessageId, PostRefused> {
+    ChannelPoster {
+        state: state.clone(),
+        handle: Handle::current(),
+        module_id: module.id.clone(),
+        footer: format!("via {}", module.name),
+        user_id,
+        channel,
+        reply_to,
+    }
+    .post_async(None, content)
+    .await
 }
 
 struct SqliteKv {
@@ -182,6 +204,8 @@ struct ChannelPoster {
     user_id: UserId,
     /// The one channel this run may post into: where the command was invoked.
     channel: ChannelId,
+    /// The message a slash command's output answers, if the member was replying.
+    reply_to: Option<MessageId>,
 }
 
 impl MessagePoster for ChannelPoster {
@@ -231,10 +255,12 @@ impl ChannelPoster {
             .map_err(|_| PostRefused("slow mode is active in that channel"))?;
 
         let id = MessageId::generate();
+        let mut message = NewMessage::plain(channel_id, self.user_id, id, content);
+        message.reply_to_id = self.reply_to;
         let sent = state
             .store
             .send_module_message_with_slow_mode(
-                NewMessage::plain(channel_id, self.user_id, id, content),
+                message,
                 &self.module_id,
                 &self.footer,
                 slow_mode_window_ms,

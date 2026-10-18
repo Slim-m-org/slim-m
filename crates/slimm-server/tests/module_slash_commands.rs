@@ -209,7 +209,13 @@ async fn a_permission_holder_is_offered_the_slash_command_with_its_name() {
             "module_id": "dice",
             "command": "roll",
             "name": "roll",
-            "description": "Roll dice like 2d20+3"
+            "description": "Roll dice like 2d20+3",
+            "module": {
+                "name": "Dice",
+                "verified": true,
+                "capabilities": [],
+                "network_hosts": []
+            }
         }])
     );
 }

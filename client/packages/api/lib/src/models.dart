@@ -23,6 +23,7 @@ export 'models_attachments.dart';
 export 'models_dms.dart';
 export 'models_read_states.dart';
 export 'models_dock.dart';
+export 'models_dock_activity.dart';
 export 'models_components.dart';
 export 'models_embeds.dart';
 export 'models_emoji.dart';

@@ -217,7 +217,13 @@ async fn a_permission_holder_is_offered_the_app_with_its_name() {
             "module_id": "widget",
             "command": "surf",
             "name": "Widget",
-            "description": "Launch the widget in chat"
+            "description": "Launch the widget in chat",
+            "module": {
+                "name": "Widget",
+                "verified": true,
+                "capabilities": [],
+                "network_hosts": []
+            }
         }])
     );
 }

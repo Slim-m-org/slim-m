@@ -321,7 +321,6 @@ async fn the_wasm_receives_an_opaque_caller_id_and_nothing_else() {
 
     let (id, _entropy) = echoed
         .strip_prefix("{'command':'run','input':'hi','caller':{'id':'")
-        .and_then(|rest| rest.strip_suffix("'}"))
         .and_then(|rest| rest.split_once("'},'entropy':'"))
         .unwrap_or_else(|| panic!("the request carries more than it should: {echoed}"));
     assert_eq!(id.len(), 64);
@@ -369,7 +368,8 @@ async fn every_run_carries_a_fresh_entropy_value() {
             .to_owned();
         let entropy = echoed
             .split_once("'entropy':'")
-            .and_then(|(_, rest)| rest.strip_suffix("'}"))
+            .and_then(|(_, rest)| rest.split_once("'"))
+            .map(|(entropy, _)| entropy)
             .unwrap_or_else(|| panic!("the request carries no entropy: {echoed}"));
         assert_eq!(entropy.len(), 32);
         assert!(entropy.chars().all(|c| c.is_ascii_hexdigit()));

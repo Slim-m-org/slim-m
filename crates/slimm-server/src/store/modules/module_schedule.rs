@@ -16,7 +16,7 @@ use crate::limits::MAX_USERNAME_CHARS;
 
 impl Store {
     /// The module's principal, created on first need and kept across
-    /// reinstalls; its display name follows the module's name.
+    /// updates; uninstalling removes it. Its display name follows the module's name.
     pub async fn ensure_module_bot(&self, module_id: &str, name: &str) -> anyhow::Result<UserId> {
         let mut tx = self.begin_write().await?;
         let existing = sqlx::query_scalar!(
@@ -26,6 +26,17 @@ impl Store {
         .fetch_optional(&mut *tx)
         .await?
         .context("module is not installed")?;
+        // A principal deleted behind the module's back is replaced, not revived.
+        let existing = match existing {
+            Some(id) => sqlx::query_scalar!(
+                r#"SELECT 1 AS "one!: i64" FROM users WHERE id = ? AND deleted_at IS NULL"#,
+                id
+            )
+            .fetch_optional(&mut *tx)
+            .await?
+            .map(|_| id),
+            None => None,
+        };
         if let Some(id) = existing {
             sqlx::query!("UPDATE users SET display_name = ? WHERE id = ?", name, id)
                 .execute(&mut *tx)

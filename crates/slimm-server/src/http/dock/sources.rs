@@ -8,6 +8,7 @@
 //! check as the official source's.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use serde::Deserialize;
 use url::Url;
@@ -17,12 +18,25 @@ use crate::http::AppState;
 use crate::http::dock::dock_sources::OFFICIAL_ID;
 use crate::http::error::ApiError;
 
-/// Where a Dock call reads from: the bases its files live under, tried in
-/// order, and the repo recorded on an install (`None` for the official source).
+/// Where a source's files are read from.
+#[derive(Clone)]
+pub(super) enum Origin {
+    /// Bases on the fixed host, tried in order.
+    Remote(Vec<Url>),
+    /// The operator's `dev_module_dir`; never fetched over the network.
+    Dev(PathBuf),
+}
+
+/// Where a Dock call reads from, and the repo recorded on an install (`None`
+/// for the official source).
 pub(super) struct Resolved {
-    pub(super) bases: Vec<Url>,
+    pub(super) origin: Origin,
     pub(super) repo: Option<String>,
 }
+
+/// The source id and recorded repo of the operator's local directory.
+pub(crate) const DEV_ID: &str = "dev";
+pub(crate) const DEV_REPO: &str = "local/dev";
 
 #[derive(Deserialize)]
 pub(super) struct SourceQuery {
@@ -36,9 +50,19 @@ pub(super) async fn resolve(
 ) -> Result<Resolved, ApiError> {
     match source {
         None | Some(OFFICIAL_ID) => Ok(Resolved {
-            bases: dock.official_bases.clone(),
+            origin: Origin::Remote(dock.official_bases.clone()),
             repo: None,
         }),
+        Some(DEV_ID) => {
+            let root = dock
+                .dev_dir
+                .clone()
+                .ok_or(ApiError::NotFound("unknown module source"))?;
+            Ok(Resolved {
+                origin: Origin::Dev(root),
+                repo: Some(DEV_REPO.to_owned()),
+            })
+        }
         Some(id) => {
             let found = state
                 .store
@@ -46,7 +70,7 @@ pub(super) async fn resolve(
                 .await?
                 .ok_or(ApiError::NotFound("unknown module source"))?;
             Ok(Resolved {
-                bases: vec![dock.base_for(&found.repo)?],
+                origin: Origin::Remote(vec![dock.base_for(&found.repo)?]),
                 repo: Some(found.repo),
             })
         }
@@ -61,10 +85,11 @@ pub(super) async fn taken_ids(
     dock: &Enabled,
     repo: &str,
 ) -> Result<HashSet<String>, ApiError> {
-    let mut taken: HashSet<String> = match fetch_index(dock, &dock.official_bases).await {
-        Ok(index) => index.into_iter().map(|e| e.id).collect(),
-        Err(_) => HashSet::new(),
-    };
+    let mut taken: HashSet<String> =
+        match fetch_index(dock, &Origin::Remote(dock.official_bases.clone())).await {
+            Ok(index) => index.into_iter().map(|e| e.id).collect(),
+            Err(_) => HashSet::new(),
+        };
     for m in state.store.list_installed_modules().await? {
         if m.source_repo.as_deref() != Some(repo) {
             taken.insert(m.id);
@@ -89,8 +114,8 @@ pub(super) async fn check_id_free(
             "that module id is already installed from a different source; uninstall it first",
         ));
     }
-    if resolved.repo.is_some() {
-        let official = fetch_index(dock, &dock.official_bases).await?;
+    if resolved.repo.is_some() && !matches!(resolved.origin, Origin::Dev(_)) {
+        let official = fetch_index(dock, &Origin::Remote(dock.official_bases.clone())).await?;
         if official.iter().any(|e| e.id == id) {
             return Err(ApiError::Conflict(
                 "that module id belongs to the official source",

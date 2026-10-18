@@ -182,6 +182,13 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
     )
     .await;
     c.bare(
+        "clearDockModuleStorage",
+        "DELETE",
+        &format!("/space/dock/modules/{id}/storage"),
+        root,
+    )
+    .await;
+    c.bare(
         "uninstallDockModule",
         "DELETE",
         &format!("/space/dock/modules/{id}/install"),

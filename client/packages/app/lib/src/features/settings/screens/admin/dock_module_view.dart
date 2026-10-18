@@ -14,6 +14,7 @@ import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+import 'dock_activity_card.dart';
 import 'dock_changelog_card.dart';
 import 'dock_command_panel_group.dart';
 import 'dock_host_access_card.dart';
@@ -55,6 +56,7 @@ class DockManifestView extends StatelessWidget {
     this.onLocalNetworkChanged,
     this.scheduleChannels = const [],
     this.onScheduleChannel,
+    this.onClearStorage,
     this.sourceRepo,
     this.verified = false,
   });
@@ -84,6 +86,9 @@ class DockManifestView extends StatelessWidget {
   /// Text channels a schedule can post in, and the callback for choosing one.
   final List<api.Channel> scheduleChannels;
   final ValueChanged<String?>? onScheduleChannel;
+
+  /// Empties the module's stored data; the card offers it when there is some.
+  final VoidCallback? onClearStorage;
   final void Function(String capability, bool approved) onToggleHostCapability;
   final bool busy;
   final String? error;
@@ -128,7 +133,9 @@ class DockManifestView extends StatelessWidget {
           const SizedBox(height: AppSpacing.s8),
           AppBadge(
             variant: AppBadgeVariant.warn,
-            label: 'Community source: $sourceRepo',
+            label: sourceRepo == 'local/dev'
+                ? 'Not verified, local'
+                : 'Community source: $sourceRepo',
           ),
         ],
         const SizedBox(height: AppSpacing.s12),
@@ -163,6 +170,14 @@ class DockManifestView extends StatelessWidget {
             channels: scheduleChannels,
             channelId: installed!.scheduleChannelId,
             onChannel: onScheduleChannel!,
+            enabled: !busy,
+          ),
+        if (installed?.runStats != null && onClearStorage != null)
+          DockActivityCard(
+            stats: installed!.runStats!,
+            storage: installed!.storage,
+            keepsData: installed!.approvedHostCapabilities.contains('kv.store'),
+            onClearStorage: onClearStorage!,
             enabled: !busy,
           ),
         _ActionsCard(

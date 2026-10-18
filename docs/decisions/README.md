@@ -44,7 +44,7 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0032](0032-voice-participant-webhooks.md) | Voice participant events come from LiveKit webhooks, not client self-report | accepted |
 | [0033](0033-notification-schedule.md) | The notification schedule: per-weekday hours, timezone-correct, with an off-hours policy | accepted |
 | [0034](0034-read-state-across-devices.md) | Read state across devices: the marker is per account, and push consults it | accepted |
-| [0035](0035-module-or-bot.md) | When something is a module and when it is a bot | accepted |
+| [0035](0035-module-or-bot.md) | When something is a module and when it is a bot (amended 2026-10-18: modules can fetch and run on a timer) | accepted |
 | [0036](0036-security-check-first-join-only.md) | The security check shows on first join only | accepted |
 | [0037](0037-ephemeral-bot-messages.md) | Ephemeral bot messages | accepted, implemented |
 | [0038](0038-module-caller-id.md) | A module is told an opaque caller id and nothing else | accepted |

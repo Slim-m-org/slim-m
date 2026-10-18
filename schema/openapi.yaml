@@ -8600,7 +8600,9 @@ paths:
       summary: Uninstall a module. Requires MANAGE_SERVER.
       description: >
         Removes the install, its registered permissions, and every role
-        grant of them - nothing dangles.
+        grant of them - nothing dangles. A scheduled module's own principal
+        is removed too, with its overwrite in the channel it posted to; its
+        earlier messages stay, still marked as the module's.
       responses:
         "204":
           description: The module was uninstalled.
@@ -8664,6 +8666,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InstalledDockModule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/storage:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: clearDockModuleStorage
+      tags: [space]
+      summary: Empty an installed module's stored data. Requires MANAGE_SERVER.
+      description: >
+        Deletes every kv.store entry the module holds. The module stays
+        installed with its approvals and permissions; only what it remembered
+        is gone. The usage a client shows comes from the `storage` field of
+        `GET /space/dock/installed`.
+      responses:
+        "204":
+          description: The module's stored data was cleared.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -9305,7 +9334,8 @@ components:
       required: false
       description: >
         A module source's id from listDockSources; omitted, the official
-        source.
+        source. `dev` is the operator's local directory and exists only when
+        SLIMM_DEV_MODULE_DIR is set; otherwise it answers 404.
       schema:
         type: string
 
@@ -10672,6 +10702,11 @@ components:
           description: The GitHub `owner/repo` slug.
         official:
           type: boolean
+        local:
+          type: boolean
+          description: >
+            True for the operator's local `dev` source (SLIMM_DEV_MODULE_DIR),
+            a directory rather than a repository. Never verified.
         created_at:
           type: integer
           format: int64
@@ -10835,6 +10870,12 @@ components:
             optional changelog; empty when the module publishes none.
           items:
             $ref: "#/components/schemas/DockChangelogEntry"
+        review_digest:
+          type: string
+          description: >
+            A digest of the artifact, capabilities, hosts, schedules,
+            permission keys and limits shown here. Send it back as
+            `reviewed_digest` on install so consent is for this manifest.
     DockChangelogEntry:
       type: object
       required: [version, changes]
@@ -10874,8 +10915,9 @@ components:
             the manifest and implemented by the host, or the install is refused
             with 400. An empty list withdraws every approval. Omitted keeps
             what was approved before, minus anything the new manifest no
-            longer declares (and net.fetch when its hosts changed), and never
-            adds one.
+            longer declares, message.post, net.fetch and schedule when the
+            artifact changed, net.fetch when its hosts changed and schedule
+            when its commands or intervals did, and never adds one.
         approve_local_network:
           type: boolean
           description: >
@@ -10883,7 +10925,15 @@ components:
             addresses (private, loopback and link-local ranges). Only valid
             when net.fetch is approved and the manifest's network.local is
             true; true otherwise is refused with 400. Omitted keeps an earlier
-            approval for the same hosts.
+            approval for the same hosts. It reaches private networks only
+            (10/8, 172.16/12, 192.168/16, fc00::/7), never loopback,
+            link-local, the cloud metadata address or the server itself.
+        reviewed_digest:
+          type: string
+          description: >
+            The `review_digest` of the manifest the admin was shown. The
+            install is refused with 409 if the manifest has changed since.
+            Omitted skips the check.
     InstalledDockModule:
       type: object
       required:
@@ -10960,6 +11010,92 @@ components:
           type: boolean
         installed_at:
           type: integer
+        run_stats:
+          type: array
+          description: >
+            How each command has run lately. Only `GET /space/dock/installed`
+            fills it.
+          items:
+            $ref: "#/components/schemas/DockRunStat"
+        storage:
+          $ref: "#/components/schemas/DockStorage"
+    DockRunStat:
+      type: object
+      required:
+        [command, run_count, failure_count, last_run_at, last_duration_ms, max_duration_ms]
+      properties:
+        command:
+          type: string
+        run_count:
+          type: integer
+          format: int64
+        failure_count:
+          type: integer
+          format: int64
+          description: >
+            Runs the host could not complete (a limit, a trap, a malformed
+            answer), plus scheduled runs whose command answered with an error.
+        last_run_at:
+          type: integer
+          format: int64
+        last_ok_at:
+          type: integer
+          format: int64
+        failing_since:
+          type: integer
+          format: int64
+          description: When the current run of failures began; absent while the last run succeeded.
+        last_error:
+          type: string
+        last_error_at:
+          type: integer
+          format: int64
+        last_duration_ms:
+          type: integer
+          format: int64
+        max_duration_ms:
+          type: integer
+          format: int64
+    DockStorage:
+      type: object
+      required: [entries, bytes, max_entries, max_bytes]
+      description: What a module's kv.store holds against its allowance.
+      properties:
+        entries:
+          type: integer
+          format: int64
+        bytes:
+          type: integer
+          format: int64
+          description: Keys plus values, in bytes.
+        max_entries:
+          type: integer
+          format: int64
+        max_bytes:
+          type: integer
+          format: int64
+    ModuleInfo:
+      type: object
+      required: [name, verified, capabilities, network_hosts]
+      description: Which module provides a command and what it may do.
+      properties:
+        name:
+          type: string
+        verified:
+          type: boolean
+          description: True when the module came from the official registry.
+        capabilities:
+          type: array
+          description: >
+            The host capabilities an admin approved (kv.store, message.post,
+            net.fetch, schedule).
+          items:
+            type: string
+        network_hosts:
+          type: array
+          description: The sites net.fetch may reach; empty without it.
+          items:
+            type: string
     RunModuleCommandRequest:
       type: object
       required: [input]
@@ -10974,6 +11110,17 @@ components:
           description: >
             The channel the command was typed in. Only a run that names one
             may use the message.post capability, and it may post only there.
+        post_output:
+          type: boolean
+          description: >
+            Post a successful run's output into `channel_id` as the caller,
+            labelled as the module's (the same footer and origin record as
+            message.post), instead of returning it. The response then carries
+            `message_id` and no `output`. Needs `channel_id`; the caller needs
+            view and send permission there. A failed run posts nothing.
+        reply_to_id:
+          type: string
+          description: The message a posted output replies to; only with `post_output`.
     RunCodeBlockRequest:
       type: object
       required: [module_id, command, input]
@@ -10993,6 +11140,9 @@ components:
       properties:
         ok:
           type: boolean
+        message_id:
+          type: string
+          description: The message the output was posted as, when `post_output` was asked for.
         output:
           type: string
           nullable: true
@@ -11044,6 +11194,8 @@ components:
           type: string
           nullable: true
           description: A short human summary of what the command does.
+        module:
+          $ref: "#/components/schemas/ModuleInfo"
     App:
       type: object
       required: [module_id, command, name]
@@ -11062,6 +11214,8 @@ components:
           type: string
           nullable: true
           description: A short human summary of what the app is.
+        module:
+          $ref: "#/components/schemas/ModuleInfo"
     CallRecord:
       type: object
       required: [outcome]

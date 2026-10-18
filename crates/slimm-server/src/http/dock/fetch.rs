@@ -4,6 +4,7 @@
 //! the server, the same shape `http::link_preview::fetch` uses for an
 //! arbitrary-host fetch.
 
+use std::path::Path;
 use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
@@ -117,6 +118,33 @@ pub(super) async fn fetch_first(
     Err(FetchError::Missing)
 }
 
+/// Reads [path] under [root], which must stay inside it once symlinks are
+/// resolved, within the same size caps a network fetch has.
+pub(super) async fn read_local(
+    root: &Path,
+    path: &str,
+    limits: Limits,
+) -> Result<Vec<u8>, FetchError> {
+    let full = match tokio::fs::canonicalize(root.join(path)).await {
+        Ok(full) => full,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Err(FetchError::Missing),
+        Err(_) => return Err(FetchError::Unavailable),
+    };
+    if !full.starts_with(root) {
+        return Err(FetchError::Refused);
+    }
+    let len = tokio::fs::metadata(&full)
+        .await
+        .map_err(|_| FetchError::Unavailable)?
+        .len();
+    if len > limits.cap as u64 {
+        return Err(FetchError::Unavailable);
+    }
+    tokio::fs::read(&full)
+        .await
+        .map_err(|_| FetchError::Unavailable)
+}
+
 /// [path] resolved against [base], or `None` if the result is not still on
 /// [base]'s host and under its directory. A second line of defence behind the
 /// manifest's own path rule, since `Url::join` reads `%2e%2e` and `\` as structure.
@@ -132,6 +160,39 @@ fn joined_under(base: &Url, path: &str) -> Option<Url> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_local_read_stays_inside_the_root_and_inside_the_cap() {
+        let dir = std::env::temp_dir().join(format!("slimm-dev-read-{}", std::process::id()));
+        let outside =
+            std::env::temp_dir().join(format!("slimm-dev-outside-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("modules")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(dir.join("index.json"), b"{}").unwrap();
+        std::fs::write(outside.join("secret"), b"x").unwrap();
+        std::os::unix::fs::symlink(outside.join("secret"), dir.join("modules/link")).unwrap();
+        let root = dir.canonicalize().unwrap();
+        assert_eq!(
+            read_local(&root, "index.json", Limits::INDEX)
+                .await
+                .unwrap(),
+            b"{}"
+        );
+        assert_eq!(
+            read_local(&root, "missing.json", Limits::INDEX).await,
+            Err(FetchError::Missing)
+        );
+        assert_eq!(
+            read_local(&root, "modules/link", Limits::INDEX).await,
+            Err(FetchError::Refused)
+        );
+        assert_eq!(
+            read_local(&root, "../slimm-dev-outside-secret", Limits::INDEX).await,
+            Err(FetchError::Missing)
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&outside).unwrap();
+    }
 
     fn base() -> Url {
         Url::parse("https://raw.githubusercontent.com/alice/addons/main/").unwrap()

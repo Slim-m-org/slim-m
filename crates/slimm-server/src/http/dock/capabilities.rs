@@ -7,11 +7,13 @@ use super::manifest::NET_FETCH;
 use crate::http::AppState;
 use crate::http::error::ApiError;
 use crate::http::module_host;
+use crate::store::ModuleSchedule;
 
 /// What an install that named no approvals keeps: the module's current host
-/// capabilities that the new manifest still declares, except `message.post`
-/// when the artifact changed and `net.fetch` when its hosts changed. Nothing
-/// is added.
+/// capabilities that the new manifest still declares, except the ones whose
+/// power a new build or a changed manifest could widen unseen: `message.post`,
+/// `net.fetch` and `schedule` after a new build, `net.fetch` when its hosts
+/// changed and `schedule` when its commands or intervals did. Nothing is added.
 pub(super) async fn carried_host_capabilities(
     state: &AppState,
     manifest: &Manifest,
@@ -19,16 +21,36 @@ pub(super) async fn carried_host_capabilities(
     let Some(current) = state.store.installed_module(&manifest.id).await? else {
         return Ok(Vec::new());
     };
-    // A new build gets no unseen power to post: message.post must be approved again.
+    // A new build gets no unseen power to post, dial out or run on a timer.
     let same_build = current.artifact_sha256 == manifest.artifact.sha256;
     let same_hosts = current.network_hosts == manifest.network.hosts;
+    let same_schedules = same_schedules(&current.schedules, manifest);
     Ok(current
         .approved_host_capabilities
         .into_iter()
         .filter(|c| manifest.capabilities.contains(c))
-        .filter(|c| same_build || c != "message.post")
+        .filter(|c| same_build || !REASKED_ON_NEW_BUILD.contains(&c.as_str()))
         .filter(|c| same_hosts || c != NET_FETCH)
+        .filter(|c| same_schedules || c != "schedule")
         .collect())
+}
+
+/// Capabilities whose approval does not survive a new artifact.
+const REASKED_ON_NEW_BUILD: [&str; 3] = ["message.post", NET_FETCH, "schedule"];
+
+fn same_schedules(current: &[ModuleSchedule], manifest: &Manifest) -> bool {
+    let mut had: Vec<(&str, u32)> = current
+        .iter()
+        .map(|s| (s.command.as_str(), s.every_minutes))
+        .collect();
+    let mut now: Vec<(&str, u32)> = manifest
+        .schedules
+        .iter()
+        .map(|s| (s.command.as_str(), s.every_minutes))
+        .collect();
+    had.sort_unstable();
+    now.sort_unstable();
+    had == now
 }
 
 /// `requested`, deduplicated, if every entry is a capability the manifest

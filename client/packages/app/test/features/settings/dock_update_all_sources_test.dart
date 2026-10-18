@@ -183,7 +183,7 @@ void main() {
       await tester.tap(find.text('Update all'));
       await tester.pumpAndSettle();
       expect(
-        find.text('Updated 1 of 1. a needs Post messages approved again.'),
+        find.text('Updated 1 of 1. a needs its access approved again.'),
         findsOneWidget,
       );
     },

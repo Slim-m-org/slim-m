@@ -212,6 +212,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         MODULE,
     ),
     route(
+        Method::DELETE,
+        "/space/dock/modules/{id}/storage",
+        "module.clear_storage",
+        MODULE,
+    ),
+    route(
         Method::PUT,
         "/space/dock/modules/{id}/schedule-channel",
         "module.schedule_channel",

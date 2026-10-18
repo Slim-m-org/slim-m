@@ -29,7 +29,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
-use super::module_commands::reachable_extension_points;
+use super::module_commands::{ModuleInfoDto, reachable_extension_points};
 use super::post_commit::after_commit;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -78,6 +78,7 @@ struct AppDto {
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    module: ModuleInfoDto,
 }
 
 #[derive(Deserialize)]
@@ -266,6 +267,7 @@ async fn list_apps(
             command: r.command,
             name: r.point.name,
             description: r.point.description,
+            module: r.module,
         })
         .collect();
     Ok(Json(apps))

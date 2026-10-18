@@ -3,8 +3,9 @@
 This is the guide for writing a module that runs on a slim deployment.
 
 A module is a small, sandboxed WebAssembly program.
-It receives an input and returns an output, and it can reach nothing else - no network, no filesystem, no host state.
-That single constraint is the whole of the v1 security model, and it is what lets a deployment run community-authored code at all.
+It receives an input and returns an output, and by default it can reach nothing else - no network, no filesystem, no host state.
+That constraint is the base of the security model, and it is what lets a deployment run community-authored code at all.
+An admin can approve a module for a few mediated host capabilities on top of it (storing data, posting, fetching from named sites, running on a timer); see [Host capabilities](#host-capabilities).
 
 Read `docs/decisions/0021-modules-and-the-dock.md` for why the system is shaped this way, and `docs/decisions/0022-module-extensibility-and-evolution.md` for how it grows.
 This document is the practical how-to; those two are the reasoning.
@@ -25,8 +26,14 @@ Today a module can:
 - Offer an **app** a member launches into a channel as a live, shared surface.
 - Draw an interactive **scene** (a board, a chart, a small game) as its output, instead of plain text.
 
-With an admin's approval a module can also store a little state on the host (`kv.store`) and post a message as the person who ran it (`message.post`).
-A module cannot react to an event or post on its own; see [Host capabilities](#host-capabilities).
+With an admin's approval a module can also:
+
+- store a little state on the host (`kv.store`),
+- post a message as the person who ran it (`message.post`),
+- make HTTP requests to sites its manifest names (`net.fetch`),
+- run one of its commands on a timer with nobody asking, posting as itself in a channel the admin picks (`schedule`).
+
+A module cannot react to an event, hold a connection open or keep a secret; see [Host capabilities](#host-capabilities), and decision [0035](../decisions/0035-module-or-bot.md) for when a bot is the better home.
 
 ## Quickstart
 
@@ -90,8 +97,8 @@ There is a ready-to-copy starter in `slim-addons/modules/_template/`, which is t
 
 ## The module ABI (v1)
 
-A module is a wasm binary that **exports exactly two functions and one memory, and imports nothing at all**.
-A single import of any kind is refused at install time rather than sandboxed, because the point of the model is that a module has no ambient authority to sandbox in the first place.
+A module is a wasm binary that **exports exactly two functions and one memory, and imports nothing at all** - or, once an admin has approved a host capability for it, exactly one function, `slim.host_call` (see [Host capabilities](#host-capabilities)).
+Any other import is refused at install time rather than sandboxed, because the point of the model is that a module has no ambient authority to sandbox in the first place.
 
 - `memory` - the module's exported linear memory.
 - `alloc(len: i32) -> i32` - reserve `len` bytes inside the module's own memory and return a pointer to them.
@@ -112,14 +119,18 @@ Every extension point that runs is, underneath, a call to one of the module's co
 The **request** the host writes is a JSON object:
 
 ```json
-{ "command": "roll", "input": "2d20+3", "caller": { "id": "9f2c...e1" }, "entropy": "4b0d...a7" }
+{ "command": "roll", "input": "2d20+3", "caller": { "id": "9f2c...e1" }, "entropy": "4b0d...a7", "now_ms": 1760000000000 }
 ```
 
 - `command` is the name of a `command` extension point the module declared.
 - `input` is a string whose meaning is entirely the module's own - a code snippet, a dice notation, a JSON blob, whatever the command wants.
 - `caller.id` is an opaque, stable id for whoever ran the command, and it is the only thing the module is told about them.
 - `entropy` is 32 hex characters of fresh randomness, new for every run and unrelated to who ran it.
-  A module has no clock or random source, so mix it into your seed when a command should vary, such as a die roll.
+  A module has no random source, so mix it into your seed when a command should vary, such as a die roll.
+- `now_ms` is the host's wall clock when the run started: UTC, milliseconds since the Unix epoch.
+  A module has no clock of its own (inside the sandbox `Date.now()` and `SystemTime::now()` are frozen or unavailable), so this is the only way to know the time: "post at 9am", countdowns, birthdays, a focus timer.
+  It is a plain number; there is no time zone, so work in UTC or keep a zone offset in the module's own `kv.store`.
+  Like `entropy` it is additive at ABI v1: a module built before it existed ignores it.
 
 ### Who is calling
 
@@ -426,6 +437,13 @@ See decision 0043 for why this is declared motion and not a timer you control.
 
 ## Interactive scenes
 
+> **Scene state is not private, and it is not always trusted.**
+> For a scene on a shared surface (an `app` launched into a channel), the host keeps the last scene it stored and hands the module *that* `state` on every press, ignoring any `state` the client sent.
+> A member cannot forge a board by sending a different state, so a seat assignment or a turn counter in `state` is as trustworthy as the module's own logic.
+> Everyone who can see the message can still read the `state` string in the stored scene, so do not hide a secret in it (the word-guess answer, a hand of cards): obscure data in `state` is derivable by anyone.
+> For a scene that is not on a shared surface (a slash command that prints a scene, for instance), nothing is stored on the host, so `state` is whatever the client sends back.
+> Treat it as untrusted input there: validate it, and never let it grant anything.
+
 A scene becomes interactive by offering `controls` and carrying `state`, and by drawing ops with a `tap`.
 
 ```json
@@ -477,7 +495,7 @@ Every `run` call is held to resource limits, taken from the manifest's `runtime.
 | limit | default | meaning |
 | --- | --- | --- |
 | `memory_mb` | 16 | linear-memory ceiling for the call |
-| `wall_ms` | 1000 | wall-clock deadline; a command is a synchronous request-response, not a background job |
+| `wall_ms` | 1000 | wall-clock deadline; a command is a synchronous request-response, not a background job. A module that can call `net.fetch` always gets at least 6000, see [`net.fetch`](#netfetch) |
 | `fuel` | 50,000,000 | roughly one unit per executed instruction, so this bounds a runaway loop |
 
 The `memory_mb` ceiling also bounds the rest of what the host allocates for the module before it runs a single instruction.
@@ -507,27 +525,174 @@ The host caps a manifest at 2,000,000,000 fuel (`MAX_FUEL`), 40 times the defaul
 
 Set them higher in the manifest if your module genuinely needs it (Game of Life uses 64 MB / 2 s), but a shared row that rides fan-out is capped well below whatever a module can produce, so enormous output is truncated regardless.
 
+The host also caps how many runs execute at once, across every module (four).
+A run that cannot get a slot within a few seconds fails with `the module host is busy; try again in a moment`, so a handful of members using a heavy module cannot stack memory.
+The first run of a version compiles and verifies its artifact; later runs of the same version reuse that work and never read the stored bytes again.
+
 ## Host capabilities
 
 A module with no approved capability runs on the import-free ABI and can import nothing from the host.
-The host implements two capabilities (`HOST_CAPABILITIES` in `crates/slimm-server/src/http/module_host.rs`), both in the module's `capabilities` list and both reached through `slim.host_call`.
+The host implements four capabilities (`HOST_CAPABILITIES` in `crates/slimm-server/src/http/module_host.rs`).
+You list the ones you need in the manifest's `capabilities`; an admin approves each one at install.
 A run may use a capability only when it is declared in the manifest, approved by an admin for that install, and implemented by the host.
 Anything else gets a clean `{ "ok": false, "error": ... }` response, never a trap (`module_runtime/capabilities.rs`).
 
-- `kv.store`: a key-value store private to the module, durable across runs.
-  Keys are at most 256 bytes, values 4 KiB, a module holds at most 256 entries and 64 KiB, and one run makes at most 64 calls.
-  Uninstalling the module wipes its data; a reinstall or upgrade keeps it.
-- `message.post`: posts a message as the person who ran the module, into the channel they ran it from.
-  The invoker needs view and send permission there, and slow mode and rate limits apply as for any send.
-  A run may attempt three posts, and a message carries a `via <module name>` footer.
-  Runs started from a code block (`code-block-runner`) get no `message.post`, because the input there is whoever wrote the message, not whoever clicked Run.
+`kv.store`, `message.post` and `net.fetch` are reached through the single `slim.host_call` import.
+`schedule` is a permission to be run, not a call: it adds no import.
 
-The Dock install screen lists each capability with a switch that starts off.
-Approval is per install, and an update that names no approvals keeps the earlier ones.
-The exception is `message.post`: a new build of the wasm has to be approved for it again, while `kv.store` carries over.
+A module that uses any of them imports `slim.host_call(ptr: i32, len: i32) -> i64`.
+You write a UTF-8 JSON request into your memory and pass its pointer and length.
+The host writes the JSON response into your memory using your own `alloc` and returns the packed `(out_ptr << 32) | out_len`, the same convention `run` uses.
+A return of `0` means the host refused to answer at all: the deadline had passed, the request was over 128 KiB, or the pointer was outside your memory.
+Every request names its capability: `{ "capability": "net.fetch", ... }`.
+A run makes at most 128 host calls of any kind, refused ones included.
+
+### `kv.store`
+
+A key-value store private to the module, durable across runs.
+
+```json
+{ "capability": "kv.store", "op": "set", "key": "streak", "value": "7" }
+{ "capability": "kv.store", "op": "get", "key": "streak" }
+{ "capability": "kv.store", "op": "delete", "key": "streak" }
+{ "capability": "kv.store", "op": "list" }
+```
+
+- Keys are at most 256 bytes and values 4 KiB.
+- A module holds at most 256 entries and 64 KiB (keys plus values), shared by everyone who uses it.
+- One run makes at most 64 calls.
+- Uninstalling the module wipes its data; a reinstall or upgrade keeps it.
+- The admin sees how much of the allowance a module is using on its Dock screen and can clear it without uninstalling, so a full store is recoverable.
+
+### `message.post`
+
+Posts a message as the person who ran the module, into the channel they ran it from.
+
+```json
+{ "capability": "message.post", "content": "Hello" }
+```
+
+- The invoker needs view and send permission there, and slow mode and rate limits apply as for any send.
+- A run may attempt three posts, and a message carries a `via <module name>` footer.
+- Runs started from a code block (`code-block-runner`) get no `message.post`, because the input there is whoever wrote the message, not whoever clicked Run.
+- The text a slash command *returns* is posted the same way: the client asks the host to post it, and it carries the same `via <module name>` footer and origin record.
+  A module cannot make its output pass for the member's own words, whether it posts with `message.post` or just prints.
+
+### `net.fetch`
+
+One HTTP request to a site the manifest names and the admin approved.
+There are no raw sockets, no WebSocket, and no redirects are followed.
+
+The manifest names where it may go:
+
+```json
+"capabilities": ["net.fetch"],
+"network": { "hosts": ["api.open-meteo.com", "geocoding-api.open-meteo.com"] }
+```
+
+- `hosts` entries are lowercase `name` or `name:port`.
+  A bare name admits only the scheme's default port (443 for https, 80 for http).
+  At most 16 entries.
+- `net.fetch` and a non-empty `hosts` come together; one without the other is refused when the manifest is read.
+- `"local": true` asks for the second, separate approval described below.
+
+The request:
+
+```json
+{
+  "capability": "net.fetch",
+  "method": "GET",
+  "url": "https://api.open-meteo.com/v1/forecast?latitude=52.5&longitude=13.4",
+  "headers": { "Accept": "application/json" },
+  "body": "optional text"
+}
+```
+
+- `method` defaults to `GET`; `GET`, `HEAD`, `POST`, `PUT`, `PATCH` and `DELETE` are allowed.
+- `url` must be http or https, name an approved host, and carry no `user:password@`.
+- At most 16 headers; `Host`, `Content-Length`, `Connection`, `Transfer-Encoding` and `Upgrade` belong to the host and are refused.
+- `body` is text, at most 64 KiB.
+
+The response, which is always valid JSON:
+
+```json
+{ "ok": true, "status": 200, "content_type": "application/json", "location": null, "body": "...", "truncated": false }
+{ "ok": false, "error": "host not approved for this module: example.org" }
+```
+
+- A non-2xx status is still `ok: true`; read `status`.
+  A 3xx comes back as it is, with `location` set, so you decide whether to follow it by making another call.
+- `body` is the response decoded as UTF-8 (invalid bytes are replaced), at most 256 KiB.
+  A longer body is cut and `truncated` is `true`.
+- `ok: false` means the host refused or the request failed: an unapproved host, a bad request, `net.fetch timed out`, `net.fetch could not connect`, or a refused address.
+  The error never carries anything the upstream sent.
+
+Limits:
+
+| limit | value |
+| --- | --- |
+| requests per run | 4 (refused ones count) |
+| request body | 64 KiB |
+| response body | 256 KiB |
+| request headers | 16 |
+| one request | 5 seconds, shorter when the run has less left |
+| connect | 3 seconds |
+
+**Time.** A request never outlives the run.
+The host gives each one the lesser of 5 seconds and what the run's `wall_ms` has left, minus a short margin, and answers `net.fetch timed out` while your module is still running so you can react.
+A request that would start with no time left is not made.
+Because one request can take 5 seconds, a module that can call `net.fetch` runs under at least 6 seconds of wall clock even if its manifest says less (the manifest maximum is still 10).
+Declare `wall_ms` for what you need on top of that, and keep the number of calls low.
+
+**Addresses.** Only public addresses are reachable.
+The host resolves the name itself and refuses the whole request if any address it resolves to is loopback, private, link-local, the cloud metadata address, or otherwise reserved, so a hostname cannot be used to reach inside the host's network.
+
+**Local network.** Some modules talk to a device at home, such as a NAS or a media server.
+For that the manifest sets `"local": true` and the admin gives a second, separate approval at install.
+That approval lifts only the private network ranges: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and IPv6 `fc00::/7`.
+It never reaches loopback, link-local addresses, the cloud metadata address, the server's own addresses, or the Docker network the server runs on, so a module cannot call the slim server back or reach a neighbouring container.
+
+### `schedule`
+
+The host runs a command of yours on a timer, with nobody invoking it.
+
+```json
+"capabilities": ["schedule", "message.post"],
+"schedules": [{ "command": "digest", "every_minutes": 1440 }]
+```
+
+- Each entry names one of the module's own `command` extension points, once.
+  At most 8 entries.
+- `every_minutes` is between 5 and 10,080 (a week).
+  The host checks once a minute, and run times are stored, so a restart does not reset a long interval.
+- `schedule` and a `schedules` list come together; one without the other is refused.
+- The command runs with empty input and no caller: `caller.id` is the module's own principal, not a person.
+- It runs as the module's **own principal**, a bot-style account with no password and no token, whose posts carry the module's name.
+  It may post only in the channel the admin chooses on the module's Dock screen, and nothing runs until they choose one.
+  `message.post` from a scheduled run posts as that principal into that channel; to post anywhere else you need a bot.
+- A scheduled run is held to the same limits as any run, and the admin's Dock screen shows when it last ran and the error if it failed.
+- A disabled module does not run.
+  Uninstalling removes the principal and its permission in the channel; its earlier messages stay, still marked as the module's.
+
+`now_ms` in the request tells a scheduled command what time it is, which is what "post once a day" needs: keep the last date you posted in `kv.store` and skip the run if it matches.
+
+### Approval, updates and re-approval
+
+The Dock install screen lists each capability with a switch that starts off, and a module from outside the official registry also needs a tick that says the admin understands what it can do.
+Approval is per install, and an update that names no approvals keeps the earlier ones, with these exceptions that need the admin to approve again:
+
+- `message.post`, `net.fetch` and `schedule` after a **new build** of the wasm.
+  A different artifact is different code, so what was approved was the old build.
+- `net.fetch` when `network.hosts` changed.
+- `schedule` when a scheduled command or its interval changed.
+  The update sheet says what moved, such as "now every 5 minutes, was every 1440".
+
+`kv.store` carries over.
+A scheduled module whose approval lapsed does not run until it is approved again.
+The consent is for the manifest the admin was shown: the install carries a digest of the capabilities, hosts, schedules and artifact it reviewed and is refused if the manifest changed in between.
 A module installed before the approval column existed started with none.
 Decision [0023](../decisions/0023-mediated-host-capabilities.md) has the reasoning and its 2026-09-29 addendum has the details.
-An unknown capability string is still accepted and ignored, so declare only the two above.
+An unknown capability string is still accepted and ignored, so declare only the four above.
 
 ## Publishing a module
 
@@ -546,10 +711,14 @@ modules/<id>/<version>/module.wasm # the pinned artifact for each version
 {
   "schema": 1,
   "modules": [
-    { "id": "dice", "name": "Dice", "version": "0.3.0", "summary": "Roll dice notation like 2d20+3." }
+    { "id": "dice", "name": "Dice", "version": "0.3.0", "summary": "Roll dice notation like 2d20+3.", "ref": "3f9c1c0b1a2d4e5f60718293a4b5c6d7e8f90a1b" }
   ]
 }
 ```
+
+`ref` is optional: a commit sha or tag the version's files are read from.
+When it is set, the Dock reads the manifest and the artifact from that fixed commit instead of `main`, so what an admin reviews and what installs are the same bytes even if `main` moves in between.
+Without it the Dock reads `main`, and the install is still refused if the manifest changed after the admin reviewed it.
 
 To publish or update a module:
 
@@ -569,8 +738,29 @@ An installed module never runs a wasm whose SHA-256 does not match its manifest,
 Because a module is a pure `{command, input} -> {ok, output}` function, most of it can be tested as ordinary code in whatever language you wrote it in, before any wasm is involved.
 The reference modules keep their logic (parsing, the automaton, the scene builder) in plain functions with unit tests, and keep the ABI `run`/`alloc` shim thin.
 
+`tools/run-module` in slim-addons runs a built module the way slim does, offline.
+It simulates the capabilities too:
+
+```bash
+# net.fetch, answered from canned responses keyed by URL; the hosts in the file are the approved hosts
+run-module --fetch-file fetch.json module.wasm forecast 'berlin'
+
+# message.post is printed instead of sent; --now-ms sets the clock, --tick runs a scheduled command
+run-module --now-ms 1760000000000 --tick digest module.wasm
+```
+
+It enforces the same limits as the host (four fetches, 64 KiB and 256 KiB bodies, sixteen headers), refuses an unlisted host, and prints each `message.post`.
+It does not enforce wall-clock or memory limits, and it never opens a socket.
+
 To test the whole thing end to end, install the built wasm on a dev deployment, grant yourself its permission, and exercise it from chat.
 A scene is easiest to iterate on this way, since the interactive loop only exists once the client is painting it.
+
+An operator can turn on a local module source for exactly this.
+Set `SLIMM_DEV_MODULE_DIR` to a directory laid out like a registry (`index.json`, `modules/<id>/manifest.json`, the artifact at the path the manifest names) and restart.
+The Dock then offers a `dev` source, marked as not verified and local, and installs from the directory without any push or version bump.
+Build into the directory, update the manifest's `artifact.sha256`, and install again; an overwritten build installs under the same version.
+With the variable unset the source does not exist.
+Do not set it on a deployment people depend on.
 
 ## Forward compatibility
 

@@ -47,6 +47,7 @@ use super::messages::parse_uuid;
 use super::module_commands::{
     CODE_RUNNER_MODULE_ID, CommandOutcome, execute_code_runner, execute_command,
 };
+use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::MessageId;
@@ -121,9 +122,11 @@ async fn run(
         return Err(ApiError::Forbidden);
     }
 
+    // A surface has one board, and its state is the server's, not the presser's.
+    let block_index = if surface.is_some() { 0 } else { block_index };
     // A surface's input is the module's own; a plain message runs only its own stored block, never the caller's claim of it.
     let code = match surface {
-        Some(_) => req.input.clone(),
+        Some(_) => held_input(&state, message_id, &req.input).await?,
         None => usize::try_from(block_index)
             .ok()
             .and_then(|index| code_block(&message.content, index))
@@ -183,6 +186,23 @@ async fn run(
     Ok(Json(response))
 }
 
+/// A surface frame's input with `state` taken from the last scene stored for it.
+async fn held_input(
+    state: &AppState,
+    message_id: MessageId,
+    input: &str,
+) -> Result<String, ApiError> {
+    let runs = state.store.code_runs_for_messages(&[message_id]).await?;
+    let stored = runs
+        .into_iter()
+        .flat_map(|(_, runs)| runs)
+        .find(|run| run.block_index == 0 && run.ok);
+    Ok(with_held_state(
+        input,
+        stored.as_ref().map(|r| r.output.as_str()),
+    ))
+}
+
 /// Text may be byte-clamped; a scene is JSON, and a cut scene is garbage the
 /// client cannot parse, so an over-ceiling scene is refused whole instead.
 fn stored_payload(is_text: bool, outcome: CommandOutcome) -> (bool, String) {
@@ -217,7 +237,11 @@ mod tests {
     }
 
     fn outcome(payload: String) -> CommandOutcome {
-        CommandOutcome { ok: true, payload }
+        CommandOutcome {
+            ok: true,
+            payload,
+            host_failed: false,
+        }
     }
 
     #[test]
