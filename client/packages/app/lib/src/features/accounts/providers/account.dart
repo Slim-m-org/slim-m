@@ -17,13 +17,20 @@ String originOf(Uri server) {
 String sessionHandleFor(String origin) => 'session:$origin';
 
 /// A stable, filesystem-safe database name for an origin other than the legacy one.
+///
+/// Two 32-bit hashes rather than one 64-bit: dart2js cannot hold a 64-bit integer exactly.
 String databaseFileFor(String origin) {
-  var hash = 0xcbf29ce484222325;
+  var low = 5381;
+  var high = 0x811c9dc5;
   for (final unit in origin.codeUnits) {
-    hash = ((hash ^ unit) * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+    low = ((low * 33) ^ unit) & 0xFFFFFFFF;
+    high = ((high * 31) ^ unit) & 0xFFFFFFFF;
   }
-  return 'slimm-${hash.toRadixString(16).padLeft(16, '0')}.sqlite';
+  final name = '${_hex(high)}${_hex(low)}';
+  return 'slimm-$name.sqlite';
 }
+
+String _hex(int value) => value.toRadixString(16).padLeft(8, '0');
 
 class Account {
   const Account({
