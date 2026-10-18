@@ -19,6 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
+import '../../../widgets/animation_gate.dart';
 import '../providers/gif_preview_bytes.dart';
 import '../providers/gif_trending.dart';
 import '../../../providers/providers.dart';
@@ -395,11 +396,13 @@ class _GifTile extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 switch (preview) {
-                  AsyncData(value: final Uint8List bytes) => Image.memory(
-                    bytes,
-                    fit: BoxFit.cover,
-                    cacheWidth: decodeEdge(context, 160),
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  AsyncData(value: final Uint8List bytes) => AnimationGate(
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.cover,
+                      cacheWidth: decodeEdge(context, 160),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
                   ),
                   AsyncError() => const SizedBox.shrink(),
                   _ => const Center(

@@ -19,7 +19,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../downloads/downloads_controller.dart';
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
+import '../../../widgets/viewport_freeze.dart';
 import 'attachment_format.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_reopen.dart';
@@ -87,6 +89,8 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   )();
 
   bool _ready = false;
+  bool _onScreen = false;
+  bool _loadStarted = false;
   double? _fetchProgress;
   StreamSubscription<String>? _errorSub;
   late final StaleTokenReopener _reopener;
@@ -110,7 +114,28 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
         if (mounted) setActionError('Could not play ${attachment.filename}.');
       },
     )..start();
-    unawaited(_load());
+  }
+
+  /// Opening the source is the expensive part, so it waits until the row is
+  /// on screen in a focused window; a row only inside the list's cache extent never pays.
+  void _onVisibility(bool visible) {
+    _onScreen = visible;
+    _syncPlayback();
+  }
+
+  void _syncPlayback() {
+    final focused = ref.read(appFocusedProvider);
+    if (_onScreen && focused) {
+      if (!_loadStarted) {
+        _loadStarted = true;
+        unawaited(_load());
+      }
+      return;
+    }
+    // A video covered by its own fullscreen route is still being watched.
+    if (_ready && (ModalRoute.isCurrentOf(context) ?? true)) {
+      unawaited(_player.pause());
+    }
   }
 
   Future<void> _load() async {
@@ -176,73 +201,77 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     );
     final caption =
         '${attachment.filename} · ${formatByteSize(attachment.size)}';
+    ref.listen(appFocusedProvider, (_, _) => _syncPlayback());
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: kInlineVideoMax),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadii.control),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: tokens.stripe,
-                  border: Border.all(color: tokens.borderSubtle),
-                ),
-                child: _ready
-                    ? ref.watch(attachmentVideoSurfaceProvider)(
-                        _player,
-                        () => _videoController,
-                        _openFullscreen,
-                      )
-                    : _VideoLoading(progress: _fetchProgress, tokens: tokens),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                caption,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s4),
-            saving
-                ? const Padding(
-                    padding: EdgeInsets.all(AppSpacing.s4),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : AppIconButton(
-                    icon: AppIcons.download,
-                    semanticLabel: 'Save ${attachment.filename}',
-                    tooltip: 'Save',
-                    size: AppIconButtonSize.sm,
-                    onPressed: _save,
+    return ViewportFreeze(
+      onVisibility: _onVisibility,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kInlineVideoMax),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.control),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: tokens.stripe,
+                    border: Border.all(color: tokens.borderSubtle),
                   ),
-          ],
-        ),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s4),
-          AppErrorState(
-            message: actionError!,
-            onRetry: _ready ? null : _load,
-            onDismiss: clearActionError,
+                  child: _ready
+                      ? ref.watch(attachmentVideoSurfaceProvider)(
+                          _player,
+                          () => _videoController,
+                          _openFullscreen,
+                        )
+                      : _VideoLoading(progress: _fetchProgress, tokens: tokens),
+                ),
+              ),
+            ),
           ),
+          const SizedBox(height: AppSpacing.s4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s4),
+              saving
+                  ? const Padding(
+                      padding: EdgeInsets.all(AppSpacing.s4),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : AppIconButton(
+                      icon: AppIcons.download,
+                      semanticLabel: 'Save ${attachment.filename}',
+                      tooltip: 'Save',
+                      size: AppIconButtonSize.sm,
+                      onPressed: _save,
+                    ),
+            ],
+          ),
+          if (actionError != null) ...[
+            const SizedBox(height: AppSpacing.s4),
+            AppErrorState(
+              message: actionError!,
+              onRetry: _ready ? null : _load,
+              onDismiss: clearActionError,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

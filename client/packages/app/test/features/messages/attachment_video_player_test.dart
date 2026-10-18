@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
@@ -71,6 +72,10 @@ class _FakePlayer implements Player {
   final opened = <Playable>[];
   final autoplay = <bool>[];
   bool disposed = false;
+  int pauses = 0;
+
+  @override
+  Future<void> pause() async => pauses += 1;
 
   @override
   late final PlayerStream stream = _FakeStream(this);
@@ -288,6 +293,81 @@ void main() {
       expect(player.opened.single, media);
       expect(find.text('Could not load ${_video.filename}.'), findsNothing);
       expect(find.byKey(const Key('ready-surface')), findsOneWidget);
+    });
+
+    testWidgets('a row outside the viewport opens nothing until scrolled in', (
+      tester,
+    ) async {
+      final player = _FakePlayer();
+      final source = _ScriptedSource([media]);
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiProvider.overrideWithValue(
+              api.SlimmApi(baseUrl: Uri.parse('http://localhost:1')),
+            ),
+            attachmentVideoSourceProvider.overrideWithValue(() => source),
+            attachmentPlayerProvider.overrideWithValue(() => player),
+            attachmentVideoSurfaceProvider.overrideWithValue(
+              (player, controller, onToggleFullscreen) =>
+                  const SizedBox(key: Key('ready-surface')),
+            ),
+          ],
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AppTokens.light),
+            home: Scaffold(
+              body: ListView(
+                controller: controller,
+                scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
+                children: const [
+                  SizedBox(height: 1500),
+                  AttachmentVideoPlayer(attachment: _video),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(source.opens, 0, reason: 'built in the cache extent, never seen');
+      expect(player.opened, isEmpty);
+
+      controller.jumpTo(1400);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(source.opens, 1);
+      expect(player.opened.single, media);
+    });
+
+    testWidgets('an unfocused window opens nothing, and losing focus pauses', (
+      tester,
+    ) async {
+      final binding = TestWidgetsFlutterBinding.instance;
+      addTearDown(
+        () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+      );
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      final player = _FakePlayer();
+      final source = _ScriptedSource([media]);
+      await _pumpFaked(tester, source, player);
+      await tester.pump();
+      await tester.pump();
+      expect(source.opens, 0);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(source.opens, 1);
+      expect(player.pauses, 0);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(player.pauses, 1, reason: 'nobody is watching it play');
     });
 
     testWidgets('disposing disposes the player and the source', (tester) async {

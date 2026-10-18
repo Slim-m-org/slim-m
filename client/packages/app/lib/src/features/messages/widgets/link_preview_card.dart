@@ -37,7 +37,7 @@ import 'attachment_view.dart' show kInlineImageMax;
 import 'image_decode.dart';
 import '../../../widgets/text_link.dart';
 import 'youtube_inline_player.dart';
-import '../../../widgets/viewport_freeze.dart';
+import '../../../widgets/animation_gate.dart';
 
 /// One card per URL, below a message's own text. Callers cap [urls] before
 /// handing them here; this renders exactly what it is given.
@@ -368,7 +368,7 @@ class _LinkPreviewThumbnail extends ConsumerWidget {
           decoration: BoxDecoration(
             border: Border.all(color: tokens.borderSubtle),
           ),
-          child: ViewportFreeze(
+          child: AnimationGate(
             child: Image.memory(
               bytes,
               fit: BoxFit.cover,
