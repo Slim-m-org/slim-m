@@ -53,7 +53,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final overrides = ref.watch(channelNotificationOverridesProvider);
     final hasUnread = channels.any(
-      (c) => channelShowsUnread(c, overrides.overrideFor(c.id), isDm: false),
+      (c) => channelShowsUnread(c, overrides.effectiveFor(c), isDm: false),
     );
     if (!canManage && !hasUnread) return label;
     final menu = ContextMenuRegion(

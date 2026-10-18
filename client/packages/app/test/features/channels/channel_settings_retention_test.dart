@@ -68,6 +68,8 @@ void main() {
     );
     expect(find.text('Space default (Keep forever)'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Message retention'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Message retention'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('30 days'));
@@ -87,6 +89,8 @@ void main() {
       tester,
       perms: Perm.manageChannels | Perm.manageServer,
     );
+    await tester.ensureVisible(find.text('Message retention'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Message retention'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('90 days'));

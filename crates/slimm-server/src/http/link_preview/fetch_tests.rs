@@ -103,11 +103,11 @@ async fn the_image_proxy_refuses_oversized_or_mislabelled_images() {
 
 #[test]
 fn served_images_are_sniffed_and_marked_nosniff() {
-    assert!(super::serve_image(b"<html>hi</html>".to_vec()).is_err());
+    assert!(super::serve_image(b"<html>hi</html>".to_vec().into()).is_err());
     let png = [
         0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, b'I', b'H', b'D', b'R',
     ];
-    let Ok(response) = super::serve_image(png.to_vec()) else {
+    let Ok(response) = super::serve_image(png.to_vec().into()) else {
         panic!("a real png must be served");
     };
     assert_eq!(

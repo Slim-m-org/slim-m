@@ -29,6 +29,7 @@ import '../../../permissions.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../screens/channel_settings_screen.dart';
+import '../providers/channel_notification_overrides_controller.dart';
 import 'channel_move.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'row_menu_notifications.dart';
@@ -89,6 +90,7 @@ List<Widget> channelRowMenuItems(
       channel.id,
       close,
       muteLabel: 'Mute channel',
+      channelDefault: channelDefaultOf(channel),
     ),
     if (canManage && move != null) ...[
       const AppMenuDivider(),

@@ -54,6 +54,10 @@ pub struct Config {
     /// as push above, because a text-only self-host is a supported way to run
     /// this and should not need to stand up an SFU to start.
     pub livekit_api_secret: Option<String>,
+    /// Where this server reaches the SFU's room service, when that differs from
+    /// [`Self::livekit_url`]: the compose-internal address skips the public
+    /// proxy hop on every roster and kick call.
+    pub livekit_service_url: Option<String>,
 
     /// Directory attachment and avatar bytes are stored under, beside the
     /// database rather than in it. A sibling of the database's own default
@@ -241,6 +245,7 @@ impl Default for Config {
             livekit_url: None,
             livekit_api_key: None,
             livekit_api_secret: None,
+            livekit_service_url: None,
             attachments_dir: default_attachments_dir(),
             attachment_max_bytes: default_attachment_max_bytes(),
             max_total_attachment_bytes: None,
@@ -316,6 +321,15 @@ impl Config {
             present(&self.livekit_api_key)?,
             present(&self.livekit_api_secret)?,
         ))
+    }
+
+    /// The room service address override, blank read as absent like the trio.
+    pub fn livekit_service_url(&self) -> Option<String> {
+        self.livekit_service_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
     }
 
     /// The official registry slugs the Dock tries, in order. Either of the

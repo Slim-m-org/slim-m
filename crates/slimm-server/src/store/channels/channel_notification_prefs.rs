@@ -123,6 +123,12 @@ impl Store {
     /// nobody replied to in a thread; the thread's own override still wins
     /// when one exists, since it is the more specific answer.
     ///
+    /// A member with no row of their own gets the stricter of the channel's
+    /// default (`channels.default_notification`, its parent's for a thread)
+    /// and their account preference, so a default only ever narrows. It is
+    /// resolved here, never written into a row, so editing it leaves every
+    /// member's own choices alone.
+    ///
     /// This is the one place [`crate::push::recipients::narrow_for_notification_preference`]
     /// reads a preference from, replacing the account-only lookup it used
     /// before a channel override existed to consult.
@@ -157,10 +163,21 @@ impl Store {
         // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
         let mut builder = QueryBuilder::new(
             "SELECT u.id AS id, \
-             COALESCE(c.preference, p.preference, u.notification_preference) AS preference, \
+             COALESCE(c.preference, p.preference, CASE \
+               WHEN 'nothing' IN (d.level, u.notification_preference) THEN 'nothing' \
+               WHEN 'mentions' IN (d.level, u.notification_preference) THEN 'mentions' \
+               ELSE 'everything' END) AS preference, \
              COALESCE(c.preference, p.preference) IS NOT NULL AS overridden \
-             FROM users u LEFT JOIN channel_notification_prefs c \
-             ON c.user_id = u.id AND c.channel_id = ",
+             FROM users u \
+             LEFT JOIN (SELECT COALESCE(pc.default_notification, cc.default_notification) AS level \
+               FROM channels cc LEFT JOIN channels pc ON pc.id = ",
+        );
+        builder.push_bind(parent_channel_id);
+        builder.push(" WHERE cc.id = ");
+        builder.push_bind(channel_id);
+        builder.push(
+            ") d ON 1 \
+             LEFT JOIN channel_notification_prefs c ON c.user_id = u.id AND c.channel_id = ",
         );
         builder.push_bind(channel_id);
         builder.push(

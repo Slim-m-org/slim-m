@@ -26,6 +26,7 @@ Map<String, dynamic> _channelJson({
   String? topic,
   int slowModeSeconds = 0,
   bool joinMuted = false,
+  String? defaultNotification,
 }) =>
     {
       'id': id,
@@ -35,6 +36,8 @@ Map<String, dynamic> _channelJson({
       'created_at': 1,
       'slow_mode_seconds': slowModeSeconds,
       'join_muted': joinMuted,
+      if (defaultNotification != null)
+        'default_notification': defaultNotification,
     };
 
 void main() {
@@ -70,6 +73,25 @@ void main() {
       );
       await api.createChannel(name: 'lounge', id: 'id-1');
       expect(sentBody, containsPair('id', 'id-1'));
+    });
+    test('a non-default notification level is sent, the default is not',
+        () async {
+      final bodies = <Map<String, dynamic>>[];
+      final api = SlimmApi(
+        baseUrl: _base,
+        session: SessionStore(tokens: _tokens()),
+        httpClient: MockClient((request) async {
+          bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(jsonEncode(_channelJson()), 200);
+        }),
+      );
+      await api.createChannel(name: 'a');
+      await api.createChannel(
+        name: 'b',
+        defaultNotification: NotificationPreference.mentions,
+      );
+      expect(bodies[0], {'name': 'a', 'kind': 'text'});
+      expect(bodies[1]['default_notification'], 'mentions');
     });
   });
 
@@ -170,6 +192,34 @@ void main() {
       );
       expect(sentBody, {'join_muted': true});
       expect(updated.joinMuted, isTrue);
+    });
+    test('a default-notification update sends just that field and round-trips',
+        () async {
+      Map<String, dynamic>? sentBody;
+      final api = SlimmApi(
+        baseUrl: _base,
+        session: SessionStore(tokens: _tokens()),
+        httpClient: MockClient((request) async {
+          sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode(_channelJson(defaultNotification: 'nothing')),
+            200,
+          );
+        }),
+      );
+      final updated = await api.updateChannel(
+        channelId: 'chan-1',
+        defaultNotification: NotificationPreference.nothing,
+      );
+      expect(sentBody, {'default_notification': 'nothing'});
+      expect(updated.defaultNotification, NotificationPreference.nothing);
+    });
+
+    test('a channel from an older server reads as having no default', () {
+      expect(
+        Channel.fromJson(_channelJson()).defaultNotification,
+        NotificationPreference.everything,
+      );
     });
   });
 

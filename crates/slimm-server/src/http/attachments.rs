@@ -158,6 +158,7 @@ async fn upload(
         .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
         .await?;
     drop(placing);
+    state.media.prewarm_preview(&hex_id, content_type);
 
     Ok((
         StatusCode::CREATED,

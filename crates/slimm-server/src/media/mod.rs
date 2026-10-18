@@ -35,8 +35,10 @@ mod compress_budget;
 pub use compress_budget::CompressionBudget;
 mod content_type;
 mod image_header;
+mod linked_avatar;
 pub mod originals;
 pub mod preview;
+mod preview_scale;
 mod stream;
 mod upload_session;
 pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
@@ -401,29 +403,6 @@ impl Media {
 
     pub async fn delete_avatar(&self, user_id: &str) -> io::Result<()> {
         remove(self.avatar_path(user_id)).await
-    }
-
-    /// A linked account's picture shares the avatar directory; the `link-`
-    /// prefix keeps it from ever colliding with a user's UUID-named file.
-    pub async fn write_linked_avatar(
-        &self,
-        provider: &str,
-        user_id: &str,
-        bytes: Vec<u8>,
-    ) -> io::Result<()> {
-        write_atomic(self.linked_avatar_path(provider, user_id), bytes).await
-    }
-
-    pub async fn read_linked_avatar(&self, provider: &str, user_id: &str) -> io::Result<Vec<u8>> {
-        read(self.linked_avatar_path(provider, user_id)).await
-    }
-
-    pub async fn delete_linked_avatar(&self, provider: &str, user_id: &str) -> io::Result<()> {
-        remove(self.linked_avatar_path(provider, user_id)).await
-    }
-
-    fn linked_avatar_path(&self, provider: &str, user_id: &str) -> PathBuf {
-        self.avatars_dir.join(format!("link-{provider}-{user_id}"))
     }
 
     /// The space banner shares the avatar directory; its key is not a UUID,

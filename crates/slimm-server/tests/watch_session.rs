@@ -230,7 +230,7 @@ async fn a_tick_reaches_a_viewer_of_the_channel_and_nobody_else() {
             "voice",
             None,
             Some(w.alice),
-            false,
+            Default::default(),
         )
         .await
         .unwrap()

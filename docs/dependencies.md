@@ -74,6 +74,8 @@ Built with `default-features = false` and only `jpeg`, `png` and `webp`: no GIF 
 Everything is pure Rust, so the static musl build needs no C library.
 The `webp` feature only encodes lossless, so a preview is a JPEG (quality 72) for photographs and a lossless WebP for pictures with transparency or flat graphics, whichever is smaller; the type is in the response `Content-Type`, so a lossy WebP encoder can replace it later without a client change.
 Decoding holds a whole raster in memory, so previews are generated one at a time, refuse sources over 40 megapixels or 48 MiB, and cap the decoder's allocation, to stay inside the 512 MiB container.
+An upload starts deriving every size bucket from one decode as soon as it is stored, so the first viewer usually finds the preview waiting.
+A whole-pixel box average (`media/preview_scale.rs`) runs ahead of the exact resize, because the exact filter alone cost more than the JPEG decode on a 24 megapixel photo.
 
 ## tikv-jemallocator
 

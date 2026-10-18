@@ -274,13 +274,16 @@ class SlimmApi {
   /// idempotent: a retry with the same id returns the first channel.
   /// [restricted] denies `@everyone` VIEW_CHANNEL and grants only the
   /// caller, written atomically with the channel row itself so it can never
-  /// be observed public first.
+  /// be observed public first. [defaultNotification] is what members get
+  /// until they choose their own.
   Future<Channel> createChannel({
     required String name,
     String kind = 'text',
     String? categoryId,
     bool restricted = false,
     bool joinMuted = false,
+    NotificationPreference defaultNotification =
+        NotificationPreference.everything,
     String? id,
   }) async {
     final json = await _send(
@@ -293,6 +296,8 @@ class SlimmApi {
         if (categoryId != null) 'category_id': categoryId,
         if (restricted) 'restricted': true,
         if (joinMuted) 'join_muted': true,
+        if (defaultNotification != NotificationPreference.everything)
+          'default_notification': defaultNotification.wire,
       },
     );
     return Channel.fromJson(json as Map<String, dynamic>);

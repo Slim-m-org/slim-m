@@ -233,7 +233,7 @@ class VoiceChannelRow extends ConsumerWidget {
         : tokens.textSecondary.withValues(alpha: 0.7);
     final override = ref.watch(
       channelNotificationOverridesProvider.select(
-        (s) => s.overrideFor(channel.id),
+        (s) => s.effectiveFor(channel),
       ),
     );
     final indicator = unreadIndicatorFor(

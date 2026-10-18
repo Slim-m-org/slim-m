@@ -69,6 +69,7 @@ fn apply(state: &AppState, event: WebhookEvent) {
     else {
         return;
     };
+    state.voice.roster_cache().invalidate(channel_id);
     let live_state = state.voice.live_state();
     if event.event == "room_finished" {
         live_state.forget_room(channel_id);
