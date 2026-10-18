@@ -19,10 +19,12 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'first_frame_gate.dart';
+import 'video_quality.dart';
 import 'screen_share_status.dart';
 import 'track_tile_state.dart';
 
@@ -46,12 +48,16 @@ class ScreenShareView extends StatefulWidget {
     super.key,
     required this.room,
     required this.identity,
+    this.density,
   });
 
   final lk.Room room;
 
   /// Whose share to render, by server user id.
   final String identity;
+
+  /// The adaptive-stream density this view reports; see [pixelDensityFor].
+  final ValueListenable<lk.AdaptiveStreamPixelDensity>? density;
 
   @override
   State<ScreenShareView> createState() => _ScreenShareViewState();
@@ -166,11 +172,15 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
       placeholder: loading,
       child: OwnedRendererView(
         owned: owned,
-        builder: (renderer) => lk.VideoTrackRenderer(
-          track,
-          fit: lk.VideoViewFit.contain,
-          cachedRenderer: renderer,
-          autoDisposeRenderer: false,
+        builder: (renderer) => withReceiveDensity(
+          widget.density,
+          (density) => lk.VideoTrackRenderer(
+            track,
+            fit: lk.VideoViewFit.contain,
+            cachedRenderer: renderer,
+            autoDisposeRenderer: false,
+            adaptiveStreamPixelDensity: density,
+          ),
         ),
       ),
     );

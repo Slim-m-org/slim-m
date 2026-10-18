@@ -2,8 +2,12 @@
 /// What each quality choice asks LiveKit for, with no room involved.
 library;
 
+// ignore_for_file: invalid_use_of_internal_member, implementation_imports
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:livekit_client/src/publication/track_settings.dart'
+    show VideoSettings, resolveVideoSettings;
 import 'package:slimm_rtc/rtc.dart';
 
 RemoteVideoQualityRef _pub(
@@ -144,6 +148,48 @@ void main() {
         CameraQuality.dataSaver,
       );
       expect(options.params.dimensions.height, 360);
+    });
+  });
+
+  group('Max keeps adaptive stream on', () {
+    test('the room options never turn it off', () {
+      expect(receiveRoomOptions().adaptiveStream, isTrue);
+      expect(receiveRoomOptions().dynacast, isTrue);
+    });
+
+    test('only Max reports a fixed, large pixel density', () {
+      expect(
+        pixelDensityFor(ReceiveVideoQuality.max),
+        const lk.AdaptiveStreamPixelDensity.fixed(maxQualityPixelDensity),
+      );
+      for (final q in [
+        ReceiveVideoQuality.auto,
+        ReceiveVideoQuality.balanced,
+        ReceiveVideoQuality.dataSaver,
+      ]) {
+        expect(pixelDensityFor(q), lk.AdaptiveStreamPixelDensity.auto);
+      }
+    });
+
+    test('a small tile at the Max density still resolves to the top layer', () {
+      // A 1080p top layer and a 320x180 tile: the merge keeps the quality.
+      const top = lk.VideoDimensions(1920, 1080);
+      lk.VideoDimensions tile(double density) =>
+          lk.VideoDimensions((320 * density).ceil(), (180 * density).ceil());
+      final max = resolveVideoSettings(
+        adaptiveStreamDimensions: tile(maxQualityPixelDensity),
+        userPreference: VideoSettings.high,
+        layerDimensionsForQuality: (_) => top,
+      );
+      expect(max.quality, lk.VideoQuality.HIGH);
+      expect(max.dimensions, isNull);
+
+      final auto = resolveVideoSettings(
+        adaptiveStreamDimensions: tile(2),
+        userPreference: VideoSettings.high,
+        layerDimensionsForQuality: (_) => top,
+      );
+      expect(auto.dimensions, isNotNull);
     });
   });
 }

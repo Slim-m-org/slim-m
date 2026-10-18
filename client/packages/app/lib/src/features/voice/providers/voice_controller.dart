@@ -459,22 +459,26 @@ class VoiceController extends StateNotifier<VoiceState>
       _session.screenShareSources();
 
   /// [identity]'s shared screen; see [VoiceSession.screenShareViewFor].
-  Widget screenShareViewFor(String identity) => voiceVideoView(
-    participants: state.participants,
-    health: _session.videoHealth,
-    identity: identity,
-    view: _session.screenShareViewFor(identity),
-    screenShare: true,
-  );
+  Widget screenShareViewFor(String identity, {bool declaresInterest = true}) =>
+      voiceVideoView(
+        participants: state.participants,
+        health: _session.videoHealth,
+        identity: identity,
+        view: _session.screenShareViewFor(identity),
+        screenShare: true,
+        declaresInterest: declaresInterest,
+      );
 
   /// [identity]'s camera feed; see [VoiceSession.cameraViewFor].
-  Widget cameraViewFor(String identity) => voiceVideoView(
-    participants: state.participants,
-    health: _session.videoHealth,
-    identity: identity,
-    view: _session.cameraViewFor(identity),
-    screenShare: false,
-  );
+  Widget cameraViewFor(String identity, {bool declaresInterest = true}) =>
+      voiceVideoView(
+        participants: state.participants,
+        health: _session.videoHealth,
+        identity: identity,
+        view: _session.cameraViewFor(identity),
+        screenShare: false,
+        declaresInterest: declaresInterest,
+      );
 
   /// Declares which presence tiles a surface currently wants video for, so
   /// the rest can be unsubscribed; see [VoiceSession.setVideoInterest].

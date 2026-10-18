@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Pausing incoming video when the window is out of sight: which lifecycle
 /// states pause, that picture-in-picture and the setting are honoured, and
-/// that the pause reaches the call as an empty video interest and lifts back.
+/// that the pause reaches the call as an empty video interest and lifts back,
+/// and that a call with no mounted video wants none.
 library;
 
 import 'package:fake_async/fake_async.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
+import 'package:slimm_app/src/features/voice/providers/video_interest_relay.dart';
 import 'package:slimm_app/src/features/voice/providers/video_pause.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -204,15 +206,66 @@ void main() {
       expect(remoteShare, findsOneWidget);
     });
 
-    testWidgets('no lifecycle state sends an empty video interest', (
+    testWidgets(
+      'a window nobody can see receives no video and resumes on return',
+      (tester) async {
+        final c = await pump(tester);
+        c.read(videoInterestHostProvider);
+        await tester.pump();
+        const shown = {'screen:u-ada', 'camera:u-ada', 'camera:u-me'};
+        c.read(videoInterestRelayProvider).refresh();
+        expect(_lastSession!.videoInterests.last, shown);
+
+        for (final s in [
+          AppLifecycleState.hidden,
+          AppLifecycleState.paused,
+          AppLifecycleState.detached,
+          AppLifecycleState.inactive,
+        ]) {
+          c.read(appLifecycleProvider.notifier).didChangeAppLifecycleState(s);
+          await tester.pump();
+          expect(_lastSession!.videoInterests.last, isEmpty, reason: '$s');
+          c
+              .read(appLifecycleProvider.notifier)
+              .didChangeAppLifecycleState(AppLifecycleState.resumed);
+          await tester.pump();
+          expect(_lastSession!.videoInterests.last, shown, reason: '$s back');
+        }
+      },
+    );
+
+    testWidgets('losing focus keeps receiving video when the setting is off', (
       tester,
     ) async {
-      final c = await pump(tester);
-      for (final s in AppLifecycleState.values) {
-        c.read(appLifecycleProvider.notifier).didChangeAppLifecycleState(s);
-        await tester.pump();
-      }
-      expect(_lastSession!.videoInterests, isEmpty);
+      final c = await pump(tester, setting: false);
+      c.read(videoInterestHostProvider);
+      await tester.pump();
+      c
+          .read(appLifecycleProvider.notifier)
+          .didChangeAppLifecycleState(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(c.read(remoteVideoSeenProvider), isTrue);
+      c
+          .read(appLifecycleProvider.notifier)
+          .didChangeAppLifecycleState(AppLifecycleState.hidden);
+      await tester.pump();
+      expect(c.read(remoteVideoSeenProvider), isFalse);
+      expect(_lastSession!.videoInterests.last, isEmpty);
+    });
+
+    testWidgets('a connected call with no video mounted wants none', (
+      tester,
+    ) async {
+      final r = (await tester.runAsync(() => _rig(who: [remote])))!;
+      r.container.read(videoInterestHostProvider);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: r.container,
+          child: const MaterialApp(home: SizedBox()),
+        ),
+      );
+      r.container.read(videoInterestRelayProvider).refresh();
+      expect(r.session.videoInterests.last, isEmpty);
     });
   });
 

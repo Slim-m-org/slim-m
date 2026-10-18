@@ -27,6 +27,8 @@ FOCUS = "Focus this share"
 SHOW_ALL = "Show all shares"
 # A video must decode new frames across this long to count as live.
 FRESH_SECONDS = 2.0
+# Longer than the cull's 3s dwell plus LiveKit's 1.5s settings debounce.
+HIDDEN_WINDOW_SECONDS = 4.0
 
 
 def _sharing(room_id):
@@ -98,6 +100,21 @@ def _area(video):
     return video["boxW"] * video["boxH"]
 
 
+def _hidden_shares_stop_decoding(c, pc, every):
+    """In a text channel only the mini player's one feed may keep decoding."""
+    c.click(L.TEXT_CHANNEL, settle=8)
+    first = pc.inbound_frames()
+    time.sleep(HIDDEN_WINDOW_SECONDS)
+    after = pc.inbound_frames()
+    growing = [k for k, n in after.items() if n - first.get(k, 0) > 5]
+    print(f"  carol in a text channel: {len(growing)} of {len(after)} "
+          f"inbound videos still decoding")
+    assert len(growing) <= 1, f"hidden shares kept decoding: {growing}"
+    c.click(L.VOICE_CHANNEL, settle=2)
+    wait_for_videos(pc, every, 2)
+    print("  and returning to the lounge decodes both again")
+
+
 def two_shares_reach_a_third_viewer(a, b, server, secret, admin_api,
                                     sign_in, room_id, bob_id):
     e2e_browsers.register(server, admin_api, "carol", secret)
@@ -143,6 +160,8 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
         c.wait_for(FOCUS)
         wait_for_videos(pc, every, 2)
         print("  and showing all shares puts both back")
+
+        _hidden_shares_stop_decoding(c, pc, every)
 
         a.click(L.STOP_SHARING, settle=4)
         _wait_sharing(room_id, 1)

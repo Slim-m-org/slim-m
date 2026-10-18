@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/picture_in_picture.dart';
+import 'package:slimm_app/src/features/voice/providers/video_interest_relay.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'package:slimm_platform/platform.dart';
@@ -234,47 +235,86 @@ void main() {
 
       expect(feed, findsNothing);
       expect(find.byKey(const Key('routed')), findsOneWidget);
-      expect(rig.session.videoInterests.last, isNull);
+      expect(rig.session.videoInterests.last, isEmpty);
     });
   });
 
   group('the video stays subscribed', () {
-    testWidgets('entering holds every track and leaving restores the canvas', (
-      tester,
-    ) async {
-      final rig = await _pump(tester, _call([_share]));
-      final relay = rig.container.read(videoInterestRelayProvider);
-      relay.declare({'screen:u-other'});
-      expect(rig.session.videoInterests, [
-        {'screen:u-other'},
-      ]);
+    testWidgets(
+      'floating narrows interest to exactly the feed and leaving restores the canvas',
+      (tester) async {
+        final rig = await _pump(tester, _call([_share]));
+        final relay = rig.container.read(videoInterestRelayProvider);
+        relay.declare({'screen:u-ada', 'camera:u-ada'});
+        expect(rig.session.videoInterests.last, {
+          'screen:u-ada',
+          'camera:u-ada',
+        });
 
-      await rig.native(true);
-      expect(rig.session.videoInterests.last, isNull);
+        await rig.native(true);
+        expect(rig.session.videoInterests.last, {'screen:u-ada'});
 
-      relay.declare({'screen:u-moved'});
-      expect(rig.session.videoInterests.last, isNull);
+        relay.declare({'screen:u-moved'});
+        expect(rig.session.videoInterests.last, {'screen:u-ada'});
 
-      await rig.native(false);
-      expect(rig.session.videoInterests.last, {'screen:u-moved'});
-    });
+        await rig.native(false);
+        await tester.pump();
+        expect(rig.session.videoInterests.last, {'screen:u-moved'});
+      },
+    );
   });
 
   group('VideoInterestRelay', () {
-    test('holding twice applies once and releasing is idempotent', () {
+    test(
+      'holding the same feed twice applies once and releasing is idempotent',
+      () {
+        final applied = <Set<String>?>[];
+        final relay = VideoInterestRelay(applied.add);
+        relay.declare({'a'});
+        relay
+          ..hold({'p'})
+          ..hold({'p'})
+          ..hold(null)
+          ..hold(null);
+        expect(applied, [
+          {'a'},
+          {'p'},
+          {'a'},
+        ]);
+      },
+    );
+
+    test('nothing mounted or declared resolves to an empty set, not null', () {
+      final relay = VideoInterestRelay((_) {});
+      expect(relay.resolved, isEmpty);
+    });
+
+    test(
+      'an unseen window empties interest and seeing it again restores it',
+      () {
+        final applied = <Set<String>?>[];
+        VideoInterestRelay(applied.add)
+          ..declare({'a'})
+          ..setSeen(false)
+          ..setSeen(true);
+        expect(applied, [
+          {'a'},
+          <String>{},
+          {'a'},
+        ]);
+      },
+    );
+
+    test('mounted views add their keys and releasing removes them', () async {
       final applied = <Set<String>?>[];
-      final relay = VideoInterestRelay(applied.add);
-      relay.declare({'a'});
-      relay
-        ..hold(true)
-        ..hold(true)
-        ..hold(false)
-        ..hold(false);
-      expect(applied, [
-        {'a'},
-        null,
-        {'a'},
-      ]);
+      final relay = VideoInterestRelay(applied.add)..declare({'a'});
+      final release = relay.mount('camera:x');
+      await Future<void>.delayed(Duration.zero);
+      expect(applied.last, {'a', 'camera:x'});
+      release();
+      release();
+      await Future<void>.delayed(Duration.zero);
+      expect(applied.last, {'a'});
     });
   });
 }
