@@ -122,7 +122,7 @@ class CanvasStrokePreviewRelay {
   }
 
   static List<Offset> _thinned(List<Offset> points) {
-    final last = maxStrokePreviewPointsPerFrame - 1;
+    const last = maxStrokePreviewPointsPerFrame - 1;
     return [
       for (var i = 0; i <= last; i++)
         points[(i * (points.length - 1) / last).round()],
