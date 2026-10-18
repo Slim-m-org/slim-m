@@ -7,15 +7,16 @@
 //! ceiling rather than for any reason about what belongs where; every item
 //! here is still `push`-private and reachable only through `super::`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::ids::{ChannelId, UserId};
 use crate::store::{Store, now_ms};
 
+use super::attention::{SkipReason, SkipSummary, narrow_with_reasons};
 use super::debounce::Debounce;
 use super::recipients::message_audience;
-use super::{Enabled, SentMessage, dispatch, envelope, narrow_for_attention};
+use super::{Enabled, SentMessage, dispatch, envelope};
 
 /// How long a device's `foreground` report counts as still current, the same
 /// window a websocket viewing report gets. Past this
@@ -55,6 +56,41 @@ pub(super) async fn deliver(
     store: Store,
     sent: SentMessage,
 ) {
+    let channel_id = sent.channel_id;
+    let mut skips = SkipSummary::default();
+    deliver_inner(enabled, debounce, store, sent, &mut skips).await;
+    log_skips(channel_id, &skips);
+}
+
+/// One info line per push event naming who was left out and why, so "no notification" is diagnosable from the log.
+fn log_skips(channel_id: ChannelId, skips: &SkipSummary) {
+    if skips.is_empty() {
+        return;
+    }
+    let users: Vec<String> = skips.users.iter().map(ToString::to_string).collect();
+    let foreground: Vec<String> = skips
+        .foreground_reports
+        .iter()
+        .map(|(device, age_ms)| format!("{device}:{}ms", age_ms.unwrap_or(-1)))
+        .collect();
+    tracing::info!(
+        %channel_id, %skips, users = %users.join(","), foreground = %foreground.join(","),
+        devices = %skips.signal_devices.join(","),
+        "push: recipients skipped"
+    );
+}
+
+fn log_skip_detail(channel_id: ChannelId, user_id: UserId, reasons: &[SkipReason]) {
+    tracing::debug!(%channel_id, %user_id, ?reasons, "push: recipient skipped");
+}
+
+async fn deliver_inner(
+    enabled: Arc<Enabled>,
+    debounce: Arc<Debounce>,
+    store: Store,
+    sent: SentMessage,
+    skips: &mut SkipSummary,
+) {
     let SentMessage {
         channel_id,
         author_id,
@@ -75,21 +111,19 @@ pub(super) async fn deliver(
             return;
         }
     };
-    let recipients = match narrow_for_attention(
-        &store,
-        channel_id,
-        seq,
-        &presence.viewing(),
-        recipients,
-    )
-    .await
-    {
-        Ok(recipients) => recipients,
-        Err(err) => {
-            tracing::warn!(error = %err, %channel_id, "push: failed to read attention state");
-            return;
-        }
-    };
+    let narrowed =
+        match narrow_with_reasons(&store, channel_id, seq, &presence.viewing(), recipients).await {
+            Ok(narrowed) => narrowed,
+            Err(err) => {
+                tracing::warn!(error = %err, %channel_id, "push: failed to read attention state");
+                return;
+            }
+        };
+    for (user_id, reasons) in &narrowed.skipped {
+        skips.note(*user_id, reasons);
+        log_skip_detail(channel_id, *user_id, reasons);
+    }
+    let recipients = narrowed.kept;
     if recipients.is_empty() {
         return;
     }
@@ -103,10 +137,18 @@ pub(super) async fn deliver(
     };
 
     let now = now_ms();
-    let targets: Vec<_> = targets
+    let (foreground, targets): (Vec<_>, Vec<_>) = targets
         .into_iter()
-        .filter(|target| !is_foreground_and_recent(target, now))
-        .collect();
+        .partition(|target| is_foreground_and_recent(target, now));
+    let still_targeted: HashSet<UserId> = targets.iter().map(|t| t.user_id).collect();
+    let mut silenced = HashSet::new();
+    for target in &foreground {
+        if still_targeted.contains(&target.user_id) || !silenced.insert(target.user_id) {
+            continue;
+        }
+        let age_ms = target.lifecycle_reported_at.map(|at| now - at);
+        skips.note_foreground_device(target.user_id, target.device_id, age_ms);
+    }
     if targets.is_empty() {
         return;
     }
@@ -124,7 +166,12 @@ pub(super) async fn deliver(
     }
     let opened: HashMap<UserId, i64> = decisions
         .into_iter()
-        .filter_map(|(user_id, fired_at)| fired_at.map(|fired_at| (user_id, fired_at)))
+        .filter_map(|(user_id, fired_at)| {
+            if fired_at.is_none() {
+                skips.note_debounced(user_id);
+            }
+            fired_at.map(|fired_at| (user_id, fired_at))
+        })
         .collect();
     let targets: Vec<_> = targets
         .into_iter()
