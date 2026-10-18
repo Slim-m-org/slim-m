@@ -398,6 +398,8 @@ class PushController extends StateNotifier<PushStatus>
   /// `inactive` or missing state must not read as a visible app.
   bool _hasBeenResumed = false;
 
+  String? _lastReportedLabel;
+
   String _currentLabel() => _stateLabel(WidgetsBinding.instance.lifecycleState);
 
   /// On iOS `inactive` is a visible-but-not-focused app: the Control Centre
@@ -429,7 +431,8 @@ class PushController extends StateNotifier<PushStatus>
       unawaited(register());
     }
     final label = _stateLabel(state);
-    if (_isRegisteredWithServer) {
+    // An alt-tab flips focus without changing the label; the heartbeat keeps a foreground report fresh.
+    if (_isRegisteredWithServer && label != _lastReportedLabel) {
       unawaited(_reportLifecycle(label));
     }
   }
@@ -511,6 +514,7 @@ class PushController extends StateNotifier<PushStatus>
     }
     try {
       await _ref.read(apiProvider).reportPushLifecycle(state: lifecycleLabel);
+      _lastReportedLabel = lifecycleLabel;
     } catch (error, stack) {
       reportFailure(
         LogTag.push,
