@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.97.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.96.1...server-v0.97.0) (2026-10-18)
+
+
+### Features
+
+* resource audit, media compression, connection test, faster routes, channel notification defaults, voice lounge menus and screen share fixes ([#2262](https://github.com/Slim-m-org/slim-m/issues/2262)) ([8ac735b](https://github.com/Slim-m-org/slim-m/commit/8ac735be182f8ce9361e84a5e851834ae4616f0d))
+
 ## [0.96.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.96.0...server-v0.96.1) (2026-10-18)
 
 
