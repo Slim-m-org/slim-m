@@ -237,6 +237,7 @@ class RegistryTest(unittest.TestCase):
             "volume slider scales the sound",
             "picking a microphone mid-call",
             "deafening silences what you hear",
+            "muting hands the capture back",
             "share's own volume moves apart",
             "two shares at once reach a third person",
         ):

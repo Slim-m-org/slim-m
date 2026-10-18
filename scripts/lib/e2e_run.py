@@ -37,6 +37,7 @@ import e2e_sweep
 import e2e_threads
 import e2e_voice
 import e2e_voice_deafen
+import e2e_voice_mic_release
 import e2e_voice_devices
 import e2e_voice_multishare
 import e2e_voice_share
@@ -281,6 +282,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: deafening silences what you hear and nothing of what you say",
          lambda: e2e_voice_deafen.deafen_silences_playback_not_the_mic(
              a, b, room_id, admin.me()["id"], member.me()["id"])),
+        ("voice: muting hands the capture back after the grace period",
+         lambda: e2e_voice_mic_release.muting_releases_the_capture_after_the_grace(
+             a, b, room_id)),
         ("voice: a share's own volume moves apart from the sharer's voice",
          lambda: e2e_voice_share.stream_volume_is_apart_from_the_voice(
              a, b, room_id, member.me()["id"])),

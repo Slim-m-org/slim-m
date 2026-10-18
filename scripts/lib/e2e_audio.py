@@ -84,6 +84,18 @@ class AudioProbe:
         return json.loads(self.client.ev(
             "JSON.stringify(window.__e2eAudio.senders())") or "[]")
 
+    def inbound(self):
+        """`(bytes, packets)` of audio received so far across every connection."""
+        got = json.loads(self.client.ev(
+            "JSON.stringify(window.__e2eAudio.inb)") or "{}")
+        return got.get("bytes", 0), got.get("packets", 0)
+
+    def received_over(self, seconds):
+        """Audio bytes that arrived during the next `seconds`."""
+        before = self.inbound()[0]
+        time.sleep(seconds)
+        return self.inbound()[0] - before
+
     def videos(self):
         return json.loads(self.client.ev(
             "JSON.stringify(window.__e2eAudio.videos())") or "[]")
