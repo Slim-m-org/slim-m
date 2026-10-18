@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/app_lifecycle.dart' show isSeenNow;
 import '../../members/providers/user_profiles.dart';
 import '../../../format.dart';
 import '../../messages/widgets/author_label.dart';
@@ -155,7 +156,9 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(_ageRefresh, (_) => _ageTick.value++);
+    _timer = Timer.periodic(_ageRefresh, (_) {
+      if (isSeenNow(context)) _ageTick.value++;
+    });
   }
 
   @override
