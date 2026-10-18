@@ -5,6 +5,7 @@
 /// real landscape window.
 library;
 
+import '../../support/menu_gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,7 +120,8 @@ Future<_Fixture> _openFullscreen(
   session.emitParticipants(const [_me, _aliceOnCamera]);
   await tester.pumpAndSettle();
 
-  await tester.tap(find.byType(ExpandVideoButton));
+  await longPressMenu(tester, find.text('Alice'));
+  await tester.tap(find.text('Camera full screen'));
   await tester.pumpAndSettle();
   expect(find.byType(FullscreenVideoView), findsOneWidget);
   return _Fixture(harness, session, orientation);

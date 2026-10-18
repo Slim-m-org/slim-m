@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -20,43 +21,77 @@ final members = [
 ];
 
 void main() {
-  testWidgets('the header reads channel, then count, then the timer', (
+  testWidgets('the canvas bar says the channel and the facts once', (
     tester,
   ) async {
     final call = await joinCall(
       tester,
-      width: 1000,
+      width: 1400,
       members: members,
       online: <String>{},
+      withCanvasBar: true,
     );
     await call.emit([callMe, callAlice]);
 
-    final channel = tester.getRect(find.text('test-voice'));
-    final count = tester.getRect(find.text('2 in call'));
-    final timer = tester.getRect(find.byType(CallDuration));
-    expect(channel.right, lessThan(count.left));
-    expect(count.right, lessThan(timer.left));
-    expect((channel.center.dy - count.center.dy).abs(), lessThan(6));
-
-    for (final finder in [find.text('2 in call'), find.byType(CallDuration)]) {
-      final style = finder.evaluate().first.widget;
-      final resolved = style is Text
-          ? style.style!
-          : tester
-                .widget<Text>(
-                  find.descendant(of: finder, matching: find.byType(Text)),
-                )
-                .style!;
-      expect(
-        resolved.fontFeatures,
-        contains(const FontFeature.tabularFigures()),
-      );
-      expect(resolved.fontFamily, AppFonts.mono);
-      expect(resolved.fontSize, AppText.micro.fontSize);
-    }
-
+    expect(find.text('test-voice, Canvas'), findsOneWidget);
+    expect(find.text('test-voice'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(CanvasBar),
+        matching: find.text('2 in call'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(CanvasBar),
+        matching: find.byType(CallDuration),
+      ),
+      findsOneWidget,
+    );
     await call.leave();
   });
+
+  testWidgets(
+    'the stage header reads count then timer, without repeating the channel name',
+    (tester) async {
+      final call = await joinCall(
+        tester,
+        width: 1000,
+        members: members,
+        online: <String>{},
+      );
+      await call.emit([callMe, callAlice]);
+
+      expect(find.text('test-voice'), findsNothing);
+      final count = tester.getRect(find.text('2 in call'));
+      final timer = tester.getRect(find.byType(CallDuration));
+      expect(count.right, lessThan(timer.left));
+      expect((timer.center.dy - count.center.dy).abs(), lessThan(6));
+
+      for (final finder in [
+        find.text('2 in call'),
+        find.byType(CallDuration),
+      ]) {
+        final style = finder.evaluate().first.widget;
+        final resolved = style is Text
+            ? style.style!
+            : tester
+                  .widget<Text>(
+                    find.descendant(of: finder, matching: find.byType(Text)),
+                  )
+                  .style!;
+        expect(
+          resolved.fontFeatures,
+          contains(const FontFeature.tabularFigures()),
+        );
+        expect(resolved.fontFamily, AppFonts.mono);
+        expect(resolved.fontSize, AppText.micro.fontSize);
+      }
+
+      await call.leave();
+    },
+  );
 
   testWidgets('alone: one normal tile with its label inside, and no list of '
       'who is online', (tester) async {

@@ -19,12 +19,10 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../format.dart';
-import '../providers/call_mini_player.dart';
+import 'call_tile_backdrop.dart';
 import 'second_clock.dart';
 import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/double_click_detector.dart';
-import 'fullscreen_video_overlay.dart';
-import 'popout_video_button.dart';
 import '../../members/widgets/user_avatar.dart';
 
 /// The tile's size floor: the original fixed width, still right once a call
@@ -152,23 +150,57 @@ class CallParticipantTile extends StatelessWidget {
     );
     // This build's own context, so a popover anchors to this tile - see [onTap]'s doc.
     final onTapHere = onTap == null ? null : () => onTap!(context);
-    final nameStyle = AppText.ui.copyWith(
-      color: _showsCamera ? const Color(0xFFFFFFFF) : tokens.textPrimary,
-    );
     // The name gives way before "(you)" does, so a long name still says whose tile it is.
-    final label = Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Flexible(
-          child: Text(
-            participant.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: nameStyle,
+    Widget label(Color colour) {
+      final nameStyle = AppText.ui.copyWith(color: colour);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              participant.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: nameStyle,
+            ),
           ),
+          if (participant.isLocal) Text(' (you)', style: nameStyle),
+        ],
+      );
+    }
+
+    Widget face(Color onFace) => Stack(
+      children: [
+        if (_showsCamera)
+          Positioned.fill(child: cameraView!)
+        else
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: _kCallTileLabelBand,
+            child: Center(
+              child: UserAvatar(
+                name: participant.name,
+                userId: participant.identity,
+                size: avatarSize,
+                speaking: participant.isSpeaking,
+              ),
+            ),
+          ),
+        Positioned(
+          left: AppSpacing.s8,
+          right: AppSpacing.s8,
+          bottom: AppSpacing.s12,
+          child: label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
         ),
-        if (participant.isLocal) Text(' (you)', style: nameStyle),
+        // Top corner, so the name keeps the tile's whole width and its "(you)".
+        Positioned(
+          right: AppSpacing.s8,
+          top: AppSpacing.s8,
+          child: _StateBadge(participant: participant),
+        ),
       ],
     );
     Widget tile = Stack(
@@ -190,48 +222,19 @@ class CallParticipantTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadii.card),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: _showsCamera
-                          ? const Color(0xFF000000)
-                          : tokens.surfaceRaised,
+                      color: _showsCamera ? const Color(0xFF000000) : null,
                       border: Border.all(color: tokens.borderSubtle),
                       borderRadius: BorderRadius.circular(AppRadii.card),
                     ),
                     child: SizedBox(
                       width: width,
                       height: height,
-                      child: Stack(
-                        children: [
-                          if (_showsCamera)
-                            Positioned.fill(child: cameraView!)
-                          else
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              top: 0,
-                              bottom: _kCallTileLabelBand,
-                              child: Center(
-                                child: UserAvatar(
-                                  name: participant.name,
-                                  userId: participant.identity,
-                                  size: avatarSize,
-                                  speaking: participant.isSpeaking,
-                                ),
-                              ),
+                      child: _showsCamera
+                          ? face(tokens.textPrimary)
+                          : CallTileBackdrop(
+                              identity: participant.identity,
+                              builder: (_, onFace) => face(onFace),
                             ),
-                          Positioned(
-                            left: AppSpacing.s8,
-                            right: AppSpacing.s8,
-                            bottom: AppSpacing.s12,
-                            child: label,
-                          ),
-                          // Top corner, so the name keeps the tile's whole width and its "(you)".
-                          Positioned(
-                            right: AppSpacing.s8,
-                            top: AppSpacing.s8,
-                            child: _StateBadge(participant: participant),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),
@@ -239,27 +242,6 @@ class CallParticipantTile extends StatelessWidget {
             ),
           ),
         ),
-        if (_showsCamera && onExpand != null)
-          Positioned(
-            left: 4,
-            top: 4,
-            child: ExpandVideoButton(
-              label: "View ${participant.name}'s camera full screen",
-              onTap: onExpand!,
-            ),
-          ),
-        if (_showsCamera && !participant.isLocal)
-          Positioned(
-            left: 36,
-            top: 4,
-            child: PopOutVideoButton(
-              feed: (
-                identity: participant.identity,
-                name: participant.name,
-                kind: FeedKind.camera,
-              ),
-            ),
-          ),
       ],
     );
     if (_showsCamera && onExpand != null) {

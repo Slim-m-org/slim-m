@@ -92,6 +92,14 @@ def open_tile_menu(client, name):
     client.wait_for("Mute for me")
 
 
+def open_share_menu(client, caption, item):
+    """Right-click a share tile, found by its caption, and wait for `item`."""
+    tile = client.wait_for(caption)
+    # The grid caption sits under its tile, so aim up into the picture.
+    e2e_input.right_click(client, tile["x"], tile["y"] - 60)
+    client.wait_for(item)
+
+
 def dismiss_popover(client):
     """Close an anchored popover by clicking its barrier, away from the call tiles."""
     client.gestures(True)
