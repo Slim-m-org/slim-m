@@ -67,11 +67,24 @@ void main() {
   testWidgets('the push status is a banner, never a bare ListTile', (
     tester,
   ) async {
-    await tester.pumpWidget(_wrap(const NotificationsSection()));
+    await tester.pumpWidget(
+      _wrap(const NotificationsSection(hasPushChannel: true)),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(ListTile), findsNothing);
     expect(find.byType(NotificationStatusBanner), findsOneWidget);
+  });
+
+  testWidgets('a host without a push channel shows no push status', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(const NotificationsSection(hasPushChannel: false)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NotificationStatusBanner), findsNothing);
   });
 
   Finder toggleLabelled(String label) =>

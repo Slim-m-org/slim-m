@@ -14,6 +14,7 @@ const _panes = <String>[
   'Reports',
   'Removed members',
   'Invites',
+  'Customize',
   'Account recovery',
   'Roles',
   'Channel permissions',
@@ -45,16 +46,18 @@ void main() {
           settleNestedResolve: true,
           afterSettle: (tester) async {
             final row = find.widgetWithText(AppListRow, pane);
+            final nav = find
+                .ancestor(
+                  of: find.widgetWithText(AppListRow, 'Reports'),
+                  matching: find.byType(Scrollable),
+                )
+                .evaluate()
+                .first;
             // The nav is a lazy list, so a pane near the end is built only once scrolled to.
             await tester.scrollUntilVisible(
               row,
               120,
-              scrollable: find
-                  .ancestor(
-                    of: find.widgetWithText(AppListRow, 'Reports'),
-                    matching: find.byType(Scrollable),
-                  )
-                  .first,
+              scrollable: find.byElementPredicate((e) => e == nav),
             );
             await tester.pump();
             await tester.tap(row);
