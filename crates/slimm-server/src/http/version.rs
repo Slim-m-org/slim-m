@@ -19,6 +19,10 @@ pub(super) struct Version {
     name: &'static str,
     /// This deployment's own name, shown in the channel list header.
     space_name: String,
+    /// The Space's description, already public on the invite landing card;
+    /// absent when the admin has not written one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    space_description: Option<String>,
     version: &'static str,
     /// Short git SHA of the build, so two deploys of one version differ.
     /// Absent when the build was not given one, never a placeholder.
@@ -149,9 +153,11 @@ pub(super) async fn version(
     discord: Option<axum::Extension<super::linked_accounts::DiscordLinks>>,
 ) -> Result<Json<Version>, ApiError> {
     let identity = state.store.server_identity().await?;
+    let landing = state.store.space_landing().await?;
     Ok(Json(Version {
         name: "slim-m",
         space_name: state.store.deployment_name().await?,
+        space_description: Some(landing.description).filter(|d| !d.is_empty()),
         version: env!("CARGO_PKG_VERSION"),
         build_id: build_id::current(),
         protocol: PROTOCOL_VERSION,
@@ -159,7 +165,7 @@ pub(super) async fn version(
         invite_required: state.store.join_policy().await? == JoinPolicy::Invite,
         claimed: state.store.is_bootstrapped().await?,
         gif_search_enabled: state.gifs.is_enabled(),
-        icon_updated_at: state.store.space_landing().await?.icon_updated_at,
+        icon_updated_at: landing.icon_updated_at,
         link_previews_enabled: state.link_previews.is_enabled(),
         discord_link_enabled: discord.is_some(),
         screen_share_max_height: state.store.screen_share_max_height().await?,

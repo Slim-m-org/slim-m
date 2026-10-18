@@ -104,6 +104,8 @@ export async function signIn(app: FlutterApp, stack: Stack, username: UserName):
   await app.type('Password', stack.secret);
   await app.click('Sign in');
   await app.waitForUrl('#/channels');
+  // Every sign-in here is a fresh browser and an account under a day old, so setup always opens.
+  await app.click(L.SKIP_SETUP);
 }
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
