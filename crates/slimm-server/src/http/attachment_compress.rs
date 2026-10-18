@@ -67,6 +67,10 @@ pub(super) async fn prepare(
     let Some(kind) = compress::eligible_kind(prefix, &policy) else {
         return Ok(None);
     };
+    // The source bytes are reserved before they are read, the rest of the peak once it is known.
+    let Some(mut slot) = state.media.admit_compression(size).await else {
+        return Ok(None);
+    };
     let bytes = match tokio::fs::read(path).await {
         Ok(bytes) => bytes,
         Err(err) => {
@@ -77,7 +81,22 @@ pub(super) async fn prepare(
     let Some(candidate) = compress::inspect(kind, &bytes) else {
         return Ok(None);
     };
-    let _slot = state.media.compression_slot(candidate.pixels).await;
+    let estimate = compress::peak_bytes(candidate, size, &compress::DEFAULT_SETTINGS);
+    match state
+        .media
+        .admit_compression(estimate.saturating_sub(size))
+        .await
+    {
+        Some(rest) => slot.merge(rest),
+        None => {
+            tracing::warn!(
+                estimate,
+                "no room to compress an upload; storing it as sent"
+            );
+            return Ok(None);
+        }
+    }
+    let _slot = slot;
     let compressed = tokio::task::spawn_blocking(move || {
         compress::compress(candidate, &bytes, &policy, &compress::DEFAULT_SETTINGS)
     })

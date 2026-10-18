@@ -8,7 +8,9 @@ use image::codecs::jpeg::JpegEncoder;
 use image::{ExtendedColorType, ImageEncoder, RgbImage};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use slimm_server::media::Media;
+use std::time::Duration;
+
+use slimm_server::media::{CompressionBudget, Media};
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
@@ -117,6 +119,10 @@ struct Space {
 }
 
 async fn space() -> Space {
+    space_with(Media::for_tests()).await
+}
+
+async fn space_with(media: Media) -> Space {
     let (store, guard) = new_store().await;
     let (admin, _) = register(&store, "root").await;
     let account = store
@@ -128,7 +134,7 @@ async fn space() -> Space {
         .await
         .unwrap()
         .access_token;
-    let app = app_with_media(store.clone(), Media::for_tests());
+    let app = app_with_media(store.clone(), media);
     Space {
         app,
         store,
@@ -432,4 +438,33 @@ async fn a_resumable_upload_is_compressed_too() {
     );
     let (_, _, original) = fetch(&space, stored["id"].as_str().unwrap(), "?original=true").await;
     assert_eq!(original, photo);
+}
+
+const MIB: u64 = 1024 * 1024;
+
+#[tokio::test]
+async fn a_photo_too_big_for_the_memory_budget_is_stored_as_sent() {
+    let tiny = CompressionBudget::new(8 * MIB, Duration::from_millis(50));
+    let space = space_with(Media::for_tests().with_compression_budget(tiny)).await;
+    configure(&space, json!({"enabled": true})).await;
+    let photo = phone_photo();
+    let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
+    assert_eq!(stored["id"], json!(sha_hex(&photo)));
+    assert_eq!(stored["size"], json!(photo.len()));
+}
+
+#[tokio::test]
+async fn jobs_that_fit_one_at_a_time_queue_and_all_compress() {
+    let room_for_one = CompressionBudget::new(40 * MIB, Duration::from_secs(30));
+    let space = space_with(Media::for_tests().with_compression_budget(room_for_one)).await;
+    configure(&space, json!({"enabled": true})).await;
+    let photo = phone_photo();
+    let names: Vec<String> = (0..3).map(|i| format!("IMG_{i}.jpg")).collect();
+    let uploads = names
+        .iter()
+        .map(|name| upload_as(&space, name, photo.clone()));
+    let stored = futures_util::future::join_all(uploads).await;
+    for one in stored {
+        assert!(one["size"].as_u64().unwrap() < photo.len() as u64 * 9 / 10);
+    }
 }

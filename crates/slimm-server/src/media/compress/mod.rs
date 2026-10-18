@@ -135,7 +135,14 @@ pub struct Compressed {
 #[derive(Debug, Clone, Copy)]
 pub struct Candidate {
     pub kind: Kind,
-    pub pixels: u64,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Candidate {
+    pub fn pixels(&self) -> u64 {
+        u64::from(self.width) * u64::from(self.height)
+    }
 }
 
 /// Whether `prefix` (the file's first bytes) is a format the policy lists.
@@ -154,7 +161,11 @@ pub fn inspect(kind: Kind, bytes: &[u8]) -> Option<Candidate> {
     }
     let (w, h) = dimensions(kind, bytes)?;
     let pixels = u64::from(w) * u64::from(h);
-    (pixels > 0 && pixels <= MAX_SOURCE_PIXELS).then_some(Candidate { kind, pixels })
+    (pixels > 0 && pixels <= MAX_SOURCE_PIXELS).then_some(Candidate {
+        kind,
+        width: w,
+        height: h,
+    })
 }
 
 fn dimensions(kind: Kind, bytes: &[u8]) -> Option<(u32, u32)> {
@@ -180,16 +191,51 @@ pub fn compress(
     settings: &Settings,
 ) -> Option<Compressed> {
     let kind = candidate.kind;
-    let result = match kind {
-        Kind::Jpeg => recompress_photo(kind, bytes, policy, settings)
+    let worth_storing = |result: &Compressed| {
+        let keeps_format = result.content_type == source_type(kind);
+        let smaller = result.bytes.len() * 100 <= bytes.len() * (100 - MIN_SAVING_PERCENT);
+        kind.needs_conversion() || smaller || (keeps_format && result.bytes.len() < bytes.len())
+    };
+    match kind {
+        Kind::Jpeg => recompress_photo(candidate, bytes, policy, settings)
+            .filter(worth_storing)
             .or_else(|| strip_jpeg(bytes, policy.metadata)),
-        _ => convert(kind, bytes, policy, settings),
-    }?;
-    let keeps_format = result.content_type == source_type(kind);
-    let smaller = result.bytes.len() * 100 <= bytes.len() * (100 - MIN_SAVING_PERCENT);
-    (kind.needs_conversion() || smaller || (keeps_format && result.bytes.len() < bytes.len()))
-        .then_some(result)
+        _ => convert(candidate, bytes, policy, settings).filter(worth_storing),
+    }
 }
+
+/// The most memory compressing this file can hold at once, in bytes: the
+/// source, the decoded pixels (reduced when a JPEG is decoded at a smaller
+/// DCT scale), the resized pixels and a fixed allowance for codec state.
+/// Per-pixel factors come from measured peaks in docs/research/media-compression.md.
+pub fn peak_bytes(candidate: Candidate, source_len: u64, settings: &Settings) -> u64 {
+    let (w, h) = (u64::from(candidate.width), u64::from(candidate.height));
+    let edge = w.max(h);
+    let cap = u64::from(settings.long_edge);
+    let divisor = if candidate.kind == Kind::Jpeg {
+        decode::jpeg_scale_divisor(candidate.width, candidate.height, settings.long_edge)
+    } else {
+        1
+    };
+    let decoded_px = (w / divisor).max(1) * (h / divisor).max(1);
+    let out_px = if edge > cap {
+        (w * cap / edge).max(1) * (h * cap / edge).max(1)
+    } else {
+        decoded_px
+    };
+    let per_decoded_pixel = match candidate.kind {
+        Kind::Jpeg => JPEG_BYTES_PER_PIXEL,
+        Kind::Heic => HEIC_BYTES_PER_PIXEL,
+        _ => OTHER_BYTES_PER_PIXEL,
+    };
+    source_len + decoded_px * per_decoded_pixel + out_px * RESIZED_BYTES_PER_PIXEL + FIXED_BYTES
+}
+
+const JPEG_BYTES_PER_PIXEL: u64 = 5;
+const HEIC_BYTES_PER_PIXEL: u64 = 5;
+const OTHER_BYTES_PER_PIXEL: u64 = 8;
+const RESIZED_BYTES_PER_PIXEL: u64 = 4;
+const FIXED_BYTES: u64 = 24 * 1024 * 1024;
 
 fn source_type(kind: Kind) -> &'static str {
     match kind {
@@ -223,17 +269,23 @@ fn strip_jpeg(bytes: &[u8], metadata: Metadata) -> Option<Compressed> {
 }
 
 fn recompress_photo(
-    kind: Kind,
+    candidate: Candidate,
     bytes: &[u8],
     policy: &Policy,
     settings: &Settings,
 ) -> Option<Compressed> {
-    let decoded = decode::decode(kind, bytes)?;
+    let decoded = decode::decode(candidate, bytes, settings.long_edge)?;
     jpeg_out::encode(decoded, policy.metadata, settings).map(jpeg)
 }
 
-fn convert(kind: Kind, bytes: &[u8], policy: &Policy, settings: &Settings) -> Option<Compressed> {
-    let decoded = decode::decode(kind, bytes)?;
+fn convert(
+    candidate: Candidate,
+    bytes: &[u8],
+    policy: &Policy,
+    settings: &Settings,
+) -> Option<Compressed> {
+    let kind = candidate.kind;
+    let decoded = decode::decode(candidate, bytes, settings.long_edge)?;
     let transparent = decoded.has_transparency();
     let graphic = !transparent && classify::is_graphic(&decoded.image);
     match (kind, transparent || graphic) {

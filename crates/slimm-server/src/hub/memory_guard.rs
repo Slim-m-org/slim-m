@@ -59,6 +59,11 @@ impl MemorySource for CgroupSource {
     }
 }
 
+/// The memory limit this process runs under, `None` when unlimited or unreadable.
+pub fn memory_limit_bytes() -> Option<u64> {
+    discover_limit()
+}
+
 fn discover_limit() -> Option<u64> {
     if let Ok(raw) = std::env::var("SLIMM_MEMORY_LIMIT_BYTES")
         && let Ok(bytes) = raw.trim().parse::<u64>()

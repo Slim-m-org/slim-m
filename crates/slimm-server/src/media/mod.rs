@@ -31,6 +31,8 @@ use futures_util::Stream;
 use uuid::Uuid;
 
 pub mod compress;
+mod compress_budget;
+pub use compress_budget::CompressionBudget;
 mod content_type;
 mod image_header;
 pub mod originals;
@@ -177,6 +179,7 @@ pub struct Media {
     /// Held while bytes are placed with their row, or a row's absence is
     /// checked and its bytes unlinked; see `crate::blobs`.
     blobs: Arc<tokio::sync::Mutex<()>>,
+    compression: CompressionBudget,
     /// Set only by [`Media::for_tests`]; always `None` in a real deployment,
     /// whose media root outlives the process on purpose.
     temp_root: Option<Arc<TempRoot>>,
@@ -214,6 +217,7 @@ impl Media {
         Ok(Self {
             uploads: Uploads::new(uploads_dir, attachments_dir.clone()),
             blobs: Arc::default(),
+            compression: CompressionBudget::for_limit(crate::hub::memory_limit_bytes()),
             attachments_dir,
             avatars_dir,
             previews: preview::Previews::new(previews_dir),
