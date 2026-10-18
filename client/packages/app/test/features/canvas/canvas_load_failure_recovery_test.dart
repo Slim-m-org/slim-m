@@ -3,7 +3,6 @@
 /// heals itself and never takes the pen away.
 library;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';

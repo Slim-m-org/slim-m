@@ -10,27 +10,26 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-CanvasStrokeInput _box(
-  String id,
-  CanvasObjectKind kind, {
-  String? authorId,
-}) => CanvasStrokeInput(
-  id: id,
-  seq: 1,
-  zIndex: 1,
-  x: 0,
-  y: 0,
-  w: 100,
-  h: 80,
-  points: const [],
-  width: 0,
-  colorKey: '',
-  authorId: authorId,
-  kind: kind,
-  text: kind == CanvasObjectKind.note ? 'hi' : null,
-  shapeKind: kind == CanvasObjectKind.shape ? CanvasShapeKind.rectangle : null,
-  attachmentId: kind == CanvasObjectKind.image ? 'att' : null,
-);
+CanvasStrokeInput _box(String id, CanvasObjectKind kind, {String? authorId}) =>
+    CanvasStrokeInput(
+      id: id,
+      seq: 1,
+      zIndex: 1,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 80,
+      points: const [],
+      width: 0,
+      colorKey: '',
+      authorId: authorId,
+      kind: kind,
+      text: kind == CanvasObjectKind.note ? 'hi' : null,
+      shapeKind: kind == CanvasObjectKind.shape
+          ? CanvasShapeKind.rectangle
+          : null,
+      attachmentId: kind == CanvasObjectKind.image ? 'att' : null,
+    );
 
 CanvasOpsController _ops(
   CanvasDocument document, {
@@ -69,11 +68,9 @@ void main() {
         ..applyPlaced(_box('o', kind, authorId: 'me'))
         ..refresh();
 
-      _ops(document).onErasePoint(
-        const Offset(50, 40),
-        manageCanvas: false,
-        selfId: 'me',
-      );
+      _ops(
+        document,
+      ).onErasePoint(const Offset(50, 40), manageCanvas: false, selfId: 'me');
 
       expect(document.isAlive('o'), isFalse);
     });
@@ -85,11 +82,9 @@ void main() {
       ..applyPlaced(_box('o', CanvasObjectKind.shape, authorId: 'them'))
       ..refresh();
 
-    _ops(document).onErasePoint(
-      const Offset(50, 40),
-      manageCanvas: false,
-      selfId: 'me',
-    );
+    _ops(
+      document,
+    ).onErasePoint(const Offset(50, 40), manageCanvas: false, selfId: 'me');
 
     expect(document.isAlive('o'), isTrue);
   });
@@ -100,11 +95,10 @@ void main() {
       ..applyPlaced(_box('o', CanvasObjectKind.shape, authorId: 'me'))
       ..refresh();
 
-    _ops(document, locked: (id) => id == 'o').onErasePoint(
-      const Offset(50, 40),
-      manageCanvas: true,
-      selfId: 'me',
-    );
+    _ops(
+      document,
+      locked: (id) => id == 'o',
+    ).onErasePoint(const Offset(50, 40), manageCanvas: true, selfId: 'me');
 
     expect(document.isAlive('o'), isTrue);
   });

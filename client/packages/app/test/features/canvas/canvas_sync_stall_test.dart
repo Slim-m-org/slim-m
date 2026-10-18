@@ -79,24 +79,27 @@ Future<http.Response> _page(int afterSeq, List<Object> ops, int latest) async =>
     });
 
 void main() {
-  test('a catch-up request that never answers times out and frees the slot', () {
-    fakeAsync((async) {
-      final document = CanvasDocument()..applyPlaced(_stroke('a'));
-      final sync = _sync(document, (n, afterSeq) {
-        if (n == 1) return Completer<http.Response>().future;
-        return _page(afterSeq, [_removeOp(8, 'a')], 8);
+  test(
+    'a catch-up request that never answers times out and frees the slot',
+    () {
+      fakeAsync((async) {
+        final document = CanvasDocument()..applyPlaced(_stroke('a'));
+        final sync = _sync(document, (n, afterSeq) {
+          if (n == 1) return Completer<http.Response>().future;
+          return _page(afterSeq, [_removeOp(8, 'a')], 8);
+        });
+        sync.seedFromViewport(5);
+
+        unawaited(sync.catchUp());
+        async.elapse(catchUpDeadline + const Duration(seconds: 1));
+        sync.applyLive(9, () {});
+        async.elapse(const Duration(seconds: 5));
+
+        expect(document.applyPlaced(_stroke('a')), isNull);
+        expect(sync.asOfSeq, 8);
       });
-      sync.seedFromViewport(5);
-
-      unawaited(sync.catchUp());
-      async.elapse(catchUpDeadline + const Duration(seconds: 1));
-      sync.applyLive(9, () {});
-      async.elapse(const Duration(seconds: 5));
-
-      expect(document.applyPlaced(_stroke('a')), isNull);
-      expect(sync.asOfSeq, 8);
-    });
-  });
+    },
+  );
 
   test('a failed catch-up page retries by itself', () {
     fakeAsync((async) {

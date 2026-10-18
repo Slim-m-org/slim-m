@@ -9,9 +9,10 @@
 # Shared by scripts/e2e.sh (the Python harness) and e2e/ (Playwright Test), so
 # the two suites test the same thing.
 #
-# Usage: scripts/e2e-stack.sh up|down
+# Usage: scripts/e2e-stack.sh up|down|restart-server
 #   up    start the stack and write $E2E_WORK/stack.json and stack.env
 #   down  stop what `up` started, found through the pid files it wrote
+#   restart-server  kill and relaunch the server on the same database
 #
 # Environment (defaults in brackets):
 #   E2E_WORK [e2e/.work]   work dir: database, logs, pid files, stack.json
@@ -197,8 +198,19 @@ up() {
   echo "stack up: web :$WEB_PORT, api :$API_PORT, sfu :$LK_PORT ($WORK/stack.json)"
 }
 
+# Kills and relaunches only the server, keeping its database: what a deploy does to connected clients.
+restart_server() {
+  stop_pid_file api
+  for _ in $(seq 20); do
+    curl -sf -o /dev/null "http://localhost:$API_PORT/healthz" 2>/dev/null || break
+    sleep 0.5
+  done
+  start_server
+}
+
 case "${1:-}" in
   up) up ;;
   down) down ;;
-  *) echo "usage: $0 up|down" >&2; exit 2 ;;
+  restart-server) restart_server ;;
+  *) echo "usage: $0 up|down|restart-server" >&2; exit 2 ;;
 esac

@@ -41,7 +41,8 @@ Future<List<Offset>> _draw(
 void main() {
   const camera = Camera(x: 500, y: 300, zoom: 2);
 
-  testWidgets('the same pointer path is the same world path at 390 and 1280 '
+  testWidgets(
+      'the same pointer path is the same world path at 390 and 1280 '
       'wide, DPR 1 and 2', (tester) async {
     final narrow = await _draw(
       tester,
