@@ -33,6 +33,7 @@ use uuid::Uuid;
 mod content_type;
 mod image_header;
 pub mod preview;
+mod preview_scale;
 mod stream;
 mod upload_session;
 pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};

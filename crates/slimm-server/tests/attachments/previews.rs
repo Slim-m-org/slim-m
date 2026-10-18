@@ -61,6 +61,7 @@ fn with_orientation(jpeg: &[u8], orientation: u16) -> Vec<u8> {
 }
 
 struct Ready {
+    media: Media,
     app: axum::Router,
     token: String,
     id: String,
@@ -80,7 +81,8 @@ async fn ready(filename: &str, content: Vec<u8>) -> Ready {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let app = app_with_media(store.clone(), Media::for_tests());
+    let media = Media::for_tests();
+    let app = app_with_media(store.clone(), media.clone());
     let (token, _id) = register(&store, "alice").await;
     let uploaded = upload(&app, &token, filename, content).await;
     let id = uploaded["id"].as_str().unwrap().to_owned();
@@ -100,6 +102,7 @@ async fn ready(filename: &str, content: Vec<u8>) -> Ready {
         .unwrap();
     assert_eq!(sent.status(), StatusCode::OK);
     Ready {
+        media,
         app,
         token,
         id,
@@ -225,4 +228,39 @@ async fn a_caller_who_cannot_view_the_attachment_gets_the_same_404_for_a_preview
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+fn mean_red(img: &image::DynamicImage) -> f64 {
+    let rgb = img.to_rgb8();
+    let total: u64 = rgb.pixels().map(|p| u64::from(p.0[0])).sum();
+    total as f64 / f64::from(rgb.width() * rgb.height())
+}
+
+#[tokio::test]
+async fn a_far_smaller_preview_keeps_the_picture_s_shape_and_brightness() {
+    let source = photo(3000, 2000);
+    let r = ready("big.jpg", jpeg(&source, 92)).await;
+
+    let (_, _, body) = fetch(&r, "?w=320").await;
+
+    let decoded = image::load_from_memory(&body).unwrap();
+    assert_eq!((decoded.width(), decoded.height()), (320, 213));
+    let expected = mean_red(&image::DynamicImage::ImageRgb8(source));
+    assert!((mean_red(&decoded) - expected).abs() < 3.0);
+}
+
+#[tokio::test]
+async fn an_upload_is_previewed_at_every_size_before_anyone_asks() {
+    let r = ready("fresh.jpg", jpeg(&photo(2000, 1500), 92)).await;
+
+    let mut stored = 0;
+    for _ in 0..250 {
+        stored = r.media.previews().files().await.unwrap().len();
+        if stored == 3 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+
+    assert_eq!(stored, 3, "one preview file per size bucket");
 }

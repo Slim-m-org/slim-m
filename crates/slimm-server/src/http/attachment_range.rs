@@ -17,6 +17,9 @@ use tokio_util::io::ReaderStream;
 use super::attachments::apply_asset_headers;
 use super::error::ApiError;
 
+/// Bytes read per chunk of a streamed body; the default 4 KiB costs a blocking-pool hop per read.
+const STREAM_CHUNK: usize = 256 * 1024;
+
 /// The byte range a `Range` header resolves to against a known total length.
 enum ByteRange {
     /// No usable range: serve the whole body as `200`. Covers an absent header
@@ -99,7 +102,7 @@ pub(super) async fn serve_ranged(
             response
         }
         ByteRange::Full => {
-            let body = Body::from_stream(ReaderStream::new(file));
+            let body = Body::from_stream(ReaderStream::with_capacity(file, STREAM_CHUNK));
             let mut response = body.into_response();
             set_content_length(response.headers_mut(), total_len);
             response
@@ -110,7 +113,8 @@ pub(super) async fn serve_ranged(
                 ApiError::Internal
             })?;
             let span = end - start + 1;
-            let body = Body::from_stream(ReaderStream::new(file.take(span)));
+            let body =
+                Body::from_stream(ReaderStream::with_capacity(file.take(span), STREAM_CHUNK));
             let mut response = body.into_response();
             *response.status_mut() = StatusCode::PARTIAL_CONTENT;
             let headers = response.headers_mut();
@@ -133,5 +137,30 @@ pub(super) async fn serve_ranged(
 fn set_content_length(headers: &mut HeaderMap, len: u64) {
     if let Ok(value) = HeaderValue::from_str(&len.to_string()) {
         headers.insert(header::CONTENT_LENGTH, value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_util::StreamExt;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn a_large_body_streams_in_few_chunks() {
+        let path = std::env::temp_dir().join(format!("slimm-range-{}", uuid::Uuid::now_v7()));
+        tokio::fs::write(&path, vec![7u8; 2 * 1024 * 1024])
+            .await
+            .unwrap();
+        let file = tokio::fs::File::open(&path).await.unwrap();
+
+        let Ok(response) = serve_ranged(file, 2 * 1024 * 1024, None, "image/png", "a.png").await
+        else {
+            panic!("a whole file is servable");
+        };
+        let chunks = response.into_body().into_data_stream().count().await;
+
+        tokio::fs::remove_file(&path).await.unwrap();
+        assert!(chunks <= 16, "{chunks} chunks for 2 MiB");
     }
 }
