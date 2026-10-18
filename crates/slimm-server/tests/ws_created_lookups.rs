@@ -11,14 +11,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use slimm_server::http::{self};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -129,19 +125,7 @@ async fn mentions_and_the_webhook_label_are_read_once_for_every_subscriber() {
         .unwrap()
         .access_token;
 
-    let state = AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    };
+    let state = support::app::state(store.clone());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let router = http::router(state.clone());

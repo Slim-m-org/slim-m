@@ -4,32 +4,11 @@
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use tower::ServiceExt;
 
 mod support;
-use support::overwrite_harness::{app, general_channel_id, new_store, register, request};
 
-async fn call(
-    router: &Router,
-    method: &str,
-    uri: &str,
-    token: &str,
-    body: Option<Value>,
-) -> (StatusCode, Value) {
-    let response = router
-        .clone()
-        .oneshot(request(method, uri, Some(token), body))
-        .await
-        .unwrap();
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
-    )
-}
+use support::app::call_as as call;
+use support::overwrite_harness::{app, general_channel_id, new_store, register};
 
 async fn join(
     router: &Router,

@@ -7,14 +7,11 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
@@ -25,22 +22,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store, hub: Hub) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Like [`new_store`], but also hands back the raw pool so a test can reach
 /// past the `Store` seam and break a single query for real, rather than the
@@ -151,7 +132,7 @@ async fn typing_reaches_a_viewer() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -180,7 +161,7 @@ async fn typing_does_not_reach_a_non_viewer() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
     let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
@@ -222,7 +203,9 @@ async fn typing_lapses_without_a_refresh() {
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
     // A short TTL so the test does not wait out the production few seconds.
-    let state = state_for(&store, Hub::with_typing_ttl(Duration::from_millis(150)));
+    let state = support::app::builder(store.clone())
+        .hub(Hub::with_typing_ttl(Duration::from_millis(150)))
+        .build();
 
     let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -268,7 +251,9 @@ async fn a_refresh_within_the_ttl_does_not_lapse_or_repeat() {
     // A refresh well before this deadline should push it out rather than
     // merely being ignored; see the timing note below.
     let ttl = Duration::from_millis(400);
-    let state = state_for(&store, Hub::with_typing_ttl(ttl));
+    let state = support::app::builder(store.clone())
+        .hub(Hub::with_typing_ttl(ttl))
+        .build();
 
     let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -310,7 +295,7 @@ async fn typing_is_rate_limited() {
         )
         .await
         .unwrap();
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
     let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -376,7 +361,7 @@ async fn a_hidden_user_typing_is_not_announced() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
@@ -417,7 +402,7 @@ async fn a_store_error_resolving_presence_withholds_typing() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
     let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;

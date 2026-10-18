@@ -11,18 +11,12 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use slimm_server::http::{self};
 use slimm_server::ids::{ChannelId, MessageId, UserId};
-use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
-use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
@@ -37,19 +31,7 @@ async fn world() -> (Store, axum::Router, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     let store = Store::new(pool);
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = http::router(support::app::state(store.clone()));
     (store, app, guard)
 }
 

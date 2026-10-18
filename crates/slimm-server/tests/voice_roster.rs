@@ -13,12 +13,7 @@ use axum::http::{Request, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
@@ -26,28 +21,10 @@ use tower::ServiceExt;
 
 mod support;
 
-fn app(store: Store, voice: VoiceService) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
+use support::app::{json_body, request_bare as request};
 
-fn request(method: &str, uri: &str, token: Option<&str>) -> Request<Body> {
-    let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(token) = token {
-        builder = builder.header("authorization", format!("Bearer {token}"));
-    }
-    builder.body(Body::empty()).unwrap()
+fn app(store: Store, voice: VoiceService) -> Router {
+    support::app::builder(store).voice(voice).router()
 }
 
 fn patch_request(uri: &str, token: &str, body: Value) -> Request<Body> {
@@ -58,13 +35,6 @@ fn patch_request(uri: &str, token: &str, body: Value) -> Request<Body> {
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 /// A member with a session, built through the store: these tests are about

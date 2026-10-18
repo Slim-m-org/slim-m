@@ -2,18 +2,13 @@
 //! A webhook post's own `username` label reaching list, sync and the live
 //! `message.created` frame, and only on webhook posts.
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use slimm_server::http::{self};
 use slimm_server::ids::{ChannelId, MessageId, UserId};
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -21,6 +16,8 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::{json_body_or_null as json_body, request};
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
@@ -35,43 +32,6 @@ async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool), guard)
-}
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
-
-fn request(method: &str, uri: &str, token: Option<&str>, body: Option<Value>) -> Request<Body> {
-    let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(token) = token {
-        builder = builder.header("authorization", format!("Bearer {token}"));
-    }
-    match body {
-        Some(body) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(body.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap_or(Value::Null)
 }
 
 /// A live administrator, a channel, and the delivery path of a webhook pointed at it.
@@ -137,7 +97,7 @@ async fn seed(store: &Store, app: &axum::Router, channel: ChannelId, author: Use
 async fn list_carries_the_label_only_on_the_webhook_post_that_set_one() {
     let (store, _guard) = new_store("slimm-webhook-label-list").await;
     let (token, channel, admin, path) = fixture(&store).await;
-    let app = http::router(state_for(&store));
+    let app = http::router(support::app::state(store.clone()));
     seed(&store, &app, channel, admin, &path).await;
 
     let listed = app
@@ -161,7 +121,7 @@ async fn list_carries_the_label_only_on_the_webhook_post_that_set_one() {
 async fn sync_carries_the_label() {
     let (store, _guard) = new_store("slimm-webhook-label-sync").await;
     let (token, channel, admin, path) = fixture(&store).await;
-    let app = http::router(state_for(&store));
+    let app = http::router(support::app::state(store.clone()));
     seed(&store, &app, channel, admin, &path).await;
 
     let synced = json_body(
@@ -202,7 +162,7 @@ async fn read_message_created(ws: &mut Client) -> Value {
 async fn the_live_frame_carries_the_label() {
     let (store, _guard) = new_store("slimm-webhook-label-ws").await;
     let (token, _channel, _admin, path) = fixture(&store).await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let ctx = store.authenticate(&token).await.unwrap().unwrap();
     let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
 

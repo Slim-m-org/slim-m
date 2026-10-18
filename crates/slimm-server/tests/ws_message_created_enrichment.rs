@@ -12,14 +12,10 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
     Store, User,
@@ -46,22 +42,6 @@ async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool), guard)
-}
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
 }
 
 /// Creates a user and returns (rest access token, ws connect ticket).
@@ -198,7 +178,7 @@ async fn a_second_client_sees_the_launched_app_live() {
 
     let (_watcher_access, watcher_ticket) = user_ticket(&store, "watcher").await;
 
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
     let mut watcher_ws = connect(addr, &watcher_ticket).await;
 
@@ -245,7 +225,7 @@ async fn a_second_client_sees_a_poll_live() {
 
     let (_watcher_access, watcher_ticket) = user_ticket(&store, "watcher").await;
 
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
     let mut watcher_ws = connect(addr, &watcher_ticket).await;
 
@@ -294,7 +274,7 @@ async fn an_ordinary_message_carries_no_app_or_poll_live() {
     let (author_access, _author_ticket) = user_ticket(&store, "alice").await;
     let (_watcher_access, watcher_ticket) = user_ticket(&store, "watcher").await;
 
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
     let mut watcher_ws = connect(addr, &watcher_ticket).await;
 
@@ -335,7 +315,7 @@ async fn a_live_frame_carries_the_attachment_the_message_was_sent_with() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, _alice_ticket) = user_ticket(&store, "alice").await;
     let alice_id = store

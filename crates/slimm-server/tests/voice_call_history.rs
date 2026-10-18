@@ -11,14 +11,9 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
 use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::{CanvasObjectId, ChannelId, UserId};
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{PlaceRequest, Store, VoiceEventKind};
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
@@ -91,19 +86,7 @@ async fn world(prefix: &str) -> World {
     let store = Store::new(db::connect(&config).await.expect("connect + migrate"));
     // An address nothing listens on: the SFU never answers, so nobody counts as present.
     let voice = VoiceService::for_test("http://127.0.0.1:1", API_KEY, API_SECRET);
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store.clone()).voice(voice).router();
     let owner = session(&store, "owner").await;
     let kiki = session(&store, "kiki").await;
     let channel = store.create_channel("voice", "voice").await.unwrap();
