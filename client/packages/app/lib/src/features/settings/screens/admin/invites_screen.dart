@@ -22,6 +22,7 @@ import '../../../members/widgets/invite_landing_section.dart';
 import '../../widgets/join_gate_section.dart';
 import '../../widgets/join_policy_row.dart';
 import '../../widgets/totp_policy_row.dart';
+import '../../widgets/welcome_section.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
@@ -74,6 +75,7 @@ class InvitesPane extends ConsumerWidget {
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
           JoinGateSection(),
+          WelcomeSection(),
           InviteLandingSection(),
         ],
         if (canInvite) ...const [_CreateInviteCard(), _InviteList()],

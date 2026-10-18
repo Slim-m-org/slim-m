@@ -100,6 +100,16 @@ async fn set_commands(
         Err(SetBotCommandsError::InvalidPrefix(msg) | SetBotCommandsError::InvalidCommand(msg)) => {
             Err(ApiError::BadRequest(msg))
         }
+        Err(SetBotCommandsError::PrefixNotAssigned { assigned }) => Err(ApiError::ConflictDetail(
+            format!("this bot is assigned the prefix {assigned}; register under it"),
+        )),
+        Err(SetBotCommandsError::CommandTaken {
+            bot_display_name,
+            prefix,
+            command,
+        }) => Err(ApiError::ConflictDetail(format!(
+            "{prefix}{command} is already registered by {bot_display_name}; rename the command or use a different prefix"
+        ))),
         Err(SetBotCommandsError::Internal(err)) => Err(err.into()),
     }
 }

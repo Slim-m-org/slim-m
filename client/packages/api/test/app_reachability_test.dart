@@ -39,6 +39,12 @@ import 'support/code_only.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
+  'getBotCommands': 'a bot\'s own registration was only read by the commands '
+      'section of its profile card, which the owner asked to remove '
+      '(2026-10-18). The route and binding stay: it is the documented wire '
+      'contract for third-party clients',
+  'memberPermissions': 'bot accounts only: the server answers 403 to a '
+      'person, so the app has no use for it (2026-10-18)',
   'bulkDeleteMessagesByAuthor': 'the author-plus-window sibling of '
       'bulkDeleteMessages: the server route and its index exist so a raid '
       'response is not "select 64 ids by hand", but no transcript UI offers '

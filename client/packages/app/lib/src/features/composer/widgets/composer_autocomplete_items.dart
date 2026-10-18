@@ -107,6 +107,11 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
     botCommands,
     gifSearch: gifSearch,
   ),
+  AutocompleteKind.botCommand => _botCommandRows(
+    query.term,
+    botCommands,
+    prefix: query.prefix,
+  ).take(maxAutocompleteRows).toList(growable: false),
 };
 
 List<AutocompleteSuggestion> _emoji(
@@ -297,16 +302,22 @@ List<AutocompleteSuggestion> _appRows(String term, List<api.App> apps) => [
       ),
 ];
 
-// Two bots sharing a prefix and name both stay, disambiguated by `detail`.
+/// One row per trigger; a registration from before clashes were refused can still repeat one.
 List<AutocompleteSuggestion> _botCommandRows(
   String term,
-  List<api.ChannelBotCommand> botCommands,
-) => [
-  for (final command in botCommands)
-    if (_startsWithTerm(term, command.name))
-      AutocompleteSuggestion(
-        insert: '${command.prefix}${command.name} ',
-        label: '${command.prefix}${command.name}',
-        detail: '${command.description} · ${command.botDisplayName}',
-      ),
-];
+  List<api.ChannelBotCommand> botCommands, {
+  String? prefix,
+}) {
+  final triggers = <String>{};
+  return [
+    for (final command in botCommands)
+      if ((prefix == null || command.prefix == prefix) &&
+          _startsWithTerm(term, command.name) &&
+          triggers.add('${command.prefix}${command.name.toLowerCase()}'))
+        AutocompleteSuggestion(
+          insert: '${command.prefix}${command.name} ',
+          label: '${command.prefix}${command.name}',
+          detail: '${command.description} · ${command.botDisplayName}',
+        ),
+  ];
+}

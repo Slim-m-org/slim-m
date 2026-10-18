@@ -197,7 +197,7 @@ async fn registering_again_replaces_the_whole_set() {
             "/bots/commands",
             &bot_token,
             Some(register_body(
-                "?",
+                "!",
                 json!([{ "name": "new", "description": "the new one" }]),
             )),
         ))
@@ -216,10 +216,10 @@ async fn registering_again_replaces_the_whole_set() {
     assert_eq!(
         json_body(response).await,
         json!({
-            "prefix": "?",
+            "prefix": "!",
             "commands": [{ "name": "new", "description": "the new one" }]
         }),
-        "the old prefix and command must be gone, not merged with the new set"
+        "the old command must be gone, not merged with the new set"
     );
 }
 

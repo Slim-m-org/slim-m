@@ -280,6 +280,7 @@ async fn redeem(
         Ok(freshly_redeemed) => {
             if freshly_redeemed {
                 state.hub.publish(Event::MemberJoined(ctx.user_id));
+                super::welcome::post_welcome(&state, ctx.user_id).await;
             }
             Ok(StatusCode::NO_CONTENT)
         }

@@ -17,7 +17,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/features/members/providers/bot_commands.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -27,14 +26,6 @@ const _other = api.UserProfile(
   username: 'maya',
   displayName: 'maya',
   createdAt: 0,
-);
-
-const _bot = api.UserProfile(
-  id: 'user-helper-bot',
-  username: 'helper',
-  displayName: 'Helper',
-  createdAt: 0,
-  isBot: true,
 );
 
 // Every moderation row on, so the popover is as tall as the screenshot's.
@@ -47,18 +38,6 @@ Widget _harness(Widget child, {api.UserProfile profile = _other}) =>
         myPermissionsProvider.overrideWithValue(_fullModeration),
         membersProvider.overrideWith((ref) async => [profile]),
         rolesProvider.overrideWith((ref) async => const <api.Role>[]),
-        botCommandRegistrationProvider(_bot.id).overrideWith(
-          (ref) async => api.BotCommandRegistration(
-            prefix: '!',
-            commands: [
-              for (var i = 0; i < 20; i++)
-                api.RegisteredBotCommand(
-                  name: 'cmd$i',
-                  description: 'does thing number $i, in a bit more detail',
-                ),
-            ],
-          ),
-        ),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
@@ -86,20 +65,14 @@ Widget _anchorRow(double top, api.UserProfile profile) => Positioned(
 
 /// Opens the popover and returns the rect of [lastItemText] - the whole
 /// (pushed) view's own last row, not just its top items, proof the whole
-/// thing laid out. [enterModerate] pushes into Moderate first, for the two
-/// tests whose tallest content lives there; the bot-commands test's tallest
-/// content is on the profile view itself, so it leaves this false.
-///
-/// [expandBotCommands] taps the collapsed section's own "Show N more" row
-/// first - the bot-commands test's fixture is only genuinely tall once
-/// expanded, now that the section collapses to a handful of rows by default.
+/// thing laid out. [enterModerate] pushes into Moderate first, for the tests
+/// whose tallest content lives there.
 Future<Rect> _openAt(
   WidgetTester tester, {
   required Size window,
   required double anchorTop,
   api.UserProfile profile = _other,
   bool enterModerate = true,
-  bool expandBotCommands = false,
   String lastItemText = 'Password reset code...',
 }) async {
   tester.view.physicalSize = window;
@@ -118,10 +91,6 @@ Future<Rect> _openAt(
   await tester.pumpAndSettle();
 
   expect(find.byType(AppMenu), findsOneWidget);
-  if (expandBotCommands) {
-    await tester.tap(find.textContaining('Show'));
-    await tester.pumpAndSettle();
-  }
   if (enterModerate) {
     await tester.tap(find.text('Moderate...'));
     await tester.pumpAndSettle();
@@ -166,56 +135,4 @@ void main() {
       expect(lastItem.bottom, lessThanOrEqualTo(window.height));
     },
   );
-
-  testWidgets(
-    "a bot with many commands does not push the popover's own rows off "
-    'the bottom edge',
-    (tester) async {
-      const window = Size(900, 700);
-      final lastItem = await _openAt(
-        tester,
-        window: window,
-        anchorTop: 640,
-        profile: _bot,
-        enterModerate: false,
-        lastItemText: 'Block',
-      );
-
-      expect(find.textContaining('answers to'), findsOneWidget);
-      expect(
-        lastItem.bottom,
-        lessThanOrEqualTo(window.height),
-        reason:
-            'a long command list is one more section stacked above the '
-            'moderation rows; it must not defeat the flip-above measurement',
-      );
-      expect(lastItem.top, greaterThanOrEqualTo(0));
-    },
-  );
-
-  testWidgets('expanding a bot with many commands grows the popover within the '
-      "window's own scroll fallback rather than overflowing the RenderBox", (
-    tester,
-  ) async {
-    const window = Size(900, 700);
-    await _openAt(
-      tester,
-      window: window,
-      anchorTop: 640,
-      profile: _bot,
-      enterModerate: false,
-      expandBotCommands: true,
-      lastItemText: 'Block',
-    );
-
-    expect(
-      tester.takeException(),
-      isNull,
-      reason:
-          'expanding to every command makes this popover genuinely taller '
-          "than the window - it must scroll within the popover's own "
-          'SingleChildScrollView fallback, never overflow a RenderBox',
-    );
-    expect(find.textContaining('!cmd19'), findsOneWidget);
-  });
 }

@@ -234,18 +234,48 @@ void main() {
       expect(row.detail, contains('Helper'));
     });
 
-    test('two bots sharing a prefix and name both stay', () {
+    test('two bots answering one trigger list only the first', () {
       final rows = _for(
         AutocompleteKind.command,
-        'ping',
+        'watch',
         botCommands: [
-          _botCommand('b1', 'Helper', '!', 'ping'),
-          _botCommand('b2', 'Watcher', '!', 'ping'),
+          _botCommand('b1', 'Jellyfin', '!', 'watch'),
+          _botCommand('b2', 'Deals', '!', 'Watch'),
         ],
       );
-      expect(rows, hasLength(2));
-      expect(rows.any((r) => r.detail!.contains('Helper')), isTrue);
-      expect(rows.any((r) => r.detail!.contains('Watcher')), isTrue);
+      expect(rows, hasLength(1));
+      expect(rows.single.detail, contains('Jellyfin'));
+    });
+
+    test('the same name under different prefixes stays two rows', () {
+      final rows = _for(
+        AutocompleteKind.command,
+        'stop',
+        botCommands: [
+          _botCommand('b1', 'Music', '~', 'stop'),
+          _botCommand('b2', 'Games', '!', 'stop'),
+        ],
+      );
+      expect(rows.map((r) => r.label), ['~stop', '!stop']);
+    });
+
+    test('typing a bot prefix lists only the bots that use it', () {
+      final rows = autocompleteSuggestions(
+        query: const AutocompleteQuery(
+          kind: AutocompleteKind.botCommand,
+          term: 'st',
+          start: 0,
+          end: 3,
+          prefix: '~',
+        ),
+        custom: const [],
+        members: members,
+        botCommands: [
+          _botCommand('b1', 'Music', '~', 'stop'),
+          _botCommand('b2', 'Games', '!', 'start'),
+        ],
+      );
+      expect(rows.map((r) => r.label), ['~stop']);
     });
   });
 }

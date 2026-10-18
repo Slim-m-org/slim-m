@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings\n             SET welcome_enabled = ?, welcome_channel_id = ?, welcome_message = ?, updated_at = ?\n             WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "e7c735e4860c56e1b050bc4d3b9f54a524feac5b25d2416c30b215d054a2c523"
+}
