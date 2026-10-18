@@ -249,7 +249,50 @@ WindowGeometry clampToAttachedDisplays(
   final position = sized.position;
   if (position == null) return sized;
   final stillAttached = displays.any(position.overlaps);
-  return stillAttached ? sized : sized.copyWith(clearPosition: true);
+  if (!stillAttached) return sized.copyWith(clearPosition: true);
+  return _keptOnScreen(sized, position, displays);
+}
+
+/// A window whose rectangle hangs off every display it touches is moved back
+/// onto the one it overlaps most, so a size capped to a smaller or more scaled
+/// display does not leave its far edge, and the close button, off screen.
+WindowGeometry _keptOnScreen(
+  WindowGeometry geometry,
+  WindowRect position,
+  List<DisplayArea> displays,
+) {
+  final size = geometry.windowedSize;
+  final placed = WindowRect(
+    x: position.x,
+    y: position.y,
+    width: size.width,
+    height: size.height,
+  );
+  final overlaps = {for (final d in displays) d: _overlapArea(placed, d)};
+  final covered = overlaps.values.fold(0.0, (sum, area) => sum + area);
+  if (covered >= size.width * size.height - 0.5) return geometry;
+  final home = displays.reduce((a, b) => overlaps[a]! >= overlaps[b]! ? a : b);
+  return geometry.copyWith(
+    position: WindowRect(
+      x: math.max(home.x, math.min(placed.x, home.x + home.width - size.width)),
+      y: math.max(
+        home.y,
+        math.min(placed.y, home.y + home.height - size.height),
+      ),
+      width: size.width,
+      height: size.height,
+    ),
+  );
+}
+
+double _overlapArea(WindowRect rect, DisplayArea display) {
+  final width =
+      math.min(rect.x + rect.width, display.x + display.width) -
+      math.max(rect.x, display.x);
+  final height =
+      math.min(rect.y + rect.height, display.y + display.height) -
+      math.max(rect.y, display.y);
+  return width > 0 && height > 0 ? width * height : 0;
 }
 
 WindowGeometry _capSizeToDisplays(

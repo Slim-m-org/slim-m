@@ -11,7 +11,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'database_key.dart';
-import 'encrypted_database.dart';
+import 'encrypted_database.dart' show applyDatabaseKey;
+import 'open_recovery.dart';
 
 /// The file name is part of the contract with anyone debugging a user's
 /// install, so it is fixed here rather than derived.
@@ -38,7 +39,7 @@ Future<QueryExecutor> openSlimmDatabase({
   final directory =
       directoryPath ?? (await getApplicationSupportDirectory()).path;
   final file = File(p.join(directory, fileName ?? slimmDatabaseFileName));
-  final prepared = await prepareEncryptedDatabase(file: file, keys: keys);
+  final prepared = await prepareOpenableDatabase(file: file, keys: keys);
   final reset = prepared.reset;
   if (reset != null) onReset?.call(reset);
   final key = prepared.key;

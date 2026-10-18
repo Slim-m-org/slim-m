@@ -13,8 +13,10 @@ export 'src/connection/connection.dart' show openSlimmDatabase;
 export 'src/connection/database_key.dart'
     show
         DatabaseEncryptionUnavailable,
+        DatabaseInUseElsewhere,
         DatabaseKeyStore,
         DatabaseResetReason,
+        DatabaseUnopenable,
         LocalDatabaseKeyUnavailable,
         generateDatabaseKey;
 export 'src/database.dart' show SlimmDatabase, Channel, ChannelCategoryRow;
