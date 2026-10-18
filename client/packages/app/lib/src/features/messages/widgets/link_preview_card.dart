@@ -124,85 +124,87 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: onCardTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: tokens.borderSubtle),
-                borderRadius: BorderRadius.circular(AppRadii.control),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.s8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (preview.siteName case final siteName?)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          AppIcons.link,
-                          size: 12,
-                          color: tokens.textSecondary,
-                        ),
-                        const SizedBox(width: AppSpacing.s4),
-                        Flexible(
-                          child: Text(
-                            siteName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.caption.copyWith(
-                              color: tokens.textSecondary,
+          child: SelectionContainer.disabled(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: tokens.borderSubtle),
+                  borderRadius: BorderRadius.circular(AppRadii.control),
+                ),
+                padding: const EdgeInsets.all(AppSpacing.s8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (preview.siteName case final siteName?)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            AppIcons.link,
+                            size: 12,
+                            color: tokens.textSecondary,
+                          ),
+                          const SizedBox(width: AppSpacing.s4),
+                          Flexible(
+                            child: Text(
+                              siteName,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption.copyWith(
+                                color: tokens.textSecondary,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  if (preview.title case final title?)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.s4),
-                      child: Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(
-                          fontWeight: AppWeights.semi,
-                          color: tokens.textPrimary,
-                        ),
+                        ],
                       ),
-                    ),
-                  if (preview.authorName case final authorName?)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.s4),
-                      child: _AuthorRow(
-                        name: authorName,
-                        url: preview.authorUrl,
-                      ),
-                    ),
-                  if (preview.description case final description?)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.s4),
-                      child: Text(
-                        description,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.caption.copyWith(
-                          color: tokens.textSecondary,
+                    if (preview.title case final title?)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.s4),
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.body.copyWith(
+                            fontWeight: AppWeights.semi,
+                            color: tokens.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                  if (preview.imageToken != null || preview.isPlayableVideo)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.s8),
-                      child: _LinkPreviewMedia(
-                        url: widget.url,
-                        preview: preview,
-                        revealed: _revealed,
-                        onReveal: () => setState(() => _revealed = true),
-                        playing: _playing,
-                        onPlay: _handlePlayTap,
+                    if (preview.authorName case final authorName?)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.s4),
+                        child: _AuthorRow(
+                          name: authorName,
+                          url: preview.authorUrl,
+                        ),
                       ),
-                    ),
-                ],
+                    if (preview.description case final description?)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.s4),
+                        child: Text(
+                          description,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption.copyWith(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                      ),
+                    if (preview.imageToken != null || preview.isPlayableVideo)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.s8),
+                        child: _LinkPreviewMedia(
+                          url: widget.url,
+                          preview: preview,
+                          revealed: _revealed,
+                          onReveal: () => setState(() => _revealed = true),
+                          playing: _playing,
+                          onPlay: _handlePlayTap,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

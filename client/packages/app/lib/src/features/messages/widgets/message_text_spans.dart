@@ -253,7 +253,7 @@ class ChannelMentionChip extends ConsumerWidget {
           onTap: () => GoRouter.of(
             context,
           ).go(Routes.channel(channelId, openChat: true)),
-          child: chip,
+          child: SelectionContainer.disabled(child: chip),
         ),
       ),
     );

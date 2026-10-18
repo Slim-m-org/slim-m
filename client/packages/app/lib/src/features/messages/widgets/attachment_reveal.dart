@@ -99,24 +99,26 @@ class AttachmentRevealTile extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: onReveal,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: radius,
+          child: SelectionContainer.disabled(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: tokens.borderSubtle),
+                    borderRadius: radius,
+                  ),
+                  child: body,
                 ),
-                child: body,
-              ),
-              const SizedBox(height: AppSpacing.s4),
-              Text(
-                caption,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.s4),
+                Text(
+                  caption,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
+              ],
+            ),
           ),
         ),
       ),

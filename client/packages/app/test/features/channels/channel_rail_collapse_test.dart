@@ -16,8 +16,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/collapsed_categories_preference.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_section_label.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -30,19 +32,40 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-Channel _channel(String id, {int lastRead = 0, int mentioned = 0}) => Channel(
+Channel _channel(
+  String id, {
+  int lastRead = 0,
+  int mentioned = 0,
+  int? cursor,
+}) => Channel(
   id: id,
   name: id,
   kind: 'text',
   createdAt: 0,
   position: 0,
-  cursor: mentioned,
+  cursor: cursor ?? mentioned,
   lastReadSeq: lastRead,
   mentionedSeq: mentioned,
   slowModeSeconds: 0,
   joinMuted: false,
   isPersonalSpace: false,
   categoryId: 'cat1',
+);
+
+class _FixedOverrides extends ChannelNotificationOverridesController {
+  _FixedOverrides(super.ref, Set<String> muted) {
+    state = ChannelNotificationOverridesState(
+      byChannel: {
+        for (final id in muted) id: api.NotificationPreference.nothing,
+      },
+      settled: true,
+    );
+  }
+}
+
+Finder get _headerDot => find.descendant(
+  of: find.byType(SectionLabel),
+  matching: find.byKey(AppListRow.unreadDotKey),
 );
 
 Future<ProviderContainer> _pump(
@@ -52,6 +75,7 @@ Future<ProviderContainer> _pump(
   bool canManage = false,
   Set<String> collapsedAtStart = const {},
   bool inLabelledGroup = false,
+  Set<String> muted = const {},
 }) async {
   SharedPreferences.setMockInitialValues({
     if (collapsedAtStart.isNotEmpty)
@@ -60,6 +84,9 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      channelNotificationOverridesProvider.overrideWith(
+        (ref) => _FixedOverrides(ref, muted),
+      ),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       preferencesProvider.overrideWith(
         (ref) => SharedPreferences.getInstance(),
@@ -255,4 +282,56 @@ void main() {
     expect(node().flagsCollection.isExpanded, Tristate.isFalse);
     semantics.dispose();
   });
+
+  for (final width in [390.0, 1280.0]) {
+    group('unread channels under a fold at $width wide', () {
+      testWidgets('an unread channel stays shown and the header gets a dot', (
+        tester,
+      ) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await _pump(
+          tester,
+          channels: [_channel('alpha'), _channel('beta', cursor: 3)],
+          collapsedAtStart: {'cat1'},
+        );
+
+        expect(_shown(tester, 'beta'), isTrue);
+        expect(_shown(tester, 'alpha'), isFalse);
+        expect(_headerDot, findsOneWidget);
+      });
+
+      testWidgets('a muted unread channel does not count', (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await _pump(
+          tester,
+          channels: [_channel('alpha', cursor: 3)],
+          collapsedAtStart: {'cat1'},
+          muted: {'alpha'},
+        );
+
+        expect(_shown(tester, 'alpha'), isFalse);
+        expect(_headerDot, findsNothing);
+      });
+
+      testWidgets('reading it hides it again and clears the dot', (
+        tester,
+      ) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await _pump(
+          tester,
+          channels: [_channel('alpha', lastRead: 3, cursor: 3)],
+          collapsedAtStart: {'cat1'},
+        );
+
+        expect(_shown(tester, 'alpha'), isFalse);
+        expect(_headerDot, findsNothing);
+      });
+    });
+  }
 }

@@ -27,6 +27,7 @@ class SectionLabel extends StatefulWidget {
     super.key,
     this.trailingBuilder,
     this.collapsed = false,
+    this.indicator,
     this.onToggle,
   });
 
@@ -36,6 +37,9 @@ class SectionLabel extends StatefulWidget {
   /// uncategorised bucket); otherwise pressing the header calls it.
   final VoidCallback? onToggle;
   final bool collapsed;
+
+  /// The dot a folded header shows for the rows it hides; null or all false shows none.
+  final ({bool unread, bool mentioned})? indicator;
 
   /// Builds the section's add glyph given whether it should currently show,
   /// and a callback to report the glyph's own focus back up to this header -
@@ -79,6 +83,7 @@ class _SectionLabelState extends State<SectionLabel> {
         : _FoldButton(
             collapsed: widget.collapsed,
             name: widget.text,
+            indicator: widget.indicator,
             onToggle: onToggle,
             child: title,
           );
@@ -212,12 +217,14 @@ class _FoldButton extends StatelessWidget {
   const _FoldButton({
     required this.collapsed,
     required this.name,
+    required this.indicator,
     required this.onToggle,
     required this.child,
   });
 
   final bool collapsed;
   final String name;
+  final ({bool unread, bool mentioned})? indicator;
   final VoidCallback onToggle;
   final Widget child;
 
@@ -255,6 +262,18 @@ class _FoldButton extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.s4),
                 Expanded(child: child),
+                if (indicator case (
+                  :final unread,
+                  :final mentioned,
+                ) when unread || mentioned)
+                  Padding(
+                    // No right inset: the header's own padding already puts the dot on the rows' dot column.
+                    padding: const EdgeInsets.only(left: AppSpacing.s8),
+                    child: AppListRow.indicatorDot(
+                      mentioned: mentioned,
+                      color: mentioned ? tokens.accentFill : tokens.textPrimary,
+                    ),
+                  ),
               ],
             ),
           ),

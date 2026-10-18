@@ -209,20 +209,7 @@ class AppListRow extends StatefulWidget {
     return math.max(base, twoLineHeight);
   }
 
-  @override
-  State<AppListRow> createState() => _AppListRowState();
-}
-
-class _AppListRowState extends State<AppListRow> {
-  bool _hovered = false;
-  bool _focused = false;
-
-  /// A finger has no hover, so on a phone this is the only sign a tap landed
-  /// before its action runs. Shown as the same raised fill hover uses, but it
-  /// appears the instant the finger touches down rather than on release.
-  bool _pressed = false;
-
-  /// The side of the square [_dotFor] rotates into a diamond, chosen so the
+  /// The side of the square [indicatorDot] rotates into a diamond, chosen so the
   /// rotated bounding box lands exactly on the unread dot's 6x6 footprint -
   /// neither shape reflows the row's trailing slot when the other replaces it.
   static const double _diamondSide = 6 * math.sqrt1_2;
@@ -230,7 +217,7 @@ class _AppListRowState extends State<AppListRow> {
   /// Unread's circle and a mention's diamond, both boxed to the same 6x6
   /// footprint regardless of shape. See [AppListRow.mentioned] for why this
   /// exists: colour alone did not survive greyscale.
-  static Widget _dotFor({required bool mentioned, required Color color}) {
+  static Widget indicatorDot({required bool mentioned, required Color color}) {
     if (!mentioned) {
       return DecoratedBox(
         key: AppListRow.unreadDotKey,
@@ -256,6 +243,19 @@ class _AppListRowState extends State<AppListRow> {
       ),
     );
   }
+
+  @override
+  State<AppListRow> createState() => _AppListRowState();
+}
+
+class _AppListRowState extends State<AppListRow> {
+  bool _hovered = false;
+  bool _focused = false;
+
+  /// A finger has no hover, so on a phone this is the only sign a tap landed
+  /// before its action runs. Shown as the same raised fill hover uses, but it
+  /// appears the instant the finger touches down rather than on release.
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +338,7 @@ class _AppListRowState extends State<AppListRow> {
         opacity: t,
         child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
       ),
-      child: _dotFor(
+      child: AppListRow.indicatorDot(
         mentioned: widget.mentioned,
         color: widget.mentioned ? tokens.accentFill : tokens.textPrimary,
       ),

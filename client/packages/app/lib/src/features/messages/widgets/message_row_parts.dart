@@ -46,7 +46,7 @@ class EditedMarker extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
-          child: label,
+          child: SelectionContainer.disabled(child: label),
         ),
       ),
     );

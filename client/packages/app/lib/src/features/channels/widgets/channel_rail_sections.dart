@@ -249,7 +249,7 @@ class _ChannelCategorySectionsState
     );
   }
 
-  // Breaking out of a collapsed category is an unread indicator like any other, so it reads the same rule the rows do.
+  // A folded category still surfaces what the rows would light, so a notification never points at a hidden channel.
   bool _hiddenByCollapse(
     _RailView view,
     Channel channel, {
@@ -259,14 +259,7 @@ class _ChannelCategorySectionsState
     if (categoryId == null || !view.collapsed.contains(categoryId)) {
       return false;
     }
-    final mentioned = unreadIndicatorFor(
-      channelOverride: view.overrides.overrideFor(channel.id),
-      isDm: false,
-      unread: false,
-      mentioned: channel.mentionedSeq > channel.lastReadSeq,
-      manuallyUnread: false,
-    ).mentioned;
-    return !selected && !mentioned;
+    return !selected && !view.indicatorOf(channel).lit;
   }
 
   ChannelMoveActions _moveActions(_RailView view, Channel channel) {
@@ -299,6 +292,9 @@ class _ChannelCategorySectionsState
     final label = SectionLabel(
       category?.name ?? 'Channels',
       collapsed: view.collapsed.contains(category?.id),
+      indicator: category == null || !view.collapsed.contains(category.id)
+          ? null
+          : view.rollupOf(view.byCategory[category.id] ?? const []),
       onToggle: category == null
           ? null
           : () => unawaited(
@@ -341,6 +337,27 @@ class _RailView {
   final Map<String?, List<Channel>> byCategory;
   final Set<String> collapsed;
   final ChannelNotificationOverridesState overrides;
+
+  UnreadIndicator indicatorOf(Channel channel) => unreadIndicatorFor(
+    channelOverride: overrides.overrideFor(channel.id),
+    isDm: false,
+    unread: channel.cursor > channel.lastReadSeq,
+    mentioned: channel.mentionedSeq > channel.lastReadSeq,
+    manuallyUnread: channel.manuallyUnread ?? false,
+  );
+
+  /// What a folded header shows for its rows: a mention outranks plain unread.
+  UnreadIndicator rollupOf(List<Channel> channels) {
+    final all = channels.map(indicatorOf);
+    return (
+      unread: all.any((i) => i.unread),
+      mentioned: all.any((i) => i.mentioned),
+    );
+  }
+}
+
+extension on UnreadIndicator {
+  bool get lit => unread || mentioned;
 }
 
 class _TextChannelRow extends ConsumerWidget {
