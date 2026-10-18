@@ -112,10 +112,6 @@ class DesktopWindowShell {
   static bool _active = false;
   static bool _framelessApplied = false;
 
-  /// Windows hides the native title bar for the splash only; the handoff
-  /// brings it back, since the real window keeps its native frame there.
-  static bool _splashTitleBarHidden = false;
-
   static DesktopPlatform? _debugPlatform;
 
   /// Test-only: which platform's splash chrome [lockSplashChrome] applies.
@@ -149,7 +145,6 @@ class DesktopWindowShell {
     _trayController = null;
     _active = false;
     _framelessApplied = false;
-    _splashTitleBarHidden = false;
     _debugPlatform = null;
     _handoffTargetSize = null;
     _handoffFillsDisplay = false;
@@ -177,8 +172,8 @@ class DesktopWindowShell {
   /// existing widget test's tree in a `Column` it never had before.
   static bool get active => _active;
 
-  /// True only once the native frame has actually been hidden - on Linux,
-  /// set by [lockSplashChrome], right after the splash's own first frame is
+  /// True only once the native frame has actually been hidden - on Linux and
+  /// Windows, set by [lockSplashChrome], right after the splash's own first frame is
   /// confirmed rasterized, so the splash reads as frameless for all but that
   /// first instant. Stays true (or false, on a failure) for the rest of the
   /// run: nothing resets it back at handoff, since the splash and the ready
@@ -236,7 +231,7 @@ class DesktopWindowShell {
   }
 
   /// Locks the splash's chrome once the window is actually visible:
-  /// resizing off everywhere, and on Linux the native title bar hidden in
+  /// resizing off everywhere, and on Linux and Windows the native title bar hidden in
   /// favor of the frameless bar `DesktopChrome` draws once the app is
   /// ready. `main.dart` calls this once, right after the first frame is
   /// confirmed rasterized (`WidgetsBinding.waitUntilFirstFrameRasterized`).
@@ -268,12 +263,9 @@ class DesktopWindowShell {
   static Future<void> _lockSplashChrome() async {
     await _port.setResizable(false);
     switch (_debugPlatform ?? currentDesktopPlatform()) {
-      case DesktopPlatform.linux:
+      case DesktopPlatform.linux || DesktopPlatform.windows:
         await _port.hideTitleBar();
         _framelessApplied = true;
-      case DesktopPlatform.windows:
-        await _port.hideTitleBar();
-        _splashTitleBarHidden = true;
       case DesktopPlatform.macOS || null:
         break;
     }
@@ -322,10 +314,6 @@ class DesktopWindowShell {
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
     await _port.hide();
-    if (_splashTitleBarHidden) {
-      await _port.showTitleBar();
-      _splashTitleBarHidden = false;
-    }
 
     final prefs = await container.read(preferencesProvider.future);
     final saved = WindowGeometryStore(prefs).read() ?? WindowGeometry.fallback;

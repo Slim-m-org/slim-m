@@ -75,8 +75,8 @@ void main() {
     expect(DesktopWindowShell.frameless, isTrue);
   });
 
-  testWidgets('on Windows the splash hides the title bar, draws no frameless '
-      'chrome, and the handoff restores the native title bar', (tester) async {
+  testWidgets('on Windows the native title bar stays hidden past the '
+      'handoff, so only the frameless bar shows', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
     DesktopWindowShell.debugPort = port;
@@ -84,11 +84,11 @@ void main() {
 
     await DesktopWindowShell.lockSplashChrome();
     expect(port.hideTitleBarCalls, 1);
-    expect(DesktopWindowShell.frameless, isFalse);
-    expect(port.showTitleBarCalls, 0);
+    expect(DesktopWindowShell.frameless, isTrue);
 
     await DesktopWindowShell.prepareHandoff(_container());
-    expect(port.showTitleBarCalls, 1);
+    expect(port.showTitleBarCalls, 0);
+    expect(DesktopWindowShell.frameless, isTrue);
   });
 
   testWidgets('macOS keeps its native title bar through the splash', (

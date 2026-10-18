@@ -68,11 +68,12 @@ class DesktopChrome extends ConsumerWidget {
             children: [
               Column(
                 children: [
-                  // frameless is only ever set true on the Linux branch below.
+                  // frameless is only ever set true on Linux and Windows.
                   if (DesktopWindowShell.frameless && !videoFullscreen)
                     TitleBar(
                       port: DesktopWindowShell.port,
-                      platform: DesktopPlatform.linux,
+                      platform:
+                          currentDesktopPlatform() ?? DesktopPlatform.linux,
                       onRequestClose: DesktopWindowShell.requestClose,
                     ),
                   if (!videoFullscreen) ...[
