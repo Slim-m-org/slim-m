@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.110.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.109.0...client-v0.110.0) (2026-10-18)
+
+
+### Features
+
+* autoplay gifs, composer caret on channel open, call a member, and emoji in profile fields ([#2241](https://github.com/Slim-m-org/slim-m/issues/2241)) ([5b6ad56](https://github.com/Slim-m-org/slim-m/commit/5b6ad56d7b6ec0d9f7067068d04f6f3f79f38548))
+* server switcher, audit log, discord link, custom profile colour, settings search, stream volume, and the sign-out fix ([#2248](https://github.com/Slim-m-org/slim-m/issues/2248)) ([f6adbb8](https://github.com/Slim-m-org/slim-m/commit/f6adbb8320ac65c492176883e0f5dc6c9cbdafbd))
+* **windows:** per-user setup.exe and an in-app install for automatic updates ([#2243](https://github.com/Slim-m-org/slim-m/issues/2243)) ([c29d232](https://github.com/Slim-m-org/slim-m/commit/c29d232d746e97c3c8db1f4934b145f9b4665364))
+
+
+### Bug Fixes
+
+* **voice:** mic recovery, per-person volume, stop watching, multiple shares, no black share tiles ([#2242](https://github.com/Slim-m-org/slim-m/issues/2242)) ([ce31d12](https://github.com/Slim-m-org/slim-m/commit/ce31d128e3f23a4b1a3ed253f97aa0a583d1a7da))
+
 ## [0.109.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.108.0...client-v0.109.0) (2026-10-17)
 
 
