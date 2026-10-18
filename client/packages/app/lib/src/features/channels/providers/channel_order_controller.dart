@@ -68,7 +68,8 @@ class ChannelOrderController extends StateNotifier<ChannelOrderState> {
       await store.upsertChannels(updated);
       if (!mounted || generation != _generation) return;
       state = const ChannelOrderState();
-    } catch (e) {
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'reorder', e, stack);
       if (!mounted || generation != _generation) return;
       state = ChannelOrderState(error: _failureMessage('reorder channels', e));
     }
@@ -149,7 +150,8 @@ class CategoryOrderController extends StateNotifier<CategoryOrderState> {
               position: entry.key,
             ),
           );
-        } on api.ApiException catch (e) {
+        } on api.ApiException catch (e, stack) {
+          api.reportFailure(api.LogTag.ui, 'reorder', e, stack);
           firstFailure ??= e;
         }
       }),
@@ -164,7 +166,8 @@ class CategoryOrderController extends StateNotifier<CategoryOrderState> {
           await store.upsertCategory(category);
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'reorder', e, stack);
       failure ??= e;
     }
     if (!mounted || generation != _generation) return;

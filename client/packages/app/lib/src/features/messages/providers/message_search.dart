@@ -130,9 +130,16 @@ Future<MessageSearchResult> _runSearch(
           .where((message) => !blocks.contains(message.authorId))
           .toList(growable: false),
     );
-  } on api.ForbiddenException {
+  } on api.ForbiddenException catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.ui,
+      'run search failed, ignored',
+      error,
+      stack,
+    );
     return const MessageSearchForbidden();
-  } on api.ApiException {
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'run search', error, stack);
     return const MessageSearchFailed();
   }
 }

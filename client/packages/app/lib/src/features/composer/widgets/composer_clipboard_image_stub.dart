@@ -42,6 +42,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Whether a Ctrl+V keystroke should ask the image clipboard itself, rather
 /// than waiting to be handed an image by [startClipboardImagePaste].
@@ -117,7 +118,13 @@ class ClipboardImageReadException implements Exception {
 Future<bool> hasClipboardImage() async {
   try {
     return await _clipboardImageChannel.invokeMethod<bool>('hasImage') ?? false;
-  } on MissingPluginException {
+  } on MissingPluginException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'has clipboard image failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
 }
@@ -129,7 +136,13 @@ Future<bool> hasClipboardImage() async {
 Future<Uint8List?> readClipboardImage() async {
   try {
     return await _clipboardImageChannel.invokeMethod<Uint8List>('readImage');
-  } on MissingPluginException {
+  } on MissingPluginException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'read clipboard image failed, ignored',
+      error,
+      stack,
+    );
     return null;
   } on PlatformException catch (e) {
     throw ClipboardImageReadException(

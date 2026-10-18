@@ -94,10 +94,17 @@ class ChannelRefresher {
     final List<ChannelReadState> states;
     try {
       states = await retryWhenRateLimited(api.listReadStates, wait: wait);
-    } on NotFoundException {
+    } on NotFoundException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'hydrate read markers failed, ignored',
+        error,
+        stack,
+      );
       await _hydratePerChannel(api, store, isCurrent: isCurrent);
       return;
-    } on ApiException {
+    } on ApiException catch (error, stack) {
+      reportFailure(LogTag.ui, 'hydrate read markers', error, stack);
       return;
     }
     for (final read in states) {
@@ -130,7 +137,8 @@ class ChannelRefresher {
             read.lastReadSeq,
             manuallyUnread: read.manuallyUnread,
           );
-        } on ApiException {
+        } on ApiException catch (error, stack) {
+          reportFailure(LogTag.ui, 'wait', error, stack);
           // Best-effort: the next refresh retries; until then it just reads as unread.
         }
       }),

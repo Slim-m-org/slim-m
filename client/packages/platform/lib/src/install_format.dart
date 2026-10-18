@@ -16,6 +16,7 @@ import 'dart:io' show File, Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The packaging of a running desktop build.
 enum InstallFormat {
@@ -119,7 +120,9 @@ InstallFormat _parse(String raw) => switch (raw.trim().toLowerCase()) {
 bool _flatpakInfoExists() {
   try {
     return File('/.flatpak-info').existsSync();
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+        LogTag.platform, 'flatpak info exists failed, ignored', error, stack);
     return false;
   }
 }

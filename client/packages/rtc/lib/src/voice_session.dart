@@ -14,8 +14,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart'
-    show ValueListenable, debugPrint, listEquals;
+import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -51,6 +50,8 @@ import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
+import 'package:slimm_api/api.dart'
+    show AppLog, LogTag, reportFailure, ignoreError;
 
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
@@ -144,7 +145,7 @@ class VoiceSession
   /// Per-track video stats, sampled only while something is listening.
   late final callStats = CallStatsSampler(
     targets: () => _callStatsTargets(),
-    log: debugPrint,
+    log: (line) => AppLog.debug(LogTag.voice, line),
   );
 
   @override
@@ -243,7 +244,10 @@ class VoiceSession
     bool cameraEnabled = false,
   }) {
     final previous = _joining ?? Future<void>.value();
-    final current = previous.catchError((_) {}).then(
+    final current = previous
+        .catchError(ignoreError(
+            LogTag.voice, 'a previous queued step failed, already reported'))
+        .then(
           (_) => _join(
             url: url,
             token: token,
@@ -293,7 +297,8 @@ class VoiceSession
       if (!identical(_room, room)) return;
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'set receive video quality', e, stack);
       if (!identical(_room, room)) return;
       _lastError = e;
       await _teardown();
@@ -347,7 +352,8 @@ class VoiceSession
   Future<List<ScreenShareSource>> screenShareSources() async {
     try {
       return await _desktopSources.list();
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'screen share sources', e, stack);
       _lastError = e;
       return const [];
     }
@@ -475,7 +481,8 @@ class VoiceSession
   Future<List<CameraDevice>> cameraDevices() async {
     try {
       return await _cameraSwitching.devices();
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'camera devices', e, stack);
       _lastError = e;
       return const [];
     }
@@ -485,7 +492,8 @@ class VoiceSession
   Future<bool> flipCamera() async {
     try {
       return await _cameraSwitching.flip(_room?.localParticipant);
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'flip camera', e, stack);
       _lastError = e;
       return false;
     }
@@ -500,7 +508,8 @@ class VoiceSession
       await _cameraSwitching.select(room, device);
       _refreshParticipants();
       return true;
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'select camera device', e, stack);
       _lastError = e;
       return false;
     }

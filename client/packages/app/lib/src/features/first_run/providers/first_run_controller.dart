@@ -9,6 +9,7 @@ import 'package:slimm_data/data.dart' show Channel, hasMessageFrom;
 
 import '../../../providers/providers.dart';
 import 'first_run_rules.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Who invited this account, when the invite they signed up with said so.
 final firstRunInviterProvider = StateProvider<String?>((ref) => null);
@@ -47,8 +48,13 @@ class FirstRunController extends StateNotifier<FirstRunState> {
       if (!mounted) return;
       final hint = prefs.getBool(firstRunVoiceHintKey(space, account)) ?? false;
       state = (active: due, replay: false, voiceHint: hint && !due);
-    } catch (_) {
-      // Never the reason the shell fails to open; a missed welcome costs little.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Never the reason the shell fails to open; a missed welcome costs little',
+        error,
+        stack,
+      );
     }
   }
 

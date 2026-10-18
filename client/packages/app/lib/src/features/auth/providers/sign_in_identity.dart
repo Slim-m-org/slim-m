@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The handle this install's id is stored under, in the key store.
 ///
@@ -28,7 +29,13 @@ Future<String?> loadInstallId(KeyStore store) async {
     ).join();
     await store.put(installIdHandle, fresh);
     return fresh;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.auth,
+      'load install id failed, ignored',
+      error,
+      stack,
+    );
     return null;
   }
 }

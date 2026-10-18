@@ -36,11 +36,29 @@ Future<String?> copyImageToClipboard(
         .read(toastsProvider.notifier)
         .show('Image copied.', severity: AppToastSeverity.success);
     return null;
-  } on ClipboardImageWriteException catch (e) {
+  } on ClipboardImageWriteException catch (e, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.media,
+      'copy image to clipboard failed, ignored',
+      e,
+      stack,
+    );
     return e.message;
-  } on api.ApiException catch (e) {
+  } on api.ApiException catch (e, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.media,
+      'copy image to clipboard failed, ignored',
+      e,
+      stack,
+    );
     return describeApiFailure('copy ${image.filename}', e);
-  } catch (_) {
+  } catch (error, stack) {
+    api.reportFailure(
+      api.LogTag.media,
+      'copy image to clipboard',
+      error,
+      stack,
+    );
     return 'Could not copy ${image.filename}.';
   }
 }
@@ -65,11 +83,24 @@ Future<String?> saveImageToDevice(
           );
     }
     return null;
-  } on api.ApiException catch (e) {
+  } on api.ApiException catch (e, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.media,
+      'save image to device failed, ignored',
+      e,
+      stack,
+    );
     return describeApiFailure('save $name', e);
-  } on PhotoLibraryDenied {
+  } on PhotoLibraryDenied catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.media,
+      'save image to device failed, ignored',
+      error,
+      stack,
+    );
     return 'Could not save $name: allow photo access for slim-m in Settings.';
-  } catch (_) {
+  } catch (error, stack) {
+    api.reportFailure(api.LogTag.media, 'save image to device', error, stack);
     return 'Could not save $name.';
   }
 }

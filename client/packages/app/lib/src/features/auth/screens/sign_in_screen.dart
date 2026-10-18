@@ -194,11 +194,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     Version? answer;
     try {
       answer = await client.version();
-    } on ApiException {
+    } on ApiException catch (error, stack) {
+      reportFailure(LogTag.auth, 'set state', error, stack);
       // Unreachable or refusing means unknown, and sign-in itself will say
       // "could not reach that server" with more authority than a probe.
       answer = null;
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.auth, 'set state', error, stack);
       // A shaped reply from a foreign host is as unknown as a refusal.
       answer = null;
     } finally {
@@ -328,11 +330,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       TextInput.finishAutofillContext();
       if (invite != null) pendingInvite.state = null;
       unawaited(push.register());
-    } on ApiException catch (e) {
+    } on ApiException catch (e, stack) {
+      reportFailure(LogTag.auth, 'set state', e, stack);
       justRegistered.state = false;
       if (!mounted) return;
       setState(() => _error = signInErrorFor(e));
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.auth, 'set state', error, stack);
       ref.read(justRegisteredProvider.notifier).state = false;
       if (mounted) setState(() => _error = unexpectedSignInError);
     } finally {

@@ -69,7 +69,8 @@ class _ChannelDangerZoneSectionState
       closeScreen(context, Routes.channels);
       // The view behind this screen may still show a channel that no longer exists.
       if (widget.wasOpen) router.go(Routes.channels);
-    } on api.ConflictException {
+    } on api.ConflictException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', error, stack);
       // The server's wording is accurate but terse; this feature wants a full sentence.
       if (mounted) {
         setState(
@@ -78,7 +79,8 @@ class _ChannelDangerZoneSectionState
               'before deleting this one.',
         );
       }
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('delete the channel', e));
       }

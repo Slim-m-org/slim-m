@@ -91,14 +91,21 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
         _loading = false;
         _status = status;
       });
-    } on api.NotFoundException {
+    } on api.NotFoundException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'set state failed, ignored',
+        error,
+        stack,
+      );
       // The reporter's account was anonymized, or this id was never theirs.
       if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'No longer available.';
       });
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -175,14 +182,21 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
         _busy = false;
         _result = status;
       });
-    } on api.NotFoundException {
+    } on api.NotFoundException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'set state failed, ignored',
+        error,
+        stack,
+      );
       if (!mounted) return;
       setState(() {
         _busy = false;
         // Same wording either way; the server route refuses to tell those apart.
         _error = 'No report found with that ID.';
       });
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       if (!mounted) return;
       setState(() {
         _busy = false;

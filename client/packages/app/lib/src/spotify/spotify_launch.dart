@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 typedef SpotifyUrlOpener = Future<bool> Function(Uri uri, LaunchMode mode);
 
@@ -32,8 +33,13 @@ Future<bool> openSpotifyAuthorize(
       if (await open(uri, LaunchMode.externalNonBrowserApplication)) {
         return true;
       }
-    } on Object {
-      // No app claimed the link; the browser below still works.
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'No app claimed the link; the browser below still works',
+        error,
+        stack,
+      );
     }
   }
   return open(uri, LaunchMode.externalApplication);

@@ -70,8 +70,13 @@ class FiledReportsController extends StateNotifier<List<String>> {
       final prefs = await _ref.read(preferencesProvider.future);
       if (!mounted || generation != _generation) return;
       state = prefs.getStringList(filedReportsKey(userId)) ?? const [];
-    } catch (_) {
-      // Falls back to an empty list; the manual id field still works.
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Falls back to an empty list; the manual id field still works',
+        error,
+        stack,
+      );
     }
   }
 
@@ -107,8 +112,13 @@ class FiledReportsController extends StateNotifier<List<String>> {
       final prefs = await _ref.read(preferencesProvider.future);
       if (!mounted || generation != _generation) return;
       await prefs.setStringList(filedReportsKey(userId), updated);
-    } catch (_) {
-      // Best-effort: the report was still filed even if this did not persist.
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Best-effort: the report was still filed even if this did not persist',
+        error,
+        stack,
+      );
     }
   }
 

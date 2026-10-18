@@ -15,6 +15,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../../../providers/disk_byte_cache.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Read/write access to cached emoji image bytes, kept behind an interface
 /// so a test can hand [customEmojiImageProvider] an in-memory fake rather
@@ -98,8 +99,9 @@ class NoopEmojiImageCache implements EmojiImageCache {
   Future<void> write(String emojiId, Uint8List bytes) async {
     if (_warned) return;
     _warned = true;
-    debugPrint(
-      'slim-m: no persistent emoji cache for this session; images refetch next time',
+    AppLog.warning(
+      LogTag.media,
+      'no persistent emoji cache for this session; images refetch next time',
     );
   }
 }

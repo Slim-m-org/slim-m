@@ -120,7 +120,13 @@ extension SyncControllerEvents on SyncController {
     if (await store.hasChannel(channelId)) return;
     try {
       await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
-    } on ApiException {
+    } on ApiException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.sync,
+        'channel refresh refused, skipping the event',
+        error,
+        stack,
+      );
       return;
     }
     if (isCurrent() && !await store.hasChannel(channelId)) {
@@ -145,7 +151,14 @@ extension SyncControllerEvents on SyncController {
     final cursor = await store.cursorFor(channelId);
     if (!isCurrent()) return true;
     if (cursor == null || seq <= cursor + 1) return false;
-    unawaited(reconcile().catchError((_) {}));
+    unawaited(
+      reconcile().catchError(
+        ignoreError(
+          LogTag.sync,
+          'a reconcile failure is retried by the next drop',
+        ),
+      ),
+    );
     return true;
   }
 
@@ -175,7 +188,14 @@ extension SyncControllerEvents on SyncController {
       case LiveOpOutcome.ignored:
         return false;
       case LiveOpOutcome.needsReconcile:
-        unawaited(reconcile().catchError((_) {}));
+        unawaited(
+          reconcile().catchError(
+            ignoreError(
+              LogTag.sync,
+              'a reconcile failure is retried by the next drop',
+            ),
+          ),
+        );
         return false;
       case LiveOpOutcome.applied:
         if (opSeq != null) await store.setOpCursor(channelId, opSeq);

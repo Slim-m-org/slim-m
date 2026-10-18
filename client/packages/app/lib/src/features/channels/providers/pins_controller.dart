@@ -79,10 +79,12 @@ class PinsController extends StateNotifier<PinsState> {
           .where((pin) => !blocks.contains(pin.message.authorId))
           .toList(growable: false);
       state = PinsState(pinned: pinned);
-    } on api.ForbiddenException {
+    } on api.ForbiddenException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
       if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true, forbidden: true);
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
       if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true);
     }

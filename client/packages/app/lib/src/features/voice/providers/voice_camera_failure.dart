@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// [wantOn] is only ever asking "tried to turn on": a camera failing to turn
 /// *off* was plainly already open, so [CameraFailureReason] has nothing
@@ -54,7 +55,13 @@ Future<(bool, Object?)> setCameraWithin(
   try {
     final got = await session.setCameraEnabled(want).timeout(timeout);
     return (got, got ? null : session.lastError);
-  } on TimeoutException {
+  } on TimeoutException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'camera failure message failed, ignored',
+      error,
+      stack,
+    );
     return (false, const CameraToggleTimedOut());
   }
 }

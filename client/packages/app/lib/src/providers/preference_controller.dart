@@ -7,6 +7,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// A controller bootstrap restores before the first frame.
 abstract interface class RestorablePreference {
@@ -41,8 +42,13 @@ abstract class EnumPreferenceController<T extends Enum> extends StateNotifier<T>
           return;
         }
       }
-    } catch (_) {
-      // The fallback is always a usable answer.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'The fallback is always a usable answer',
+        error,
+        stack,
+      );
     }
   }
 
@@ -66,8 +72,13 @@ abstract class BoolPreferenceController extends StateNotifier<bool>
     try {
       final prefs = await ref.read(preferencesProvider.future);
       state = prefs.getBool(storageKey) ?? false;
-    } catch (_) {
-      // Off is always a usable answer.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'Off is always a usable answer',
+        error,
+        stack,
+      );
     }
   }
 
@@ -99,8 +110,13 @@ abstract class IntPreferenceController extends StateNotifier<int>
       final prefs = await ref.read(preferencesProvider.future);
       final stored = prefs.getInt(storageKey);
       if (stored != null) state = normalise(stored);
-    } catch (_) {
-      // The fallback is always a usable answer.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'The fallback is always a usable answer',
+        error,
+        stack,
+      );
     }
   }
 

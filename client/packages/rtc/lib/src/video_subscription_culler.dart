@@ -33,8 +33,7 @@
 library;
 
 import 'dart:async';
-
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// How long a track stays subscribed after nothing wants it any more.
 ///
@@ -97,8 +96,12 @@ String videoSubscriptionKind(String key) {
 /// ordinary case here - is logged and dropped, never left unhandled for the
 /// zone to report as a crash.
 void Function(Object error) _logRejection(String key, String action) =>
-    (error) => debugPrint(
-        'video subscription culler: $action rejected for $key: $error');
+    (error) => AppLog.debug(
+          LogTag.voice,
+          'video subscription culler: $action rejected',
+          error: error,
+          context: {'track': key},
+        );
 
 /// Decides which remote video tracks stay subscribed, given what some
 /// surface says it currently wants on screen.

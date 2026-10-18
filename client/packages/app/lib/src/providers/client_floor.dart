@@ -87,9 +87,11 @@ final clientFloorProvider = FutureProvider<ClientFloor>((ref) async {
       minClientVersion: version.minClientVersion,
       clientVersion: appInfo.version,
     );
-  } on api.ApiException {
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'parse', error, stack);
     return ClientFloor.unknown;
-  } catch (_) {
+  } catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'parse', error, stack);
     return ClientFloor.unknown;
   }
 });

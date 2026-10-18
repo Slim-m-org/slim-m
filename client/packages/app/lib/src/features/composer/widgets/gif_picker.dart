@@ -205,7 +205,8 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         _results = results;
         _loading = false;
       });
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'set state', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('search for gifs', e);
@@ -223,12 +224,19 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       final attachment = await ref.read(apiProvider).selectGif(result.id);
       if (!mounted) return;
       widget.onPicked(attachment);
-    } on api.NotFoundException {
+    } on api.NotFoundException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.media,
+        'set state failed, ignored',
+        error,
+        stack,
+      );
       // Every tile is stale, not just this one; reload rather than report. See gifGridCeiling's neighbours.
       if (!mounted) return;
       setState(() => _selectingId = null);
       await _reload();
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'set state', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('attach that gif', e);

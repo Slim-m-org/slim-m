@@ -17,6 +17,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// True only for a native iOS build.
 bool get isIOSHost => !kIsWeb && Platform.isIOS;
@@ -94,7 +95,9 @@ String? get deviceHostName {
   try {
     final name = Platform.localHostname.trim();
     return name.isEmpty ? null : name;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+        LogTag.platform, 'usable label failed, ignored', error, stack);
     return null;
   }
 }

@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _recentEmojiKey = 'slimm.recent_emoji';
 const _maxRecentEmoji = 24;
@@ -28,8 +29,13 @@ class RecentEmojiController extends StateNotifier<List<String>> {
       final prefs = await _ref.read(preferencesProvider.future);
       final stored = prefs.getStringList(_recentEmojiKey);
       if (stored != null) state = stored;
-    } catch (_) {
-      // Falls back to an empty shelf; the picker still works without one.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Falls back to an empty shelf; the picker still works without one',
+        error,
+        stack,
+      );
     }
   }
 
@@ -42,9 +48,13 @@ class RecentEmojiController extends StateNotifier<List<String>> {
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       await prefs.setStringList(_recentEmojiKey, state);
-    } catch (_) {
-      // Best-effort: the shelf still reflects the pick for this session even
-      // if it does not survive a restart.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Best-effort: the shelf still reflects the pick for this session even if it does not survive a restart',
+        error,
+        stack,
+      );
     }
   }
 }

@@ -267,9 +267,17 @@ class SyncController extends StateNotifier<SyncStatus> {
           _ref.read,
           store,
           isCurrent: () => generation == _generation,
-        ).catchError((_) {}),
+        ).catchError(
+          ignoreError(
+            LogTag.sync,
+            'resending failed messages is retried on the next connect',
+          ),
+        ),
       );
-    } catch (error) {
+    } catch (error, stack) {
+      reportFailure(LogTag.sync, 'connect to the server', error, stack, {
+        'generation': generation,
+      });
       if (generation != _generation) return;
       // Both show offline and retry with backoff, but the reader is told which: see syncFailureProvider.
       state = SyncStatus.offline;
@@ -442,8 +450,13 @@ class SyncController extends StateNotifier<SyncStatus> {
     try {
       final store = await _ref.read(storeProvider.future);
       await store.clear();
-    } catch (_) {
-      // Nothing useful to do here, and the sign-out itself already succeeded.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.sync,
+        'Nothing useful to do here, and the sign-out itself already succeeded',
+        error,
+        stack,
+      );
     }
   }
 

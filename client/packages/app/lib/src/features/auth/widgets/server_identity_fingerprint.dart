@@ -19,7 +19,13 @@ List<String> fingerprintGroupsOf(api.ServerIdentity identity) {
   final List<int> key;
   try {
     key = base64.decode(identity.publicKey);
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.auth,
+      'fingerprint groups of failed, ignored',
+      error,
+      stack,
+    );
     return const [];
   }
   if (key.length != _publicKeyBytes) return const [];

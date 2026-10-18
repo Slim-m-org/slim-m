@@ -16,6 +16,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 bool _firebaseReady = false;
 
@@ -131,7 +132,8 @@ class FcmTokenChannel {
       return token == null
           ? const FcmRegistrationFailed('no FCM token was returned')
           : FcmTokenReady(token);
-    } catch (e) {
+    } catch (e, stack) {
+      AppLog.swallowed(LogTag.push, 'fetch failed, ignored', e, stack);
       return FcmRegistrationFailed(e.toString());
     }
   }

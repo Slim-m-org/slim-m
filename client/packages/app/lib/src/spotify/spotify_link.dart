@@ -25,6 +25,7 @@ import 'spotify_link_status.dart';
 import 'spotify_pkce.dart';
 import 'spotify_source.dart';
 import 'spotify_token_store.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 const shareSpotifyKey = 'slimm.presence.share_spotify';
 const _exchangeTimeout = Duration(seconds: 20);
@@ -121,7 +122,8 @@ class SpotifyLinker {
   Future<bool> _launch(Uri uri) async {
     try {
       return await _ref.read(spotifyLauncherProvider)(uri);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.ui, 'launch failed, ignored', error, stack);
       return false;
     }
   }
@@ -178,13 +180,17 @@ class SpotifyLinker {
       _status.set(SpotifyConnected(name));
       await _ref.read(shareSpotifyProvider.notifier).markLinked();
       return true;
-    } on SpotifyAuthException catch (e) {
+    } on SpotifyAuthException catch (e, stack) {
+      reportFailure(LogTag.ui, 'complete', e, stack);
       _fail('Spotify did not link: ${e.message}.');
-    } on TimeoutException {
+    } on TimeoutException catch (error, stack) {
+      AppLog.swallowed(LogTag.ui, 'complete failed, ignored', error, stack);
       _fail('Spotify took too long to answer. Try again.');
-    } on http.ClientException {
+    } on http.ClientException catch (error, stack) {
+      reportFailure(LogTag.ui, 'complete', error, stack);
       _fail('Could not reach Spotify. Check the connection and retry.');
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.ui, 'complete', error, stack);
       _fail('Spotify sent a reply this app could not read. Try again.');
     }
     return false;
@@ -193,7 +199,8 @@ class SpotifyLinker {
   Future<String?> _profileName(SpotifyClient client, String token) async {
     try {
       return await client.profileName(token).timeout(_exchangeTimeout);
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.ui, 'profile name', error, stack);
       return null;
     }
   }

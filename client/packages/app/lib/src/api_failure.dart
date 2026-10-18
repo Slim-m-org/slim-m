@@ -48,6 +48,24 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
   api.ApiException() => 'Could not $whatFailed.',
 };
 
+/// The one error-handling entry for a caught failure: classifies [error],
+/// logs it once under [tag], and returns the sentence to render.
+///
+/// Render it with `AppErrorState` or an inline caption, never a SnackBar. See
+/// `docs/error-handling.md`.
+String reportFailureSentence(
+  String tag,
+  String whatFailed,
+  Object error, [
+  StackTrace? stack,
+  Map<String, Object?>? context,
+]) {
+  api.reportFailure(tag, whatFailed, error, stack, context);
+  return error is api.ApiException
+      ? describeApiFailure(whatFailed, error)
+      : 'Could not $whatFailed.';
+}
+
 /// Normalizes a raw string this client did not write into the sentence
 /// case and closing punctuation every hand-written message on the same
 /// screen already carries: capitalizes the first letter and adds a

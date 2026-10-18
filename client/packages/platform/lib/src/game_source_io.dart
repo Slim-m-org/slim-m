@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'game_source.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 GameSource? createGameSource({bool? linux, bool? windows, bool? macos}) {
   final supported = (linux ?? Platform.isLinux) ||
@@ -69,7 +70,9 @@ class SystemGameProbe implements GameProbe {
       if (int.tryParse(pid) == null) continue;
       try {
         names.add(await File('${entry.path}/comm').readAsString());
-      } on FileSystemException {
+      } on FileSystemException catch (error, stack) {
+        AppLog.swallowed(
+            LogTag.platform, 'linux processes failed, ignored', error, stack);
         continue;
       }
     }
@@ -120,7 +123,9 @@ class SystemGameProbe implements GameProbe {
           return parseAppManifestName(await manifest.readAsString());
         }
       }
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'steam app name failed, ignored', error, stack);
       return null;
     }
     return null;

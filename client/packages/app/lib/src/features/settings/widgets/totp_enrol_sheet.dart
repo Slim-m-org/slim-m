@@ -49,7 +49,8 @@ Future<bool?> showTotpEnrolSheet(BuildContext context, WidgetRef ref) async {
             .beginTotpEnrolment(password: password);
         confirmedPassword = password;
         return null;
-      } on api.ApiException catch (e) {
+      } on api.ApiException catch (e, stack) {
+        api.reportFailure(api.LogTag.auth, 'show totp enrol sheet', e, stack);
         return reauthFailure(e);
       }
     },
@@ -101,7 +102,8 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
           .confirmTotpEnrolment(_code, password: widget.password);
       if (!mounted) return;
       setState(() => _recoveryCodes = codes);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'set state', e, stack);
       if (!mounted) return;
       setState(() {
         _codeError = _confirmFailure(e);

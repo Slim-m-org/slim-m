@@ -110,7 +110,8 @@ extension VoiceSessionTracks on VoiceSession {
       if (enabled) _followPreferredDevices();
       _micRecovery.reset();
       return true;
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'try set microphone', e, stack);
       _micWanted = intent;
       _lastError = e;
       _refreshParticipants();
@@ -210,7 +211,8 @@ extension VoiceSessionTracks on VoiceSession {
 Future<void> _step(Future<void> Function() run) async {
   try {
     await run();
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(LogTag.voice, 'step failed, ignored', error, stack);
     // See this function's own doc comment for why nothing is kept.
   }
 }

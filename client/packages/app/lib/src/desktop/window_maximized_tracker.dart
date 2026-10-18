@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'desktop_window_port.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 class WindowMaximizedTracker extends ChangeNotifier {
   WindowMaximizedTracker(this._port) {
@@ -37,8 +38,13 @@ class WindowMaximizedTracker extends ChangeNotifier {
       if (_disposed || value == _maximized) return;
       _maximized = value;
       notifyListeners();
-    } catch (_) {
-      // An early-startup plugin failure leaves the icon at its default.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'An early-startup plugin failure leaves the icon at its default',
+        error,
+        stack,
+      );
     }
   }
 
@@ -49,8 +55,13 @@ class WindowMaximizedTracker extends ChangeNotifier {
       } else {
         await _port.maximize();
       }
-    } catch (_) {
-      // A WM refusal or plugin error leaves the icon as it was.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'A WM refusal or plugin error leaves the icon as it was',
+        error,
+        stack,
+      );
     }
     await refresh();
   }

@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/modal_page.dart' show kScrimColor;
 import 'message_row_parts.dart' show AttachmentPlaceholder;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The stand-in for a held preview: [icon] + [line] for one not yet downloaded,
 /// or [preview] (a first frame) under a play badge for a held gif. One tap
@@ -187,8 +188,13 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
         return;
       }
       setState(() => _frame = frame.image);
-    } catch (_) {
-      // A frame that will not decode leaves the neutral box; the tap reveals.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'A frame that will not decode leaves the neutral box; the tap reveals',
+        error,
+        stack,
+      );
     }
   }
 

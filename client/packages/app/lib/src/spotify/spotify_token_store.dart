@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:slimm_platform/platform.dart';
 
 import 'spotify_client.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 const spotifyTokensHandle = 'slimm.spotify.tokens';
 const spotifyAccountHandle = 'slimm.spotify.account';
@@ -53,7 +54,8 @@ class SpotifyTokenStore {
     if (raw == null) return null;
     try {
       return SpotifyTokens.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.data, 'load', error, stack);
       await clear();
       return null;
     }
@@ -74,7 +76,8 @@ class SpotifyTokenStore {
       return SpotifyPendingLink.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.data, 'load pending', error, stack);
       await clearPending();
       return null;
     }

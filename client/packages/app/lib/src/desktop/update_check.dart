@@ -19,6 +19,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'self_update/latest_client_release.dart';
 import 'self_update/self_update_target.dart' show recordedFailedVersion;
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// The repository whose `client-v*` releases this build updates from.
 const clientReleaseRepo = 'Slim-m-org/slim-m';
@@ -117,7 +118,8 @@ Future<ClientUpdate?> checkForClientUpdate({
       releaseUrl: bestUrl,
       format: installFormat,
     );
-  } catch (_) {
+  } catch (error, stack) {
+    reportFailure(LogTag.platform, 'update checks disabled', error, stack);
     return null;
   } finally {
     if (client == null) owned.close();

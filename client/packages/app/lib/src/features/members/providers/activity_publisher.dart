@@ -144,12 +144,14 @@ class ActivityPublisher {
       _ref.read(sharedActivityProvider.notifier).state = wanted;
       _ref.read(sharedFeedProvider.notifier).state = choice?.$1;
       return true;
-    } on api.BadRequestException {
+    } on api.BadRequestException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'push once', error, stack);
       if (_sent == wanted) _sent = previous;
       if (choice == null || _disposed) return false;
       _rejected[choice.$1] = choice.$2;
       return true;
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'push once', error, stack);
       // Retried by the next change; the server forgets it with the socket anyway.
       if (_sent == wanted) _sent = previous;
       return false;

@@ -9,7 +9,8 @@ import 'package:slimm_api/api.dart';
 Future<void> redeemInviteQuietly(SlimmApi api, String invite) async {
   try {
     await api.redeemInvite(invite);
-  } on ApiException {
+  } on ApiException catch (error, stack) {
+    reportFailure(LogTag.auth, 'redeem invite quietly', error, stack);
     return;
   }
 }

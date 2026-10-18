@@ -53,7 +53,8 @@ Future<void> signOutVia(ProviderReader read) async {
   await read(pushControllerProvider.notifier).unregister();
   try {
     await read(apiProvider).logout();
-  } on api.ApiException {
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.auth, 'sign out via', error, stack);
     // The session may already be gone; clear locally either way.
     read(sessionProvider).clear();
   }

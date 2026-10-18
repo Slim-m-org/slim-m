@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../update_check.dart' show parseVersion;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Files and links the launcher and the updater both use, in the layout root.
 abstract final class LayoutNames {
@@ -41,7 +42,13 @@ class LinuxInstallLayout {
   String? linkedVersion(String linkName) {
     try {
       return p.basename(Link(path(linkName)).targetSync());
-    } on FileSystemException {
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'linked version failed, ignored',
+        error,
+        stack,
+      );
       return null;
     }
   }
@@ -69,7 +76,13 @@ bool layoutIsWritable(LinuxInstallLayout layout) {
     final probe = File(layout.path('.write-probe'))..writeAsStringSync('');
     probe.deleteSync();
     return true;
-  } on FileSystemException {
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'layout is writable failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
 }

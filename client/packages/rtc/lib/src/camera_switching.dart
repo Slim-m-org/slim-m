@@ -14,6 +14,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'camera_devices.dart';
 import 'camera_failure.dart';
 import 'voice_models.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Which physical camera a mobile flip landed on. Desktop's device picker
 /// has no such concept - a webcam is not "front" or "back" - so this is
@@ -129,12 +130,14 @@ class CameraSwitching {
     try {
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'devices', e, stack);
       if (!enabled) return CameraToggleResult.failed(e, null);
       bool? hasDevice;
       try {
         hasDevice = (await _devices.list()).isNotEmpty;
-      } catch (_) {
+      } catch (error, stack) {
+        reportFailure(LogTag.voice, 'devices', error, stack);
         hasDevice = null;
       }
       return CameraToggleResult.failed(

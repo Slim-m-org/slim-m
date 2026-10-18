@@ -33,9 +33,7 @@ client/packages/api/test/new_routes_test.dart 2
 client/packages/api/test/schema_coverage_test.dart 2
 client/packages/app/lib/main.dart 4
 client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
-client/packages/app/lib/src/providers/providers.dart 1
 client/packages/app/lib/src/providers/push_controller.dart 4
-client/packages/app/lib/src/features/emoji/providers/recent_emoji.dart 1
 client/packages/app/lib/src/features/voice/providers/voice_controller.dart 3
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
@@ -152,7 +150,6 @@ client/packages/platform/test/host_platform_test.dart 1
 client/packages/platform/test/local_notifications_test.dart 1
 client/packages/platform/test/persistent_key_store_test.dart 3
 client/packages/platform/test/platform_test.dart 4
-client/packages/rtc/lib/src/broadcast_bridge.dart 1
 client/packages/rtc/lib/src/media_capabilities.dart 1
 client/packages/rtc/lib/src/voice_session.dart 3
 client/packages/rtc/test/broadcast_bridge_test.dart 2

@@ -22,6 +22,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'broadcast_bridge.dart';
 import 'screen_share.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Publishes or unpublishes a screen share track with the given options.
 /// `options` is null when disabling. `includeAudio` is [setEnabled]'s own
@@ -128,7 +129,8 @@ class ScreenShareControl {
       return isSharing()
           ? ScreenShareOutcome.started
           : ScreenShareOutcome.pendingBroadcast;
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'share the screen', e, stack);
       onSettled(e);
       return ScreenShareOutcome.failed;
     }
@@ -155,7 +157,8 @@ class ScreenShareControl {
     );
     try {
       await publish(true, options, includeAudio);
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'share the screen', e, stack);
       _broadcast.autoPublishEnabled = true;
       onSettled(e);
       return ScreenShareOutcome.failed;
@@ -202,7 +205,8 @@ class ScreenShareControl {
     try {
       await publish(true, options, includeAudio);
       onSettled(null);
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'publish after activation', e, stack);
       onSettled(e);
     } finally {
       _broadcast.autoPublishEnabled = true;

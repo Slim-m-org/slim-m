@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/linux_tray_probe';
 
@@ -35,7 +36,13 @@ class MethodChannelLinuxTrayProbe implements LinuxTrayProbe {
     try {
       final result = await _channel.invokeMethod<bool>('isHostRegistered');
       return result ?? false;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'is host registered failed, ignored',
+        error,
+        stack,
+      );
       return false;
     }
   }

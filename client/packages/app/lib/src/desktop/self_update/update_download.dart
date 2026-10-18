@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import 'self_update_failure.dart';
 import 'update_manifest.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// Free bytes on the volume holding a directory, or null when unknown.
 typedef FreeSpace = Future<int?> Function(Directory directory);
@@ -35,7 +36,13 @@ Future<int?> freeSpaceOf(Directory directory) async {
     final lines = (done.stdout as String).trim().split('\n');
     final kilobytes = int.tryParse(lines.last.trim().split(RegExp(r'\s+'))[3]);
     return kilobytes == null ? null : kilobytes * 1024;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'free space of failed, ignored',
+      error,
+      stack,
+    );
     return null;
   }
 }
@@ -93,7 +100,8 @@ Future<void> _fillPart(
       return;
     } on SelfUpdateFailure {
       rethrow;
-    } catch (error) {
+    } catch (error, stack) {
+      reportFailure(LogTag.platform, 'free space of', error, stack);
       last = error;
     }
   }

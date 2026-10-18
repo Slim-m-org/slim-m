@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/providers.dart';
 import 'voice_controller.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 enum NoiseSuppressionChoice {
   spaceDefault('space'),
@@ -44,7 +45,13 @@ Future<NoiseSuppressionChoice> loadNoiseSuppressionChoice(Ref ref) async {
 Future<bool> fetchSpaceStrongNoiseSuppression(Ref ref) async {
   try {
     return (await ref.read(apiProvider).version()).strongNoiseSuppression;
-  } on Object {
+  } on Object catch (error, stack) {
+    reportFailure(
+      LogTag.voice,
+      'fetch space strong noise suppression',
+      error,
+      stack,
+    );
     return false;
   }
 }

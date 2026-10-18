@@ -69,8 +69,13 @@ class PersonalSpaceVisibilityController extends StateNotifier<bool> {
       final prefs = await _ref.read(preferencesProvider.future);
       if (!mounted || generation != _generation) return;
       state = prefs.getBool(personalSpaceHiddenKey(userId)) ?? false;
-    } catch (_) {
-      // A prefs store that cannot be read leaves the row visible, the safer default.
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'A prefs store that cannot be read leaves the row visible, the safer default',
+        error,
+        stack,
+      );
     }
   }
 
@@ -89,8 +94,13 @@ class PersonalSpaceVisibilityController extends StateNotifier<bool> {
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       await prefs.setBool(personalSpaceHiddenKey(userId), hidden);
-    } catch (_) {
-      // Best effort: a write failure must not stop the row hiding for this session.
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Best effort: a write failure must not stop the row hiding for this session',
+        error,
+        stack,
+      );
     }
   }
 

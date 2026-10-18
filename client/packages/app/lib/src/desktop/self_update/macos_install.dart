@@ -17,6 +17,7 @@ import 'macos_layout.dart';
 import 'rollback_record.dart';
 import 'self_update.dart';
 import 'self_update_failure.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Throws [FileSystemException] when [bundle] should not be trusted to run.
 typedef BundleCheck = Future<void> Function(Directory bundle);
@@ -173,7 +174,13 @@ bool rollBackMacosIfStuck(MacosInstallLayout layout) {
     safeDelete(layout.failedBundle);
     layout.bundle.renameSync(layout.failedBundle.path);
     layout.previousBundle.renameSync(layout.bundle.path);
-  } on FileSystemException {
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'roll back macos if stuck failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
   File(layout.path(MacosNames.rolledBack)).writeAsStringSync(failedVersion);
@@ -186,7 +193,8 @@ bool rollBackMacosIfStuck(MacosInstallLayout layout) {
 String _readOr(File file, String fallback) {
   try {
     return file.readAsStringSync().trim();
-  } on FileSystemException {
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(LogTag.platform, 'read or failed, ignored', error, stack);
     return fallback;
   }
 }

@@ -35,7 +35,8 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
     final bool needsCode;
     try {
       needsCode = (await ref.read(apiProvider).totpStatus()).enabled;
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'open', e, stack);
       if (mounted) setState(() => _loadError = e.message);
       return;
     }
@@ -62,7 +63,8 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
             code: code,
           );
       return null;
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'submit', e, stack);
       return reauthFailure(e);
     }
   }

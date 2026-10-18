@@ -13,6 +13,7 @@ import 'package:dbus/dbus.dart';
 
 import 'global_hotkeys.dart';
 import 'global_hotkeys_keys.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 const _portalName = 'org.freedesktop.portal.Desktop';
 const _portalPath = '/org/freedesktop/portal/desktop';
@@ -124,7 +125,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       return version.asUint32() >= 1
           ? const GlobalHotkeyAvailability.available(portalAvailableMessage)
           : const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.platform, 'probe failed, ignored', error, stack);
       return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
     }
   }
@@ -152,7 +154,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
         );
       }
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.platform, 'probe', error, stack);
       _endSession();
       return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
     }

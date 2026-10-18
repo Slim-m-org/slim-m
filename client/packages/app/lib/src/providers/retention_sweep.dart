@@ -48,6 +48,7 @@ import '../features/messages/providers/message_extras.dart';
 import '../features/channels/providers/mounted_channels.dart';
 import 'providers.dart';
 import 'retention_policy.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// How often a live session sweeps. Generous on purpose: this bounds a
 /// durability concern profiling has not shown to be urgent (see
@@ -93,8 +94,13 @@ class RetentionSweepController {
       final extras = _ref.read(messageExtrasProvider.notifier);
       final openChannelIds = _ref.read(mountedChannelsProvider).openChannelIds;
       await runRetentionSweep(store, extras, openChannelIds);
-    } catch (_) {
-      // Best-effort: a store not ready yet, or briefly gone mid sign-out, just tries again next tick.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'Best-effort: a store not ready yet, or briefly gone mid sign-out, just tries again next tick',
+        error,
+        stack,
+      );
     }
   }
 

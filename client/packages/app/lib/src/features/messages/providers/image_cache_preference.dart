@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/preference_controller.dart';
 import '../../../providers/providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const imageCacheLimitKey = 'slimm.performance.image_cache_mb';
 
@@ -47,8 +48,13 @@ class ImageCacheLimitController extends StateNotifier<int>
       if (stored != null && imageCacheLimitChoicesMb.contains(stored)) {
         state = stored;
       }
-    } catch (_) {
-      // Not worth failing a launch over; the default is always usable.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Not worth failing a launch over; the default is always usable',
+        error,
+        stack,
+      );
     }
     _apply(state);
   }

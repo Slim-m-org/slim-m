@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/orientation';
 
@@ -25,7 +26,9 @@ class OrientationChannel {
     try {
       return await _channel.invokeMethod<bool>('allowLandscape', allowed) ??
           false;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'allow landscape failed, ignored', error, stack);
       return false;
     }
   }

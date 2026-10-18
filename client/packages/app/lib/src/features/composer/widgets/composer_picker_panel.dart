@@ -260,8 +260,13 @@ class _WarmTrendingGifsState extends ConsumerState<_WarmTrendingGifs> {
       for (final gif in trending.take(_warmThumbnails)) {
         ref.read(gifPreviewBytesProvider(gif.id).future).ignore();
       }
-    } on Object {
-      // The GIFs tab shows its own error and retry when opened; a warm-up has nothing to say.
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'The GIFs tab shows its own error and retry when opened; a warm-up has nothing to say',
+        error,
+        stack,
+      );
     }
   }
 

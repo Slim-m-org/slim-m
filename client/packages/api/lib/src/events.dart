@@ -10,6 +10,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'client.dart';
 import 'models.dart';
 import 'socket_liveness.dart';
+import 'logging/app_log.dart';
 
 part 'events_connection.dart';
 part 'events_frames.dart';
@@ -34,15 +35,21 @@ sealed class ServerEvent {
     final Object? decoded;
     try {
       decoded = jsonDecode(raw);
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.sync, 'event frame could not be parsed, dropped',
+          error, stack);
       return null;
     }
     if (decoded is! Map<String, dynamic>) return null;
     try {
       return _fromFrame(decoded);
-    } on TypeError {
+    } on TypeError catch (error, stack) {
+      AppLog.swallowed(LogTag.sync, 'event frame could not be parsed, dropped',
+          error, stack);
       return null;
-    } on FormatException {
+    } on FormatException catch (error, stack) {
+      AppLog.swallowed(LogTag.sync, 'event frame could not be parsed, dropped',
+          error, stack);
       return null;
     }
   }

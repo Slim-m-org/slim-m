@@ -72,7 +72,13 @@ class ChannelDraftsController {
       for (final entry in saved.entries) {
         _drafts.putIfAbsent(entry.key, () => entry.value);
       }
-    } catch (_) {
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.data,
+        'restore failed, ignored',
+        error,
+        stack,
+      );
       // Quiet on purpose: see this class's doc on the fire-and-forget write.
     }
     if (!_restoreDone.isCompleted) _restoreDone.complete();
@@ -111,7 +117,13 @@ class ChannelDraftsController {
         text,
         now: DateTime.now().millisecondsSinceEpoch,
       );
-    } catch (_) {
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.data,
+        'persist failed, ignored',
+        error,
+        stack,
+      );
       // See _restore.
     }
   }

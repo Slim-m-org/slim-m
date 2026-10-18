@@ -89,7 +89,8 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
       };
       _ref.read(presenceActivityProvider.notifier).applyBatch(statuses);
       _ref.read(presenceDevicesProvider.notifier).applyBatch(statuses);
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'refresh batch', error, stack);
       // Nothing useful to do; the next refresh (or a live event) corrects it.
     }
   }

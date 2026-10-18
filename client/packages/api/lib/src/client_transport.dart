@@ -252,8 +252,12 @@ extension SlimmApiTransport on SlimmApi {
           seconds: decoded['retry_after_seconds'] as int,
         );
       }
-    } catch (_) {
-      // A non-JSON body is not itself an error worth surfacing; the status is.
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.net,
+          'A non-JSON body is not itself an error worth surfacing; the status is',
+          error,
+          stack);
     }
     return switch (response.statusCode) {
       400 => BadRequestException(reason),

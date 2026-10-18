@@ -115,7 +115,8 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
         newPassword: _password.text,
       );
       if (mounted) Navigator.of(context).pop(true);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'set state', e, stack);
       if (!mounted) return;
       setState(
         () => _error = e is api.TransportException

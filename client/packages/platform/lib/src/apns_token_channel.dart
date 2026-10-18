@@ -14,6 +14,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/push';
 
@@ -154,10 +155,13 @@ class ApnsTokenChannel {
         return null;
       });
       return _resultOf(token);
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'complete failed, ignored', error, stack);
       _pending = null;
       return const ApnsTokenPending();
-    } on PlatformException catch (e) {
+    } on PlatformException catch (e, stack) {
+      AppLog.swallowed(LogTag.platform, 'complete failed, ignored', e, stack);
       _pending = null;
       return ApnsRegistrationFailed(e.message ?? e.code);
     }
@@ -171,9 +175,13 @@ class ApnsTokenChannel {
     if (!_isIOS) return null;
     try {
       return await _channel.invokeMethod<String>('getVoipToken');
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'cached voip token failed, ignored', error, stack);
       return null;
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'cached voip token failed, ignored', error, stack);
       return null;
     }
   }

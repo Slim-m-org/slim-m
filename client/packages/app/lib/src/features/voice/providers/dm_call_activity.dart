@@ -91,9 +91,15 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
       final selfId = client.session.tokens?.userId;
       final inCall = roster.any((p) => p.userId != selfId);
       if (mounted) state = {...state, channelId: inCall};
-    } on api.NotConfiguredException {
-      // No voice on this deployment; never fires again for this channel.
-    } on api.ApiException {
+    } on api.NotConfiguredException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.voice,
+        'No voice on this deployment; never fires again for this channel',
+        error,
+        stack,
+      );
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.voice, 'fetch', error, stack);
       // Untracked again, so the next row that asks retries; waiting on a live event would leave a call already in progress unlit.
       _tracked.remove(channelId);
     }

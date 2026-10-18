@@ -17,6 +17,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'preference_controller.dart';
 import 'providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const appLockPreferenceKey = 'slimm.security.app_lock';
 
@@ -38,8 +39,13 @@ class AppLockPreferenceController extends StateNotifier<bool>
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       state = prefs.getBool(appLockPreferenceKey) ?? false;
-    } catch (_) {
-      // Off is always a safe default; see HighContrastController's own restore.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.auth,
+        'Off is always a safe default; see HighContrastController\'s own restore',
+        error,
+        stack,
+      );
     }
     await _ref.read(appLockWindowChannelProvider).setPrivacyShield(state);
   }

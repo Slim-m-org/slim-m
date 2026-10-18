@@ -222,8 +222,13 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
               kind: kind,
               id: id,
             );
-      } on api.NotFoundException {
-        // Already gone, which is what a removal asks for.
+      } on api.NotFoundException catch (error, stack) {
+        api.AppLog.swallowed(
+          api.LogTag.ui,
+          'Already gone, which is what a removal asks for',
+          error,
+          stack,
+        );
       }
       _removed.remove(key);
       _original.remove(key);
@@ -302,7 +307,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         _removed.clear();
         _seedFrom(fresh);
       });
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', error, stack);
       if (mounted) setActionError('Saved, but could not reload the grid.');
     }
   }

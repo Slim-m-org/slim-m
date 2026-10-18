@@ -143,7 +143,13 @@ class PushController extends StateNotifier<PushStatus>
   Stream<String> _fcmTokenRefreshStream() {
     try {
       return _ref.read(fcmTokenChannelProvider).onTokenRefresh;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.push,
+        'fcm token refresh stream failed, ignored',
+        error,
+        stack,
+      );
       return const Stream.empty();
     }
   }
@@ -241,7 +247,12 @@ class PushController extends StateNotifier<PushStatus>
         state = PushStatus.unsupportedPlatform;
       case ApnsTokenPending():
         state = PushStatus.noTokenYet;
-      case ApnsRegistrationFailed():
+      case ApnsRegistrationFailed(:final reason):
+        AppLog.warning(
+          LogTag.push,
+          'device registration failed',
+          context: {'platform': 'ios', 'reason': reason},
+        );
         state = PushStatus.registrationFailed;
       case ApnsTokenReady(:final token):
         final voipToken = await _ref
@@ -269,7 +280,12 @@ class PushController extends StateNotifier<PushStatus>
     switch (result) {
       case FcmUnsupported():
         state = PushStatus.unsupportedPlatform;
-      case FcmRegistrationFailed():
+      case FcmRegistrationFailed(:final reason):
+        AppLog.warning(
+          LogTag.push,
+          'device registration failed',
+          context: {'platform': 'android', 'reason': reason},
+        );
         state = PushStatus.registrationFailed;
       case FcmTokenReady(:final token):
         final permitted = await _requestAndroidPermission();
@@ -289,7 +305,13 @@ class PushController extends StateNotifier<PushStatus>
   Future<bool> _requestAndroidPermission() async {
     try {
       return await _ref.read(localNotificationsProvider).requestPermission();
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.push,
+        'request android permission failed, ignored',
+        error,
+        stack,
+      );
       return false;
     }
   }
@@ -360,7 +382,8 @@ class PushController extends StateNotifier<PushStatus>
       final current =
           WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
       unawaited(_reportLifecycle(_stateLabel(current)));
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'register this device for push', error, stack);
       state = PushStatus.serverError;
     }
   }
@@ -411,7 +434,13 @@ class PushController extends StateNotifier<PushStatus>
   Future<void> unregister() async {
     try {
       await _ref.read(apiProvider).unregisterPush();
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(
+        LogTag.push,
+        'unregister this device from push',
+        error,
+        stack,
+      );
       // Must not strand the user mid-sign-out; see the doc above.
     }
     final legacy = _ref.read(legacyPushKeyStoreProvider);
@@ -421,7 +450,13 @@ class PushController extends StateNotifier<PushStatus>
     ]) {
       try {
         await store.delete(devicePushKeyHandle);
-      } catch (_) {
+      } catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.push,
+          'unregister failed, ignored',
+          error,
+          stack,
+        );
         // Same reasoning as above.
       }
     }
@@ -458,7 +493,8 @@ class PushController extends StateNotifier<PushStatus>
     }
     try {
       await _ref.read(apiProvider).reportPushLifecycle(state: lifecycleLabel);
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'report the app lifecycle', error, stack);
       // A dropped lifecycle ping just leaves the server's guess briefly
       // stale; never a reason to surface an error to the user.
     }

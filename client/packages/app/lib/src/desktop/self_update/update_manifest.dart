@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 
 import 'self_update_failure.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const supportedManifestSchema = 1;
 
@@ -76,7 +77,13 @@ Future<bool> manifestSignatureIsValid({
   final Uint8List signature;
   try {
     signature = base64.decode(signatureBase64.trim());
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'host architecture failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
   if (signature.length != 64) return false;
@@ -85,7 +92,13 @@ Future<bool> manifestSignatureIsValid({
     final Uint8List keyBytes;
     try {
       keyBytes = base64.decode(key);
-    } on FormatException {
+    } on FormatException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'host architecture failed, ignored',
+        error,
+        stack,
+      );
       continue;
     }
     final valid = await algorithm.verify(
