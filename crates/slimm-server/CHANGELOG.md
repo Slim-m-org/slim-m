@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.95.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.94.0...server-v0.95.0) (2026-10-18)
+
+
+### Features
+
+* global push to talk, https invites, onboarding, inbox, bot prefixes, module hardening, server image previews, and the security fixes ([#2249](https://github.com/Slim-m-org/slim-m/issues/2249)) ([6a486dd](https://github.com/Slim-m-org/slim-m/commit/6a486dd799364fc33141139071e6540811d1a7b3))
+* the debug log catches every error, and tests share one set of helpers ([#2253](https://github.com/Slim-m-org/slim-m/issues/2253)) ([58e0b1f](https://github.com/Slim-m-org/slim-m/commit/58e0b1f75c1accf7eded3bf7f7cd029a0e5b2a97))
+
 ## [0.94.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.93.1...server-v0.94.0) (2026-10-18)
 
 
