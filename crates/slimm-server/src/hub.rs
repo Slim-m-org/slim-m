@@ -575,3 +575,6 @@ mod epoch_tests {
 
 #[cfg(test)]
 mod connection_count_tests;
+
+#[cfg(test)]
+mod event_size_tests;
