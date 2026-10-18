@@ -33,6 +33,7 @@ class VideoStallReading {
     this.paused = false,
     this.bytesReceived,
     this.needsTraffic = false,
+    this.sampledAtMs,
   });
 
   /// The tile key, `<kind>:<identity>` as the subscription culler uses.
@@ -53,6 +54,10 @@ class VideoStallReading {
   /// Frames standing still count only while bytes keep arriving: a screen
   /// share of a static page legitimately sends almost nothing.
   final bool needsTraffic;
+
+  /// When the stats behind this reading were taken. The sampler re-emits its
+  /// last remote samples on its slower local tick, and a repeat is not news.
+  final num? sampledAtMs;
 }
 
 /// One remote video publication as the watchdog needs to see it.
@@ -64,6 +69,7 @@ typedef StallPublication = ({
   int? framesDecoded,
   num? bytesReceived,
   bool screenShare,
+  num? sampledAtMs,
 });
 
 /// Turns publications into readings. [seenActive] remembers which keys have
@@ -87,17 +93,21 @@ List<VideoStallReading> stallReadings(
               (interest == null || interest.contains(pub.key)),
           bytesReceived: pub.bytesReceived,
           needsTraffic: pub.screenShare,
+          sampledAtMs: pub.sampledAtMs,
         ),
     ];
 
 class _Track {
-  _Track(this.since);
+  _Track(this.since) : freshAt = since;
 
   int? frames;
   num? bytes;
   DateTime since;
   int nextStep = 0;
   DateTime? lastStepAt;
+  num? sampledAtMs;
+  DateTime freshAt;
+  VideoTileHealth? health;
 
   void progressed(DateTime now, int? framesDecoded) {
     rebaseline(now, framesDecoded);
@@ -121,6 +131,7 @@ class VideoStallWatchdog {
     DateTime Function()? clock,
     this.stallAfter = const Duration(seconds: 3),
     this.stepGap = const Duration(seconds: 4),
+    this.staleAfter = const Duration(seconds: 10),
   }) : _clock = clock ?? DateTime.now;
 
   /// Asked to run [VideoStallStep] for the tile with [key].
@@ -131,6 +142,9 @@ class VideoStallWatchdog {
 
   /// How long one recovery step gets before the next is tried.
   final Duration stepGap;
+
+  /// How long a repeated sample is trusted before it counts as no stats.
+  final Duration staleAfter;
 
   /// How many new frames between two samples count as video flowing again.
   static const minProgressFrames = 3;
@@ -148,12 +162,29 @@ class VideoStallWatchdog {
     for (final reading in readings) {
       seen.add(reading.key);
       final track = _tracks.putIfAbsent(reading.key, () => _Track(now));
-      final health = _classify(reading, track, now);
+      final health = _classifyFresh(reading, track, now);
+      track.health = health;
       if (health != null) next[reading.key] = health;
     }
     _tracks.removeWhere((key, _) => !seen.contains(key));
     next.removeWhere((_, value) => value == VideoTileHealth.playing);
     if (!mapEquals(next, health.value)) health.value = Map.unmodifiable(next);
+  }
+
+  /// [_classify], except that a sample already seen changes nothing.
+  VideoTileHealth? _classifyFresh(
+    VideoStallReading reading,
+    _Track track,
+    DateTime now,
+  ) {
+    final stamp = reading.sampledAtMs;
+    final repeat = stamp != null && stamp == track.sampledAtMs;
+    if (repeat && now.difference(track.freshAt) < staleAfter) {
+      return track.health;
+    }
+    if (!repeat) track.freshAt = now;
+    track.sampledAtMs = stamp;
+    return _classify(reading, track, now);
   }
 
   /// The tile's health after [reading], or null when it needs no entry.
@@ -174,6 +205,13 @@ class VideoStallWatchdog {
         reading.needsTraffic && _noNewBytes(reading.bytesReceived, lastBytes);
     // One frame is what a recovery step's keyframe gives even a frozen source; flowing video gives dozens.
     if (frames != null && last != null && frames - last >= minProgressFrames) {
+      track.progressed(now, frames);
+      return null;
+    }
+    // A platform that reports bytes but no frame counter cannot be judged by frames.
+    if (frames == null &&
+        reading.expectPlaying &&
+        !_noNewBytes(reading.bytesReceived, lastBytes)) {
       track.progressed(now, frames);
       return null;
     }
