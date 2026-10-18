@@ -53,6 +53,29 @@ impl DataKey {
         }
     }
 
+    /// As [`Self::load`], but refuses to invent a key when `sealed_rows_exist` and none was
+    /// supplied: a fresh key would silently lock out every member with two-factor on.
+    /// `allow_new` is the operator's explicit opt-out, for after the factors were cleared.
+    pub fn load_guarded(
+        env_key: Option<&str>,
+        database_path: &str,
+        sealed_rows_exist: bool,
+        allow_new: bool,
+    ) -> anyhow::Result<Self> {
+        let has_env = env_key.is_some_and(|raw| !raw.trim().is_empty());
+        let path = key_file_path(database_path);
+        if sealed_rows_exist && !allow_new && !has_env && !path.exists() {
+            bail!(
+                "two-factor secrets are sealed in the database but neither SLIMM_DATA_KEY nor {} \
+                 exists; restore the key that was backed up with this database. If it is gone, \
+                 clear every factor with `slimm-server clear-totp <username>` and start once with \
+                 SLIMM_DATA_KEY_ALLOW_NEW=1",
+                path.display()
+            );
+        }
+        Self::load(env_key, database_path)
+    }
+
     /// Seals `plaintext` for the row `context` names; opening it for any other row fails.
     pub fn seal(&self, context: &str, plaintext: &str) -> anyhow::Result<String> {
         let nonce_bytes: [u8; NONCE_BYTES] = random_bytes();
@@ -213,6 +236,38 @@ mod tests {
         let b = DataKey::load(Some(&env), "/other/slimm.db").unwrap();
         let sealed = a.seal("u", "secret").unwrap();
         assert_eq!(b.open("u", &sealed).unwrap(), "secret");
+    }
+
+    #[test]
+    fn a_missing_key_with_sealed_rows_refuses_to_start_unless_opted_out() {
+        let dir = std::env::temp_dir().join(format!("slimm-data-key-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("slimm.db");
+        let db = db.to_str().unwrap();
+
+        let refused = DataKey::load_guarded(None, db, true, false).err().unwrap();
+        assert!(refused.to_string().contains("SLIMM_DATA_KEY"), "{refused}");
+        assert!(!dir.join(KEY_FILE_NAME).exists(), "no key was invented");
+
+        DataKey::load_guarded(None, db, false, false).unwrap();
+        assert!(
+            DataKey::load_guarded(None, db, true, false).is_ok(),
+            "the file exists now"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        let env = BASE64.encode([7u8; KEY_BYTES]);
+        assert!(DataKey::load_guarded(Some(&env), "/nonexistent/x.db", true, false).is_ok());
+    }
+
+    #[test]
+    fn the_opt_out_creates_a_fresh_key() {
+        let dir = std::env::temp_dir().join(format!("slimm-data-key-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("slimm.db");
+        DataKey::load_guarded(None, db.to_str().unwrap(), true, true).unwrap();
+        assert!(dir.join(KEY_FILE_NAME).exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

@@ -630,6 +630,10 @@ Restoring a snapshot is the rollback procedure, not a last resort:
 3. Put `SLIMM_VERSION` back to the version that made that backup.
 4. `docker compose up -d`.
 
+**Two-factor secrets are sealed on the first start of this version.**
+An older server image cannot read them, so rolling the image back breaks two-factor sign-in for every member who has it on, until you either restore a backup taken before the upgrade or clear each factor with `slimm-server clear-totp <username>` so the member enrols again.
+The data key (`slimm-data.key` in the data volume, or `SLIMM_DATA_KEY`) must go with the database on a restore; see [The data key](../docs/OPERATING.md#the-data-key).
+
 Which means the useful moment to take a backup is immediately *before* bumping `SLIMM_VERSION`, not on whatever schedule you otherwise run.
 A backup taken after the upgrade restores you to the state you are trying to leave.
 

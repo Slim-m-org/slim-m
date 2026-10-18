@@ -20,6 +20,7 @@ To set one of those you need a compose override file that adds it to the `server
 | --- | --- | --- | --- |
 | `SLIMM_PORT` | `8080` | TCP port for HTTP and WebSocket. | no, the image sets 8080 |
 | `SLIMM_DATABASE_PATH` | `data/slimm.db` | The SQLite file. | no, the image sets `/data/slimm.db` |
+| `SLIMM_DATA_KEY_ALLOW_NEW` | unset | Set to `1` to let a server with sealed two-factor secrets and no key start with a fresh one. Only after every factor was cleared; see [The data key](#the-data-key). | no |
 | `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | no |
 | `SLIMM_ATTACHMENTS_DIR` | `data/media` | Where attachment and avatar bytes live, beside the database. | no, the image sets `/data/media` |
 | `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | no |
@@ -30,6 +31,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |
 | `SLIMM_DIRECT_ADDRESSES` | unset | Comma-separated `host:port` where native clients on your own network reach the same TLS endpoint directly, for example `10.0.0.100:443`, so they skip Cloudflare or another proxy. Clients verify the certificate against the public hostname, and only dial a private or loopback IP literal on the server's own port. Served to signed-in clients at `GET /direct-route`, never in the unauthenticated `/version`. | yes |
+| `SLIMM_MODULE_LAN_DENY` | unset | Comma-separated IPs or CIDRs (for example `10.0.0.50, 192.168.1.0/24`) that a module with the Private network approval may never reach. Always refused as well: this server's own addresses, the hosts in `SLIMM_DIRECT_ADDRESSES` (the docker host's LAN address), and every docker bridge network the container can see. Malformed entries are logged and ignored. | no |
 | `SLIMM_LINK_PREVIEWS` | `false` | Unfurl pasted links into preview cards. Makes the server fetch member-supplied URLs behind an SSRF guard (decision 0019). | yes |
 | `SLIMM_GIF_PROVIDER` | unset | `tenor` or `klipy`. Set it with the key or neither. An unrecognised value stops startup. | yes |
 | `SLIMM_GIF_API_KEY` | unset | Your key for that provider. | yes |
@@ -87,6 +89,12 @@ A copy of the database file alone, a Litestream replica included, cannot generat
 The key is read from `SLIMM_DATA_KEY` when that is set, otherwise from `slimm-data.key` next to the database file.
 The file is created the first time the server starts, with mode 0600, and holds 32 random bytes as base64.
 Secrets stored in the clear by an earlier version are encrypted the next time the server starts, with no action on your side.
+The server refuses to start when sealed secrets exist and neither `SLIMM_DATA_KEY` nor the key file is present, because a fresh key would silently lock out every member with two-factor on.
+Restore the key, or clear the factors (`slimm-server clear-totp <username>`) and start once with `SLIMM_DATA_KEY_ALLOW_NEW=1`.
+
+**Rolling back.**
+After the first start on this version every two-factor secret is sealed, so an older server image cannot read them and two-factor sign-in fails for those members.
+To go back, either clear the factor for each affected member with `slimm-server clear-totp <username>` and let them enrol again, or restore a database backup taken before the upgrade (which holds the secrets in the clear).
 
 **Back the key up, and back it up apart from the database.**
 Litestream and `scripts/backup.py` carry the database, not this file, which is the point of keeping them separate.
@@ -181,6 +189,7 @@ The Dock labels a community module with its `owner/repo`.
 Approving a module means two separate things.
 Its own permissions are granted to roles by you, and nobody holds them implicitly, administrators included.
 Its host capabilities are approved per install, in switches that start off.
+The Private network switch lets `net.fetch` reach your whole home network, minus this server, its docker host, docker bridge networks and anything in `SLIMM_MODULE_LAN_DENY`.
 There are two, `kv.store` (private key-value storage, small and capped) and `message.post` (post as the person who ran the module, in the channel they ran it from).
 A new build of a module's wasm loses its `message.post` approval and needs it approved again; `kv.store` carries over.
 A module with no approval can compute from its input and nothing else.
