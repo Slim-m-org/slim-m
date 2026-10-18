@@ -112,8 +112,15 @@ pub async fn run() -> anyhow::Result<()> {
     let cors = cors::CorsPolicy::new(&config)?;
     let pool = db::connect(&config).await?;
 
-    let data_key = data_key::DataKey::load(config.data_key.as_deref(), &config.database_path)?;
-    let store = store::Store::new(pool).with_data_key(data_key);
+    let store = store::Store::new(pool);
+    let allow_new_key = std::env::var("SLIMM_DATA_KEY_ALLOW_NEW").is_ok_and(|v| v == "1");
+    let data_key = data_key::DataKey::load_guarded(
+        config.data_key.as_deref(),
+        &config.database_path,
+        store.has_sealed_totp_secrets().await?,
+        allow_new_key,
+    )?;
+    let store = store.with_data_key(data_key);
     store.seal_totp_secrets().await?;
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;

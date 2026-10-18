@@ -251,7 +251,7 @@ void main() {
       expect(
         find.text(
           'Can also reach devices on your private network, like a NAS or media '
-          'server. Never this server itself.',
+          'server. Never this server, its host or anything you block.',
         ),
         findsOneWidget,
       );

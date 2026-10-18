@@ -58,14 +58,14 @@ impl Store {
 }
 
 /// Runs inside the registration transaction: the prefix must be the one assigned
-/// (or adopts it for a bot that has none), and no other live bot may already
-/// answer to one of these command names under the same prefix.
+/// (or adopts it for a bot that has none). Returns the newly added command names
+/// another live bot already answers to; a bot keeps every name it already held.
 pub(super) async fn claim_registration(
     tx: &mut SqliteConnection,
     bot_user_id: UserId,
     prefix: &str,
     commands: &[BotCommand],
-) -> Result<(), SetBotCommandsError> {
+) -> Result<Vec<String>, SetBotCommandsError> {
     let assigned = sqlx::query_scalar!("SELECT bot_prefix FROM users WHERE id = ?", bot_user_id)
         .fetch_optional(&mut *tx)
         .await?
@@ -86,33 +86,40 @@ pub(super) async fn claim_registration(
         }
     }
 
-    let others = sqlx::query!(
-        r#"SELECT u.display_name, c.name
+    let held: HashSet<String> = sqlx::query_scalar!(
+        "SELECT c.name FROM bot_commands c
+         JOIN bot_command_registrations r ON r.bot_user_id = c.bot_user_id
+         WHERE c.bot_user_id = ? AND r.prefix = ?",
+        bot_user_id,
+        prefix
+    )
+    .fetch_all(&mut *tx)
+    .await?
+    .into_iter()
+    .map(|name| name.to_lowercase())
+    .collect();
+    let others: HashSet<String> = sqlx::query_scalar!(
+        r#"SELECT c.name
            FROM bot_command_registrations r
            JOIN users u ON u.id = r.bot_user_id
            JOIN bot_commands c ON c.bot_user_id = r.bot_user_id
            JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL
            WHERE r.prefix = ? AND r.bot_user_id != ?
              AND u.is_bot = 1 AND u.deleted_at IS NULL
-             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)
-           ORDER BY u.created_at ASC"#,
+             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)"#,
         prefix,
         bot_user_id
     )
     .fetch_all(&mut *tx)
-    .await?;
-    let mine: HashSet<String> = commands.iter().map(|c| c.name.to_lowercase()).collect();
-    if let Some(clash) = others
-        .into_iter()
-        .find(|other| mine.contains(&other.name.to_lowercase()))
-    {
-        return Err(SetBotCommandsError::CommandTaken {
-            bot_display_name: clash.display_name,
-            prefix: prefix.to_owned(),
-            command: clash.name,
-        });
-    }
-    Ok(())
+    .await?
+    .into_iter()
+    .map(|name| name.to_lowercase())
+    .collect();
+    Ok(commands
+        .iter()
+        .map(|c| c.name.to_lowercase())
+        .filter(|name| !held.contains(name) && others.contains(name))
+        .collect())
 }
 
 #[cfg(test)]

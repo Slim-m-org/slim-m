@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
-use super::extract::{Authed, AuthedLimited, Json, PASSWORD, REFRESH, RateLimited, WRITE, enforce};
+use super::extract::{
+    Authed, AuthedLimited, Json, PASSWORD, REFRESH, RateLimited, WRITE, enforce, limit_key,
+};
 use super::invites::invite_code_key;
 use crate::hub::Event;
 use crate::ratelimit::Class;
@@ -274,6 +276,7 @@ async fn register(
 async fn login(
     _limited: RateLimited<PASSWORD>,
     State(state): State<AppState>,
+    parts: Parts,
     Json(req): Json<LoginRequest>,
 ) -> Result<LoginOutcome, ApiError> {
     validate_label(&req.device_name, "device_name must be 1 to 64 characters")?;
@@ -287,9 +290,11 @@ async fn login(
     }
 
     let credentials = state.store.find_credentials(&req.username).await?;
+    // Keyed like the limiter, so a stranger's guesses only throttle the stranger.
+    let source = limit_key(&parts, None, state.limiter.trusted_hops());
     // A throttled account still runs the decoy and answers like a wrong password.
     let throttled = match &credentials {
-        Some((user_id, _)) => state.store.login_throttled(*user_id).await?,
+        Some((user_id, _)) => state.store.login_throttled(*user_id, &source).await?,
         None => false,
     };
     let verified = match &credentials {
@@ -314,10 +319,10 @@ async fn login(
         return Err(ApiError::Unauthorized);
     }
     if !verified {
-        state.store.record_login_failure(user_id).await?;
+        state.store.record_login_failure(user_id, &source).await?;
         return Err(ApiError::Unauthorized);
     }
-    state.store.clear_login_throttle(user_id).await?;
+    state.store.clear_login_throttle(user_id, &source).await?;
 
     if state.store.totp_required_at_sign_in(user_id).await? {
         let challenge = state

@@ -121,6 +121,9 @@ async fn list(
     Ok(Json(bots.into_iter().map(BotDto::from).collect()))
 }
 
+/// What a bot created without a prefix gets: the released bot library hardcodes it.
+const DEFAULT_BOT_PREFIX: &str = "!";
+
 /// A prefix no live bot holds, for the create form to offer.
 async fn suggested_prefix(
     State(state): State<AppState>,
@@ -169,7 +172,7 @@ async fn create(
             validate_bot_prefix(prefix).map_err(ApiError::BadRequest)?;
             prefix.to_owned()
         }
-        None => state.store.suggest_bot_prefix().await?,
+        None => DEFAULT_BOT_PREFIX.to_owned(),
     };
 
     match state

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Per-account password guess throttle: a bounded, decaying backoff.
+//! Per-account, per-caller password guess throttle: a bounded, decaying backoff.
 //!
-//! The per-address limiter does not slow a guesser who rotates addresses, so the account
-//! itself counts failed password checks. Past [`FREE_FAILURES`] each further failure doubles
+//! The count is keyed by account and the caller's rate-limit address key, so a stranger's
+//! guesses only slow that stranger and never keep the real owner out. Past [`FREE_FAILURES`] each further failure doubles
 //! a delay capped at [`MAX_DELAY_MS`], and a quiet [`FORGET_AFTER_MS`] forgets the count, so
 //! an attacker can slow the owner down but never lock them out for good.
 
@@ -28,31 +28,44 @@ pub fn delay_ms(failures: i64) -> i64 {
 }
 
 impl Store {
-    /// Whether password sign-in for this account is being refused right now.
-    pub async fn login_throttled(&self, user_id: UserId) -> anyhow::Result<bool> {
-        self.login_throttled_at(user_id, now_ms()).await
+    /// Whether password sign-in for this account from this caller is being refused right now.
+    pub async fn login_throttled(&self, user_id: UserId, source: &str) -> anyhow::Result<bool> {
+        self.login_throttled_at(user_id, source, now_ms()).await
     }
 
-    pub async fn login_throttled_at(&self, user_id: UserId, now: i64) -> anyhow::Result<bool> {
+    pub async fn login_throttled_at(
+        &self,
+        user_id: UserId,
+        source: &str,
+        now: i64,
+    ) -> anyhow::Result<bool> {
         let locked_until = sqlx::query_scalar!(
-            "SELECT locked_until FROM login_throttle WHERE user_id = ?",
-            user_id
+            "SELECT locked_until FROM login_throttle WHERE user_id = ? AND source = ?",
+            user_id,
+            source
         )
         .fetch_optional(&self.pool)
         .await?;
         Ok(locked_until.is_some_and(|until| until > now))
     }
 
-    /// Counts a wrong password against the account and sets the next delay.
-    pub async fn record_login_failure(&self, user_id: UserId) -> anyhow::Result<()> {
-        self.record_login_failure_at(user_id, now_ms()).await
+    /// Counts a wrong password against the account from this caller and sets the next delay.
+    pub async fn record_login_failure(&self, user_id: UserId, source: &str) -> anyhow::Result<()> {
+        self.record_login_failure_at(user_id, source, now_ms())
+            .await
     }
 
-    pub async fn record_login_failure_at(&self, user_id: UserId, now: i64) -> anyhow::Result<()> {
+    pub async fn record_login_failure_at(
+        &self,
+        user_id: UserId,
+        source: &str,
+        now: i64,
+    ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
         let previous = sqlx::query!(
-            "SELECT failures, last_failure_at FROM login_throttle WHERE user_id = ?",
-            user_id
+            "SELECT failures, last_failure_at FROM login_throttle WHERE user_id = ? AND source = ?",
+            user_id,
+            source
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -62,13 +75,14 @@ impl Store {
         let failures = carried + 1;
         let locked_until = now + delay_ms(failures);
         sqlx::query!(
-            "INSERT INTO login_throttle (user_id, failures, last_failure_at, locked_until)
-             VALUES (?, ?, ?, ?)
-             ON CONFLICT(user_id) DO UPDATE SET
+            "INSERT INTO login_throttle (user_id, source, failures, last_failure_at, locked_until)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(user_id, source) DO UPDATE SET
                  failures = excluded.failures,
                  last_failure_at = excluded.last_failure_at,
                  locked_until = excluded.locked_until",
             user_id,
+            source,
             failures,
             now,
             locked_until
@@ -79,12 +93,44 @@ impl Store {
         Ok(())
     }
 
-    /// Forgets the account's failures after a correct password.
-    pub async fn clear_login_throttle(&self, user_id: UserId) -> anyhow::Result<()> {
-        sqlx::query!("DELETE FROM login_throttle WHERE user_id = ?", user_id)
+    /// Forgets this caller's failures after a correct password; a read first so a
+    /// clean sign-in takes no write lock.
+    pub async fn clear_login_throttle(&self, user_id: UserId, source: &str) -> anyhow::Result<()> {
+        let exists = sqlx::query_scalar!(
+            "SELECT 1 AS \"one!: i64\" FROM login_throttle WHERE user_id = ? AND source = ?",
+            user_id,
+            source
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .is_some();
+        if exists {
+            sqlx::query!(
+                "DELETE FROM login_throttle WHERE user_id = ? AND source = ?",
+                user_id,
+                source
+            )
             .execute(&self.pool)
             .await?;
+        }
         Ok(())
+    }
+
+    /// Deletes rows whose count would be forgotten anyway.
+    pub async fn sweep_login_throttle(&self) -> anyhow::Result<u64> {
+        self.sweep_login_throttle_at(now_ms()).await
+    }
+
+    pub async fn sweep_login_throttle_at(&self, now: i64) -> anyhow::Result<u64> {
+        let cutoff = now - FORGET_AFTER_MS;
+        Ok(sqlx::query!(
+            "DELETE FROM login_throttle WHERE last_failure_at < ? AND locked_until < ?",
+            cutoff,
+            now
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected())
     }
 }
 

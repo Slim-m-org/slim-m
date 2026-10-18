@@ -180,6 +180,16 @@ impl Store {
         Ok(!self.totp_is_enabled(user_id).await?)
     }
 
+    /// Whether any two-factor secret is already sealed, so a missing data key would lock it.
+    pub async fn has_sealed_totp_secrets(&self) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM user_totp_factors WHERE secret LIKE 'enc1:%') AS "found!: bool""#
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(found)
+    }
+
     /// Seals every two-factor secret still stored in the clear, from before the data key
     /// existed, and warns about any the current key cannot open. Safe to run on every start.
     pub async fn seal_totp_secrets(&self) -> anyhow::Result<()> {
