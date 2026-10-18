@@ -14,14 +14,13 @@
 /// already holding the room.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../format.dart';
 import '../providers/call_mini_player.dart';
+import 'second_clock.dart';
 import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/double_click_detector.dart';
 import 'fullscreen_video_overlay.dart';
@@ -313,8 +312,8 @@ String formatCallClock(Duration d) {
 
 /// `12:34`-style elapsed time since [since], ticking once a second.
 ///
-/// A text update, not motion, so it does not route through reduce-motion;
-/// the timer only exists while the readout is mounted.
+/// A text update, not motion, so it does not route through reduce-motion; it
+/// shares one clock with every other readout and pauses when unseen.
 class CallDuration extends StatefulWidget {
   const CallDuration({super.key, required this.since, this.style});
 
@@ -327,25 +326,10 @@ class CallDuration extends StatefulWidget {
   State<CallDuration> createState() => _CallDurationState();
 }
 
-class _CallDurationState extends State<CallDuration> {
-  Timer? _tick;
-
-  @override
-  void initState() {
-    super.initState();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _tick?.cancel();
-    super.dispose();
-  }
-
+class _CallDurationState extends State<CallDuration> with SecondTickMixin {
   @override
   Widget build(BuildContext context) {
+    tickWhile(true);
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final elapsed = DateTime.now().difference(widget.since);
     return Text(

@@ -50,12 +50,7 @@ class CanvasStrokePreviewRelay {
     required this.send,
     required this.isBlocked,
     required this.selfId,
-  }) {
-    _pruneTimer = Timer.periodic(
-      strokePreviewPruneInterval,
-      (_) => drafts.pruneOlderThan(strokePreviewStaleAfter, now: clock.now()),
-    );
-  }
+  });
 
   final RemoteStrokeDrafts drafts;
 
@@ -78,6 +73,19 @@ class CanvasStrokePreviewRelay {
   Timer? _flushTimer;
   String? _activeObjectId;
   final List<Offset> _pending = <Offset>[];
+
+  // Armed by the first remote draft and disarmed once none is left, so an idle canvas holds no timer.
+  void _armPrune() {
+    _pruneTimer ??= Timer.periodic(strokePreviewPruneInterval, (_) {
+      drafts.pruneOlderThan(strokePreviewStaleAfter, now: clock.now());
+      if (drafts.all.isEmpty) _disarmPrune();
+    });
+  }
+
+  void _disarmPrune() {
+    _pruneTimer?.cancel();
+    _pruneTimer = null;
+  }
 
   /// Call for every `DraftPointAdded` while this device draws: mints a new
   /// draft id on the first point of a gesture and starts the flush timer,
@@ -153,11 +161,12 @@ class CanvasStrokePreviewRelay {
       colorIndex: canvasParticipantColorIndex(userId, paletteSize),
       now: clock.now(),
     );
+    _armPrune();
   }
 
   void dispose() {
     endLocalDraft();
-    _pruneTimer?.cancel();
+    _disarmPrune();
     drafts.clear();
   }
 }

@@ -43,12 +43,7 @@ class CanvasCursorRelay {
     required this.selfId,
     this.sendLeft,
     this.canSend,
-  }) {
-    _pruneTimer = Timer.periodic(
-      cursorPruneInterval,
-      (_) => cursors.pruneOlderThan(cursorStaleAfter, now: clock.now()),
-    );
-  }
+  });
 
   final CanvasCursors cursors;
 
@@ -76,6 +71,19 @@ class CanvasCursorRelay {
 
   Timer? _pruneTimer;
   DateTime? _lastSent;
+
+  // Armed by the first remote cursor and disarmed once none is left, so an idle canvas holds no timer.
+  void _armPrune() {
+    _pruneTimer ??= Timer.periodic(cursorPruneInterval, (_) {
+      cursors.pruneOlderThan(cursorStaleAfter, now: clock.now());
+      if (cursors.all.isEmpty) _disarmPrune();
+    });
+  }
+
+  void _disarmPrune() {
+    _pruneTimer?.cancel();
+    _pruneTimer = null;
+  }
 
   /// Call on every local pointer move, drawing or not; throttles internally
   /// to [cursorSendInterval] so the caller does not have to.
@@ -115,10 +123,11 @@ class CanvasCursorRelay {
       // Seeds the glide's start from the in-flight position; harmless when a painter is given a zero (reduce-motion) glide, since it then draws the target regardless.
       glide: cursorGlideDuration,
     );
+    _armPrune();
   }
 
   void dispose() {
-    _pruneTimer?.cancel();
+    _disarmPrune();
     cursors.clear();
   }
 }

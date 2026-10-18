@@ -127,6 +127,32 @@ void main() {
     });
   });
 
+  test(
+    'holds no timer until a remote cursor exists, nor once none is left',
+    () {
+      fakeAsync((async) {
+        final cursors = CanvasCursors();
+        final relay = CanvasCursorRelay(
+          cursors: cursors,
+          paletteSize: 6,
+          send: (_, _) {},
+          resolveLabel: (_) => 'Someone',
+          isBlocked: (_) => false,
+          selfId: () => 'self',
+        );
+        addTearDown(cursors.dispose);
+        addTearDown(relay.dispose);
+        expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 0);
+
+        relay.applyRemote('alice', 0, 0);
+        expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 1);
+
+        async.elapse(cursorStaleAfter + cursorPruneInterval * 2);
+        expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 0);
+      });
+    },
+  );
+
   test('a pointer leaving hides the remote cursor and is sent once', () {
     final cursors = CanvasCursors();
     addTearDown(cursors.dispose);

@@ -168,7 +168,7 @@ void main() {
     final strip = find.bySemanticsLabel(RegExp(r'^Return to call, '));
     expect(strip, findsOneWidget);
     final data = tester.getSemantics(strip);
-    expect(data.label, matches(r'^Return to call, [^,]+, 00:3\d'));
+    expect(data.label, equals('Return to call, main'));
     expect(data.flagsCollection.isButton, isTrue);
     for (final label in ['Mute', 'Deafen', 'Leave call']) {
       expect(find.bySemanticsLabel(label), findsOneWidget);

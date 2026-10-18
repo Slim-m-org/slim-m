@@ -350,6 +350,28 @@ void main() {
     },
   );
 
+  test('holds no timer until a remote draft exists, nor once none is left', () {
+    fakeAsync((async) {
+      final drafts = RemoteStrokeDrafts();
+      final relay = CanvasStrokePreviewRelay(
+        drafts: drafts,
+        paletteSize: 6,
+        send: (_, _, _) {},
+        isBlocked: (_) => false,
+        selfId: () => 'self',
+      );
+      addTearDown(drafts.dispose);
+      addTearDown(relay.dispose);
+      expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 0);
+
+      relay.applyRemote('alice', 'd1', const [0.0, 0.0], false);
+      expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 1);
+
+      async.elapse(strokePreviewStaleAfter + strokePreviewPruneInterval * 2);
+      expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 0);
+    });
+  });
+
   test(
     'dispose ends an in-progress local draft, so a disconnect is not a silent ghost',
     () {
