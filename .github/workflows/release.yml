@@ -406,6 +406,21 @@ jobs:
           fi
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
+  # Rewrites SHA256SUMS from the release's actual assets once the Linux, Android and (through desktop-clients) Windows and macOS downloads are attached; linux-client's own partial file is only the first draft.
+  client-checksums:
+    name: client checksums
+    needs: [release-please, linux-client, android-client, verify-client-ci]
+    if: always() && needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success' && needs.android-client.result != 'cancelled'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/client-checksums.yml
+    with:
+      tag: ${{ needs.release-please.outputs.client_tag }}
+    secrets:
+      RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
   # Re-signs the manifest after the tarball attaches, since desktop-clients may have finished first and signed without it. It defers when the Windows or macOS archive is not there yet, and desktop-clients then signs.
   update-manifest:
     name: signed update manifest

@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+name: client-checksums
+
+# One SHA256SUMS for every client download on a release; see docs/ci.md.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+    secrets:
+      RELEASE_PLEASE_TOKEN:
+        required: false
+      GPG_PRIVATE_KEY:
+        required: false
+      GPG_PASSPHRASE:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing client tag to rewrite SHA256SUMS for (e.g. client-v0.90.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-checksums-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  sums:
+    name: client checksums
+    runs-on: ubuntu-24.04
+    # write, not read: the last step attaches SHA256SUMS to the github release.
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      # A release made with RELEASE_PLEASE_TOKEN refuses uploads from the workflow token.
+      GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+    steps:
+      - name: download the client downloads
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern 'slim-m-client-*-linux-amd64.tar.gz' \
+            --pattern 'slim-m-client-*.flatpak' \
+            --pattern 'slim-m-client-*.rpm' \
+            --pattern 'slim-m-client-*-windows-x64.zip' \
+            --pattern 'slim-m-setup-*.exe' \
+            --pattern 'slim-m-client-*-macos.zip' \
+            --pattern 'slim-m-client-android.apk'
+
+      # The Linux, desktop and Android jobs finish in no fixed order, so each calls this and only a call that finds the tarball, both Windows files and the macOS zip writes the file; the last caller sees everything.
+      - name: checksums
+        id: sums
+        working-directory: dist
+        run: |
+          shopt -s nullglob
+          for pattern in 'slim-m-client-*-linux-amd64.tar.gz' 'slim-m-client-*-windows-x64.zip' 'slim-m-setup-*.exe' 'slim-m-client-*-macos.zip'; do
+            if ! compgen -G "$pattern" > /dev/null; then
+              echo "::notice::$pattern is not attached to $TAG yet. The caller that attaches the last download writes SHA256SUMS."
+              exit 0
+            fi
+          done
+          sha256sum -- slim-m-client-*-linux-amd64.tar.gz slim-m-client-*.flatpak slim-m-client-*.rpm \
+            slim-m-client-*-windows-x64.zip slim-m-setup-*.exe slim-m-client-*-macos.zip \
+            slim-m-client-android.ap[k] > SHA256SUMS
+          cat SHA256SUMS
+          echo "written=true" >> "$GITHUB_OUTPUT"
+
+      - name: sign checksums (optional)
+        if: steps.sums.outputs.written == 'true' && env.GPG_PRIVATE_KEY != ''
+        working-directory: dist
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --pinentry-mode loopback --passphrase-fd 0 <<< "$GPG_PASSPHRASE" \
+            --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+
+      - name: attach to the github release
+        if: steps.sums.outputs.written == 'true'
+        run: |
+          files=(dist/SHA256SUMS)
+          [ -f dist/SHA256SUMS.asc ] && files+=(dist/SHA256SUMS.asc)
+          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
