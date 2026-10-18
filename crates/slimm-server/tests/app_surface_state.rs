@@ -7,15 +7,11 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use slimm_server::http::{self};
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
     Store,
@@ -24,6 +20,8 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
+
+use support::app::json_body;
 use support::wasm_fixtures::{canned_raw_wasm, echo_request_wasm, sha256_hex};
 
 const SCENE: &[u8] =
@@ -81,13 +79,6 @@ fn post(uri: &str, token: &str, body: Value) -> Request<Body> {
         .unwrap()
 }
 
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
 #[tokio::test]
 async fn a_forged_state_is_replaced_by_the_one_the_server_stored() {
     let (path, _guard) = support::TestDbGuard::new("slimm-surface-state");
@@ -117,19 +108,7 @@ async fn a_forged_state_is_replaced_by_the_one_the_server_stored() {
         .await
         .unwrap();
     let token = s.open_session(user.id, "phone").await.unwrap().access_token;
-    let router: Router = http::router(AppState {
-        store: s.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let router: Router = http::router(support::app::state(s.clone()));
 
     let launch = json_body(
         router

@@ -8,23 +8,21 @@
 use std::sync::{Arc, Mutex};
 
 use axum::Router as SfuRouter;
-use axum::body::Body;
 use axum::extract::State;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::request_authed as request;
 
 /// A room service that records every `RemoveParticipant` call it receives,
 /// the same shape `tests/voice_sweep.rs` uses to prove eviction reaches the
@@ -62,33 +60,7 @@ fn app(store: Store, voice: VoiceService) -> Router {
 }
 
 fn app_with_hub(store: Store, voice: VoiceService, hub: Hub) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(value) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(value.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
+    support::app::builder(store).hub(hub).voice(voice).router()
 }
 
 /// The admin who claims the deployment, plus two ordinary members.

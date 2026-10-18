@@ -5,31 +5,14 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::media::Media;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
 
 fn app(store: Store, media: Media) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media,
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).media(media).router()
 }
 
 fn request(method: &str, uri: &str, token: &str, body: Vec<u8>) -> Request<Body> {

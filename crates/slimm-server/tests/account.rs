@@ -6,12 +6,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::json;
 use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, OpenError, RefreshOutcome, SendError};
 use tower::ServiceExt;
 
@@ -200,19 +196,7 @@ async fn delete_account_removes_attachment_uploader_rows() {
 #[tokio::test]
 async fn http_delete_account_rejects_the_token_afterward() {
     let (store, _guard) = support::new_store("slimm-account-test").await;
-    let app = http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::router(store);
 
     // Register and grab the access token.
     let response = app
@@ -281,19 +265,7 @@ async fn http_delete_account_rejects_the_token_afterward() {
 #[tokio::test]
 async fn the_last_administrator_cannot_strand_a_populated_deployment() {
     let (store, _guard) = support::new_store("slimm-account-test").await;
-    let app = http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::router(store);
 
     let signup = |username: &'static str, invite: Option<String>| {
         let app = app.clone();

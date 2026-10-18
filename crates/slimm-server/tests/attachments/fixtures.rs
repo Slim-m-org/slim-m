@@ -6,15 +6,10 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
 use slimm_server::media::Media;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
@@ -43,19 +38,7 @@ pub fn app(store: Store) -> Router {
 }
 
 pub fn app_with_media(store: Store, media: Media) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media,
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    crate::support::app::builder(store).media(media).router()
 }
 
 pub fn request_json(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> {

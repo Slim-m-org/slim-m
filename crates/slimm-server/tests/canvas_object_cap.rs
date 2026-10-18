@@ -4,26 +4,18 @@
 //! range. The cap's actual enforcement at placement is covered in
 //! `canvas_write/write.rs` (`a_lowered_cap_refuses_the_next_object`).
 
-use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use serde_json::{Value, json};
-use slimm_server::auth::Auth;
+use axum::http::StatusCode;
+use serde_json::json;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::ids::UserId;
-use slimm_server::media::Media;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{
     MAX_CANVAS_OBJECT_CAP, MAX_OBJECTS_PER_CHANNEL, MIN_CANVAS_OBJECT_CAP, Store,
 };
-use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::{app, json_body, register_id as register, request_authed as request};
 
 async fn harness(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -35,53 +27,6 @@ async fn harness(name: &str) -> (Store, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool), guard)
-}
-
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(v) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(v.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
-/// The first account bootstraps the deployment and so holds MANAGE_SERVER.
-async fn register(store: &Store, username: &str) -> UserId {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    account.id
 }
 
 /// The default a deployment keeps on upgrade is the compile-time object

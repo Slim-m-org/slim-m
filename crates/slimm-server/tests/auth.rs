@@ -12,10 +12,6 @@ use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{PushRegistration, RefreshOutcome, RegisterError, Store};
 use tower::ServiceExt;
 
@@ -221,19 +217,7 @@ async fn ws_ticket_is_single_use_and_session_bound() {
 async fn http_register_ticket_and_logout() {
     let (store, _guard) = store().await;
     let auth = Auth::new(2).expect("auth service");
-    let app = http::router(AppState {
-        store,
-        auth,
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store).auth(auth).router();
 
     // Register.
     let body = serde_json::json!({
@@ -311,19 +295,7 @@ async fn http_register_ticket_and_logout() {
 #[tokio::test]
 async fn http_login_rejects_bad_credentials() {
     let (store, auth, _user_id, _guard) = with_alice().await;
-    let app = http::router(AppState {
-        store,
-        auth,
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store).auth(auth).router();
 
     let wrong_password = app
         .clone()
@@ -372,19 +344,7 @@ async fn http_login_rejects_bad_credentials() {
 async fn http_register_rejects_spoofing_display_name() {
     let (store, _guard) = store().await;
     let auth = Auth::new(2).expect("auth service");
-    let app = http::router(AppState {
-        store,
-        auth,
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store).auth(auth).router();
 
     let response = app
         .oneshot(
