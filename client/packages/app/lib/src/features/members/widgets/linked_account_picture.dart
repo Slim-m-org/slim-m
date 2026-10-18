@@ -5,10 +5,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/widgets/image_decode.dart';
 import '../providers/linked_avatar_bytes.dart';
+import 'user_avatar.dart';
 
 class LinkedAccountPicture extends ConsumerWidget {
   const LinkedAccountPicture({
@@ -36,8 +36,9 @@ class LinkedAccountPicture extends ConsumerWidget {
     if (bytes == null) return fallback;
     final edge = decodeEdge(context, size, minRatio: 2, oversample: 3);
     return ExcludeSemantics(
-      child: AppAvatar(
+      child: UserAvatar(
         name: account.username,
+        userId: null,
         size: size,
         image: ResizeImage(
           MemoryImage(bytes),

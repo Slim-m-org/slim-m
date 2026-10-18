@@ -105,7 +105,6 @@ client/packages/app/test/features/channels/touch_targets_test.dart 1
 client/packages/app/test/ui_snapshot_support.dart 3
 client/packages/app/test/ui_snapshot_test.dart 1
 client/packages/app/test/voice_broadcast_handoff_test.dart 1
-client/packages/app/test/features/voice/voice_controller_harness.dart 1
 client/packages/app/test/features/voice/voice_screen_test.dart 3
 client/packages/app/test/features/voice/voice_settings_screen_test.dart 1
 client/packages/app/test/features/voice/voice_share_indicator_test.dart 1

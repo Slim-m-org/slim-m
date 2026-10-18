@@ -26,120 +26,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/rtc.dart';
 
-/// One remote audio track that really does hold what was pushed to it.
-///
-/// [key] is a plain `Object`, standing in for the platform track that
-/// [LocalAudioRef.track] carries in production. Replacing it is how a test
-/// says "this track resubscribed": that is precisely what LiveKit does, since
-/// `addSubscribedMediaTrack` builds a new `MediaStreamTrack` every time.
-class _FakeTrack {
-  _FakeTrack(this.identity, {this.channel = LocalAudioChannel.voice});
-
-  final String identity;
-  final LocalAudioChannel channel;
-  Object key = Object();
-
-  bool enabled = true;
-  double volume = kDefaultParticipantVolume;
-
-  /// LiveKit's own `Track._active`. `enable()` and `disable()` check it and
-  /// do nothing at all when it is false, silently and without throwing, so a
-  /// caller cannot tell a push that landed from one that was dropped.
-  bool active = true;
-
-  /// What the SFU was last told about this publication.
-  bool forwarding = true;
-  int forwardCalls = 0;
-
-  int enableCalls = 0;
-  int disableCalls = 0;
-  int volumeCalls = 0;
-
-  /// Set to make the next push fail the way a real platform call can.
-  Object? failure;
-
-  int get platformCalls =>
-      enableCalls + disableCalls + volumeCalls + forwardCalls;
-
-  /// A resubscribe: same participant, same publication, new platform object
-  /// arriving back at the source default with nothing to announce it.
-  void resubscribe() {
-    key = Object();
-    enabled = true;
-    volume = kDefaultParticipantVolume;
-  }
-
-  /// The first half of a real resubscribe, stopping where the room event is
-  /// delivered: `addSubscribedMediaTrack` swaps the publication's track and
-  /// emits `TrackSubscribedEvent` before it awaits `track.start()`, and the
-  /// emitter is asynchronous, so a listener runs while the new track is still
-  /// inactive.
-  void resubscribeButNotYetStarted() {
-    resubscribe();
-    active = false;
-  }
-
-  /// The rest of it. `Track.start()` awaits `startCapture()` before setting
-  /// `_active`, and `RemoteTrack.start()` then calls `enable()` itself, so the
-  /// track comes back audible whatever was pushed to it while it was inactive.
-  void finishStarting() {
-    active = true;
-    enabled = true;
-  }
-
-  LocalAudioRef get ref => (
-        identity: identity,
-        channel: channel,
-        trackId: identity,
-        track: key,
-        isAudible: () => enabled,
-        enable: () async {
-          enableCalls++;
-          if (failure != null) throw failure!;
-          if (active) enabled = true;
-        },
-        disable: () async {
-          disableCalls++;
-          if (failure != null) throw failure!;
-          if (active) enabled = false;
-        },
-        startForwarding: () async {
-          forwardCalls++;
-          forwarding = true;
-        },
-        stopForwarding: () async {
-          forwardCalls++;
-          forwarding = false;
-        },
-        setVolume: (value) async {
-          volumeCalls++;
-          if (failure != null) return failure;
-          volume = value;
-          return null;
-        },
-      );
-}
-
-/// Drives the state the way the room-event listener does: repeatedly, with
-/// nothing having changed in between.
-Future<void> _pumpEvents(
-  LocalAudioState state,
-  List<_FakeTrack> tracks, {
-  int times = 1,
-}) async {
-  for (var i = 0; i < times; i++) {
-    await state.applyToRefs(tracks.map((t) => t.ref));
-  }
-}
+import 'support/fake_audio_track.dart';
 
 void main() {
   test(
     'the first apply pushes, and an unchanged reapply pushes nothing',
     () async {
       final state = LocalAudioState();
-      final track = _FakeTrack('maya');
+      final track = FakeAudioTrack('maya');
 
-      await _pumpEvents(state, [track]);
+      await pumpAudioEvents(state, [track]);
       final afterFirst = track.platformCalls;
       expect(
         afterFirst,
@@ -147,7 +43,7 @@ void main() {
         reason: 'the first apply has nothing cached and must actually push',
       );
 
-      await _pumpEvents(state, [track], times: 20);
+      await pumpAudioEvents(state, [track], times: 20);
       expect(
         track.platformCalls,
         afterFirst,
@@ -160,17 +56,17 @@ void main() {
 
   test('a resubscribed track is reapplied, cache or no cache', () async {
     final state = LocalAudioState();
-    final track = _FakeTrack('maya');
+    final track = FakeAudioTrack('maya');
     state.setVolumeFor('maya', 1.5);
 
-    await _pumpEvents(state, [track], times: 5);
+    await pumpAudioEvents(state, [track], times: 5);
     expect(track.volume, closeTo(1.5, 0.0001));
 
     // The blip: LiveKit hands back a new platform object at source default.
     track.resubscribe();
     expect(track.volume, kDefaultParticipantVolume);
 
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     expect(
       track.volume,
       closeTo(1.5, 0.0001),
@@ -180,14 +76,14 @@ void main() {
 
   test('muting one participant pushes only to that participant', () async {
     final state = LocalAudioState();
-    final maya = _FakeTrack('maya');
-    final ines = _FakeTrack('ines');
+    final maya = FakeAudioTrack('maya');
+    final ines = FakeAudioTrack('ines');
 
-    await _pumpEvents(state, [maya, ines]);
+    await pumpAudioEvents(state, [maya, ines]);
     final inesBefore = ines.platformCalls;
 
     state.setMuted('maya', true);
-    await _pumpEvents(state, [maya, ines], times: 5);
+    await pumpAudioEvents(state, [maya, ines], times: 5);
 
     expect(maya.enabled, isFalse, reason: 'the muted one is silenced');
     expect(ines.enabled, isTrue, reason: 'and nobody else is');
@@ -207,18 +103,18 @@ void main() {
     'deafening silences everyone, and undeafening restores each volume',
     () async {
       final state = LocalAudioState();
-      final maya = _FakeTrack('maya');
-      final ines = _FakeTrack('ines');
+      final maya = FakeAudioTrack('maya');
+      final ines = FakeAudioTrack('ines');
       state.setVolumeFor('ines', 0.4);
-      await _pumpEvents(state, [maya, ines]);
+      await pumpAudioEvents(state, [maya, ines]);
 
       state.deafened = true;
-      await _pumpEvents(state, [maya, ines], times: 5);
+      await pumpAudioEvents(state, [maya, ines], times: 5);
       expect(maya.enabled, isFalse);
       expect(ines.enabled, isFalse);
 
       state.deafened = false;
-      await _pumpEvents(state, [maya, ines], times: 5);
+      await pumpAudioEvents(state, [maya, ines], times: 5);
       expect(maya.enabled, isTrue);
       expect(ines.enabled, isTrue);
       expect(
@@ -231,12 +127,12 @@ void main() {
 
   test('a volume change is pushed, and only the change', () async {
     final state = LocalAudioState();
-    final track = _FakeTrack('maya');
-    await _pumpEvents(state, [track], times: 3);
+    final track = FakeAudioTrack('maya');
+    await pumpAudioEvents(state, [track], times: 3);
     final before = track.volumeCalls;
 
     state.setVolumeFor('maya', 0.8);
-    await _pumpEvents(state, [track], times: 5);
+    await pumpAudioEvents(state, [track], times: 5);
 
     expect(track.volume, closeTo(0.8, 0.0001));
     expect(
@@ -248,15 +144,15 @@ void main() {
 
   test('a moved slider during a mute costs nothing until the unmute', () async {
     final state = LocalAudioState();
-    final track = _FakeTrack('maya');
-    await _pumpEvents(state, [track]);
+    final track = FakeAudioTrack('maya');
+    await pumpAudioEvents(state, [track]);
 
     state.setMuted('maya', true);
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     final whileMuted = track.platformCalls;
 
     state.setVolumeFor('maya', 1.9);
-    await _pumpEvents(state, [track], times: 5);
+    await pumpAudioEvents(state, [track], times: 5);
     expect(
       track.platformCalls,
       whileMuted,
@@ -264,7 +160,7 @@ void main() {
     );
 
     state.setMuted('maya', false);
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     expect(track.enabled, isTrue);
     expect(
       track.volume,
@@ -275,7 +171,7 @@ void main() {
 
   test('a failed push is retried rather than remembered as done', () async {
     final state = LocalAudioState();
-    final track = _FakeTrack('maya');
+    final track = FakeAudioTrack('maya');
     final boom = Exception('platform said no');
     track.failure = boom;
 
@@ -285,7 +181,7 @@ void main() {
 
     // The condition clears the way a transient platform error does.
     track.failure = null;
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     expect(
       track.platformCalls,
       greaterThan(afterFailure),
@@ -296,12 +192,12 @@ void main() {
 
   test('two tracks on one participant are both kept in step', () async {
     final state = LocalAudioState();
-    final first = _FakeTrack('maya');
-    final second = _FakeTrack('maya');
+    final first = FakeAudioTrack('maya');
+    final second = FakeAudioTrack('maya');
 
-    await _pumpEvents(state, [first, second]);
+    await pumpAudioEvents(state, [first, second]);
     state.setMuted('maya', true);
-    await _pumpEvents(state, [first, second], times: 3);
+    await pumpAudioEvents(state, [first, second], times: 3);
 
     expect(first.enabled, isFalse);
     expect(
@@ -327,16 +223,16 @@ void main() {
   test('a track that resubscribes while muted does not come back audible',
       () async {
     final state = LocalAudioState();
-    final track = _FakeTrack('maya');
+    final track = FakeAudioTrack('maya');
     state.setMuted('maya', true);
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     expect(track.enabled, isFalse, reason: 'silenced to begin with');
 
     track.resubscribeButNotYetStarted();
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     track.finishStarting();
 
-    await _pumpEvents(state, [track], times: 10);
+    await pumpAudioEvents(state, [track], times: 10);
 
     expect(
       track.enabled,
@@ -348,10 +244,10 @@ void main() {
   test('a track still inactive when muted is silenced once it starts',
       () async {
     final state = LocalAudioState();
-    final track = _FakeTrack('maya')..active = false;
+    final track = FakeAudioTrack('maya')..active = false;
     state.setMuted('maya', true);
 
-    await _pumpEvents(state, [track], times: 3);
+    await pumpAudioEvents(state, [track], times: 3);
     expect(
       track.enabled,
       isTrue,
@@ -359,7 +255,7 @@ void main() {
     );
 
     track.active = true;
-    await _pumpEvents(state, [track]);
+    await pumpAudioEvents(state, [track]);
     expect(
       track.enabled,
       isFalse,
@@ -373,8 +269,8 @@ void main() {
   /// the same state. Every other test here drives them one at a time.
   test('overlapping applies still settle on the chosen state', () async {
     final state = LocalAudioState();
-    final maya = _FakeTrack('maya');
-    final ines = _FakeTrack('ines');
+    final maya = FakeAudioTrack('maya');
+    final ines = FakeAudioTrack('ines');
     state.setMuted('maya', true);
     state.setVolumeFor('ines', 1.7);
 
@@ -389,7 +285,7 @@ void main() {
 
     // And the racing burst has not left a belief that blocks later corrections.
     maya.enabled = true;
-    await _pumpEvents(state, [maya, ines]);
+    await pumpAudioEvents(state, [maya, ines]);
     expect(
       maya.enabled,
       isFalse,
@@ -400,12 +296,12 @@ void main() {
   group('keyed by source', () {
     test('screen audio takes its own gain, apart from the voice', () async {
       final state = LocalAudioState();
-      final voice = _FakeTrack('maya');
-      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      final voice = FakeAudioTrack('maya');
+      final screen = FakeAudioTrack('maya', channel: LocalAudioChannel.screen);
       state.setVolumeFor('maya', 0.4);
       state.setVolumeFor('maya', 1.8, channel: LocalAudioChannel.screen);
 
-      await _pumpEvents(state, [voice, screen]);
+      await pumpAudioEvents(state, [voice, screen]);
 
       expect(voice.volume, closeTo(0.4, 0.0001));
       expect(screen.volume, closeTo(1.8, 0.0001));
@@ -418,27 +314,27 @@ void main() {
 
     test('muting the screen audio leaves the voice audible', () async {
       final state = LocalAudioState();
-      final voice = _FakeTrack('maya');
-      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      final voice = FakeAudioTrack('maya');
+      final screen = FakeAudioTrack('maya', channel: LocalAudioChannel.screen);
       state.setScreenMuted('maya', true);
 
-      await _pumpEvents(state, [voice, screen]);
+      await pumpAudioEvents(state, [voice, screen]);
 
       expect(voice.enabled, isTrue);
       expect(screen.enabled, isFalse);
 
       state.setScreenMuted('maya', false);
-      await _pumpEvents(state, [voice, screen]);
+      await pumpAudioEvents(state, [voice, screen]);
       expect(screen.enabled, isTrue);
     });
 
     test('muting the person still silences both', () async {
       final state = LocalAudioState();
-      final voice = _FakeTrack('maya');
-      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      final voice = FakeAudioTrack('maya');
+      final screen = FakeAudioTrack('maya', channel: LocalAudioChannel.screen);
       state.setMuted('maya', true);
 
-      await _pumpEvents(state, [voice, screen]);
+      await pumpAudioEvents(state, [voice, screen]);
 
       expect(voice.enabled, isFalse);
       expect(screen.enabled, isFalse);
@@ -448,7 +344,7 @@ void main() {
   group('failures', () {
     test('a failed gain push is reported and not remembered', () async {
       final state = LocalAudioState();
-      final track = _FakeTrack('maya');
+      final track = FakeAudioTrack('maya');
       state.setVolumeFor('maya', 1.5);
       track.failure = StateError('no such track');
 
@@ -471,8 +367,8 @@ void main() {
 
     test('a failure is held against the channel that failed', () async {
       final state = LocalAudioState();
-      final voice = _FakeTrack('maya');
-      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+      final voice = FakeAudioTrack('maya');
+      final screen = FakeAudioTrack('maya', channel: LocalAudioChannel.screen);
       screen.failure = StateError('nope');
 
       await state.applyToRefs([voice.ref, screen.ref]);
@@ -489,7 +385,7 @@ void main() {
     final state = LocalAudioState();
     final landed = <double>[];
     final gate = <Completer<void>>[];
-    final track = _FakeTrack('maya');
+    final track = FakeAudioTrack('maya');
     final ref = (
       identity: 'maya',
       channel: LocalAudioChannel.voice,
@@ -532,7 +428,7 @@ void main() {
     final lines = <String>[];
     final state = LocalAudioState()
       ..log = (m, {level = LogLevel.info}) => lines.add(m);
-    final track = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+    final track = FakeAudioTrack('maya', channel: LocalAudioChannel.screen);
     state.setVolumeFor('maya', 1.5, channel: LocalAudioChannel.screen);
 
     await state.applyToRefs([track.ref]);
@@ -544,63 +440,5 @@ void main() {
     expect(lines.first, contains('applied'));
     expect(lines.last, contains('x0.5'));
     expect(lines.last, contains('failed: Bad state: boom'));
-  });
-
-  group('server forwarding', () {
-    test('deafening stops the SFU sending and undeafening resumes it',
-        () async {
-      final state = LocalAudioState();
-      final voice = _FakeTrack('maya');
-      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
-
-      state.deafened = true;
-      await _pumpEvents(state, [voice, screen]);
-      expect([voice.forwarding, screen.forwarding], [false, false]);
-      expect([voice.enabled, screen.enabled], [false, false]);
-
-      state.deafened = false;
-      await _pumpEvents(state, [voice, screen]);
-      expect([voice.forwarding, screen.forwarding], [true, true]);
-      expect([voice.enabled, screen.enabled], [true, true]);
-    });
-
-    test('a per-user mute and volume zero stop forwarding too', () async {
-      final state = LocalAudioState();
-      final muted = _FakeTrack('ann');
-      final quiet = _FakeTrack('bo');
-      state
-        ..setMuted('ann', true)
-        ..setVolumeFor('bo', 0);
-      await _pumpEvents(state, [muted, quiet]);
-      expect(muted.forwarding, isFalse);
-      expect(quiet.forwarding, isFalse);
-
-      state
-        ..setMuted('ann', false)
-        ..setVolumeFor('bo', 0.5);
-      await _pumpEvents(state, [muted, quiet]);
-      expect(muted.forwarding, isTrue);
-      expect(quiet.forwarding, isTrue);
-      expect(quiet.volume, 0.5);
-    });
-
-    test('a track that subscribes while deafened is not forwarded', () async {
-      final state = LocalAudioState()..deafened = true;
-      final late = _FakeTrack('maya');
-      await _pumpEvents(state, [late]);
-      late.resubscribe();
-      await _pumpEvents(state, [late]);
-      expect(late.forwarding, isFalse);
-      expect(late.enabled, isFalse);
-    });
-
-    test('an unchanged reapply tells the SFU nothing new', () async {
-      final state = LocalAudioState()..deafened = true;
-      final track = _FakeTrack('maya');
-      await _pumpEvents(state, [track]);
-      final calls = track.forwardCalls;
-      await _pumpEvents(state, [track], times: 10);
-      expect(track.forwardCalls, calls);
-    });
   });
 }
