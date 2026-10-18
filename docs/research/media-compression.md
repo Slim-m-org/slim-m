@@ -70,14 +70,50 @@ Lossless PNG (oxipng preset 2, pixel-identical in every case, checked by decodin
 The `png` crate alone made screenshots larger than the input; oxipng's palette and filter search is what saves bytes.
 A smooth, denoised phone photo (the pug HEIC) has 45% equal neighbours, which is why the drawn threshold is 60% and not lower.
 
-## Cost
+## Memory
 
-| build | 12 MP | 108 MP | peak RSS at 108 MP |
-|---|---|---|---|
-| cargo release, opt-level 3 | 0.18 s | 0.8 s | 520 MB |
-| release profile (opt-level z, lto) | 0.5 s | 3.3 s | 520 MB |
+Prod runs the server in a 512 MiB container (slim-beta 256 MiB), idle about 40 MB resident.
+Compression and preview decoding therefore draw from one memory budget (`media/memory_budget.rs`).
 
-The server runs this in `spawn_blocking` behind a 4-unit budget, one unit per 24 megapixels, so one 100 MP photo at a time or four small ones.
+- The budget is the cgroup memory limit (the memory guard's resolver) minus headroom of max(96 MiB, a quarter of the limit): 384 MiB at 512 MiB, 160 MiB at 256 MiB, 1 GiB when no limit is found.
+- A job reserves its estimated peak in 1 MiB units before it reads the file.
+  The size comes from the file header (first 1 MiB), so nothing is read before admission; a file whose header cannot be read reserves its own size first and the rest once it is known.
+- A job larger than the whole budget is stored as sent at once.
+  Others wait in order for up to 30 s, then are stored as sent.
+  A preview with no room is answered with the original.
+- Estimate: source bytes + decoded pixels x 5 (JPEG, PNG and the rest x 8, HEIC x 7) + resized pixels x 4 + 24 MiB.
+  Measured peaks sat under the estimate in every case (12 MP: 130 MB over idle against 138; 50 MP: 300 against 342; 108 MP at 1/2 scale: 290 against 270 after rounding, see the table).
+- A JPEG whose long edge is at least twice the cap is decoded at a 1/2, 1/4 or 1/8 DCT scale (`jpeg-decoder`), so a 108 MP photo decodes to 27 MP, not 108.
+  That took the 108 MP peak from 520 MB (and an OOM kill under `--memory=512m`) to about 290 MB over idle, and the time from 3.3 s to 1.2 s.
+- Order on upload: compress, then derive previews from the stored (compressed) file.
+
+Shipped musl image, `docker run --memory=512m --memory-swap=512m` (no swap, so an overrun would be a kill), one upload to a fresh container, compress and preview prewarm both running, `/healthz` polled every 50 ms.
+`anon` is the process's own memory (the figure that matters); `peak` is the cgroup's, which also counts reclaimable file cache from the uploaded bytes.
+
+| case | anon peak | cgroup peak | time | max /healthz | OOM |
+|---|---|---|---|---|---|
+| 12 MP JPEG, one | 170 MB | 183 MB | 0.6 s | 1 ms | no |
+| 50 MP JPEG, one | 341 MB | 353 MB | 1.3 s | 1 ms | no |
+| 108 MP JPEG, one | 328 MB | 397 MB | 1.2 s | 1 ms | no |
+| 48 MP HEIC, one | stored as sent | 66 MB | 0.03 s | 1 ms | no |
+| 12 MP JPEG, four at once | 402 MB | 425 MB | 1.1 s | 1 ms | no |
+| 50 MP JPEG, four at once | 339 MB | 422 MB | 5.1 s | 2 ms | no |
+| 108 MP JPEG, four at once | 338 MB | 537 MB | 4.4 s | 1 ms | no |
+| 48 MP HEIC, four at once | stored as sent | 174 MB | 0.04 s | 1 ms | no |
+
+Before this change the same 108 MP upload was OOM-killed at 512 MiB.
+A 48 MP HEIC needs about 350 MB, so its estimate (421 MB) does not fit the 384 MiB budget and it is stored as sent; a 12 to 24 MP HEIC fits.
+Four 108 MP photos run one at a time, so the fourth finishes at 4.4 s.
+Outside the container, with the HEIC budget lifted, a 48 MP HEIC compresses in 1.1 s at an anon peak of about 290 MB.
+
+## Time
+
+| build | 12 MP | 108 MP |
+|---|---|---|
+| cargo release, opt-level 3 | 0.18 s | 0.8 s |
+| release profile (opt-level z, lto), full decode | 0.5 s | 3.3 s |
+| shipped musl image, scaled decode | 0.55 s | 1.2 s |
+
 Pictures over 160 MP or files over 256 MB are stored as sent.
 The default upload limit is 1 GiB (`SLIMM_ATTACHMENT_MAX_BYTES`), so a 40 MB photo passes it with room to spare.
 
@@ -87,7 +123,7 @@ The default upload limit is 1 GiB (`SLIMM_ATTACHMENT_MAX_BYTES`), so a 40 MB pho
   The `heic` crate was rejected: AGPL.
   It handled a 4032x3024 iPhone file in 53 ms and a hand-built HEVC still; a libheif sample with an unusual `mdat` layout failed to decode and is stored as sent.
   HEIC with alpha or 10-bit samples that the decoder refuses are also stored as sent.
-- JPEG encode is `jpeg-encoder`, resize is `fast_image_resize`, both pure Rust.
+- JPEG encode is `jpeg-encoder`, scaled JPEG decode is `jpeg-decoder`, resize is `fast_image_resize`, all pure Rust.
 - `oxipng` brings `libdeflater`, a small C library compiled by the `cc` crate.
   `docker build -f docker/server.Dockerfile` builds it on the Alpine musl builder without changes.
 - Not preserved on re-encode: HDR gain maps and multi-picture data (Ultra HDR), and the EXIF thumbnail.
