@@ -61,6 +61,7 @@ restorablePreferences = {
   'media auto download': (c) =>
       c.read(mediaAutoDownloadControllerProvider.notifier),
   'gif autoplay': (c) => c.read(gifAutoplayControllerProvider.notifier),
+  'link previews': (c) => c.read(linkPreviewDisplayControllerProvider.notifier),
   'message page size': (c) =>
       c.read(messagePageSizeControllerProvider.notifier),
   'message density': (c) => c.read(messageDensityControllerProvider.notifier),

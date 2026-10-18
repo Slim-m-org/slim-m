@@ -84,6 +84,7 @@ mod sessions;
 mod sign_in_alert;
 mod space;
 mod space_landing;
+mod space_link_previews;
 mod space_welcome;
 mod storage;
 mod thread_listing;

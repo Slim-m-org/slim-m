@@ -269,6 +269,10 @@ abstract final class AppIcons {
   /// Seeing something as someone else would, such as an invite's landing page.
   static const IconData preview = LucideIcons.eye300;
 
+  /// Showing and hiding what a password field has typed.
+  static const IconData revealSecret = LucideIcons.eye300;
+  static const IconData hideSecret = LucideIcons.eyeOff300;
+
   /// A bot's private answer, marked "Only you can see this". Shares its glyph
   /// with [tileHide]: both mean "not shown to everyone".
   static const IconData privateReply = LucideIcons.eyeOff300;
@@ -321,6 +325,9 @@ abstract final class AppIcons {
   static const IconData notificationsOn = LucideIcons.bell300;
   static const IconData notificationsOff = LucideIcons.bellOff300;
   static const IconData mentions = LucideIcons.atSign300;
+
+  /// Everything waiting for the reader across the Space.
+  static const IconData inbox = LucideIcons.inbox300;
 
   /// Marking a conversation unread again: a note to yourself to come back.
   static const IconData unread = LucideIcons.mail300;

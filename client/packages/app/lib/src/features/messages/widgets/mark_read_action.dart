@@ -31,7 +31,7 @@ bool channelShowsUnread(
   return indicator.unread || indicator.mentioned;
 }
 
-/// Reads every channel in [channelIds] in one request, throwing the
+/// Reads every channel in [channelIds], 200 to a request, throwing the
 /// [api.ApiException] if the server refuses.
 ///
 /// The local rows follow the server's answer, never ahead of it, for the
@@ -40,16 +40,19 @@ Future<void> markChannelsRead(
   ProviderContainer container,
   List<String> channelIds,
 ) async {
-  if (channelIds.isEmpty) return;
-  final answers = await container
-      .read(apiProvider)
-      .markChannelsRead(channelIds);
+  final api = container.read(apiProvider);
   final store = await container.read(storeProvider.future);
-  for (final answer in answers) {
-    await store.setReadMarker(
-      answer.channelId,
-      answer.state.lastReadSeq,
-      manuallyUnread: answer.state.manuallyUnread,
-    );
+  for (var i = 0; i < channelIds.length; i += _markReadBatch) {
+    final batch = channelIds.skip(i).take(_markReadBatch).toList();
+    for (final answer in await api.markChannelsRead(batch)) {
+      await store.setReadMarker(
+        answer.channelId,
+        answer.state.lastReadSeq,
+        manuallyUnread: answer.state.manuallyUnread,
+      );
+    }
   }
 }
+
+/// The most ids one `POST /read-states/read` accepts.
+const _markReadBatch = 200;

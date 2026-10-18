@@ -249,9 +249,8 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
   }
 }
 
-/// Copies the whole invite - server and code in one string - which is what
-/// somebody being invited actually needs. See `invite_link.dart` for why it
-/// is a `slimm://` link rather than an https one.
+/// Copies the whole invite - server and code in one https link - which is what
+/// somebody being invited actually needs.
 void _copyInviteLink(WidgetRef ref, String code) {
   Clipboard.setData(
     ClipboardData(

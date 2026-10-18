@@ -58,6 +58,19 @@ class PerformanceSettingsSection extends ConsumerWidget {
               onChanged: (next) =>
                   ref.read(gifAutoplayControllerProvider.notifier).select(next),
             ),
+            SettingsSelectRow<LinkPreviewDisplay>(
+              label: 'Link previews',
+              sheetTitle: 'Link previews',
+              value: ref.watch(linkPreviewDisplayControllerProvider),
+              choices: [
+                for (final value in LinkPreviewDisplay.values)
+                  SettingsChoice(value: value, label: value.label),
+              ],
+              sheetFootnote: 'Whether links get a preview card.',
+              onChanged: (next) => ref
+                  .read(linkPreviewDisplayControllerProvider.notifier)
+                  .select(next),
+            ),
             SettingsSelectRow<AttachmentPreviewQuality>(
               label: 'Attachment preview quality',
               sheetTitle: 'Attachment preview quality',

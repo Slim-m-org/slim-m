@@ -60,6 +60,7 @@ pub mod gifs;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
 mod interactions;
+mod invite_page;
 mod invites;
 mod join_gate;
 pub mod link_preview;
@@ -109,6 +110,7 @@ mod sign_in_alert;
 mod space;
 mod space_banner;
 mod space_icon;
+mod space_link_previews;
 mod still_picture;
 mod storage;
 mod sync;
@@ -234,6 +236,8 @@ pub fn router(state: AppState) -> Router {
         .merge(dock::routes())
         .merge(emoji::routes())
         .merge(invites::routes())
+        .merge(invite_page::routes())
+        .merge(space_link_previews::routes())
         .merge(members::routes())
         .merge(member_permissions::routes())
         .merge(member_nicknames::routes())

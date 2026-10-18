@@ -11,6 +11,25 @@ void main() {
     expect(extractLinkPreviewUrls('just some text'), isEmpty);
   });
 
+  test('a URL in angle brackets is a link with no card', () {
+    expect(
+      extractLinkPreviewUrls('read <https://example.com/a> first'),
+      isEmpty,
+    );
+    expect(
+      extractLinkPreviewUrls('<https://example.com/a> and https://b.example'),
+      ['https://b.example'],
+    );
+  });
+
+  test('angle brackets render the link without them', () {
+    final nodes = parseInline('see <https://example.com/a>');
+
+    expect(nodes.whereType<InlineLink>().single.url, 'https://example.com/a');
+    expect(nodes.whereType<InlineLink>().single.noPreview, isTrue);
+    expect(nodes.whereType<InlineText>().single.text, 'see ');
+  });
+
   test('a bare URL is extracted', () {
     expect(extractLinkPreviewUrls('see https://example.com/page'), [
       'https://example.com/page',

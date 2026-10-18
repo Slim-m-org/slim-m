@@ -288,6 +288,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'performance',
+    'Link previews',
+    description: 'Whether links get a preview card.',
+    keywords: ['embed', 'unfurl', 'card'],
+  ),
+  SettingsEntry(
+    'performance',
     'Attachment preview quality',
     description: 'How sharply attachments are drawn in messages.',
     keywords: ['images', 'resolution'],

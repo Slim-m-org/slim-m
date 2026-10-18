@@ -7,7 +7,8 @@
 //!
 //! Opt-in per deployment: an operator turns it on with
 //! `SLIMM_LINK_PREVIEWS=true`, off by default, so an outbound-fetch surface
-//! is never exposed unless the operator asked for it. `GET /version`'s
+//! is never exposed unless the operator asked for it. An admin can then
+//! override that for the space (`PATCH /space/link-previews`). `GET /version`'s
 //! `link_previews_enabled` is what a client checks before ever asking.
 //!
 //! [`video`] recognizes a playable video link (YouTube today) during this
@@ -37,6 +38,7 @@ mod ssrf;
 mod video;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Router;
 use axum::extract::{Path, State};
@@ -67,6 +69,10 @@ pub fn routes() -> Router<AppState> {
 #[derive(Clone)]
 pub struct LinkPreviews {
     inner: Option<Arc<Enabled>>,
+    /// Whether the space currently unfurls links: the operator's default
+    /// until an admin overrides it.
+    active: Arc<AtomicBool>,
+    operator_default: bool,
 }
 
 struct Enabled {
@@ -78,24 +84,36 @@ struct Enabled {
 }
 
 impl LinkPreviews {
-    /// Enabled only when `SLIMM_LINK_PREVIEWS` is set; otherwise every route
-    /// here answers "not configured", exactly like GIF search with no
-    /// provider set.
+    /// Starts on `SLIMM_LINK_PREVIEWS`; an admin's choice overrides it through
+    /// [`Self::set_override`]. While off, every route here answers "not
+    /// configured", exactly like GIF search with no provider set.
     /// [image_key] signs image tokens; see `image_token` for why it is persisted.
     pub fn new(config: &Config, image_key: [u8; 32]) -> Self {
-        let inner = config.link_previews.then(|| {
-            Arc::new(Enabled {
-                client: build_client(false),
-                cache: Cache::new(image_key),
-                allow_private: false,
-            })
+        let inner = Arc::new(Enabled {
+            client: build_client(false),
+            cache: Cache::new(image_key),
+            allow_private: false,
         });
-        Self { inner }
+        Self {
+            inner: Some(inner),
+            active: Arc::new(AtomicBool::new(config.link_previews)),
+            operator_default: config.link_previews,
+        }
     }
 
     /// A disabled instance, for a test that builds an [`AppState`] directly.
     pub fn disabled() -> Self {
-        Self { inner: None }
+        Self {
+            inner: None,
+            active: Arc::new(AtomicBool::new(false)),
+            operator_default: false,
+        }
+    }
+
+    /// Applies the admin's choice; None goes back to the operator's default.
+    pub fn set_override(&self, choice: Option<bool>) {
+        let on = self.inner.is_some() && choice.unwrap_or(self.operator_default);
+        self.active.store(on, Ordering::Relaxed);
     }
 
     /// An enabled instance for tests, so the SSRF guard and the not-found
@@ -109,23 +127,30 @@ impl LinkPreviews {
                 cache: Cache::new([7; 32]),
                 allow_private: true,
             })),
+            active: Arc::new(AtomicBool::new(true)),
+            operator_default: true,
         }
     }
 
     pub fn is_enabled(&self) -> bool {
-        self.inner.is_some()
+        self.live().is_some()
+    }
+
+    fn live(&self) -> Option<&Enabled> {
+        self.inner
+            .as_deref()
+            .filter(|_| self.active.load(Ordering::Relaxed))
     }
 
     fn enabled(&self) -> Result<&Enabled, ApiError> {
-        self.inner
-            .as_deref()
+        self.live()
             .ok_or(ApiError::NotConfigured("link previews are not enabled"))
     }
 
     /// Resolves an embed image URL to a redeemable token, reusing the
     /// existing preview guard and cache - see decision 0030.
     pub(crate) fn embed_image_token(&self, url: &str) -> Option<String> {
-        let service = self.inner.as_deref()?;
+        let service = self.live()?;
         validate(url, service.allow_private).ok()?;
         Some(service.cache.image_token_for(url))
     }
@@ -133,8 +158,7 @@ impl LinkPreviews {
     /// The write-time check for [`Self::embed_image_token`], with no cache
     /// side effect.
     pub(crate) fn allows_embed_image(&self, url: &str) -> bool {
-        self.inner
-            .as_deref()
+        self.live()
             .is_some_and(|service| validate(url, service.allow_private).is_ok())
     }
 }

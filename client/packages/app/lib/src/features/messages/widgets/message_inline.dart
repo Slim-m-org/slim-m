@@ -64,8 +64,11 @@ class InlineEmoji extends InlineNode {
 /// [_urlPattern], so nothing here can smuggle a `file:` or app scheme past
 /// the opener.
 class InlineLink extends InlineNode {
-  const InlineLink(this.url);
+  const InlineLink(this.url, {this.noPreview = false});
   final String url;
+
+  /// Written as `<https://...>`, which asks for the link without a preview card.
+  final bool noPreview;
 }
 
 /// A `slimm://message?...` link typed or pasted into a message.
@@ -123,6 +126,7 @@ final RegExp _mentionPattern = RegExp(r'@[A-Za-z0-9_][A-Za-z0-9_.-]*');
 /// sentence punctuation is trimmed afterward by [_trimUrlEnd] rather than
 /// excluded here, since a `)` or `.` can be genuinely part of a URL.
 final RegExp _urlPattern = RegExp(r'https?://[^\s]+');
+final RegExp _bracketedUrlPattern = RegExp(r'<(https?://[^\s<>]+)>');
 
 /// A message link, matched narrowly: this exact scheme and host, nothing else.
 ///
@@ -442,8 +446,14 @@ _Token? _roleMentionToken(String s, int i) {
 
 _Token? _channelToken(String s, int i) {
   final m = _channelMentionPattern.matchAsPrefix(s, i);
-  if (m == null) return null;
+  if (m == null) return _bracketedLinkToken(s, i);
   return (node: InlineChannelMention(m.group(1)!.toLowerCase()), end: m.end);
+}
+
+_Token? _bracketedLinkToken(String s, int i) {
+  final m = _bracketedUrlPattern.matchAsPrefix(s, i);
+  if (m == null) return null;
+  return (node: InlineLink(m.group(1)!, noPreview: true), end: m.end);
 }
 
 _Token? _emojiToken(String s, int i) {
@@ -477,6 +487,9 @@ _Token? _linkToken(String s, int i) {
 /// the same trailing-punctuation trim - even one nested inside `**bold**` or
 /// similar.
 ///
+/// A URL in angle brackets, `<https://...>`, is skipped too: it is how a
+/// person asks for the link with no card.
+///
 /// A URL inside a spoiler is deliberately skipped: an open preview card below
 /// the message would show the title and image the `||spoiler||` exists to
 /// hide, so a spoilered link gets no card.
@@ -486,8 +499,8 @@ List<String> extractLinkPreviewUrls(String content, {int max = 2}) {
     for (final node in nodes) {
       if (urls.length >= max) return;
       switch (node) {
-        case InlineLink(:final url):
-          if (!urls.contains(url)) urls.add(url);
+        case InlineLink(:final url, :final noPreview):
+          if (!noPreview && !urls.contains(url)) urls.add(url);
         case InlineBold(:final children):
           walk(children);
         case InlineItalic(:final children):

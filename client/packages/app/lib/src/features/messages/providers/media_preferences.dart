@@ -23,6 +23,16 @@ enum MediaAutoDownload { always, manual }
 /// Whether a gif animates on its own or waits for a hover or a tap.
 enum GifAutoplay { autoplay, tapToPlay }
 
+/// Whether a pasted link gets a preview card under its message.
+enum LinkPreviewDisplay { show, hide }
+
+extension LinkPreviewDisplayX on LinkPreviewDisplay {
+  String get label => switch (this) {
+    LinkPreviewDisplay.show => 'Show (default)',
+    LinkPreviewDisplay.hide => 'Hide',
+  };
+}
+
 extension MediaAutoDownloadX on MediaAutoDownload {
   String get label => switch (this) {
     MediaAutoDownload.always => 'Always (default)',
@@ -39,6 +49,7 @@ extension GifAutoplayX on GifAutoplay {
 
 const mediaAutoDownloadKey = 'slimm.performance.media_autodownload';
 const gifAutoplayKey = 'slimm.performance.gif_autoplay';
+const linkPreviewDisplayKey = 'slimm.performance.link_previews';
 
 const defaultMediaAutoDownload = MediaAutoDownload.always;
 const defaultGifAutoplay = GifAutoplay.autoplay;
@@ -61,6 +72,21 @@ class GifAutoplayController extends EnumPreferenceController<GifAutoplay> {
         fallback: defaultGifAutoplay,
       );
 }
+
+class LinkPreviewDisplayController
+    extends EnumPreferenceController<LinkPreviewDisplay> {
+  LinkPreviewDisplayController(super.ref)
+    : super(
+        storageKey: linkPreviewDisplayKey,
+        choices: LinkPreviewDisplay.values,
+        fallback: LinkPreviewDisplay.show,
+      );
+}
+
+final linkPreviewDisplayControllerProvider =
+    StateNotifierProvider<LinkPreviewDisplayController, LinkPreviewDisplay>(
+      LinkPreviewDisplayController.new,
+    );
 
 final mediaAutoDownloadControllerProvider =
     StateNotifierProvider<MediaAutoDownloadController, MediaAutoDownload>(
