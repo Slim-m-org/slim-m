@@ -38,6 +38,7 @@ export 'src/client.dart'
         SweepStatus,
         Webhook,
         SlimmApiAdmin,
+        SlimmApiAdminAudit,
         SlimmApiAttachments,
         SlimmApiUploadSessions,
         kUploadSessionThreshold,
