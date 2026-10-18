@@ -161,15 +161,19 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 )
                                 .await;
                             }
-                            Ok(ClientFrame::CanvasCursor { channel_id, x, y }) => {
+                            Ok(ClientFrame::CanvasCursor {
+                                channel_id,
+                                x,
+                                y,
+                                left,
+                            }) => {
                                 signals::handle_canvas_cursor(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &channel_id,
-                                    x,
-                                    y,
+                                    signals::CursorAt { x, y, left },
                                 )
                                 .await;
                             }
@@ -193,6 +197,29 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                         ended,
                                     },
                                     frame_bytes,
+                                )
+                                .await;
+                            }
+                            Ok(ClientFrame::CanvasObjectPreview {
+                                channel_id,
+                                object_id,
+                                x,
+                                y,
+                                w,
+                                h,
+                                ended,
+                            }) => {
+                                signals::handle_canvas_object_preview(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    signals::ObjectPreviewFrame {
+                                        channel_id,
+                                        object_id,
+                                        rect: [x, y, w, h],
+                                        ended,
+                                    },
                                 )
                                 .await;
                             }

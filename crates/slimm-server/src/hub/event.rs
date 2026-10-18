@@ -535,6 +535,10 @@ pub enum Event {
         user_id: UserId,
         x: f64,
         y: f64,
+        /// The pointer left the canvas: receivers hide the cursor at once
+        /// instead of waiting out the staleness timer. `x` and `y` are then
+        /// meaningless.
+        left: bool,
     },
     /// A live in-flight stroke preview on a channel's canvas: the points a
     /// drawer's pen has added since their last preview frame for this
@@ -565,6 +569,21 @@ pub enum Event {
         user_id: UserId,
         object_id: CanvasObjectId,
         points: Arc<Vec<f64>>,
+        ended: bool,
+    },
+    /// An object mid-drag or mid-resize: the box its mover currently holds.
+    ///
+    /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored, and
+    /// the committed [`Event::CanvasObjectMoved`] always settles the final
+    /// box. `ended` tells receivers to stop interpolating.
+    CanvasObjectPreview {
+        channel_id: ChannelId,
+        user_id: UserId,
+        object_id: CanvasObjectId,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
         ended: bool,
     },
     /// A placed object was repositioned.

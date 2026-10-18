@@ -322,6 +322,7 @@ async fn ephemeral_lag_skips_forward_without_closing_or_blocking_durable_events(
             user_id: alice,
             x: 0.0,
             y: 0.0,
+            left: false,
         });
     }
 

@@ -15214,6 +15214,7 @@ components:
         - $ref: "#/components/schemas/ClientViewing"
         - $ref: "#/components/schemas/ClientCanvasCursor"
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
+        - $ref: "#/components/schemas/ClientCanvasObjectPreview"
 
     ClientHello:
       type: object
@@ -15288,7 +15289,9 @@ components:
       required: [type, channel_id, x, y]
       description: >
         A pointer position on a channel's canvas: ephemeral, relayed to the
-        other viewers but never persisted, with no "stop" frame. Rate-limited
+        other viewers but never persisted. Send `left: true` when the pointer
+        leaves the canvas so viewers hide it at once; `x` and `y` are then
+        ignored. Rate-limited
         silently, and dropped without an error when a coordinate is not finite
         or lies outside the canvas world (5,000,000 units from the origin on
         either axis), or when the member lacks view and canvas permission.
@@ -15305,6 +15308,9 @@ components:
         y:
           type: number
           format: double
+        left:
+          type: boolean
+          default: false
 
     ClientCanvasStrokePreview:
       type: object
@@ -15342,6 +15348,41 @@ components:
           description: >
             Marks this as the gesture's last frame, whether or not it went
             on to commit a real object.
+
+    ClientCanvasObjectPreview:
+      type: object
+      required: [type, channel_id, object_id, x, y, w, h]
+      description: >
+        The box of an object this client is dragging or resizing, so others
+        can follow it before the move commits. Ephemeral and never persisted;
+        `ended` marks the last frame. Rate-limited per connection, and
+        refused for a timed-out member.
+      properties:
+        type:
+          type: string
+          enum: [canvas.object_preview]
+        channel_id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        w:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        ended:
+          type: boolean
+          default: false
+
 
     ServerFrame:
       description: A frame sent by the server over the WebSocket.
@@ -15387,6 +15428,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectsRestored"
         - $ref: "#/components/schemas/CanvasCursorMoved"
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
+        - $ref: "#/components/schemas/CanvasObjectPreviewUpdated"
         - $ref: "#/components/schemas/CanvasObjectMoved"
         - $ref: "#/components/schemas/CanvasObjectReordered"
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
@@ -15505,9 +15547,8 @@ components:
       description: >-
         A live pointer position on a channel's canvas, gated the same way
         `canvas.object.placed` is. Carries no `seq`: it is a this-instant
-        hint, not a change to a durable object or op, so a receiver ages a
-        cursor out on its own after a short silence rather than waiting for a
-        matching "stopped" frame, which does not exist.
+        hint, not a change to a durable object or op, so a receiver also ages
+        a cursor out on its own after a short silence.
       properties:
         type:
           type: string
@@ -15524,6 +15565,9 @@ components:
         y:
           type: number
           format: double
+        left:
+          type: boolean
+          description: Present and true when the pointer left the canvas.
 
     CanvasStrokePreviewUpdated:
       type: object
@@ -15558,6 +15602,42 @@ components:
           items: { type: number, format: double }
         ended:
           type: boolean
+
+    CanvasObjectPreviewUpdated:
+      type: object
+      required: [type, channel_id, user_id, object_id, x, y, w, h, ended]
+      description: >-
+        An object mid-drag or mid-resize on a channel's canvas, gated the
+        same way `canvas.object.placed` is. Carries no `seq`; the committed
+        `canvas.object.moved` always settles the final box.
+      properties:
+        type:
+          type: string
+          enum: [canvas.object_preview.updated]
+        channel_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        w:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        ended:
+          type: boolean
+
 
     CanvasObjectMoved:
       type: object

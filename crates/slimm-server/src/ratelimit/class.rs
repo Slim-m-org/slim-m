@@ -108,10 +108,13 @@ classes! {
     /// unchanged.
     ///
     /// Sized so a capped 24-point frame (under 1.5 KiB) can be sent roughly
-    /// eight times back to back before the burst runs out, and sustained
-    /// drawing at the client's own throttle interval (90ms) stays inside the
+    /// sixteen times back to back before the burst runs out, and sustained
+    /// drawing at the client's own throttle interval (50ms) stays inside the
     /// refill with headroom to spare.
     CanvasStrokePreview,
+    /// Drag and resize preview frames over the WebSocket: one flat token each,
+    /// sized like [`Class::CanvasCursor`] since the frame is four numbers.
+    CanvasObjectPreview,
     /// Serving stored bytes back: an attachment, an avatar, a custom emoji
     /// image.
     ///
@@ -362,7 +365,8 @@ impl Class {
             Class::Canvas => (60.0, 10.0),
             Class::CanvasCursor => (30.0, 15.0),
             // See this variant's own doc comment for how these were sized.
-            Class::CanvasStrokePreview => (12_288.0, 6_144.0),
+            Class::CanvasStrokePreview => (24_576.0, 12_288.0),
+            Class::CanvasObjectPreview => (30.0, 15.0),
             // A full member page plus a transcript's own avatars, at once.
             Class::Asset => (150.0, 25.0),
             Class::Gif => (10.0, 1.0),

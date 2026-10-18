@@ -19,6 +19,7 @@ impl Class {
             Class::Canvas => "canvas",
             Class::CanvasCursor => "canvas_cursor",
             Class::CanvasStrokePreview => "canvas_stroke_preview",
+            Class::CanvasObjectPreview => "canvas_object_preview",
             Class::Asset => "asset",
             Class::Gif => "gif",
             Class::LinkPreview => "link_preview",
