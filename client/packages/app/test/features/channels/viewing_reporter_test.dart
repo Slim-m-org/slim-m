@@ -7,6 +7,7 @@ library;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/channels/providers/mounted_channels.dart';
 import 'package:slimm_app/src/providers/viewing_reporter.dart';
@@ -105,5 +106,53 @@ void main() {
   test('a focused window with a channel open but no input is not active', () {
     container.read(mountedChannelsProvider).register('c1');
     expect(actives.last, isFalse);
+  });
+
+  test('an account out of view reports nothing and ignores input', () {
+    container.read(accountActiveProvider.notifier).state = false;
+    container.read(mountedChannelsProvider).register('c1');
+    reporter.noteInput();
+    expect(sent, isEmpty);
+    expect(actives, isEmpty);
+  });
+
+  test('deactivating sends one empty report and stops the timer', () {
+    fakeAsync((async) {
+      container.read(mountedChannelsProvider).register('c1');
+      reporter.noteInput();
+      sent.clear();
+      container.read(accountActiveProvider.notifier).state = false;
+      reporter.refresh();
+      expect(sent, [isEmpty]);
+      expect(actives.last, isFalse);
+      async.elapse(const Duration(minutes: 5));
+      expect(sent, hasLength(1), reason: 'no timer runs for a Space out of view');
+    });
+  });
+
+  test('constant pointer input creates no timers', () {
+    fakeAsync((async) {
+      reporter.noteInput();
+      final pending = (async.nonPeriodicTimerCount + async.periodicTimerCount);
+      for (var i = 0; i < 100; i++) {
+        reporter.noteInput();
+      }
+      expect((async.nonPeriodicTimerCount + async.periodicTimerCount), pending);
+    });
+  });
+
+  test('the global input hooks are registered once for many reporters', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final input = ViewingInput.instance;
+    final base = input.reporterCount;
+    final second = ProviderContainer();
+    addTearDown(second.dispose);
+    final extra = second.read(
+      Provider((ref) => ViewingReporter(ref, send: (_, _) {})),
+    );
+    input.add(extra);
+    expect(input.reporterCount, base + 1);
+    input.remove(extra);
+    expect(input.reporterCount, base);
   });
 }

@@ -27,7 +27,6 @@ import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
 import 'src/providers/desktop_call_notifier.dart';
-import 'src/providers/viewing_reporter.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
@@ -274,7 +273,6 @@ Future<void> _runBootstrapSequence(ProviderContainer container) async {
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
   container.read(deepLinkControllerProvider);
-  container.read(viewingReporterProvider);
   container.read(desktopCallNotifierProvider);
   await DesktopWindowShell.registerListenersAndTray(container);
 }

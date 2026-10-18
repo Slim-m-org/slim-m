@@ -12,6 +12,7 @@ import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
 import '../../../providers/retention_sweep.dart';
 import '../../../providers/sync_controller.dart';
+import '../../../providers/viewing_reporter.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
@@ -29,6 +30,7 @@ void startAccountServices(ProviderContainer container) {
   container.read(syncControllerProvider);
   container.read(pushControllerProvider);
   container.read(directRouteProvider);
+  container.read(viewingReporterProvider);
   container.read(desktopMessageNotifierProvider);
   container.listen(blocksProvider, (_, _) {});
   container.listen(channelNotificationOverridesProvider, (_, _) {});

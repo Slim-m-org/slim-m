@@ -8,16 +8,19 @@
 /// anything is open it is re-sent well inside that, and again after every
 /// reconnect, because a new socket starts with no report.
 ///
-/// Read once from bootstrap, beside the sync and push controllers, so it is
-/// never built by a widget test that has no socket to report over.
+/// One per account container, started with its other services. Only the
+/// account on screen reports: a Space out of view must neither claim channels
+/// nor keep its server believing the user is active.
 library;
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/accounts/providers/account_slot.dart';
 import 'app_lifecycle.dart';
 import '../features/channels/providers/mounted_channels.dart';
 import 'sync_controller.dart';
@@ -43,27 +46,27 @@ class ViewingReporter {
   final void Function(Set<String> channels, bool active) _send;
   final Duration _interval;
   Timer? _timer;
-  Timer? _inputLapse;
-  bool _recentInput = false;
+  DateTime? _lastInput;
   bool _reporting = false;
 
-  bool get _focused => _ref.read(appFocusedProvider);
+  bool get _focused =>
+      _ref.read(appFocusedProvider) && _ref.read(accountActiveProvider);
 
   Set<String> _open() =>
       _focused ? _ref.read(mountedChannelsProvider).openChannelIds : const {};
 
-  bool _active() => _focused && _recentInput;
+  bool _recentInput() {
+    final last = _lastInput;
+    return last != null && clock.now().difference(last) < activeInputWindow;
+  }
+
+  bool _active() => _focused && _recentInput();
 
   /// Keyboard or pointer input on this device; marks it active for [activeInputWindow].
   void noteInput() {
-    _inputLapse?.cancel();
-    _inputLapse = Timer(activeInputWindow, () {
-      _recentInput = false;
-      refresh();
-    });
-    if (_recentInput) return;
-    _recentInput = true;
-    refresh();
+    final wasRecent = _recentInput();
+    _lastInput = clock.now();
+    if (!wasRecent) refresh();
   }
 
   /// Reports now and restarts the refresh timer; call on anything that can
@@ -77,14 +80,51 @@ class ViewingReporter {
     _send(open, active);
     _reporting = reporting;
     if (reporting) {
-      _timer = Timer.periodic(_interval, (_) => _send(_open(), _active()));
+      _timer = Timer.periodic(_interval, (_) => refresh());
     }
   }
 
   void dispose() {
     _timer?.cancel();
-    _inputLapse?.cancel();
     _ref.read(mountedChannelsProvider).removeListener(refresh);
+  }
+}
+
+/// The one pair of global input hooks, shared by every container's reporter.
+class ViewingInput {
+  ViewingInput._();
+
+  static final instance = ViewingInput._();
+
+  final _reporters = <ViewingReporter>{};
+
+  int get reporterCount => _reporters.length;
+
+  void add(ViewingReporter reporter) {
+    if (_reporters.isEmpty) {
+      GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointer);
+      HardwareKeyboard.instance.addHandler(_onKey);
+    }
+    _reporters.add(reporter);
+  }
+
+  void remove(ViewingReporter reporter) {
+    if (!_reporters.remove(reporter) || _reporters.isNotEmpty) return;
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointer);
+    HardwareKeyboard.instance.removeHandler(_onKey);
+  }
+
+  void _onPointer(PointerEvent event) => _noteInput();
+
+  bool _onKey(KeyEvent event) {
+    _noteInput();
+    return false;
+  }
+
+  void _noteInput() {
+    for (final reporter in _reporters.toList()) {
+      reporter.noteInput();
+    }
   }
 }
 
@@ -96,20 +136,13 @@ final viewingReporterProvider = Provider<ViewingReporter>((ref) {
         .notifyViewing(channels, active: active),
   );
   ref.listen(appFocusedProvider, (_, _) => reporter.refresh());
+  ref.listen(accountActiveProvider, (_, _) => reporter.refresh());
   ref.listen(syncControllerProvider, (_, status) {
     if (status == SyncStatus.live) reporter.refresh();
   });
-  void onPointer(PointerEvent event) => reporter.noteInput();
-  bool onKey(KeyEvent event) {
-    reporter.noteInput();
-    return false;
-  }
-
-  GestureBinding.instance.pointerRouter.addGlobalRoute(onPointer);
-  HardwareKeyboard.instance.addHandler(onKey);
+  ViewingInput.instance.add(reporter);
   ref.onDispose(() {
-    GestureBinding.instance.pointerRouter.removeGlobalRoute(onPointer);
-    HardwareKeyboard.instance.removeHandler(onKey);
+    ViewingInput.instance.remove(reporter);
     reporter.dispose();
   });
   return reporter;
