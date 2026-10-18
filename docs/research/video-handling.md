@@ -131,6 +131,7 @@ Recommendations (ranked):
 ### 3.2 Max resolution vs bandwidth
 Server setting allows 2160, picker allows 1440, iOS is fixed at 720x1280.
 Bandwidth reference from the project's own measurement: 1.3 Mbps per camera subscriber (`docs/sizing.md`); a 5 Mbps share to 10 viewers is 50 Mbps server egress, which exceeds many home uplinks. This is the real ceiling, not the encoder.
+Measured numbers for a constrained 4K sender are in `screen-share-quality-2026-10-18.md`.
 Recommendation: do not add 4K. If asked, gate on the sharer's measured `availableOutgoingBitrate` and VP8 CPU limits; 1440p60 VP8 is already the heaviest pair (`docs/video-quality.md`).
 
 ### 3.3 Audio capture per platform
@@ -316,4 +317,20 @@ Real app-audio-in-broadcast is native Swift work in the extension itself, not a 
 
 **Android does not.** `GetUserMediaImpl.java`'s `getDisplayMedia` builds its `MediaProjection`-backed video capturer and hands back a hardcoded empty `audioTracks` array; nothing in that file touches Android's own `AudioPlaybackCapture` API (available since API 29).
 
-**Windows is unbuilt, not unsupported.** `flutter_webrtc`'s `windows/application_loopback_capturer.cc` implements the same `LoopbackCapturer` interface Linux does, over WASAPI, and would be reached by this same seam - but this project ships no Windows client target at all yet (`docs/os_backlog/windows_backlog.md`), so there is nothing to gate here.
+**Windows works (verified 2026-10-18 on the win11 VM, Windows 11 build 26200).**
+`flutter_webrtc`'s `windows/application_loopback_capturer.cc` implements the same `LoopbackCapturer` interface Linux does, over WASAPI process loopback, and is reached through this same seam.
+With no target process it activates `VAD\Process_Loopback` in `PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE` on its own pid, so it captures everything except slim-m itself and a call has no echo.
+A probe that replays that exact call sequence (48 kHz 16-bit stereo, shared loopback) measured, with a 440 Hz tone at about -8 dBFS:
+
+| Case | Peak sample | Result |
+|---|---|---|
+| Unrelated process plays, exclude our own tree | 2640 | captured |
+| Only our own process plays, exclude our own tree (a call's own audio) | 1 | not captured |
+| Only our own process plays, include our own tree (control) | 2543 | captured |
+| Nothing plays | 1 | silent |
+
+A process that is a child of ours (for example a player slim-m launched) is inside the excluded tree and is not captured; an app the user started is not.
+Process loopback needs Windows 10 2004 (build 19041) or newer.
+On older Windows `ActivateAudioInterfaceAsync` fails, `Start` returns false, and `flutter_screen_capture.cc` carries on with an empty `audioTracks` list, so the share is video only and nothing crashes (read from the fork source, not run on an old Windows).
+The probe ran outside the app: it replays the fork's call sequence from PowerShell, because the branch had no Windows build to install.
+The in-app path (share dialog, published track, a viewer hearing it) needs the CI Windows artifact of this branch.

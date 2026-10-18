@@ -90,8 +90,7 @@ rtc.StatsReport _inbound(num bytes, double timestamp) => rtc.StatsReport('in-1',
 
 void main() {
   group('StatsEntry.fromReport', () {
-    // Native plugins stamp reports in microseconds; before this a 2 Mbps
-    // share read as 0.00 Mbps.
+    // Native plugins stamp in microseconds; a 2 Mbps share used to read 0.00.
     test('reads a native microsecond stamp so the bitrate is real', () {
       final first = _parseIn(StatsEntry.fromReport(_inbound(0, 10e6)));
       final second = _parseIn(

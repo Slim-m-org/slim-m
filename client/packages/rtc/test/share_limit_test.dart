@@ -118,7 +118,7 @@ void main() {
   test('a paused layer is not blamed', () {
     final sample = parseVideoStats(
       [
-        StatsEntry(
+        const StatsEntry(
           type: 'outbound-rtp',
           id: 'out-q',
           values: {
