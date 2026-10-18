@@ -19,7 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -27,6 +26,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 class _ManualSyncController extends SyncController {
   _ManualSyncController(super.ref);
@@ -64,42 +64,34 @@ void main() {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         syncControllerProvider.overrideWith(_ManualSyncController.new),
         liveEventsProvider.overrideWithValue(events.stream),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path.endsWith('/canvas/ops')) {
-                opsGets++;
-                final afterSeq = int.parse(
-                  request.url.queryParameters['after_seq']!,
-                );
-                return _json({
-                  'ops': <Object>[],
-                  'latest_seq': afterSeq,
-                  'has_more': false,
-                  'reset': false,
-                });
-              }
-              if (request.url.path.endsWith('/canvas/media-slots')) {
-                slotGets++;
-                return _json({'slots': <Object>[]});
-              }
-              if (request.url.path.endsWith('/canvas/object-locks')) {
-                return _json({'object_ids': <Object>[]});
-              }
-              if (!request.url.path.endsWith('/canvas/objects')) {
-                return _json(<Object>[]);
-              }
-              return _json({
-                'objects': <Object>[],
-                'has_more': false,
-                'latest_seq': 0,
-              });
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.url.path.endsWith('/canvas/ops')) {
+            opsGets++;
+            final afterSeq = int.parse(
+              request.url.queryParameters['after_seq']!,
+            );
+            return _json({
+              'ops': <Object>[],
+              'latest_seq': afterSeq,
+              'has_more': false,
+              'reset': false,
+            });
+          }
+          if (request.url.path.endsWith('/canvas/media-slots')) {
+            slotGets++;
+            return _json({'slots': <Object>[]});
+          }
+          if (request.url.path.endsWith('/canvas/object-locks')) {
+            return _json({'object_ids': <Object>[]});
+          }
+          if (!request.url.path.endsWith('/canvas/objects')) {
+            return _json(<Object>[]);
+          }
+          return _json({
+            'objects': <Object>[],
+            'has_more': false,
+            'latest_seq': 0,
+          });
         }),
       ],
     );

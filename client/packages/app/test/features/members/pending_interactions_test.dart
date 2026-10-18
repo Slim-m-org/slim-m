@@ -9,13 +9,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/button_presses.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u',
@@ -41,15 +41,7 @@ ProviderContainer _container() {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((_) async => http.Response('{}', 200)),
-        );
-        ref.onDispose(client.close);
-        return client;
-      }),
+      mockApiOverride((_) async => http.Response('{}', 200)),
     ],
   );
   addTearDown(container.dispose);

@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -21,6 +20,8 @@ import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dar
 import 'package:slimm_data/data.dart' hide Channel, Message;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
+import '../../support/fake_sync.dart';
 
 const tokens = TokenPair(
   userId: 'mod-1',
@@ -95,15 +96,6 @@ class Harness {
 /// Stands in for the real [SyncController], which otherwise schedules a real
 /// retry timer the moment it sees a signed-in session; see
 /// `channel_history_harness.dart`'s own copy of this same seam.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {
-    state = SyncStatus.live;
-  }
-}
-
 /// Answers `GET /reports`, `GET /users` and `GET /me` from the fixtures
 /// given, and a permissive default for everything else so a quick action's
 /// write reaches the fake transport rather than a 404 - every such request is
@@ -130,64 +122,54 @@ Future<Harness> pumpReports(
       sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
       if (db != null)
         storeProvider.overrideWith((ref) async => MessageStore(db)),
-      syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            calls.add(Call(request.method, request.url.path));
-            if (request.method == 'GET' && request.url.path == '/reports') {
-              return http.Response(
-                '[${reports.join(',')}]',
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.method == 'GET' &&
-                request.url.path == '/reports/history') {
-              return http.Response(
-                '[${history.join(',')}]',
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.method == 'GET' && request.url.path == '/users') {
-              final ids = request.url.queryParameters['ids']!.split(',');
-              final found = [
-                for (final id in ids)
-                  if (profiles[id] case final name?) profileJson(id, name),
-              ];
-              return http.Response(
-                '[${found.join(',')}]',
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.method == 'GET' && request.url.path == '/me') {
-              return http.Response(
-                meJson(permissions),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.method == 'PUT' &&
-                request.url.path.endsWith('/timeout')) {
-              return http.Response(
-                jsonEncode({'until': 1}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response(
-              '{}',
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      syncControllerProvider.overrideWith((ref) => LiveSyncController(ref)),
+      mockApiOverride((request) async {
+        calls.add(Call(request.method, request.url.path));
+        if (request.method == 'GET' && request.url.path == '/reports') {
+          return http.Response(
+            '[${reports.join(',')}]',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.method == 'GET' && request.url.path == '/reports/history') {
+          return http.Response(
+            '[${history.join(',')}]',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.method == 'GET' && request.url.path == '/users') {
+          final ids = request.url.queryParameters['ids']!.split(',');
+          final found = [
+            for (final id in ids)
+              if (profiles[id] case final name?) profileJson(id, name),
+          ];
+          return http.Response(
+            '[${found.join(',')}]',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.method == 'GET' && request.url.path == '/me') {
+          return http.Response(
+            meJson(permissions),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.method == 'PUT' && request.url.path.endsWith('/timeout')) {
+          return http.Response(
+            jsonEncode({'until': 1}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response(
+          '{}',
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(api.close);
-        return api;
       }),
     ],
   );

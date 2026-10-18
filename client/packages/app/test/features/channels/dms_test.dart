@@ -11,12 +11,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 void main() {
   test('channelFromDm carries the other user\'s name as the channel name', () {
@@ -125,32 +125,24 @@ void main() {
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
           databaseProvider.overrideWith((ref) async => db),
-          apiProvider.overrideWith((ref) {
-            final client = api.SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                expect(request.method, 'POST');
-                expect(request.url.path, '/dms/user-2');
-                return http.Response(
-                  jsonEncode({
-                    'channel_id': 'dm-1',
-                    'user': {
-                      'id': 'user-2',
-                      'username': 'priya',
-                      'display_name': 'Priya',
-                      'created_at': 0,
-                    },
-                    'unread': 0,
-                    'created_at': 500,
-                  }),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
+          mockApiOverride((request) async {
+            expect(request.method, 'POST');
+            expect(request.url.path, '/dms/user-2');
+            return http.Response(
+              jsonEncode({
+                'channel_id': 'dm-1',
+                'user': {
+                  'id': 'user-2',
+                  'username': 'priya',
+                  'display_name': 'Priya',
+                  'created_at': 0,
+                },
+                'unread': 0,
+                'created_at': 500,
               }),
+              200,
+              headers: {'content-type': 'application/json'},
             );
-            ref.onDispose(client.close);
-            return client;
           }),
         ],
       );
@@ -185,31 +177,23 @@ void main() {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
         databaseProvider.overrideWith((ref) async => db),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              expect(request.url.path, '/dms/self');
-              return http.Response(
-                jsonEncode({
-                  'channel_id': 'dm-self',
-                  'user': {
-                    'id': 'self',
-                    'username': 'nick',
-                    'display_name': 'Nick',
-                    'created_at': 0,
-                  },
-                  'unread': 0,
-                  'created_at': 500,
-                }),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
+        mockApiOverride((request) async {
+          expect(request.url.path, '/dms/self');
+          return http.Response(
+            jsonEncode({
+              'channel_id': 'dm-self',
+              'user': {
+                'id': 'self',
+                'username': 'nick',
+                'display_name': 'Nick',
+                'created_at': 0,
+              },
+              'unread': 0,
+              'created_at': 500,
             }),
+            200,
+            headers: {'content-type': 'application/json'},
           );
-          ref.onDispose(client.close);
-          return client;
         }),
       ],
     );

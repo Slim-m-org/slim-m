@@ -10,12 +10,12 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_image_hydrator.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/synthetic_png.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Future<void> _settleUntil(
   bool Function() ready, {
@@ -33,8 +33,15 @@ class _Rig {
     final png = bytes ?? solidPng(8, 8);
     document = CanvasDocument()..setViewport(const Size(400, 400));
     hydrator = CanvasImageHydrator(
-      client: api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
+      client: testApi(
+        (request) async {
+          fetched.add(request.url.pathSegments.last);
+          return http.Response.bytes(
+            png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        },
         session: api.SessionStore(
           tokens: const api.TokenPair(
             userId: 'me',
@@ -43,14 +50,6 @@ class _Rig {
             accessExpiresAt: 0,
           ),
         ),
-        httpClient: MockClient((request) async {
-          fetched.add(request.url.pathSegments.last);
-          return http.Response.bytes(
-            png,
-            200,
-            headers: {'content-type': 'image/png'},
-          );
-        }),
       ),
       document: document,
       maxDecodedBytes: maxDecodedBytes,

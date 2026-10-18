@@ -7,13 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/format.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_composer_area.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -25,10 +25,9 @@ const _tokens = api.TokenPair(
 /// An api whose only route ever hit here is the one the composer's own
 /// suggestion sources fall back on when unanswered: nothing this suite cares
 /// about depends on any of them resolving.
-api.SlimmApi _idleApi(Ref ref) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
+api.SlimmApi _idleApi(Ref ref) => testApi(
+  (_) async => http.Response('{}', 404),
   session: ref.watch(sessionProvider),
-  httpClient: MockClient((_) async => http.Response('{}', 404)),
 );
 
 api.Me _me({int? timedOutUntil, String? timeoutReason}) => api.Me(

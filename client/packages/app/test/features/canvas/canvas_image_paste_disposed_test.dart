@@ -9,13 +9,13 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_image_paste.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _channel = MethodChannel('top.npcserver.slimm/clipboard_image');
 
@@ -33,25 +33,22 @@ void _mockClipboard() {
       });
 }
 
-api.SlimmApi _client(Completer<http.Response> place) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: api.SessionStore(tokens: testTokens),
-  httpClient: MockClient((request) async {
-    if (request.url.path == '/attachments' && request.method == 'POST') {
-      return jsonResponse({
-        'id': 'sha-pasted',
-        'filename': 'pasted-image.png',
-        'content_type': 'image/png',
-        'size': canvasPngFixture.length,
-      });
-    }
-    if (request.url.path.endsWith('/canvas/objects') &&
-        request.method == 'POST') {
-      return place.future;
-    }
-    return jsonResponse(<Object>[]);
-  }),
-);
+api.SlimmApi _client(Completer<http.Response> place) =>
+    testApi((request) async {
+      if (request.url.path == '/attachments' && request.method == 'POST') {
+        return jsonResponse({
+          'id': 'sha-pasted',
+          'filename': 'pasted-image.png',
+          'content_type': 'image/png',
+          'size': canvasPngFixture.length,
+        });
+      }
+      if (request.url.path.endsWith('/canvas/objects') &&
+          request.method == 'POST') {
+        return place.future;
+      }
+      return jsonResponse(<Object>[]);
+    }, session: api.SessionStore(tokens: testTokens));
 
 void main() {
   tearDown(() {

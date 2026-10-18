@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -22,6 +21,8 @@ import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -33,15 +34,6 @@ const _tokens = TokenPair(
 /// Stands in for the real [SyncController], which otherwise schedules a real
 /// retry timer the moment it sees a signed-in session; see
 /// `channel_history_harness.dart`'s own copy of this same seam.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {
-    state = SyncStatus.live;
-  }
-}
-
 /// A real (if minimal) [GoRouter] rather than a bare [MaterialApp]:
 /// `showPinnedMessagesSheet` reads the router before opening the sheet, so
 /// even a test that never navigates needs one in the tree to open it at all.
@@ -91,21 +83,13 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final api = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                if (fail) return http.Response('server error', 500);
-                return http.Response(
-                  '[]',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }),
+          mockApiOverride((request) async {
+            if (fail) return http.Response('server error', 500);
+            return http.Response(
+              '[]',
+              200,
+              headers: {'content-type': 'application/json'},
             );
-            ref.onDispose(api.close);
-            return api;
           }),
         ],
       );
@@ -148,21 +132,13 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final api = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient(
-                (request) async => http.Response(
-                  '[]',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                ),
-              ),
-            );
-            ref.onDispose(api.close);
-            return api;
-          }),
+          mockApiOverride(
+            (request) async => http.Response(
+              '[]',
+              200,
+              headers: {'content-type': 'application/json'},
+            ),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -190,16 +166,8 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              return http.Response('forbidden', 403);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
+        mockApiOverride((request) async {
+          return http.Response('forbidden', 403);
         }),
       ],
     );
@@ -230,38 +198,30 @@ void main() {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => MessageStore(db)),
-        syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              // A batch profile lookup for the pin's author answers empty.
-              final body = request.url.path == '/users'
-                  ? <Map<String, dynamic>>[]
-                  : [
-                      {
-                        'id': 'm1',
-                        'channel_id': 'c1',
-                        'author_id': 'other',
-                        'author_display_name': 'Other',
-                        'seq': 1,
-                        'content': 'pinned content',
-                        'created_at': 0,
-                        'edited_at': null,
-                        'pinned_at': 0,
-                        'pinned_by': 'other',
-                      },
-                    ];
-              return http.Response(
-                jsonEncode(body),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }),
+        syncControllerProvider.overrideWith((ref) => LiveSyncController(ref)),
+        mockApiOverride((request) async {
+          // A batch profile lookup for the pin's author answers empty.
+          final body = request.url.path == '/users'
+              ? <Map<String, dynamic>>[]
+              : [
+                  {
+                    'id': 'm1',
+                    'channel_id': 'c1',
+                    'author_id': 'other',
+                    'author_display_name': 'Other',
+                    'seq': 1,
+                    'content': 'pinned content',
+                    'created_at': 0,
+                    'edited_at': null,
+                    'pinned_at': 0,
+                    'pinned_by': 'other',
+                  },
+                ];
+          return http.Response(
+            jsonEncode(body),
+            200,
+            headers: {'content-type': 'application/json'},
           );
-          ref.onDispose(api.close);
-          return api;
         }),
       ],
     );

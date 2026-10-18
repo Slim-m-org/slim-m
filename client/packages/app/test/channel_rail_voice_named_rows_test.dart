@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -21,6 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'features/voice/voice_controller_harness.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -58,10 +58,9 @@ VoiceParticipant _participant(
 );
 
 Widget _harness(VoiceState voice) {
-  final apiClient = api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
+  final apiClient = testApi(
+    (_) async => http.Response('', 404),
     session: api.SessionStore(tokens: _tokens),
-    httpClient: MockClient((_) async => http.Response('', 404)),
   );
   addTearDown(apiClient.close);
   return ProviderScope(
@@ -168,27 +167,23 @@ void main() {
     'a sharing participant in the unjoined roster preview carries the '
     'share glyph too, not just the joined live roster',
     (tester) async {
-      final apiClient = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: api.SessionStore(tokens: _tokens),
-        httpClient: MockClient((request) async {
-          if (!request.url.path.endsWith('/voice/roster')) {
-            return http.Response('', 404);
-          }
-          return http.Response(
-            jsonEncode({
-              'participants': [
-                {
-                  'user_id': 'u-priya',
-                  'display_name': 'Priya',
-                  'is_sharing_screen': true,
-                },
-              ],
-            }),
-            200,
-          );
-        }),
-      );
+      final apiClient = testApi((request) async {
+        if (!request.url.path.endsWith('/voice/roster')) {
+          return http.Response('', 404);
+        }
+        return http.Response(
+          jsonEncode({
+            'participants': [
+              {
+                'user_id': 'u-priya',
+                'display_name': 'Priya',
+                'is_sharing_screen': true,
+              },
+            ],
+          }),
+          200,
+        );
+      }, session: api.SessionStore(tokens: _tokens));
       addTearDown(apiClient.close);
       await tester.pumpWidget(
         ProviderScope(

@@ -18,9 +18,9 @@ import 'dart:typed_data';
 import 'package:fake_async/fake_async.dart';
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'me',
@@ -31,11 +31,8 @@ const _tokens = TokenPair(
 
 /// A client that accepts the request and never answers, which is the shape
 /// this exists for: not a refused connection, which already failed fast.
-SlimmApi _neverAnswers() => SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: SessionStore(tokens: _tokens),
-      httpClient: MockClient((_) => Completer<http.Response>().future),
-    );
+SlimmApi _neverAnswers() => testApi((_) => Completer<http.Response>().future,
+    session: SessionStore(tokens: _tokens));
 
 void main() {
   test('a request that is never answered gives up rather than hanging', () {

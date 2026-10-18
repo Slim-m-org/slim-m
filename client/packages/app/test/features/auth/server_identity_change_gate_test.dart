@@ -16,6 +16,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/auth/widgets/server_identity_change_gate.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_sync.dart';
 
 const _server = 'https://chat.example';
 const _handle = 'server_identity:$_server';
@@ -45,15 +46,6 @@ Map<String, dynamic> _identity(String key) => {
   'color_strip': [0, 1, 2, 3],
 };
 
-class _NoopSync extends SyncController {
-  _NoopSync(super.ref);
-
-  @override
-  Future<void> start() async {}
-
-  void flip(SyncStatus next) => state = next;
-}
-
 bool probeFails = false;
 
 Future<ProviderContainer> _pump(
@@ -81,7 +73,7 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(keyStore),
-      syncControllerProvider.overrideWith(_NoopSync.new),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       serverUrlProvider.overrideWith((ref) => Uri.parse(_server)),
       apiProvider.overrideWith((ref) {
         final api = SlimmApi(
@@ -172,9 +164,8 @@ void main() {
     expect(find.text("This server's identity changed"), findsOneWidget);
 
     probeFails = true;
-    (container.read(syncControllerProvider.notifier) as _NoopSync).flip(
-      SyncStatus.live,
-    );
+    (container.read(syncControllerProvider.notifier) as NoopSyncController)
+        .report(SyncStatus.live);
     await tester.pumpAndSettle();
 
     expect(find.text("This server's identity changed"), findsOneWidget);

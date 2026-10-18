@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -22,6 +21,7 @@ import 'package:slimm_app/src/features/settings/widgets/personal_account_section
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'support/fake_blocks.dart';
+import 'support/fake_api.dart';
 
 /// Stands in for the real socket connection [SyncController.start] would
 /// otherwise attempt: a widget test has no server at the other end, so the
@@ -75,15 +75,7 @@ Future<ProviderContainer> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async => handler(request)),
-        );
-        ref.onDispose(api.close);
-        return api;
-      }),
+      mockApiOverride((request) async => handler(request)),
     ],
   );
   addTearDown(container.dispose);
@@ -205,34 +197,26 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/users') {
-                return http.Response(
-                  jsonEncode([
-                    {
-                      'id': 'user-blocked',
-                      'username': 'kit',
-                      'display_name': 'Kit',
-                      'created_at': 0,
-                    },
-                  ]),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'DELETE' &&
-                  request.url.path == '/blocks/user-blocked') {
-                throw const SocketException('connection refused');
-              }
-              return http.Response('{}', 404);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
+        mockApiOverride((request) async {
+          if (request.url.path == '/users') {
+            return http.Response(
+              jsonEncode([
+                {
+                  'id': 'user-blocked',
+                  'username': 'kit',
+                  'display_name': 'Kit',
+                  'created_at': 0,
+                },
+              ]),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'DELETE' &&
+              request.url.path == '/blocks/user-blocked') {
+            throw const SocketException('connection refused');
+          }
+          return http.Response('{}', 404);
         }),
         blocksProvider.overrideWith(
           (ref) => FixedBlocksController(
@@ -285,29 +269,21 @@ void main() {
             syncControllerProvider.overrideWith(
               (ref) => _CountingSyncController(ref),
             ),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: MockClient((request) async {
-                  if (request.method == 'DELETE' &&
-                      request.url.path == '/account') {
-                    return http.Response(
-                      jsonEncode({'error': 'server unavailable'}),
-                      500,
-                      headers: {'content-type': 'application/json'},
-                    );
-                  }
-                  if (request.method == 'DELETE' &&
-                      request.url.path.contains('/push')) {
-                    return http.Response('', 204);
-                  }
-                  if (request.url.path == '/auth/totp') return _totpStatus();
-                  return http.Response('{}', 404);
-                }),
-              );
-              ref.onDispose(api.close);
-              return api;
+            mockApiOverride((request) async {
+              if (request.method == 'DELETE' &&
+                  request.url.path == '/account') {
+                return http.Response(
+                  jsonEncode({'error': 'server unavailable'}),
+                  500,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.method == 'DELETE' &&
+                  request.url.path.contains('/push')) {
+                return http.Response('', 204);
+              }
+              if (request.url.path == '/auth/totp') return _totpStatus();
+              return http.Response('{}', 404);
             }),
           ],
         );

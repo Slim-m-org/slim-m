@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
@@ -22,6 +21,8 @@ import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dar
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -29,15 +30,6 @@ const _tokens = TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
-
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref);
-
-  @override
-  Future<void> start() async {
-    state = SyncStatus.live;
-  }
-}
 
 const _saved = {
   'id': 'm1',
@@ -84,17 +76,9 @@ Future<ProviderContainer> _open(WidgetTester tester, _Wire wire) async {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => MessageStore(db)),
-      syncControllerProvider.overrideWith((ref) => _NoopSyncController(ref)),
+      syncControllerProvider.overrideWith((ref) => LiveSyncController(ref)),
       channelByIdProvider('c2').overrideWith((ref) => Stream.value(null)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(wire.handle),
-        );
-        ref.onDispose(api.close);
-        return api;
-      }),
+      mockApiOverride(wire.handle),
     ],
   );
   addTearDown(container.dispose);

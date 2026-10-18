@@ -19,7 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -35,6 +34,7 @@ import 'features/messages/message_row_harness.dart'
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'support/fake_blocks.dart';
+import 'support/fake_api.dart';
 
 const _viewport = Size(1400, 880);
 
@@ -107,17 +107,9 @@ void main() {
         ),
         overrides: [
           sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final client = api.SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient(
-                (request) async => http.Response('{"error":"gone"}', 503),
-              ),
-            );
-            ref.onDispose(client.close);
-            return client;
-          }),
+          mockApiOverride(
+            (request) async => http.Response('{"error":"gone"}', 503),
+          ),
           blocksProvider.overrideWith(
             (ref) => FixedBlocksController(
               ref,
@@ -171,15 +163,7 @@ void main() {
               sessionProvider.overrideWithValue(
                 api.SessionStore(tokens: _tokens),
               ),
-              apiProvider.overrideWith(
-                (ref) => api.SlimmApi(
-                  baseUrl: Uri.parse('http://localhost:8080'),
-                  session: ref.watch(sessionProvider),
-                  httpClient: MockClient(
-                    (request) async => http.Response('{}', 404),
-                  ),
-                ),
-              ),
+              mockApiOverride((request) async => http.Response('{}', 404)),
             ],
           ),
         );

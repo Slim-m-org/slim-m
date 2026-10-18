@@ -10,11 +10,11 @@ import 'dart:convert';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -54,17 +54,8 @@ CanvasStrokeInput _image(String id) => CanvasStrokeInput(
 /// A tiny in-memory server: remove 404s for an unknown id.
 class _Harness {
   _Harness() {
-    final client = api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: api.SessionStore(
-        tokens: const api.TokenPair(
-          userId: 'me',
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          accessExpiresAt: 0,
-        ),
-      ),
-      httpClient: MockClient((request) async {
+    final client = testApi(
+      (request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         removeRequests.add(body);
         if (removeStatus != 200) return _json({'error': 'nope'}, removeStatus);
@@ -83,7 +74,15 @@ class _Harness {
           },
           'fresh': true,
         });
-      }),
+      },
+      session: api.SessionStore(
+        tokens: const api.TokenPair(
+          userId: 'me',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ),
     );
     commits = CanvasCommitQueue(
       client: client,

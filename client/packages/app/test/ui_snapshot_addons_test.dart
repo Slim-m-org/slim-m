@@ -9,12 +9,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart'
     show apiProvider, sessionProvider;
 
 import 'ui_snapshot_support.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _bots = [
   {
@@ -68,23 +68,19 @@ const _webhooks = [
   },
 ];
 
-api.SlimmApi _addons(Ref ref) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: ref.watch(sessionProvider),
-  httpClient: MockClient((request) async {
-    final body = switch (request.url.path) {
-      '/bots' => _bots,
-      '/webhooks' => _webhooks,
-      _ => null,
-    };
-    if (body == null) return fixtureResponse(request);
-    return http.Response(
-      jsonEncode(body),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  }),
-);
+api.SlimmApi _addons(Ref ref) => testApi((request) async {
+  final body = switch (request.url.path) {
+    '/bots' => _bots,
+    '/webhooks' => _webhooks,
+    _ => null,
+  };
+  if (body == null) return fixtureResponse(request);
+  return http.Response(
+    jsonEncode(body),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
+}, session: ref.watch(sessionProvider));
 
 const _routes = {
   'addons-dock': '/settings/dock',

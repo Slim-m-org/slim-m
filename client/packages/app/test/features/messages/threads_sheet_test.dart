@@ -11,13 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/messages/widgets/threads_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -73,15 +73,7 @@ ProviderContainer _containerAnswering(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(handler),
-        );
-        ref.onDispose(api.close);
-        return api;
-      }),
+      mockApiOverride(handler),
     ],
   );
   return container;

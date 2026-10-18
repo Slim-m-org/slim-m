@@ -16,7 +16,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart' show GoRouter, GoRoute;
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -31,6 +30,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/reduced_motion_harness.dart';
 import '../voice/voice_controller_harness.dart' show FakeSession, tokens;
+import '../../support/fake_api.dart';
 
 const _channelId = 'channel-shared';
 
@@ -62,48 +62,40 @@ _wire({int permissions = 0, api.Me? selfProfile, bool refuseKick = false}) {
       rolesProvider.overrideWith((ref) async => const <api.Role>[]),
       if (selfProfile != null)
         meProvider.overrideWith((ref) async => selfProfile),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add('${request.method} ${request.url.path}');
-            if (request.url.path.endsWith('/voice/token')) {
-              return http.Response(
-                jsonEncode({
-                  'url': 'wss://sfu.example.com',
-                  'room': _channelId,
-                  'token': 'jwt',
-                  'expires_at': 0,
-                  'can_publish': true,
-                }),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            // Eject reads this channel's own answer, not `/me`'s base set - see channel_permissions.dart.
-            if (request.url.path == '/channels/$_channelId/permissions') {
-              return http.Response(
-                jsonEncode({'permissions': permissions}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path.endsWith('/note')) {
-              return http.Response(
-                jsonEncode({'body': null, 'updated_at': null}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (refuseKick && request.url.path.endsWith('/kick')) {
-              return http.Response('boom', 500);
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        if (request.url.path.endsWith('/voice/token')) {
+          return http.Response(
+            jsonEncode({
+              'url': 'wss://sfu.example.com',
+              'room': _channelId,
+              'token': 'jwt',
+              'expires_at': 0,
+              'can_publish': true,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        // Eject reads this channel's own answer, not `/me`'s base set - see channel_permissions.dart.
+        if (request.url.path == '/channels/$_channelId/permissions') {
+          return http.Response(
+            jsonEncode({'permissions': permissions}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.endsWith('/note')) {
+          return http.Response(
+            jsonEncode({'body': null, 'updated_at': null}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (refuseKick && request.url.path.endsWith('/kick')) {
+          return http.Response('boom', 500);
+        }
+        return http.Response('', 204);
       }),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session),

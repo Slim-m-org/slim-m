@@ -12,12 +12,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'bob',
@@ -75,11 +75,7 @@ http.Response _json(Object body) => http.Response(
       sessionProvider.overrideWithValue(SessionStore()),
       storeProvider.overrideWith((ref) async => store),
       apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: SessionStore(tokens: _tokens),
-          httpClient: MockClient(handle),
-        );
+        final api = testApi(handle, session: SessionStore(tokens: _tokens));
         ref.onDispose(api.close);
         return api;
       }),

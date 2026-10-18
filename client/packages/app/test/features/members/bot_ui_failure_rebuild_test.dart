@@ -10,13 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/bot_ui_failure.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 void main() {
   testWidgets('a use on another message does not rebuild a shown failure', (
@@ -28,21 +28,18 @@ void main() {
       overrides: [
         liveEventsProvider.overrideWithValue(events.stream),
         apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
+          final client = testApi(
+            (request) async => http.Response(
+              jsonEncode({'id': 'x', 'created_at': 1}),
+              200,
+              headers: {'content-type': 'application/json'},
+            ),
             session: api.SessionStore(
               tokens: const api.TokenPair(
                 userId: 'u1',
                 accessToken: 'a',
                 refreshToken: 'r',
                 accessExpiresAt: 4102444800000,
-              ),
-            ),
-            httpClient: MockClient(
-              (request) async => http.Response(
-                jsonEncode({'id': 'x', 'created_at': 1}),
-                200,
-                headers: {'content-type': 'application/json'},
               ),
             ),
           );

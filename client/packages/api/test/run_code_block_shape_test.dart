@@ -4,22 +4,20 @@
 library;
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
-SlimmApi _api(String body) => SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: SessionStore(
-        tokens: const TokenPair(
-          userId: 'u1',
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          accessExpiresAt: 0,
-        ),
-      ),
-      httpClient: MockClient((request) async => http.Response(body, 200)),
-    );
+SlimmApi _api(String body) =>
+    testApi((request) async => http.Response(body, 200),
+        session: SessionStore(
+          tokens: const TokenPair(
+            userId: 'u1',
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessExpiresAt: 0,
+          ),
+        ));
 
 void main() {
   for (final body in ['{}', '[]', '', '"text"']) {

@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dart';
@@ -27,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'report_card_harness.dart';
+import '../../support/fake_api.dart';
 
 void main() {
   testWidgets('a message report names its reporter, not the raw id', (
@@ -141,33 +141,25 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
-          apiProvider.overrideWith((ref) {
-            final api = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                if (request.method == 'GET' && request.url.path == '/reports') {
-                  return http.Response(
-                    '[${reportJson(id: 'report-5', subjectKind: 'user', subjectId: 'u1')}]',
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                if (request.method == 'GET' && request.url.path == '/users') {
-                  return http.Response(
-                    '[]',
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                if (request.method == 'PATCH') {
-                  throw const SocketException('connection refused');
-                }
-                return http.Response('{}', 404);
-              }),
-            );
-            ref.onDispose(api.close);
-            return api;
+          mockApiOverride((request) async {
+            if (request.method == 'GET' && request.url.path == '/reports') {
+              return http.Response(
+                '[${reportJson(id: 'report-5', subjectKind: 'user', subjectId: 'u1')}]',
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.method == 'GET' && request.url.path == '/users') {
+              return http.Response(
+                '[]',
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.method == 'PATCH') {
+              throw const SocketException('connection refused');
+            }
+            return http.Response('{}', 404);
           }),
         ],
       );

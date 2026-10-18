@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
@@ -20,6 +19,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'ui_snapshot_support.dart';
 import 'support/fake_sync.dart';
+import 'support/fake_api.dart';
 
 final _icons = <String, List<int>>{
   'colour': base64Decode(
@@ -67,28 +67,20 @@ Future<void> _capture(
       syncControllerProvider.overrideWith(
         (ref) => StubSyncController(ref, status),
       ),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/space/icon') {
-              return http.Response.bytes(_icons[icon]!, 200);
-            }
-            return http.Response(
-              jsonEncode({
-                'name': 'Home',
-                'version': '1',
-                'protocol': 1,
-                'icon_updated_at': ?(icon == null ? null : 5),
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
+      mockApiOverride((request) async {
+        if (request.url.path == '/space/icon') {
+          return http.Response.bytes(_icons[icon]!, 200);
+        }
+        return http.Response(
+          jsonEncode({
+            'name': 'Home',
+            'version': '1',
+            'protocol': 1,
+            'icon_updated_at': ?(icon == null ? null : 5),
           }),
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(client.close);
-        return client;
       }),
     ],
   );

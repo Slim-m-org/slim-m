@@ -9,13 +9,13 @@ import 'dart:ui' show Tristate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_display_tab.dart';
 import 'package:slimm_app/src/features/members/widgets/role_color.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -33,31 +33,23 @@ Future<List<Map<String, dynamic>>> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.method == 'PATCH') {
-              patches.add(jsonDecode(request.body) as Map<String, dynamic>);
-              return http.Response(
-                jsonEncode({
-                  'id': role.id,
-                  'name': role.name,
-                  'permissions': 0,
-                  'is_everyone': false,
-                  'mentionable': false,
-                  'hoist': true,
-                  'created_at': 0,
-                }),
-                200,
-              );
-            }
-            return http.Response('[]', 200);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.method == 'PATCH') {
+          patches.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(
+            jsonEncode({
+              'id': role.id,
+              'name': role.name,
+              'permissions': 0,
+              'is_everyone': false,
+              'mentionable': false,
+              'hoist': true,
+              'created_at': 0,
+            }),
+            200,
+          );
+        }
+        return http.Response('[]', 200);
       }),
     ],
   );

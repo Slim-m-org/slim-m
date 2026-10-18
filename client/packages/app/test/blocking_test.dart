@@ -16,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -26,6 +25,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'support/fake_sync.dart';
+import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -87,39 +87,30 @@ Future<({ProviderContainer container, List<int> markReadSeqs})> _wire(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
       syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/blocks') {
-              if (blocksFail) return http.Response('nope', 500);
-              // Keyed on the token, so a second account's list is its own.
-              final own = request.headers['authorization'] == 'Bearer access';
-              return _json(own ? blocked : const <String>[]);
-            }
-            if (request.method == 'PUT' &&
-                request.url.path == '/channels/c1/read') {
-              final seq =
-                  (jsonDecode(request.body) as Map<String, dynamic>)['seq']
-                      as int;
-              markReadSeqs.add(seq);
-              return _json({'last_read_seq': seq, 'unread': 0});
-            }
-            if (request.url.path == '/me') {
-              return _json({
-                'id': 'me',
-                'username': 'me',
-                'display_name': 'Me',
-                'created_at': 0,
-                'permissions': 0,
-              });
-            }
-            return _json(const <Object>[]);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path == '/blocks') {
+          if (blocksFail) return http.Response('nope', 500);
+          // Keyed on the token, so a second account's list is its own.
+          final own = request.headers['authorization'] == 'Bearer access';
+          return _json(own ? blocked : const <String>[]);
+        }
+        if (request.method == 'PUT' &&
+            request.url.path == '/channels/c1/read') {
+          final seq =
+              (jsonDecode(request.body) as Map<String, dynamic>)['seq'] as int;
+          markReadSeqs.add(seq);
+          return _json({'last_read_seq': seq, 'unread': 0});
+        }
+        if (request.url.path == '/me') {
+          return _json({
+            'id': 'me',
+            'username': 'me',
+            'display_name': 'Me',
+            'created_at': 0,
+            'permissions': 0,
+          });
+        }
+        return _json(const <Object>[]);
       }),
     ],
   );

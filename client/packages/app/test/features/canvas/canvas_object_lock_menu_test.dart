@@ -7,12 +7,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_context_menu.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 CanvasStrokeInput _photo({required String authorId}) => CanvasStrokeInput(
   id: 'photo',
@@ -34,8 +34,11 @@ class _Harness {
     document.applyPlaced(_photo(authorId: authorId));
     locks = CanvasObjectLocks(
       channelId: 'c1',
-      client: api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
+      client: testApi(
+        (request) async {
+          requests.add('${request.method} ${request.url.path}');
+          return http.Response('', 204);
+        },
         session: api.SessionStore(
           tokens: const api.TokenPair(
             userId: 'me',
@@ -44,10 +47,6 @@ class _Harness {
             accessExpiresAt: 4102444800000,
           ),
         ),
-        httpClient: MockClient((request) async {
-          requests.add('${request.method} ${request.url.path}');
-          return http.Response('', 204);
-        }),
       ),
     );
   }

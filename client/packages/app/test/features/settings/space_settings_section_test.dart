@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -30,6 +29,7 @@ import 'package:slimm_app/src/features/settings/screens/space_settings_section.d
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_app/src/action_labels.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -54,15 +54,7 @@ List<Override> _overrides(int permissions) => [
   sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
   myPermissionsProvider.overrideWithValue(permissions),
   myVisibleChannelsProvider.overrideWith((ref) async => const []),
-  apiProvider.overrideWith((ref) {
-    final client = api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async => _respond(request)),
-    );
-    ref.onDispose(client.close);
-    return client;
-  }),
+  mockApiOverride((request) async => _respond(request)),
 ];
 
 Future<void> _pump(

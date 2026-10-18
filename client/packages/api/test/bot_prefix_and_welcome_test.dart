@@ -6,22 +6,20 @@ library;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
-SlimmApi _api(Future<http.Response> Function(http.Request) handler) => SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: SessionStore(
-        tokens: const TokenPair(
-          userId: 'u1',
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          accessExpiresAt: 0,
-        ),
-      ),
-      httpClient: MockClient(handler),
-    );
+SlimmApi _api(Future<http.Response> Function(http.Request) handler) =>
+    testApi(handler,
+        session: SessionStore(
+          tokens: const TokenPair(
+            userId: 'u1',
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessExpiresAt: 0,
+          ),
+        ));
 
 const _bot = {
   'user_id': 'b1',

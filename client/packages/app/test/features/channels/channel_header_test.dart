@@ -10,13 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 Map<String, dynamic> _pinJson(String id) => {
   'id': id,
@@ -43,24 +43,16 @@ ProviderContainer _containerWithPins(List<Map<String, dynamic>> pins) {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            // A batch profile lookup for pin authors answers empty here.
-            final body = request.url.path == '/users'
-                ? <Map<String, dynamic>>[]
-                : pins;
-            return http.Response(
-              jsonEncode(body),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        // A batch profile lookup for pin authors answers empty here.
+        final body = request.url.path == '/users'
+            ? <Map<String, dynamic>>[]
+            : pins;
+        return http.Response(
+          jsonEncode(body),
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(api.close);
-        return api;
       }),
     ],
   );

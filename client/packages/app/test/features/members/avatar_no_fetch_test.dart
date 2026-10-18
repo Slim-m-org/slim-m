@@ -9,11 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'u1',
@@ -27,16 +27,10 @@ Future<List<String>> _pumpAvatar(WidgetTester tester, int? updatedAt) async {
   final container = ProviderContainer(
     overrides: [
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith(
-        (ref) => SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requested.add(request.url.path);
-            return http.Response('', 404);
-          }),
-        ),
-      ),
+      mockApiOverride((request) async {
+        requested.add(request.url.path);
+        return http.Response('', 404);
+      }),
     ],
   );
   addTearDown(container.dispose);

@@ -15,7 +15,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -35,6 +34,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'features/messages/message_row_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
+import 'support/fake_api.dart';
 
 const _spaceMenuTokens = api.TokenPair(
   userId: 'self',
@@ -189,22 +189,14 @@ Future<void> _pumpSpaceMenu(WidgetTester tester, Size window) async {
         ref.onDispose(db.close);
         return MessageStore(db);
       }),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path != '/me') return http.Response('{}', 404);
-            return http.Response(
-              '{"id":"self","username":"self","display_name":"Self",'
-              '"created_at":0,"permissions":${Perm.manageChannels}}',
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        if (request.url.path != '/me') return http.Response('{}', 404);
+        return http.Response(
+          '{"id":"self","username":"self","display_name":"Self",'
+          '"created_at":0,"permissions":${Perm.manageChannels}}',
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(client.close);
-        return client;
       }),
     ],
   );

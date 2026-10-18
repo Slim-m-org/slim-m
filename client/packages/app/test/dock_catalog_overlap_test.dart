@@ -9,11 +9,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 ProviderContainer _container({
   required List<String> started,
@@ -33,18 +33,14 @@ ProviderContainer _container({
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(session),
       apiProvider.overrideWith(
-        (ref) => SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: session,
-          httpClient: MockClient((request) async {
-            started.add(request.url.path);
-            await gate;
-            if (sourcesFail && request.url.path == '/space/dock/sources') {
-              return http.Response('boom', 500);
-            }
-            return http.Response(jsonEncode([]), 200);
-          }),
-        ),
+        (ref) => testApi((request) async {
+          started.add(request.url.path);
+          await gate;
+          if (sourcesFail && request.url.path == '/space/dock/sources') {
+            return http.Response('boom', 500);
+          }
+          return http.Response(jsonEncode([]), 200);
+        }, session: session),
       ),
     ],
   );

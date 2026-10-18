@@ -21,6 +21,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _channelName = 'top.npcserver.slimm/push';
 
@@ -533,15 +534,7 @@ void main() {
           overrides: [
             keyStoreProvider.overrideWithValue(_DeleteFailingKeyStore()),
             sessionProvider.overrideWithValue(session),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: MockClient((_) async => http.Response('', 204)),
-              );
-              ref.onDispose(api.close);
-              return api;
-            }),
+            mockApiOverride((_) async => http.Response('', 204)),
           ],
         );
         addTearDown(container.dispose);

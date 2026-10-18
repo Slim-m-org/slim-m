@@ -10,13 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/member_rename_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -49,21 +49,13 @@ Future<List<String>> _open(
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         membersProvider.overrideWith((ref) async => [profile]),
-        apiProvider.overrideWith((ref) {
-          final built = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              seen.add('${request.method} ${request.url.path} ${request.body}');
-              return http.Response(
-                status == 204 ? '' : jsonEncode({'error': 'no'}),
-                status,
-                headers: {'content-type': 'application/json'},
-              );
-            }),
+        mockApiOverride((request) async {
+          seen.add('${request.method} ${request.url.path} ${request.body}');
+          return http.Response(
+            status == 204 ? '' : jsonEncode({'error': 'no'}),
+            status,
+            headers: {'content-type': 'application/json'},
           );
-          ref.onDispose(built.close);
-          return built;
         }),
       ],
       child: MaterialApp(

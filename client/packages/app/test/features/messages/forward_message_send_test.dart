@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -25,6 +24,7 @@ import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -58,68 +58,60 @@ class _Harness {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
         syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.method == 'GET' && request.url.path == '/channels') {
-                return http.Response(
-                  jsonEncode([
-                    {
-                      'id': 'c2',
-                      'name': 'general',
-                      'kind': 'text',
-                      'created_at': 0,
-                      'permissions': 1 << 2 | 1 << 10,
-                    },
-                  ]),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'GET' && request.url.path == '/dms') {
-                return http.Response(
-                  '[]',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'GET' && request.url.path == '/blocks') {
-                return http.Response(
-                  '[]',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'POST' &&
-                  request.url.path == '/channels/c2/messages') {
-                final body = jsonDecode(request.body) as Map<String, dynamic>;
-                postedBodies.add(body);
-                if (sendStatus != 200) {
-                  return http.Response('{"error":"nope"}', sendStatus);
-                }
-                return http.Response(
-                  jsonEncode({
-                    'id': body['id'],
-                    'channel_id': 'c2',
-                    'author_id': 'bob',
-                    'author_display_name': 'Bob',
-                    'seq': 2,
-                    'content': body['content'],
-                    'created_at': 2000,
-                    'edited_at': null,
-                    'attachment_ids': body['attachment_ids'],
-                  }),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response('{}', 404);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.method == 'GET' && request.url.path == '/channels') {
+            return http.Response(
+              jsonEncode([
+                {
+                  'id': 'c2',
+                  'name': 'general',
+                  'kind': 'text',
+                  'created_at': 0,
+                  'permissions': 1 << 2 | 1 << 10,
+                },
+              ]),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'GET' && request.url.path == '/dms') {
+            return http.Response(
+              '[]',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'GET' && request.url.path == '/blocks') {
+            return http.Response(
+              '[]',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'POST' &&
+              request.url.path == '/channels/c2/messages') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            postedBodies.add(body);
+            if (sendStatus != 200) {
+              return http.Response('{"error":"nope"}', sendStatus);
+            }
+            return http.Response(
+              jsonEncode({
+                'id': body['id'],
+                'channel_id': 'c2',
+                'author_id': 'bob',
+                'author_display_name': 'Bob',
+                'seq': 2,
+                'content': body['content'],
+                'created_at': 2000,
+                'edited_at': null,
+                'attachment_ids': body['attachment_ids'],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('{}', 404);
         }),
       ],
     );

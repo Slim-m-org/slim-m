@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -19,6 +18,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -116,15 +116,7 @@ Future<void> _open(WidgetTester tester, _Harness harness) async {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final built = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((r) async => harness.handle(r)),
-        );
-        ref.onDispose(built.close);
-        return built;
-      }),
+      mockApiOverride((r) async => harness.handle(r)),
     ],
   );
   addTearDown(container.dispose);

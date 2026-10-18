@@ -25,7 +25,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/settings/screens/personal_settings_screen.dart';
@@ -33,6 +32,7 @@ import 'package:slimm_app/src/features/settings/screens/space_settings_screen.da
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 export '../../support/mock_app_version.dart';
 
@@ -59,49 +59,40 @@ ProviderContainer _container(int permissions) {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/devices' ||
-                request.url.path == '/blocks') {
-              return http.Response(
-                '[]',
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            // Answered for real; see this library's doc for what a 404 hid.
-            if (request.url.path == '/space/settings') {
-              return http.Response(
-                jsonEncode({'join_policy': 'invite'}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path == '/me') {
-              return http.Response(
-                jsonEncode({
-                  'id': 'self',
-                  'username': 'self',
-                  'display_name': 'Self',
-                  'created_at': 0,
-                  'permissions': permissions,
-                }),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response(
-              '{}',
-              404,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        if (request.url.path == '/devices' || request.url.path == '/blocks') {
+          return http.Response(
+            '[]',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        // Answered for real; see this library's doc for what a 404 hid.
+        if (request.url.path == '/space/settings') {
+          return http.Response(
+            jsonEncode({'join_policy': 'invite'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path == '/me') {
+          return http.Response(
+            jsonEncode({
+              'id': 'self',
+              'username': 'self',
+              'display_name': 'Self',
+              'created_at': 0,
+              'permissions': permissions,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response(
+          '{}',
+          404,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(api.close);
-        return api;
       }),
     ],
   );

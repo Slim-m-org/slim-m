@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'features/voice/voice_controller_harness.dart';
 import 'support/fake_sync.dart';
+import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',
@@ -54,35 +54,27 @@ void main() {
         pushControllerProvider.overrideWith((ref) => _NoopPushController(ref)),
         // Sign-out clears the local store; that failure is already swallowed.
         storeProvider.overrideWith((ref) async => throw StateError('n/a')),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path.endsWith('/voice/token')) {
-                return http.Response(
-                  jsonEncode({
-                    'url': 'wss://sfu.example.com',
-                    'room': 'channel-1',
-                    'token': 'jwt',
-                    'expires_at': 0,
-                    'can_publish': true,
-                  }),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.url.path.endsWith('/voice/heartbeat')) {
-                return http.Response('', 204);
-              }
-              if (request.url.path == '/auth/logout') {
-                return http.Response('', 204);
-              }
-              return http.Response('', 404);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.url.path.endsWith('/voice/token')) {
+            return http.Response(
+              jsonEncode({
+                'url': 'wss://sfu.example.com',
+                'room': 'channel-1',
+                'token': 'jwt',
+                'expires_at': 0,
+                'can_publish': true,
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.url.path.endsWith('/voice/heartbeat')) {
+            return http.Response('', 204);
+          }
+          if (request.url.path == '/auth/logout') {
+            return http.Response('', 204);
+          }
+          return http.Response('', 404);
         }),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: session),

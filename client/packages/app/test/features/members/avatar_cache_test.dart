@@ -11,10 +11,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/providers/avatar_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'u1',
@@ -30,21 +30,17 @@ void main() {
       overrides: [
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
         apiProvider.overrideWith((ref) {
-          return SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path.endsWith('/avatar')) {
-                fetches += 1;
-                return http.Response.bytes(
-                  utf8.encode('png-bytes'),
-                  200,
-                  headers: {'content-type': 'image/png'},
-                );
-              }
-              return http.Response('', 404);
-            }),
-          );
+          return testApi((request) async {
+            if (request.url.path.endsWith('/avatar')) {
+              fetches += 1;
+              return http.Response.bytes(
+                utf8.encode('png-bytes'),
+                200,
+                headers: {'content-type': 'image/png'},
+              );
+            }
+            return http.Response('', 404);
+          }, session: ref.watch(sessionProvider));
         }),
       ],
     );

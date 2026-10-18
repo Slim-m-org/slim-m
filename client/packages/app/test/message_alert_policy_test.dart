@@ -11,7 +11,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
@@ -20,6 +19,7 @@ import 'package:slimm_app/src/features/settings/providers/notification_schedule_
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -112,15 +112,7 @@ class _Rig {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient(_answer),
-          );
-          ref.onDispose(client.close);
-          return client;
-        }),
+        mockApiOverride(_answer),
       ],
     );
     // Held alive for the session the way home_shell holds it; unobserved it would refetch on every read.

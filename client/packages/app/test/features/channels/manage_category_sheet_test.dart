@@ -10,12 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/manage_category_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/fake_api.dart';
 
 ChannelCategoryRow _category() =>
     const ChannelCategoryRow(id: 'cat-1', name: 'Gaming', position: 0);
@@ -51,17 +51,9 @@ Future<({List<http.Request> requests, MessageStore store})> _pump(
           ),
         ),
         storeProvider.overrideWith((ref) async => store),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              requests.add(request);
-              return handler(request);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          requests.add(request);
+          return handler(request);
         }),
       ],
       child: MaterialApp(

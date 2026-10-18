@@ -7,9 +7,9 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_refresher.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_data/data.dart'
     show CategoryStore, MessageStore, SlimmDatabase;
 
@@ -43,24 +43,20 @@ void main() {
       var server = [_c('chan-1', 1)];
       final gate = Completer<void>();
       var channelGets = 0;
-      final api = SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: SessionStore(tokens: _tokens),
-        httpClient: MockClient((request) async {
-          final path = request.url.path;
-          if (path == '/channels') {
-            channelGets++;
-            final snapshot = [
-              ...server,
-            ]; // the server answers with state at request time
-            if (channelGets == 1) await gate.future;
-            return _json(snapshot);
-          }
-          if (path == '/categories' || path == '/dms') return _json(<Object>[]);
-          if (path == '/read-states') return _json(<Object>[]);
-          return http.Response('nf', 404);
-        }),
-      );
+      final api = testApi((request) async {
+        final path = request.url.path;
+        if (path == '/channels') {
+          channelGets++;
+          final snapshot = [
+            ...server,
+          ]; // the server answers with state at request time
+          if (channelGets == 1) await gate.future;
+          return _json(snapshot);
+        }
+        if (path == '/categories' || path == '/dms') return _json(<Object>[]);
+        if (path == '/read-states') return _json(<Object>[]);
+        return http.Response('nf', 404);
+      }, session: SessionStore(tokens: _tokens));
       final r = ChannelRefresher();
       final first = r.refreshAfterChange(api, store, isCurrent: () => true);
       await Future<void>.delayed(
@@ -86,26 +82,22 @@ void main() {
     addTearDown(db.close);
     var current = true;
     final store = _SignOutDuringWrite(db, () => current = false);
-    final api = SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: SessionStore(tokens: _tokens),
-      httpClient: MockClient((request) async {
-        final path = request.url.path;
-        if (path == '/channels') return _json([_c('chan-1', 1)]);
-        if (path == '/categories') {
-          return _json([
-            {
-              'id': 'cat-1',
-              'name': 'old account',
-              'position': 0,
-              'created_at': 0,
-            },
-          ]);
-        }
-        if (path == '/dms' || path == '/read-states') return _json(<Object>[]);
-        return http.Response('nf', 404);
-      }),
-    );
+    final api = testApi((request) async {
+      final path = request.url.path;
+      if (path == '/channels') return _json([_c('chan-1', 1)]);
+      if (path == '/categories') {
+        return _json([
+          {
+            'id': 'cat-1',
+            'name': 'old account',
+            'position': 0,
+            'created_at': 0,
+          },
+        ]);
+      }
+      if (path == '/dms' || path == '/read-states') return _json(<Object>[]);
+      return http.Response('nf', 404);
+    }, session: SessionStore(tokens: _tokens));
     await ChannelRefresher().refresh(api, store, isCurrent: () => current);
     expect(
       await store.allCategories(),

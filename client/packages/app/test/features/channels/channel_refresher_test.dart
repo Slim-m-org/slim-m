@@ -15,10 +15,10 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_refresher.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -64,48 +64,44 @@ _Fixture _fixture({
   final db = SlimmDatabase(NativeDatabase.memory());
   final store = MessageStore(db);
   final hits = <String, int>{};
-  final api = SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: SessionStore(tokens: _tokens),
-    httpClient: MockClient((request) async {
-      final path = request.url.path;
-      hits[path] = (hits[path] ?? 0) + 1;
-      if (path == '/channels') return _json(channels);
-      if (path == '/categories') return _json(<Object>[]);
-      if (path == '/dms') return _json(<Object>[]);
-      if (path == '/read-states') {
-        if (legacyServer) return http.Response('not found', 404);
-        if (readStatesStatus != 200) {
-          return http.Response(
-            '{"error":"nope"}',
-            readStatesStatus,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        return _json([
-          for (final c in channels)
-            {
-              'channel_id': c['id'],
-              'last_read_seq': readSeq,
-              'unread': 0,
-              'manually_unread': false,
-            },
-        ]);
+  final api = testApi((request) async {
+    final path = request.url.path;
+    hits[path] = (hits[path] ?? 0) + 1;
+    if (path == '/channels') return _json(channels);
+    if (path == '/categories') return _json(<Object>[]);
+    if (path == '/dms') return _json(<Object>[]);
+    if (path == '/read-states') {
+      if (legacyServer) return http.Response('not found', 404);
+      if (readStatesStatus != 200) {
+        return http.Response(
+          '{"error":"nope"}',
+          readStatesStatus,
+          headers: {'content-type': 'application/json'},
+        );
       }
-      if (path.endsWith('/read')) {
-        final id = path.split('/')[2];
-        if (failingReads.contains(id)) {
-          return http.Response(
-            '{"error":"nope"}',
-            500,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        return _json({'last_read_seq': readSeq, 'unread': 0});
+      return _json([
+        for (final c in channels)
+          {
+            'channel_id': c['id'],
+            'last_read_seq': readSeq,
+            'unread': 0,
+            'manually_unread': false,
+          },
+      ]);
+    }
+    if (path.endsWith('/read')) {
+      final id = path.split('/')[2];
+      if (failingReads.contains(id)) {
+        return http.Response(
+          '{"error":"nope"}',
+          500,
+          headers: {'content-type': 'application/json'},
+        );
       }
-      return http.Response('not found', 404);
-    }),
-  );
+      return _json({'last_read_seq': readSeq, 'unread': 0});
+    }
+    return http.Response('not found', 404);
+  }, session: SessionStore(tokens: _tokens));
   return _Fixture(db, store, api, hits);
 }
 
@@ -248,33 +244,29 @@ void main() {
       final db = SlimmDatabase(NativeDatabase.memory());
       addTearDown(db.close);
       final store = MessageStore(db);
-      final api = SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: SessionStore(tokens: _tokens),
-        httpClient: MockClient((request) async {
-          final path = request.url.path;
-          if (path == '/channels') return _json(_twoChannels);
-          if (path == '/categories' || path == '/dms') return _json(<Object>[]);
-          if (path == '/read-states') {
-            if (answers++ < 2) {
-              return http.Response(
-                '{"error":"rate limited","retry_after_seconds":2}',
-                429,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return _json([
-              {
-                'channel_id': 'chan-1',
-                'last_read_seq': 3,
-                'unread': 0,
-                'manually_unread': false,
-              },
-            ]);
+      final api = testApi((request) async {
+        final path = request.url.path;
+        if (path == '/channels') return _json(_twoChannels);
+        if (path == '/categories' || path == '/dms') return _json(<Object>[]);
+        if (path == '/read-states') {
+          if (answers++ < 2) {
+            return http.Response(
+              '{"error":"rate limited","retry_after_seconds":2}',
+              429,
+              headers: {'content-type': 'application/json'},
+            );
           }
-          return http.Response('not found', 404);
-        }),
-      );
+          return _json([
+            {
+              'channel_id': 'chan-1',
+              'last_read_seq': 3,
+              'unread': 0,
+              'manually_unread': false,
+            },
+          ]);
+        }
+        return http.Response('not found', 404);
+      }, session: SessionStore(tokens: _tokens));
 
       await ChannelRefresher().refresh(
         api,

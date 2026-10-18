@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
@@ -24,6 +23,7 @@ import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -68,33 +68,25 @@ ProviderContainer _container({
         ref.onDispose(db.close);
         return db;
       }),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            onRequest?.call(request);
-            if (request.url.path == '/blocks') return _json(blocked);
-            // DmRow now watches this; the list shape, not the 204 fallback below.
-            if (request.url.path.endsWith('/voice/roster')) {
-              return _json({'participants': <Object>[]});
-            }
-            if (request.url.path.startsWith(
-                  '/notification-preferences/channels/',
-                ) &&
-                request.method == 'PUT') {
-              final channelId = request.url.pathSegments.last;
-              final body = jsonDecode(request.body) as Map<String, dynamic>;
-              return _json({
-                'channel_id': channelId,
-                'preference': body['preference'],
-              });
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        onRequest?.call(request);
+        if (request.url.path == '/blocks') return _json(blocked);
+        // DmRow now watches this; the list shape, not the 204 fallback below.
+        if (request.url.path.endsWith('/voice/roster')) {
+          return _json({'participants': <Object>[]});
+        }
+        if (request.url.path.startsWith(
+              '/notification-preferences/channels/',
+            ) &&
+            request.method == 'PUT') {
+          final channelId = request.url.pathSegments.last;
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          return _json({
+            'channel_id': channelId,
+            'preference': body['preference'],
+          });
+        }
+        return http.Response('', 204);
       }),
     ],
   );

@@ -19,7 +19,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -28,6 +27,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../ui_snapshot_support.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -67,27 +67,17 @@ http.Response _json(Object body) => http.Response(
 ProviderContainer _container() => ProviderContainer(
   overrides: [
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-    apiProvider.overrideWith((ref) {
-      final client = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: ref.watch(sessionProvider),
-        httpClient: MockClient((request) async {
-          if (request.url.path.startsWith(
-                '/notification-preferences/channels/',
-              ) &&
-              request.method == 'PUT') {
-            final channelId = request.url.pathSegments.last;
-            final body = jsonDecode(request.body) as Map<String, dynamic>;
-            return _json({
-              'channel_id': channelId,
-              'preference': body['preference'],
-            });
-          }
-          return _json(const <Object>[]);
-        }),
-      );
-      ref.onDispose(client.close);
-      return client;
+    mockApiOverride((request) async {
+      if (request.url.path.startsWith('/notification-preferences/channels/') &&
+          request.method == 'PUT') {
+        final channelId = request.url.pathSegments.last;
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return _json({
+          'channel_id': channelId,
+          'preference': body['preference'],
+        });
+      }
+      return _json(const <Object>[]);
     }),
   ],
 );

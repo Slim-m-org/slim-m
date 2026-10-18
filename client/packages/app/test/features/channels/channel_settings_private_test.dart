@@ -8,13 +8,13 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_settings_private_row.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 
 import 'channel_management_harness.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 http.Response _json(Object body) => http.Response(
   jsonEncode(body),
@@ -121,27 +121,23 @@ void main() {
 
   test('making it public lifts only the view deny', () async {
     final puts = <Map<String, dynamic>>[];
-    final client = api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: api.SessionStore(tokens: tokens),
-      httpClient: MockClient((request) async {
-        if (request.method == 'PUT') {
-          puts.add(jsonDecode(request.body) as Map<String, dynamic>);
-          return _json({'overwrites': <Object>[], 'synced': false});
-        }
-        return _json({
-          'overwrites': [
-            {
-              'kind': 'role',
-              'id': 'everyone',
-              'allow': 0,
-              'deny': Perm.viewChannel | Perm.sendMessages,
-            },
-          ],
-          'synced': false,
-        });
-      }),
-    );
+    final client = testApi((request) async {
+      if (request.method == 'PUT') {
+        puts.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return _json({'overwrites': <Object>[], 'synced': false});
+      }
+      return _json({
+        'overwrites': [
+          {
+            'kind': 'role',
+            'id': 'everyone',
+            'allow': 0,
+            'deny': Perm.viewChannel | Perm.sendMessages,
+          },
+        ],
+        'synced': false,
+      });
+    }, session: api.SessionStore(tokens: tokens));
     addTearDown(client.close);
 
     await makeChannelPublic(

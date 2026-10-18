@@ -9,10 +9,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
     show serverInfoProvider;
 
@@ -41,24 +41,20 @@ ProviderContainer _containerWith({
         ),
       ),
       apiProvider.overrideWith((ref) {
-        return SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            onFetch();
-            return http.Response(
-              jsonEncode({
-                'url': 'https://example.com',
-                'title': 'An example',
-                'description': null,
-                'site_name': null,
-                'image_token': null,
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
-        );
+        return testApi((request) async {
+          onFetch();
+          return http.Response(
+            jsonEncode({
+              'url': 'https://example.com',
+              'title': 'An example',
+              'description': null,
+              'site_name': null,
+              'image_token': null,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }, session: ref.watch(sessionProvider));
       }),
     ],
   );
