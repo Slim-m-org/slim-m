@@ -108,8 +108,10 @@ async fn an_interactive_failure_is_counted_and_a_later_success_clears_the_streak
     assert_eq!(stat["run_count"], json!(2));
     assert_eq!(stat["failure_count"], json!(2));
     assert!(stat["failing_since"].is_i64(), "{stat}");
+    // Fuel or the wall clock, whichever a slow runner hits first: both are the run limit.
+    let error = stat["last_error"].as_str().unwrap();
     assert!(
-        stat["last_error"].as_str().unwrap().contains("limits"),
+        error.contains("limits") || error.contains("timed out"),
         "{stat}"
     );
 
@@ -180,8 +182,10 @@ async fn a_failed_scheduled_run_shows_its_error_and_uninstall_clears_the_rows() 
     );
     let stat = installed(&w, &token, "ticker").await["run_stats"][0].clone();
     assert_eq!(stat["failure_count"], json!(1), "{stat}");
+    // Fuel or the wall clock, whichever a slow runner hits first: both are the run limit.
+    let error = stat["last_error"].as_str().unwrap();
     assert!(
-        stat["last_error"].as_str().unwrap().contains("limits"),
+        error.contains("limits") || error.contains("timed out"),
         "{stat}"
     );
 
