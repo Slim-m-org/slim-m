@@ -7369,9 +7369,11 @@ paths:
         `Permissions`, the same bitmask `getChannelPermissions` returns.
 
         The prefix must be the one assigned to the bot (`Me.bot_prefix`); a
-        bot with none adopts the prefix it registers. Answers 409 naming the
-        other bot when a live bot already registered the same prefix and
-        command name, or when the prefix is not the assigned one.
+        bot with none adopts the prefix it registers. Answers 409 when the
+        prefix is not the assigned one. A command name the bot already held
+        is always kept. A newly added name another live bot already answers
+        to under the same prefix is left out, and the call still succeeds,
+        listing the left-out names in the `x-slimm-dropped-commands` header.
       requestBody:
         required: true
         content:

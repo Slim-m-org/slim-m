@@ -59,6 +59,23 @@ fn register_body(prefix: &str, names: &[&str]) -> Value {
     json!({ "prefix": prefix, "commands": commands })
 }
 
+async fn registered_names(router: &Router, root: &str, bot_id: &str) -> Vec<String> {
+    let (_, reg) = call(
+        router,
+        "GET",
+        &format!("/bots/{bot_id}/commands"),
+        root,
+        None,
+    )
+    .await;
+    reg["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["name"].as_str().unwrap().to_owned())
+        .collect()
+}
+
 #[tokio::test]
 async fn the_suggested_prefix_skips_one_a_live_bot_holds() {
     let (store, _guard) = new_store("slimm-botprefix-suggest").await;
@@ -174,7 +191,7 @@ async fn two_bots_share_a_prefix_only_while_their_command_names_differ() {
     let router = app(store);
 
     let (_, jellyfin, _) = make_bot(&router, &root, "jellyfin", Some("!")).await;
-    let (_, deals, _) = make_bot(&router, &root, "deals", Some("!")).await;
+    let (deals_id, deals, _) = make_bot(&router, &root, "deals", Some("!")).await;
     let (status, _) = call(
         &router,
         "PUT",
@@ -185,16 +202,30 @@ async fn two_bots_share_a_prefix_only_while_their_command_names_differ() {
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
-    let (status, body) = call(
+    let (status, _) = call(
         &router,
         "PUT",
         "/bots/commands",
         &deals,
-        Some(register_body("!", &["Watch"])),
+        Some(register_body("!", &["Watch", "pricewatch"])),
     )
     .await;
-    assert_eq!(status, StatusCode::CONFLICT);
-    assert!(body.to_string().contains("jellyfin"), "{body}");
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, held) = call(
+        &router,
+        "GET",
+        &format!("/bots/{deals_id}/commands"),
+        &root,
+        None,
+    )
+    .await;
+    let names: Vec<&str> = held["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["pricewatch"], "{held}");
 
     let (status, _) = call(
         &router,
@@ -214,7 +245,7 @@ async fn a_revoked_bots_commands_stop_blocking_others() {
     let router = app(store);
 
     let (old_id, old, _) = make_bot(&router, &root, "old", Some("!")).await;
-    let (_, new, _) = make_bot(&router, &root, "new", Some("!")).await;
+    let (new_id, new, _) = make_bot(&router, &root, "new", Some("!")).await;
     call(
         &router,
         "PUT",
@@ -231,7 +262,8 @@ async fn a_revoked_bots_commands_stop_blocking_others() {
         Some(register_body("!", &["watch"])),
     )
     .await;
-    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(registered_names(&router, &root, &new_id).await.is_empty());
 
     call(
         &router,
@@ -250,6 +282,46 @@ async fn a_revoked_bots_commands_stop_blocking_others() {
     )
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(registered_names(&router, &root, &new_id).await, ["watch"]);
+}
+
+#[tokio::test]
+async fn a_bot_keeps_a_name_it_already_held_when_another_bot_took_it_too() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-botprefix-existing").await;
+    let (root, _) = register(&store, "root").await;
+    let router = app(store);
+
+    let (jelly_id, jelly, _) = make_bot(&router, &root, "jellyfin", Some("!")).await;
+    let (pelican_id, pelican, _) = make_bot(&router, &root, "pelican", Some("!")).await;
+    for id in [&jelly_id, &pelican_id] {
+        let id = uuid::Uuid::parse_str(id).unwrap();
+        sqlx::query("INSERT INTO bot_command_registrations (bot_user_id, prefix, updated_at) VALUES (?, '!', 1)")
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO bot_commands (bot_user_id, name, description, position) VALUES (?, 'stop', 'stop it', 0)")
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    for token in [&jelly, &pelican] {
+        let (status, _) = call(
+            &router,
+            "PUT",
+            "/bots/commands",
+            token,
+            Some(register_body("!", &["stop"])),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+    assert_eq!(registered_names(&router, &root, &jelly_id).await, ["stop"]);
+    assert_eq!(
+        registered_names(&router, &root, &pelican_id).await,
+        ["stop"]
+    );
 }
 
 #[tokio::test]

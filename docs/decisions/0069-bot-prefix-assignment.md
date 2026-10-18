@@ -20,9 +20,9 @@ The server assigns the prefix, and refuses a clash when a bot registers.
 
 - Creating a bot takes an optional `prefix`. When it is absent the server picks the first free one (`GET /bots/suggested-prefix` returns the same suggestion so the form can show it). A prefix is free when no live bot holds it; a revoked, removed or deleted bot's prefix is free again.
 - The prefix is stored on the bot (`users.bot_prefix`) and returned on `Bot.prefix` and, for the bot itself, on `Me.bot_prefix`. A bot that predates this adopts the prefix it already registered, through a backfill in the migration.
-- Two bots may share a prefix. The check that matters is per command: registering `(prefix, name)` while another live bot has registered the same pair, compared case-insensitively, is refused with 409 naming that bot. Two bots on `!` with disjoint command names both register. Registration is a single write transaction, so two bots racing for one name cannot both win.
+- Two bots may share a prefix. The check that matters is per command: registering `(prefix, name)` while another live bot has registered the same pair, compared case-insensitively, is left out of the later registration, which still succeeds and lists the left-out names in the `x-slimm-dropped-commands` response header. A bot always keeps a name it already held, so a clash that predates this rule never blocks either bot (the released library retries a 409 forever). Two bots on `!` with disjoint command names both register. Registration is a single write transaction, so two bots racing for one name cannot both win.
 - A registration under a prefix other than the assigned one is refused with 409. A bot with no assigned prefix adopts the one it registers. The first registration under a name wins; a later one has to rename.
-- The framework reads `Me.bot_prefix` on connect and uses it in place of the constructor default or `SLIMM_PREFIX`. When those disagree it logs which one it used. A refused registration is logged at error level with the server's message, naming the bot it clashes with.
+- The framework reads `Me.bot_prefix` on connect and uses it in place of the constructor default or `SLIMM_PREFIX`. When those disagree it logs which one it used. A registration with left-out names logs them at warning level from the header.
 
 ## Composer hints
 

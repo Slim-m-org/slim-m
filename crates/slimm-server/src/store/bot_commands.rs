@@ -49,12 +49,6 @@ pub enum SetBotCommandsError {
     PrefixNotAssigned {
         assigned: String,
     },
-    /// Another live bot already answers to this prefix and command name.
-    CommandTaken {
-        bot_display_name: String,
-        prefix: String,
-        command: String,
-    },
     Internal(anyhow::Error),
 }
 
@@ -140,13 +134,14 @@ fn validate_bot_command(command: &BotCommand) -> Result<(), &'static str> {
 
 impl Store {
     /// Replaces a bot's whole registration in one transaction, all or
-    /// nothing on a validation failure.
+    /// nothing on a validation failure. Returns the newly added names dropped
+    /// because another live bot already answers to them.
     pub async fn set_bot_commands(
         &self,
         bot_user_id: UserId,
         prefix: &str,
         commands: &[BotCommand],
-    ) -> Result<(), SetBotCommandsError> {
+    ) -> Result<Vec<String>, SetBotCommandsError> {
         validate_bot_prefix(prefix).map_err(SetBotCommandsError::InvalidPrefix)?;
         if commands.len() > MAX_BOT_COMMANDS {
             return Err(SetBotCommandsError::TooManyCommands);
@@ -163,7 +158,12 @@ impl Store {
 
         let now = now_ms();
         let mut tx = self.begin_write().await?;
-        super::bot_prefix::claim_registration(&mut tx, bot_user_id, prefix, commands).await?;
+        let dropped =
+            super::bot_prefix::claim_registration(&mut tx, bot_user_id, prefix, commands).await?;
+        let commands: Vec<&BotCommand> = commands
+            .iter()
+            .filter(|c| !dropped.contains(&c.name.to_lowercase()))
+            .collect();
         sqlx::query!(
             "INSERT INTO bot_command_registrations (bot_user_id, prefix, updated_at)
              VALUES (?, ?, ?)
@@ -196,7 +196,7 @@ impl Store {
             .await?;
         }
         tx.commit().await?;
-        Ok(())
+        Ok(dropped)
     }
 
     /// A bot's whole current registration, unfiltered - see
