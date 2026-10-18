@@ -119,6 +119,36 @@ async fn a_viewer_with_both_bits_receives_the_cursor() {
     assert_eq!(frame["y"], -4.0);
 }
 
+/// Leaving the canvas is relayed so viewers hide the cursor at once.
+#[tokio::test]
+async fn a_pointer_leaving_the_canvas_is_relayed() {
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
+    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    alice_ws
+        .send(WsMessage::Text(
+            json!({
+                "type": "canvas.cursor", "channel_id": channel.to_string(),
+                "x": 0.0, "y": 0.0, "left": true,
+            })
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let frame = next_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    assert_eq!(frame["left"], true);
+    assert_eq!(frame["user_id"], alice_id.to_string());
+}
+
 #[tokio::test]
 async fn a_member_denied_use_canvas_never_sees_a_cursor() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
@@ -147,10 +177,11 @@ async fn a_member_denied_use_canvas_never_sees_a_cursor() {
     assert_nothing_of_type(&mut carol_ws, "canvas.cursor.moved").await;
 }
 
-/// A cursor also leaks presence the same way typing does, so a user who
-/// chose to appear offline must not have their pointer announced.
+/// Hiding presence does not hide live ink from people who can view the
+/// same canvas: they already see the committed result, and withholding the
+/// live frames made every hidden drawer's work appear only when finished.
 #[tokio::test]
-async fn a_hidden_users_cursor_is_not_announced() {
+async fn a_hidden_users_cursor_reaches_a_viewer_of_the_same_canvas() {
     use slimm_server::presence::Visibility;
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
@@ -169,7 +200,8 @@ async fn a_hidden_users_cursor_is_not_announced() {
 
     send_cursor(&mut alice_ws, &channel.to_string(), 1.0, 1.0).await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    let frame = next_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    assert_eq!(frame["user_id"], alice_id.to_string());
 }
 
 /// A position outside the bounded world (or non-finite) is dropped outright,

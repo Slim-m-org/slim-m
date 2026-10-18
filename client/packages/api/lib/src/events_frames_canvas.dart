@@ -90,12 +90,17 @@ class CanvasCursorMoved extends ServerEvent {
     required this.userId,
     required this.x,
     required this.y,
+    this.left = false,
   });
 
   final String channelId;
   final String userId;
   final double x;
   final double y;
+
+  /// The pointer left the canvas, so the cursor should be hidden at once
+  /// ([x] and [y] mean nothing then).
+  final bool left;
 }
 
 /// A live in-flight stroke preview on a channel's canvas: ephemeral, never
@@ -119,6 +124,33 @@ class CanvasStrokePreview extends ServerEvent {
   final String userId;
   final String objectId;
   final List<double> points;
+  final bool ended;
+}
+
+/// An object mid-drag or mid-resize: the box its mover currently holds.
+///
+/// Ephemeral and `seq`-less like [CanvasCursorMoved]; the committed
+/// [CanvasObjectMoved] always settles the final box. [ended] marks the last
+/// frame of the gesture.
+class CanvasObjectPreview extends ServerEvent {
+  const CanvasObjectPreview({
+    required this.channelId,
+    required this.userId,
+    required this.objectId,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+    required this.ended,
+  });
+
+  final String channelId;
+  final String userId;
+  final String objectId;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
   final bool ended;
 }
 

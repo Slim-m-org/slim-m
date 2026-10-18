@@ -18,19 +18,15 @@ import '../../../ids.dart';
 import 'canvas_cursor_relay.dart' show canvasParticipantColorIndex;
 
 /// How often this device's own buffered draft points are flushed at most.
-/// Slower than `canvas_cursor_relay.dart`'s own 80ms `cursorSendInterval`,
-/// because each frame here carries more than two numbers; the server's
-/// byte-rate budget (`Class::CanvasStrokePreview` in
-/// `crates/slimm-server/src/ratelimit.rs`) is sized against this exact
-/// interval.
-const Duration strokePreviewSendInterval = Duration(milliseconds: 90);
+/// 20 frames a second so a stroke grows near real time; the server's
+/// byte-rate budget (`Class::CanvasStrokePreview`) is sized against it.
+const Duration strokePreviewSendInterval = Duration(milliseconds: 50);
 
 /// How many points one flush may send. A well-behaved client never needs
-/// this much in one 90ms window; it exists so a burst of very fast pointer
+/// this much in one 50ms window; it exists so a burst of very fast pointer
 /// motion still produces a bounded frame rather than one that grows with
-/// how long the pause since the last flush was. The oldest points in an
-/// over-full buffer are dropped, not the newest: where the pen is *now*
-/// matters more to a live preview than exactly how it got there.
+/// how long the pause since the last flush was. An over-full buffer is thinned
+/// evenly, always keeping the newest point, so the shape survives.
 const int maxStrokePreviewPointsPerFrame = 20;
 
 /// How long a remote draft survives with no refresh before it is dropped -
@@ -113,16 +109,27 @@ class CanvasStrokePreviewRelay {
     send(objectId, points, ended);
   }
 
-  /// The flattened `[x0,y0,x1,y1,...]` for at most
-  /// [maxStrokePreviewPointsPerFrame] of [points], keeping the most recent.
+  /// The flattened `[x0,y0,x1,y1,...]` of [points], evenly thinned to at most
+  /// [maxStrokePreviewPointsPerFrame] with the newest kept, and rounded so a
+  /// 1000 Hz pointer stays inside the server's byte budget.
   List<double> _capped(List<Offset> points) {
     final kept = points.length > maxStrokePreviewPointsPerFrame
-        ? points.sublist(points.length - maxStrokePreviewPointsPerFrame)
+        ? _thinned(points)
         : points;
     return [
-      for (final p in kept) ...[p.dx, p.dy],
+      for (final p in kept) ...[_rounded(p.dx), _rounded(p.dy)],
     ];
   }
+
+  static List<Offset> _thinned(List<Offset> points) {
+    const last = maxStrokePreviewPointsPerFrame - 1;
+    return [
+      for (var i = 0; i <= last; i++)
+        points[(i * (points.length - 1) / last).round()],
+    ];
+  }
+
+  static double _rounded(double v) => (v * 100).roundToDouble() / 100;
 
   /// Call for every live stroke-preview frame naming this channel. Silently
   /// drops this device's own echo and a blocked author's ink, the same
@@ -135,7 +142,7 @@ class CanvasStrokePreviewRelay {
   ) {
     if (userId == selfId() || isBlocked(userId)) return;
     if (ended) {
-      drafts.end(objectId);
+      drafts.finish(objectId, now: clock.now());
       return;
     }
     if (points.isEmpty) return;

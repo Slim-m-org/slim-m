@@ -106,12 +106,58 @@ prints it every time so it cannot quietly grow.
 | `lib/e2e_input.py` | real pointer and key input: right-click, hold, Tab, Shift+Enter |
 | `lib/e2e_labels.py` | every accessible name the app is driven by, in one place |
 | `lib/e2e_api.py` | the server's own answer, for checking against |
-| `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py` | the scenarios |
+| `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py`, `e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py`, `e2e_voice_multishare.py` | the scenarios |
+| `lib/e2e_audio.py`, `e2e_audio_js.py`, `e2e_audio_levels.py`, `e2e_browsers.py`, `e2e_voice_ui.py` | the voice probe, its maths, extra browsers, and the call-surface helpers (see Measured voice) |
 | `lib/e2e_sweep.py` | the API-level routes the scenarios do not reach |
 | `lib/e2e_seed.py`, `e2e_fixtures.py` | the accounts and the two PNGs a run uploads |
 
 Labels live in one module because they are a contract with the UI rather than
 incidental strings: when one changes, exactly one line changes with it.
+
+## Measured voice
+
+Six scenarios judge voice by what a listener would hear and see, not by what a widget says.
+They live in `lib/e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py` and `e2e_voice_multishare.py`.
+
+`lib/e2e_audio_js.py` holds an in-page probe.
+`lib/e2e_audio.py` installs it with `Page.addScriptToEvaluateOnNewDocument` and reloads the page, so it sees the app's own `AudioContext` and `RTCPeerConnection`.
+For each remote audio element it samples every 50 ms, in two places: the stream as it arrives, and the output after the app's own gain graph (or after the element's mute and volume when the app has spliced in no graph).
+Comparing the two in the same window gives the gain the app applied, which cancels the sender's own level drift.
+`lib/e2e_audio_levels.py` is the plain maths (dB, percentiles, applied gain, leak, longest gap) and has its own unit tests.
+
+Chrome's fake microphone plays a WAV given with `--use-file-for-fake-audio-capture`.
+`make_fake_voice.py` writes the speech-shaped one every browser captures.
+`make_noisy_voice.py` writes a seeded speech-over-steady-noise one for the suppression scenario.
+A scenario that needs a third person, or a different WAV, starts its own browser through `lib/e2e_browsers.py` on ports 9811-9814 and always kills it again.
+
+| Scenario | Measured at the listener | Bounds |
+| --- | --- | --- |
+| noise suppression | alice listens to two senders playing the same noisy WAV, one the app untouched and one with only the browser's noise suppression refused; the noise-only floor and the speech level of each | the floor is at least 10 dB lower and the speech at most 3 dB lower with suppression; measured 17 dB and 0.3 dB |
+| a listener's volume slider | the gain applied to bob's stream at 100%, 47% and 0%, and again after leaving and rejoining | within 1.5 dB of the slider's own dB, nothing at all leaks at 0%, and 0% survives a rejoin |
+| picking a microphone | the published track's `deviceId` and label read off the sender, and the peer's longest silence | the track changes, the choice survives a rejoin, and the peer never loses bob for more than 1.5 s; measured 0.2 s |
+| deafening | bob's own playback of alice, and alice's of bob | deafened bob hears silence, alice still hears bob, undeafening restores it |
+| a share's own volume | bob's share is given a steady tone; the screen-audio stream and the voice stream are measured apart | the stream slider moves only the screen, the voice slider only the voice |
+| two shares at once | decoded frames and mean luminance of every `<video>` on three pages | carol decodes both, focusing enlarges one, showing all restores both, and stopping one leaves the other |
+
+The web client has the browser's noise suppression only.
+The rnnoise "Strong" mode is a native desktop capture chain and is measured natively, not here.
+Push-to-talk is a desktop-only control and does not exist on the web build, so no scenario here can hold a key; its gate is covered by the client's own unit tests.
+Mute and the speaking ring already had scenarios (`mute_actually_silences`, `audio_actually_arrives`), so they are not repeated.
+
+The thresholds come from measured runs, and each scenario prints the numbers it measured, so a later change to a bound is a judgement against data.
+A screen share has no system audio in a headless browser, so the sharer's `getDisplayMedia` is wrapped to add a tone as the share's audio track; the app then publishes and plays it as it would a tab's sound.
+
+Run one of them on its own, inside the shared lock (several agents use this machine, and `scripts/e2e.sh` owns fixed ports):
+
+```bash
+E2E_REBUILD=1 E2E_ONLY="volume slider" flock ~/.slimm-scratch/tmp/e2e.lock scripts/e2e.sh
+E2E_ONLY="noise suppression|deafening" scripts/e2e.sh    # several, split by |
+```
+
+`E2E_ONLY` matches a fragment of the scenario's name, so `noise suppression`, `volume slider`, `picking a microphone`, `deafening`, `share's own volume` and `two shares at once` each pick one.
+Leave `E2E_REBUILD` off to reuse the last web build, and set it after any client change.
+Each scenario joins its own call and leaves it, so any of them runs alone.
+Added to a full run they cost about eight minutes: the noise scenario about two (it signs two more accounts into two more browsers), the share volume and two-share scenarios a minute and a half each, the volume slider and microphone scenarios a minute each, and deafening about forty seconds.
 
 ## Driving a canvas app
 

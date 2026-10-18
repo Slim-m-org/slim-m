@@ -20,6 +20,11 @@ extension VoiceSessionTracks on VoiceSession {
   /// up rather than silently ignored.
   void _listen(lk.Room room) {
     _cancelEvents?.call();
+    _stopArrivalWatch?.call();
+    _stopArrivalWatch = rtc_gain.watchAudioArrivals(
+      (trackId) => _audio.holdArrival(
+          _audio.refsOf(room), trackId, rtc_gain.holdArrivedAudio),
+    );
     _cancelEvents = room.events.listen((event) {
       _mic.onRoomEvent(event);
       if (event is lk.RoomDisconnectedEvent) {
@@ -77,6 +82,8 @@ extension VoiceSessionTracks on VoiceSession {
     _stopStallWatch();
     _stopMicWatch();
     _capture.reset();
+    _stopArrivalWatch?.call();
+    _stopArrivalWatch = null;
     final cancelEvents = _cancelEvents;
     _cancelEvents = null;
     if (cancelEvents != null) await _step(cancelEvents);

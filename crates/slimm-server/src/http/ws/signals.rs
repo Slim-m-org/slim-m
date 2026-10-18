@@ -6,7 +6,9 @@
 
 use std::sync::Arc;
 
+use super::canvas_gate::{Frame, may_relay};
 use super::frames::ServerFrame;
+use super::permission_cache::PermissionCache;
 use crate::hub::{Event, Hub};
 use crate::ids::{CanvasObjectId, ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
@@ -264,6 +266,13 @@ pub(super) async fn handle_typing(
     });
 }
 
+/// A `canvas.cursor` frame's position and whether it reports leaving.
+pub(super) struct CursorAt {
+    pub(super) x: f64,
+    pub(super) y: f64,
+    pub(super) left: bool,
+}
+
 /// Relays a pointer position on a channel's canvas, if the rate limiter,
 /// bounds check and channel permissions all allow it. Silent on every
 /// rejection, the same treatment [`handle_typing`] gives a refused refresh:
@@ -279,9 +288,9 @@ pub(super) async fn handle_canvas_cursor(
     hub: &Hub,
     limiter: &RateLimiter,
     ctx: &SessionContext,
+    cache: &mut PermissionCache,
     channel_id: &str,
-    x: f64,
-    y: f64,
+    CursorAt { x, y, left }: CursorAt,
 ) {
     let Ok(channel_id) = uuid::Uuid::parse_str(channel_id) else {
         return;
@@ -298,10 +307,8 @@ pub(super) async fn handle_canvas_cursor(
 
     hub.presence().touch(ctx.user_id);
 
-    let needed = Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS);
-    match store.has_permission(ctx.user_id, channel_id, needed).await {
-        Ok(true) => {}
-        _ => return,
+    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Pointer).await {
+        return;
     }
 
     hub.publish(Event::CanvasCursorMoved {
@@ -309,6 +316,7 @@ pub(super) async fn handle_canvas_cursor(
         user_id: ctx.user_id,
         x,
         y,
+        left,
     });
 }
 
@@ -345,6 +353,7 @@ pub(super) async fn handle_canvas_stroke_preview(
     hub: &Hub,
     limiter: &RateLimiter,
     ctx: &SessionContext,
+    cache: &mut PermissionCache,
     frame: StrokePreviewFrame,
     frame_bytes: usize,
 ) {
@@ -375,15 +384,9 @@ pub(super) async fn handle_canvas_stroke_preview(
 
     hub.presence().touch(ctx.user_id);
 
-    let needed = Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS);
-    match store.has_permission(ctx.user_id, channel_id, needed).await {
-        Ok(true) => {}
-        _ => return,
-    }
     // Unlike a cursor, this frame carries ink; see this function's own doc.
-    match store.timed_out_until(ctx.user_id).await {
-        Ok(None) => {}
-        _ => return,
+    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Ink).await {
+        return;
     }
 
     hub.publish(Event::CanvasStrokePreview {
@@ -391,6 +394,64 @@ pub(super) async fn handle_canvas_stroke_preview(
         user_id: ctx.user_id,
         object_id,
         points: Arc::new(frame.points),
+        ended: frame.ended,
+    });
+}
+
+/// One `canvas.object_preview` frame's fields.
+pub(super) struct ObjectPreviewFrame {
+    pub(super) channel_id: String,
+    pub(super) object_id: String,
+    /// `[x, y, w, h]` in world units.
+    pub(super) rect: [f64; 4],
+    pub(super) ended: bool,
+}
+
+/// Relays a drag or resize preview if the limiter, bounds, permissions and
+/// timeout allow it; silent on every rejection like its siblings.
+pub(super) async fn handle_canvas_object_preview(
+    store: &Store,
+    hub: &Hub,
+    limiter: &RateLimiter,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+    frame: ObjectPreviewFrame,
+) {
+    let (Ok(channel_id), Ok(object_id)) = (
+        uuid::Uuid::parse_str(&frame.channel_id),
+        uuid::Uuid::parse_str(&frame.object_id),
+    ) else {
+        return;
+    };
+    let channel_id = ChannelId(channel_id);
+    let [x, y, w, h] = frame.rect;
+    if frame
+        .rect
+        .iter()
+        .any(|v| !v.is_finite() || v.abs() > WORLD_LIMIT)
+        || w < 0.0
+        || h < 0.0
+    {
+        return;
+    }
+    let key = format!("u:{}", ctx.user_id);
+    if !limiter.check(Class::CanvasObjectPreview, &key) {
+        return;
+    }
+    hub.presence().touch(ctx.user_id);
+
+    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Ink).await {
+        return;
+    }
+
+    hub.publish(Event::CanvasObjectPreview {
+        channel_id,
+        user_id: ctx.user_id,
+        object_id: CanvasObjectId(object_id),
+        x,
+        y,
+        w,
+        h,
         ended: frame.ended,
     });
 }

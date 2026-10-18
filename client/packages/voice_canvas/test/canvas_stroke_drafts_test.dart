@@ -214,4 +214,46 @@ void main() {
 
     expect(drafts.all, isEmpty);
   });
+
+  test('a finished draft stays painted until its committed stroke arrives', () {
+    final drafts = RemoteStrokeDrafts();
+    addTearDown(drafts.dispose);
+    drafts.appendOrCreate(
+      objectId: 'd1',
+      authorId: 'alice',
+      points: const [0.0, 0.0, 5.0, 5.0],
+      colorIndex: 0,
+    );
+
+    drafts.finish('d1');
+    expect(drafts.all.single.ended, isTrue);
+    expect(drafts.all.single.points, [0.0, 0.0, 5.0, 5.0]);
+
+    drafts.settleAuthor('bob');
+    expect(drafts.all, hasLength(1),
+        reason: 'another author must not settle it');
+    drafts.settleAuthor('alice');
+    expect(drafts.all, isEmpty);
+  });
+
+  test('a finished draft that never commits is dropped after the grace', () {
+    final drafts = RemoteStrokeDrafts();
+    addTearDown(drafts.dispose);
+    final base = DateTime(2026, 1, 1);
+    drafts.appendOrCreate(
+      objectId: 'd1',
+      authorId: 'alice',
+      points: const [0.0, 0.0],
+      colorIndex: 0,
+      now: base,
+    );
+    drafts.finish('d1', now: base);
+
+    drafts.pruneOlderThan(const Duration(seconds: 6),
+        now: base.add(const Duration(seconds: 1)));
+    expect(drafts.all, hasLength(1));
+    drafts.pruneOlderThan(const Duration(seconds: 6),
+        now: base.add(finishedDraftGrace + const Duration(milliseconds: 1)));
+    expect(drafts.all, isEmpty);
+  });
 }

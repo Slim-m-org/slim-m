@@ -203,12 +203,10 @@ void main() {
       expect(prefs.getBool(entry.value), isTrue, reason: entry.key);
     }
 
-    final spotify = find.byWidgetPredicate(
-      (w) => w is AppToggle && w.semanticLabel == 'Show my Spotify track',
+    expect(
+      find.text('Show my Spotify track'),
+      findsNothing,
+      reason: 'Spotify lives in Connections',
     );
-    await tester.ensureVisible(spotify);
-    await tester.tap(spotify);
-    await tester.pumpAndSettle();
-    expect(linker.begun, 1, reason: 'the switch starts the Spotify link');
   });
 }

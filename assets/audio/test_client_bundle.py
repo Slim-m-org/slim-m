@@ -20,11 +20,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE / "notifications"))
 
-from sounds import SOUNDS, UI_SOUNDS  # noqa: E402
-
-SHIPPED = [*SOUNDS, *UI_SOUNDS]
+# The ringtone is an iOS system asset and stays out of the client's copy.
+SHIPPED = sorted(p.stem for p in (HERE / "notifications").glob("*.wav") if p.stem != "callkit_ringtone")
 
 CANONICAL = HERE / "notifications"
 CLIENT_COPY = (
@@ -51,7 +49,7 @@ class ClientBundleCopy(unittest.TestCase):
         self.assertEqual(
             present,
             expected,
-            "the client copy's file set has drifted from SOUNDS and UI_SOUNDS",
+            "the client copy's file set has drifted from the canonical sounds",
         )
 
 

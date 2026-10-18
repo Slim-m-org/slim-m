@@ -42,6 +42,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 
 - [decisions/](decisions/README.md): architecture and product decision records.
 - [design/](design/): the design language, layout rules, wording and earlier explorations.
+- [design/sounds.md](design/sounds.md): the interface sounds, what each is for and how to regenerate them.
 - [research/](research/README.md): research notes, some superseded; the index says which.
 - [reports/](reports/): point-in-time reviews (screen inventories, performance).
 - [BACKLOG.md](BACKLOG.md), [IMPLIED-GAPS.md](IMPLIED-GAPS.md) and [phase3-notes.md](phase3-notes.md): historical planning notes from before the Planka board; kept for their reasoning, not as a task list.

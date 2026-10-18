@@ -13,11 +13,11 @@ Each section below is named for its workflow file.
 | `server-ci` | changes under `crates/` or `.sqlx/`, `schema/openapi.yaml`, the Cargo files, `rust-toolchain.toml`, `docker/server.Dockerfile`, or its own workflow file, and every merge queue entry (`merge_group`, which ignores path filters) | fmt, clippy, sqlx cache check, tests, release build, binary size budget |
 | `client-ci` | changes under `client/`, or to `schema/openapi.yaml`, `scripts/desktop-shell-smoke.sh`, `scripts/chrome-tests.sh` or its own workflow file; `update-golden-references` also by hand (workflow_dispatch), and every merge queue entry (`merge_group`, which ignores path filters) | dart analyze and format in one job, every package's tests plus the web build in another, the pure-logic tests listed in `client/chrome-tests.txt` compiled to JavaScript and run in Chrome in a third, so a typo reports in about a minute rather than fourteen; `update-golden-references` regenerates design_system's golden PNGs for a human to commit |
 | `client-macos-ci` | a nightly schedule, and by hand | that the Dart and Swift compile against the macOS SDK. Compile-only, unsigned, and not a required check |
-| `client-windows-ci` | pushes to `main` that touch `client/` or `packaging/windows/`, a nightly schedule, and by hand; not pull requests | that the native plugin graph links against the Windows SDK, the Windows launcher's Go tests, and that the Inno Setup script compiles. Compile-only, and not a required check |
+| `client-windows-ci` | pushes to `main` that touch `client/` or `packaging/windows/`, a nightly schedule, and by hand; not pull requests | that the native plugin graph links against the Windows SDK, the Windows launcher's Go tests (after `go generate` embeds its icon), and that the Inno Setup script compiles. Compile-only, and not a required check |
 | `android-ci` | changes to the client pubspecs or lockfile, anything under a package's `android/`, the verification script, its own workflow file or `main-builds.yml`, on pull requests and pushes to `main`, and by hand (workflow_dispatch) | the Android release APK and app bundle build with Gradle dependency verification on, so a stale `verification-metadata.xml` fails before merge instead of in `main-builds`; no secrets (debug-signed, placeholder `google-services.json`). Regenerate with `scripts/android-verification-metadata.sh` |
 | `client-ios-ci` | changes under `client/packages/app/ios/`, `rtc/`, `platform/`, `data/`, the pubspec files, on pull requests and pushes to `main` | every `Runner` source file is registered in `project.pbxproj` (ubuntu, always), the iOS CallKit XCTest and extension-embeds-no-frameworks checks on macOS, and an unsigned Release-configuration device build when a native-relevant path changed |
 | `schema-ci` | changes under `schema/`, `redocly.yaml` on pull requests; every push to `main` unconditionally, and every merge queue entry (`merge_group`, which ignores path filters) | redocly lint, the additive-only oasdiff gate against a PR's base on pull requests, and the same gate against the immediate parent commit on every push to `main` (required for a release; see below) |
-| `audio-ci` | changes under `assets/audio/` or the client's bundled copy in `client/packages/app/assets/audio/` | the seven notification sounds rebuild to the bytes that are committed, and the family is level with itself |
+| `audio-ci` | changes under `assets/audio/` or the client's bundled copy in `client/packages/app/assets/audio/` | the sixteen interface sounds and the CallKit ringtone rebuild to the bytes that are committed, and the palette keeps its levels |
 | `hygiene` | every pull request, and every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | iOS purpose strings, the iOS broadcast extension is wired up, orientation is locked on phones only, no emoji in UI source, SPDX headers on Rust source, the file-size budget, the comment cap, and the `scripts/lib` unit tests, which include the two structural gates on `required_checks` |
 | `advisory-watchdog` | a daily schedule, and by hand | nothing. It opens a deduplicated GitHub issue for a security advisory against a dependency and closes it once the tree is clean; the trigger `licenses` deliberately does not carry |
 | `licenses` | changes to any dependency manifest or lockfile or to `deny.toml`; every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | every Rust crate's and every pub package's license is in the one allowlist |
@@ -34,7 +34,8 @@ Each section below is named for its workflow file.
 | `server-binaries` | called by `release` and by `publish-paths`, or dispatched by hand to check both arches build | the static musl server binaries per arch, uploaded as run artifacts for `server-release-assets`, split out into its own file because `release` is past the 500-line budget |
 | `publish-paths` | pull requests that edit a publish recipe: the release, main-builds, server-binaries and web-image workflows, `docker/`, the Cargo and toolchain files, `client/pubspec.lock` | builds the release's server binaries, both server images and both web images from the same workflows the release uses, and publishes nothing, so a broken recipe fails on its PR instead of on the release (server-v0.84.0's arm64 binary) |
 | `copr-publish` | called by `main-builds` and `copr-catch-up` | the Fedora COPR snapshot submission, split out into its own file once `main-builds` hit the 500-line ceiling; a failed submit is retried up to three times and then fails the job |
-| `desktop-clients` | `client-v*` tag pushes, and by hand with a tag input | unsigned Windows and macOS tester archives, attached to the client's GitHub release, with the Windows launcher built and its Go tests run on the way, then the signed `update-manifest` job. The two desktop platforms `release` does not package |
+| `desktop-clients` | `client-v*` tag pushes, and by hand with a tag input | unsigned Windows and macOS tester archives, attached to the client's GitHub release, with the Windows launcher built (icon generated, linker `.lib` and `.exp` files dropped from the bundle) and its Go tests run on the way, then the signed `update-manifest` job. The two desktop platforms `release` does not package |
+| `client-checksums` | called by `release` after the Linux and Android jobs and by `desktop-clients` after its archives attach, and by hand with a tag input | writes one `SHA256SUMS` (and `SHA256SUMS.asc` when the GPG secret is set) over every client download attached to the release: Linux tarball, flatpak, rpm, Windows zip and setup, macOS zip and the apk. Writes only once the tarball, Windows zip, setup and macOS zip are all attached, whichever caller finishes last |
 | `update-manifest` | called by `desktop-clients` after its archives attach and by `release` after the Linux tarball attaches, and by hand with a tag input | signs a manifest (versions, artifact URLs, sha256s) of the desktop artifacts on a client release with the `UPDATE_SIGNING_KEY` secret, for the self-updater in decision 0041. Signs only once every platform (`windows-x64`, `macos`, `linux-x64`) is attached, whichever producer finishes last. Fails when the secret is unset, because a client release with no signed manifest cannot be updated to |
 | `release` | pushes to `main`, and by hand on a `server-v*` / `client-v*` tag ref | the whole publish pipeline, including the web image under the server's version |
 | `release-tag-watchdog` | an hourly schedule, and by hand | every release-please manifest's version has a matching git tag, catching a release PR that merged with no tag ever following it, and no merged release PR is still labelled `autorelease: pending`, which silently fails every later release run; and, in a second job, re-dispatches `release.yml` on the tag once when the release run's verify failed and the commit's required checks have since gone green |
@@ -915,6 +916,19 @@ That reasoning names a different trigger as the answer, and this is it.
 It gates nothing, and it does not report by its own colour: a scheduled workflow that only fails itself is a red tab nobody opens, which is the failure `red-streak-watchdog` already exists to correct.
 It opens a deduplicated GitHub issue instead, and closes it once the tree is clean again.
 
+## client-checksums
+
+`linux-client` still writes a first `SHA256SUMS` of the tarball, flatpak and rpm, because that file existed before the other downloads did.
+The Windows zip, the setup exe and the macOS zip are attached by `desktop-clients`, so a checksum file written in `release` alone could never list them.
+`client-checksums` is a reusable workflow that downloads the downloads actually attached to the release, hashes them and overwrites `SHA256SUMS`, so the file lists what is there rather than what one job built.
+`release` calls it after `linux-client` and `android-client`, and `desktop-clients` calls it after its two archive jobs.
+A call that finds the tarball, Windows zip, setup or macOS zip missing writes nothing and passes with a notice, so the caller that attaches the last one writes the full file.
+`release`'s call needs `linux-client` and names its result in its `if:` (`scripts/lib/test_conditional_jobs_keep_their_needs_gate.py`), which also makes it the last writer after `linux-client` re-uploads its partial file.
+Calls for one tag are serialised by a concurrency group, and the run that starts last always sees every earlier attach.
+It uploads with `RELEASE_PLEASE_TOKEN` when set, as `linux-client` does, because a release created with that token refuses uploads from the workflow token.
+`SHA256SUMS.android` is still written by `android-client`, because `scripts/check-release-assets.py` requires it; the apk is in the combined file too.
+By hand it takes a `tag`, which is how to backfill an older release.
+
 ## release-asset-watchdog
 
 release-please publishes the GitHub Release before any asset job runs, so a release is public, and `latest`, from the first second while its builds can still fail.
@@ -1289,8 +1303,8 @@ It has no concurrency group, because the reporting half is idempotent.
 ### audio-ci
 
 The notification WAVs are committed and generated from source, and this job regenerates them and fails on drift.
-It also runs the family's own checks, the important one being that the seven are level with each other.
-The first build of the set passed every per-file check while spanning 3.4 dB, because nothing had compared them.
+It also runs the palette's own checks: format, the two level bands, the peak ceiling and the loop seams.
+The first build of the old set passed every per-file check while spanning 3.4 dB, because nothing had compared them.
 
 ### red-streak-watchdog
 

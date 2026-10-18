@@ -184,8 +184,12 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// The same no-op-while-down shape as [notifyTyping]: a cursor position
   /// missed during a reconnect is worth nothing and must never surface as an
   /// error to whoever is drawing.
-  void notifyCanvasCursor(String channelId, double x, double y) =>
-      _connection?.canvasCursor(channelId, x, y);
+  void notifyCanvasCursor(
+    String channelId,
+    double x,
+    double y, {
+    bool left = false,
+  }) => _connection?.canvasCursor(channelId, x, y, left: left);
 
   /// Tells the server this user's in-flight stroke gained points, or ended.
   ///
@@ -203,6 +207,16 @@ class SyncController extends StateNotifier<SyncStatus> {
     points,
     ended: ended,
   );
+
+  /// Tells the server the box of the object this user is dragging or
+  /// resizing, or that the gesture ended; the same no-op-while-down shape.
+  void notifyCanvasObjectPreview(
+    String channelId,
+    String objectId,
+    ({double x, double y, double w, double h}) box, {
+    bool ended = false,
+  }) =>
+      _connection?.canvasObjectPreview(channelId, objectId, box, ended: ended);
 
   /// Starts, or restarts, synchronisation. Safe to call repeatedly: a call
   /// superseded by a later [start] or a [stop] before it reaches a given

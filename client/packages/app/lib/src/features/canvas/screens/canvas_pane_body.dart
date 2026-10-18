@@ -78,6 +78,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.cursors,
     this.cursorColors = const [],
     this.onPointerMoved,
+    this.onPointerLeft,
     this.remoteDrafts,
     this.onDraftPoint,
     this.onDraftEnded,
@@ -173,6 +174,7 @@ class CanvasPaneBody extends StatefulWidget {
   final CanvasCursors? cursors;
   final List<Color> cursorColors;
   final PointerMoved? onPointerMoved;
+  final VoidCallback? onPointerLeft;
 
   /// Other participants' in-flight strokes. Null renders no layer, the same
   /// "cheap to omit" shape [cursors] already offers.
@@ -449,6 +451,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           // Zero under reduce motion, which keeps the stepped positions.
           cursorGlide: AppMotion.reduced(context, cursorGlideDuration),
           onPointerMoved: widget.onPointerMoved,
+          onPointerLeft: widget.onPointerLeft,
           remoteDrafts: widget.remoteDrafts,
           onDraftPoint: widget.onDraftPoint,
           onDraftEnded: widget.onDraftEnded,

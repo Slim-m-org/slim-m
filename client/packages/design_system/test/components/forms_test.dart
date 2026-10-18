@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Widget tests for the form controls in `components/forms`.
-///
-/// The slider's "tall, muted, metered with ticks" case exists because the custom
-/// track and thumb paint code is the newest, highest-risk part of that widget.
-/// It exercises every optional feature at once so a bad rect (for example a
-/// meter fraction that clips negative) surfaces here rather than the first time
-/// a caller combines them.
+/// Widget tests for the form controls in `components/forms`; AppSlider has its
+/// own file, `app_slider_test.dart`.
 library;
 
 import 'package:flutter/material.dart';
@@ -395,98 +390,6 @@ void main() {
       await tester.tap(find.text('Deny'));
       await tester.pump();
       expect(reported, 2);
-    });
-  });
-
-  group('AppSlider', () {
-    testWidgets('reports value changes through onChanged', (tester) async {
-      double? reported;
-
-      await tester.pumpWidget(
-        _wrap(SizedBox(
-            width: 200,
-            child: AppSlider(value: 20, onChanged: (v) => reported = v))),
-      );
-
-      await tester.drag(find.byType(Slider), const Offset(100, 0));
-      await tester.pump();
-
-      expect(reported, isNotNull);
-    });
-
-    testWidgets('a divided slider draws no tick marks on its trough',
-        (tester) async {
-      await tester.pumpWidget(_wrap(SizedBox(
-          width: 200,
-          child:
-              AppSlider(value: 4, max: 16, divisions: 4, onChanged: (_) {}))));
-
-      final theme = SliderTheme.of(tester.element(find.byType(Slider)));
-      expect(theme.tickMarkShape, SliderTickMarkShape.noTickMark);
-    });
-
-    testWidgets('tall variant renders without a meter or ticks supplied',
-        (tester) async {
-      await tester.pumpWidget(_wrap(SizedBox(
-          width: 200,
-          child: AppSlider(value: 40, tall: true, onChanged: (_) {}))));
-
-      expect(find.byType(AppSlider), findsOneWidget);
-    });
-
-    testWidgets('tall, muted, metered slider with ticks paints without error',
-        (tester) async {
-      // Every optional feature at once, because the custom paint code is this
-      // widget's highest risk. See the library doc at the top of the file.
-      await tester.pumpWidget(
-        _wrap(
-          SizedBox(
-            width: 200,
-            child: AppSlider(
-              value: 65,
-              tall: true,
-              meter: 80,
-              muted: true,
-              ticks: const ['Quiet', 'Normal', 'Loud'],
-              onChanged: (_) {},
-            ),
-          ),
-        ),
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(AppSlider), findsOneWidget);
-    });
-
-    testWidgets('the tick nearest the thumb is the one picked out',
-        (tester) async {
-      const labels = ['Small', 'Default', 'Large'];
-      final accent = AppTokens.light.accent;
-
-      Future<List<String>> accented(double value) async {
-        await tester.pumpWidget(
-          _wrap(
-            SizedBox(
-              width: 200,
-              child: AppSlider(
-                value: value,
-                onChanged: (_) {},
-                ticks: labels,
-              ),
-            ),
-          ),
-        );
-        return [
-          for (final label in labels)
-            if (tester.widget<Text>(find.text(label)).style?.color == accent)
-              label,
-        ];
-      }
-
-      expect(await accented(0), ['Small']);
-      expect(await accented(40), ['Default']);
-      expect(await accented(50), ['Default']);
-      expect(await accented(100), ['Large']);
     });
   });
 }

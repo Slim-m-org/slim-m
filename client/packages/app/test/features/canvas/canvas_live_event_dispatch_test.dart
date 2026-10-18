@@ -12,8 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_activity_log.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_cursor_relay.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_object_preview_relay.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
@@ -60,6 +62,63 @@ CanvasSync _sync(CanvasDocument document) => CanvasSync(
   forgetFetchedRegion: () {},
 );
 
+CanvasObjectPreviewRelay _previewRelay(CanvasDocument document) =>
+    CanvasObjectPreviewRelay(
+      previews: RemoteObjectPreviews(document),
+      send: (_, _, _) {},
+      isBlocked: (_) => false,
+      selfId: () => null,
+      isDraggingLocally: (_) => false,
+    );
+
+class _RecordingPreviewRelay extends CanvasObjectPreviewRelay {
+  _RecordingPreviewRelay(CanvasDocument document)
+    : super(
+        previews: RemoteObjectPreviews(document),
+        send: (_, _, _) {},
+        isBlocked: (_) => false,
+        selfId: () => null,
+        isDraggingLocally: (_) => false,
+      );
+
+  final applied = <(String, String, ObjectBox, bool)>[];
+  final settled = <String>[];
+
+  @override
+  void applyRemote(String userId, String objectId, ObjectBox box, bool ended) =>
+      applied.add((userId, objectId, box, ended));
+
+  @override
+  void settle(String objectId) => settled.add(objectId);
+}
+
+const _preview = api.CanvasObjectPreview(
+  channelId: 'c1',
+  userId: 'alice',
+  objectId: 'a',
+  x: 1,
+  y: 2,
+  w: 3,
+  h: 4,
+  ended: false,
+);
+
+void _placeObject(CanvasDocument document) => document.applyPlaced(
+  const CanvasStrokeInput(
+    id: 'a',
+    seq: 1,
+    zIndex: 1,
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 1,
+    points: [],
+    width: 0,
+    colorKey: '',
+    kind: CanvasObjectKind.image,
+  ),
+);
+
 void main() {
   late CanvasDocument document;
   late CanvasSync sync;
@@ -77,26 +136,53 @@ void main() {
   });
 
   // Only for the activity-log cases below; the media-slot cases build their own.
+  RemoteStrokeDrafts? strokeDrafts;
+
   CanvasMediaSlotSync mediaSlotSync() => CanvasMediaSlotSync(
     channelId: 'c1',
     client: _inertApi(),
     overrides: CanvasPresenceTileOverrides(),
   );
 
-  void dispatch(api.ServerEvent event) => dispatchCanvasLiveEvent(
+  void dispatch(
+    api.ServerEvent event, {
+    CanvasCursorRelay? cursorRelay,
+    CanvasObjectPreviewRelay? previewRelay,
+    CanvasObjectLocks? locks,
+  }) => dispatchCanvasLiveEvent(
     event,
     paneChannelId: 'c1',
     sync: sync,
     document: document,
-    relay: () => throw StateError('no cursor event exercised here'),
+    relay: () =>
+        cursorRelay ?? (throw StateError('no cursor event exercised here')),
     strokePreviewRelay: () =>
         throw StateError('no stroke preview event exercised here'),
+    objectPreviewRelay: () => previewRelay ?? _previewRelay(document),
     applyPlacedObject: (_) {},
     forgetFetchedRegion: () {},
     activityLog: log,
+    strokeDrafts: strokeDrafts,
     mediaSlotSync: mediaSlotSync(),
-    objectLocks: CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
+    objectLocks:
+        locks ?? CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
   );
+
+  test('the committed stroke replaces its author finished live draft', () {
+    final drafts = strokeDrafts = RemoteStrokeDrafts();
+    addTearDown(drafts.dispose);
+    drafts.appendOrCreate(
+      objectId: 'd1',
+      authorId: 'alice',
+      points: const [0.0, 0.0],
+      colorIndex: 0,
+    );
+    drafts.finish('d1');
+
+    dispatch(api.CanvasObjectPlaced(channelId: 'c1', object: _object('a')));
+
+    expect(drafts.all, isEmpty);
+  });
 
   test('a live placement records with its own actor', () {
     dispatch(api.CanvasObjectPlaced(channelId: 'c1', object: _object('a')));
@@ -173,6 +259,7 @@ void main() {
       relay: () => throw StateError('no cursor event exercised here'),
       strokePreviewRelay: () =>
           throw StateError('no stroke preview event exercised here'),
+      objectPreviewRelay: () => _previewRelay(document),
       applyPlacedObject: (_) {},
       forgetFetchedRegion: () {},
       activityLog: log,
@@ -286,6 +373,7 @@ void main() {
       relay: () => throw StateError('no cursor event exercised here'),
       strokePreviewRelay: () =>
           throw StateError('no stroke preview event exercised here'),
+      objectPreviewRelay: () => _previewRelay(document),
       applyPlacedObject: (_) =>
           throw StateError('a media slot never places an object'),
       forgetFetchedRegion: () {},
@@ -328,6 +416,7 @@ void main() {
       relay: () => throw StateError('no cursor event exercised here'),
       strokePreviewRelay: () =>
           throw StateError('no stroke preview event exercised here'),
+      objectPreviewRelay: () => _previewRelay(document),
       applyPlacedObject: (_) =>
           throw StateError('a media slot never places an object'),
       forgetFetchedRegion: () {},
@@ -337,5 +426,98 @@ void main() {
     );
 
     expect(overrides.stateFor('camera:alice').rect, isNull);
+  });
+
+  group('object preview and cursor frames', () {
+    test('an object preview for a live, unlocked object reaches the relay', () {
+      _placeObject(document);
+      final relay = _RecordingPreviewRelay(document);
+
+      dispatch(_preview, previewRelay: relay);
+
+      expect(relay.applied, [
+        ('alice', 'a', (x: 1.0, y: 2.0, w: 3.0, h: 4.0), false),
+      ]);
+    });
+
+    test('an object preview for a locked object is ignored', () {
+      _placeObject(document);
+      final relay = _RecordingPreviewRelay(document);
+      final locks = CanvasObjectLocks(channelId: 'c1', client: _inertApi())
+        ..applyRemote(
+          const api.CanvasObjectLockChanged(
+            channelId: 'c1',
+            objectId: 'a',
+            locked: true,
+          ),
+        );
+
+      dispatch(_preview, previewRelay: relay, locks: locks);
+
+      expect(relay.applied, isEmpty);
+    });
+
+    test('an object preview for an object not in the document is ignored', () {
+      final relay = _RecordingPreviewRelay(document);
+
+      dispatch(_preview, previewRelay: relay);
+
+      expect(relay.applied, isEmpty);
+    });
+
+    test('a cursor frame with left removes that user cursor', () {
+      final cursors = CanvasCursors();
+      addTearDown(cursors.dispose);
+      final relay = CanvasCursorRelay(
+        cursors: cursors,
+        paletteSize: 6,
+        send: (_, _) {},
+        resolveLabel: (_) => 'Alice',
+        isBlocked: (_) => false,
+        selfId: () => 'me',
+      );
+      addTearDown(relay.dispose);
+      const moved = api.CanvasCursorMoved(
+        channelId: 'c1',
+        userId: 'alice',
+        x: 5,
+        y: 6,
+      );
+      dispatch(moved, cursorRelay: relay);
+      expect(cursors.all, hasLength(1));
+
+      dispatch(
+        const api.CanvasCursorMoved(
+          channelId: 'c1',
+          userId: 'alice',
+          x: 5,
+          y: 6,
+          left: true,
+        ),
+        cursorRelay: relay,
+      );
+
+      expect(cursors.all, isEmpty);
+    });
+
+    test('a committed move settles the preview of that object', () {
+      final relay = _RecordingPreviewRelay(document);
+
+      dispatch(
+        const api.CanvasObjectMoved(
+          channelId: 'c1',
+          seq: 1,
+          opId: 'op-1',
+          objectId: 'a',
+          x: 1,
+          y: 1,
+          w: 1,
+          h: 1,
+        ),
+        previewRelay: relay,
+      );
+
+      expect(relay.settled, ['a']);
+    });
   });
 }

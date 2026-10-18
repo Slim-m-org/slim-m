@@ -65,6 +65,7 @@ class InputSensitivityMeter extends ConsumerWidget {
             min: kInputFloorDb,
             max: 0,
             meter: level == null ? 0 : inputLevelFraction(level) * 100,
+            meterActive: reading?.voice ?? false,
             muted: !inCall || !flags.microphoneEnabled,
             semanticLabel: 'Input sensitivity',
             onChanged: auto

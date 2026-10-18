@@ -122,4 +122,14 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.112.0',
+    headline: 'New sounds',
+    points: [
+      WhatsNewPoint(
+        'New sounds for messages, calls, mute and deafen, so they sound like '
+        'one app.',
+      ),
+    ],
+  ),
 ];

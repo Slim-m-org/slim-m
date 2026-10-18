@@ -16,6 +16,8 @@ AppId={{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A30}
 AppName=slim-m
 AppVersion={#AppVersion}
 AppPublisher=slim-m
+SetupIconFile=..\..\client\packages\app\windows\runner\resources\app_icon.ico
+AppMutex=Local\top.npcserver.slimm.instance
 DefaultDirName={localappdata}\slim-m
 DisableDirPage=yes
 DisableProgramGroupPage=yes
@@ -35,7 +37,7 @@ RestartApplications=no
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
 [Files]
-Source: "{#SourceDir}\*"; DestDir: "{app}\app-{#AppVersion}"; Excludes: "install.cmd,install.ps1"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#SourceDir}\*"; DestDir: "{app}\app-{#AppVersion}"; Excludes: "install.cmd,install.ps1,*.lib,*.exp"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "{#SourceDir}\slim-m.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -103,6 +105,16 @@ begin
   end;
 end;
 
+// Start on login registers the launcher; a value pointing elsewhere is not ours to remove.
+procedure RemoveLoginStart;
+var
+  Command: String;
+begin
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'slim-m', Command) then
+    if Pos(Lowercase(ExpandConstant('{app}\')), Lowercase(Command)) > 0 then
+      RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'slim-m');
+end;
+
 // The app's own data lives under %APPDATA%, outside this folder, and stays.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
@@ -118,5 +130,8 @@ begin
     DeleteMatching('rolled-back');
     DeleteMatching('failed-version');
     DeleteMatching('.*.new');
+    DeleteMatching('running.pid');
+    RemoveLoginStart;
+    RemoveDir(ExpandConstant('{app}'));
   end;
 end;

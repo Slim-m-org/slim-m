@@ -17,6 +17,7 @@ import traceback
 import e2e_accounts
 import e2e_admin
 import e2e_canvas
+import e2e_canvas_live
 import e2e_canvas_shapes
 import e2e_labels as L
 import e2e_invite_landing
@@ -35,6 +36,12 @@ import e2e_coverage
 import e2e_sweep
 import e2e_threads
 import e2e_voice
+import e2e_voice_deafen
+import e2e_voice_devices
+import e2e_voice_multishare
+import e2e_voice_share
+import e2e_voice_noise
+import e2e_voice_volume
 import e2e_voice_network
 import e2e_video_quality
 import e2e_voice_rejoin
@@ -194,12 +201,22 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas.open_on_both(a, b, L.VOICE_CHANNEL)),
         ("canvas: a stroke arrives on the other client live",
          lambda: e2e_canvas.draw_stroke_and_see_it_live(a, b)),
+        ("canvas: the other client sees your cursor",
+         lambda: e2e_canvas_live.remote_cursor_shows(a, b)),
+        ("canvas: the other client drops your cursor when you leave",
+         lambda: e2e_canvas_live.cursor_hides_when_pointer_leaves(a, b)),
+        ("canvas: the other client sees a stroke before you let go",
+         lambda: e2e_canvas_live.stroke_shows_before_release(
+             a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: a pasted image renders, not just a box",
          lambda: e2e_canvas.paste_image_and_hydrate(
              a, b, server, admin, admin.channel_named(L.VOICE_CHANNEL)["id"],
              upload())),
         ("canvas: moving and resizing it converges on both sides",
          lambda: e2e_canvas.move_and_resize_converges(
+             a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
+        ("canvas: the other client sees a move before you let go",
+         lambda: e2e_canvas_live.move_shows_before_release(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: a note arrives on the other client live",
          lambda: e2e_canvas_shapes.place_note_and_see_it_live(
@@ -250,6 +267,28 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: a client that loses its network rejoins on its own",
          lambda: e2e_voice_network.rejoins_after_a_network_drop(
              a, b, room_id)),
+        ("voice: noise suppression quiets the noise floor and keeps the voice",
+         lambda: e2e_voice_noise.suppression_quiets_the_noise_floor(
+             a, server, secret, admin, sign_in, room_id)),
+        ("voice: a listener's volume slider scales the sound, to silence, and "
+         "survives rejoining",
+         lambda: e2e_voice_volume.individual_volume_scales_the_sound(
+             a, b, room_id, member.me()["id"])),
+        ("voice: picking a microphone mid-call changes the published track "
+         "and the peer never loses the voice",
+         lambda: e2e_voice_devices.mic_choice_changes_the_published_track(
+             a, b, room_id, member.me()["id"])),
+        ("voice: deafening silences what you hear and nothing of what you say",
+         lambda: e2e_voice_deafen.deafen_silences_playback_not_the_mic(
+             a, b, room_id, admin.me()["id"], member.me()["id"])),
+        ("voice: a share's own volume moves apart from the sharer's voice",
+         lambda: e2e_voice_share.stream_volume_is_apart_from_the_voice(
+             a, b, room_id, member.me()["id"])),
+        ("voice: two shares at once reach a third person, focus, and stopping "
+         "one leaves the other",
+         lambda: e2e_voice_multishare.two_shares_reach_a_third_viewer(
+             a, b, server, secret, admin, sign_in, room_id,
+             member.me()["id"])),
         ("voice: calling in a dm", lambda: e2e_dm_call.start_dm_and_call(
             a, b, admin, member)),
         ("voice: a call nobody answers shows up in the dm",
@@ -292,7 +331,9 @@ def main():
             # see the rail.
             go_home(a)
             go_home(b)
+            began = time.time()
             run()
+            print(f"  ({time.time() - began:.0f}s)")
         except Exception:
             # Kept going rather than stopped: one broken scenario should not
             # hide the state of every one after it, and the run still fails.

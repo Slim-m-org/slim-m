@@ -43,6 +43,7 @@ mod account_frames;
 mod authorization;
 mod authorization_bits;
 mod canvas_frames;
+mod canvas_gate;
 mod channel_scope;
 mod deployment_frames;
 mod ephemeral_frames;
@@ -161,15 +162,20 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 )
                                 .await;
                             }
-                            Ok(ClientFrame::CanvasCursor { channel_id, x, y }) => {
+                            Ok(ClientFrame::CanvasCursor {
+                                channel_id,
+                                x,
+                                y,
+                                left,
+                            }) => {
                                 signals::handle_canvas_cursor(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
+                                    &mut cache,
                                     &channel_id,
-                                    x,
-                                    y,
+                                    signals::CursorAt { x, y, left },
                                 )
                                 .await;
                             }
@@ -186,6 +192,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
+                                    &mut cache,
                                     signals::StrokePreviewFrame {
                                         channel_id,
                                         object_id,
@@ -193,6 +200,30 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                         ended,
                                     },
                                     frame_bytes,
+                                )
+                                .await;
+                            }
+                            Ok(ClientFrame::CanvasObjectPreview {
+                                channel_id,
+                                object_id,
+                                x,
+                                y,
+                                w,
+                                h,
+                                ended,
+                            }) => {
+                                signals::handle_canvas_object_preview(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    &mut cache,
+                                    signals::ObjectPreviewFrame {
+                                        channel_id,
+                                        object_id,
+                                        rect: [x, y, w, h],
+                                        ended,
+                                    },
                                 )
                                 .await;
                             }

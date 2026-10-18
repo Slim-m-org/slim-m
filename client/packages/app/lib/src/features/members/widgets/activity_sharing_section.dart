@@ -14,22 +14,21 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/activity_feeds.dart';
 import '../providers/activity_sharing_settings.dart';
 import '../../../spotify/spotify_link.dart';
-import '../../../spotify/spotify_link_status.dart';
 import 'activity_card.dart';
 import 'activity_game_list.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
-import '../../../widgets/spotify_link_row.dart';
 
 class ActivitySharingSection extends ConsumerWidget {
   const ActivitySharingSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feeds = ref.watch(availableActivityFeedsProvider);
+    final feeds = [
+      for (final feed in ref.watch(availableActivityFeedsProvider))
+        if (feed.enabled != shareSpotifyProvider) feed,
+    ];
     if (feeds.isEmpty) return const SizedBox.shrink();
-    final spotifyShown =
-        ref.watch(spotifyLinkStatusProvider) is! SpotifyUnlinked;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -52,8 +51,6 @@ class ActivitySharingSection extends ConsumerWidget {
                     ref.read(feed.enabled.notifier).setEnabled(value),
                 semanticLabel: feed.label,
               ),
-              if (feed.enabled == shareSpotifyProvider && spotifyShown)
-                const SpotifyLinkRow(),
               if (feed.enabled == shareGameProvider) const ActivityGameList(),
             ],
           ],

@@ -25,6 +25,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
   CanvasOpsController get _ops => _engine.ops;
   CanvasCursorRelay get _relay => _engine.cursorRelay;
   CanvasStrokePreviewRelay get _strokePreview => _engine.strokePreviewRelay;
+  CanvasObjectPreviewRelay get _objectPreview => _engine.objectPreviewRelay;
 
   CanvasImagePaste get _imagePaste => _imagePasteHelper ??= CanvasImagePaste(
     client: ref.read(apiProvider),

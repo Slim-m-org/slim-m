@@ -248,18 +248,17 @@ class SpotifySwitchController extends ActivitySwitchController {
 
   final Ref _ref;
 
-  /// On starts the browser step and stays off until the redirect has been
-  /// exchanged; [markLinked] is what turns it on.
-  @override
-  Future<void> setEnabled(bool enabled) async {
-    final linker = _ref.read(spotifyLinkerProvider);
-    if (enabled) {
-      final status = _ref.read(spotifyLinkStatusProvider);
-      if (status is SpotifyWaiting || status is SpotifyConnecting) return;
-      await linker.begin();
-      return;
-    }
-    await linker.unlink();
+  /// Starts the browser step; sharing stays off until [markLinked] runs after
+  /// the redirect has been exchanged.
+  Future<void> connect() async {
+    final status = _ref.read(spotifyLinkStatusProvider);
+    if (status is SpotifyWaiting || status is SpotifyConnecting) return;
+    await _ref.read(spotifyLinkerProvider).begin();
+  }
+
+  /// Deletes the link and stops sharing.
+  Future<void> disconnect() async {
+    await _ref.read(spotifyLinkerProvider).unlink();
     await super.setEnabled(false);
   }
 

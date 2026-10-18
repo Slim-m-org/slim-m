@@ -265,6 +265,7 @@ class CanvasDocument extends ChangeNotifier {
     if (stroke == null || !stroke.alive) return false;
     final dx = x - stroke.x;
     final dy = y - stroke.y;
+    if (dx == 0 && dy == 0 && w == stroke.w && h == stroke.h) return true;
     final points = stroke.points;
     for (var i = 0; i < points.length; i++) {
       points[i] += i.isEven ? dx : dy;

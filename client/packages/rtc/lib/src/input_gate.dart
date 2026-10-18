@@ -29,10 +29,14 @@ class InputGateReading {
     this.strongActive = false,
   });
 
-  /// Capture level in dBFS, before the gate.
+  /// The loudest 10ms frame since the last reading, in dBFS: the signal that
+  /// is sent, after noise suppression and before the gate, and the very level
+  /// the threshold is compared with.
   final double levelDb;
 
-  /// Whether the level crossed the threshold within the hold time.
+  /// Whether the gate is letting audio through: a frame crossed the threshold
+  /// within the hold time and, with Strong, rnnoise heard speech or a clearly
+  /// louder sound.
   final bool voice;
 
   /// Whether rnnoise processed the last frame; false when it is off, or on a

@@ -99,3 +99,80 @@ final _registry = GainGraphRegistry<_Graph>(
 
 Object? applyWebGain(String trackCid, double gain) =>
     _registry.apply('$_elementPrefix$trackCid', gain);
+
+@JS('MutationObserver')
+extension type _Observer._(JSObject _) implements JSObject {
+  external _Observer(JSFunction callback);
+  external void observe(JSObject target, JSObject options);
+  external void disconnect();
+}
+
+@JS('document.body')
+external JSObject get _body;
+
+@JS('document.querySelectorAll')
+external _NodeList _querySelectorAll(String selector);
+
+extension type _NodeList._(JSObject _) implements JSObject {
+  external int get length;
+  external _DomNode? item(int index);
+}
+
+extension type _DomNode._(JSObject _) implements JSObject {
+  external int get nodeType;
+  external String? get id;
+  external String get tagName;
+  external _NodeList querySelectorAll(String selector);
+}
+
+extension type _MutationRecord._(JSObject _) implements JSObject {
+  external _NodeList get addedNodes;
+  external _NodeList get removedNodes;
+}
+
+const _elementNode = 1;
+const _audioSelector = 'audio[id^="$_elementPrefix"]';
+
+void _forEachAudioId(_NodeList nodes, void Function(String id) visit) {
+  for (var i = 0; i < nodes.length; i++) {
+    final node = nodes.item(i)!;
+    if (node.nodeType != _elementNode) continue;
+    final id = node.id;
+    if (node.tagName == 'AUDIO' && id!.startsWith(_elementPrefix)) visit(id);
+    final inside = node.querySelectorAll(_audioSelector);
+    for (var j = 0; j < inside.length; j++) {
+      visit(inside.item(j)!.id!);
+    }
+  }
+}
+
+/// Reports each new `livekit_audio_*` element once, in the microtask after the
+/// browser inserts it, which is before the stream behind it has produced sound.
+///
+/// Reads only the nodes each mutation added or removed: Flutter's semantics
+/// tree mutates the body every frame, so a document rescan would run at that rate.
+void Function() watchWebAudioArrivals(void Function(String trackId) onArrive) {
+  final seen = <String>{};
+  void arrive(String id) {
+    if (seen.add(id)) onArrive(id.substring(_elementPrefix.length));
+  }
+
+  final existing = _querySelectorAll(_audioSelector);
+  for (var i = 0; i < existing.length; i++) {
+    arrive(existing.item(i)!.id!);
+  }
+
+  void onMutations(JSArray<_MutationRecord> records) {
+    for (final record in records.toDart) {
+      _forEachAudioId(record.removedNodes, seen.remove);
+      _forEachAudioId(record.addedNodes, arrive);
+    }
+  }
+
+  final observer = _Observer(
+    ((JSArray<_MutationRecord> records, JSAny? _) => onMutations(records)).toJS,
+  );
+  observer.observe(
+      _body, {'childList': true, 'subtree': true}.jsify()! as JSObject);
+  return () => observer.disconnect();
+}

@@ -57,4 +57,19 @@ void main() {
 
     expect(event, isNull);
   });
+
+  test('a left frame says the pointer left the canvas', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'canvas.cursor.moved',
+        'channel_id': 'chan-1',
+        'user_id': 'user-1',
+        'x': 0,
+        'y': 0,
+        'left': true,
+      }),
+    );
+
+    expect((event as CanvasCursorMoved).left, isTrue);
+  });
 }

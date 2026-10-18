@@ -167,6 +167,68 @@ void main() {
     expect(moved, [const Offset(20, 20), const Offset(60, 40)]);
   });
 
+  testWidgets('lifting a touch reports the pointer left, a mouse does not', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    var left = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          onStroke: (_) {},
+          onPointerLeft: () => left++,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final mouse = await tester.startGesture(
+      const Offset(20, 20),
+      kind: PointerDeviceKind.mouse,
+    );
+    await mouse.up();
+    expect(left, 0, reason: 'a mouse is still hovering after a click');
+
+    final touch = await tester.startGesture(const Offset(20, 20));
+    await touch.up();
+    expect(left, 1);
+  });
+
+  testWidgets('a mouse leaving the surface reports the pointer left', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    var left = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: CanvasSurface(
+              document: document,
+              ink: const Color(0xFFE86A5C),
+              onStroke: (_) {},
+              onPointerLeft: () => left++,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(CanvasSurface)));
+    expect(left, 0);
+    await mouse.moveTo(const Offset(5, 5));
+    expect(left, 1);
+  });
+
   testWidgets('a cursor layer paints only when cursors is supplied', (
     tester,
   ) async {

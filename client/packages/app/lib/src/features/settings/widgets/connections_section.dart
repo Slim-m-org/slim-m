@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accounts from other services a member links to their profile. Only Discord.
+/// Accounts from other services a member links: Discord, and Spotify with its
+/// now-playing switch.
 library;
 
 import 'dart:async';
@@ -13,10 +14,12 @@ import '../../../external_link.dart';
 import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
+import '../../../spotify/spotify_config.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/linked_accounts.dart';
 import 'settings_detail_row.dart';
 import 'settings_refresh_button.dart';
+import 'spotify_connection_rows.dart';
 import 'settings_section_header.dart';
 
 class ConnectionsSection extends ConsumerStatefulWidget {
@@ -80,7 +83,11 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
     final discord = links.valueOrNull
         ?.where((link) => link.isDiscord)
         .firstOrNull;
-    if (unavailable && discord == null) return const SizedBox.shrink();
+    final discordShown = !(unavailable && discord == null);
+    final spotifyShown = ref.watch(
+      spotifyClientIdProvider.select((id) => id.isNotEmpty),
+    );
+    if (!discordShown && !spotifyShown) return const SizedBox.shrink();
 
     return SettingsSectionCard(
       title: 'Connections',
@@ -90,38 +97,53 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
         onPressed: () => ref.invalidate(myLinkedAccountsProvider),
       ),
       children: [
-        if (links.hasError && discord == null)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: AppErrorState(
-              message: 'Could not load your connections.',
-              onRetry: () => ref.invalidate(myLinkedAccountsProvider),
-            ),
-          )
-        else if (!links.hasValue)
-          const Padding(
-            padding: EdgeInsets.all(AppSpacing.s16),
-            child: LinearProgressIndicator(),
-          )
-        else
-          SettingsDetailRow(
-            icon: AppIcons.link,
-            title: 'Discord',
-            detail: discord == null ? 'Not linked' : discordLabel(discord),
-            error: actionError,
-            onErrorDismiss: clearActionError,
-            trailing: AppButton(
-              label: discord == null ? 'Link' : 'Unlink',
-              size: AppButtonSize.sm,
-              variant: discord == null
-                  ? AppButtonVariant.secondary
-                  : AppButtonVariant.danger,
-              disabled: _busy,
-              onPressed: () => unawaited(discord == null ? _link() : _unlink()),
-            ),
-          ),
+        if (discordShown) ..._discordRows(links, discord),
+        if (spotifyShown) ...spotifyConnectionChildren(ref),
       ],
     );
+  }
+
+  List<Widget> _discordRows(
+    AsyncValue<List<api.LinkedAccount>> links,
+    api.LinkedAccount? discord,
+  ) {
+    if (links.hasError && discord == null) {
+      return [
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.s16),
+          child: AppErrorState(
+            message: 'Could not load your connections.',
+            onRetry: () => ref.invalidate(myLinkedAccountsProvider),
+          ),
+        ),
+      ];
+    }
+    if (!links.hasValue) {
+      return const [
+        Padding(
+          padding: EdgeInsets.all(AppSpacing.s16),
+          child: LinearProgressIndicator(),
+        ),
+      ];
+    }
+    return [
+      SettingsDetailRow(
+        icon: AppIcons.link,
+        title: 'Discord',
+        detail: discord == null ? 'Not linked' : discordLabel(discord),
+        error: actionError,
+        onErrorDismiss: clearActionError,
+        trailing: AppButton(
+          label: discord == null ? 'Link' : 'Unlink',
+          size: AppButtonSize.sm,
+          variant: discord == null
+              ? AppButtonVariant.secondary
+              : AppButtonVariant.danger,
+          disabled: _busy,
+          onPressed: () => unawaited(discord == null ? _link() : _unlink()),
+        ),
+      ),
+    ];
   }
 }
 

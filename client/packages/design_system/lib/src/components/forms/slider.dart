@@ -25,6 +25,10 @@ import '../../touch_targets.dart';
 import 'focusable_tap_target.dart';
 import 'slider_shapes.dart';
 
+/// How much of the accent and of the disabled tone the live and silenced meters keep.
+const activeMeterAlpha = 0.7;
+const inactiveMeterAlpha = 0.5;
+
 class AppSlider extends StatefulWidget {
   const AppSlider({
     super.key,
@@ -36,6 +40,7 @@ class AppSlider extends StatefulWidget {
     this.divisions,
     this.tall = false,
     this.meter,
+    this.meterActive = true,
     this.muted = false,
     this.ticks,
     this.semanticLabel,
@@ -57,6 +62,10 @@ class AppSlider extends StatefulWidget {
   /// [value]. Not tied to [min]/[max]: in the source design it is a
   /// separate real-time signal, not a second position on the same scale.
   final double? meter;
+
+  /// False draws [meter] in a neutral tone, for a level that is not being
+  /// used, such as a microphone the input gate is silencing.
+  final bool meterActive;
   final bool muted;
 
   /// Labels spread evenly beneath the track, from [min] to [max]. The one
@@ -100,6 +109,18 @@ class _AppSliderState extends State<AppSlider> {
     return widget.onChanged == null ? 0.7 : 1;
   }
 
+  /// A live level reads at accent strength, a silenced one recedes behind it; the
+  /// old accentSoft tint was 1.1-1.3:1 against the trough and so the silenced
+  /// meter looked louder than the live one. A muted slider is already at half
+  /// opacity, so its inactive meter skips the extra dimming.
+  Color _meterColor(AppTokens tokens) {
+    if (widget.meterActive) {
+      return tokens.accentFill.withValues(alpha: activeMeterAlpha);
+    }
+    if (widget.muted) return tokens.textSecondary;
+    return tokens.textDisabled.withValues(alpha: inactiveMeterAlpha);
+  }
+
   Widget _tickLabels(AppTokens tokens) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -134,7 +155,7 @@ class _AppSliderState extends State<AppSlider> {
       borderColor: tokens.borderSubtle,
       trackColor: trackColor,
       fillColor: fillColor,
-      meterColor: tokens.accentSoft,
+      meterColor: _meterColor(tokens),
       meterFraction: meterFraction,
     );
     final thumb = TroughThumbShape(

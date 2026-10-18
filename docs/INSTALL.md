@@ -169,9 +169,10 @@ A release page lists several files, and most of them are not for you:
 | `slim-m-client-<version>-linux-amd64.tar.gz` | Linux, extract and run, or `install.sh` for a self-updating install |
 | `slim-m-client-<version>.flatpak` | Linux flatpak bundle |
 | `slim-m-client-<version>-windows-x64.zip` | Windows |
+| `slim-m-setup-<version>.exe` | Windows installer, per user, no administrator rights |
 | `slim-m-client-<version>-macos.zip` | macOS |
 | `slim-m-client-android.apk` | Android, this is the one you want |
-| `SHA256SUMS`, `SHA256SUMS.android` | checksums, for verifying a download |
+| `SHA256SUMS`, `SHA256SUMS.android` | checksums for every download above; the Android file lists only the apk |
 | `manifest.json`, `manifest.json.sig` | the signed list the desktop app updates from; not for you to open |
 
 To check a download matches what was published, compare it against the checksums file:

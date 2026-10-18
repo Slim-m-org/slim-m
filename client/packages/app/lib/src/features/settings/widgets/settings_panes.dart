@@ -138,9 +138,8 @@ class SettingsPanesScaffold extends StatefulWidget {
   final String backTooltip;
   final String backFallback;
 
-  /// Below the nav, pinned: sign out. Who-you-are lives inside the "Account &
-  /// presence" pane itself now, not above the nav as a second, editable copy
-  /// of the same identity - see that pane's own doc comment.
+  /// Sign out: pinned under the wide rail, the last row of the list on compact
+  /// so it never costs the list its height.
   final Widget? footer;
 
   @override
@@ -450,13 +449,7 @@ class _Nav extends StatelessWidget {
                   child: list,
                 ),
         ),
-        if (footer != null)
-          Padding(
-            padding: rail
-                ? EdgeInsets.zero
-                : const EdgeInsets.all(AppSpacing.s8),
-            child: footer!,
-          ),
+        if (footer != null && rail) footer!,
       ],
     );
   }
@@ -484,12 +477,18 @@ class _Nav extends StatelessWidget {
               AppSpacing.s16,
             ),
             children: [
-              for (final group in groups)
+              for (final (index, group) in groups.indexed)
                 SettingsSectionCard(
                   title: group.label,
+                  topGap: index == 0 ? AppSpacing.s8 : kSettingsSectionTopGap,
                   children: [
                     for (final pane in group.panes) _row(context, pane),
                   ],
+                ),
+              if (footer != null)
+                SettingsSectionCard(
+                  topGap: kSettingsSectionTopGap,
+                  children: [footer!],
                 ),
             ],
           );

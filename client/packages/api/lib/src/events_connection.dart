@@ -145,12 +145,19 @@ class EventConnection {
   /// as often as the caller likes - the server rate-limits and drops the
   /// excess silently. The caller is expected to throttle on its own so a
   /// well-behaved client rarely hits that limit in the first place.
-  void canvasCursor(String channelId, double x, double y) => _channel.sink.add(
+  void canvasCursor(
+    String channelId,
+    double x,
+    double y, {
+    bool left = false,
+  }) =>
+      _channel.sink.add(
         jsonEncode({
           'type': 'canvas.cursor',
           'channel_id': channelId,
           'x': x,
           'y': y,
+          if (left) 'left': true,
         }),
       );
 
@@ -172,6 +179,28 @@ class EventConnection {
           'channel_id': channelId,
           'object_id': objectId,
           'points': points,
+          'ended': ended,
+        }),
+      );
+
+  /// Relays the box of an object this device is dragging or resizing. The
+  /// same ephemeral, rate-limited shape as [canvasCursor]; [ended] marks the
+  /// gesture's last frame.
+  void canvasObjectPreview(
+    String channelId,
+    String objectId,
+    ({double x, double y, double w, double h}) box, {
+    bool ended = false,
+  }) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.object_preview',
+          'channel_id': channelId,
+          'object_id': objectId,
+          'x': box.x,
+          'y': box.y,
+          'w': box.w,
+          'h': box.h,
           'ended': ended,
         }),
       );

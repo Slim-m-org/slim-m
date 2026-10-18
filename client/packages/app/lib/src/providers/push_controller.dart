@@ -95,6 +95,8 @@ class PushController extends StateNotifier<PushStatus>
     // Kept for this controller's whole life, not just while registered: a
     // failed attempt still needs the next resume to retry on.
     WidgetsBinding.instance.addObserver(this);
+    _hasBeenResumed =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _lastSignedIn = session.isSignedIn;
     if (_lastSignedIn) unawaited(register());
 
@@ -379,23 +381,33 @@ class PushController extends StateNotifier<PushStatus>
           );
       if (includeContent != null) unawaited(preview.markSent());
       state = PushStatus.registered;
-      final current =
-          WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
-      unawaited(_reportLifecycle(_stateLabel(current)));
+      unawaited(_reportLifecycle(_currentLabel()));
     } catch (error, stack) {
       reportFailure(LogTag.push, 'register this device for push', error, stack);
       state = PushStatus.serverError;
     }
   }
 
+  /// Whether this process has ever been resumed. A process woken in the
+  /// background (a call ring, a silent push) is never resumed, and its
+  /// `inactive` or missing state must not read as a visible app.
+  bool _hasBeenResumed = false;
+
+  String _currentLabel() => _stateLabel(WidgetsBinding.instance.lifecycleState);
+
   /// On iOS `inactive` is a visible-but-not-focused app: the Control Centre
   /// pulled down, the app switcher, an incoming call banner. Treating it as
   /// background would notify someone who is looking straight at the screen, so
-  /// only a genuinely hidden app counts as background.
-  static String _stateLabel(AppLifecycleState state) => switch (state) {
-    AppLifecycleState.resumed || AppLifecycleState.inactive => 'foreground',
-    _ => 'background',
-  };
+  /// only a genuinely hidden app counts as background - but only once the app
+  /// has actually been in front of the user during this process.
+  String _stateLabel(AppLifecycleState? state) {
+    if (state == AppLifecycleState.resumed) _hasBeenResumed = true;
+    return switch (state) {
+      AppLifecycleState.resumed => 'foreground',
+      AppLifecycleState.inactive when _hasBeenResumed => 'foreground',
+      _ => 'background',
+    };
+  }
 
   /// A resume retries registration when this device is not registered yet. A
   /// denied permission, a token that had not arrived, or a server that was
@@ -411,8 +423,9 @@ class PushController extends StateNotifier<PushStatus>
         this.state != PushStatus.registered) {
       unawaited(register());
     }
+    final label = _stateLabel(state);
     if (_isRegisteredWithServer) {
-      unawaited(_reportLifecycle(_stateLabel(state)));
+      unawaited(_reportLifecycle(label));
     }
   }
 
@@ -476,7 +489,7 @@ class PushController extends StateNotifier<PushStatus>
 
   void _startForegroundHeartbeat() {
     _foregroundHeartbeat ??= Timer.periodic(_foregroundHeartbeatInterval, (_) {
-      unawaited(_reportLifecycle('foreground'));
+      unawaited(_reportLifecycle(_currentLabel()));
     });
   }
 

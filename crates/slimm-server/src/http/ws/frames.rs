@@ -269,6 +269,8 @@ pub(super) enum ServerFrame {
         user_id: String,
         x: f64,
         y: f64,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        left: bool,
     },
     #[serde(rename = "canvas.stroke_preview.updated")]
     CanvasStrokePreview {
@@ -276,6 +278,17 @@ pub(super) enum ServerFrame {
         user_id: String,
         object_id: String,
         points: Vec<f64>,
+        ended: bool,
+    },
+    #[serde(rename = "canvas.object_preview.updated")]
+    CanvasObjectPreview {
+        channel_id: String,
+        user_id: String,
+        object_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
         ended: bool,
     },
     #[serde(rename = "canvas.object.moved")]
@@ -423,7 +436,14 @@ pub(super) enum ClientFrame {
     /// [`super::signals::handle_canvas_cursor`]. No "stop" frame either, for
     /// the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
     #[serde(rename = "canvas.cursor")]
-    CanvasCursor { channel_id: String, x: f64, y: f64 },
+    CanvasCursor {
+        channel_id: String,
+        x: f64,
+        y: f64,
+        /// The pointer left the canvas; see [`crate::hub::Event::CanvasCursorMoved`].
+        #[serde(default)]
+        left: bool,
+    },
     /// An in-flight stroke preview on a channel's canvas. Rate-limited by the
     /// frame's own byte size rather than by count, and authorized on the same
     /// bar the canvas write route uses (view plus `USE_CANVAS`, plus a direct
@@ -435,6 +455,20 @@ pub(super) enum ClientFrame {
         channel_id: String,
         object_id: String,
         points: Vec<f64>,
+        #[serde(default)]
+        ended: bool,
+    },
+    /// The box of an object this client is dragging or resizing, so others
+    /// can follow it before the move commits. Gated like a cursor, plus a
+    /// timeout check; see [`super::signals::handle_canvas_object_preview`].
+    #[serde(rename = "canvas.object_preview")]
+    CanvasObjectPreview {
+        channel_id: String,
+        object_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
         #[serde(default)]
         ended: bool,
     },

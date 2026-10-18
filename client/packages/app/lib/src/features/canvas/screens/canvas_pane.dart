@@ -46,6 +46,7 @@ import 'canvas_activity_log.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
+import 'canvas_object_preview_relay.dart';
 import 'canvas_engine.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
@@ -180,6 +181,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     final fullscreen = _fullscreen;
     // The one ref.watch keeping canvasEngineProvider alive; see its own doc.
     final engineState = ref.watch(canvasEngineProvider(widget.channelId));
+    _engine.objectPreviewGlide = AppMotion.reduced(
+      context,
+      objectPreviewGlideDuration,
+    );
     ref.listen(voiceFlagsProvider, _closeWhenCallEnds);
     return CanvasObjectLocksScope(
       locks: _engine.objectLocks,
@@ -264,6 +269,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             cursors: _cursors,
             cursorColors: AppCanvasColors.cursors,
             onPointerMoved: _onPointerMoved,
+            onPointerLeft: () => _relay.reportLocalPointerLeft(),
             remoteDrafts: _remoteDrafts,
             onDraftPoint: _strokePreview.reportLocalDraftPoint,
             onDraftEnded: _strokePreview.endLocalDraft,
