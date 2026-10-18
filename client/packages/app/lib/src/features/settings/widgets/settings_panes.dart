@@ -485,10 +485,11 @@ class _Nav extends StatelessWidget {
                     for (final pane in group.panes) _row(context, pane),
                   ],
                 ),
-              if (footer != null) ...[
-                const SizedBox(height: AppSpacing.s16),
-                footer!,
-              ],
+              if (footer != null)
+                SettingsSectionCard(
+                  topGap: kSettingsSectionTopGap,
+                  children: [footer!],
+                ),
             ],
           );
   }

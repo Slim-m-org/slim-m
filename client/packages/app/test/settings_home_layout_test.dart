@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_app/src/features/settings/screens/personal_settings_screen.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -64,6 +66,20 @@ void main() {
     );
   });
 
+  testWidgets('phone: Sign out icon lines up with the card rows above', (
+    tester,
+  ) async {
+    await _pump(tester, const Size(390, 1600));
+    final signOutIcon = tester.getRect(find.byIcon(AppIcons.signOut));
+    final rowIcon = tester.getRect(find.byIcon(AppIcons.account));
+    expect(signOutIcon.left, rowIcon.left);
+    final card = tester.getRect(find.byType(SettingsSectionCard).last);
+    expect(
+      card.left,
+      tester.getRect(find.byType(SettingsSectionCard).first).left,
+    );
+  });
+
   testWidgets('phone: the search field sits close under the app bar', (
     tester,
   ) async {
@@ -80,5 +96,17 @@ void main() {
     expect(find.text('Sign out'), findsOneWidget);
     final signOut = tester.getRect(find.text('Sign out'));
     expect(signOut.left, lessThan(240));
+    final rail = tester.getRect(find.byType(ListView).first);
+    final row = tester.getRect(find.byType(SignOutRow));
+    expect(
+      row.top,
+      closeTo(rail.bottom, 1),
+      reason: 'directly under the rail list',
+    );
+    expect(
+      row.bottom,
+      closeTo(500, AppSpacing.s16),
+      reason: 'pinned to the bottom of the rail, not floating mid-list',
+    );
   });
 }
