@@ -203,6 +203,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas.draw_stroke_and_see_it_live(a, b)),
         ("canvas: the other client sees your cursor",
          lambda: e2e_canvas_live.remote_cursor_shows(a, b)),
+        ("canvas: the other client drops your cursor when you leave",
+         lambda: e2e_canvas_live.cursor_hides_when_pointer_leaves(a, b)),
         ("canvas: the other client sees a stroke before you let go",
          lambda: e2e_canvas_live.stroke_shows_before_release(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
