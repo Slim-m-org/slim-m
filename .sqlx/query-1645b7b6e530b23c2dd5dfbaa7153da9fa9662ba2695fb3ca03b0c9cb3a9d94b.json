@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", actor_id AS \"actor_id: UserId\", action, target_id,\n                      detail, created_at\n               FROM admin_audit_log WHERE id < ? ORDER BY id DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "actor_id: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "action",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "detail",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "1645b7b6e530b23c2dd5dfbaa7153da9fa9662ba2695fb3ca03b0c9cb3a9d94b"
+}

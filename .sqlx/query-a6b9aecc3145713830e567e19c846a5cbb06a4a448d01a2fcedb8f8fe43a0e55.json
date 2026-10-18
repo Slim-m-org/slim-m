@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE devices SET client_kind = COALESCE(?, client_kind),\n                                    client_version = COALESCE(?, client_version)\n                 WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "a6b9aecc3145713830e567e19c846a5cbb06a4a448d01a2fcedb8f8fe43a0e55"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM linked_accounts WHERE user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "1fc6f89a8edcda44ea5aba36b44ac09703970f1c2908bc1d648b0af2f01b1496"
+}

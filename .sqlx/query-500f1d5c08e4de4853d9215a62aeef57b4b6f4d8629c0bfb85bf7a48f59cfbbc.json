@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM link_states WHERE expires_at <= ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "500f1d5c08e4de4853d9215a62aeef57b4b6f4d8629c0bfb85bf7a48f59cfbbc"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM link_states WHERE state = ? AND provider = ?\n               RETURNING user_id AS \"user_id!: UserId\", expires_at AS \"expires_at!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "expires_at!",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "217fd968f476b1b3375548b7fa90e87c3bf1563e20d22b0f8d055f3b52a70d9d"
+}

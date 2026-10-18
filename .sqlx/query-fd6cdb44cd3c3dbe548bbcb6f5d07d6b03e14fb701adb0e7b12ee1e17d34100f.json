@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM link_states WHERE user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "fd6cdb44cd3c3dbe548bbcb6f5d07d6b03e14fb701adb0e7b12ee1e17d34100f"
+}
