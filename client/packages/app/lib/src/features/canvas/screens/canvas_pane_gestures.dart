@@ -265,9 +265,45 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
     if (channelId != widget.channelId) return const [];
     final blocks = ref.watch(blocksProvider);
-    final participants = ref.watch(voiceParticipantsProvider);
+    final participants = ref
+        .watch(voiceParticipantsProvider.select(CanvasCallParticipants.new))
+        .participants;
     return participants
         .where((p) => !blocks.contains(p.identity))
         .toList(growable: false);
   }
+}
+
+/// The call participants as the canvas sees them: equal whenever nothing but
+/// a speaking level moved, since the canvas draws no level and rebuilding the
+/// whole pane several times a second per speaker made it lag.
+@visibleForTesting
+class CanvasCallParticipants {
+  const CanvasCallParticipants(this.participants);
+
+  final List<VoiceParticipant> participants;
+
+  static bool _same(VoiceParticipant a, VoiceParticipant b) =>
+      a.identity == b.identity &&
+      a.name == b.name &&
+      a.isSpeaking == b.isSpeaking &&
+      a.isMuted == b.isMuted &&
+      a.isLocal == b.isLocal &&
+      a.isScreenSharing == b.isScreenSharing &&
+      a.isCameraOn == b.isCameraOn;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CanvasCallParticipants) return false;
+    final a = participants;
+    final b = other.participants;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_same(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(participants.map((p) => p.identity));
 }
