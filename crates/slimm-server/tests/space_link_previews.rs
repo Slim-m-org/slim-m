@@ -15,7 +15,7 @@ use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
-use support::overwrite_harness::{json_body, new_store, register, request};
+use support::overwrite_harness::{new_store, register, request};
 
 fn app(store: Store, link_previews: LinkPreviews) -> Router {
     http::router(AppState {

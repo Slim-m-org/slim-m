@@ -20,4 +20,8 @@ export 'src/connection/database_key.dart'
 export 'src/database.dart' show SlimmDatabase, Channel, ChannelCategoryRow;
 export 'src/message_dto.dart' show ForwardedMessage, Message;
 export 'src/message_store.dart'
-    show MessageStore, failInterruptedSends, interruptedSendReason;
+    show
+        MessageStore,
+        MessageStoreInbox,
+        failInterruptedSends,
+        interruptedSendReason;

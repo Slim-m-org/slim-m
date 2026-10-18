@@ -13,6 +13,7 @@ part 'message_store_batch.dart';
 part 'message_store_channels.dart';
 part 'message_store_cursors.dart';
 part 'message_store_drafts.dart';
+part 'message_store_inbox.dart';
 part 'message_store_pending_attachments.dart';
 part 'message_store_rows.dart';
 part 'message_store_recovery.dart';

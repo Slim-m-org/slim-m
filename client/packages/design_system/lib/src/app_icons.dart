@@ -326,6 +326,9 @@ abstract final class AppIcons {
   static const IconData notificationsOff = LucideIcons.bellOff300;
   static const IconData mentions = LucideIcons.atSign300;
 
+  /// Everything waiting for the reader across the Space.
+  static const IconData inbox = LucideIcons.inbox300;
+
   /// Marking a conversation unread again: a note to yourself to come back.
   static const IconData unread = LucideIcons.mail300;
 

@@ -63,6 +63,7 @@ import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
+import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/messages/screens/thread_screen.dart';
 
 part 'home_shell_pane_slots.dart';
@@ -340,6 +341,7 @@ class HomeShell extends ConsumerWidget {
     final quickSwitch = activatorFor(AppAction.quickSwitch);
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
+    final openInbox = activatorFor(AppAction.openInbox);
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
     final muteCall = activatorFor(AppAction.toggleMuteCall);
@@ -355,6 +357,7 @@ class HomeShell extends ConsumerWidget {
             ref.read(composerFocusNodeProvider)?.requestFocus(),
       if (openSettings != null)
         openSettings: () => context.push(Routes.personalSettings),
+      if (openInbox != null) openInbox: () => showInboxSheet(context),
       if (nextChannel != null)
         nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
       if (previousChannel != null)

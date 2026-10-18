@@ -16,6 +16,7 @@ import '../routing/routes.dart';
 import 'anchored_menu.dart';
 import 'animated_menu_portal.dart';
 import '../features/channels/widgets/row_menu_notifications.dart';
+import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/messages/widgets/saved_messages_sheet.dart';
 import '../features/settings/screens/space_settings_section.dart';
 
@@ -39,6 +40,14 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
       menu: AppMenu(
         width: 200,
         children: [
+          AppMenuItem(
+            label: 'Inbox',
+            leading: AppIcons.inbox,
+            onTap: () {
+              _controller.hide();
+              showInboxSheet(context);
+            },
+          ),
           markSpaceReadMenuItem(
             context,
             ProviderScope.containerOf(context, listen: false),
