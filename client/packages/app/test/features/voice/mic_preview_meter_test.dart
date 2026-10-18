@@ -93,7 +93,7 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.textContaining('cannot hear this microphone'), findsOneWidget);
+    expect(find.textContaining('not coming through'), findsOneWidget);
     await _leave(tester);
   });
 
