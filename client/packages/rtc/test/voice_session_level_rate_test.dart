@@ -57,6 +57,12 @@ class _FakeMic implements MicPort {
 
   @override
   Future<void> discard() async => published = false;
+
+  @override
+  Future<void> release() async {}
+
+  @override
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {}
 }
 
 class _CountingGate {

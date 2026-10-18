@@ -107,6 +107,10 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     thresholdDb: _inputThresholdDb,
   );
 
+  /// A phone that is not on screen gives a muted microphone back at once.
+  void setAppBackgrounded(bool backgrounded) =>
+      _inputSession.setAppBackgrounded(backgrounded);
+
   /// Seeds the session's video quality choices at launch, for the same
   /// reason as [restoreVoiceActivitySensitivity].
   Future<void> restoreVideoQuality() async {
@@ -137,6 +141,7 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   /// [VoiceController.join] reads.
   void setPushToTalkPreference(bool enabled) {
     _pushToTalkEnabled = enabled;
+    unawaited(_inputSession.setKeepMicReady(enabled));
     _applyInputGate();
     if (state.state != VoiceSessionState.connected) return;
     unawaited(setPushToTalkHeld(enabled ? false : true));

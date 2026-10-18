@@ -16,6 +16,8 @@ library;
 
 import 'package:audioplayers/audioplayers.dart';
 
+import 'releasable_player.dart';
+
 /// Which chime to play.
 enum NotificationSound {
   directMessage('direct_message'),
@@ -79,8 +81,10 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   /// Its own player, never the shared [_player]: see [SoundPlayer.loop]'s
   /// own doc for why a looping ring and a one-shot chime must not share one.
-  AudioPlayer? _createdLoopPlayer;
-  AudioPlayer get _loopPlayer => _createdLoopPlayer ??= AudioPlayer();
+  final _loopPlayer = ReleasablePlayer<AudioPlayer>(
+    AudioPlayer.new,
+    (player) => player.dispose(),
+  );
 
   /// Backlog #134: the wav family is already level with itself (see
   /// `assets/audio/synth.py`'s `NOTIFICATION_LUFS`), but `audioplayers` defaults a
@@ -130,9 +134,10 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   @override
   Future<void> loop(NotificationSound sound) async {
-    await _loopPlayer.stop();
-    await _loopPlayer.setReleaseMode(ReleaseMode.loop);
-    await _loopPlayer.play(
+    final player = _loopPlayer.current;
+    await player.stop();
+    await player.setReleaseMode(ReleaseMode.loop);
+    await player.play(
       AssetSource(sound._playerPath),
       volume: playbackVolume,
       ctx: sharedAmbientContext,
@@ -140,11 +145,11 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
   }
 
   @override
-  Future<void> stopLoop() async => _createdLoopPlayer?.stop();
+  Future<void> stopLoop() => _loopPlayer.release();
 
   @override
   Future<void> dispose() async {
     await _createdPlayer?.dispose();
-    await _createdLoopPlayer?.dispose();
+    await _loopPlayer.release();
   }
 }

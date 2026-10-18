@@ -60,6 +60,12 @@ class _FakeMic implements MicPort {
   }
 
   @override
+  Future<void> release() async {}
+
+  @override
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {}
+
+  @override
   void adoptOptions(lk.AudioCaptureOptions options) {}
 
   @override

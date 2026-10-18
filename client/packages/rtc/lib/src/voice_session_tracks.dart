@@ -106,7 +106,16 @@ extension VoiceSessionTracks on VoiceSession {
     try {
       final hadTrack = _mic.hasTrack;
       final options = _micCaptureOptions();
-      await _mic.setEnabled(enabled, options);
+      final reopen = enabled && _micRelease.onUnmuting();
+      final opened = Stopwatch()..start();
+      await _mic.setEnabled(
+        enabled,
+        _openCaptureOptions(reopen: reopen),
+      );
+      if (reopen) {
+        _diag('Reopened the microphone in ${opened.elapsedMilliseconds} ms');
+      }
+      enabled ? _micRelease.reopened() : _micRelease.onMuted();
       if (enabled && options != null) {
         if (!hadTrack) {
           _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
@@ -120,6 +129,7 @@ extension VoiceSessionTracks on VoiceSession {
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
       _micWanted = intent;
+      if (enabled && _mic.hasTrack) _micRelease.onMuted();
       _lastError = e;
       _refreshParticipants();
       return false;

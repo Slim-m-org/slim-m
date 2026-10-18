@@ -22,6 +22,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'audio_gain.dart' as rtc_gain;
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
+import 'mic_release.dart';
 import 'input_gate.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
@@ -58,6 +59,7 @@ part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_listener_audio.dart';
 part 'voice_session_mic_recovery.dart';
+part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
@@ -77,6 +79,7 @@ class VoiceSession
         VoiceSessionAudioDevices,
         VoiceSessionInputGate,
         VoiceSessionMicRecovery,
+        VoiceSessionMicRelease,
         VoiceSessionListenerAudio {
   VoiceSession({
     RoomFactory? roomFactory,
@@ -89,6 +92,8 @@ class VoiceSession
     VoiceLog? audioLog,
     AudioDevices? audioDevices,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
+    Duration micReleaseGrace = kMicReleaseGrace,
+    bool? mobile,
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
@@ -106,6 +111,11 @@ class VoiceSession
     if (audioDevices != null) {
       _audioSwitching = AudioDeviceSwitching(audioDevices);
     }
+    _initMicRelease(
+      grace: micReleaseGrace,
+      mobile: mobile ?? lk.lkPlatformIsMobile(),
+      plainOptions: () => _openCaptureOptions(reopen: false),
+    );
     _initMicRecovery(
       timing: micRecoveryTiming,
       // An injected room has no sound stack to watch unless a test brings one.

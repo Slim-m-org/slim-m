@@ -32,6 +32,15 @@ mixin VideoQualityRecorder {
   void setStrongNoiseSuppression(bool enabled) =>
       lastStrongNoiseSuppression = enabled;
 
+  bool? lastKeepMicReady;
+  bool? lastAppBackgrounded;
+
+  Future<void> setKeepMicReady(bool keepReady) async =>
+      lastKeepMicReady = keepReady;
+
+  void setAppBackgrounded(bool backgrounded) =>
+      lastAppBackgrounded = backgrounded;
+
   MicStatus micStatus = MicStatus.ok;
   final micStatusChanges = StreamController<MicStatus>.broadcast();
   int microphoneResets = 0;

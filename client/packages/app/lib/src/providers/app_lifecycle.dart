@@ -60,3 +60,11 @@ bool isSeenNow(BuildContext context) {
   final focused = state == null || state == AppLifecycleState.resumed;
   return focused && TickerMode.valuesOf(context).enabled;
 }
+
+/// Whether a phone has left the screen; a desktop window never counts, and
+/// `inactive` is only a pulled shade.
+bool isBackgroundedOnPhone(AppLifecycleState state, {required bool mobile}) =>
+    mobile &&
+    (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached);

@@ -7,11 +7,13 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/lounge_tracks.dart';
 import 'package:slimm_app/src/features/voice/providers/hold_music_controller.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -200,6 +202,23 @@ void main() {
           on,
         ),
         isFalse,
+      );
+    });
+
+    test('a backgrounded phone pauses it, a desktop window does not', () {
+      expect(shouldPlayHoldMusic(_alone, on), isTrue);
+      expect(shouldPlayHoldMusic(_alone, on, backgrounded: true), isFalse);
+      for (final state in [
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        expect(isBackgroundedOnPhone(state, mobile: true), isTrue);
+        expect(isBackgroundedOnPhone(state, mobile: false), isFalse);
+      }
+      expect(
+        isBackgroundedOnPhone(AppLifecycleState.inactive, mobile: true),
+        isFalse,
+        reason: 'a pulled shade is not a switch away',
       );
     });
   });

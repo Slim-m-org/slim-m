@@ -121,6 +121,22 @@ PROBE = r"""
     });
     return out;
   };
+  st.inb = {bytes: 0, packets: 0};
+  setInterval(function(){
+    var total = {bytes: 0, packets: 0}, left = st.pcs.length;
+    st.pcs.forEach(function(pc){
+      if (pc.connectionState === 'closed') { left--; return; }
+      pc.getStats().then(function(report){
+        report.forEach(function(r){
+          if (r.type === 'inbound-rtp' && r.kind === 'audio') {
+            total.bytes += r.bytesReceived || 0;
+            total.packets += r.packetsReceived || 0;
+          }
+        });
+        if (--left <= 0) st.inb = total;
+      }, function(){ left--; });
+    });
+  }, 40);
   st.senders = function(){
     var out = [];
     st.pcs.forEach(function(pc){

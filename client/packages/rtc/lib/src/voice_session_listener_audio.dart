@@ -84,12 +84,9 @@ mixin VoiceSessionListenerAudio {
     _refreshParticipants();
   }
 
-  /// Silences (or restores) every remote participant's audio locally, by
-  /// disabling the underlying WebRTC track rather than unsubscribing from
-  /// it: a track publication's own `disable()` drops the SFU subscription
-  /// and would need renegotiation before sound comes back, while flipping
-  /// the underlying media track's `enabled` flag is a local, instant, and
-  /// instantly reversible mute. Returns whether it took effect, matching
+  /// Silences (or restores) every remote participant's audio locally: the
+  /// media track at once, and the SFU's forwarding of it with one signalling
+  /// message, with no renegotiation either way. Returns whether it took effect, matching
   /// [setMicrophoneEnabled] and [setScreenShareEnabled]'s own convention: no
   /// room, no effect.
   Future<bool> setDeafened(bool deafened) async {
