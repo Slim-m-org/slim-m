@@ -71,8 +71,11 @@ class HardwareAudioDevices implements AudioDevices {
           await stream.dispose();
         } on Object catch (error, stack) {
           // Refused or no microphone: the empty list is then the true answer.
-          AppLog.swallowed(LogTag.voice,
-              'open audio to list devices failed, ignored', error, stack);
+          AppLog.swallowed(
+              LogTag.voice,
+              'Could not open the microphone to list audio devices',
+              error,
+              stack);
         } finally {
           _warming = null;
         }
