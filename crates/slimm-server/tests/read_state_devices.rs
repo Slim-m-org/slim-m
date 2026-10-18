@@ -338,6 +338,44 @@ async fn a_device_that_reports_background_stops_being_counted_as_viewing() {
 }
 
 #[tokio::test]
+async fn a_device_that_reports_background_stops_marking_the_account_active() {
+    let (store, _guard) = support::new_store("slimm-read-state-devices").await;
+    seed_everyone(&store).await;
+    let state = support::app::state(store.clone());
+    let (alice, phone_token, phone_ticket) = account(&store, "alice").await;
+    let (laptop_token, laptop_ticket) = device(&store, alice).await;
+    let addr = serve(state.clone()).await;
+    let mut phone = connect(addr, &phone_ticket).await;
+    let mut laptop = connect(addr, &laptop_ticket).await;
+    let viewing = state.hub.presence().viewing();
+    let active = json!({ "type": "viewing", "channel_ids": [], "active": true });
+    phone
+        .send(WsMessage::Text(active.to_string()))
+        .await
+        .unwrap();
+    laptop
+        .send(WsMessage::Text(active.to_string()))
+        .await
+        .unwrap();
+    wait_until(|| {
+        viewing
+            .active_devices_at(alice, std::time::Instant::now())
+            .len()
+            == 2
+    })
+    .await;
+
+    report_lifecycle(&state, &phone_token, "background").await;
+    assert!(
+        viewing.is_recently_active(alice),
+        "the laptop is still in use"
+    );
+
+    report_lifecycle(&state, &laptop_token, "background").await;
+    assert!(!viewing.is_recently_active(alice));
+}
+
+#[tokio::test]
 async fn a_read_beyond_the_channel_head_announces_the_clamped_marker() {
     let (store, _guard) = support::new_store("slimm-read-state-devices").await;
     seed_everyone(&store).await;

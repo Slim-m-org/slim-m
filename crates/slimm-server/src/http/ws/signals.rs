@@ -74,7 +74,7 @@ impl PresenceGuard {
         let viewing = self.hub.presence().viewing();
         viewing.set(self.user_id, self.device_id, self.connection, channels);
         if active {
-            viewing.mark_active(self.user_id, self.connection);
+            viewing.mark_active(self.user_id, self.device_id, self.connection);
         }
     }
 }
