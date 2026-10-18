@@ -11,6 +11,12 @@ import 'package:url_launcher/url_launcher.dart';
 /// What [openExternalHttpUrl] hands a URL to; [launchUrl] in the app.
 typedef ExternalUrlLauncher = Future<bool> Function(Uri url, {LaunchMode mode});
 
+/// [launchUrl] under the [ExternalUrlLauncher] shape, for use as a default.
+Future<bool> defaultExternalUrlLauncher(
+  Uri url, {
+  LaunchMode mode = LaunchMode.platformDefault,
+}) => launchUrl(url, mode: mode);
+
 /// Opens [rawUrl] outside the app if it is http or https, and ignores
 /// anything else, including a string that does not parse.
 Future<void> openExternalHttpUrl(

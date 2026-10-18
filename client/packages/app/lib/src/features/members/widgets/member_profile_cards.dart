@@ -29,6 +29,7 @@ import 'member_notify_off_hours_item.dart';
 import 'member_profile_activity.dart';
 import 'member_profile_bot_commands.dart';
 import 'member_profile_identity.dart';
+import 'member_profile_links.dart';
 import 'member_profile_note_field.dart';
 import 'member_profile_sections.dart';
 import 'member_remove_from_channel.dart';
@@ -100,6 +101,7 @@ class SelfMemberCard extends ConsumerWidget {
         if (profile.about case final about? when about.isNotEmpty)
           MemberProfileAbout(about: about),
         MemberProfileActivity(userId: profile.id),
+        MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(
           roles: profile.roles,
           createdAt: profile.createdAt,
@@ -217,6 +219,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         if (profile.about case final about? when about.isNotEmpty)
           MemberProfileAbout(about: about),
         MemberProfileActivity(userId: profile.id),
+        MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(
           roles: profile.roles,
           createdAt: profile.createdAt,
