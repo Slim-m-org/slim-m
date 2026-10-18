@@ -284,8 +284,8 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   }
 }
 
-/// Signing out, on its own so it can be pinned to the settings nav's footer
-/// rather than sitting in a pane.
+/// Signing out, on its own so it can sit in the settings nav's footer rather
+/// than in a pane.
 ///
 /// It is the one action here that is not about changing a setting, which is why
 /// it belongs on the frame: you do not go looking for it inside a category.

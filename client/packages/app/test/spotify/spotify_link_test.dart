@@ -27,7 +27,7 @@ String _failure(SpotifyRig rig) => (_status(rig) as SpotifyFailed).message;
 
 /// Turns the switch on, leaving the browser step open and the redirect to the test.
 Future<void> _begin(SpotifyRig rig) async {
-  await rig.container.read(shareSpotifyProvider.notifier).setEnabled(true);
+  await rig.container.read(shareSpotifyProvider.notifier).connect();
   await rig.settle();
 }
 
@@ -298,7 +298,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(rig.calls, contains('PUT /presence/activity'));
 
-    await rig.container.read(shareSpotifyProvider.notifier).setEnabled(false);
+    await rig.container.read(shareSpotifyProvider.notifier).disconnect();
     await rig.settle();
     final store = rig.container.read(spotifyTokenStoreProvider);
     expect(await store.load(), isNull);

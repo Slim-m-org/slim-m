@@ -42,9 +42,11 @@ class SpotifyRig {
     this.launches = true,
     KeyStore? keys,
     Duration linkTimeout = const Duration(minutes: 10),
+    List<Override> overrides = const [],
   }) : keys = keys ?? InMemoryKeyStore() {
     container = ProviderContainer(
       overrides: [
+        ...overrides,
         keyStoreProvider.overrideWithValue(this.keys),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(const Stream.empty()),

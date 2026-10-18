@@ -65,7 +65,7 @@ const personalSettingsIndex = <SettingsEntry>[
     'profile',
     "Show what I'm listening to",
     description: 'Shows the track from any player on this computer.',
-    keywords: ['music', 'spotify', 'now playing', 'song'],
+    keywords: ['music', 'now playing', 'song'],
   ),
   SettingsEntry(
     'profile',
@@ -77,13 +77,26 @@ const personalSettingsIndex = <SettingsEntry>[
     'account-devices',
     'Connections',
     description: 'Accounts shown on your profile.',
-    keywords: ['discord', 'link', 'linked accounts'],
+    keywords: ['discord', 'spotify', 'link', 'linked accounts'],
     conditional: true,
   ),
   SettingsEntry(
     'account-devices',
     'Discord',
     keywords: ['connections', 'link', 'unlink'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'account-devices',
+    'Spotify',
+    keywords: ['connections', 'link', 'unlink', 'music'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'account-devices',
+    'Show my Spotify track',
+    description: 'Shows your track even when you play on another device.',
+    keywords: ['listening', 'music', 'now playing', 'song', 'spotify'],
     conditional: true,
   ),
   SettingsEntry(
