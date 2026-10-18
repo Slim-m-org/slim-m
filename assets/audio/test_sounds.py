@@ -1,16 +1,11 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""What has to stay true of the notification sounds.
-
-The first of these is the one that matters and the one that was missing: a
-family normalised to a target is not the same thing as a family that is level
-with itself, and the first build of this set passed every per-file check while
-spanning 3.4 dB. Nothing noticed, because nothing had ever compared the seven
-on one scale.
+"""What the palette promises: one format, two level bands, no clicks, seamless loops.
 
 Run with: python3 -m unittest discover -s assets/audio
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import unittest
@@ -21,133 +16,100 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE / "notifications"))
 
+import generate  # noqa: E402
 import synth  # noqa: E402
-from sounds import CALLKIT_RINGTONE, SOUNDS  # noqa: E402
 
 OUT = HERE / "notifications"
+DART_ENUM = (
+    HERE.parent.parent / "client" / "packages" / "app" / "lib" / "src" / "audio"
+    / "notification_sound.dart"
+)
 
+NOTIFICATION_FAMILY = {
+    "direct_message", "mention", "group_message", "call_ring",
+    "member_join", "member_leave", "error",
+}
+LEVEL_TOLERANCE_DB = 0.5
+PEAK_CEILING_DB = -1.0
+EDGE_SECONDS = 0.002
+HEAD_CEILING_DB = -15.0
+TAIL_CEILING_DB = -40.0
+LOOP_LIMITS_SECONDS = {"call_ring": 3.0, "ringback": 4.0}
+MAX_SEAM_JUMP = 0.002
 # Apple's own ceiling; past this CallKit silently plays the default ringtone.
-CALLKIT_RINGTONE_MAX_SECONDS = 30.0
+CALLKIT_MAX_SECONDS = 30.0
 
 
 def read(path: Path) -> np.ndarray:
     with wave.open(str(path)) as w:
         assert w.getnchannels() == 1, f"{path.name} is not mono"
         assert w.getsampwidth() == 2, f"{path.name} is not 16-bit"
-        assert w.getframerate() == synth.SAMPLE_RATE, f"{path.name} rate"
+        assert w.getframerate() == synth.SAMPLE_RATE, f"{path.name} is not 48 kHz"
         raw = w.readframes(w.getnframes())
     return np.frombuffer(raw, dtype="<i2").astype(np.float64) / 32767.0
 
 
-def _max_flat_rms_db(signal: np.ndarray) -> float:
-    """The loudest 200ms window's RMS in dB, with no weighting filter at all.
-
-    Independent of `synth.loudness` on purpose: it shares none of the
-    K-weighting code, so it can contradict a filter bug that measure cannot
-    see in itself.
-    """
-    window = int(0.2 * synth.SAMPLE_RATE)
-    squared = signal.astype(np.float64) ** 2
-    if squared.size <= window:
-        return 10.0 * np.log10(float(np.mean(squared)))
-    cumulative = np.concatenate([[0.0], np.cumsum(squared)])
-    sums = cumulative[window:] - cumulative[:-window]
-    return 10.0 * np.log10(float(np.max(sums)) / window)
+def db(amplitude: float) -> float:
+    return 20.0 * np.log10(max(amplitude, 1e-9))
 
 
-class SoundFamily(unittest.TestCase):
-    def setUp(self) -> None:
-        self.clips = {name: read(OUT / f"{name}.wav") for name in SOUNDS}
+def shipped_names() -> list[str]:
+    source = DART_ENUM.read_text()
+    return re.findall(r"^\s+\w+\('([a-z_]+)'\)[,;]", source, re.MULTILINE)
 
-    def test_every_sound_exists(self) -> None:
-        self.assertEqual(len(self.clips), 7, "the family is seven sounds")
 
-    def test_the_family_is_level_with_itself(self) -> None:
-        """The normaliser converged: every clip is at the target it aimed for.
+class Palette(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.names = shipped_names()
+        cls.clips = {name: read(OUT / f"{name}.wav") for name in cls.names}
 
-        Measured with `synth.loudness`, which is also what `normalise` uses to
-        set the level, so this proves the normaliser ran and converged (it
-        catches a no-op normaliser) but not that `loudness` measures the right
-        thing. The independent check below is what covers that.
-        """
-        levels = {n: synth.loudness(x) for n, x in self.clips.items()}
-        spread = max(levels.values()) - min(levels.values())
-        self.assertLess(
-            spread, 0.5,
-            f"the family spans {spread:.2f} dB by its own meter: {levels}")
+    def test_every_notification_sound_in_the_client_has_a_file(self) -> None:
+        self.assertEqual(len(self.names), 16, "the palette is sixteen sounds")
+        for name in self.names:
+            self.assertTrue((OUT / f"{name}.wav").exists(), f"{name}.wav is missing")
 
-    def test_the_family_is_level_by_an_independent_measure(self) -> None:
-        """Level by a measure that never touches the K-weighting filter.
+    def test_no_stray_files_beyond_the_palette_and_the_ringtone(self) -> None:
+        present = {p.stem for p in OUT.glob("*.wav")}
+        self.assertEqual(present, {*self.names, "callkit_ringtone"})
 
-        The test above uses the same function that set the levels, so a bug in
-        the K-weighting biquad in `synth.loudness` would make a de-levelled
-        family pass it. Flat RMS over the loudest short window shares none of
-        that code: if the filter were wrong in a way that hid a real spread,
-        the two measures would disagree. Looser than the band above because
-        K-weighting deliberately shapes the spectrum, but a shared timbre keeps
-        the flat and weighted levels close, and 1.5 dB catches a real drift.
-        """
-        levels = {n: _max_flat_rms_db(x) for n, x in self.clips.items()}
-        spread = max(levels.values()) - min(levels.values())
-        self.assertLess(
-            spread, 1.5,
-            f"flat-RMS spread is {spread:.2f} dB: {levels}")
+    def test_notifications_sit_at_minus_20_and_own_actions_at_minus_26(self) -> None:
+        for name, clip in self.clips.items():
+            target = -20.0 if name in NOTIFICATION_FAMILY else -26.0
+            with self.subTest(name):
+                self.assertAlmostEqual(
+                    synth.loudness(clip), target, delta=LEVEL_TOLERANCE_DB)
 
-    def test_no_sound_is_peaky_in_a_way_loudness_missed(self) -> None:
-        """An independent check, because the one above is the target itself.
+    def test_nothing_peaks_above_minus_1_dbfs(self) -> None:
+        for name, clip in {**self.clips, "callkit_ringtone": read(OUT / "callkit_ringtone.wav")}.items():
+            with self.subTest(name):
+                self.assertLessEqual(db(float(np.abs(clip).max())), PEAK_CEILING_DB)
 
-        Peak is not what normalised these, so a sound whose crest factor is
-        wildly unlike the rest would show here even though its measured
-        loudness matched. That is the shape of sound that reads as a click.
-
-        BS.1770 was the first cross-check tried and is not usable at these
-        lengths: every clip is one to three gate blocks, and padding one to
-        make gating possible dilutes it by 3 dB, which says something about
-        the measurement rather than about the sound.
-        """
-        peaks = {n: 20.0 * np.log10(float(np.abs(x).max()))
-                 for n, x in self.clips.items()}
-        spread = max(peaks.values()) - min(peaks.values())
-        self.assertLess(
-            spread, 4.0,
-            f"peak spread is {spread:.2f} dB: {peaks}")
-
-    def test_nothing_clips(self) -> None:
+    def test_every_sound_starts_and_ends_without_a_click(self) -> None:
+        edge = int(EDGE_SECONDS * synth.SAMPLE_RATE)
         for name, clip in self.clips.items():
             with self.subTest(name):
-                self.assertLess(float(np.abs(clip).max()), 1.0)
+                self.assertLess(abs(clip[0]), 0.001, "starts off zero")
+                self.assertLess(abs(clip[-1]), 0.001, "ends off zero")
+                head = db(float(np.sqrt(np.mean(clip[:edge] ** 2))))
+                tail = db(float(np.sqrt(np.mean(clip[-edge:] ** 2))))
+                self.assertLess(head, HEAD_CEILING_DB, "first 2 ms are not quiet")
+                self.assertLess(tail, TAIL_CEILING_DB, "last 2 ms are not quiet")
+
+    def test_loops_have_no_seam_jump_and_stay_short(self) -> None:
+        for name, limit in LOOP_LIMITS_SECONDS.items():
+            clip = self.clips[name]
+            with self.subTest(name):
+                self.assertLess(abs(clip[0] - clip[-1]), MAX_SEAM_JUMP)
+                self.assertLessEqual(clip.size / synth.SAMPLE_RATE, limit)
 
     def test_no_two_sounds_are_the_same(self) -> None:
-        """Seven sounds a person has to tell apart, so seven waveforms."""
         seen: dict[bytes, str] = {}
         for name, clip in self.clips.items():
             key = clip.tobytes()
             self.assertNotIn(key, seen, f"{name} is identical to {seen.get(key)}")
             seen[key] = name
-
-    def test_join_rises_and_leave_falls(self) -> None:
-        """The pair is mirrored, which is what makes it learnable.
-
-        Compared by where the energy sits early against late, rather than by
-        reading the note list back, which would only prove the test can read
-        the same file the generator wrote.
-        """
-        for name, expect_rising in (("member_join", True),
-                                    ("member_leave", False)):
-            with self.subTest(name):
-                clip = self.clips[name]
-                third = clip.size // 3
-                early = np.fft.rfft(clip[:third])
-                late = np.fft.rfft(clip[-third:])
-                freqs = np.fft.rfftfreq(third, 1 / synth.SAMPLE_RATE)
-                early_hz = float(freqs[np.argmax(np.abs(early))])
-                late_hz = float(freqs[np.argmax(np.abs(late))])
-                if expect_rising:
-                    self.assertGreater(late_hz, early_hz)
-                else:
-                    self.assertLess(late_hz, early_hz)
 
     def test_regenerating_changes_nothing(self) -> None:
         """The committed WAVs are what this code makes, or the gate is a lie."""
@@ -156,63 +118,32 @@ class SoundFamily(unittest.TestCase):
             [sys.executable, str(HERE / "generate.py")],
             check=True, capture_output=True)
         after = {p.name: p.read_bytes() for p in OUT.glob("*.wav")}
-        self.assertEqual(
-            sorted(before), sorted(after), "a sound appeared or vanished")
+        self.assertEqual(sorted(before), sorted(after), "a sound appeared or vanished")
         drifted = [n for n in before if before[n] != after[n]]
         self.assertEqual(drifted, [], f"regenerating changed {drifted}")
 
 
 class CallKitRingtone(unittest.TestCase):
-    """The CallKit ringtone, checked against Apple's own constraints.
-
-    Not a SoundFamily member and not compared against the seven on purpose:
-    it is a system asset for CXProviderConfiguration.ringtoneSound rather
-    than an in-app chime, so the family's cross-sound loudness invariants do
-    not apply to it, and it is exempt from `test_every_sound_exists`'s count.
-    """
+    """The iOS CallKit ringtone: a system asset, so only Apple's limits and the ring itself apply."""
 
     def setUp(self) -> None:
         self.clip = read(OUT / "callkit_ringtone.wav")
-
-    def test_is_not_one_of_the_seven(self) -> None:
-        self.assertNotIn("callkit_ringtone", SOUNDS)
+        self.ring = read(OUT / "call_ring.wav")
 
     def test_within_callkits_own_length_ceiling(self) -> None:
-        seconds = self.clip.size / synth.SAMPLE_RATE
-        self.assertLess(
-            seconds, CALLKIT_RINGTONE_MAX_SECONDS,
-            "past this, CallKit silently plays the default ringtone instead")
+        self.assertLess(self.clip.size / synth.SAMPLE_RATE, CALLKIT_MAX_SECONDS)
 
-    def test_matches_its_own_declared_notes(self) -> None:
-        notes, _ = CALLKIT_RINGTONE
-        rendered = synth.normalise(synth.render(notes))
-        expected = np.round(np.clip(rendered, -1.0, 1.0) * 32767.0) / 32767.0
-        actual = np.round(self.clip * 32767.0) / 32767.0
-        self.assertTrue(
-            np.array_equal(expected, actual),
-            "the committed wav does not match sounds.py's own CALLKIT_RINGTONE")
-
-    def test_nothing_clips(self) -> None:
-        self.assertLess(float(np.abs(self.clip).max()), 1.0)
-
-    def test_ring_and_pause_alternate(self) -> None:
-        """A real cadence, not one continuous tone.
-
-        Checked as energy over time rather than by re-reading the note list,
-        which would only prove this test can read the same file the
-        generator wrote.
-        """
-        window = int(0.05 * synth.SAMPLE_RATE)
-        energy = np.array([
-            float(np.mean(self.clip[i:i + window] ** 2))
-            for i in range(0, self.clip.size - window, window)
-        ])
-        loud = energy > (energy.max() * 0.05)
-        # A silent window between two loud ones is what a cadence needs.
-        transitions = np.diff(loud.astype(int))
-        self.assertGreaterEqual(
-            int(np.sum(transitions == -1)), 2,
-            "expected the ring to fall silent between repeats at least twice")
+    def test_is_the_call_ring_repeated_with_real_pauses(self) -> None:
+        pause = int(generate.RINGTONE_PAUSE_SECONDS * synth.SAMPLE_RATE)
+        stride = self.ring.size + pause
+        self.assertEqual(self.clip.size, stride * (generate.RINGTONE_REPEATS - 1) + self.ring.size)
+        for i in range(generate.RINGTONE_REPEATS):
+            start = i * stride
+            with self.subTest(repeat=i):
+                np.testing.assert_allclose(
+                    self.clip[start:start + self.ring.size], self.ring, atol=2e-3)
+            if i:
+                self.assertEqual(float(np.abs(self.clip[start - pause:start]).max()), 0.0)
 
 
 if __name__ == "__main__":

@@ -10,8 +10,8 @@
 /// fails there rather than only sounding different.
 ///
 /// Deliberately NOT ported: `synth.py`'s loudness work (`_k_weighted`,
-/// `loudness`, `normalise`, `pyloudnorm`). That machinery levels the seven
-/// notification sounds against each other at build time, using a whole-clip
+/// `loudness`, `normalise`, `pyloudnorm`). That machinery levels the interface
+/// sounds against each other at build time, using a whole-clip
 /// analysis and an offline library; a module's cue is rendered on a device in
 /// response to a tap and has no such reference set to level against. The
 /// clip-to-range step [encodeWav16] does is the ordinary "do not overflow a

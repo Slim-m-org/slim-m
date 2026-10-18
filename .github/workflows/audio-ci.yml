@@ -36,7 +36,7 @@ jobs:
       - name: install the generator's dependencies
         # --only-binary so no sdist runs its setup code on the runner.
         run: |
-          pip install --only-binary :all: "numpy==2.4.6" "pyloudnorm==0.2.0"
+          pip install --only-binary :all: "numpy==2.4.6" "scipy==1.18.0"
 
       - name: the family's own checks
         run: python3 -m unittest discover -s assets/audio -v

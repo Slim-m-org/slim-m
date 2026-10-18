@@ -16,8 +16,6 @@
 .github/workflows/schema-ci.yml 8
 .github/workflows/server-ci.yml 7
 Cargo.toml 11
-assets/audio/notifications/sounds.py 2
-assets/audio/synth.py 4
 client/packages/api/lib/api.dart 1
 client/packages/api/lib/src/client.dart 1
 client/packages/api/lib/src/client_auth.dart 1
