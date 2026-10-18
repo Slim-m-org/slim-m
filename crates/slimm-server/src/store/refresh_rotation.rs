@@ -92,6 +92,19 @@ impl Store {
     /// than racing a stale snapshot. `used_at` is set with `COALESCE` so a
     /// replay records the first spend, never pushing the timestamp forward.
     pub async fn rotate_refresh(&self, refresh_token: &str) -> anyhow::Result<RefreshOutcome> {
+        self.rotate_refresh_reporting(refresh_token, None, None)
+            .await
+    }
+
+    /// [`Self::rotate_refresh`], also recording the client kind and version the
+    /// app reports, so the devices list follows an app update instead of
+    /// keeping the version it signed in with. `None` leaves a field as it was.
+    pub async fn rotate_refresh_reporting(
+        &self,
+        refresh_token: &str,
+        client_kind: Option<&str>,
+        client_version: Option<&str>,
+    ) -> anyhow::Result<RefreshOutcome> {
         let presented = hash_secret(refresh_token);
         let now = now_ms();
         let mut tx = self.begin_write().await?;
@@ -128,6 +141,18 @@ impl Store {
         }
 
         super::safety::touch_device(&mut tx, session.device_id, now).await?;
+        if client_kind.is_some() || client_version.is_some() {
+            sqlx::query!(
+                "UPDATE devices SET client_kind = COALESCE(?, client_kind),
+                                    client_version = COALESCE(?, client_version)
+                 WHERE id = ?",
+                client_kind,
+                client_version,
+                session.device_id
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
 
         let access_token = generate_secret();
         let refresh_token = generate_secret();

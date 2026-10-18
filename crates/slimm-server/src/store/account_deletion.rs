@@ -172,6 +172,12 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         sqlx::query!(
+            "UPDATE admin_audit_log SET actor_id = NULL WHERE actor_id = ?",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
             "UPDATE message_ops SET actor_id = NULL WHERE actor_id = ?",
             user_id
         )
@@ -310,6 +316,12 @@ impl Store {
             .await?;
         // Which DMs this account had closed out of its own sidebar is its own preference, not the other side's.
         sqlx::query!("DELETE FROM dm_hides WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query!("DELETE FROM linked_accounts WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query!("DELETE FROM link_states WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
         sqlx::query!("DELETE FROM pending_members WHERE user_id = ?", user_id)

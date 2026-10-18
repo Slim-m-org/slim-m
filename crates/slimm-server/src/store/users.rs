@@ -30,6 +30,8 @@ pub struct ProfileUpdate<'a> {
     /// (see `http/users.rs::to_dtos`), so unlike the text fields above there
     /// is nothing meaningful to clear back to.
     pub profile_color: Option<i64>,
+    /// `Some(None)` drops a custom colour back to the preset, `Some(Some(rgb))` sets one.
+    pub profile_color_rgb: Option<Option<i64>>,
 }
 
 /// One `users` row as every public-profile read selects it; the one place the
@@ -45,6 +47,7 @@ struct UserRow {
     pronouns: Option<String>,
     about: Option<String>,
     profile_color: Option<i64>,
+    profile_color_rgb: Option<i64>,
     is_bot: i64,
     is_webhook: i64,
 }
@@ -61,6 +64,7 @@ impl From<UserRow> for User {
             pronouns: r.pronouns,
             about: r.about,
             profile_color: r.profile_color,
+            profile_color_rgb: r.profile_color_rgb,
             is_bot: r.is_bot != 0,
             is_webhook: r.is_webhook != 0,
         }
@@ -81,7 +85,7 @@ impl Store {
             r#"SELECT id AS "id!: UserId", username AS "username!",
                       display_name AS "display_name!", created_at AS "created_at!",
                       avatar_updated_at, status_text, pronouns, about,
-                      profile_color, is_bot AS "is_bot!",
+                      profile_color, profile_color_rgb, is_bot AS "is_bot!",
                       is_webhook AS "is_webhook!"
                FROM users WHERE id = ? AND deleted_at IS NULL"#,
             id
@@ -104,7 +108,8 @@ impl Store {
             // length and SQLite has no array binding.
             let mut builder = QueryBuilder::new(
                 "SELECT id, username, display_name, created_at, avatar_updated_at, status_text, \
-                 pronouns, about, profile_color, is_bot, is_webhook FROM users \
+                 pronouns, about, profile_color, profile_color_rgb, is_bot, is_webhook \
+                 FROM users \
                  WHERE deleted_at IS NULL AND id IN (",
             );
             let mut separated = builder.separated(", ");
@@ -203,6 +208,10 @@ impl Store {
                 .push_bind_unseparated(profile_color);
             touched = true;
         }
+        if let Some(rgb) = update.profile_color_rgb {
+            sets.push("profile_color_rgb = ").push_bind_unseparated(rgb);
+            touched = true;
+        }
 
         let affected = if touched {
             builder.push(" WHERE id = ");
@@ -286,7 +295,7 @@ impl Store {
             r#"SELECT id AS "id!: UserId", username AS "username!",
                       display_name AS "display_name!", created_at AS "created_at!",
                       avatar_updated_at, status_text, pronouns, about,
-                      profile_color, is_bot AS "is_bot!",
+                      profile_color, profile_color_rgb, is_bot AS "is_bot!",
                       is_webhook AS "is_webhook!"
                FROM users WHERE deleted_at IS NULL AND is_webhook = 0 AND id > ?
                AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = users.id)

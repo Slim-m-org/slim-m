@@ -286,3 +286,76 @@ async fn another_members_pronouns_and_about_are_visible_on_their_public_profile(
     assert_eq!(body["pronouns"], "she/her");
     assert_eq!(body["about"], "runs the homelab");
 }
+
+async fn patch_me(app: &Router, token: &str, body: Value) -> (StatusCode, Value) {
+    let response = app
+        .clone()
+        .oneshot(request("PATCH", "/me", Some(token), Some(body)))
+        .await
+        .unwrap();
+    let status = response.status();
+    (status, json_body(response).await)
+}
+
+async fn get_json(app: &Router, token: &str, uri: &str) -> Value {
+    json_body(
+        app.clone()
+            .oneshot(request("GET", uri, Some(token), None))
+            .await
+            .unwrap(),
+    )
+    .await
+}
+
+/// A custom colour rides beside the preset it is nearest to, which is what a
+/// client older than the field still shows.
+#[tokio::test]
+async fn a_custom_colour_is_kept_beside_its_preset_and_others_see_it() {
+    let (store, _guard) = support::new_store("slimm-me-profile-rgb").await;
+    let app = app(store);
+    let (alice_token, alice_id) = register(&app, "alice").await;
+    let (bob_token, _) = register_second(&app, &alice_token, "bob").await;
+
+    let (status, body) = patch_me(
+        &app,
+        &alice_token,
+        json!({ "profile_color": 3, "profile_color_rgb": 0x12_34_56 }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["profile_color_rgb"], 0x12_34_56);
+
+    let me = get_json(&app, &alice_token, "/me").await;
+    assert_eq!(me["profile_color"], 3);
+    assert_eq!(me["profile_color_rgb"], 0x12_34_56);
+    let seen = get_json(&app, &bob_token, &format!("/users/{alice_id}")).await;
+    assert_eq!(seen["profile_color_rgb"], 0x12_34_56);
+}
+
+/// Picking a preset, from any client old or new, drops the custom colour.
+#[tokio::test]
+async fn picking_a_preset_drops_the_custom_colour() {
+    let (store, _guard) = support::new_store("slimm-me-profile-rgb-clear").await;
+    let app = app(store);
+    let (token, _) = register(&app, "alice").await;
+    patch_me(&app, &token, json!({ "profile_color_rgb": 0xFF_00_00 })).await;
+
+    let (status, _) = patch_me(&app, &token, json!({ "profile_color": 1 })).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let me = get_json(&app, &token, "/me").await;
+    assert_eq!(me["profile_color"], 1);
+    assert!(me["profile_color_rgb"].is_null());
+}
+
+#[tokio::test]
+async fn a_custom_colour_outside_rgb_is_refused() {
+    let (store, _guard) = support::new_store("slimm-me-profile-rgb-range").await;
+    let app = app(store);
+    let (token, _) = register(&app, "alice").await;
+    for bad in [-1_i64, 0x1_00_00_00] {
+        let (status, _) = patch_me(&app, &token, json!({ "profile_color_rgb": bad })).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
+    }
+    assert!(get_json(&app, &token, "/me").await["profile_color_rgb"].is_null());
+}

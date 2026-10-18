@@ -20,6 +20,7 @@ use crate::ratelimit::RateLimiter;
 use crate::store::Store;
 use crate::voice::VoiceService;
 
+pub mod admin_audit;
 mod analytics;
 mod apps;
 mod attachment_ids;
@@ -62,6 +63,7 @@ mod interactions;
 mod invites;
 mod join_gate;
 pub mod link_preview;
+pub mod linked_accounts;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
 mod messages;
@@ -209,6 +211,7 @@ pub fn router(state: AppState) -> Router {
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/version", get(version::version))
+        .merge(admin_audit::routes())
         .merge(analytics::routes())
         .merge(attachment_limit::routes())
         .merge(module_schedule::routes())
@@ -281,7 +284,13 @@ pub fn router(state: AppState) -> Router {
         .merge(user_notes::routes())
         .merge(gifs::routes())
         .merge(link_preview::routes())
+        .merge(linked_accounts::routes())
         .merge(attachments::routes())
+        // Matched routes only, like the timing layer below; see `admin_audit`.
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            admin_audit::record,
+        ))
         // Only applies to a route above, once matched; see `route_timing`.
         .route_layer(axum::middleware::from_fn(route_timing::record))
         // Outer to the line above, so its `Extension` is on the request already.

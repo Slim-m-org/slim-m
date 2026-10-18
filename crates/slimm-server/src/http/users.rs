@@ -23,8 +23,8 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
 use super::user_avatars::{delete_avatar, get_avatar, upload_avatar};
 use super::user_status::{
-    PROFILE_COLOR_COUNT, validate_about, validate_profile_color, validate_pronouns,
-    validate_status_text,
+    PROFILE_COLOR_COUNT, validate_about, validate_profile_color, validate_profile_color_rgb,
+    validate_pronouns, validate_status_text,
 };
 use crate::hub::Event;
 use crate::ids::{RoleId, UserId};
@@ -124,6 +124,9 @@ pub(super) struct UserDto {
     /// default derived from its id, so a card is never colourless. See
     /// [`default_profile_color`] and `ProfileUpdate::profile_color`.
     profile_color: i64,
+    /// A custom colour as 0xRRGGBB that wins over [`Self::profile_color`],
+    /// or `null` for the preset; see migration 0120.
+    profile_color_rgb: Option<i64>,
     /// The invite this member registered through, or `null` if they had
     /// none. Absent from the response entirely for a caller who does not
     /// hold BAN_MEMBERS, so it is only ever populated on the `GET /members`
@@ -205,6 +208,7 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 profile_color: user
                     .profile_color
                     .unwrap_or_else(|| default_profile_color(user.id)),
+                profile_color_rgb: user.profile_color_rgb,
                 invite_code: None,
                 is_bot: user.is_bot,
                 is_webhook: user.is_webhook,
@@ -248,6 +252,8 @@ struct MeDto {
     /// The caller's own profile colour index, or `null`; see
     /// [`UserDto::profile_color`].
     profile_color: i64,
+    /// The caller's own custom colour, or `null`; see [`UserDto::profile_color_rgb`].
+    profile_color_rgb: Option<i64>,
     /// The caller's own stored presence choice (`online`, `away`, `dnd` or
     /// `hidden`). Self-view only: a hidden choice is invisible to everyone
     /// else, so this must never appear on [`UserDto`] or any other-user shape.
@@ -290,6 +296,10 @@ struct UpdateMeRequest {
     /// clamped, per [`validate_profile_color`].
     #[serde(default)]
     profile_color: Option<i64>,
+    /// A custom colour as 0xRRGGBB. A `profile_color` sent without it drops
+    /// back to that preset, which is also how an older client clears it.
+    #[serde(default)]
+    profile_color_rgb: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -326,6 +336,7 @@ async fn get_me(
         profile_color: user
             .profile_color
             .unwrap_or_else(|| default_profile_color(user.id)),
+        profile_color_rgb: user.profile_color_rgb,
         presence_visibility: visibility.unwrap_or_default().as_str().to_owned(),
     }))
 }
@@ -350,11 +361,16 @@ async fn update_me(
     let pronouns = req.pronouns.as_deref().map(validate_pronouns).transpose()?;
     let about = req.about.as_deref().map(validate_about).transpose()?;
     let profile_color = req.profile_color.map(validate_profile_color).transpose()?;
+    let profile_color_rgb = match req.profile_color_rgb {
+        Some(rgb) => Some(Some(validate_profile_color_rgb(rgb)?)),
+        None => profile_color.map(|_| None),
+    };
     if display_name.is_none()
         && status_text.is_none()
         && pronouns.is_none()
         && about.is_none()
         && profile_color.is_none()
+        && profile_color_rgb.is_none()
     {
         return Err(ApiError::BadRequest("nothing to update"));
     }
@@ -369,6 +385,7 @@ async fn update_me(
                 pronouns: pronouns.as_ref().map(|s| s.as_deref()),
                 about: about.as_ref().map(|s| s.as_deref()),
                 profile_color,
+                profile_color_rgb,
             },
         )
         .await?
