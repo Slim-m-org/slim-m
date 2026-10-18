@@ -9,6 +9,7 @@ import 'database.dart';
 import 'message_dto.dart';
 import 'rail_channel.dart';
 
+part 'message_store_authorship.dart';
 part 'message_store_batch.dart';
 part 'message_store_channels.dart';
 part 'message_store_cursors.dart';

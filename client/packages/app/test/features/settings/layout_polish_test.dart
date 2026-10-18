@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/widgets/admin/channel_permissions_grid_rows.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/report_card_quick_actions.dart';
@@ -26,9 +27,11 @@ Future<void> _pump(
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearAllTestValues);
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(body: child),
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(body: child),
+      ),
     ),
   );
   await tester.pumpAndSettle();

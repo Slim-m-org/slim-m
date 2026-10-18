@@ -24,4 +24,5 @@ export 'src/message_store.dart'
         MessageStore,
         MessageStoreInbox,
         failInterruptedSends,
+        hasMessageFrom,
         interruptedSendReason;

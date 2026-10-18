@@ -340,6 +340,18 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry('general', 'Startup', keywords: ['autostart']),
   SettingsEntry(
     'general',
+    'Setup',
+    keywords: ['onboarding', 'welcome', 'first run', 'getting started'],
+  ),
+  SettingsEntry(
+    'general',
+    'Run setup again',
+    description: 'Profile, notifications and voice, one step at a time.',
+    keywords: ['onboarding', 'welcome', 'tour', 'first run'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'general',
     'History',
     description: 'How many messages load when you scroll back.',
   ),

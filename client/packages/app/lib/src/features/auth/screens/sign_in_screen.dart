@@ -11,6 +11,9 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../first_run/providers/first_run_controller.dart'
+    show firstRunInviterProvider;
+import '../../first_run/providers/first_run_inviter.dart';
 import '../../../default_server.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
@@ -365,6 +368,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   ) async {
     // Before the call: its session change is what starts the what's-new check.
     justRegistered.state = true;
+    await rememberInviter(
+      api,
+      ref.read(firstRunInviterProvider.notifier),
+      invite,
+    );
     final username = _username.text.trim();
     final displayName = _displayName.text.trim();
     await api.register(

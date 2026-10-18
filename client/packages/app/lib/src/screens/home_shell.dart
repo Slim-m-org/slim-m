@@ -22,6 +22,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/accounts/widgets/account_shortcuts.dart';
+import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
@@ -91,7 +92,7 @@ class HomeShell extends ConsumerWidget {
     final facts = _shellFacts(ref, layout, width, selected);
     final scaffold = _scaffold(context, ref, layout, facts);
 
-    return WhatsNewGate(
+    final shell = WhatsNewGate(
       child: PushToTalkListener(
         child: CallbackShortcuts(
           bindings: _shortcutBindings(context, ref),
@@ -115,6 +116,7 @@ class HomeShell extends ConsumerWidget {
         ),
       ),
     );
+    return FirstRunGate(child: shell);
   }
 
   void _holdSessionProviders(WidgetRef ref) {
