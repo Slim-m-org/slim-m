@@ -165,6 +165,29 @@ void main() {
       controller.dispose();
     });
 
+    test(
+      'a resize skipped before persistence lands when it turns on',
+      () async {
+        final port = FakeDesktopWindowPort()..bounds = _real;
+        final store = await _store();
+        late DesktopWindowController controller;
+        fakeAsync((async) {
+          controller = _controller(
+            port,
+            store,
+            positionSupported: true,
+            enabled: false,
+          );
+          port.emit(DesktopWindowEventKind.resize);
+          async.elapse(desktopGeometryDebounce);
+          controller.enableGeometryPersistence();
+          async.flushMicrotasks();
+        });
+        expect(store.read()?.windowedSize.width, _real.width);
+        controller.dispose();
+      },
+    );
+
     test('flush writes a pending debounced resize at once', () async {
       final port = FakeDesktopWindowPort()..bounds = _real;
       final store = await _store();

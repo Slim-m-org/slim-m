@@ -82,7 +82,16 @@ class DesktopWindowController {
   /// one caller, once the real geometry is applied and the view has settled
   /// at it. Before this runs, the window is the splash or mid-handoff to its
   /// real shape, and nothing observed before is the user's real size.
-  void enableGeometryPersistence() => _geometryPersistenceEnabled = true;
+  void enableGeometryPersistence() {
+    _geometryPersistenceEnabled = true;
+    if (!_skippedWhileDisabled) return;
+    _skippedWhileDisabled = false;
+    unawaited(_writeNow());
+  }
+
+  /// A move or resize whose write fired before persistence was on: a user
+  /// resizing during a slow handoff would otherwise lose that size for good.
+  bool _skippedWhileDisabled = false;
 
   /// Writes a pending debounced move or resize now, for a quit that would
   /// otherwise drop it with the process.
@@ -163,7 +172,10 @@ class DesktopWindowController {
 
   Future<void> _writeNow() async {
     _debounceTimer?.cancel();
-    if (!_geometryPersistenceEnabled) return;
+    if (!_geometryPersistenceEnabled) {
+      _skippedWhileDisabled = true;
+      return;
+    }
     final geometry = await _currentGeometry();
     if (geometry != null) await store.write(geometry);
   }
