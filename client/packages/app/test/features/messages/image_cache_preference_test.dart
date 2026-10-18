@@ -62,6 +62,38 @@ void main() {
     expect(_liveCapMb, 200);
   });
 
+  test(
+    'no limit lifts both the byte and the entry cap, and back again',
+    () async {
+      final c = container();
+      final notifier = c.read(imageCacheLimitControllerProvider.notifier);
+      final cache = PaintingBinding.instance.imageCache;
+
+      await notifier.select(imageCacheNoLimitMb);
+      expect(cache.maximumSizeBytes, greaterThan(1 << 40));
+      expect(cache.maximumSize, greaterThan(1 << 20));
+      expect(
+        (await SharedPreferences.getInstance()).getInt(imageCacheLimitKey),
+        imageCacheNoLimitMb,
+      );
+
+      await notifier.select(1000);
+      expect(_liveCapMb, 1000);
+      expect(cache.maximumSize, 1000);
+    },
+  );
+
+  test('every choice has a plain label', () {
+    expect(imageCacheLimitChoicesMb.map(imageCacheLimitLabel), [
+      '50 MB',
+      '100 MB (default)',
+      '200 MB',
+      '500 MB',
+      '1 GB',
+      'No limit',
+    ]);
+  });
+
   test('an unknown persisted value is ignored, leaving the default', () async {
     SharedPreferences.setMockInitialValues({imageCacheLimitKey: 4096});
     final c = container();

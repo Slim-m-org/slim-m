@@ -40,6 +40,7 @@ DND = "Do not disturb"
 
 # Space settings
 INVITES = "Invites"
+CUSTOMIZE = "Customize"
 # The embedded pane's own row, distinct from the nav row by its value suffix.
 WHO_CAN_JOIN_ROW = "Who can join, currently"
 JOIN_OPEN = "Anyone with the address"
@@ -65,7 +66,7 @@ GENERATE_CODE = "Generate code"
 RESET_CODE_SHOWN = "Shown once"
 COPY_CODE = "Copy code"
 
-# Space settings > Invites > Landing page (invite_landing_section.dart)
+# Space settings > Customize > Space profile (invite_landing_section.dart)
 DESCRIPTION_FIELD = "Description"
 SAVE_DESCRIPTION = "Save description"
 

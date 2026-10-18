@@ -33,6 +33,7 @@ abstract final class Routes {
       '$spaceSettings?$settingsPaneQuery=$paneId';
   static const adminReports = '/settings/reports';
   static const adminInvites = '/settings/invites';
+  static const adminCustomize = '/settings/customize';
   static const adminRoles = '/settings/roles';
 
   /// One role's own Permissions/Members/Display tabs, drilled into from

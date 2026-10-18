@@ -122,7 +122,8 @@ class VoiceSession
   lk.Room _buildRoom() => lk.Room(
         roomOptions: _audioSwitching.roomOptions(
           lk.RoomOptions(
-            adaptiveStream: true,
+            // Adaptive stream sizes each layer to its tile and is fixed per room, so Max turns it off from the next join.
+            adaptiveStream: _receiveQuality != ReceiveVideoQuality.max,
             dynacast: true,
             defaultVideoPublishOptions: cameraPublishOptions(),
           ),

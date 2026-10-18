@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Troubleshooting pane: the device check and, beside a nav, the debug
-/// log as an inner page of the same pane.
+/// The Troubleshooting pane: the device check, call stats, a setup replay and,
+/// beside a nav, the debug log as an inner page of the same pane.
 ///
 /// A phone has no room for a second level inside a pane, so the row pushes the
 /// standalone debug log route there instead. Which one happens follows the
@@ -22,6 +22,7 @@ import 'debug_log_page.dart';
 import '../../voice/widgets/media_capability_section.dart';
 import 'settings_detail_row.dart';
 import 'settings_panes.dart';
+import 'troubleshooting_rows.dart';
 
 /// Whether the debug log is showing inside the pane; dropped with the pane.
 final debugLogOpenProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -41,7 +42,9 @@ class TroubleshootingPane extends ConsumerWidget {
         // Offstage keeps the check's result while the log is open.
         Offstage(
           offstage: open,
-          child: const MediaCapabilitySection(extraRows: [_DebugLogRow()]),
+          child: const MediaCapabilitySection(
+            extraRows: [_DebugLogRow(), CallStatsRow(), RunSetupAgainRow()],
+          ),
         ),
         if (open) const DebugLogPage(),
       ],

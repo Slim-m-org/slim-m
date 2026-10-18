@@ -165,26 +165,39 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(spaceSettingsProvider);
-    return SettingsSectionCard(
-      title: 'Landing page',
-      description: 'What an invite link shows before sign-in.',
-      children: settings.when(
-        loading: () => const [SizedBox(height: AppSpacing.s48)],
-        error: (_, _) => [
-          SettingsCardBlock(
-            children: [
-              AppErrorState(
-                message: 'Could not load the landing page.',
-                onRetry: () => ref.invalidate(spaceSettingsProvider),
-              ),
-            ],
-          ),
-        ],
-        data: (loaded) {
-          _seed(loaded);
-          return _rows(loaded);
-        },
-      ),
+    final loaded = settings.valueOrNull;
+    if (loaded == null) {
+      return SettingsSectionCard(
+        title: 'Space profile',
+        children: settings.hasError
+            ? [
+                SettingsCardBlock(
+                  children: [
+                    AppErrorState(
+                      message: 'Could not load the Space profile.',
+                      onRetry: () => ref.invalidate(spaceSettingsProvider),
+                    ),
+                  ],
+                ),
+              ]
+            : const [SizedBox(height: AppSpacing.s48)],
+      );
+    }
+    _seed(loaded);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsSectionCard(
+          title: 'Space profile',
+          description: 'How the Space looks in invites and setup.',
+          children: _profileRows(loaded),
+        ),
+        SettingsSectionCard(
+          title: 'Landing page',
+          description: 'What an invite link shows before sign-in.',
+          children: _landingRows(loaded),
+        ),
+      ],
     );
   }
 
@@ -222,13 +235,13 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           onPressed: onChoose,
         ),
         if (isSet)
-          AppButton(
-            label: 'Remove',
-            variant: AppButtonVariant.ghost,
-            size: AppButtonSize.sm,
-            disabled: _busy,
+          AppIconButton(
+            icon: AppIcons.dismiss,
+            size: AppIconButtonSize.sm,
+            iconSize: AppSizes.icon16,
             semanticLabel: 'Remove ${label.toLowerCase()}',
-            onPressed: onRemove,
+            tooltip: 'Remove ${label.toLowerCase()}',
+            onPressed: _busy ? null : onRemove,
           ),
       ],
     ),
@@ -259,7 +272,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
   }
 
-  List<Widget> _rows(api.SpaceSettings loaded) {
+  List<Widget> _profileRows(api.SpaceSettings loaded) {
     final changed = _description.text.trim() != _saved;
     final bannerSet = loaded.bannerUpdatedAt != null;
     final iconSet = loaded.iconUpdatedAt != null;
@@ -327,6 +340,11 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
             AppErrorState(message: actionError!, onDismiss: clearActionError),
           ],
         ),
+    ];
+  }
+
+  List<Widget> _landingRows(api.SpaceSettings loaded) {
+    return [
       SettingsDetailRow(
         icon: AppIcons.preview,
         title: 'Preview',

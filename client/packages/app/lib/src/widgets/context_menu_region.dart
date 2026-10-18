@@ -185,7 +185,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// which pass through here, so "closed" is told when its future completes.
   void _setSheetOpen(bool open, {required bool pinRow}) {
     if (!open) {
-      if (_sheetOpen) Navigator.of(context).maybePop();
+      if (_sheetOpen) Navigator.of(context, rootNavigator: true).maybePop();
       return;
     }
     if (_sheetOpen) return;

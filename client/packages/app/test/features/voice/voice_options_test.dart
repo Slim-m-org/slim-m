@@ -13,6 +13,7 @@ import 'package:slimm_app/src/audio/lounge_tracks.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
+import 'package:slimm_app/src/features/settings/widgets/troubleshooting_rows.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -109,13 +110,17 @@ void main() {
     expect(prefs.getString('slimm.voice.hold_music_track'), 'jazz');
   });
 
-  testWidgets('the Call stats row opens the call stats route', (tester) async {
+  testWidgets('Call stats opens its route from Troubleshooting, not Voice', (
+    tester,
+  ) async {
     final router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
           builder: (_, _) => const Scaffold(
-            body: SingleChildScrollView(child: VoiceSettingsBody()),
+            body: SingleChildScrollView(
+              child: Column(children: [VoiceSettingsBody(), CallStatsRow()]),
+            ),
           ),
         ),
         GoRoute(
@@ -143,6 +148,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      find.descendant(
+        of: find.byType(VoiceSettingsBody),
+        matching: find.text('Call stats'),
+      ),
+      findsNothing,
+    );
     await _show(tester, find.text('Call stats'));
     await tester.tap(find.text('Call stats'));
     await tester.pumpAndSettle();

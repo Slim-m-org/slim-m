@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The music that plays while you are alone in a call: one bundled CC0 track
-/// per style. Credits and sources are in `assets/audio/music/CREDITS.md`.
+/// The music that plays while you are alone in a call: one bundled track per
+/// style, CC0 or made for slim-m. Credits and sources are in `assets/audio/music/CREDITS.md`.
 library;
 
 enum LoungeTrack {
   lofi('Lofi', 'Chill lofi inspired', 'lofi.mp3'),
   jazz('Jazz', 'Elevator Music', 'jazz.mp3'),
-  electronic('Electronic', 'Hypnotic Chill', 'electronic.mp3'),
+  electronic('Electronic', 'Quiet Pulse', 'electronic.mp3'),
   ambient('Ambient', 'Contemplation', 'ambient.mp3');
 
   const LoungeTrack(this.style, this.title, this._file);

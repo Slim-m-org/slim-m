@@ -145,7 +145,9 @@ Finder get _descriptionField =>
     find.descendant(of: _descriptionInput, matching: find.byType(TextField));
 
 Finder _button(String semanticLabel) => find.byWidgetPredicate(
-  (w) => w is AppButton && w.semanticLabel == semanticLabel,
+  (w) =>
+      (w is AppButton && w.semanticLabel == semanticLabel) ||
+      (w is AppIconButton && w.semanticLabel == semanticLabel),
 );
 
 /// Image decoding finishes on the real clock, so alternate real waiting with
@@ -263,8 +265,9 @@ void main() {
         for (final name in ['banner', 'icon']) {
           final choose = tester.getRect(_button('Replace $name'));
           final remove = tester.getRect(_button('Remove $name'));
-          expect(remove.top, choose.top);
+          expect(remove.center.dy, closeTo(choose.center.dy, 0.5));
           expect(remove.right, field.right);
+          expect(remove.width, lessThan(choose.width), reason: 'a compact X');
         }
         final save = tester.getRect(
           find.widgetWithText(AppButton, 'Save description'),

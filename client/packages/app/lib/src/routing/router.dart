@@ -29,6 +29,7 @@ import '../features/settings/screens/admin/dock_module_screen.dart';
 import '../features/settings/screens/admin/dock_screen.dart';
 import '../features/settings/screens/admin/emoji_screen.dart';
 import '../features/settings/screens/admin/invites_screen.dart';
+import '../features/settings/screens/admin/customize_screen.dart';
 import '../features/settings/screens/admin/performance_screen.dart';
 import '../features/settings/screens/admin/space_voice_screen.dart';
 import '../features/settings/screens/admin/reports_screen.dart';
@@ -124,6 +125,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminInvites,
         pageBuilder: (context, state) =>
             modalPage(context, const InvitesScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminCustomize,
+        pageBuilder: (context, state) =>
+            modalPage(context, const CustomizeScreen()),
       ),
       GoRoute(
         path: Routes.adminRoles,
