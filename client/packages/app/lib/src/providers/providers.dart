@@ -22,6 +22,7 @@ import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
 import 'live_events.dart';
 import 'preference_controller.dart';
+import 'space_scoped_preferences.dart';
 
 /// The server the user picked, with null meaning one has never been picked on
 /// this install.
@@ -452,9 +453,12 @@ final storeProvider = FutureProvider<MessageStore>((ref) async {
 /// (`lastSeenWhatsNewVersionKey`); the first of those is here precisely because
 /// this file does NOT survive an iOS/Android reinstall the way the platform
 /// keychain does.
-final preferencesProvider = FutureProvider<SharedPreferences>(
-  (ref) => SharedPreferences.getInstance(),
-);
+final preferencesProvider = FutureProvider<SharedPreferences>((ref) async {
+  final base = await SharedPreferences.getInstance();
+  final slot = ref.watch(accountSlotProvider);
+  if (slot == null) return base;
+  return SpaceScopedPreferences(base, () => slot.account?.origin);
+});
 
 /// The handle the appearance choice is stored under, in [preferencesProvider].
 /// Follows the same `slimm.<area>.<thing>` convention as the voice keys.

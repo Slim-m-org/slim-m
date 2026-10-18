@@ -146,8 +146,14 @@ AccountHost _createAccountHost() {
         accountHostProvider.overrideWith((ref) => host),
       ],
     ),
-    startServices: (r) async => startAccountServices(r.container),
-    onActivate: (r) => resyncSharedPreferences(r.container),
+    startServices: (r) async {
+      await restoreStartupPreferences(r.container);
+      startAccountServices(r.container);
+    },
+    onActivate: (r) async {
+      await resyncSharedPreferences(r.container);
+      await resyncVoiceDevicePreferences(r.container);
+    },
     readSession: (r) => restoreAccountSession(accounts, r),
     signOutRuntime: (r) => signOutVia(r.container.read),
   );
