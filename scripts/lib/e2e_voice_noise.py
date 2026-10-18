@@ -10,9 +10,7 @@ measures what each sender sounds like after the SFU.
 The web client has the browser's suppression only: the rnnoise "Strong" mode
 is a native desktop capture chain and is measured separately.
 
-Thresholds are set from measured runs, with the measurements recorded beside
-each so a later change to them is a judgement against data, not a guess:
-see NOISE_REDUCTION_MIN_DB and SPEECH_LOSS_MAX_DB.
+The thresholds carry the numbers they were set from, beside them below.
 """
 import os
 import time
@@ -26,10 +24,11 @@ import e2e_voice_ui as ui
 import make_noisy_voice
 from e2e_voice import _tap_label
 
-# Filled in from measurement (see the scenario's printed numbers).
-NOISE_REDUCTION_MIN_DB = 10.0
-SPEECH_LOSS_MAX_DB = 3.0
+NOISE_REDUCTION_MIN_DB = 10.0  # measured 18.5 dB: raw floor -34.0, app -52.5
+SPEECH_LOSS_MAX_DB = 3.0  # measured 1.2 dB: raw speech -14.4, app -15.5
 MEASURE_SECONDS = 12
+# Speech must sit this far over the floor for either arm's numbers to mean anything.
+MIN_SEPARATION_DB = 6.0
 
 
 def fixture_path():
@@ -57,16 +56,16 @@ def suppression_quiets_the_noise_floor(listener, server, secret, admin_api,
         api.login(user, secret, device="e2e-noise")
         ids[user] = api.me()["id"]
 
-    e2e_audio.install(listener)
-    with e2e_browsers.browser("noisy", path) as on, \
+    with e2e_audio.installed(listener), \
+            e2e_browsers.browser("noisy", path) as on, \
             e2e_browsers.browser("raw", path) as off:
         e2e_audio.install(on)
         e2e_audio.install(off, extra=e2e_audio_js.RAW_CAPTURE)
         sign_in(on, server, "noisy", secret)
         sign_in(off, server, "rawmic", secret)
-        listener.click(L.VOICE_CHANNEL)
-        listener.wait_for(L.IN_CALL)
         try:
+            listener.click(L.VOICE_CHANNEL)
+            listener.wait_for(L.IN_CALL)
             _join(on)
             _join(off)
             probe = e2e_audio.AudioProbe(listener)
@@ -99,8 +98,11 @@ def suppression_quiets_the_noise_floor(listener, server, secret, admin_api,
             print(f"  app    floor {on_floor:6.1f} dB  speech {on_speech:6.1f} dB")
             print(f"  noise floor {reduction:.1f} dB quieter with suppression; "
                   f"speech {loss:.1f} dB quieter")
-            assert off_speech - off_floor > 6, \
+            assert off_speech - off_floor > MIN_SEPARATION_DB, \
                 "the control arm never separated speech from noise: nothing to compare"
+            assert on_speech - on_floor > MIN_SEPARATION_DB, \
+                f"the app arm lost its speech under the floor: " \
+                f"{on_speech - on_floor:.1f} dB apart"
             assert reduction >= NOISE_REDUCTION_MIN_DB, \
                 f"suppression only took {reduction:.1f} dB off the noise floor"
             assert loss <= SPEECH_LOSS_MAX_DB, \

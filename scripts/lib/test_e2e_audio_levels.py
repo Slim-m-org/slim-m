@@ -111,20 +111,56 @@ class GapTest(unittest.TestCase):
         self.assertEqual(lv.longest_gap_seconds([(0, -90), (1, -90)], -60), 0.0)
 
 
-class LuminanceTest(unittest.TestCase):
-    def test_black_frame(self):
-        self.assertEqual(lv.luminance_stats(bytes(64)), (0.0, 0.0))
+class TrailingGapTest(unittest.TestCase):
+    def test_silence_after_the_last_loud_window_counts_up_to_the_read(self):
+        samples = [(0.0, -20), (0.1, -20), (0.2, -90), (0.3, -90)]
+        self.assertAlmostEqual(
+            lv.longest_gap_seconds(samples, -60, until=6.0), 5.9)
 
-    def test_flat_white_has_no_spread(self):
-        mean, spread = lv.luminance_stats(bytes([255] * 64))
-        self.assertAlmostEqual(mean, 255.0, places=3)
-        self.assertAlmostEqual(spread, 0.0)
+    def test_a_series_that_never_gets_loud_is_one_gap(self):
+        samples = [(1.0, -90), (1.1, -90)]
+        self.assertAlmostEqual(
+            lv.longest_gap_seconds(samples, -60, until=4.0), 3.0)
 
-    def test_a_picture_has_spread(self):
-        pixels = bytes([0, 0, 0, 255, 255, 255, 255, 255])
-        mean, spread = lv.luminance_stats(pixels)
-        self.assertGreater(mean, 100)
-        self.assertGreater(spread, 100)
+    def test_audio_up_to_the_read_leaves_the_gap_alone(self):
+        samples = [(0.0, -20), (0.5, -90), (1.0, -20)]
+        self.assertAlmostEqual(
+            lv.longest_gap_seconds(samples, -60, until=1.0), 1.0)
+
+
+class FixturePausesTest(unittest.TestCase):
+    """The fake voice's own pauses must stay clear of the mic-switch bound."""
+
+    def test_its_natural_gaps_are_far_below_a_dropout(self):
+        import make_fake_voice
+        window = make_fake_voice.RATE // 20
+        pcm = list(make_fake_voice.samples())
+        levels = []
+        for i in range(0, len(pcm) - window, window):
+            chunk = pcm[i:i + window]
+            rms = math.sqrt(sum(v * v for v in chunk) / window) / 32768
+            levels.append(((i / make_fake_voice.RATE), lv.rms_to_db(rms)))
+        speech = lv.percentile([db for _, db in levels], 95)
+        gap = lv.longest_gap_seconds(levels, speech - 25.0)
+        # Measured 2026-10-18 at 50 ms windows: 0.15 s between syllables; the scenario allows 1.5 s.
+        self.assertLess(gap, 0.3)
+
+
+class UnplayedTest(unittest.TestCase):
+    def test_stalled_windows_make_a_measurement_unusable(self):
+        rows = [[i * 50, 0.0, 0.1, "stalled"] for i in range(10)]
+        with self.assertRaises(AssertionError):
+            lv.refuse_unplayed(rows, "alice", "s1")
+
+    def test_a_few_flagged_windows_are_tolerated(self):
+        rows = [[i * 50, 0.1, 0.1, ""] for i in range(20)]
+        rows[0][3] = "stalled"
+        lv.refuse_unplayed(rows, "alice", "s1")
+
+    def test_a_suspended_context_is_named(self):
+        rows = [[0, 0.0, 0.1, "suspended"]]
+        with self.assertRaisesRegex(AssertionError, "suspended"):
+            lv.refuse_unplayed(rows, "alice", "s1")
 
 
 class NoisyFixtureTest(unittest.TestCase):

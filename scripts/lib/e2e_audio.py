@@ -5,6 +5,7 @@
 what a listener would hear. The page has to be reloaded once for the probe to
 see the app's own AudioContext, which `Client.come_back` already does.
 """
+import contextlib
 import json
 import time
 
@@ -15,18 +16,56 @@ import e2e_audio_js
 SAMPLE_SECONDS = 0.05
 
 
+def _wait_for_document(client, probe_present, timeout=60):
+    """Wait for the reloaded document to have (or not have) the probe in it."""
+    deadline = time.time() + timeout
+    want = "true" if probe_present else "false"
+    while time.time() < deadline:
+        if str(client.ev("!!window.__e2eAudio")).lower() == want:
+            return
+        time.sleep(0.25)
+    raise AssertionError(
+        f"{client.name}: the reloaded page "
+        f"{'lacks' if probe_present else 'still has'} the audio probe")
+
+
 def install(client, extra=""):
     """Run the probe at the start of every document this page loads.
 
     `extra` is more script to run after it (the raw-capture control arm).
-    Reloads so the app boots with the probe already in place.
+    Reloads so the app boots with the probe already in place, and returns the
+    script identifier [uninstall] needs. Use [installed] on a browser that
+    outlives the scenario.
     """
     client.send("Page.enable")
-    client.send("Page.addScriptToEvaluateOnNewDocument",
-                {"source": e2e_audio_js.PROBE + extra})
+    added = client.send("Page.addScriptToEvaluateOnNewDocument",
+                        {"source": e2e_audio_js.PROBE + extra})
     client.send("Page.reload")
-    time.sleep(4)
+    _wait_for_document(client, True)
     client.enable_semantics()
+    return added["result"]["identifier"]
+
+
+def uninstall(client, identifier):
+    """Take the probe out again and reload, so later scenarios run unwrapped."""
+    client.send("Page.removeScriptToEvaluateOnNewDocument",
+                {"identifier": identifier})
+    client.send("Page.reload")
+    _wait_for_document(client, False)
+    client.enable_semantics()
+
+
+@contextlib.contextmanager
+def installed(client, extra=""):
+    """The probe for one scenario; removed afterwards without masking its error."""
+    identifier = install(client, extra)
+    try:
+        yield
+    finally:
+        try:
+            uninstall(client, identifier)
+        except Exception as err:
+            print(f"  could not remove the probe from {client.name}: {err}")
 
 
 class AudioProbe:
@@ -58,8 +97,10 @@ class AudioProbe:
         raw = self.client.ev(
             "JSON.stringify(window.__e2eAudio.since(%s, %s))"
             % (json.dumps(stream_id), json.dumps(since)))
+        rows = json.loads(raw or "[]")
+        lv.refuse_unplayed(rows, self.client.name, stream_id)
         return [(t / 1000.0, lv.rms_to_db(eff), lv.rms_to_db(pre))
-                for t, eff, pre in json.loads(raw or "[]")]
+                for t, eff, pre, _ in rows]
 
     def measure(self, stream_id, seconds):
         """Listen for `seconds`, returning the effective-level series."""

@@ -89,12 +89,15 @@ def loudest_heard_db(samples, min_source_db=-50.0):
     return max(heard) if heard else None
 
 
-def longest_gap_seconds(samples, threshold_db):
+def longest_gap_seconds(samples, threshold_db, until=None):
     """The longest stretch with no window at or above `threshold_db`.
 
     `samples` is `[(seconds, level_db)]` in time order. The gap runs between
-    consecutive loud windows; quiet at either end of the series is not counted
-    because a measurement window starts mid-signal.
+    consecutive loud windows; quiet before the first loud window is not
+    counted because a measurement window starts mid-signal. With `until` (the
+    time the reading ended) silence after the last loud window counts too, so
+    a dropout longer than the read cannot pass unseen; a series that never
+    gets loud is then one gap from its first window to `until`.
     """
     last_loud = None
     longest = 0.0
@@ -104,21 +107,25 @@ def longest_gap_seconds(samples, threshold_db):
         if last_loud is not None:
             longest = max(longest, at - last_loud)
         last_loud = at
+    if until is not None:
+        anchor = last_loud if last_loud is not None else (
+            samples[0][0] if samples else None)
+        if anchor is not None:
+            longest = max(longest, until - anchor)
     return longest
 
 
-def luminance_stats(rgba, stride=4):
-    """Mean and spread of the luminance of a flat RGBA byte sequence.
+def refuse_unplayed(rows, who, stream_id, max_fraction=0.25):
+    """Raise when too many raw probe windows came from an element not playing.
 
-    A frame is live when its mean clears black; spread tells a flat fill from
-    a picture with content in it.
+    `rows` is the probe's `[ms, rms, pre_rms, flag]`; a flag means the element
+    was paused or stalled, or the app's AudioContext was suspended under a tap.
+    Such windows read as silence, which would pass a "muted" assertion for the
+    wrong reason.
     """
-    values = []
-    for i in range(0, len(rgba) - 3, stride):
-        r, g, b = rgba[i], rgba[i + 1], rgba[i + 2]
-        values.append(0.2126 * r + 0.7152 * g + 0.0722 * b)
-    if not values:
-        return 0.0, 0.0
-    mean = sum(values) / len(values)
-    var = sum((v - mean) ** 2 for v in values) / len(values)
-    return mean, math.sqrt(var)
+    flagged = [r[3] for r in rows if len(r) > 3 and r[3]]
+    if rows and len(flagged) > max_fraction * len(rows):
+        raise AssertionError(
+            f"{who}: stream {stream_id} was not really playing in "
+            f"{len(flagged)} of {len(rows)} windows ({sorted(set(flagged))}); "
+            f"a measurement of it proves nothing")

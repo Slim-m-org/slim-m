@@ -21,8 +21,11 @@ def _heard(probe, stream):
 
 
 def deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id):
-    e2e_audio.install(a)
-    e2e_audio.install(b)
+    with e2e_audio.installed(a), e2e_audio.installed(b):
+        _deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id)
+
+
+def _deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id):
     join_call(a, b, room_id)
     a_hears = e2e_audio.AudioProbe(a)
     b_hears = e2e_audio.AudioProbe(b)
