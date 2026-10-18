@@ -13,6 +13,7 @@ export 'src/pulse_audio.dart';
 export 'src/audio_gain.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
+export 'src/share_limit.dart';
 export 'src/capture_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
 export 'src/call_stats_sampler.dart'

@@ -8,6 +8,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -450,6 +451,11 @@ class VoiceController extends StateNotifier<VoiceState>
   /// screens to choose from. Enumerating is also what makes the capture that
   /// follows able to find anything, so it happens even for a single screen.
   bool get screenShareNeedsSource => _session.screenShareNeedsSource;
+
+  /// See [ShareLimitMonitor]; set while our own share is held back.
+  ValueListenable<ShareLimit?> get shareLimit => _session.shareLimit.limit;
+
+  void dismissShareLimit() => _session.shareLimit.dismiss();
 
   /// See [VoiceSession.screenShareSourcePickerUseful].
   bool get screenShareSourcePickerUseful =>

@@ -24,6 +24,7 @@ extension VoiceSessionStall on VoiceSession {
 
   /// Forgets everything the watch knew; the call is over.
   void _stopStallWatch() {
+    shareLimit.stop();
     unawaited(_stallStats?.cancel());
     _stallStats = null;
     _activeVideoKeys.clear();
