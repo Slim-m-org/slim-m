@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -21,6 +20,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_data/data.dart' show Channel, MessageStore;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -91,15 +91,7 @@ ProviderContainer _container(_Upstream upstream, {MessageStore? store}) {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       if (store != null) storeProvider.overrideWith((ref) async => store),
-      apiProvider.overrideWith((ref) {
-        final built = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(upstream.handle),
-        );
-        ref.onDispose(built.close);
-        return built;
-      }),
+      mockApiOverride(upstream.handle),
     ],
   );
   addTearDown(container.dispose);

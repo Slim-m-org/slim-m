@@ -8,28 +8,19 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_note_sizing.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_quick_placement.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 void main() {
   testWidgets(
     "a placed note's request carries noteBoxFor's own size, not a fixed one",
     (tester) async {
       final requests = <Map<String, dynamic>>[];
-      final client = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: api.SessionStore(
-          tokens: const api.TokenPair(
-            userId: 'me',
-            accessToken: 'access',
-            refreshToken: 'refresh',
-            accessExpiresAt: 0,
-          ),
-        ),
-        httpClient: MockClient((request) async {
+      final client = testApi(
+        (request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           requests.add(body);
           return http.Response(
@@ -49,7 +40,15 @@ void main() {
             201,
             headers: {'content-type': 'application/json'},
           );
-        }),
+        },
+        session: api.SessionStore(
+          tokens: const api.TokenPair(
+            userId: 'me',
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessExpiresAt: 0,
+          ),
+        ),
       );
       final placement = CanvasQuickPlacement(
         client: client,
@@ -79,8 +78,8 @@ void main() {
   testWidgets(
     'a timed-out caller hears the freeze named, not a generic refusal',
     (tester) async {
-      final client = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
+      final client = testApi(
+        (request) async => http.Response('{"error":"no"}', 403),
         session: api.SessionStore(
           tokens: const api.TokenPair(
             userId: 'me',
@@ -88,9 +87,6 @@ void main() {
             refreshToken: 'refresh',
             accessExpiresAt: 0,
           ),
-        ),
-        httpClient: MockClient(
-          (request) async => http.Response('{"error":"no"}', 403),
         ),
       );
       // A little past the exact hour so a later real-clock read cannot truncate this down a bucket.

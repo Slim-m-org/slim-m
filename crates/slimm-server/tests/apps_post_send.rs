@@ -10,14 +10,10 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
     Store, User,
@@ -26,6 +22,8 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
+
+use support::app::json_body;
 use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
 
 async fn store(name: &str) -> (Store, support::TestDbGuard) {
@@ -50,19 +48,7 @@ fn app(store: Store) -> Router {
 }
 
 fn app_with_hub(store: Store, hub: Hub) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).hub(hub).router()
 }
 
 /// The launcher: a member who clears VIEW_CHANNEL and SEND_MESSAGES through the
@@ -140,13 +126,6 @@ fn post(uri: &str, token: &str, body: Value) -> Request<Body> {
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 fn launch(channel: &str, token: &str, caption: &str) -> Request<Body> {

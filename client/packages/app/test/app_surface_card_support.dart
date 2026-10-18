@@ -8,13 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/app_surface_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 Future<void> pumpAppCard(
   WidgetTester tester, {
@@ -40,21 +40,13 @@ Future<void> pumpAppCard(
         ),
       ),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
-      apiProvider.overrideWith((ref) {
-        final built = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(
-            (_) async => http.Response(
-              jsonEncode({'ok': true, 'output': jsonEncode(scene)}),
-              200,
-              headers: {'content-type': 'application/json'},
-            ),
-          ),
-        );
-        ref.onDispose(built.close);
-        return built;
-      }),
+      mockApiOverride(
+        (_) async => http.Response(
+          jsonEncode({'ok': true, 'output': jsonEncode(scene)}),
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
     ],
   );
   addTearDown(container.dispose);

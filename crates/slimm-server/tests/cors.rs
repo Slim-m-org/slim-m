@@ -9,14 +9,10 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::cors::CorsPolicy;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
+use slimm_server::http::{self};
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
@@ -34,19 +30,7 @@ async fn app(policy: CorsPolicy) -> (Router, support::TestDbGuard) {
         ..Config::default()
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
-    let router = policy.apply(http::router(AppState {
-        store: Store::new(pool),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }));
+    let router = policy.apply(http::router(support::app::state(Store::new(pool))));
     (router, guard)
 }
 

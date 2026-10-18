@@ -16,13 +16,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_picker_panel.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -40,17 +40,11 @@ ProviderContainer _container() => ProviderContainer(
       ref.onDispose(db.close);
       return db;
     }),
-    apiProvider.overrideWith(
-      (ref) => api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: ref.watch(sessionProvider),
-        httpClient: MockClient(
-          (request) async => http.Response(
-            jsonEncode({'results': <Object?>[]}),
-            200,
-            headers: {'content-type': 'application/json'},
-          ),
-        ),
+    mockApiOverride(
+      (request) async => http.Response(
+        jsonEncode({'results': <Object?>[]}),
+        200,
+        headers: {'content-type': 'application/json'},
       ),
     ),
   ],

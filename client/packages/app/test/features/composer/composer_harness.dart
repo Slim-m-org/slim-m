@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
@@ -33,6 +32,7 @@ import 'package:slimm_app/src/features/composer/widgets/photo_library.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../ui_snapshot_support.dart' show snapshotBoundary;
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// Stands in for the real controller, which would open a websocket
 /// subscription the moment the first keystroke reaches it.
@@ -175,54 +175,42 @@ String _echoedFilename(http.Request request) =>
     request.url.queryParameters['filename'] ?? 'upload.bin';
 
 /// An api whose only live route is the attachment upload the composer makes.
-api.SlimmApi _uploadingApi(Ref ref) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: ref.watch(sessionProvider),
-  httpClient: MockClient((request) async {
-    if (request.method == 'POST' && request.url.path == '/attachments') {
-      return http.Response(
-        jsonEncode({
-          'id': 'a1',
-          'filename': _echoedFilename(request),
-          'content_type': 'image/png',
-          'size': 4,
-        }),
-        201,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
-  }),
-);
+api.SlimmApi _uploadingApi(Ref ref) => testApi((request) async {
+  if (request.method == 'POST' && request.url.path == '/attachments') {
+    return http.Response(
+      jsonEncode({
+        'id': 'a1',
+        'filename': _echoedFilename(request),
+        'content_type': 'image/png',
+        'size': 4,
+      }),
+      201,
+      headers: {'content-type': 'application/json'},
+    );
+  }
+  return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
+}, session: ref.watch(sessionProvider));
 
 /// Like [_uploadingApi], except the upload answers nothing until [gate]
 /// completes - so a test can observe the pending state deterministically
 /// rather than racing a fake network's own timing.
 api.SlimmApi Function(Ref) gatedUploadApi(Completer<void> gate) =>
-    (ref) => api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async {
-        if (request.method == 'POST' && request.url.path == '/attachments') {
-          await gate.future;
-          return http.Response(
-            jsonEncode({
-              'id': 'a1',
-              'filename': _echoedFilename(request),
-              'content_type': 'image/png',
-              'size': 4,
-            }),
-            201,
-            headers: {'content-type': 'application/json'},
-          );
-        }
+    (ref) => testApi((request) async {
+      if (request.method == 'POST' && request.url.path == '/attachments') {
+        await gate.future;
         return http.Response(
-          '{}',
-          404,
-          headers: {'content-type': 'text/plain'},
+          jsonEncode({
+            'id': 'a1',
+            'filename': _echoedFilename(request),
+            'content_type': 'image/png',
+            'size': 4,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
         );
-      }),
-    );
+      }
+      return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
+    }, session: ref.watch(sessionProvider));
 
 /// An api whose attachment upload fails once, a 507 (the ceiling a full
 /// volume answers with, never confused for a bad file), then succeeds - so
@@ -231,37 +219,29 @@ api.SlimmApi Function(Ref) gatedUploadApi(Completer<void> gate) =>
 /// the attempt count.
 api.SlimmApi Function(Ref) flakyUploadApi() {
   var attempts = 0;
-  return (ref) => api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: ref.watch(sessionProvider),
-    httpClient: MockClient((request) async {
-      if (request.method != 'POST' || request.url.path != '/attachments') {
-        return http.Response(
-          '{}',
-          404,
-          headers: {'content-type': 'text/plain'},
-        );
-      }
-      attempts += 1;
-      if (attempts == 1) {
-        return http.Response(
-          jsonEncode({'error': 'the server has no space left for uploads'}),
-          507,
-          headers: {'content-type': 'application/json'},
-        );
-      }
+  return (ref) => testApi((request) async {
+    if (request.method != 'POST' || request.url.path != '/attachments') {
+      return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
+    }
+    attempts += 1;
+    if (attempts == 1) {
       return http.Response(
-        jsonEncode({
-          'id': 'a1',
-          'filename': _echoedFilename(request),
-          'content_type': 'image/png',
-          'size': 4,
-        }),
-        201,
+        jsonEncode({'error': 'the server has no space left for uploads'}),
+        507,
         headers: {'content-type': 'application/json'},
       );
-    }),
-  );
+    }
+    return http.Response(
+      jsonEncode({
+        'id': 'a1',
+        'filename': _echoedFilename(request),
+        'content_type': 'image/png',
+        'size': 4,
+      }),
+      201,
+      headers: {'content-type': 'application/json'},
+    );
+  }, session: ref.watch(sessionProvider));
 }
 
 /// [customEmoji] null leaves the list provider alone, which is the state a

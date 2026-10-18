@@ -9,7 +9,6 @@ library;
 
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_activity_log.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
@@ -17,6 +16,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dar
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 api.CanvasObject _object(String id, {String? authorId = 'alice'}) =>
     api.CanvasObject(
@@ -37,8 +37,8 @@ api.CanvasObject _object(String id, {String? authorId = 'alice'}) =>
 /// on the first, adjacent seq, so `CanvasSync.applyLive` never needs to
 /// fetch anything - `canvas_sync_test.dart` is the suite that drives a real
 /// catch-up fetch.
-api.SlimmApi _inertApi() => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
+api.SlimmApi _inertApi() => testApi(
+  (_) async => throw StateError('no request expected in this suite'),
   session: api.SessionStore(
     tokens: const api.TokenPair(
       userId: 'me',
@@ -46,9 +46,6 @@ api.SlimmApi _inertApi() => api.SlimmApi(
       refreshToken: 'refresh',
       accessExpiresAt: 0,
     ),
-  ),
-  httpClient: MockClient(
-    (_) async => throw StateError('no request expected in this suite'),
   ),
 );
 

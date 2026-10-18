@@ -10,13 +10,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile_links.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -33,15 +33,7 @@ Future<ProviderContainer> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final built = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async => answer(request)),
-        );
-        ref.onDispose(built.close);
-        return built;
-      }),
+      mockApiOverride((request) async => answer(request)),
     ],
   );
   addTearDown(container.dispose);

@@ -13,7 +13,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -22,6 +21,7 @@ import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.
 import 'package:slimm_data/data.dart' show Channel, MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',
@@ -62,38 +62,29 @@ Widget _harness(int permissions) => UncontrolledProviderScope(
           permissions: permissions,
         ),
       ),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/channels/c1/permissions') {
-              return http.Response(
-                jsonEncode({'permissions': permissions}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path == '/channels/c1/overwrites') {
-              return http.Response(
-                jsonEncode({'overwrites': const <Object>[]}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path == '/roles' ||
-                request.url.path == '/members') {
-              return http.Response(
-                jsonEncode(const <Object>[]),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response('{}', 200);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path == '/channels/c1/permissions') {
+          return http.Response(
+            jsonEncode({'permissions': permissions}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path == '/channels/c1/overwrites') {
+          return http.Response(
+            jsonEncode({'overwrites': const <Object>[]}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path == '/roles' || request.url.path == '/members') {
+          return http.Response(
+            jsonEncode(const <Object>[]),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 200);
       }),
       storeProvider.overrideWith((ref) async {
         final db = SlimmDatabase(NativeDatabase.memory());

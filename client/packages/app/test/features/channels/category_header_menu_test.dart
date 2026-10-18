@@ -13,7 +13,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/collapsed_categories_preference.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -49,33 +49,25 @@ _setup() {
         (ref) => SharedPreferences.getInstance(),
       ),
       databaseProvider.overrideWith((ref) => db),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add(request);
-            if (request.method == 'PATCH' &&
-                request.url.path.startsWith('/categories/')) {
-              final id = request.url.path.split('/').last;
-              final body = jsonDecode(request.body) as Map<String, dynamic>;
-              final existing = _categories.firstWhere((c) => c.id == id);
-              return http.Response(
-                jsonEncode({
-                  'id': id,
-                  'name': body['name'] as String? ?? existing.name,
-                  'position': body['position'] as int? ?? existing.position,
-                  'created_at': 0,
-                }),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response('{}', 404);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        requests.add(request);
+        if (request.method == 'PATCH' &&
+            request.url.path.startsWith('/categories/')) {
+          final id = request.url.path.split('/').last;
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final existing = _categories.firstWhere((c) => c.id == id);
+          return http.Response(
+            jsonEncode({
+              'id': id,
+              'name': body['name'] as String? ?? existing.name,
+              'position': body['position'] as int? ?? existing.position,
+              'created_at': 0,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 404);
       }),
     ],
   );

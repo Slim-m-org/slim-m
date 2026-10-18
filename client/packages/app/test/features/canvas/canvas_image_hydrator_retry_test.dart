@@ -10,10 +10,10 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_image_hydrator.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// A 1x1 transparent PNG: real bytes, so a decode succeeds rather than
 /// throwing.
@@ -47,17 +47,13 @@ const _tokens = api.TokenPair(
 
 api.SlimmApi _fakeApi(
   Future<http.Response> Function(String attachmentId) onFetch,
-) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: api.SessionStore(tokens: _tokens),
-  httpClient: MockClient((request) async {
-    final match = RegExp(r'^/attachments/(.+)$').firstMatch(request.url.path);
-    if (match == null) {
-      return http.Response(jsonEncode(<Object>[]), 200);
-    }
-    return onFetch(match.group(1)!);
-  }),
-);
+) => testApi((request) async {
+  final match = RegExp(r'^/attachments/(.+)$').firstMatch(request.url.path);
+  if (match == null) {
+    return http.Response(jsonEncode(<Object>[]), 200);
+  }
+  return onFetch(match.group(1)!);
+}, session: api.SessionStore(tokens: _tokens));
 
 api.CanvasObject _imageObject(String id, {String attachment = 'sha-1'}) =>
     api.CanvasObject(

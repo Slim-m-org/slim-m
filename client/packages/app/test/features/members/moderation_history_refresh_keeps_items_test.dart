@@ -7,12 +7,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/moderation_history_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'mod-1',
@@ -50,25 +50,17 @@ void main() {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(events.stream),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              calls++;
-              final n = calls;
-              if (n >= 3) await gate.future;
-              final page = n == 2
-                  ? [_entry('tail', 999)]
-                  : [
-                      for (var i = 0; i < moderationHistoryPageSize; i++)
-                        _entry('a$i', i),
-                    ];
-              return _json(page);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
+        mockApiOverride((request) async {
+          calls++;
+          final n = calls;
+          if (n >= 3) await gate.future;
+          final page = n == 2
+              ? [_entry('tail', 999)]
+              : [
+                  for (var i = 0; i < moderationHistoryPageSize; i++)
+                    _entry('a$i', i),
+                ];
+          return _json(page);
         }),
       ],
     );

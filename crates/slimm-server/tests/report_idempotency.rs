@@ -9,33 +9,14 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::MessageId;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
-use slimm_server::store::{NewMessage, Store};
+use slimm_server::store::NewMessage;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
 
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
+use support::app::{app, json_body};
 
 fn post(uri: &str, token: &str, body: Value) -> Request<Body> {
     Request::builder()
@@ -54,13 +35,6 @@ fn get(uri: &str, token: &str) -> Request<Body> {
         .header("authorization", format!("Bearer {token}"))
         .body(Body::empty())
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 /// An admin, a reporter, and one of the admin's messages to report. Returns

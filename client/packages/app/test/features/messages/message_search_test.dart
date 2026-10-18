@@ -10,11 +10,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_search.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -30,22 +30,14 @@ ProviderContainer _harness(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/blocks') {
-              return http.Response(jsonEncode(<Object>[]), 200);
-            }
-            if (request.url.path.endsWith('/messages/search')) {
-              return searchHandler(request);
-            }
-            throw StateError('unexpected request in this test: ${request.url}');
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path == '/blocks') {
+          return http.Response(jsonEncode(<Object>[]), 200);
+        }
+        if (request.url.path.endsWith('/messages/search')) {
+          return searchHandler(request);
+        }
+        throw StateError('unexpected request in this test: ${request.url}');
       }),
     ],
   );

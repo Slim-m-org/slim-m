@@ -17,49 +17,12 @@ use axum::http::{Request, StatusCode};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::emoji::bulk::MAX_BULK_IMAGES;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
-use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
 
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
-/// A member with a session, straight through the store. The first caller
-/// bootstraps the deployment and becomes the admin, exactly as
-/// `emoji_http.rs`'s own `register` does.
-async fn register(store: &Store, username: &str) -> String {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    store
-        .open_session(account.id, "cli")
-        .await
-        .unwrap()
-        .access_token
-}
+use support::app::{app, json_body, register_token as register};
 
 /// A PNG the sniffer accepts, varied by `filler` so two images with
 /// different names never collide on content.
@@ -128,13 +91,6 @@ async fn single_upload(
         ))
         .await
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 async fn emoji_count(app: &Router, token: &str) -> usize {

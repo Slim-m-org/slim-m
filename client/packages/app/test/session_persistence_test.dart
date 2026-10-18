@@ -22,6 +22,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 // this file builds, so only the store types come across from data.
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -319,19 +320,15 @@ void main() {
 
       var refreshAttempts = 0;
       final session = SessionStore();
-      final api = SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: session,
-        httpClient: MockClient((request) async {
-          expect(
-            request.url.path,
-            '/auth/refresh',
-            reason: 'the only authenticated call this test makes',
-          );
-          refreshAttempts++;
-          return http.Response('{"error":"revoked"}', 401);
-        }),
-      );
+      final api = testApi((request) async {
+        expect(
+          request.url.path,
+          '/auth/refresh',
+          reason: 'the only authenticated call this test makes',
+        );
+        refreshAttempts++;
+        return http.Response('{"error":"revoked"}', 401);
+      }, session: session);
       addTearDown(api.close);
 
       final container = ProviderContainer(

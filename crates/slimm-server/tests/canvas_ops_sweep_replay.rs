@@ -17,6 +17,8 @@ use std::collections::{HashMap, HashSet};
 
 mod support;
 
+use support::app::register_id as register;
+
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const AGE_DAYS: i64 = 31;
 
@@ -30,15 +32,6 @@ async fn harness() -> (Store, SqlitePool, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool.clone()), pool, guard)
-}
-
-async fn register(store: &Store, username: &str) -> UserId {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    account.id
 }
 
 async fn general(store: &Store) -> ChannelId {

@@ -9,12 +9,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -43,29 +43,23 @@ Future<int> _countRequests({
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith(
-        (ref) => api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path != '/members') return http.Response('[]', 200);
-            requests++;
-            if (requests == 1 && firstPageGate != null) {
-              await firstPageGate.future;
-            }
-            final after = request.url.queryParameters['after'];
-            final start = after == null
-                ? 0
-                : all.indexWhere((m) => m['id'] == after) + 1;
-            final page = all.skip(start).take(200).toList();
-            return http.Response(
-              jsonEncode(page),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
-        ),
-      ),
+      mockApiOverride((request) async {
+        if (request.url.path != '/members') return http.Response('[]', 200);
+        requests++;
+        if (requests == 1 && firstPageGate != null) {
+          await firstPageGate.future;
+        }
+        final after = request.url.queryParameters['after'];
+        final start = after == null
+            ? 0
+            : all.indexWhere((m) => m['id'] == after) + 1;
+        final page = all.skip(start).take(200).toList();
+        return http.Response(
+          jsonEncode(page),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
       liveEventsProvider.overrideWithValue(events.stream),
     ],
   );

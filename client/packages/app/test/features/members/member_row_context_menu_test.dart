@@ -12,13 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -37,26 +37,18 @@ ProviderContainer _container() => ProviderContainer(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-    apiProvider.overrideWith((ref) {
-      final client = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: ref.watch(sessionProvider),
-        httpClient: MockClient((request) async {
-          if (request.url.path == '/me') {
-            return _json({
-              'id': 'self',
-              'username': 'self',
-              'display_name': 'Self',
-              'created_at': 0,
-              'permissions': 0,
-            });
-          }
-          if (request.url.path == '/presence') return _json(const []);
-          return http.Response('', 204);
-        }),
-      );
-      ref.onDispose(client.close);
-      return client;
+    mockApiOverride((request) async {
+      if (request.url.path == '/me') {
+        return _json({
+          'id': 'self',
+          'username': 'self',
+          'display_name': 'Self',
+          'created_at': 0,
+          'permissions': 0,
+        });
+      }
+      if (request.url.path == '/presence') return _json(const []);
+      return http.Response('', 204);
     }),
     membersProvider.overrideWith(
       (ref) async => [

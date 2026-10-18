@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -27,6 +26,7 @@ import 'package:slimm_platform/platform.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'support/fake_sync.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -72,53 +72,49 @@ api.UserProfile _profile(String id, String name, {String? statusText}) =>
       statusText: statusText,
     );
 
-api.SlimmApi _fakeApi(api.SessionStore session) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: session,
-  httpClient: MockClient((request) async {
-    final json = switch (request.url.path) {
-      '/me' => {
-        'id': 'self',
-        'username': 'self',
-        'display_name': 'Self',
-        'created_at': 0,
-        'permissions': 0,
+api.SlimmApi _fakeApi(api.SessionStore session) => testApi((request) async {
+  final json = switch (request.url.path) {
+    '/me' => {
+      'id': 'self',
+      'username': 'self',
+      'display_name': 'Self',
+      'created_at': 0,
+      'permissions': 0,
+    },
+    '/presence' => [
+      {
+        'user_id': '1',
+        'status': 'online',
+        'activity': {
+          'type': 'listening',
+          'title': 'Weightless',
+          'subtitle': 'Marconi Union',
+          'source': 'Spotify',
+          'art_url': _art,
+        },
       },
-      '/presence' => [
-        {
-          'user_id': '1',
-          'status': 'online',
-          'activity': {
-            'type': 'listening',
-            'title': 'Weightless',
-            'subtitle': 'Marconi Union',
-            'source': 'Spotify',
-            'art_url': _art,
-          },
+      {
+        'user_id': '2',
+        'status': 'online',
+        'activity': {
+          'type': 'listening',
+          'title':
+              'A very long track title that cannot possibly fit on one line '
+              'of a narrow member pane',
+          'subtitle': 'An artist with an equally long name',
+          'source': 'Mozilla Firefox',
         },
-        {
-          'user_id': '2',
-          'status': 'online',
-          'activity': {
-            'type': 'listening',
-            'title':
-                'A very long track title that cannot possibly fit on one line '
-                'of a narrow member pane',
-            'subtitle': 'An artist with an equally long name',
-            'source': 'Mozilla Firefox',
-          },
-        },
-        {'user_id': '3', 'status': 'online'},
-      ],
-      _ => <String, dynamic>{},
-    };
-    return http.Response(
-      jsonEncode(json),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  }),
-);
+      },
+      {'user_id': '3', 'status': 'online'},
+    ],
+    _ => <String, dynamic>{},
+  };
+  return http.Response(
+    jsonEncode(json),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
+}, session: session);
 
 Future<void> _pump(
   WidgetTester tester, {

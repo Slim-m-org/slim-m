@@ -5,11 +5,12 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/modules/providers/app_launches.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -23,15 +24,7 @@ ProviderContainer _container(http.Response Function(http.Request) handler) {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async => handler(request)),
-        );
-        ref.onDispose(api.close);
-        return api;
-      }),
+      mockApiOverride((request) async => handler(request)),
     ],
   );
   addTearDown(container.dispose);
@@ -81,16 +74,13 @@ void main() {
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
         apiProvider.overrideWith((ref) {
           if (failing) throw StateError('no client');
-          return SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient(
-              (request) async => http.Response(
-                '{"ok":true,"output":"hi"}',
-                200,
-                headers: {'content-type': 'application/json'},
-              ),
+          return testApi(
+            (request) async => http.Response(
+              '{"ok":true,"output":"hi"}',
+              200,
+              headers: {'content-type': 'application/json'},
             ),
+            session: ref.watch(sessionProvider),
           );
         }),
       ],

@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/edit_display_name_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -27,15 +27,7 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((r) async => http.Response('', 204)),
-          );
-          ref.onDispose(api.close);
-          return api;
-        }),
+        mockApiOverride((r) async => http.Response('', 204)),
       ],
     );
     addTearDown(container.dispose);

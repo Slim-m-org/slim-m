@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/activity_feeds.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/activity_sharing_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -58,30 +58,22 @@ class _Harness {
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         nowPlayingSourceProvider.overrideWithValue(music),
         gameSourceProvider.overrideWithValue(games),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              // The stored visibility is read from /me; it is not an activity call.
-              if (request.url.path == '/me') {
-                return http.Response(
-                  '{"id":"self","username":"self","display_name":"Self",'
-                  '"created_at":0,"permissions":0,'
-                  '"presence_visibility":"online"}',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              calls.add(
-                '${request.method} ${request.url.path}'
-                '${request.body.isEmpty ? '' : ' ${request.body}'}',
-              );
-              return http.Response('', 204);
-            }),
+        mockApiOverride((request) async {
+          // The stored visibility is read from /me; it is not an activity call.
+          if (request.url.path == '/me') {
+            return http.Response(
+              '{"id":"self","username":"self","display_name":"Self",'
+              '"created_at":0,"permissions":0,'
+              '"presence_visibility":"online"}',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          calls.add(
+            '${request.method} ${request.url.path}'
+            '${request.body.isEmpty ? '' : ' ${request.body}'}',
           );
-          ref.onDispose(client.close);
-          return client;
+          return http.Response('', 204);
         }),
       ],
     );

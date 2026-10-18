@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/settings/providers/admin_audit_names.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'admin-1',
@@ -57,20 +57,12 @@ Future<List<Uri>> _pump(
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
       adminAuditNamesProvider.overrideWith((ref) => const AuditNames()),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            seen.add(request.url);
-            if (request.url.path == '/space/audit-log') {
-              return answer(request.url);
-            }
-            return _json(<Object>[]);
-          }),
-        );
-        ref.onDispose(api.close);
-        return api;
+      mockApiOverride((request) async {
+        seen.add(request.url);
+        if (request.url.path == '/space/audit-log') {
+          return answer(request.url);
+        }
+        return _json(<Object>[]);
       }),
     ],
   );

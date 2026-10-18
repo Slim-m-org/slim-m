@@ -23,7 +23,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -40,6 +39,7 @@ import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'features/voice/voice_controller_harness.dart' show FakeSession, tokens;
 import 'support/fake_blocks.dart';
+import 'support/fake_api.dart';
 
 const _viewport = Size(1400, 880);
 const _channelId = 'channel-shared';
@@ -158,29 +158,21 @@ Future<({ProviderContainer container})> _pumpInCall(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
       myPermissionsProvider.overrideWithValue(permissions),
       membersProvider.overrideWith((ref) async => [_other]),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path.endsWith('/voice/token')) {
-              return http.Response(
-                jsonEncode({
-                  'url': 'wss://sfu.example.com',
-                  'room': _channelId,
-                  'token': 'jwt',
-                  'expires_at': 0,
-                  'can_publish': true,
-                }),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path.endsWith('/voice/token')) {
+          return http.Response(
+            jsonEncode({
+              'url': 'wss://sfu.example.com',
+              'room': _channelId,
+              'token': 'jwt',
+              'expires_at': 0,
+              'can_publish': true,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('', 204);
       }),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session),
@@ -322,19 +314,11 @@ void main() {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
         myPermissionsProvider.overrideWithValue(Perm.kickMembers),
         membersProvider.overrideWith((ref) async => [_other]),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path.endsWith('/timeout')) {
-                return http.Response('{"error":"forbidden"}', 403);
-              }
-              return http.Response('{}', 200);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.url.path.endsWith('/timeout')) {
+            return http.Response('{"error":"forbidden"}', 403);
+          }
+          return http.Response('{}', 200);
         }),
       ],
     );

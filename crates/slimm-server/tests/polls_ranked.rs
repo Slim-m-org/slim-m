@@ -8,15 +8,11 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::ChannelId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -25,6 +21,8 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
+
+use support::app::request_authed as request;
 
 type WsClient =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
@@ -55,39 +53,13 @@ async fn world() -> World {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap().id;
-    let state = AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    };
+    let state = support::app::state(store.clone());
     World {
         store,
         app: http::router(state.clone()),
         state,
         channel,
         _guard: guard,
-    }
-}
-
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(value) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(value.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
     }
 }
 

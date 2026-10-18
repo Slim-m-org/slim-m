@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/avatar_settings_section.dart';
@@ -24,6 +23,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'features/composer/composer_harness.dart' show usePicker;
+import 'support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -59,23 +59,15 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/me') {
-                return http.Response(
-                  jsonEncode(_meJson(null)),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response('', 404);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
+        mockApiOverride((request) async {
+          if (request.url.path == '/me') {
+            return http.Response(
+              jsonEncode(_meJson(null)),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('', 404);
         }),
       ],
     );
@@ -110,24 +102,16 @@ void main() {
           overrides: [
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
             sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: MockClient((request) async {
-                  requests.add('${request.method} ${request.url.path}');
-                  if (request.url.path == '/me') {
-                    return http.Response(
-                      jsonEncode(_meJson(null)),
-                      200,
-                      headers: {'content-type': 'application/json'},
-                    );
-                  }
-                  return http.Response('', 404);
-                }),
-              );
-              ref.onDispose(api.close);
-              return api;
+            mockApiOverride((request) async {
+              requests.add('${request.method} ${request.url.path}');
+              if (request.url.path == '/me') {
+                return http.Response(
+                  jsonEncode(_meJson(null)),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              return http.Response('', 404);
             }),
           ],
         );
@@ -157,24 +141,16 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              requests.add('${request.method} ${request.url.path}');
-              if (request.url.path == '/me') {
-                return http.Response(
-                  jsonEncode(_meJson(null)),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response('', 404);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
+        mockApiOverride((request) async {
+          requests.add('${request.method} ${request.url.path}');
+          if (request.url.path == '/me') {
+            return http.Response(
+              jsonEncode(_meJson(null)),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('', 404);
         }),
       ],
     );

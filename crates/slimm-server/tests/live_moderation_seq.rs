@@ -9,11 +9,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -24,22 +20,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
 async fn ticket_for(store: &Store, user: slimm_server::ids::UserId) -> String {
@@ -137,7 +117,7 @@ async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
         .access_token;
     let bot = store.create_user("bot", "bot").await.unwrap();
     let victim = store.create_user("victim", "victim").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
 
     let (ws, first_hello) = connect(addr, &ticket_for(&store, bot.id).await).await;
@@ -170,7 +150,7 @@ async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
 async fn a_quiet_reconnect_sees_the_same_head() {
     let (store, _guard) = support::new_store("slimm-live-moderation-seq-test").await;
     let bot = store.create_user("bot", "bot").await.unwrap();
-    let addr = serve(state_for(&store)).await;
+    let addr = serve(support::app::state(store.clone())).await;
 
     let (ws, first) = connect(addr, &ticket_for(&store, bot.id).await).await;
     drop(ws);
@@ -186,7 +166,7 @@ async fn each_moderation_event_carries_an_increasing_seq() {
 
     let (store, _guard) = support::new_store("slimm-live-moderation-seq-test").await;
     let bot = store.create_user("bot", "bot").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
     let (mut ws, hello) = connect(addr, &ticket_for(&store, bot.id).await).await;
     let mut last = hello["moderation_seq"].as_u64().unwrap();

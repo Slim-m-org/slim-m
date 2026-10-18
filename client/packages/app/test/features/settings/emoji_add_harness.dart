@@ -11,13 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_add_card.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_intake.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const emojiTestTokens = api.TokenPair(
   userId: 'admin',
@@ -108,21 +108,17 @@ class EmojiHarness {
           return picks;
         }),
         apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: api.SessionStore(tokens: emojiTestTokens),
-            httpClient: MockClient((request) async {
-              requests.add(request);
-              if (request.url.path == '/emoji/bulk') {
-                await holdBulk?.call(request);
-                return onBulk!(request);
-              }
-              if (request.method == 'POST' && request.url.path == '/emoji') {
-                return onSingle!(request);
-              }
-              return emojiJson(const {});
-            }),
-          );
+          final client = testApi((request) async {
+            requests.add(request);
+            if (request.url.path == '/emoji/bulk') {
+              await holdBulk?.call(request);
+              return onBulk!(request);
+            }
+            if (request.method == 'POST' && request.url.path == '/emoji') {
+              return onSingle!(request);
+            }
+            return emojiJson(const {});
+          }, session: api.SessionStore(tokens: emojiTestTokens));
           ref.onDispose(client.close);
           return client;
         }),

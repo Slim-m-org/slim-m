@@ -6,32 +6,16 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::http::gifs::GifSearch;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{MAX_SCREEN_SHARE_MAX_HEIGHT, Store};
 use tower::ServiceExt;
 
 mod support;
 
 fn app(store: Store, push: PushSender, gifs: GifSearch) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push,
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs,
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).push(push).gifs(gifs).router()
 }
 
 async fn get_version(app: Router) -> Value {

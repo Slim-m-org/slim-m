@@ -7,13 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/widgets/watch_session_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 api.UserProfile _member(String id, {bool bot = false}) => api.UserProfile(
   id: id,
@@ -32,8 +32,11 @@ Future<List<Uri>> _pump(WidgetTester tester, List<String> participants) async {
         (ref) async => [_member('ada'), _member('jelly', bot: true)],
       ),
       apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
+        final client = testApi(
+          (request) async {
+            requests.add(request.url);
+            return http.Response('{}', 404);
+          },
           session: api.SessionStore(
             tokens: const api.TokenPair(
               userId: 'u1',
@@ -42,10 +45,6 @@ Future<List<Uri>> _pump(WidgetTester tester, List<String> participants) async {
               accessExpiresAt: 4102444800000,
             ),
           ),
-          httpClient: MockClient((request) async {
-            requests.add(request.url);
-            return http.Response('{}', 404);
-          }),
         );
         ref.onDispose(client.close);
         return client;

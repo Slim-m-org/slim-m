@@ -9,9 +9,9 @@ import 'dart:convert';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -41,8 +41,8 @@ CanvasCommit _commit(String id) => CanvasCommit(
 
 /// A `SlimmApi` whose `POST .../canvas/objects` answers come from
 /// [onPlace], called once per request in send order.
-api.SlimmApi _fakeApi(http.Response Function() onPlace) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
+api.SlimmApi _fakeApi(http.Response Function() onPlace) => testApi(
+  (request) async => onPlace(),
   session: api.SessionStore(
     tokens: const api.TokenPair(
       userId: 'me',
@@ -51,7 +51,6 @@ api.SlimmApi _fakeApi(http.Response Function() onPlace) => api.SlimmApi(
       accessExpiresAt: 0,
     ),
   ),
-  httpClient: MockClient((request) async => onPlace()),
 );
 
 class _Harness {

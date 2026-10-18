@@ -13,14 +13,10 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use crypto_box::SecretKey;
 use crypto_box::aead::rand_core::{OsRng, TryRngCore};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
@@ -81,19 +77,9 @@ pub async fn world() -> World {
     )
     .expect("push sender");
 
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).expect("auth service"),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push,
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = crate::support::app::builder(store.clone())
+        .push(push)
+        .router();
 
     let author_token = account(&store, "author", SENTINEL_SENDER).await;
     World {

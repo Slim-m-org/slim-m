@@ -15,7 +15,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/dm_call_ring_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -24,6 +23,7 @@ import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -87,10 +87,9 @@ void main() {
         routerProvider.overrideWithValue(router),
         storeProvider.overrideWith((ref) async => store),
         apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
+          final client = testApi(
+            _server,
             session: api.SessionStore(tokens: _tokens),
-            httpClient: MockClient(_server),
           );
           ref.onDispose(client.close);
           return client;

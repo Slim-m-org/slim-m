@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -24,6 +23,7 @@ import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const tokens = TokenPair(
   userId: 'user-1',
@@ -114,15 +114,7 @@ Widget harness(
             permissions: permissions,
           ),
         ),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async => handler(request)),
-          );
-          ref.onDispose(api.close);
-          return api;
-        }),
+        mockApiOverride((request) async => handler(request)),
         storeProvider.overrideWith((ref) async {
           final db = SlimmDatabase(NativeDatabase.memory());
           ref.onDispose(db.close);

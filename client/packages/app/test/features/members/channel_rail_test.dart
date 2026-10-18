@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
@@ -29,6 +28,7 @@ import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 /// The insets of an iPhone with a notch, in logical points, matching
 /// `rail_safe_area_test.dart`: 59 for the status bar, 34 for the home
@@ -62,41 +62,33 @@ const _tokens = api.TokenPair(
       syncControllerProvider.overrideWith(
         (ref) => StubSyncController(ref, status),
       ),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add(request);
-            if (request.url.path == '/me') {
-              return http.Response(
-                jsonEncode({
-                  'id': 'self',
-                  'username': 'self',
-                  'display_name': 'Self',
-                  'created_at': 0,
-                  'permissions': permissions,
-                }),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path == '/presence') {
-              return http.Response(
-                jsonEncode({'visibility': 'hidden'}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response(
-              '{}',
-              404,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        requests.add(request);
+        if (request.url.path == '/me') {
+          return http.Response(
+            jsonEncode({
+              'id': 'self',
+              'username': 'self',
+              'display_name': 'Self',
+              'created_at': 0,
+              'permissions': permissions,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path == '/presence') {
+          return http.Response(
+            jsonEncode({'visibility': 'hidden'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response(
+          '{}',
+          404,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(client.close);
-        return client;
       }),
     ],
   );

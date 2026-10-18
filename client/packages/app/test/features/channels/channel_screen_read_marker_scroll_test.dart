@@ -20,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -29,6 +28,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -113,35 +113,27 @@ Future<_Harness> _mount(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
       syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.method == 'PUT' &&
-                request.url.path == '/channels/c1/read') {
-              final body = jsonDecode(request.body) as Map<String, dynamic>;
-              final seq = body['seq'] as int;
-              markReadSeqs.add(seq);
-              return http.Response(
-                jsonEncode({'last_read_seq': seq, 'unread': 0}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.method == 'GET' && request.url.path == '/me') {
-              return http.Response(
-                jsonEncode(_meJson()),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            // Members, pins, and the extras-hydration fetch answer empty; none of them are what these tests are about.
-            return _emptyJsonList();
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.method == 'PUT' &&
+            request.url.path == '/channels/c1/read') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final seq = body['seq'] as int;
+          markReadSeqs.add(seq);
+          return http.Response(
+            jsonEncode({'last_read_seq': seq, 'unread': 0}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.method == 'GET' && request.url.path == '/me') {
+          return http.Response(
+            jsonEncode(_meJson()),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        // Members, pins, and the extras-hydration fetch answer empty; none of them are what these tests are about.
+        return _emptyJsonList();
       }),
     ],
   );

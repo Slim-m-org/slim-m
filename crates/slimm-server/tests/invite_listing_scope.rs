@@ -13,41 +13,17 @@
 //! `invite_redemption_idempotency.rs` already set the precedent for splitting.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
 
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(value) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(value.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
+use support::app::{json_body, request_authed as request};
 
 /// An admin (via the bootstrap claim) and an ordinary member, with a live
 /// router over both.
@@ -82,19 +58,7 @@ async fn fixture() -> (Store, Router, String, String, support::TestDbGuard) {
         .await
         .unwrap()
         .access_token;
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth,
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store.clone()).auth(auth).router();
     (store, app, admin_token, member_token, guard)
 }
 

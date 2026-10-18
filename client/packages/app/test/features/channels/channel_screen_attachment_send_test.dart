@@ -20,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -32,6 +31,7 @@ import 'package:slimm_platform/platform.dart';
 import '../composer/composer_harness.dart'
     show pickedFile, sendButton, usePicker;
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -75,75 +75,66 @@ void main() {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
         syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.method == 'POST' &&
-                  request.url.path == '/attachments') {
-                return http.Response(
-                  jsonEncode({
-                    'id': 'a1',
-                    'filename': 'holiday.png',
-                    'content_type': 'image/png',
-                    'size': 4,
-                  }),
-                  201,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'POST' &&
-                  request.url.path == '/channels/c1/messages') {
-                final body = jsonDecode(request.body) as Map<String, dynamic>;
-                posted.add(body);
-                return http.Response(
-                  jsonEncode({
-                    'id': body['id'],
-                    'channel_id': 'c1',
-                    'author_id': 'bob',
-                    'author_display_name': 'Bob',
-                    'seq': 1,
-                    'content': body['content'],
-                    'created_at': 1000,
-                    'edited_at': null,
-                  }),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'GET' && request.url.path == '/me') {
-                return http.Response(
-                  jsonEncode({
-                    'id': 'bob',
-                    'username': 'bob',
-                    'display_name': 'Bob',
-                    'created_at': 0,
-                    'permissions': 0,
-                  }),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              if (request.method == 'PUT' &&
-                  request.url.path == '/channels/c1/read') {
-                return http.Response(
-                  jsonEncode({'last_read_seq': 1, 'unread': 0}),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              // Members, pins and the extras fetch: none of them are what
-              // this is about, so an empty list answers all of them.
-              return http.Response(
-                jsonEncode([]),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }),
+        mockApiOverride((request) async {
+          if (request.method == 'POST' && request.url.path == '/attachments') {
+            return http.Response(
+              jsonEncode({
+                'id': 'a1',
+                'filename': 'holiday.png',
+                'content_type': 'image/png',
+                'size': 4,
+              }),
+              201,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'POST' &&
+              request.url.path == '/channels/c1/messages') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            posted.add(body);
+            return http.Response(
+              jsonEncode({
+                'id': body['id'],
+                'channel_id': 'c1',
+                'author_id': 'bob',
+                'author_display_name': 'Bob',
+                'seq': 1,
+                'content': body['content'],
+                'created_at': 1000,
+                'edited_at': null,
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'GET' && request.url.path == '/me') {
+            return http.Response(
+              jsonEncode({
+                'id': 'bob',
+                'username': 'bob',
+                'display_name': 'Bob',
+                'created_at': 0,
+                'permissions': 0,
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.method == 'PUT' &&
+              request.url.path == '/channels/c1/read') {
+            return http.Response(
+              jsonEncode({'last_read_seq': 1, 'unread': 0}),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          // Members, pins and the extras fetch: none of them are what
+          // this is about, so an empty list answers all of them.
+          return http.Response(
+            jsonEncode([]),
+            200,
+            headers: {'content-type': 'application/json'},
           );
-          ref.onDispose(client.close);
-          return client;
         }),
       ],
     );

@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -26,6 +25,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dar
 import 'package:slimm_app/src/features/settings/screens/space_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -48,15 +48,7 @@ List<Override> _overrides(_Handler handler, {int? permissions}) => [
   if (permissions != null) myPermissionsProvider.overrideWithValue(permissions),
   if (permissions != null)
     myVisibleChannelsProvider.overrideWith((ref) async => const []),
-  apiProvider.overrideWith((ref) {
-    final built = api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async => handler(request)),
-    );
-    ref.onDispose(built.close);
-    return built;
-  }),
+  mockApiOverride((request) async => handler(request)),
 ];
 
 Future<void> _pump(WidgetTester tester, Widget screen, _Handler handler) async {

@@ -20,3 +20,13 @@ class StubSyncController extends NoopSyncController {
     state = status;
   }
 }
+
+/// Reports [SyncStatus.live] once started, without opening a socket.
+class LiveSyncController extends SyncController {
+  LiveSyncController(super.ref);
+
+  @override
+  Future<void> start() async {
+    state = SyncStatus.live;
+  }
+}

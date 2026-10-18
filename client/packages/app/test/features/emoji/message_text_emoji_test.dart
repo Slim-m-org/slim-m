@@ -25,6 +25,7 @@ import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -58,35 +59,27 @@ ProviderContainer _container([List<String>? log]) {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            log?.add(request.url.path);
-            if (request.url.path == '/emoji') {
-              return http.Response(
-                jsonEncode([
-                  _emojiJson('e-tada', 'tada'),
-                  _emojiJson('e-parrot', 'party_parrot'),
-                  _emojiJson('e-thirty', '30'),
-                ]),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path.endsWith('/image')) {
-              return http.Response.bytes(
-                _png,
-                200,
-                headers: {'content-type': 'image/png'},
-              );
-            }
-            return http.Response('', 404);
-          }),
-        );
-        ref.onDispose(api.close);
-        return api;
+      mockApiOverride((request) async {
+        log?.add(request.url.path);
+        if (request.url.path == '/emoji') {
+          return http.Response(
+            jsonEncode([
+              _emojiJson('e-tada', 'tada'),
+              _emojiJson('e-parrot', 'party_parrot'),
+              _emojiJson('e-thirty', '30'),
+            ]),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.endsWith('/image')) {
+          return http.Response.bytes(
+            _png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        }
+        return http.Response('', 404);
       }),
     ],
   );

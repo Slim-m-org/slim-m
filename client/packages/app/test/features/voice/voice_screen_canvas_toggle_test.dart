@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -25,6 +24,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/video_quality_recorder.dart';
+import '../../support/fake_api.dart';
 
 /// A [VoiceSession] whose `join` resolves straight to a connected call with
 /// one local participant, the shortest path to the dock this suite needs -
@@ -234,22 +234,14 @@ ProviderContainer _connectedContainer() => ProviderContainer(
     ),
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-    apiProvider.overrideWith((ref) {
-      final api = SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: ref.watch(sessionProvider),
-        httpClient: MockClient(
-          (request) async => http.Response(
-            '{"url":"wss://sfu.example.com","room":"channel-1","token":"jwt",'
-            '"expires_at":0,"can_publish":true}',
-            200,
-            headers: {'content-type': 'application/json'},
-          ),
-        ),
-      );
-      ref.onDispose(api.close);
-      return api;
-    }),
+    mockApiOverride(
+      (request) async => http.Response(
+        '{"url":"wss://sfu.example.com","room":"channel-1","token":"jwt",'
+        '"expires_at":0,"can_publish":true}',
+        200,
+        headers: {'content-type': 'application/json'},
+      ),
+    ),
     voiceControllerProvider.overrideWith(
       (ref) => VoiceController(ref, session: _ConnectedSession()),
     ),

@@ -26,6 +26,7 @@ import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -46,22 +47,14 @@ Future<void> _pumpSpaceMenu(WidgetTester tester) async {
         ref.onDispose(db.close);
         return MessageStore(db);
       }),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path != '/me') return http.Response('{}', 404);
-            return http.Response(
-              '{"id":"self","username":"self","display_name":"Self",'
-              '"created_at":0,"permissions":${Perm.manageChannels}}',
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        if (request.url.path != '/me') return http.Response('{}', 404);
+        return http.Response(
+          '{"id":"self","username":"self","display_name":"Self",'
+          '"created_at":0,"permissions":${Perm.manageChannels}}',
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(client.close);
-        return client;
       }),
     ],
   );

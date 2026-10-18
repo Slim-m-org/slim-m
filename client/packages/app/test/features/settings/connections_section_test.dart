@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/settings/providers/linked_accounts.dart';
 import 'package:slimm_app/src/features/settings/widgets/connections_section.dart';
@@ -18,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:url_launcher/url_launcher.dart' show LaunchMode;
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -63,17 +63,9 @@ Future<_Harness> _pump(
         harness.launched.add(url);
         return true;
       }),
-      apiProvider.overrideWith((ref) {
-        final built = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            harness.requests.add('${request.method} ${request.url.path}');
-            return answer(request);
-          }),
-        );
-        ref.onDispose(built.close);
-        return built;
+      mockApiOverride((request) async {
+        harness.requests.add('${request.method} ${request.url.path}');
+        return answer(request);
       }),
     ],
   );

@@ -9,12 +9,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart'
     show apiProvider, sessionProvider;
 
 import 'ui_snapshot_support.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Map<String, Object?> _member(
   String id,
@@ -66,26 +66,22 @@ const _online = [
   'bot-jelly',
 ];
 
-api.SlimmApi _roster(Ref ref) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: ref.watch(sessionProvider),
-  httpClient: MockClient((request) async {
-    final path = request.url.path;
-    final Object? body = path.endsWith('/members')
-        ? _members
-        : path == '/presence' && request.method == 'GET'
-        ? [
-            for (final id in _online) {'user_id': id, 'status': 'online'},
-          ]
-        : null;
-    if (body == null) return fixtureResponse(request);
-    return http.Response(
-      jsonEncode(body),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  }),
-);
+api.SlimmApi _roster(Ref ref) => testApi((request) async {
+  final path = request.url.path;
+  final Object? body = path.endsWith('/members')
+      ? _members
+      : path == '/presence' && request.method == 'GET'
+      ? [
+          for (final id in _online) {'user_id': id, 'status': 'online'},
+        ]
+      : null;
+  if (body == null) return fixtureResponse(request);
+  return http.Response(
+    jsonEncode(body),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
+}, session: ref.watch(sessionProvider));
 
 void main() {
   setUpAll(loadRealFonts);

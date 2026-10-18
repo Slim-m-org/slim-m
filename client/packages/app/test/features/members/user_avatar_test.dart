@@ -11,12 +11,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/ui_scale_frame.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Widget _harness(Widget child, {required List<Override> overrides}) =>
     ProviderScope(
@@ -31,8 +31,8 @@ List<Override> _apiOverrides(
   Future<http.Response> Function(http.Request request) handler,
 ) => [
   apiProvider.overrideWith((ref) {
-    final api = SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
+    final api = testApi(
+      handler,
       session: SessionStore(
         tokens: const TokenPair(
           userId: 'self',
@@ -41,7 +41,6 @@ List<Override> _apiOverrides(
           accessExpiresAt: 0,
         ),
       ),
-      httpClient: MockClient(handler),
     );
     ref.onDispose(api.close);
     return api;

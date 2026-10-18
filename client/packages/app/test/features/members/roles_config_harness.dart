@@ -10,13 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -82,27 +82,19 @@ class ConfigHarness {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         modulePermissionsProvider.overrideWith((ref) async => const []),
-        apiProvider.overrideWith((ref) {
-          final built = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              final text = request.body;
-              sent.add(
-                SentRequest(
-                  request.method,
-                  request.url.path,
-                  text.isEmpty ? null : jsonDecode(text),
-                ),
-              );
-              return handler?.call(request) ??
-                  (request.method == 'GET'
-                      ? jsonOk(<Object>[])
-                      : http.Response('', 204));
-            }),
+        mockApiOverride((request) async {
+          final text = request.body;
+          sent.add(
+            SentRequest(
+              request.method,
+              request.url.path,
+              text.isEmpty ? null : jsonDecode(text),
+            ),
           );
-          ref.onDispose(built.close);
-          return built;
+          return handler?.call(request) ??
+              (request.method == 'GET'
+                  ? jsonOk(<Object>[])
+                  : http.Response('', 204));
         }),
         membersProvider.overrideWith((ref) async => const []),
         ...overrides,

@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -18,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/removed_members_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -46,42 +46,34 @@ Future<_Log> _pump(WidgetTester tester, {required int perms}) async {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       myPermissionsProvider.overrideWithValue(perms),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((r) async {
-            log.requests.add('${r.method} ${r.url.path}');
-            if (r.method == 'GET' && r.url.path == '/members/removed') {
-              log.removedGets++;
-              return _json([
-                {
-                  'user_id': 'u-2',
-                  'username': 'bob',
-                  'display_name': 'Bob',
-                  'removed_at': 0,
-                  'reason': 'spam',
-                  'invite_code': 'K7Q2',
-                },
-              ]);
-            }
-            if (r.method == 'GET' && r.url.path == '/members') {
-              log.memberGets++;
-              return _json([]);
-            }
-            if (r.method == 'DELETE' && r.url.path == '/members/u-2/removal') {
-              return log.restoreStatus == 204
-                  ? http.Response('', 204)
-                  : _json({'error': 'nope'}, log.restoreStatus);
-            }
-            if (r.method == 'DELETE' && r.url.path == '/members/u-2/account') {
-              return http.Response('', 204);
-            }
-            return _json({}, 404);
-          }),
-        );
-        ref.onDispose(api.close);
-        return api;
+      mockApiOverride((r) async {
+        log.requests.add('${r.method} ${r.url.path}');
+        if (r.method == 'GET' && r.url.path == '/members/removed') {
+          log.removedGets++;
+          return _json([
+            {
+              'user_id': 'u-2',
+              'username': 'bob',
+              'display_name': 'Bob',
+              'removed_at': 0,
+              'reason': 'spam',
+              'invite_code': 'K7Q2',
+            },
+          ]);
+        }
+        if (r.method == 'GET' && r.url.path == '/members') {
+          log.memberGets++;
+          return _json([]);
+        }
+        if (r.method == 'DELETE' && r.url.path == '/members/u-2/removal') {
+          return log.restoreStatus == 204
+              ? http.Response('', 204)
+              : _json({'error': 'nope'}, log.restoreStatus);
+        }
+        if (r.method == 'DELETE' && r.url.path == '/members/u-2/account') {
+          return http.Response('', 204);
+        }
+        return _json({}, 404);
       }),
     ],
   );

@@ -7,32 +7,11 @@ use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::store::Store;
-use tower::ServiceExt;
 
 mod support;
-use support::overwrite_harness::{app, general_channel_id, new_store, register, request};
 
-async fn call(
-    app: &Router,
-    method: &str,
-    uri: &str,
-    token: Option<&str>,
-    body: Option<Value>,
-) -> (StatusCode, Value) {
-    let response = app
-        .clone()
-        .oneshot(request(method, uri, token, body))
-        .await
-        .unwrap();
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
-    )
-}
+use support::app::call;
+use support::overwrite_harness::{app, general_channel_id, new_store, register};
 
 /// The owner, an open Space, a rules channel, and the gate turned on.
 async fn gated(prefix: &str) -> (Router, Store, String, String, support::TestDbGuard) {

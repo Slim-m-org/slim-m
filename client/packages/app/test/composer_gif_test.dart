@@ -12,13 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'features/composer/composer_harness.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// The smallest possible real GIF (a 1x1 transparent pixel), so `Image.memory`
 /// actually decodes it rather than falling back to an error builder.
@@ -39,107 +39,103 @@ api.SlimmApi Function(Ref) _apiWithGifs({
   bool searchFails = false,
   bool trendingFails = false,
 }) {
-  return (ref) => api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: ref.watch(sessionProvider),
-    httpClient: MockClient((request) async {
-      final path = request.url.path;
-      if (request.method == 'GET' && path == '/version') {
+  return (ref) => testApi((request) async {
+    final path = request.url.path;
+    if (request.method == 'GET' && path == '/version') {
+      return http.Response(
+        jsonEncode({
+          'name': 'slim-m',
+          'version': '0.39.0',
+          'protocol': 1,
+          'gif_search_enabled': gifSearchEnabled,
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    if (path.startsWith('/gifs/')) {
+      if (failOnGifRequest) {
+        fail('a request reached $path while gif search is off');
+      }
+      if (request.method == 'GET' && path == '/gifs/trending') {
+        if (trendingFails) {
+          return http.Response(
+            jsonEncode({'error': 'the provider could not be reached'}),
+            503,
+            headers: {'content-type': 'application/json'},
+          );
+        }
         return http.Response(
           jsonEncode({
-            'name': 'slim-m',
-            'version': '0.39.0',
-            'protocol': 1,
-            'gif_search_enabled': gifSearchEnabled,
+            'results': [
+              {
+                'id': 'tok-trending',
+                'title': 'a trending gif',
+                'width': 200,
+                'height': 150,
+              },
+            ],
           }),
           200,
           headers: {'content-type': 'application/json'},
         );
       }
-      if (path.startsWith('/gifs/')) {
-        if (failOnGifRequest) {
-          fail('a request reached $path while gif search is off');
-        }
-        if (request.method == 'GET' && path == '/gifs/trending') {
-          if (trendingFails) {
-            return http.Response(
-              jsonEncode({'error': 'the provider could not be reached'}),
-              503,
-              headers: {'content-type': 'application/json'},
-            );
-          }
+      if (request.method == 'GET' && path == '/gifs/search') {
+        if (searchFails) {
           return http.Response(
-            jsonEncode({
-              'results': [
-                {
-                  'id': 'tok-trending',
-                  'title': 'a trending gif',
-                  'width': 200,
-                  'height': 150,
-                },
-              ],
-            }),
-            200,
+            jsonEncode({'error': 'the provider could not be reached'}),
+            503,
             headers: {'content-type': 'application/json'},
           );
         }
-        if (request.method == 'GET' && path == '/gifs/search') {
-          if (searchFails) {
-            return http.Response(
-              jsonEncode({'error': 'the provider could not be reached'}),
-              503,
-              headers: {'content-type': 'application/json'},
-            );
-          }
-          return http.Response(
-            jsonEncode({
-              'results': emptyResults
-                  ? <Object?>[]
-                  : [
-                      {
-                        'id': 'tok-1',
-                        'title': 'a cat waving',
-                        'width': 200,
-                        'height': 150,
-                      },
-                    ],
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        if (request.method == 'GET' &&
-            (path == '/gifs/preview/tok-1' ||
-                path == '/gifs/preview/tok-trending')) {
-          return http.Response.bytes(
-            _gifBytes,
-            200,
-            headers: {'content-type': 'image/gif'},
-          );
-        }
-        if (request.method == 'POST' && path == '/gifs/select') {
-          return http.Response(
-            jsonEncode({
-              'id': 'gif-attachment-id',
-              'filename': 'gif.gif',
-              'content_type': 'image/gif',
-              'size': _gifBytes.length,
-            }),
-            201,
-            headers: {'content-type': 'application/json'},
-          );
-        }
+        return http.Response(
+          jsonEncode({
+            'results': emptyResults
+                ? <Object?>[]
+                : [
+                    {
+                      'id': 'tok-1',
+                      'title': 'a cat waving',
+                      'width': 200,
+                      'height': 150,
+                    },
+                  ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       }
-      if (request.method == 'GET' && path == '/attachments/gif-attachment-id') {
+      if (request.method == 'GET' &&
+          (path == '/gifs/preview/tok-1' ||
+              path == '/gifs/preview/tok-trending')) {
         return http.Response.bytes(
           _gifBytes,
           200,
           headers: {'content-type': 'image/gif'},
         );
       }
-      return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
-    }),
-  );
+      if (request.method == 'POST' && path == '/gifs/select') {
+        return http.Response(
+          jsonEncode({
+            'id': 'gif-attachment-id',
+            'filename': 'gif.gif',
+            'content_type': 'image/gif',
+            'size': _gifBytes.length,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+    }
+    if (request.method == 'GET' && path == '/attachments/gif-attachment-id') {
+      return http.Response.bytes(
+        _gifBytes,
+        200,
+        headers: {'content-type': 'image/gif'},
+      );
+    }
+    return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
+  }, session: ref.watch(sessionProvider));
 }
 
 void main() {

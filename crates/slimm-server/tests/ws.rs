@@ -13,15 +13,12 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::Event;
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
@@ -48,22 +45,6 @@ async fn new_store_with_pool() -> (Store, SqlitePool, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool.clone()), pool, guard)
-}
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
 }
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
@@ -156,7 +137,7 @@ async fn two_clients_receive_fan_out_in_order() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, _alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
@@ -197,7 +178,7 @@ async fn fan_out_respects_view_permission() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, _alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob) = user_ticket(&store, "bob").await;
@@ -259,7 +240,7 @@ async fn a_store_error_authorizing_fan_out_closes_the_connection() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (_alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
@@ -326,7 +307,7 @@ async fn ephemeral_lag_skips_forward_without_closing_or_blocking_durable_events(
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
@@ -390,7 +371,7 @@ async fn durable_lag_still_forces_a_resync_close() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
 

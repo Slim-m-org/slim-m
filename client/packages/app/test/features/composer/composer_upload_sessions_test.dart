@@ -11,11 +11,11 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _mib = 1024 * 1024;
 
@@ -83,13 +83,7 @@ AttachmentStagingController _staging(_Server server) {
           ),
         ),
       ),
-      apiProvider.overrideWith(
-        (ref) => api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(server.handle),
-        ),
-      ),
+      mockApiOverride(server.handle),
     ],
   );
   addTearDown(container.dispose);

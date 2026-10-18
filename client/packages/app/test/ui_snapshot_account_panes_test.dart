@@ -9,13 +9,13 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart'
     show apiProvider, sessionProvider;
 import 'package:slimm_app/src/routing/routes.dart';
 
 import 'ui_snapshot_support.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Map<String, Object> _device(
   String id,
@@ -42,19 +42,15 @@ Map<String, Object> _totp({required bool on}) => {
 };
 
 api.SlimmApi _apiWith(Ref ref, Map<String, Object> paths) {
-  final client = api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: ref.watch(sessionProvider),
-    httpClient: MockClient((request) async {
-      final body = paths[request.url.path];
-      if (body == null) return fixtureResponse(request);
-      return http.Response(
-        jsonEncode(body),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }),
-  );
+  final client = testApi((request) async {
+    final body = paths[request.url.path];
+    if (body == null) return fixtureResponse(request);
+    return http.Response(
+      jsonEncode(body),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  }, session: ref.watch(sessionProvider));
   ref.onDispose(client.close);
   return client;
 }

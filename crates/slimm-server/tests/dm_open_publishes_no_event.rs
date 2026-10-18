@@ -11,42 +11,16 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
 
-fn app_with_hub(store: Store, hub: Hub) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
+use support::app::register_token_id as register;
 
-/// A member with a session, built straight through the store; see
-/// `dms.rs`'s own `register` for why this bypasses `/auth/register`.
-async fn register(store: &Store, username: &str) -> (String, String) {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    let tokens = store.open_session(account.id, "cli").await.unwrap();
-    (tokens.access_token, account.id.to_string())
+fn app_with_hub(store: Store, hub: Hub) -> Router {
+    support::app::builder(store).hub(hub).router()
 }
 
 /// `POST /channels` publishes `Event::ChannelCreated` in the same handler

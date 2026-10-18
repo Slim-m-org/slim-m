@@ -6,17 +6,15 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
-use serde_json::{Value, json};
-use slimm_server::auth::Auth;
+use serde_json::json;
 use slimm_server::http::linked_accounts::DiscordLinks;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::json_body;
 
 const REDIRECT: &str = "https://slim.example/links/discord/callback";
 
@@ -45,19 +43,7 @@ async fn fake_discord() -> String {
 }
 
 fn state(store: Store) -> AppState {
-    AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
+    support::app::state(store)
 }
 
 async fn linked_app(store: Store) -> Router {
@@ -77,13 +63,6 @@ fn authed(method: &str, uri: &str, token: &str) -> Request<Body> {
 
 fn browser(uri: &str) -> Request<Body> {
     Request::builder().uri(uri).body(Body::empty()).unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 /// Starts a link for `token` and hands back the state Discord would echo.

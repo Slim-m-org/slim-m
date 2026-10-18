@@ -9,11 +9,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -31,26 +31,22 @@ class _Request {
 
 class _Rig {
   _Rig() {
-    final apiClient = api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: api.SessionStore(tokens: _tokens),
-      httpClient: MockClient((_) async {
-        final request = _Request(List.of(serverIds));
-        requests.add(request);
-        await request.gate.future;
-        if (rateLimited) {
-          return http.Response('{"error":"rate limited"}', 429);
-        }
-        return http.Response(
-          jsonEncode({
-            'participants': [
-              for (final id in request.ids) {'user_id': id, 'display_name': id},
-            ],
-          }),
-          200,
-        );
-      }),
-    );
+    final apiClient = testApi((_) async {
+      final request = _Request(List.of(serverIds));
+      requests.add(request);
+      await request.gate.future;
+      if (rateLimited) {
+        return http.Response('{"error":"rate limited"}', 429);
+      }
+      return http.Response(
+        jsonEncode({
+          'participants': [
+            for (final id in request.ids) {'user_id': id, 'display_name': id},
+          ],
+        }),
+        200,
+      );
+    }, session: api.SessionStore(tokens: _tokens));
     addTearDown(apiClient.close);
     container = ProviderContainer(
       overrides: [

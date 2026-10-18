@@ -11,17 +11,12 @@
 
 use std::time::Duration;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -31,24 +26,10 @@ use uuid::Uuid;
 
 mod support;
 
+use support::app::request_json as request;
+
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
 async fn user_ticket(store: &Store, name: &str) -> (String, String, UserId) {
@@ -112,16 +93,6 @@ async fn frame_within(ws: &mut Client, within: Duration) -> Option<Value> {
     tokio::time::timeout(within, read_frame(ws)).await.ok()
 }
 
-fn request(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> {
-    Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"))
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap()
-}
-
 /// The two roles every test here needs: `everyone` (view + send, granted to
 /// every user created afterwards) and `moderator` (`MANAGE_MESSAGES` alone,
 /// assigned explicitly).
@@ -145,7 +116,7 @@ async fn a_moderator_sees_a_filed_report_live_and_a_non_moderator_sees_nothing()
     let (store, _guard) = support::new_store("slimm-reports-changed-ws").await;
     let moderator_role = seed_roles(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.assign_role(alice, moderator_role).await.unwrap();
@@ -214,7 +185,7 @@ async fn a_moderator_sees_a_resolved_report_live_and_a_non_moderator_sees_nothin
     let (store, _guard) = support::new_store("slimm-reports-changed-ws").await;
     let moderator_role = seed_roles(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.assign_role(alice, moderator_role).await.unwrap();

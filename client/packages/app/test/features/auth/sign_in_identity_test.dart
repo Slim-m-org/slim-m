@@ -7,10 +7,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/auth/providers/sign_in_identity.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 class _BrokenStore extends InMemoryKeyStore {
   @override
@@ -54,19 +54,15 @@ void main() {
     'login and the second factor both carry the stored install id',
     () async {
       final bodies = <String, Map<String, dynamic>>{};
-      final client = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: api.SessionStore(),
-        httpClient: MockClient((request) async {
-          bodies[request.url.path] =
-              jsonDecode(request.body) as Map<String, dynamic>;
-          return http.Response(
-            _tokens,
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-      );
+      final client = testApi((request) async {
+        bodies[request.url.path] =
+            jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          _tokens,
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }, session: api.SessionStore());
       final id = await loadInstallId(InMemoryKeyStore());
 
       await client.login(

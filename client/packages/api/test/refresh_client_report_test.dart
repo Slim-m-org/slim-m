@@ -6,37 +6,35 @@ library;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Future<Map<String, dynamic>> _refreshBody(
   ({String kind, String? version})? report,
 ) async {
   late Map<String, dynamic> body;
-  final api = SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: SessionStore(
-      tokens: const TokenPair(
-        userId: 'user-1',
-        accessToken: 'access-1',
-        refreshToken: 'refresh-1',
-        accessExpiresAt: 0,
-      ),
-    ),
-    httpClient: MockClient((request) async {
-      body = jsonDecode(request.body) as Map<String, dynamic>;
-      return http.Response(
-        jsonEncode({
-          'user_id': 'user-1',
-          'access_token': 'access-2',
-          'refresh_token': 'refresh-2',
-          'access_expires_at': 99,
-        }),
-        200,
-      );
-    }),
-  )..clientReport = report;
+  final api = testApi((request) async {
+    body = jsonDecode(request.body) as Map<String, dynamic>;
+    return http.Response(
+      jsonEncode({
+        'user_id': 'user-1',
+        'access_token': 'access-2',
+        'refresh_token': 'refresh-2',
+        'access_expires_at': 99,
+      }),
+      200,
+    );
+  },
+      session: SessionStore(
+        tokens: const TokenPair(
+          userId: 'user-1',
+          accessToken: 'access-1',
+          refreshToken: 'refresh-1',
+          accessExpiresAt: 0,
+        ),
+      ))
+    ..clientReport = report;
   await api.refresh();
   return body;
 }

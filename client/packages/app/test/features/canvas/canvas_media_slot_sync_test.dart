@@ -10,14 +10,14 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 api.SlimmApi _apiWith(Future<http.Response> Function(http.Request) handler) =>
-    api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
+    testApi(
+      handler,
       session: api.SessionStore(
         tokens: const api.TokenPair(
           userId: 'me',
@@ -26,7 +26,6 @@ api.SlimmApi _apiWith(Future<http.Response> Function(http.Request) handler) =>
           accessExpiresAt: 0,
         ),
       ),
-      httpClient: MockClient(handler),
     );
 
 http.Response _json(Object body) => http.Response(

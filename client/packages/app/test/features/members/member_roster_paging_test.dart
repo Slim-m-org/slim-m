@@ -26,6 +26,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -144,31 +145,23 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/me') {
-                return http.Response(
-                  jsonEncode({
-                    'id': 'self',
-                    'username': 'self',
-                    'display_name': 'Self',
-                    'created_at': 0,
-                    'permissions': 0,
-                  }),
-                  200,
-                );
-              }
-              if (request.url.path == '/presence') {
-                return http.Response('[]', 200);
-              }
-              return _membersPage(request, allIds, serverMaxLimit: 200);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.url.path == '/me') {
+            return http.Response(
+              jsonEncode({
+                'id': 'self',
+                'username': 'self',
+                'display_name': 'Self',
+                'created_at': 0,
+                'permissions': 0,
+              }),
+              200,
+            );
+          }
+          if (request.url.path == '/presence') {
+            return http.Response('[]', 200);
+          }
+          return _membersPage(request, allIds, serverMaxLimit: 200);
         }),
       ],
     );

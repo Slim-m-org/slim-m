@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/bots_screen.dart';
 import 'package:slimm_app/src/widgets/toast_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -65,15 +65,7 @@ Future<void> _pump(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       myPermissionsProvider.overrideWithValue(mine),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async => handler(request)),
-        );
-        ref.onDispose(api.close);
-        return api;
-      }),
+      mockApiOverride((request) async => handler(request)),
     ],
   );
   addTearDown(container.dispose);

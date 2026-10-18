@@ -20,12 +20,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/widgets/edit_history_sheet.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_parts.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -38,11 +38,7 @@ List<Override> _apiOverrides(
   Future<http.Response> Function(http.Request request) handler,
 ) => [
   apiProvider.overrideWith((ref) {
-    final api = SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: SessionStore(tokens: _tokens),
-      httpClient: MockClient(handler),
-    );
+    final api = testApi(handler, session: SessionStore(tokens: _tokens));
     ref.onDispose(api.close);
     return api;
   }),

@@ -6,43 +6,40 @@ library;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Future<Map<String, dynamic>> _sentBody({
   String? replyToId,
   bool? mentionReply,
 }) async {
   late Map<String, dynamic> body;
-  final api = SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: SessionStore(
-      tokens: const TokenPair(
-        userId: 'u1',
-        accessToken: 'a',
-        refreshToken: 'r',
-        accessExpiresAt: 4102444800000,
-      ),
-    ),
-    httpClient: MockClient((request) async {
-      body = jsonDecode(request.body) as Map<String, dynamic>;
-      return http.Response(
-        jsonEncode({
-          'id': 'm1',
-          'channel_id': 'c1',
-          'author_id': 'u1',
-          'author_display_name': 'Me',
-          'seq': 1,
-          'content': 'hi',
-          'created_at': 0,
-          'edited_at': null,
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }),
-  );
+  final api = testApi((request) async {
+    body = jsonDecode(request.body) as Map<String, dynamic>;
+    return http.Response(
+      jsonEncode({
+        'id': 'm1',
+        'channel_id': 'c1',
+        'author_id': 'u1',
+        'author_display_name': 'Me',
+        'seq': 1,
+        'content': 'hi',
+        'created_at': 0,
+        'edited_at': null,
+      }),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  },
+      session: SessionStore(
+        tokens: const TokenPair(
+          userId: 'u1',
+          accessToken: 'a',
+          refreshToken: 'r',
+          accessExpiresAt: 4102444800000,
+        ),
+      ));
   await api.sendMessage(
     channelId: 'c1',
     id: 'm1',

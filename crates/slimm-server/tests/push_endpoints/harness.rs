@@ -16,14 +16,11 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use crypto_box::SecretKey;
 use crypto_box::aead::rand_core::{OsRng, TryRngCore};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
@@ -64,19 +61,11 @@ pub(crate) fn app_with_voice(
     voice: slimm_server::voice::VoiceService,
     hub: Hub,
 ) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).expect("auth service"),
-        hub,
-        limiter: RateLimiter::new(),
-        push,
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    crate::support::app::builder(store)
+        .hub(hub)
+        .push(push)
+        .voice(voice)
+        .router()
 }
 
 pub(crate) fn request(

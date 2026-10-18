@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/modules/providers/app_launch.dart';
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
@@ -26,6 +25,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -68,35 +68,27 @@ Future<_Rig> _rig(WidgetTester tester, {int status = 200}) async {
       storeProvider.overrideWith((ref) async => store),
       syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
       appLaunchProvider.overrideWith((ref) async => const [_app]),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path != '/channels/c1/messages/apps') {
-              return http.Response('', 404);
-            }
-            posts.add(jsonDecode(request.body) as Map<String, dynamic>);
-            final id = posts.last['id'] as String;
-            return http.Response(
-              status == 200
-                  ? jsonEncode({
-                      'id': id,
-                      'channel_id': 'c1',
-                      'author_id': 'me',
-                      'author_display_name': 'Me',
-                      'seq': 1,
-                      'content': '',
-                      'created_at': 1000,
-                    })
-                  : jsonEncode({'error': 'no'}),
-              status,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        if (request.url.path != '/channels/c1/messages/apps') {
+          return http.Response('', 404);
+        }
+        posts.add(jsonDecode(request.body) as Map<String, dynamic>);
+        final id = posts.last['id'] as String;
+        return http.Response(
+          status == 200
+              ? jsonEncode({
+                  'id': id,
+                  'channel_id': 'c1',
+                  'author_id': 'me',
+                  'author_display_name': 'Me',
+                  'seq': 1,
+                  'content': '',
+                  'created_at': 1000,
+                })
+              : jsonEncode({'error': 'no'}),
+          status,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(client.close);
-        return client;
       }),
     ],
   );

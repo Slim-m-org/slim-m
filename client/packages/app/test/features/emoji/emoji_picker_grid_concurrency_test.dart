@@ -15,13 +15,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_catalog.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/fake_api.dart';
 
 /// A 1x1 transparent PNG, so `Image.memory` decodes rather than throwing.
 final _png = Uint8List.fromList(
@@ -67,23 +67,17 @@ void main() {
               ),
             ),
           ),
-          apiProvider.overrideWith(
-            (ref) => api.SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                inFlight++;
-                maxInFlight = inFlight > maxInFlight ? inFlight : maxInFlight;
-                await Future<void>.delayed(const Duration(milliseconds: 20));
-                inFlight--;
-                return http.Response.bytes(
-                  _png,
-                  200,
-                  headers: {'content-type': 'image/png'},
-                );
-              }),
-            ),
-          ),
+          mockApiOverride((request) async {
+            inFlight++;
+            maxInFlight = inFlight > maxInFlight ? inFlight : maxInFlight;
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+            inFlight--;
+            return http.Response.bytes(
+              _png,
+              200,
+              headers: {'content-type': 'image/png'},
+            );
+          }),
         ],
       );
       addTearDown(container.dispose);

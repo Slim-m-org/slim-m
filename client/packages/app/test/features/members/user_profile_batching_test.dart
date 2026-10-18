@@ -9,13 +9,13 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/rate_limit_retry.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -56,39 +56,31 @@ _Rig _rig({Set<String> gone = const {}, int refusals = 0, int? retryAfter}) {
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
       rateLimitWaitProvider.overrideWithValue((d) async => waits.add(d)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add(request.url);
-            if (request.url.path != '/users') {
-              return http.Response('{"error":"unexpected"}', 404);
-            }
-            if (refused < refusals) {
-              refused++;
-              return http.Response(
-                jsonEncode({
-                  'error': 'rate limited',
-                  if (retryAfter != null) 'retry_after_seconds': retryAfter,
-                }),
-                429,
-              );
-            }
-            final ids = request.url.queryParameters['ids']!.split(',');
-            expect(ids.length, lessThanOrEqualTo(100));
-            return http.Response(
-              jsonEncode([
-                for (final id in ids)
-                  if (!gone.contains(id)) _profile(id),
-              ]),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        requests.add(request.url);
+        if (request.url.path != '/users') {
+          return http.Response('{"error":"unexpected"}', 404);
+        }
+        if (refused < refusals) {
+          refused++;
+          return http.Response(
+            jsonEncode({
+              'error': 'rate limited',
+              if (retryAfter != null) 'retry_after_seconds': retryAfter,
+            }),
+            429,
+          );
+        }
+        final ids = request.url.queryParameters['ids']!.split(',');
+        expect(ids.length, lessThanOrEqualTo(100));
+        return http.Response(
+          jsonEncode([
+            for (final id in ids)
+              if (!gone.contains(id)) _profile(id),
+          ]),
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(api.close);
-        return api;
       }),
     ],
   );

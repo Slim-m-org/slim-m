@@ -9,22 +9,20 @@
 //! *do* have a live event cannot quietly stop recording.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use serde_json::Value;
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::sweep_stale_call_rings_at;
 use slimm_server::voice::{RING_TIMEOUT, VoiceService};
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::{json_body, register_token_id as register, request_bare as request};
 
 struct Harness {
     app: Router,
@@ -50,19 +48,10 @@ async fn harness() -> Harness {
         "a-test-secret-of-at-least-32-characters",
     );
     let hub = Hub::new();
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: hub.clone(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: voice.clone(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .voice(voice.clone())
+        .router();
     Harness {
         app,
         store,
@@ -70,31 +59,6 @@ async fn harness() -> Harness {
         hub,
         _guard: guard,
     }
-}
-
-fn request(method: &str, uri: &str, token: Option<&str>) -> Request<Body> {
-    let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(token) = token {
-        builder = builder.header("authorization", format!("Bearer {token}"));
-    }
-    builder.body(Body::empty()).unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
-async fn register(store: &Store, username: &str) -> (String, String) {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    let tokens = store.open_session(account.id, "cli").await.unwrap();
-    (tokens.access_token, account.id.to_string())
 }
 
 async fn open_dm(app: &Router, token: &str, target_id: &str) -> String {

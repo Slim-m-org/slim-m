@@ -9,11 +9,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/dm_call_activity.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import '../../support/fake_api.dart';
 
 typedef _Roster = http.Response Function(String channelId, int call);
 
@@ -60,17 +60,11 @@ _Fixture _fixture(_Roster answer) {
         ),
       ),
       liveEventsProvider.overrideWithValue(events.stream),
-      apiProvider.overrideWith(
-        (ref) => api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            final channelId = request.url.pathSegments[1];
-            final call = calls[channelId] = (calls[channelId] ?? 0) + 1;
-            return answer(channelId, call);
-          }),
-        ),
-      ),
+      mockApiOverride((request) async {
+        final channelId = request.url.pathSegments[1];
+        final call = calls[channelId] = (calls[channelId] ?? 0) + 1;
+        return answer(channelId, call);
+      }),
     ],
   );
   addTearDown(() {

@@ -7,12 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -31,44 +31,36 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final client = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                final path = request.url.path;
-                if (path == '/me') {
-                  return http.Response(
-                    jsonEncode({
-                      'id': 'self',
-                      'username': 'self',
-                      'display_name': 'Self',
-                      'created_at': 0,
-                      'permissions': 0,
-                    }),
-                    200,
-                  );
-                }
-                if (path == '/presence') return http.Response('[]', 200);
-                memberCalls++;
-                if (memberCalls == 1) {
-                  return http.Response(jsonEncode({'error': 'x'}), 500);
-                }
-                return http.Response(
-                  jsonEncode([
-                    {
-                      'id': '1',
-                      'username': 'priya',
-                      'display_name': 'Priya',
-                      'created_at': 0,
-                    },
-                  ]),
-                  200,
-                );
-              }),
+          mockApiOverride((request) async {
+            final path = request.url.path;
+            if (path == '/me') {
+              return http.Response(
+                jsonEncode({
+                  'id': 'self',
+                  'username': 'self',
+                  'display_name': 'Self',
+                  'created_at': 0,
+                  'permissions': 0,
+                }),
+                200,
+              );
+            }
+            if (path == '/presence') return http.Response('[]', 200);
+            memberCalls++;
+            if (memberCalls == 1) {
+              return http.Response(jsonEncode({'error': 'x'}), 500);
+            }
+            return http.Response(
+              jsonEncode([
+                {
+                  'id': '1',
+                  'username': 'priya',
+                  'display_name': 'Priya',
+                  'created_at': 0,
+                },
+              ]),
+              200,
             );
-            ref.onDispose(client.close);
-            return client;
           }),
         ],
       );

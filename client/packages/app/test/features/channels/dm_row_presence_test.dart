@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -20,6 +19,7 @@ import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -54,23 +54,15 @@ ProviderContainer _container() {
         ref.onDispose(db.close);
         return db;
       }),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path.endsWith('/voice/roster')) {
-              return http.Response(
-                jsonEncode({'participants': <Object>[]}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path.endsWith('/voice/roster')) {
+          return http.Response(
+            jsonEncode({'participants': <Object>[]}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('', 204);
       }),
     ],
   );

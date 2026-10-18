@@ -9,22 +9,17 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::dock::Dock;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{Store, User};
-use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::json_body;
 
 /// The bytes served at `/modules/code-exec/0.1.0/module.wasm` by
 /// [`fake_registry`]. Not a real wasm module - these lifecycle tests never
@@ -74,19 +69,7 @@ async fn store(name: &str) -> (Store, support::TestDbGuard) {
 }
 
 fn app(store: Store, dock: Dock) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock,
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).dock(dock).router()
 }
 
 async fn deployment(s: &Store) -> (User, User) {
@@ -119,13 +102,6 @@ fn req_json(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> 
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 /// Serves a fixed `index.json` and `manifest.json` for `code-exec`, the same

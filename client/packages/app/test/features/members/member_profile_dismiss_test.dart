@@ -37,7 +37,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -51,6 +50,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../support/reduced_motion_harness.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -91,34 +91,26 @@ http.Response _json(Object body) => http.Response(
       myPermissionsProvider.overrideWithValue(permissions),
       membersProvider.overrideWith((ref) async => [_other]),
       rolesProvider.overrideWith((ref) async => const <api.Role>[]),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add('${request.method} ${request.url.path}');
-            if (request.url.path == '/blocks') return _json(blocked);
-            if (request.url.path == '/reports') {
-              return _json({'id': 'report-1'});
-            }
-            if (request.url.path == '/dms/${_other.id}') {
-              return _json({
-                'channel_id': 'dm-1',
-                'user': {
-                  'id': _other.id,
-                  'username': _other.username,
-                  'display_name': _other.displayName,
-                  'created_at': 0,
-                },
-                'unread': 0,
-                'created_at': 500,
-              });
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        if (request.url.path == '/blocks') return _json(blocked);
+        if (request.url.path == '/reports') {
+          return _json({'id': 'report-1'});
+        }
+        if (request.url.path == '/dms/${_other.id}') {
+          return _json({
+            'channel_id': 'dm-1',
+            'user': {
+              'id': _other.id,
+              'username': _other.username,
+              'display_name': _other.displayName,
+              'created_at': 0,
+            },
+            'unread': 0,
+            'created_at': 500,
+          });
+        }
+        return http.Response('', 204);
       }),
     ],
   );

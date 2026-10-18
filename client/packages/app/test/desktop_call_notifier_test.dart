@@ -18,13 +18,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/desktop_call_notifier.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 class _FakeNotifications implements LocalNotifications {
   final shown = <LocalAlertChannel>[];
@@ -67,21 +67,13 @@ void main() {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(events.stream),
         localNotificationsProvider.overrideWithValue(notifications),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient(
-              (_) async => http.Response(
-                '[]',
-                200,
-                headers: {'content-type': 'application/json'},
-              ),
-            ),
-          );
-          ref.onDispose(client.close);
-          return client;
-        }),
+        mockApiOverride(
+          (_) async => http.Response(
+            '[]',
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        ),
       ],
     );
     container.read(desktopCallNotifierProvider);

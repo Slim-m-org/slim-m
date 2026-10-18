@@ -6,36 +6,20 @@
 //! sending, sync and search, extended to cover voice.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
 use serde_json::Value;
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
 
+use support::app::{json_body, register_token_id as register, request_bare as request};
+
 fn app(store: Store, voice: VoiceService) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).voice(voice).router()
 }
 
 fn enabled_voice() -> VoiceService {
@@ -46,36 +30,9 @@ fn enabled_voice() -> VoiceService {
     )
 }
 
-fn request(method: &str, uri: &str, token: Option<&str>) -> Request<Body> {
-    let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(token) = token {
-        builder = builder.header("authorization", format!("Bearer {token}"));
-    }
-    builder.body(Body::empty()).unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
 fn claims_of(token: &str) -> Value {
     let payload = token.split('.').nth(1).expect("a jwt has three parts");
     serde_json::from_slice(&BASE64URL.decode(payload).expect("base64url")).expect("json")
-}
-
-/// A member with a session, built straight through the store; the first one
-/// through claims the deployment, matching `tests/dms.rs`'s own helper.
-async fn register(store: &Store, username: &str) -> (String, String) {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    let tokens = store.open_session(account.id, "cli").await.unwrap();
-    (tokens.access_token, account.id.to_string())
 }
 
 async fn open_dm(app: &Router, token: &str, target_id: &str) -> String {

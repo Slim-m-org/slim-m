@@ -4,55 +4,19 @@
 
 use axum::Router;
 use axum::http::StatusCode;
-use serde_json::{Value, json};
-use slimm_server::auth::Auth;
+use serde_json::json;
 use slimm_server::http::link_preview::LinkPreviews;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
-use tower::ServiceExt;
 
 mod support;
-use support::overwrite_harness::{new_store, register, request};
+
+use support::app::call;
+use support::overwrite_harness::{new_store, register};
 
 fn app(store: Store, link_previews: LinkPreviews) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews,
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
-async fn call(
-    router: &Router,
-    method: &str,
-    uri: &str,
-    token: Option<&str>,
-    body: Option<Value>,
-) -> (StatusCode, Value) {
-    let response = router
-        .clone()
-        .oneshot(request(method, uri, token, body))
-        .await
-        .unwrap();
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
-    )
+    support::app::builder(store)
+        .link_previews(link_previews)
+        .router()
 }
 
 #[tokio::test]

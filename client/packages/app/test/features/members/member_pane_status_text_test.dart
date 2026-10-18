@@ -12,13 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 UserProfile _profile(String id, String name, {String? statusText}) =>
     UserProfile(
@@ -36,28 +36,24 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-SlimmApi _fakeApi(SessionStore session) => SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: session,
-  httpClient: MockClient((request) async {
-    if (request.url.path == '/me') {
-      return http.Response(
-        jsonEncode({
-          'id': 'self',
-          'username': 'self',
-          'display_name': 'Self',
-          'created_at': 0,
-          'permissions': 0,
-        }),
-        200,
-      );
-    }
-    if (request.url.path == '/presence') {
-      return http.Response('[]', 200);
-    }
-    throw StateError('unexpected request in this test: ${request.url}');
-  }),
-);
+SlimmApi _fakeApi(SessionStore session) => testApi((request) async {
+  if (request.url.path == '/me') {
+    return http.Response(
+      jsonEncode({
+        'id': 'self',
+        'username': 'self',
+        'display_name': 'Self',
+        'created_at': 0,
+        'permissions': 0,
+      }),
+      200,
+    );
+  }
+  if (request.url.path == '/presence') {
+    return http.Response('[]', 200);
+  }
+  throw StateError('unexpected request in this test: ${request.url}');
+}, session: session);
 
 List<Override> _overrides(List<UserProfile> members) => [
   keyStoreProvider.overrideWithValue(InMemoryKeyStore()),

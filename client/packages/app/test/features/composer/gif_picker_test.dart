@@ -13,12 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 import 'package:slimm_app/src/features/composer/widgets/gif_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -35,69 +35,60 @@ final _gifBytes = base64Decode(
 /// attachment fetch - the one `pickGif` makes after `onPicked` runs - waits
 /// on [gate], so a test can dispose the picker's host while it is pending.
 api.SlimmApi Function(Ref) _gatedGifApi(Completer<void> gate) =>
-    (ref) => api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async {
-        final path = request.url.path;
-        if (request.method == 'GET' && path == '/gifs/trending') {
-          return http.Response(
-            jsonEncode({'results': <Object?>[]}),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        if (request.method == 'GET' && path == '/gifs/search') {
-          return http.Response(
-            jsonEncode({
-              'results': [
-                {
-                  'id': 'tok-1',
-                  'title': 'a cat waving',
-                  'width': 200,
-                  'height': 150,
-                },
-              ],
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        if (request.method == 'GET' && path == '/gifs/preview/tok-1') {
-          return http.Response.bytes(
-            _gifBytes,
-            200,
-            headers: {'content-type': 'image/gif'},
-          );
-        }
-        if (request.method == 'POST' && path == '/gifs/select') {
-          return http.Response(
-            jsonEncode({
-              'id': 'gif-attachment-id',
-              'filename': 'gif.gif',
-              'content_type': 'image/gif',
-              'size': _gifBytes.length,
-            }),
-            201,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        if (request.method == 'GET' &&
-            path == '/attachments/gif-attachment-id') {
-          await gate.future;
-          return http.Response.bytes(
-            _gifBytes,
-            200,
-            headers: {'content-type': 'image/gif'},
-          );
-        }
+    (ref) => testApi((request) async {
+      final path = request.url.path;
+      if (request.method == 'GET' && path == '/gifs/trending') {
         return http.Response(
-          '{}',
-          404,
-          headers: {'content-type': 'text/plain'},
+          jsonEncode({'results': <Object?>[]}),
+          200,
+          headers: {'content-type': 'application/json'},
         );
-      }),
-    );
+      }
+      if (request.method == 'GET' && path == '/gifs/search') {
+        return http.Response(
+          jsonEncode({
+            'results': [
+              {
+                'id': 'tok-1',
+                'title': 'a cat waving',
+                'width': 200,
+                'height': 150,
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'GET' && path == '/gifs/preview/tok-1') {
+        return http.Response.bytes(
+          _gifBytes,
+          200,
+          headers: {'content-type': 'image/gif'},
+        );
+      }
+      if (request.method == 'POST' && path == '/gifs/select') {
+        return http.Response(
+          jsonEncode({
+            'id': 'gif-attachment-id',
+            'filename': 'gif.gif',
+            'content_type': 'image/gif',
+            'size': _gifBytes.length,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'GET' && path == '/attachments/gif-attachment-id') {
+        await gate.future;
+        return http.Response.bytes(
+          _gifBytes,
+          200,
+          headers: {'content-type': 'image/gif'},
+        );
+      }
+      return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
+    }, session: ref.watch(sessionProvider));
 
 /// A minimal host that owns both the [BuildContext] and the
 /// [AttachmentStagingController] `pickGif` is handed, exactly the way

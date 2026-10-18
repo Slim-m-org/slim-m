@@ -4,36 +4,18 @@
 //! attachments (see migration 0013) - one mutable image per user, gated by
 //! authentication only, never by a channel permission.
 
-use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
 mod support;
 
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
+use support::app::{app, json_body};
 
 fn request_bytes(method: &str, uri: &str, token: &str, body: Vec<u8>) -> Request<Body> {
     Request::builder()
@@ -53,13 +35,6 @@ fn request_plain(method: &str, uri: &str, token: &str) -> Request<Body> {
         .header("authorization", format!("Bearer {token}"))
         .body(Body::empty())
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> serde_json::Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 async fn register(store: &Store, username: &str) -> String {
@@ -104,19 +79,10 @@ async fn changing_an_avatar_announces_the_profile_change() {
     let media = Media::new(&root, 10 * 1024 * 1024).expect("create temp media directories");
     let hub = Hub::new();
     let mut events = hub.subscribe();
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: hub.clone(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media,
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .media(media)
+        .router();
     let token = register(&store, "alice").await;
     let me = json_body(
         app.clone()
@@ -270,19 +236,7 @@ async fn deleting_an_account_removes_its_avatar_file() {
         .unwrap();
     let (root, _media_guard) = support::TestDirGuard::new("slimm-avatars-account-delete");
     let media = Media::new(&root, 10 * 1024 * 1024).expect("create temp media directories");
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media,
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store.clone()).media(media).router();
     let token = register(&store, "alice").await;
 
     let me = json_body(

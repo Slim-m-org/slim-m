@@ -12,35 +12,22 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::{get, post};
-use serde_json::{Value, json};
-use slimm_server::auth::Auth;
+use serde_json::json;
 use slimm_server::code_runner::CodeRunner;
 use slimm_server::config::Config;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
+use support::app::{json_body, request_json as request};
+
 fn app(store: Store, code_runner: CodeRunner) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner,
-    })
+    support::app::builder(store)
+        .code_runner(code_runner)
+        .router()
 }
 
 /// A fake Piston serving one fixed `/api/v2/runtimes` and always answering
@@ -73,16 +60,6 @@ fn code_runner_at(base_url: &str) -> CodeRunner {
     CodeRunner::new(&config).unwrap()
 }
 
-fn request(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> {
-    Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"))
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap()
-}
-
 fn get_req(uri: &str, token: &str) -> Request<Body> {
     Request::builder()
         .method("GET")
@@ -90,13 +67,6 @@ fn get_req(uri: &str, token: &str) -> Request<Body> {
         .header("authorization", format!("Bearer {token}"))
         .body(Body::empty())
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 /// A fresh deployment with `@everyone` able to view and send, one channel,

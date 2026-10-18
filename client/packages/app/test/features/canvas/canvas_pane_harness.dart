@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -27,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const testTokens = api.TokenPair(
   userId: 'me',
@@ -191,158 +191,147 @@ class CanvasPaneFixture {
       sessionProvider.overrideWithValue(api.SessionStore(tokens: testTokens)),
       syncControllerProvider.overrideWith(NoopSyncController.new),
       liveEventsProvider.overrideWithValue(events.stream),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path.endsWith('/me')) {
-              return jsonResponse({
-                'id': 'me',
-                'username': 'me',
-                'display_name': 'Me',
+      mockApiOverride((request) async {
+        if (request.url.path.endsWith('/me')) {
+          return jsonResponse({
+            'id': 'me',
+            'username': 'me',
+            'display_name': 'Me',
+            'created_at': 0,
+            'permissions': mePermissions,
+          });
+        }
+        if (request.url.path.endsWith('/permissions')) {
+          return jsonResponse({'permissions': channelPermissions});
+        }
+        if (request.url.path.endsWith('/canvas/ops') &&
+            request.method == 'POST') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          if (opsPostStatus != 201) {
+            return http.Response(
+              jsonEncode({'error': 'no'}),
+              opsPostStatus,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          postedOps.add(body);
+          _opSeq++;
+          return http.Response(
+            jsonEncode({
+              'op': {
+                'id': 'server-op-$_opSeq',
+                'seq': _opSeq,
+                'kind': body['kind'],
+                'affected': 1,
                 'created_at': 0,
-                'permissions': mePermissions,
-              });
-            }
-            if (request.url.path.endsWith('/permissions')) {
-              return jsonResponse({'permissions': channelPermissions});
-            }
-            if (request.url.path.endsWith('/canvas/ops') &&
-                request.method == 'POST') {
-              final body = jsonDecode(request.body) as Map<String, dynamic>;
-              if (opsPostStatus != 201) {
-                return http.Response(
-                  jsonEncode({'error': 'no'}),
-                  opsPostStatus,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              postedOps.add(body);
-              _opSeq++;
-              return http.Response(
-                jsonEncode({
-                  'op': {
-                    'id': 'server-op-$_opSeq',
-                    'seq': _opSeq,
-                    'kind': body['kind'],
-                    'affected': 1,
-                    'created_at': 0,
-                  },
-                  'fresh': true,
-                }),
-                201,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path.endsWith('/canvas/ops')) {
-              opsGets++;
-              // Echoes the cursor back as the latest seq, so this fixture never answers `reset` or reports a gap.
-              final afterSeq = int.parse(
-                request.url.queryParameters['after_seq']!,
-              );
-              return jsonResponse({
-                'ops': <Object>[],
-                'latest_seq': afterSeq,
-                'has_more': false,
-                'reset': false,
-              });
-            }
-            if (request.url.path.endsWith('/canvas/media-slots')) {
-              return jsonResponse({'slots': <Object>[]});
-            }
-            if (request.url.path.endsWith('/canvas/object-locks')) {
-              return jsonResponse({'object_ids': <Object>[]});
-            }
-            if (request.url.path.contains('/canvas/media-slots/')) {
-              final segments = request.url.pathSegments;
-              return jsonResponse({
-                'kind': segments[segments.length - 2],
-                'user_id': segments.last,
-                'x': 0.0,
-                'y': 0.0,
-                'w': 1.0,
-                'h': 1.0,
-                'locked': false,
-                'sent_to_back': false,
-                'updated_at': 0,
-              });
-            }
-            if (request.url.path == '/attachments' &&
-                request.method == 'POST') {
-              if (attachmentUploadStatus != 200) {
-                return http.Response(
-                  jsonEncode({'error': 'refused'}),
-                  attachmentUploadStatus,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return jsonResponse({
-                'id': 'sha-pasted',
-                'filename': 'pasted-image.png',
-                'content_type': 'image/png',
-                'size': canvasPngFixture.length,
-              });
-            }
-            if (request.url.path.startsWith('/attachments/')) {
-              attachmentFetches++;
-              if (attachmentFetchStatus != 200) {
-                return http.Response(
-                  jsonEncode({'error': 'no'}),
-                  attachmentFetchStatus,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response.bytes(
-                canvasPngFixture,
-                200,
-                headers: {'content-type': 'image/png'},
-              );
-            }
-            if (!request.url.path.endsWith('/canvas/objects')) {
-              return jsonResponse(<Object>[]);
-            }
-            if (request.method == 'POST') {
-              final body = jsonDecode(request.body) as Map<String, dynamic>;
-              if (placeStatus != 201) {
-                return http.Response(
-                  jsonEncode({'error': 'no'}),
-                  placeStatus,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              posted.add(body);
-              return http.Response(
-                jsonEncode({
-                  ...canvasObjectJson(body['id'] as String),
-                  'kind': body['kind'],
-                  'x': body['x'],
-                  'y': body['y'],
-                  'w': body['w'],
-                  'h': body['h'],
-                  'props': body['props'],
-                }),
-                201,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            viewportGets++;
-            if (viewportStatus != 200) {
-              return http.Response(
-                jsonEncode({'error': 'no'}),
-                viewportStatus,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return jsonResponse({
-              'objects': objects,
-              'has_more': hasMore,
-              'latest_seq': objects.length,
-            });
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+              },
+              'fresh': true,
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.endsWith('/canvas/ops')) {
+          opsGets++;
+          // Echoes the cursor back as the latest seq, so this fixture never answers `reset` or reports a gap.
+          final afterSeq = int.parse(request.url.queryParameters['after_seq']!);
+          return jsonResponse({
+            'ops': <Object>[],
+            'latest_seq': afterSeq,
+            'has_more': false,
+            'reset': false,
+          });
+        }
+        if (request.url.path.endsWith('/canvas/media-slots')) {
+          return jsonResponse({'slots': <Object>[]});
+        }
+        if (request.url.path.endsWith('/canvas/object-locks')) {
+          return jsonResponse({'object_ids': <Object>[]});
+        }
+        if (request.url.path.contains('/canvas/media-slots/')) {
+          final segments = request.url.pathSegments;
+          return jsonResponse({
+            'kind': segments[segments.length - 2],
+            'user_id': segments.last,
+            'x': 0.0,
+            'y': 0.0,
+            'w': 1.0,
+            'h': 1.0,
+            'locked': false,
+            'sent_to_back': false,
+            'updated_at': 0,
+          });
+        }
+        if (request.url.path == '/attachments' && request.method == 'POST') {
+          if (attachmentUploadStatus != 200) {
+            return http.Response(
+              jsonEncode({'error': 'refused'}),
+              attachmentUploadStatus,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return jsonResponse({
+            'id': 'sha-pasted',
+            'filename': 'pasted-image.png',
+            'content_type': 'image/png',
+            'size': canvasPngFixture.length,
+          });
+        }
+        if (request.url.path.startsWith('/attachments/')) {
+          attachmentFetches++;
+          if (attachmentFetchStatus != 200) {
+            return http.Response(
+              jsonEncode({'error': 'no'}),
+              attachmentFetchStatus,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response.bytes(
+            canvasPngFixture,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        }
+        if (!request.url.path.endsWith('/canvas/objects')) {
+          return jsonResponse(<Object>[]);
+        }
+        if (request.method == 'POST') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          if (placeStatus != 201) {
+            return http.Response(
+              jsonEncode({'error': 'no'}),
+              placeStatus,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          posted.add(body);
+          return http.Response(
+            jsonEncode({
+              ...canvasObjectJson(body['id'] as String),
+              'kind': body['kind'],
+              'x': body['x'],
+              'y': body['y'],
+              'w': body['w'],
+              'h': body['h'],
+              'props': body['props'],
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        viewportGets++;
+        if (viewportStatus != 200) {
+          return http.Response(
+            jsonEncode({'error': 'no'}),
+            viewportStatus,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return jsonResponse({
+          'objects': objects,
+          'has_more': hasMore,
+          'latest_seq': objects.length,
+        });
       }),
       ...extraOverrides,
     ],

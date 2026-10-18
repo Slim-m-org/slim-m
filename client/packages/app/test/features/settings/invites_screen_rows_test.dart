@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -20,6 +19,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/invites_screen.dar
 import 'package:slimm_app/src/features/settings/widgets/settings_entity_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -50,15 +50,7 @@ Future<void> _pump(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       myPermissionsProvider.overrideWithValue(Perm.createInvite),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(handler),
-        );
-        ref.onDispose(api.close);
-        return api;
-      }),
+      mockApiOverride(handler),
     ],
   );
   addTearDown(container.dispose);

@@ -17,12 +17,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -32,24 +28,10 @@ use uuid::Uuid;
 
 mod support;
 
+use support::app::json_body;
+
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server::ids::UserId) {
     let user = store.create_user(name, name).await.unwrap();
@@ -129,13 +111,6 @@ fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Bod
     }
 }
 
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
 /// The bug the task exists to close: today somebody watching a channel where
 /// a thread just opened learns nothing until they reload. Carol, denied
 /// `VIEW_CHANNEL` on the parent before she even connects, is the control -
@@ -152,7 +127,7 @@ async fn thread_opened_reaches_a_parent_viewer_and_not_someone_denied_it() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, _alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
@@ -232,7 +207,7 @@ async fn a_reply_in_the_thread_updates_a_parent_viewers_count_live() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, _alice) = user_ticket(&store, "alice").await;
     let (bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;

@@ -2,20 +2,17 @@
 //! HTTP integration tests for read state and the bundled sync endpoint.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use serde_json::{Value, json};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use axum::http::StatusCode;
+use serde_json::json;
+use slimm_server::http::{self};
 use slimm_server::ids::{MessageId, UserId};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::{json_body, request_authed as request};
 
 /// A user, their access token, and a router sharing the store.
 struct Fixture {
@@ -29,19 +26,7 @@ struct Fixture {
 async fn setup(everyone: Permissions) -> Fixture {
     let (store, _guard) = support::new_store("slimm-sync-test").await;
     store.create_role("everyone", everyone, true).await.unwrap();
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = http::router(support::app::state(store.clone()));
     let user = store.create_user("alice", "Alice").await.unwrap();
     let tokens = store.open_session(user.id, "dev").await.unwrap();
     Fixture {
@@ -51,27 +36,6 @@ async fn setup(everyone: Permissions) -> Fixture {
         token: tokens.access_token,
         _guard,
     }
-}
-
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(value) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(value.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 #[tokio::test]

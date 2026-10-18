@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart'
     show StagedSend;
@@ -27,6 +26,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_parts.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 /// The real controller opens a websocket to a server that is not there. See
 /// `channel_screen_test.dart`, which needs the same seam for the same reason.
@@ -123,51 +123,43 @@ void main() {
           syncControllerProvider.overrideWith(
             (ref) => _NoopSyncController(ref),
           ),
-          apiProvider.overrideWith((ref) {
-            final client = api.SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                if (request.method == 'POST' &&
-                    request.url.path == '/channels/c1/messages') {
-                  await sendGate.future;
-                  final body = jsonDecode(request.body) as Map<String, dynamic>;
-                  return http.Response(
-                    jsonEncode({
-                      'id': body['id'],
-                      'channel_id': 'c1',
-                      'author_id': 'bob',
-                      'author_display_name': 'Bob',
-                      'seq': 4,
-                      'content': body['content'],
-                      'created_at': now,
-                      'edited_at': null,
-                    }),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                if (request.method == 'GET' && request.url.path == '/me') {
-                  return http.Response(
-                    jsonEncode(_meJson()),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                if (request.method == 'PUT' &&
-                    request.url.path == '/channels/c1/read') {
-                  return http.Response(
-                    jsonEncode({'last_read_seq': 4, 'unread': 0}),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                // Members, pins and extras: not what this test is about.
-                return _emptyJsonList();
-              }),
-            );
-            ref.onDispose(client.close);
-            return client;
+          mockApiOverride((request) async {
+            if (request.method == 'POST' &&
+                request.url.path == '/channels/c1/messages') {
+              await sendGate.future;
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              return http.Response(
+                jsonEncode({
+                  'id': body['id'],
+                  'channel_id': 'c1',
+                  'author_id': 'bob',
+                  'author_display_name': 'Bob',
+                  'seq': 4,
+                  'content': body['content'],
+                  'created_at': now,
+                  'edited_at': null,
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.method == 'GET' && request.url.path == '/me') {
+              return http.Response(
+                jsonEncode(_meJson()),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.method == 'PUT' &&
+                request.url.path == '/channels/c1/read') {
+              return http.Response(
+                jsonEncode({'last_read_seq': 4, 'unread': 0}),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            // Members, pins and extras: not what this test is about.
+            return _emptyJsonList();
           }),
         ],
       );

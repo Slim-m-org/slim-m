@@ -12,26 +12,16 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use slimm_server::http::link_preview::LinkPreviews;
-use slimm_server::http::{self, AppState};
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
 fn app(store: slimm_server::store::Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: slimm_server::auth::Auth::new(2).unwrap(),
-        hub: slimm_server::hub::Hub::new(),
-        limiter: slimm_server::ratelimit::RateLimiter::new(),
-        push: slimm_server::push::PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: LinkPreviews::for_test(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store)
+        .push(slimm_server::push::PushSender::disabled())
+        .link_previews(LinkPreviews::for_test())
+        .router()
 }
 
 /// Serves `/page` (slowly, so concurrent asks overlap) and a dead `/dead`,

@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -24,6 +23,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../support/reduced_motion_harness.dart';
 import '../voice/voice_controller_harness.dart' show tokens;
+import '../../support/fake_api.dart';
 
 const _channelId = 'channel-secret';
 
@@ -77,52 +77,44 @@ data.Channel _channel(String kind) => data.Channel(
       ),
       if (selfProfile != null)
         meProvider.overrideWith((ref) async => selfProfile),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            const json = {'content-type': 'application/json'};
-            final path = request.url.path;
-            if (path == '/channels/$_channelId/permissions') {
-              return http.Response(
-                jsonEncode({'permissions': channelPermissions}),
-                200,
-                headers: json,
-              );
-            }
-            if (path.endsWith('/note')) {
-              return http.Response(
-                jsonEncode({'body': null, 'updated_at': null}),
-                200,
-                headers: json,
-              );
-            }
-            if (path == '/channels/$_channelId/overwrites') {
-              if (request.method == 'PUT') {
-                writes.add(request);
-                if (failWrite) return http.Response('{}', 500, headers: json);
-              }
-              return http.Response(
-                jsonEncode({
-                  'overwrites': [
-                    {
-                      'kind': 'member',
-                      'id': _other.id,
-                      'allow': Perm.viewChannel | Perm.sendMessages,
-                      'deny': Perm.attachFiles,
-                    },
-                  ],
-                }),
-                200,
-                headers: json,
-              );
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        const json = {'content-type': 'application/json'};
+        final path = request.url.path;
+        if (path == '/channels/$_channelId/permissions') {
+          return http.Response(
+            jsonEncode({'permissions': channelPermissions}),
+            200,
+            headers: json,
+          );
+        }
+        if (path.endsWith('/note')) {
+          return http.Response(
+            jsonEncode({'body': null, 'updated_at': null}),
+            200,
+            headers: json,
+          );
+        }
+        if (path == '/channels/$_channelId/overwrites') {
+          if (request.method == 'PUT') {
+            writes.add(request);
+            if (failWrite) return http.Response('{}', 500, headers: json);
+          }
+          return http.Response(
+            jsonEncode({
+              'overwrites': [
+                {
+                  'kind': 'member',
+                  'id': _other.id,
+                  'allow': Perm.viewChannel | Perm.sendMessages,
+                  'deny': Perm.attachFiles,
+                },
+              ],
+            }),
+            200,
+            headers: json,
+          );
+        }
+        return http.Response('', 204);
       }),
     ],
   );

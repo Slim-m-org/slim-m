@@ -12,10 +12,10 @@ import 'dart:convert';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 Map<String, dynamic> _rawOp(int seq, String kind) => {
   'seq': seq,
@@ -32,8 +32,12 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
 );
 
 api.SlimmApi _fakeApi(http.Response Function(int afterSeq) onOpsRequest) =>
-    api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
+    testApi(
+      (request) async {
+        if (!request.url.path.endsWith('/canvas/ops')) return _json(<Object>[]);
+        final afterSeq = int.parse(request.url.queryParameters['after_seq']!);
+        return onOpsRequest(afterSeq);
+      },
       session: api.SessionStore(
         tokens: const api.TokenPair(
           userId: 'me',
@@ -42,11 +46,6 @@ api.SlimmApi _fakeApi(http.Response Function(int afterSeq) onOpsRequest) =>
           accessExpiresAt: 0,
         ),
       ),
-      httpClient: MockClient((request) async {
-        if (!request.url.path.endsWith('/canvas/ops')) return _json(<Object>[]);
-        final afterSeq = int.parse(request.url.queryParameters['after_seq']!);
-        return onOpsRequest(afterSeq);
-      }),
     );
 
 CanvasStrokeInput _stroke(String id) => CanvasStrokeInput(

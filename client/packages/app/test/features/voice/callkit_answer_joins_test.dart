@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/dm_call.dart';
 import 'package:slimm_app/src/features/voice/providers/dm_call_ring_controller.dart';
@@ -21,6 +20,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _channelName = 'top.npcserver.slimm/callkit_incoming';
 
@@ -126,21 +126,17 @@ Future<_Rig> _rig({
       ),
       storeProvider.overrideWith((ref) async => throw StateError('no store')),
       apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: api.SessionStore(tokens: _tokens),
-          httpClient: MockClient((request) async {
-            if (request.url.path != '/voice/rings/incoming' ||
-                outstanding == null) {
-              return http.Response('', 500);
-            }
-            return http.Response(
-              jsonEncode({'rings': outstanding}),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
-        );
+        final client = testApi((request) async {
+          if (request.url.path != '/voice/rings/incoming' ||
+              outstanding == null) {
+            return http.Response('', 500);
+          }
+          return http.Response(
+            jsonEncode({'rings': outstanding}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }, session: api.SessionStore(tokens: _tokens));
         ref.onDispose(client.close);
         return client;
       }),
