@@ -38,7 +38,7 @@ SHIM = r"""
     return t;
   };
   function num(v){ return typeof v === 'number' ? v : (v && (v.ideal || v.max || v.exact)) || 0; }
-  var SRC_W = 3840, SRC_H = 2160;
+  var SRC_W = window.__shareSourceW || 3840, SRC_H = window.__shareSourceH || 2160;
   navigator.mediaDevices.getDisplayMedia = function(c){
     var v = (c && c.video) || {};
     st.asked = JSON.stringify(c);
@@ -108,6 +108,18 @@ SHIM = r"""
         });
       } catch (e) {}
     }
+    return JSON.stringify(out);
+  };
+  window.__shareParams = function(){
+    var out = [];
+    st.pcs.forEach(function(pc){
+      pc.getSenders().forEach(function(snd){
+        if (!snd.track || !snd.track.__fakeScreen) return;
+        (snd.getParameters().encodings || []).forEach(function(e){
+          out.push({rid: e.rid, maxBitrate: e.maxBitrate, scale: e.scaleResolutionDownBy, active: e.active});
+        });
+      });
+    });
     return JSON.stringify(out);
   };
   window.__shareCap = async function(bps){

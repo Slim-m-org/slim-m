@@ -74,11 +74,34 @@ livekit_client 2.10.0 scales bitrate only for VP9 (0.85) and AV1 (0.7), not H264
 - livekit_client 2.10.0 (Dart) picks the preset by capture width, so a 3840 wide capture lands on its largest screen preset, which is where `q` at 3 Mbps and `h` at 12 Mbps come from.
 - Discord, from third-party guides only (no official page found): free accounts stream at 720p30, 1080p and anything above (source, 1440p, 4K) needs Nitro; its own blog says the encoder follows the bandwidth estimate and drops frames under congestion (see section 3.1 of `video-handling.md`).
 
+## Never publish above the source (owner rule, same day)
+
+"Riley selected 4k but his display is not 4k", so a share now never goes above the screen it captures.
+`fitScreenShare` takes the chosen tier, the space ceiling and the first captured frame's size, and picks the largest tier that fits; layers and bitrate follow it.
+The 2160p tier on a 1080p screen used to hand LiveKit the 2160p30 budget; measured with a fake 1080p screen, 2160p30 picked, the encodings read back from the sender:
+
+| Screen | Tier picked | Top layer before | Top layer after | q layer before | q layer after |
+|---|---|---|---|---|---|
+| 1080p | 2160p30 | 10.0 Mbps | 5.0 Mbps | 2.5 Mbps | 1.25 Mbps |
+| 1080p | 2160p60 | 12.0 Mbps | 8.0 Mbps | 3.0 Mbps | 2.0 Mbps |
+| 1440p | 2160p30 | 10.0 Mbps | 7.5 Mbps | 2.5 Mbps | 1.875 Mbps |
+| 4K | 2160p30 | 10.0 Mbps | 10.0 Mbps | 2.5 Mbps | 2.5 Mbps |
+| 1080p | 1080p30 | 5.0 Mbps | 5.0 Mbps | 1.25 Mbps | 1.25 Mbps |
+
+Received video was unchanged for these unconstrained senders (1080p screen: 1920x1080 at about 28 fps either way), because the web client already laid layers out from `getSettings`.
+The saving is the budget and, on desktop, where `getSettings` does not exist, the layout too: LiveKit was told 3840x2160 for a 1080p screen.
+The source size comes from the first frame of the captured stream, which works on every platform; if it never arrives within 3 s the share publishes as chosen.
+Windows are not shared yet, so there is no window case; a window would come through the same read.
+Voice settings now says "Larger than your screen, so it is shared at your screen size." under a resolution above every display.
+The default e2e run checks it: a 1080p fake screen with 2160p picked must publish a top layer of at most 5 Mbps.
+Not exercised: the desktop first-frame read on a real Linux or Windows share (only the web path ran here).
+
 ## What changed, and what did not
 
 Changed because the numbers prove it:
 
 - The inbound and outbound bitrate readout (unit bug).
+- A share is capped to the source's size and budget (above).
 - A banner tells the sharer once per share when the encoder reports `cpu` or `bandwidth` limits twice in a row, and says to lower the resolution or frame rate.
 
 Not changed:

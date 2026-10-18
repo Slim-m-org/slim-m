@@ -31,7 +31,10 @@ WARM_SECONDS = int(os.environ.get("E2E_SHARE_WARM", "15"))
 MEASURE_SECONDS = int(os.environ.get("E2E_SHARE_MEASURE", "30"))
 STEP_SECONDS = 2
 QUALITY_KEY = "flutter.slimm.voice.screen_share_quality"
-DEFAULT_MATRIX = [{"name": "smoke 1440p30", "quality": "1440p30"}]
+# A 1080p screen with the 2160p tier picked: nothing above 1080p may be published.
+DEFAULT_MATRIX = [{"name": "1080p screen, 2160p tier", "quality": "2160p30",
+                   "source": [1920, 1080]}]
+FITTED_TOP_BITRATE = 5_000_000
 
 
 def matrix():
@@ -39,8 +42,9 @@ def matrix():
     return json.loads(raw) if raw else DEFAULT_MATRIX
 
 
-def _settings_script(quality, codec):
+def _settings_script(quality, codec, source):
     return (f"window.__shareCodec={json.dumps(codec)};"
+            f"window.__shareSourceW={source[0]};window.__shareSourceH={source[1]};"
             f"try{{localStorage.setItem({json.dumps(QUALITY_KEY)},"
             f"JSON.stringify({json.dumps(quality)}));}}catch(e){{}}")
 
@@ -54,10 +58,10 @@ def _wait_probe(client, present, timeout=60):
     raise AssertionError(f"{client.name}: share probe presence never became {present}")
 
 
-def _install(client, quality, codec):
+def _install(client, quality, codec, source=(3840, 2160)):
     client.send("Page.enable")
     added = client.send("Page.addScriptToEvaluateOnNewDocument", {
-        "source": _settings_script(quality, codec) + js.SHIM})
+        "source": _settings_script(quality, codec, source) + js.SHIM})
     client.send("Page.reload")
     _wait_probe(client, True)
     client.enable_semantics()
@@ -180,7 +184,8 @@ def _one(a, b, room_id, bob_id, cfg):
     quality = cfg.get("quality", "1080p30")
     ids = []
     for c in (a, b):
-        ids.append(_install(c, quality, cfg.get("codec", "")))
+        ids.append(_install(c, quality, cfg.get("codec", ""),
+                            tuple(cfg.get("source", (3840, 2160)))))
     px = cfg.get("viewer_px", 2560)
     a.send("Emulation.setDeviceMetricsOverride", {
         "width": px, "height": px * 9 // 16, "deviceScaleFactor": 1,
@@ -199,6 +204,7 @@ def _one(a, b, room_id, bob_id, cfg):
             time.sleep(WARM_SECONDS)
             result = measure(a, b, cfg)
         result["asked"] = b.ev("window.__shareProbe.asked")
+        result["encodings"] = json.loads(b.ev("window.__shareParams()") or "[]")
         result["config"] = cfg
         return result
     finally:
@@ -209,6 +215,21 @@ def _one(a, b, room_id, bob_id, cfg):
         for c, i in zip((a, b), ids):
             with contextlib.suppress(Exception):
                 _uninstall(c, i)
+
+
+def _assert_fitted(cfg, result):
+    """The top layer is sized and budgeted for the screen, not for the tier."""
+    source = cfg.get("source")
+    if not source or source[1] >= 2160:
+        return
+    top = max(result["encodings"], key=lambda e: e["maxBitrate"] or 0)
+    assert top["maxBitrate"] <= FITTED_TOP_BITRATE, \
+        f"{cfg['name']}: top layer budget {top['maxBitrate']} for a {source[1]}p screen"
+    sizes = [v["size"] for v in result["sender"].values()
+             if v["active"] and "None" not in v["size"]]
+    wide = [int(z.split("x")[0]) for z in sizes]
+    assert wide and max(wide) <= source[0], \
+        f"{cfg['name']}: published {sizes} from a {source[0]}-wide screen"
 
 
 def share_quality_under_a_constrained_sender(a, b, room_id, bob_id):
@@ -228,5 +249,6 @@ def share_quality_under_a_constrained_sender(a, b, room_id, bob_id):
         assert seen["fps"] > 0.5, f"{cfg['name']}: the viewer decoded {seen['fps']} fps"
         assert seen["mbps"] > 0.05, \
             f"{cfg['name']}: the viewer measured {seen['mbps']} Mbps"
+        _assert_fitted(cfg, result)
         top = [v for v in result["sender"].values() if v["active"]]
         assert top, f"{cfg['name']}: no outgoing layer was sending"

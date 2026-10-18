@@ -46,7 +46,6 @@ import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
 import 'share_limit.dart';
 import 'voice_disconnect_reason.dart';
-import 'video_publish_options.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
@@ -420,7 +419,8 @@ class VoiceSession
         enabled: enabled,
         options: options,
         includeAudio: audio,
-        publishOptions: screenSharePublishOptionsFor(quality),
+        quality: quality,
+        maxHeight: maxHeight,
       ),
       isSharing: () => isSharingScreen(room.localParticipant),
       onSettled: (error) {

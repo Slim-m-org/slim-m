@@ -31,6 +31,15 @@ Bits per second:
   A share also publishes a half-size simulcast layer, which adds a fraction on top.
 - The simulcast layer and LiveKit's congestion control still lower what is really sent; the numbers above are ceilings.
 
+## Never above the source
+
+A share is never published above the screen it captures or the space ceiling.
+Once the track starts, the size of its first frame is read (`screen_share_source_size.dart`) and `fitScreenShare` picks the largest tier whose height fits the source, the ceiling and the chosen tier.
+The layers and the top bitrate come from that tier, so a 1080p screen with 2160p picked publishes at the 1080p bitrate (5.0M at 30 fps), not 10M.
+The frame rate is kept.
+Voice settings says "Larger than your screen" under a resolution above every display here.
+A window share is not handled separately: windows are not shareable yet (see `video-handling.md`), and a window's size would come through the same first-frame read.
+
 ## Degradation preference
 
 When the uplink cannot carry what was asked, the encoder gives something up.
