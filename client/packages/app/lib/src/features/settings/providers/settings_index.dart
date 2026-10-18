@@ -7,6 +7,9 @@ library;
 
 import 'package:slimm_platform/platform.dart';
 
+import 'settings_index_gates.dart';
+
+export 'settings_index_gates.dart' show SettingsGate;
 export 'settings_index_space.dart';
 
 /// One searchable setting.
@@ -18,7 +21,17 @@ class SettingsEntry {
     this.keywords = const [],
     this.conditional = false,
     this.available,
+    this.gate,
+    this.gatedKeywords = const [],
+    this.keywordGate,
   });
+
+  /// App state the entry needs to exist, resolved by `settingsGatedEntries`.
+  final SettingsGate? gate;
+
+  /// Keywords that only count while [keywordGate] is open.
+  final List<String> gatedKeywords;
+  final SettingsGate? keywordGate;
 
   /// Where the row exists at all; null means everywhere.
   final bool Function()? available;
@@ -32,6 +45,16 @@ class SettingsEntry {
 
   /// Other words for it: what someone types who does not know the label.
   final List<String> keywords;
+
+  /// This entry with [more] added to its keywords.
+  SettingsEntry withKeywords(List<String> more) => SettingsEntry(
+    pane,
+    label,
+    description: description,
+    keywords: [...keywords, ...more],
+    conditional: conditional,
+    available: available,
+  );
 
   /// Shown only on some platforms or in some states, so a render may lack it.
   final bool conditional;
@@ -64,8 +87,8 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'profile',
     "Show what I'm listening to",
-    description: 'Shows the track from any player on this computer.',
-    keywords: ['music', 'now playing', 'song'],
+    description: 'Shows the track from a media player on this device.',
+    keywords: ['music', 'now playing', 'song', 'media player'],
   ),
   SettingsEntry(
     'profile',
@@ -77,7 +100,9 @@ const personalSettingsIndex = <SettingsEntry>[
     'account-devices',
     'Connections',
     description: 'Accounts shown on your profile.',
-    keywords: ['discord', 'spotify', 'link', 'linked accounts'],
+    keywords: ['discord', 'link', 'linked accounts'],
+    gatedKeywords: ['spotify'],
+    keywordGate: SettingsGate.spotifyConfigured,
     conditional: true,
   ),
   SettingsEntry(
@@ -90,6 +115,7 @@ const personalSettingsIndex = <SettingsEntry>[
     'account-devices',
     'Spotify',
     keywords: ['connections', 'link', 'unlink', 'music'],
+    gate: SettingsGate.spotifyConfigured,
     conditional: true,
   ),
   SettingsEntry(
@@ -97,6 +123,7 @@ const personalSettingsIndex = <SettingsEntry>[
     'Show my Spotify track',
     description: 'Shows your track even when you play on another device.',
     keywords: ['listening', 'music', 'now playing', 'song', 'spotify'],
+    gate: SettingsGate.spotifyLinked,
     conditional: true,
   ),
   SettingsEntry(

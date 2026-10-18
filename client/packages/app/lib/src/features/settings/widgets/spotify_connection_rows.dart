@@ -43,9 +43,10 @@ class _SpotifyLinkRow extends ConsumerWidget {
       _ => ('Link', false, controller.connect),
     };
     return SettingsDetailRow(
-      icon: AppIcons.link,
+      icon: AppIcons.music,
       title: 'Spotify',
       detail: _detail(status),
+      detailMaxLines: status is SpotifyConnected ? 1 : null,
       trailing: connecting
           ? null
           : AppButton(
@@ -88,13 +89,20 @@ class _SpotifyFailure extends ConsumerWidget {
 class _ShowTrackRow extends ConsumerWidget {
   const _ShowTrackRow();
 
+  /// Fills the icon tile and gap of the [SettingsDetailRow]s beside it.
+  static const _lead = AppSizes.icon32 + 14 - AppSpacing.s8;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) => SettingsToggleRow(
-    label: 'Show my Spotify track',
-    description: 'Shows your track even when you play on another device.',
-    value: ref.watch(shareSpotifyProvider),
-    onChanged: (value) =>
-        ref.read(shareSpotifyProvider.notifier).setEnabled(value),
-    semanticLabel: 'Show my Spotify track',
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: SettingsToggleRow(
+      leading: const SizedBox(width: _lead),
+      label: 'Show my Spotify track',
+      description: 'Shows your track even when you play on another device.',
+      value: ref.watch(shareSpotifyProvider),
+      onChanged: (value) =>
+          ref.read(shareSpotifyProvider.notifier).setEnabled(value),
+      semanticLabel: 'Show my Spotify track',
+    ),
   );
 }

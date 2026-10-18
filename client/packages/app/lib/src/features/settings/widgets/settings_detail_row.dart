@@ -49,7 +49,11 @@ class SettingsDetailRow extends StatelessWidget {
     this.error,
     this.onErrorDismiss,
     this.stackTrailingWhenNarrow = false,
+    this.detailMaxLines,
   });
+
+  /// Caps [detail] at this many lines, ellipsized; null lets it wrap.
+  final int? detailMaxLines;
 
   final String title;
   final IconData? icon;
@@ -83,7 +87,14 @@ class SettingsDetailRow extends StatelessWidget {
       fontFamily: monoDetail ? AppFonts.mono : null,
     );
     if (meta == null) {
-      return detail == null ? null : Text(detail!, style: style);
+      return detail == null
+          ? null
+          : Text(
+              detail!,
+              style: style,
+              maxLines: detailMaxLines,
+              overflow: detailMaxLines == null ? null : TextOverflow.ellipsis,
+            );
     }
     return Wrap(
       spacing: AppSpacing.s8,

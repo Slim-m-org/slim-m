@@ -92,7 +92,7 @@ class ActivityFeed {
 
 final _listeningFeed = ActivityFeed(
   label: 'Show what I\'m listening to',
-  description: 'Shows the track from any player on this computer.',
+  description: 'Shows the track from a media player on this device.',
   enabled: shareListeningProvider,
   via: 'this device\'s media player',
   available: nowPlayingSourceProvider.select((source) => source != null),
