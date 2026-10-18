@@ -1,62 +1,57 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""Regenerate every notification WAV from source.
+"""Regenerate every interface sound from the palette modules.
 
-The WAVs are committed and CI runs this and diffs, so a sound that drifts from
-the code that claims to make it fails the build. Run it after touching either
-synth.py or sounds.py:
+The WAVs are committed and CI runs this and diffs, so a sound that drifts from the code that claims to make it fails the build:
 
     python3 assets/audio/generate.py
-
-Prints what each sound measured, because the numbers are the reason to trust
-that the family is level with itself.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import numpy as np
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE / "notifications"))
 
 import synth  # noqa: E402
-from sounds import (  # noqa: E402
-    CALLKIT_RINGTONE, SOUNDS, UI_SOUNDS, UI_TARGET_LUFS)
+from palette import dj, game_ui, kenney, theorist  # noqa: E402
 
 OUT = HERE / "notifications"
 
+# CallKit loops a file on its own, so the ringtone is the call_ring loop three times with a real pause between.
+RINGTONE_REPEATS = 3
+RINGTONE_PAUSE_SECONDS = 1.5
+PEAK_CEILING = 10 ** (-1.0 / 20)
 
-def _render_one(
-    name: str,
-    notes: list[synth.Note],
-    target: float = synth.TARGET_LUFS,
-    pad_to: float = 0.0,
-) -> None:
-    rendered = synth.render(notes)
-    levelled = synth.normalise(rendered, target)
-    if pad_to > levelled.size / synth.SAMPLE_RATE:
-        silence = int(round(pad_to * synth.SAMPLE_RATE)) - levelled.size
-        levelled = __import__("numpy").concatenate(
-            [levelled, __import__("numpy").zeros(silence)])
-    size = synth.write_wav(OUT / f"{name}.wav", levelled)
 
-    seconds = levelled.size / synth.SAMPLE_RATE
-    measured = synth.loudness(levelled)
-    peak = float(abs(levelled).max())
-    peak_db = 20.0 * (peak and __import__("math").log10(peak) or -99)
-    print(f"{name:16} {seconds:8.3f} {measured:8.2f} {peak_db:10.2f} "
-          f"{size:8d}")
+def render_palette() -> dict[str, np.ndarray]:
+    sounds: dict[str, np.ndarray] = {}
+    for module in (theorist, dj, game_ui, kenney):
+        sounds.update(module.render_all())
+    return sounds
+
+
+def callkit_ringtone(call_ring: np.ndarray) -> np.ndarray:
+    pause = np.zeros(int(RINGTONE_PAUSE_SECONDS * synth.SAMPLE_RATE))
+    parts = [call_ring if i == 0 else np.concatenate([pause, call_ring])
+             for i in range(RINGTONE_REPEATS)]
+    joined = np.concatenate(parts)
+    levelled = joined * 10 ** ((synth.NOTIFICATION_LUFS - synth.loudness(joined)) / 20)
+    peak = float(np.abs(levelled).max())
+    return levelled * (PEAK_CEILING / peak) if peak > PEAK_CEILING else levelled
 
 
 def main() -> int:
-    print(f"{'sound':16} {'seconds':>8} {'LUFS':>8} {'peak dBFS':>10} {'bytes':>8}")
-    for name, (notes, _) in sorted(SOUNDS.items()):
-        _render_one(name, notes)
-    # Same renderer and diff gate, but not one of the seven; see sounds.py.
-    _render_one("callkit_ringtone", CALLKIT_RINGTONE[0])
-    for name, (notes, pad_to, _) in sorted(UI_SOUNDS.items()):
-        _render_one(name, notes, UI_TARGET_LUFS, pad_to)
+    sounds = render_palette()
+    sounds["callkit_ringtone"] = callkit_ringtone(sounds["call_ring"])
+    print(f"{'sound':26} {'seconds':>8} {'LUFS':>8} {'bytes':>8}")
+    for name, signal in sorted(sounds.items()):
+        size = synth.write_wav(OUT / f"{name}.wav", signal)
+        print(f"{name:26} {signal.size / synth.SAMPLE_RATE:8.3f} "
+              f"{synth.loudness(signal):8.2f} {size:8d}")
     return 0
 
 

@@ -17,7 +17,7 @@ Each section below is named for its workflow file.
 | `android-ci` | changes to the client pubspecs or lockfile, anything under a package's `android/`, the verification script, its own workflow file or `main-builds.yml`, on pull requests and pushes to `main`, and by hand (workflow_dispatch) | the Android release APK and app bundle build with Gradle dependency verification on, so a stale `verification-metadata.xml` fails before merge instead of in `main-builds`; no secrets (debug-signed, placeholder `google-services.json`). Regenerate with `scripts/android-verification-metadata.sh` |
 | `client-ios-ci` | changes under `client/packages/app/ios/`, `rtc/`, `platform/`, `data/`, the pubspec files, on pull requests and pushes to `main` | every `Runner` source file is registered in `project.pbxproj` (ubuntu, always), the iOS CallKit XCTest and extension-embeds-no-frameworks checks on macOS, and an unsigned Release-configuration device build when a native-relevant path changed |
 | `schema-ci` | changes under `schema/`, `redocly.yaml` on pull requests; every push to `main` unconditionally, and every merge queue entry (`merge_group`, which ignores path filters) | redocly lint, the additive-only oasdiff gate against a PR's base on pull requests, and the same gate against the immediate parent commit on every push to `main` (required for a release; see below) |
-| `audio-ci` | changes under `assets/audio/` or the client's bundled copy in `client/packages/app/assets/audio/` | the seven notification sounds rebuild to the bytes that are committed, and the family is level with itself |
+| `audio-ci` | changes under `assets/audio/` or the client's bundled copy in `client/packages/app/assets/audio/` | the sixteen interface sounds and the CallKit ringtone rebuild to the bytes that are committed, and the palette keeps its levels |
 | `hygiene` | every pull request, and every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | iOS purpose strings, the iOS broadcast extension is wired up, orientation is locked on phones only, no emoji in UI source, SPDX headers on Rust source, the file-size budget, the comment cap, and the `scripts/lib` unit tests, which include the two structural gates on `required_checks` |
 | `advisory-watchdog` | a daily schedule, and by hand | nothing. It opens a deduplicated GitHub issue for a security advisory against a dependency and closes it once the tree is clean; the trigger `licenses` deliberately does not carry |
 | `licenses` | changes to any dependency manifest or lockfile or to `deny.toml`; every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | every Rust crate's and every pub package's license is in the one allowlist |
@@ -1303,8 +1303,8 @@ It has no concurrency group, because the reporting half is idempotent.
 ### audio-ci
 
 The notification WAVs are committed and generated from source, and this job regenerates them and fails on drift.
-It also runs the family's own checks, the important one being that the seven are level with each other.
-The first build of the set passed every per-file check while spanning 3.4 dB, because nothing had compared them.
+It also runs the palette's own checks: format, the two level bands, the peak ceiling and the loop seams.
+The first build of the old set passed every per-file check while spanning 3.4 dB, because nothing had compared them.
 
 ### red-streak-watchdog
 

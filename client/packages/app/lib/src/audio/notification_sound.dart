@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The synthesised notification sounds (`assets/audio/notifications/`,
-/// see that directory's own `sounds.py` for what each one is for) and the
+/// The interface sounds (`assets/audio/notifications/`, what each one is
+/// for is in `docs/design/sounds.md`) and the
 /// seam a fake stands in for, so nothing that plays one ever touches real
 /// audio hardware in a test.
 ///
@@ -83,7 +83,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
   AudioPlayer get _loopPlayer => _createdLoopPlayer ??= AudioPlayer();
 
   /// Backlog #134: the wav family is already level with itself (see
-  /// `assets/audio/synth.py`'s `TARGET_LUFS`), but `audioplayers` defaults a
+  /// `assets/audio/synth.py`'s `NOTIFICATION_LUFS`), but `audioplayers` defaults a
   /// player to full scale on top of that, so every chime still played at the
   /// device's whole notification volume with no headroom of its own. This is
   /// the app's own attenuation on top of that OS level, not a replacement
