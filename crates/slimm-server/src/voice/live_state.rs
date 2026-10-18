@@ -41,11 +41,19 @@ impl ParticipantState {
 
 type Key = (ChannelId, UserId);
 
+#[derive(Default)]
+struct Inner {
+    participants: HashMap<Key, ParticipantState>,
+    /// The sid whose leave was last published per member, so a duplicate
+    /// leave is dropped even though the member's entry is already gone.
+    ended: HashMap<Key, String>,
+}
+
 /// Tracks who a LiveKit webhook has told us is on a call, and whether they
 /// are sharing their screen right now.
 #[derive(Clone, Default)]
 pub struct RoomLiveState {
-    state: Arc<Mutex<HashMap<Key, ParticipantState>>>,
+    state: Arc<Mutex<Inner>>,
 }
 
 impl RoomLiveState {
@@ -59,7 +67,9 @@ impl RoomLiveState {
     /// must not swallow it either.
     pub fn mark_joined(&self, channel_id: ChannelId, user_id: UserId, sid: &str) -> bool {
         let mut state = lock(&self.state);
+        state.ended.remove(&(channel_id, user_id));
         let entry = state
+            .participants
             .entry((channel_id, user_id))
             .or_insert_with(|| ParticipantState::new(sid, false));
         if entry.sid != sid {
@@ -68,15 +78,23 @@ impl RoomLiveState {
         !std::mem::replace(&mut entry.announced, true)
     }
 
-    /// Forgets a participant, reporting whether this leave ended the session
-    /// we know about - a duplicate leave, or a late one from an earlier
-    /// session after the member rejoined, must not republish.
+    /// Forgets a participant, reporting whether this leave should publish. A
+    /// duplicate leave, or a late one from an earlier session after the member
+    /// rejoined, must not. A leave from a session this process never saw join
+    /// does: the server restarted mid-call, and staying quiet left the member
+    /// shown in the call until the next roster poll.
     pub fn mark_left(&self, channel_id: ChannelId, user_id: UserId, sid: &str) -> bool {
+        let key = (channel_id, user_id);
         let mut state = lock(&self.state);
-        match state.get(&(channel_id, user_id)) {
-            Some(entry) if entry.sid == sid => state.remove(&(channel_id, user_id)).is_some(),
-            _ => false,
+        let publish = match state.participants.get(&key) {
+            Some(entry) if entry.sid == sid => state.participants.remove(&key).is_some(),
+            Some(_) => false,
+            None => state.ended.get(&key).is_none_or(|ended| ended != sid),
+        };
+        if publish {
+            state.ended.insert(key, sid.to_owned());
         }
+        publish
     }
 
     /// Records a screen-share track publish, reporting `true` only when this
@@ -96,6 +114,7 @@ impl RoomLiveState {
     ) -> bool {
         let mut state = lock(&self.state);
         let participant = state
+            .participants
             .entry((channel_id, user_id))
             .or_insert_with(|| ParticipantState::new(participant_sid, false));
         if participant.sid != participant_sid {
@@ -116,7 +135,7 @@ impl RoomLiveState {
         track_sid: &str,
     ) -> bool {
         let mut state = lock(&self.state);
-        let Some(participant) = state.get_mut(&(channel_id, user_id)) else {
+        let Some(participant) = state.participants.get_mut(&(channel_id, user_id)) else {
             return false;
         };
         if participant.sid != participant_sid {
@@ -129,13 +148,13 @@ impl RoomLiveState {
     /// Forgets everyone in a room LiveKit reports finished, so no entry
     /// outlives the room it was about.
     pub fn forget_room(&self, channel_id: ChannelId) {
-        lock(&self.state).retain(|(channel, _), _| *channel != channel_id);
+        let mut state = lock(&self.state);
+        state.participants.retain(|(channel, _), _| *channel != channel_id);
+        state.ended.retain(|(channel, _), _| *channel != channel_id);
     }
 }
 
-fn lock(
-    state: &Mutex<HashMap<Key, ParticipantState>>,
-) -> MutexGuard<'_, HashMap<Key, ParticipantState>> {
+fn lock(state: &Mutex<Inner>) -> MutexGuard<'_, Inner> {
     match state.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -176,9 +195,27 @@ mod tests {
     }
 
     #[test]
-    fn leaving_someone_unknown_reports_no_transition() {
+    fn a_leave_from_a_session_joined_before_a_restart_still_publishes() {
         let state = RoomLiveState::new();
-        assert!(!state.mark_left(cid(), uid(), "PA"));
+        assert!(state.mark_left(cid(), uid(), "PA"));
+    }
+
+    #[test]
+    fn a_duplicate_leave_of_an_unknown_session_publishes_once() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        assert!(state.mark_left(channel, user, "PA"));
+        assert!(!state.mark_left(channel, user, "PA"));
+    }
+
+    #[test]
+    fn a_rejoin_after_a_leave_publishes_its_own_leave() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.mark_joined(channel, user, "PA");
+        assert!(state.mark_left(channel, user, "PA"));
+        assert!(state.mark_joined(channel, user, "PA"));
+        assert!(state.mark_left(channel, user, "PA"));
     }
 
     #[test]
