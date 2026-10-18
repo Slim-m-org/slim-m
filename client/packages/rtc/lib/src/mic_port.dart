@@ -5,7 +5,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'mic_recovery.dart' show senderLevelToDb;
 
@@ -94,7 +96,22 @@ class LiveKitMicPort implements MicPort {
   @override
   Future<void> release() async {
     await _publication?.track?.stop();
+    if (!_recordsUntilToldToStop) return;
+    try {
+      await _nativeChannel
+          .invokeMethod<void>('stopLocalRecording', <String, dynamic>{});
+    } on Object catch (e) {
+      AppLog.swallowed(
+          LogTag.voice, 'Could not stop native recording', e, null);
+    }
   }
+
+  /// livekit_client starts the device recording itself on these platforms
+  /// and only a stop call ends it, whatever happens to the track.
+  static bool get _recordsUntilToldToStop =>
+      lk.lkPlatformSupportsExplicitAudioRecordingStart();
+
+  static const _nativeChannel = MethodChannel('livekit_client');
 
   @override
   Future<void> reopenMuted(lk.AudioCaptureOptions options) async {

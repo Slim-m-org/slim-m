@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart' show LogLevel;
 import 'voice_log.dart';
 
 /// How long a mute keeps the device open before releasing it.
-const Duration kMicReleaseGrace = Duration(seconds: 30);
+const Duration kMicReleaseGrace = Duration(seconds: 15);
 
 /// Decides when a muted microphone's capture is released, and whether the
 /// next unmute has to reopen it.
