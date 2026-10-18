@@ -38,6 +38,7 @@ class SettingsDetailRow extends StatelessWidget {
     super.key,
     required this.title,
     this.icon,
+    this.leading,
     this.badge,
     this.detail,
     this.monoDetail = false,
@@ -57,6 +58,9 @@ class SettingsDetailRow extends StatelessWidget {
 
   final String title;
   final IconData? icon;
+
+  /// Replaces the [icon] tile, e.g. with a picture.
+  final Widget? leading;
   final Widget? badge;
   final String? detail;
 
@@ -150,7 +154,10 @@ class SettingsDetailRow extends StatelessWidget {
             final lead = Row(
               spacing: 14,
               children: [
-                if (icon != null) SettingsIconTile(icon!),
+                if (leading != null)
+                  leading!
+                else if (icon != null)
+                  SettingsIconTile(icon!),
                 Expanded(child: text),
                 if (!stacked) ?trailing,
               ],
@@ -164,7 +171,9 @@ class SettingsDetailRow extends StatelessWidget {
                 lead,
                 Padding(
                   padding: EdgeInsets.only(
-                    left: icon != null ? AppSizes.icon32 + 14 : 0,
+                    left: icon != null || leading != null
+                        ? AppSizes.icon32 + 14
+                        : 0,
                   ),
                   child: trailing,
                 ),

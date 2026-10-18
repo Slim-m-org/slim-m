@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT avatar_updated_at FROM linked_accounts WHERE user_id = ? AND provider = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "avatar_updated_at",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8294a903b237a3c754c4f080d4ad3ef49c6a99682f16afe34911ce27d1eeb23d"
+}

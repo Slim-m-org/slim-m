@@ -422,6 +422,7 @@ async fn delete_account(
     if let Err(err) = state.media.delete_avatar(&ctx.user_id.to_string()).await {
         tracing::warn!(error = %err, "failed to delete an account's avatar file");
     }
+    super::linked_accounts::purge_avatar_files(&state, ctx.user_id).await;
     super::members::announce_member_gone(&state, ctx.user_id).await;
     Ok(StatusCode::NO_CONTENT)
 }

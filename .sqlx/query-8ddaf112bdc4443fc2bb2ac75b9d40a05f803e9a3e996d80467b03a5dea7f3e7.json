@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO linked_accounts\n                 (user_id, provider, external_id, username, display_name, linked_at,\n                  avatar_updated_at)\n             VALUES (?, ?, ?, ?, ?, ?, ?)\n             ON CONFLICT (user_id, provider) DO UPDATE SET\n                 external_id = excluded.external_id,\n                 username = excluded.username,\n                 display_name = excluded.display_name,\n                 linked_at = excluded.linked_at,\n                 avatar_updated_at = excluded.avatar_updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "8ddaf112bdc4443fc2bb2ac75b9d40a05f803e9a3e996d80467b03a5dea7f3e7"
+}

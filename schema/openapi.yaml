@@ -1192,6 +1192,46 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /users/{userId}/links/discord/avatar:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getLinkedDiscordAvatar
+      tags: [users]
+      summary: Fetch the picture stored for a member's linked Discord account.
+      description: >
+        The server copied the picture when the account was linked, so no
+        viewer's device contacts Discord. 404 when the member has no linked
+        Discord account or it had no custom picture.
+      responses:
+        "200":
+          description: The picture's raw bytes, served as the type sniffed from them.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /users/{userId}/note:
     parameters:
       - name: userId
@@ -10757,6 +10797,13 @@ components:
         linked_at:
           type: integer
           format: int64
+        avatar_updated_at:
+          type: [integer, "null"]
+          format: int64
+          description: >
+            When the server stored the account's picture; absent or null when
+            it has none. Fetch it from `getLinkedDiscordAvatar`, using this as
+            the cache key.
     SpaceStorage:
       type: object
       required:

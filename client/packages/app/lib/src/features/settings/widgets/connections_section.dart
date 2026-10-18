@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../members/widgets/linked_account_picture.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
 import '../../../spotify/spotify_config.dart';
@@ -103,6 +104,17 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
     );
   }
 
+  Widget? _discordPicture(api.LinkedAccount? discord) {
+    final userId = ref.watch(sessionProvider).tokens?.userId;
+    if (discord == null || userId == null) return null;
+    return LinkedAccountPicture(
+      userId: userId,
+      account: discord,
+      size: AppAvatarSize.s32,
+      fallback: const SettingsIconTile(AppIcons.link),
+    );
+  }
+
   List<Widget> _discordRows(
     AsyncValue<List<api.LinkedAccount>> links,
     api.LinkedAccount? discord,
@@ -129,6 +141,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
     return [
       SettingsDetailRow(
         icon: AppIcons.link,
+        leading: _discordPicture(discord),
         title: 'Discord',
         detail: discord == null ? 'Not linked' : discordLabel(discord),
         error: actionError,
