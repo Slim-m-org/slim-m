@@ -79,7 +79,13 @@ class _BotsPaneState extends ConsumerState<BotsPane>
     try {
       final suggestion = await ref.read(suggestedBotPrefixProvider.future);
       if (mounted && _prefix.text.isEmpty) _prefix.text = suggestion;
-    } on Object {
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'dispose failed, ignored',
+        error,
+        stack,
+      );
       return;
     }
   }

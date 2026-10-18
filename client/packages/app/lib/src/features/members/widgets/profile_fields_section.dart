@@ -85,7 +85,8 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       await ref.read(apiProvider).updateMe(pronouns: text);
       _savedPronouns = text;
       ref.invalidate(meProvider);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'save pronouns', e, stack);
       if (mounted) setState(() => _pronounsError = 'Not saved: ${e.message}');
     }
   }
@@ -97,7 +98,8 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       await ref.read(apiProvider).updateMe(about: text);
       _savedAbout = text;
       ref.invalidate(meProvider);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'save about', e, stack);
       if (mounted) setState(() => _aboutError = 'Not saved: ${e.message}');
     }
   }
@@ -131,7 +133,8 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     try {
       await save();
       ref.invalidate(meProvider);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'save colour', e, stack);
       if (mounted) setState(() => _colourError = 'Not saved: ${e.message}');
     }
   }

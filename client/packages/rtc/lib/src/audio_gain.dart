@@ -28,6 +28,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'web_gain_io.dart' if (dart.library.js_interop) 'web_gain_web.dart'
     as web_gain;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Loudest a participant may be made, as a multiplier. 200% matches the
 /// design; past 1.0 this is digital gain on already-decoded audio, so it
@@ -58,7 +59,9 @@ Future<Object?> applyParticipantVolume(lk.Track track, double volume) async {
     }
     await rtc.Helper.setVolume(clamped, track.mediaStreamTrack);
     return null;
-  } catch (e) {
+  } catch (e, stack) {
+    AppLog.swallowed(
+        LogTag.voice, 'apply participant volume failed, ignored', e, stack);
     return e;
   }
 }

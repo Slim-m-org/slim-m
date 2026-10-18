@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../desktop/splash_floor.dart' show minSplashDuration;
 import 'providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The old separate on/off key, read once on restore to migrate an install
 /// that had the splash turned off into [SplashDuration.disabled] - the
@@ -72,8 +73,13 @@ class SplashDurationController extends StateNotifier<SplashDuration> {
       if (prefs.getBool(desktopSplashEnabledKey) == false) {
         state = SplashDuration.disabled;
       }
-    } catch (_) {
-      // Not worth failing a launch over; standard is always usable.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'Not worth failing a launch over; standard is always usable',
+        error,
+        stack,
+      );
     }
   }
 

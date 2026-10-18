@@ -21,7 +21,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart' show AppPresence;
@@ -41,6 +40,7 @@ import '../../widgets/run_guarded.dart';
 import '../desktop_window_port.dart';
 import '../desktop_window_shell.dart' show DesktopWindowShell;
 import 'tray_menu_actions.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const trayIconAssetPath = 'assets/icons/tray_icon.png';
 
@@ -125,8 +125,13 @@ class DesktopTrayController with TrayListener {
   Future<void> _setToolTip() async {
     try {
       await TrayManager.instance.setToolTip('slim-m');
-    } catch (_) {
-      // Best-effort: see the doc comment above.
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.platform,
+        'Best-effort: see the doc comment above',
+        error,
+        stack,
+      );
     }
   }
 
@@ -138,9 +143,14 @@ class DesktopTrayController with TrayListener {
   Future<void> _setIcon() async {
     try {
       await TrayManager.instance.setIcon(trayIconAssetPath);
-    } catch (error) {
+    } catch (error, stack) {
       // A default icon is a worse tray; a menu-less one is no tray at all.
-      debugPrint('tray: setIcon failed, continuing to the menu: $error');
+      AppLog.warning(
+        LogTag.platform,
+        'tray icon failed, continuing to the menu',
+        error: error,
+        stack: stack,
+      );
     }
   }
 
@@ -150,8 +160,13 @@ class DesktopTrayController with TrayListener {
   Future<void> _rebuildMenu() async {
     try {
       await _setContextMenu();
-    } catch (error) {
-      debugPrint('tray: could not build the context menu: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'could not build the context menu',
+        error: error,
+        stack: stack,
+      );
     }
   }
 

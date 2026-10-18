@@ -131,11 +131,13 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
       await _player.open(media, play: false);
       if (!mounted) return;
       setState(() => _ready = true);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'set state', e, stack);
       if (mounted) {
         setActionError(describeApiFailure('load ${attachment.filename}', e));
       }
-    } catch (_) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.media, 'set state', error, stack);
       if (mounted) setActionError('Could not load ${attachment.filename}.');
     }
   }

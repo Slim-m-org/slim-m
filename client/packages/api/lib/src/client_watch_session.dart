@@ -10,7 +10,9 @@ extension SlimmApiWatchSession on SlimmApi {
     try {
       final json = await _send('GET', '/channels/$channelId/watch-session');
       return WatchSession.fromJson(json as Map<String, dynamic>);
-    } on NotFoundException {
+    } on NotFoundException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.auth, 'get watch session failed, ignored', error, stack);
       return null;
     }
   }

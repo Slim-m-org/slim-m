@@ -38,6 +38,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as webrtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'screen_share.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The seam. The default implementation talks to libwebrtc's desktop
 /// capturer; a test supplies its own.
@@ -89,7 +90,9 @@ class WebrtcDesktopSources implements DesktopSources {
       await _webrtcChannel.invokeMethod<void>(
         'resetDesktopSources',
       );
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'drop portal session failed, ignored', error, stack);
       return;
     }
   }

@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 
 import 'voice_models.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Marks an [AudioDevice.id] as a sound server node name rather than a
 /// libwebrtc device id, so a switch knows which way to apply it.
@@ -18,7 +19,8 @@ List<dynamic> _decode(String json) {
   try {
     final decoded = jsonDecode(json);
     return decoded is List ? decoded : const [];
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(LogTag.voice, 'decode failed, ignored', error, stack);
     return const [];
   }
 }

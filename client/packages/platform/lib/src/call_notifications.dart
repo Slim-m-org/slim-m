@@ -16,6 +16,7 @@ library;
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/calls';
 
@@ -44,10 +45,18 @@ class CallNotifications {
         'callId': callId,
         'callerName': callerName,
       });
-    } on PlatformException {
-      // This runs on the FCM background isolate's top-level handler, which has no outer catch; an uncaught throw here loses the whole push, so a missed banner is the better failure.
-    } on MissingPluginException {
-      // A build or isolate with no native CallNotificationPlugin registered; there is no notification surface to reach.
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'This runs on the FCM background isolate\'s top-level handler, which has no outer catch; an uncaught throw...',
+          error,
+          stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'A build or isolate with no native CallNotificationPlugin registered; there is no notification surface to reach',
+          error,
+          stack);
     }
   }
 
@@ -59,10 +68,16 @@ class CallNotifications {
     if (!_isAndroid) return;
     try {
       await _channel.invokeMethod<void>('endIncomingCalls');
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'end incoming calls failed, ignored', error, stack);
       // Same background-isolate reasoning as showIncomingCall: a missed teardown is better than an uncaught throw.
-    } on MissingPluginException {
-      // No native CallNotificationPlugin in this build or isolate; there is nothing ringing to end.
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'No native CallNotificationPlugin in this build or isolate; there is nothing ringing to end',
+          error,
+          stack);
     }
   }
 }

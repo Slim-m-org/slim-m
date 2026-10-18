@@ -48,7 +48,9 @@ class EventConnection {
           event = ServerEvent.parse(
             raw is String ? raw : utf8.decode(raw as List<int>),
           );
-        } on Object {
+        } on Object catch (error, stack) {
+          AppLog.swallowed(
+              LogTag.sync, 'socket listener failed, ignored', error, stack);
           return;
         }
         if (event != null && event is! PongEvent) events.add(event);

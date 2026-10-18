@@ -176,11 +176,14 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     });
     try {
       await _runAction(action);
-    } on api.RateLimitedException catch (e) {
+    } on api.RateLimitedException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       await _onRateLimited(e, action, queued: queued);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       _failWith(describeApiFailure('run this', e));
-    } catch (_) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', error, stack);
       _failWith('Could not run this.');
     } finally {
       // A drag queued behind play's own step has nothing else to restart it.

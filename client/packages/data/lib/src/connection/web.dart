@@ -10,9 +10,9 @@ library;
 
 import 'package:drift/drift.dart';
 import 'package:drift/wasm.dart';
-import 'package:flutter/foundation.dart';
 
 import 'database_key.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The IndexedDB/OPFS database name. Changing it orphans every existing
 /// browser's cache rather than migrating it.
@@ -51,9 +51,10 @@ Future<QueryExecutor> openSlimmDatabase({
   if (result.chosenImplementation == WasmStorageImplementation.inMemory) {
     // Said out loud because the symptom otherwise reads as a sync bug: every
     // reload starts from an empty channel list and refetches everything.
-    debugPrint(
-      'slim-m: no durable storage in this browser '
-      '(${result.missingFeatures.join(', ')}); the local cache is memory-only',
+    AppLog.warning(
+      LogTag.data,
+      'no durable storage in this browser; the local cache is memory-only',
+      context: {'missing': result.missingFeatures.join(', ')},
     );
   }
   return result.resolvedExecutor;

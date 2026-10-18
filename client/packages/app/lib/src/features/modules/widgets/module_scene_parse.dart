@@ -24,6 +24,7 @@ import 'module_scene.dart';
 import 'module_scene_bounds.dart';
 import 'module_scene_path.dart';
 import 'module_scene_sweep.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Reads [raw] as a scene, or returns null if it is not one - the fast path
 /// for the overwhelmingly common case of ordinary text output. Never throws:
@@ -35,7 +36,13 @@ ModuleScene? parseModuleScene(String raw) {
   final Object? decoded;
   try {
     decoded = jsonDecode(trimmed);
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.ui,
+      'parse module scene failed, ignored',
+      error,
+      stack,
+    );
     return null;
   }
   if (decoded is! Map || decoded[r'$slim'] != 'scene/1') return null;
@@ -199,7 +206,8 @@ SceneOp? _parseImage(Map<Object?, Object?> op) {
   final Uint8List bytes;
   try {
     bytes = base64Decode(encoded);
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(LogTag.ui, 'parse image failed, ignored', error, stack);
     return null;
   }
   if (bytes.isEmpty) return null;

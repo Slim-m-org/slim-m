@@ -143,7 +143,8 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
           ),
         );
       }
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'set state', e, stack);
       if (!mounted) return;
       setState(
         () => _error = e is api.TransportException

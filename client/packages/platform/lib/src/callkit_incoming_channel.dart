@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/callkit_incoming';
 
@@ -70,9 +71,13 @@ class CallKitIncomingChannel {
           .map(CallKitIncomingEvent.tryParse)
           .whereType<CallKitIncomingEvent>()
           .toList();
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'take pending failed, ignored', error, stack);
       return const [];
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'take pending failed, ignored', error, stack);
       return const [];
     }
   }
@@ -83,10 +88,12 @@ class CallKitIncomingChannel {
     if (!_isIOS) return;
     try {
       await _channel.invokeMethod<void>('endCall', {'id': callId});
-    } on PlatformException {
-      // Best-effort: the call may already be gone.
-    } on MissingPluginException {
-      // No native side to end anything on.
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'Best-effort: the call may already be gone', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'No native side to end anything on', error, stack);
     }
   }
 

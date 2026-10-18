@@ -2,11 +2,11 @@
 /// Comparisons of the view's reported size, split from desktop_window_shell.dart for its line budget.
 library;
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart' show Size, WidgetsBinding;
 
 import 'window_geometry.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Whether [size] is the window [target] asked for, to within a logical
 /// pixel either way.
@@ -55,13 +55,19 @@ Future<void> awaitViewAtHandoffSize({
     if (reached) return;
     try {
       await SchedulerBinding.instance.endOfFrame.timeout(_metricsPollStep);
-    } catch (_) {
-      // A frame that never came is not a reason to stop asking.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'A frame that never came is not a reason to stop asking',
+        error,
+        stack,
+      );
     }
   }
-  debugPrint(
-    'desktop: view never reported the handoff size $target; '
-    'last seen ${currentViewSize()}',
+  AppLog.warning(
+    LogTag.platform,
+    'view never reported the handoff size',
+    context: {'target': target, 'lastSeen': currentViewSize()},
   );
 }
 

@@ -8,6 +8,7 @@ library;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Marker files in the state directory, shared with nothing outside the app.
 abstract final class MacosNames {
@@ -70,7 +71,13 @@ bool _canWrite(Directory dir) {
     final probe = File(p.join(dir.path, '.write-probe'))..writeAsStringSync('');
     probe.deleteSync();
     return true;
-  } on FileSystemException {
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'can write failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
 }

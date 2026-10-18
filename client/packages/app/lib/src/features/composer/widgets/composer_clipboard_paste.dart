@@ -22,6 +22,7 @@ library;
 import 'package:flutter/services.dart';
 
 import 'composer_clipboard_image.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Whether [event] is the paste chord, Ctrl+V or Cmd+V.
 ///
@@ -95,7 +96,13 @@ Future<void> pasteClipboardImage(
   try {
     final bytes = await readClipboardImage();
     if (bytes != null) await stage(bytes, 'pasted-image.png');
-  } on ClipboardImageReadException catch (e) {
+  } on ClipboardImageReadException catch (e, stack) {
+    AppLog.swallowed(
+      LogTag.ui,
+      'is clipboard paste chord failed, ignored',
+      e,
+      stack,
+    );
     setError(e.message);
   }
 }

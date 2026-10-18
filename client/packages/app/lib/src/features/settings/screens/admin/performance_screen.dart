@@ -180,7 +180,8 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
   Future<int?> _previewCount(int days) async {
     try {
       return await ref.read(apiProvider).previewSpaceMessageRetention(days);
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'preview count', error, stack);
       return null;
     }
   }

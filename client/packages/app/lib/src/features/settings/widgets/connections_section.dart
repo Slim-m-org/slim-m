@@ -41,7 +41,13 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
             url,
             launcher: ref.read(externalUrlLauncherProvider),
           );
-        } on api.NotConfiguredException {
+        } on api.NotConfiguredException catch (error, stack) {
+          api.AppLog.swallowed(
+            api.LogTag.ui,
+            'link failed, ignored',
+            error,
+            stack,
+          );
           ref.read(discordLinkUnavailableProvider.notifier).state = true;
         }
       },

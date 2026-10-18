@@ -12,7 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiUsers;
+import 'package:slimm_api/api.dart' show SlimmApiUsers, LogTag, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
@@ -71,7 +71,8 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
     final Uint8List? shot;
     try {
       shot = await ref.read(avatarCameraCaptureProvider)!();
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.media, 'take', e, stack);
       setActionError('Could not open the camera.');
       return;
     }
@@ -82,7 +83,8 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
     final PlatformFile? file;
     try {
       file = await ref.read(attachmentPickerProvider(source))();
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.media, 'pick file', e, stack);
       setActionError('Could not open the file picker.');
       return;
     }

@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'photo_library.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Whether a channel's composer has its photo strip open.
 final photoStripOpenProvider = StateProvider.autoDispose.family<bool, String>(
@@ -139,7 +140,8 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
       if (access != PhotoAccess.denied) {
         photos = await library.recent(_requested);
       }
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.ui, 'load', error, stack);
       // A plugin that cannot read the library lands on the same way out as a refusal.
       access = PhotoAccess.denied;
     }
@@ -163,7 +165,8 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
         _photos = photos;
         _exhausted = photos.length < _requested;
       });
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.ui, 'set state', error, stack);
       // The page already shown stays; scrolling to the end again retries.
       _requested -= _pageSize;
     } finally {

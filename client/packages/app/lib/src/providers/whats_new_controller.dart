@@ -29,6 +29,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../whats_new/whats_new_content.dart';
 import 'providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The `SharedPreferences` key the last version a what's-new sheet was shown
 /// for is stored under. Global rather than per-account, the same reasoning
@@ -81,8 +82,13 @@ class WhatsNewController extends StateNotifier<List<WhatsNewEntry>> {
       );
       if (!mounted || pending.isEmpty) return;
       state = pending;
-    } catch (_) {
-      // Never the reason a launch fails to reach the shell; stay silent.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Never the reason a launch fails to reach the shell; stay silent',
+        error,
+        stack,
+      );
     }
   }
 
@@ -98,8 +104,13 @@ class WhatsNewController extends StateNotifier<List<WhatsNewEntry>> {
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       await prefs.setString(lastSeenWhatsNewVersionKey, version);
-    } catch (_) {
-      // Best effort: worst case the same entries are shown again next launch.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Best effort: worst case the same entries are shown again next launch',
+        error,
+        stack,
+      );
     }
   }
 }

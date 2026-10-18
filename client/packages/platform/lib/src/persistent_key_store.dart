@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'host_platform.dart';
 import 'key_store.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The keychain group the push private key lives in, shared with the
 /// Notification Service Extension so it can open a sealed push envelope while
@@ -193,9 +194,11 @@ class FileKeyStore implements KeyStore {
     if (contents.trim().isEmpty) return {};
     try {
       return jsonDecode(contents) as Map<String, dynamic>;
-    } on FormatException {
+    } on FormatException catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'read all failed, ignored', error, stack);
       return {};
-    } on TypeError {
+    } on TypeError catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'read all failed, ignored', error, stack);
       return {};
     }
   }
@@ -358,7 +361,9 @@ Future<void> migrateLegacyFileSecrets({
   final Map<String, String>? entries;
   try {
     entries = await legacy.readAllForMigration();
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(LogTag.auth,
+        'migrate legacy file secrets if needed failed, ignored', error, stack);
     return;
   }
   if (entries == null) return;
@@ -367,7 +372,9 @@ Future<void> migrateLegacyFileSecrets({
     for (final entry in entries.entries) {
       await destination.put(entry.key, entry.value);
     }
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(LogTag.auth,
+        'migrate legacy file secrets if needed failed, ignored', error, stack);
     return;
   }
   await legacy.deleteLegacyFile();

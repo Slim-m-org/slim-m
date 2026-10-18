@@ -15,7 +15,7 @@
 /// frame that record originally described.
 library;
 
-import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +36,7 @@ import 'tray/tray_availability.dart';
 import 'window_geometry.dart';
 import 'window_geometry_store.dart';
 import 'window_view_size.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 export 'window_view_size.dart';
 
@@ -96,8 +97,13 @@ class DesktopWindowShell {
   static Future<void> quit(DesktopWindowPort port) async {
     try {
       await _controller?.flush();
-    } catch (error) {
-      debugPrint('desktop: flushing geometry on quit failed: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'flushing geometry on quit failed',
+        error: error,
+        stack: stack,
+      );
     }
     await port.destroy();
   }
@@ -209,13 +215,18 @@ class DesktopWindowShell {
   /// one that method already guards, since not even an empty window paints.
   /// On a timeout or error the window simply opens at its native default. No
   /// [ProviderContainer] exists this early, so the breadcrumb goes to
-  /// [debugPrint] rather than the app log this file uses elsewhere.
+  /// [AppLog], which buffers until the app installs its sink.
   static Future<void> applyInitialGeometry() async {
     if (currentDesktopPlatform() == null) return;
     try {
       await _applySplashGeometry().timeout(_setupTimeout);
-    } catch (error) {
-      debugPrint('desktop: initial splash geometry failed: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'initial splash geometry failed',
+        error: error,
+        stack: stack,
+      );
     }
   }
 
@@ -245,8 +256,13 @@ class DesktopWindowShell {
     if (currentDesktopPlatform() == null) return;
     try {
       await _lockSplashChrome().timeout(_setupTimeout);
-    } catch (error) {
-      debugPrint('desktop: splash chrome lock failed: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'splash chrome lock failed',
+        error: error,
+        stack: stack,
+      );
     }
   }
 
@@ -292,8 +308,13 @@ class DesktopWindowShell {
     }
     try {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
-    } catch (error) {
-      debugPrint('desktop: splash handoff geometry failed: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'splash handoff geometry failed',
+        error: error,
+        stack: stack,
+      );
     } finally {
       // Not after the reveal settles: on a host that never renders at the new size that wait times out.
       _controller?.enableGeometryPersistence();
@@ -394,13 +415,23 @@ class DesktopWindowShell {
   static Future<void> _reveal() async {
     try {
       await _port.show();
-    } catch (error) {
-      debugPrint('desktop: splash handoff reveal failed: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'splash handoff reveal failed',
+        error: error,
+        stack: stack,
+      );
     }
     try {
       await SchedulerBinding.instance.endOfFrame.timeout(_setupTimeout);
-    } catch (error) {
-      debugPrint('desktop: post-reveal frame wait failed: $error');
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'post-reveal frame wait failed',
+        error: error,
+        stack: stack,
+      );
     }
     await awaitViewAtHandoffSize(
       target: _handoffTargetSize,
@@ -439,7 +470,9 @@ class DesktopWindowShell {
     try {
       await _port.show();
       await _port.restore();
-    } catch (_) {}
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.platform, 'raise failed, ignored', error, stack);
+    }
   }
 
   /// Wires geometry persistence, close-to-tray/minimise, and the tray icon

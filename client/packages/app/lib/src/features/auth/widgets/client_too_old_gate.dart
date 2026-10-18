@@ -24,6 +24,7 @@ import '../../../desktop/startup_screen.dart' show updateActionHint;
 import '../../../providers/client_floor.dart';
 import '../../../providers/providers.dart';
 import '../../../web_update/web_page.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Where a build that cannot self-update sends someone instead.
 const releasesUrl = 'https://github.com/Slim-m-org/slim-m/releases';
@@ -75,7 +76,13 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     var opened = false;
     try {
       opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.auth,
+        'open release failed, ignored',
+        error,
+        stack,
+      );
       opened = false;
     }
     if (!mounted || opened) return;
@@ -91,7 +98,13 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
         Uri.parse('itms-beta://'),
         mode: LaunchMode.externalApplication,
       );
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.auth,
+        'open test flight failed, ignored',
+        error,
+        stack,
+      );
       opened = false;
     }
     if (!mounted || opened) return;

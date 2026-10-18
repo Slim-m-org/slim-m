@@ -2,7 +2,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiDms;
+import 'package:slimm_api/api.dart' show SlimmApiDms, LogTag, reportFailure;
 
 import 'dms.dart';
 import '../../../providers/providers.dart';
@@ -23,7 +23,8 @@ Future<void> ensureDmChannelLoaded(Ref ref, String channelId) async {
     final match = dms.where((d) => d.channelId == channelId);
     if (match.isEmpty) return;
     await store.upsertChannels([channelFromDm(match.first, selfId: selfId)]);
-  } on Object {
+  } on Object catch (error, stack) {
+    reportFailure(LogTag.ui, 'ensure dm channel loaded', error, stack);
     // A failed store or fetch must not block the call; the next refresh still heals it.
   }
 }

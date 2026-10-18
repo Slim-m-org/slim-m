@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
@@ -220,6 +221,32 @@ void main() {
       // completes at all.
       await container.read(pushControllerProvider.notifier).register();
       expect(container.read(pushControllerProvider), PushStatus.serverError);
+    });
+
+    test('a server failure reaches the debug log under the push tag', () async {
+      final log = DebugLog();
+      AppLog.install(log);
+      addTearDown(() => AppLog.install(null));
+      _mock(
+        (call) async => switch (call.method) {
+          'getToken' => 'abcd1234',
+          _ => null,
+        },
+      );
+      addTearDown(() => _mock(null));
+
+      final container = _container(
+        session: SessionStore(tokens: _tokens),
+        httpClient: MockClient((_) async => http.Response('busy', 503)),
+        channel: ApnsTokenChannel(isIOS: true),
+      );
+      addTearDown(container.dispose);
+
+      await container.read(pushControllerProvider.notifier).register();
+
+      final entry = log.state.firstWhere((e) => e.source == LogTag.push);
+      expect(entry.message, contains('register this device'));
+      expect(entry.context['kind'], 'offline');
     });
   });
 

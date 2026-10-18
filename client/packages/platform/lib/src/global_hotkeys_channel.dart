@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 
 import 'global_hotkeys.dart';
 import 'global_hotkeys_keys.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const globalHotkeysChannelName = 'slimm/global_hotkeys';
 
@@ -91,9 +92,11 @@ class ChannelGlobalHotkeySource implements GlobalHotkeySource {
       return ok == true
           ? const GlobalHotkeyAvailability.available(hookAvailableMessage)
           : const GlobalHotkeyAvailability.unavailable(hookFailedMessage);
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform, 'probe failed, ignored', error, stack);
       return const GlobalHotkeyAvailability.unavailable(hookFailedMessage);
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform, 'probe failed, ignored', error, stack);
       return const GlobalHotkeyAvailability.unavailable(hookFailedMessage);
     }
   }
@@ -103,8 +106,12 @@ class ChannelGlobalHotkeySource implements GlobalHotkeySource {
     _channel.setMethodCallHandler(null);
     try {
       await _channel.invokeMethod<void>('bind', <Object>[]);
-    } on Object {
-      // Best effort: the runner also unhooks when its window is destroyed.
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform,
+          'Best effort: the runner also unhooks when its window is destroyed',
+          error,
+          stack);
     }
     await _events.close();
   }

@@ -52,7 +52,13 @@ Future<bool> confirmServerIdentity(
   api.ServerIdentity? identity;
   try {
     identity = (await client.version()).identity;
-  } catch (_) {
+  } catch (error, stack) {
+    api.reportFailure(
+      api.LogTag.auth,
+      'confirm the server identity',
+      error,
+      stack,
+    );
     return true;
   } finally {
     client.close();

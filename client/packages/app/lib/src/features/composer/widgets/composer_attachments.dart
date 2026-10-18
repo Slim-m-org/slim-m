@@ -453,7 +453,8 @@ class AttachmentStagingController extends ChangeNotifier {
           attachment: attachment,
         ),
       );
-    } on api.UploadCancelled {
+    } on api.UploadCancelled catch (_) {
+      api.AppLog.debug(api.LogTag.media, 'upload cancelled');
       return;
     } on Object catch (e) {
       onFailure?.call(filename, e);
@@ -537,7 +538,8 @@ Future<List<String>?> _serverCapabilities(Ref ref, int length) async {
         .version()
         .timeout(const Duration(seconds: 3));
     return version.capabilities;
-  } on Object {
+  } on Object catch (error, stack) {
+    api.reportFailure(api.LogTag.media, 'server capabilities', error, stack);
     return null;
   }
 }
@@ -551,7 +553,8 @@ Future<int?> _attachmentLimit(Ref ref) async {
         .version()
         .timeout(const Duration(seconds: 3));
     return version.maxAttachmentBytes;
-  } on Object {
+  } on Object catch (error, stack) {
+    api.reportFailure(api.LogTag.media, 'attachment limit', error, stack);
     return null;
   }
 }

@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// Thrown by a read that has no fresh answer (a rate limit, say), so the
 /// last value stands instead of flickering to null.
@@ -40,9 +41,11 @@ Stream<T?> polledStream<T>({
     T? current;
     try {
       current = await reading;
-    } on PollSkip {
+    } on PollSkip catch (error, stack) {
+      AppLog.swallowed(LogTag.platform, 'poll failed, ignored', error, stack);
       return;
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.platform, 'poll', error, stack);
       current = null;
     } finally {
       inFlight = null;
@@ -62,8 +65,9 @@ Stream<T?> polledStream<T>({
       timer?.cancel();
       try {
         await inFlight?.timeout(cancelGrace);
-      } on Object {
-        // The read's outcome no longer matters to anyone.
+      } on Object catch (error, stack) {
+        AppLog.swallowed(LogTag.platform,
+            'The read\'s outcome no longer matters to anyone', error, stack);
       }
       await onCancel?.call();
     },

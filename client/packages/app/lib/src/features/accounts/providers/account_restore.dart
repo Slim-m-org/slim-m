@@ -30,7 +30,13 @@ Future<bool> wipeKeychainOnFreshInstall(ProviderContainer container) async {
     await prefs.setBool(hasLaunchedBeforeKey, true);
     container.read(isFreshInstallProvider.notifier).state = true;
     return true;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.auth,
+      'wipe keychain on fresh install failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
 }
@@ -54,7 +60,8 @@ Future<bool> restoreAccountSession(
     );
     container.read(sessionProvider).set(tokens);
     return true;
-  } catch (_) {
+  } catch (error, stack) {
+    reportFailure(LogTag.auth, 'wipe keychain on fresh install', error, stack);
     runtime.slot.restoreFailed = true;
     return false;
   }

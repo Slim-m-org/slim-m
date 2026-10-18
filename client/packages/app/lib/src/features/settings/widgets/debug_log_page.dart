@@ -9,17 +9,21 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../diagnostics/debug_log.dart';
+import '../../../diagnostics/debug_log_filter.dart';
 import '../../../providers/toasts.dart';
 import 'debug_log_entry.dart';
 import 'memory_diagnostics.dart';
 import 'settings_section_header.dart';
 
-/// Puts the whole log on the clipboard and says so.
+/// Puts what the filter lets through on the clipboard, redacted, and says so.
 Future<void> copyDebugLog(BuildContext context, WidgetRef ref) async {
-  final report = ref.read(debugLogProvider.notifier).asReport();
+  final report = ref
+      .read(debugLogProvider.notifier)
+      .asReport(ref.read(shownDebugLogProvider));
   await Clipboard.setData(ClipboardData(text: report));
   if (!context.mounted) return;
   ref
@@ -35,19 +39,32 @@ class DebugLogPage extends ConsumerStatefulWidget {
 }
 
 class _DebugLogPageState extends ConsumerState<DebugLogPage> {
-  DiagnosticSeverity? _filter;
+  static const _levels = <LogLevel?>[
+    null,
+    LogLevel.error,
+    LogLevel.warning,
+    LogLevel.info,
+    LogLevel.debug,
+  ];
+  static const _levelLabels = ['All', 'Errors', 'Warnings', 'Info', 'Debug'];
+
+  static int _count(List<DiagnosticEvent> all, LogLevel? level) =>
+      level == null ? all.length : all.where((e) => e.level == level).length;
+
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final entries = ref.watch(debugLogProvider);
-    final errors = _count(entries, DiagnosticSeverity.error);
-    final warnings = _count(entries, DiagnosticSeverity.warning);
-    final shown = _filter == null
-        ? entries
-        : [
-            for (final e in entries)
-              if (e.level == _filter) e,
-          ];
+    final filter = ref.watch(debugLogFilterProvider);
+    final shown = ref.watch(shownDebugLogProvider);
+    final tags = ({for (final e in entries) e.source}.toList()..sort());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -56,11 +73,11 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
           title: 'This session',
           description: entries.isEmpty
               ? 'Errors the app catches are collected here for bug reports.'
-              : '${entries.length} caught, newest first.',
-          trailing: entries.isEmpty
-              ? null
-              : _filterControl(entries.length, errors, warnings),
+              : filter.isActive
+              ? '${shown.length} of ${entries.length} shown, newest first.'
+              : '${entries.length} logged, newest first.',
           children: [
+            if (entries.isNotEmpty) _filters(filter, tags, entries),
             if (entries.isEmpty)
               const _AllClear()
             else if (shown.isEmpty)
@@ -75,31 +92,58 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
     );
   }
 
-  Widget _filterControl(int total, int errors, int warnings) {
-    return AppSegmentedControl.inline(
-      semanticLabel: 'Show',
-      options: [
-        AppSegmentedOption(label: 'All $total'),
-        AppSegmentedOption(label: 'Errors $errors'),
-        AppSegmentedOption(label: 'Warnings $warnings'),
-      ],
-      selectedIndex: switch (_filter) {
-        null => 0,
-        DiagnosticSeverity.error => 1,
-        _ => 2,
-      },
-      onSegmentSelected: (i) => setState(
-        () => _filter = switch (i) {
-          1 => DiagnosticSeverity.error,
-          2 => DiagnosticSeverity.warning,
-          _ => null,
-        },
+  Widget _filters(
+    DebugLogFilter filter,
+    List<String> tags,
+    List<DiagnosticEvent> all,
+  ) {
+    void update(DebugLogFilter next) =>
+        ref.read(debugLogFilterProvider.notifier).state = next;
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: AppSpacing.s12,
+        children: [
+          AppInput(
+            controller: _search,
+            placeholder: 'Search the log',
+            semanticLabel: 'Search the log',
+            icon: const Icon(AppIcons.search, size: AppSizes.icon16),
+            onChanged: (v) => update(filter.withQuery(v)),
+          ),
+          AppSegmentedControl.inline(
+            semanticLabel: 'Show level',
+            options: [
+              for (var i = 0; i < _levels.length; i++)
+                AppSegmentedOption(
+                  label: '${_levelLabels[i]} ${_count(all, _levels[i])}',
+                ),
+            ],
+            selectedIndex: _levels.indexOf(filter.level),
+            onSegmentSelected: (i) => update(filter.withLevel(_levels[i])),
+          ),
+          if (tags.length > 1)
+            Wrap(
+              spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
+              children: [
+                for (final tag in tags)
+                  AppButton(
+                    label: tag,
+                    size: AppButtonSize.sm,
+                    variant: filter.tag == tag
+                        ? AppButtonVariant.soft
+                        : AppButtonVariant.ghost,
+                    onPressed: () =>
+                        update(filter.withTag(filter.tag == tag ? null : tag)),
+                  ),
+              ],
+            ),
+        ],
       ),
     );
   }
-
-  static int _count(List<DiagnosticEvent> entries, DiagnosticSeverity level) =>
-      entries.where((e) => e.level == level).length;
 }
 
 class _AllClear extends StatelessWidget {
@@ -150,7 +194,7 @@ class _NoneOfThisLevel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.s24),
       child: Text(
-        'Nothing of this kind was caught.',
+        'Nothing matches this filter.',
         textAlign: TextAlign.center,
         style: AppText.caption.copyWith(color: tokens.textSecondary),
       ),

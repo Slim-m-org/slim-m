@@ -98,10 +98,17 @@ extension SyncControllerCatchUp on SyncController {
     for (var attempt = 0; ; attempt++) {
       try {
         return await api.sync(chunk);
-      } catch (error) {
+      } catch (error, stack) {
         if (attempt >= delays.length || !_isTransientSyncFailure(error)) {
           rethrow;
         }
+        AppLog.debug(
+          LogTag.sync,
+          'sync chunk failed, retrying',
+          error: error,
+          stack: stack,
+          context: {'attempt': attempt + 1},
+        );
         await Future<void>.delayed(delays[attempt]);
         if (generation != _generation) return const [];
       }
@@ -186,7 +193,8 @@ extension SyncControllerCatchUp on SyncController {
         if (generation != _generation) return;
         try {
           await _catchUp(generation, api, store);
-        } catch (_) {
+        } catch (error, stack) {
+          reportFailure(LogTag.sync, 'catch up with the server', error, stack);
           if (generation == _generation) _onDropped();
           return;
         }

@@ -118,7 +118,8 @@ extension SlimmApiUploadSessions on SlimmApi {
   void abandonUpload(String resumeKey) {
     final id = _resumableUploads.remove(resumeKey);
     if (id == null) return;
-    unawaited(_discardUploadSession(id).catchError((Object _) {}));
+    unawaited(_discardUploadSession(id).catchError(ignoreError(
+        LogTag.net, 'discarding an upload session is best effort')));
   }
 
   /// Runs [action], retrying a failure that could recover until [stallLimit].
@@ -193,11 +194,13 @@ extension SlimmApiUploadSessions on SlimmApi {
       if (resumeKey != null && _classify(e) == _PartFailure.transient) {
         _resumableUploads[resumeKey] = session.id;
       } else {
-        unawaited(_discardUploadSession(session.id).catchError((Object _) {}));
+        unawaited(_discardUploadSession(session.id).catchError(ignoreError(
+            LogTag.net, 'discarding an upload session is best effort')));
       }
       rethrow;
     } catch (_) {
-      unawaited(_discardUploadSession(session.id).catchError((Object _) {}));
+      unawaited(_discardUploadSession(session.id).catchError(ignoreError(
+          LogTag.net, 'discarding an upload session is best effort')));
       rethrow;
     } finally {
       await source.close();
@@ -215,10 +218,15 @@ extension SlimmApiUploadSessions on SlimmApi {
       try {
         final held = await _getUploadSession(kept);
         if (held.size == length) return held;
-      } on ApiException {
-        // Gone or unreachable: a fresh session is the honest start.
+      } on ApiException catch (error, stack) {
+        AppLog.swallowed(
+            LogTag.auth,
+            'Gone or unreachable: a fresh session is the honest start',
+            error,
+            stack);
       }
-      unawaited(_discardUploadSession(kept).catchError((Object _) {}));
+      unawaited(_discardUploadSession(kept).catchError(ignoreError(
+          LogTag.net, 'discarding an upload session is best effort')));
     }
     return create();
   }
@@ -314,7 +322,8 @@ extension SlimmApiUploadSessions on SlimmApi {
   Future<int?> _heldBytes(String id) async {
     try {
       return (await _getUploadSession(id)).offset;
-    } on ApiException {
+    } on ApiException catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'held bytes failed, ignored', error, stack);
       return null;
     }
   }

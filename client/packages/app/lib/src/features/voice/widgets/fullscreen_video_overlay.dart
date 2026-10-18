@@ -27,6 +27,7 @@ import '../providers/fullscreen_video.dart';
 import '../../../providers/phone_landscape.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, ignoreError;
 
 /// Which live view a tile was showing when it was expanded.
 enum FullscreenVideoKind { camera, screenShare }
@@ -114,8 +115,13 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     _windowFullscreen = true;
     try {
       await DesktopWindowShell.port.setFullScreen(true);
-    } catch (_) {
-      // Best-effort: an odd compositor must not stop the video showing.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Best-effort: an odd compositor must not stop the video showing',
+        error,
+        stack,
+      );
     }
   }
 
@@ -125,10 +131,24 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     scheduleMicrotask(() {
       try {
         _chromeHidden.state = false;
-      } on StateError {
-        // The whole app is going down with this route; nothing to restore.
+      } on StateError catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.voice,
+          'The whole app is going down with this route; nothing to restore',
+          error,
+          stack,
+        );
       }
-      unawaited(port.setFullScreen(false).catchError((_) {}));
+      unawaited(
+        port
+            .setFullScreen(false)
+            .catchError(
+              ignoreError(
+                LogTag.platform,
+                'leaving window fullscreen is best effort',
+              ),
+            ),
+      );
     });
   }
 

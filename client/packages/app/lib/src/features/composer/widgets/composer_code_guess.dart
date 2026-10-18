@@ -5,6 +5,7 @@
 library;
 
 import 'dart:convert';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 final RegExp _codeEnding = RegExp(r'[;{}()\[\]:,]\s*$|^\s*[})\]]');
 final RegExp _indented = RegExp(r'^(\t| {2,})\S');
@@ -101,7 +102,8 @@ bool _isJson(String text) {
   try {
     jsonDecode(trimmed);
     return true;
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(LogTag.ui, 'is json failed, ignored', error, stack);
     return false;
   }
 }

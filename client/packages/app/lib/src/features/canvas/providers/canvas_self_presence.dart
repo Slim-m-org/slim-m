@@ -25,6 +25,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The `SharedPreferences` key, in [preferencesProvider], following the
 /// existing `slimm.<area>.<thing>` convention.
@@ -70,8 +71,13 @@ class CanvasSelfPresenceController
       state = CanvasSelfPresenceState(
         hidden: prefs.getBool(canvasSelfBubbleHiddenKey) ?? false,
       );
-    } catch (_) {
-      // A prefs store that cannot be read leaves the bubble at its default: visible.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'A prefs store that cannot be read leaves the bubble at its default: visible',
+        error,
+        stack,
+      );
     }
   }
 
@@ -85,8 +91,13 @@ class CanvasSelfPresenceController
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       await prefs.setBool(canvasSelfBubbleHiddenKey, hidden);
-    } catch (_) {
-      // Best effort: a write failure must not stop this session's toggle from taking effect.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Best effort: a write failure must not stop this session\'s toggle from taking effect',
+        error,
+        stack,
+      );
     }
   }
 }

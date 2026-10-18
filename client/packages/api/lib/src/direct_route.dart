@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'direct_route_web.dart' if (dart.library.io) 'direct_route_io.dart';
+import 'logging/app_log.dart';
 
 abstract interface class DirectRoute {
   factory DirectRoute(Uri baseUrl) => createDirectRoute(baseUrl);
@@ -76,7 +77,8 @@ String? _lanHost(String host) {
 List<int>? _bytes(List<int> Function(String) parse, String host) {
   try {
     return parse(host);
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(LogTag.net, 'bytes failed, ignored', error, stack);
     return null;
   }
 }

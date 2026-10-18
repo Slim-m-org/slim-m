@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// Quietest level the meter and the threshold slider show.
 const double kInputFloorDb = -80.0;
@@ -95,8 +96,12 @@ class InputGateMonitor {
         'dynamics': dynamics,
         'strongNoiseSuppression': strongNoiseSuppression,
       });
-    } on Object {
-      // An older native build has no gate; the call then just carries on ungated.
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'An older native build has no gate; the call then just carries on ungated',
+          error,
+          stack);
     }
   }
 
@@ -128,7 +133,8 @@ class InputGateMonitor {
         _voice = reading.voice;
         onVoiceChanged();
       }
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.voice, 'poll', error, stack);
       stop();
     } finally {
       _polling = false;

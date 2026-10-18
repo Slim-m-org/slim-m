@@ -11,6 +11,11 @@
 ///   fan-out of things that already happened durably, never the write path.
 library;
 
+export 'src/logging/app_log.dart';
+export 'src/logging/failure.dart';
+export 'src/logging/log_redaction.dart'
+    show redactText, redactContext, redactedMark;
+
 // The extensions are named here too because `show` filters by declaration
 // name: an extension's methods need its own name exported to be in scope.
 export 'src/client.dart'

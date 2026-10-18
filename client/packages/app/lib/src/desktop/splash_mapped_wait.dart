@@ -2,11 +2,11 @@
 /// Waiting for the splash to be mapped before the handoff touches the window.
 library;
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart'
     show MethodChannel, MissingPluginException;
 
 import 'close_behavior.dart' show DesktopPlatform, currentDesktopPlatform;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Named to match `linux_window_mapped_channel.cc`, the only handler.
 const _channelName = 'top.npcserver.slimm/linux_window_mapped';
@@ -28,7 +28,13 @@ Future<Duration?> queryNativeWindowMapped() async {
       _channelName,
     ).invokeMethod<int>('isMapped');
     return ms == null || ms < 0 ? null : Duration(milliseconds: ms);
-  } on MissingPluginException {
+  } on MissingPluginException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'query native window mapped failed, ignored',
+      error,
+      stack,
+    );
     return _longMapped;
   }
 }
@@ -47,14 +53,22 @@ Future<void> awaitSplashMapped({Duration floor = Duration.zero}) async {
     Duration? onScreen;
     while ((onScreen = await debugSplashMappedProbe()) == null) {
       if (DateTime.now().isAfter(deadline)) {
-        debugPrint('desktop: splash was not mapped before the handoff');
+        AppLog.warning(
+          LogTag.platform,
+          'splash was not mapped before the handoff',
+        );
         return;
       }
       await Future<void>.delayed(_poll);
     }
     final remaining = floor - onScreen!;
     if (remaining > Duration.zero) await Future<void>.delayed(remaining);
-  } catch (error) {
-    debugPrint('desktop: splash mapped check failed: $error');
+  } catch (error, stack) {
+    AppLog.warning(
+      LogTag.platform,
+      'splash mapped check failed',
+      error: error,
+      stack: stack,
+    );
   }
 }

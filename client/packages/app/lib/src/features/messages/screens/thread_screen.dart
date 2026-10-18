@@ -56,7 +56,13 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
     final api.ThreadParent parent;
     try {
       parent = await ref.read(threadParentProvider(channelId).future);
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'ensure thread channel row failed, ignored',
+        error,
+        stack,
+      );
       // Best effort: the title stays "Thread" and the read marker stays unfixed for this session, same as today.
       return;
     }

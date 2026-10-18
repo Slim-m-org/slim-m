@@ -58,9 +58,13 @@ class ChosenServer extends Notifier<Uri?> {
     }
     try {
       await ref.read(keyStoreProvider).put(serverUrlHandle, server.toString());
-    } catch (_) {
-      // Best effort: a key store that refuses to write must not stand between
-      // someone and the server they just typed.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.auth,
+        'Best effort: a key store that refuses to write must not stand between someone and the server they just typed',
+        error,
+        stack,
+      );
     }
   }
 }
@@ -151,14 +155,20 @@ final sessionProvider = Provider<SessionStore>((ref) {
           tokens,
           slot == null ? serverUrl : null,
         );
-      } catch (_) {
+      } catch (error, stack) {
+        reportFailure(LogTag.auth, 'persist', error, stack);
+
         /// The server rotates refresh tokens with reuse detection: a write that
         /// failed here may have left a stale, already-spent token on disk, and
         /// replaying that on the next launch reads as reuse and revokes the
         /// whole family. Dropping the stored session outright degrades to a
         /// fresh sign-in instead of that false replay.
         if (tokens != null) {
-          await keyStore.delete(handle).catchError((_) {});
+          await keyStore
+              .delete(handle)
+              .catchError(
+                ignoreError(LogTag.auth, 'deleting a stale key is best effort'),
+              );
         }
       }
     },
@@ -219,7 +229,8 @@ Future<void> restoreSession(
     storedServerUrl = await keyStore.read(serverUrlHandle);
     stored = await keyStore.read(sessionTokenHandle);
     prefs = await container.read(preferencesProvider.future);
-  } catch (error) {
+  } catch (error, stack) {
+    reportFailure(LogTag.auth, 'restore the session', error, stack);
     // Locked storage (a phone woken before unlock, a keyring not yet open) is not a sign-out: keep everything and retry.
     note.state = 'stored session unreadable at launch, will retry: $error';
     container.read(_restoreRetryProvider).schedule(container, firstRetry);
@@ -265,10 +276,15 @@ Future<void> restoreSession(
     if (note.state != null) {
       note.state = 'stored session restored after a retry';
     }
-  } catch (error) {
+  } catch (error, stack) {
+    reportFailure(LogTag.auth, 'restore the session', error, stack);
     // Only what was read and found unusable is dropped; an unreadable store returned above.
     note.state = 'stored session dropped: $error';
-    await keyStore.delete(sessionTokenHandle).catchError((_) {});
+    await keyStore
+        .delete(sessionTokenHandle)
+        .catchError(
+          ignoreError(LogTag.auth, 'deleting a stale key is best effort'),
+        );
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/settings/providers/autostart_setting.dart';
 import '../features/settings/widgets/settings_toggle_row.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 class StartOnLoginRow extends ConsumerStatefulWidget {
   const StartOnLoginRow({super.key});
@@ -24,7 +25,8 @@ class _StartOnLoginRowState extends ConsumerState<StartOnLoginRow> {
     try {
       await autostart.setEnabled(on);
       if (mounted) setState(() => _failed = false);
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.ui, 'set', error, stack);
       if (mounted) setState(() => _failed = true);
     }
     ref.invalidate(autostartEnabledProvider);

@@ -161,7 +161,8 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     for (final device in others) {
       try {
         await ref.read(apiProvider).removeDevice(device.id);
-      } on api.ApiException {
+      } on api.ApiException catch (error, stack) {
+        api.reportFailure(api.LogTag.ui, 'set state', error, stack);
         remaining.add(device.name);
       }
     }

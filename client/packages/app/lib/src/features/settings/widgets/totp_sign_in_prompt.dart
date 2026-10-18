@@ -45,7 +45,8 @@ Future<bool> promptForTotpCode(
               installId: installId,
             );
         return null;
-      } on api.ApiException catch (e) {
+      } on api.ApiException catch (e, stack) {
+        api.reportFailure(api.LogTag.auth, 'show totp code sheet', e, stack);
         return _failure(e);
       }
     },

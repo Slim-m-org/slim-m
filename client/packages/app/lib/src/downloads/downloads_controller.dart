@@ -134,7 +134,8 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       target = await ref.read(downloadTargetOpenerProvider)(
         attachment.filename,
       );
-    } on Object {
+    } on Object catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'start', error, stack);
       _add(_failed(attachment, 'Could not save ${attachment.filename}.'));
       return;
     } finally {
@@ -213,7 +214,8 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       } else {
         dismiss(id);
       }
-    } on Object catch (e) {
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'run', e, stack);
       if (run.cancelled) return;
       _runs.remove(id);
       await run.target.discard();

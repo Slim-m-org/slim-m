@@ -30,19 +30,20 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
   Color _levelColor(AppTokens tokens) => switch (widget.entry.level) {
     DiagnosticSeverity.error => tokens.dangerText,
     DiagnosticSeverity.warning => tokens.warnText,
-    DiagnosticSeverity.info => tokens.textSecondary,
+    DiagnosticSeverity.info || DiagnosticSeverity.debug => tokens.textSecondary,
   };
 
   IconData get _levelIcon => switch (widget.entry.level) {
     DiagnosticSeverity.error => AppIcons.danger,
     DiagnosticSeverity.warning => AppIcons.warning,
-    DiagnosticSeverity.info => AppIcons.info,
+    DiagnosticSeverity.info || DiagnosticSeverity.debug => AppIcons.info,
   };
 
   String get _levelWord => switch (widget.entry.level) {
     DiagnosticSeverity.error => 'Error',
     DiagnosticSeverity.warning => 'Warning',
     DiagnosticSeverity.info => 'Info',
+    DiagnosticSeverity.debug => 'Debug',
   };
 
   Future<void> _copy() async {
@@ -58,7 +59,7 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final entry = widget.entry;
     final level = _levelColor(tokens);
-    final detail = entry.detail;
+    final detail = entry.expandedText;
 
     final reduced = AppMotion.isReduced(context);
     final body = Column(
@@ -89,7 +90,9 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
         ),
         const SizedBox(height: AppSpacing.s4),
         Text(
-          entry.message,
+          entry.count > 1
+              ? '${entry.message} (x${entry.count})'
+              : entry.message,
           style: AppText.caption.copyWith(color: tokens.textPrimary),
         ),
         if (_open && detail != null) _DetailBlock(detail),

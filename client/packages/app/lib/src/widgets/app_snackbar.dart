@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../features/modules/providers/dock_reservation.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Shows [message] in a plain SnackBar.
 ///
@@ -34,7 +35,8 @@ void showAppSnackbar(BuildContext context, String message) => _showAndTrack(
 ProviderContainer? _containerOf(BuildContext context) {
   try {
     return ProviderScope.containerOf(context, listen: false);
-  } on StateError {
+  } on StateError catch (error, stack) {
+    AppLog.swallowed(LogTag.ui, 'container of failed, ignored', error, stack);
     return null;
   }
 }

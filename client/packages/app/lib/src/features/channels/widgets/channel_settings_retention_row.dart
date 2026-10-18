@@ -53,7 +53,8 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
       int? count;
       try {
         count = await client.previewChannelRetention(widget.channelId, to);
-      } on api.ApiException {
+      } on api.ApiException catch (error, stack) {
+        api.reportFailure(api.LogTag.data, 'choose', error, stack);
         count = null;
       }
       if (!mounted) return;

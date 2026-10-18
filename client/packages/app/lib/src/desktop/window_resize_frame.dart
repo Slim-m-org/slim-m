@@ -28,6 +28,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'desktop_window_port.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Thickness of every edge band and the side length of every corner square,
 /// within decision 0012's own 4-8dp range for a hand-rolled hit-test
@@ -73,8 +74,13 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
         _maximized = maximized;
         _fullScreen = fullScreen;
       });
-    } catch (_) {
-      // An early-startup plugin failure leaves the frame active by default.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'An early-startup plugin failure leaves the frame active by default',
+        error,
+        stack,
+      );
     }
   }
 

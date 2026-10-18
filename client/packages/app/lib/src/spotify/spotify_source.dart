@@ -11,6 +11,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'spotify_client.dart';
 import 'spotify_token_store.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 const _defaultPollInterval = Duration(seconds: 10);
 const _refreshMargin = Duration(seconds: 60);
@@ -87,7 +88,8 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
       final fresh = await _client.refresh(tokens.refreshToken);
       await _store.save(fresh);
       return fresh;
-    } on SpotifyAuthException {
+    } on SpotifyAuthException catch (error, stack) {
+      reportFailure(LogTag.ui, 'refresh', error, stack);
       await _store.clear();
       await _onRevoked?.call();
       return null;

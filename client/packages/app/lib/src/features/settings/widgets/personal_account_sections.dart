@@ -217,7 +217,8 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     final bool needsCode;
     try {
       needsCode = (await ref.read(apiProvider).totpStatus()).enabled;
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'confirm deletion', e, stack);
       if (mounted) setState(() => _deleteError = e.message);
       return;
     }
@@ -261,7 +262,9 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     try {
       await ref.read(apiProvider).deleteAccount(password: password, code: code);
       return null;
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.auth, 'confirm deletion', e, stack);
+
       /// Not on a 401: there the session is already gone, cleared by the
       /// refresh path before this catch runs, so restarting would race the
       /// sign-out into an exponential retry loop against a signed-out

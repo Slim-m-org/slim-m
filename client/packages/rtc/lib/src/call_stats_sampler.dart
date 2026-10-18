@@ -8,6 +8,7 @@ library;
 import 'dart:async';
 
 import 'call_stats.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// One track that can be sampled.
 class CallStatsTarget {
@@ -122,8 +123,12 @@ class CallStatsSampler {
       );
       _latest[key] = sample;
       _log?.call(statsLogLine(sample));
-    } catch (_) {
-      // A track that went away between listing and reading is just skipped.
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'A track that went away between listing and reading is just skipped',
+          error,
+          stack);
     }
   }
 

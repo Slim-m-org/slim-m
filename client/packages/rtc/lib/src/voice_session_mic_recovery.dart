@@ -82,7 +82,8 @@ mixin VoiceSessionMicRecovery {
   void _logMic(String message) => _diag('voice: $message');
 
   /// Into the app's debug log when the app wired one, so a tester's export shows it.
-  void _diag(String line) => (_audio.log ?? debugPrint)(line);
+  void _diag(String line) =>
+      (_audio.log ?? (l) => AppLog.info(LogTag.voice, l))(line);
 
   void _setMicStatus(MicStatus next) {
     if (next == _micStatus) return;

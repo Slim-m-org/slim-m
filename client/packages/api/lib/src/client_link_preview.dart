@@ -14,7 +14,9 @@ extension SlimmApiLinkPreview on SlimmApi {
     try {
       final json = await _send('GET', '/link-preview', query: {'url': url});
       return LinkPreview.fromJson(json as Map<String, dynamic>);
-    } on NotFoundException {
+    } on NotFoundException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.net, 'fetch link preview failed, ignored', error, stack);
       return null;
     }
   }

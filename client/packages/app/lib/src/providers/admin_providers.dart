@@ -311,7 +311,8 @@ Future<List<api.DockSource>?> _communitySources(api.SlimmApi client) async {
       for (final s in await client.listDockSources())
         if (!s.official) s,
     ];
-  } catch (_) {
+  } catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'community sources', error, stack);
     return null;
   }
 }
@@ -323,7 +324,8 @@ Future<DockSourceSection> _loadSection(
   try {
     final entries = await client.listDockModules(source: source.id);
     return DockSourceSection(source: source, entries: entries);
-  } catch (_) {
+  } catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'community sources', error, stack);
     return DockSourceSection(source: source, entries: const [], failed: true);
   }
 }

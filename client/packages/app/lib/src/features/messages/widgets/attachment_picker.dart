@@ -21,6 +21,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../composer/widgets/composer_attachments.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Which native picker a request should open.
 enum AttachmentSource {
@@ -91,7 +92,8 @@ Future<void> runAttachmentPick({
   final PlatformFile? file;
   try {
     file = await pick();
-  } catch (e) {
+  } catch (e, stack) {
+    reportFailure(LogTag.media, 'pick an attachment', e, stack);
     if (!isMounted()) return;
     focus.requestFocus();
     onPickerFailed();

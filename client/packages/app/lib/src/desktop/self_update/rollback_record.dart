@@ -12,6 +12,7 @@ library;
 import 'dart:io';
 
 import '../update_check.dart' show isNewer, parseVersion;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The highest version rolled back from, read from the pending marker and the
 /// durable [record] without consuming either. Null when there is none.
@@ -29,8 +30,13 @@ String? takeRolledBack({required File rolledBack, required File record}) {
   }
   try {
     rolledBack.deleteSync();
-  } on FileSystemException {
-    // A marker that cannot be removed is reported again next start; harmless.
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'A marker that cannot be removed is reported again next start; harmless',
+      error,
+      stack,
+    );
   }
   return version;
 }
@@ -43,7 +49,8 @@ String? _read(File file) {
   try {
     final text = file.readAsStringSync().trim();
     return parseVersion(text) == null ? null : text;
-  } on FileSystemException {
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(LogTag.platform, 'read failed, ignored', error, stack);
     return null;
   }
 }

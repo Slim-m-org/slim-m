@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _volumesKey = 'slimm.voice.participant_volumes';
 const _screenVolumesKey = 'slimm.voice.participant_screen_volumes';
@@ -36,7 +37,8 @@ Future<Map<String, double>> loadParticipantVolumes(
             (entry.value as num).toDouble(),
           ),
     };
-  } on FormatException {
+  } on FormatException catch (error, stack) {
+    AppLog.swallowed(LogTag.voice, 'key for failed, ignored', error, stack);
     return {};
   }
 }

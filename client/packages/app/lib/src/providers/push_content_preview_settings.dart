@@ -64,7 +64,8 @@ class PushContentPreviewController extends StateNotifier<bool?> {
     try {
       final served = await _ref.read(apiProvider).pushPreview();
       if (!stale() && !_chosen) state = served;
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'refresh', error, stack);
       // state keeps the pending choice, or stays unknown.
     }
   }
@@ -78,7 +79,8 @@ class PushContentPreviewController extends StateNotifier<bool?> {
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       return prefs.getBool(pushIncludeContentKeyFor(account));
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'pending choice', error, stack);
       _ref.invalidate(preferencesProvider);
       return null;
     }
@@ -92,7 +94,8 @@ class PushContentPreviewController extends StateNotifier<bool?> {
     try {
       final prefs = await _ref.read(preferencesProvider.future);
       await prefs.remove(pushIncludeContentKeyFor(account));
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'clear pending', error, stack);
       _ref.invalidate(preferencesProvider);
     }
   }
@@ -109,13 +112,15 @@ class PushContentPreviewController extends StateNotifier<bool?> {
       if (account != null) {
         await prefs.setBool(pushIncludeContentKeyFor(account), enabled);
       }
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'set enabled', error, stack);
       _ref.invalidate(preferencesProvider);
     }
     try {
       await _ref.read(apiProvider).setPushPreview(enabled);
       await _clearPending(account);
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.push, 'set enabled', error, stack);
       // Left pending on purpose; see above.
     }
   }

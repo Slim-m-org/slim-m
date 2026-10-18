@@ -34,6 +34,7 @@ import '../desktop/startup_screen.dart';
 import '../desktop/update_check.dart';
 import '../desktop/update_watch.dart';
 import '../providers/providers.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 class UpdateStatusRows extends ConsumerStatefulWidget {
   const UpdateStatusRows({
@@ -78,7 +79,8 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
             ? 'You are on the latest version.'
             : 'Version ${update.version} is available.';
       });
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.platform, 'set state', error, stack);
       // Best-effort, like every path in decision 0025: no error surfaced.
       if (mounted) setState(() => _result = 'Could not check just now.');
     } finally {

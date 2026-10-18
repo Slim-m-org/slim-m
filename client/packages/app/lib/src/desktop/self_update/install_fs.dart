@@ -3,12 +3,19 @@
 library;
 
 import 'dart:io';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Deletes [entity] recursively; a locked or already-gone entry is left for the next cleanup pass.
 void safeDelete(FileSystemEntity entity) {
   try {
     entity.deleteSync(recursive: true);
-  } on FileSystemException {
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'safe delete failed, ignored',
+      error,
+      stack,
+    );
     return;
   }
 }

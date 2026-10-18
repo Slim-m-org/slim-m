@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/app_lock_window';
 
@@ -30,8 +31,9 @@ class AppLockWindowChannel {
   Future<void> setPrivacyShield(bool enabled) async {
     try {
       await _channel.invokeMethod<void>('setPrivacyShield', enabled);
-    } catch (_) {
-      // Nothing to degrade to; see the class doc.
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'Nothing to degrade to; see the class doc',
+          error, stack);
     }
   }
 }
