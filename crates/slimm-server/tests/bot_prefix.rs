@@ -124,6 +124,8 @@ async fn a_new_bot_is_assigned_a_prefix_and_reads_it_from_me() {
 
     let (_, _, defaulted) = make_bot(&router, &root, "defaulted", None).await;
     assert_eq!(defaulted["prefix"], "!");
+    let (_, _, second_default) = make_bot(&router, &root, "second-default", None).await;
+    assert_eq!(second_default["prefix"], "!");
 
     let (_, listed) = call(&router, "GET", "/bots", &root, None).await;
     assert!(

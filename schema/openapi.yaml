@@ -12033,8 +12033,8 @@ components:
           type: [string, "null"]
           description: >-
             The command prefix to assign, 1 to 16 characters with no
-            whitespace and not `/`, `@` or `:`. A free one is picked when
-            absent.
+            whitespace and not `/`, `@` or `:`. `!` is assigned when
+            absent; bots may share a prefix while their commands differ.
         username:
           type: string
           description: >-
