@@ -60,9 +60,10 @@ void main() {
     expect(find.bySemanticsLabel('Close'), findsNothing);
   });
 
-  test('main hands the real window port to the Linux splash', () {
+  test('main hands the real window port to the Linux and Windows splash', () {
     final main = codeOnly(File('lib/main.dart').readAsStringSync());
     expect(main, contains('windowPort:'));
     expect(main, contains('DesktopPlatform.linux'));
+    expect(main, contains('DesktopPlatform.windows'));
   });
 }

@@ -23,6 +23,7 @@ import 'package:flutter/widgets.dart' show Size;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
@@ -72,6 +73,37 @@ void main() {
     expect(port.lastResizable, isFalse);
     expect(port.hideTitleBarCalls, 1);
     expect(DesktopWindowShell.frameless, isTrue);
+  });
+
+  testWidgets('on Windows the splash hides the title bar, draws no frameless '
+      'chrome, and the handoff restores the native title bar', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugSplashPlatform = DesktopPlatform.windows;
+
+    await DesktopWindowShell.lockSplashChrome();
+    expect(port.hideTitleBarCalls, 1);
+    expect(DesktopWindowShell.frameless, isFalse);
+    expect(port.showTitleBarCalls, 0);
+
+    await DesktopWindowShell.prepareHandoff(_container());
+    expect(port.showTitleBarCalls, 1);
+  });
+
+  testWidgets('macOS keeps its native title bar through the splash', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugSplashPlatform = DesktopPlatform.macOS;
+
+    await DesktopWindowShell.lockSplashChrome();
+    await DesktopWindowShell.prepareHandoff(_container());
+
+    expect(port.hideTitleBarCalls, 0);
+    expect(port.showTitleBarCalls, 0);
   });
 
   testWidgets('prepareHandoff hides the window, unlocks resizing, and falls '

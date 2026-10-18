@@ -107,6 +107,17 @@ class DesktopWindowShell {
   static bool _active = false;
   static bool _framelessApplied = false;
 
+  /// Windows hides the native title bar for the splash only; the handoff
+  /// brings it back, since the real window keeps its native frame there.
+  static bool _splashTitleBarHidden = false;
+
+  static DesktopPlatform? _debugPlatform;
+
+  /// Test-only: which platform's splash chrome [lockSplashChrome] applies.
+  @visibleForTesting
+  static set debugSplashPlatform(DesktopPlatform? platform) =>
+      _debugPlatform = platform;
+
   /// The windowed size [_applyFinalGeometry] asked for, so
   /// [revealAfterHandoff] knows what the view is supposed to settle at.
   /// Null when the run state is maximized or fullscreen, where the final
@@ -133,6 +144,8 @@ class DesktopWindowShell {
     _trayController = null;
     _active = false;
     _framelessApplied = false;
+    _splashTitleBarHidden = false;
+    _debugPlatform = null;
     _handoffTargetSize = null;
     _handoffFillsDisplay = false;
     _positionSupported = windowPositionSupported;
@@ -239,9 +252,15 @@ class DesktopWindowShell {
 
   static Future<void> _lockSplashChrome() async {
     await _port.setResizable(false);
-    if (currentDesktopPlatform() == DesktopPlatform.linux) {
-      await _port.hideTitleBar();
-      _framelessApplied = true;
+    switch (_debugPlatform ?? currentDesktopPlatform()) {
+      case DesktopPlatform.linux:
+        await _port.hideTitleBar();
+        _framelessApplied = true;
+      case DesktopPlatform.windows:
+        await _port.hideTitleBar();
+        _splashTitleBarHidden = true;
+      case DesktopPlatform.macOS || null:
+        break;
     }
   }
 
@@ -280,6 +299,10 @@ class DesktopWindowShell {
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
     await _port.hide();
+    if (_splashTitleBarHidden) {
+      await _port.showTitleBar();
+      _splashTitleBarHidden = false;
+    }
 
     final prefs = await container.read(preferencesProvider.future);
     final saved = WindowGeometryStore(prefs).read() ?? WindowGeometry.fallback;
