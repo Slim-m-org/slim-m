@@ -81,11 +81,12 @@ final slowModeRemainingSecondsProvider = Provider.autoDispose
           .watch(myChannelPermissionsProvider(channelId))
           .hasPermission(Perm.manageChannels);
       if (exempt) return 0;
-      ref.watch(slowModeTickerProvider);
       final lastSentAt = ref.watch(slowModeLastSentProvider)[channelId];
-      return slowModeRemainingSeconds(
+      final remaining = slowModeRemainingSeconds(
         slowModeSeconds: seconds,
         lastSentAt: lastSentAt,
         now: DateTime.now(),
       );
+      if (remaining > 0) ref.watch(slowModeTickerProvider);
+      return remaining;
     });

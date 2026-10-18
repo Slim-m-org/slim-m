@@ -6,7 +6,10 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/channels/providers/slow_mode_controller.dart';
+import 'package:slimm_data/data.dart';
 
 void main() {
   final base = DateTime.utc(2026, 1, 1, 12);
@@ -96,6 +99,65 @@ void main() {
         later,
         reason: 'a delayed echo of an older send must not rewind the clock',
       );
+    });
+  });
+
+  group('the 1 Hz ticker', () {
+    ProviderContainer build(int Function() onTicker) {
+      final container = ProviderContainer(
+        overrides: [
+          channelByIdProvider('c1').overrideWith(
+            (ref) => Stream.value(
+              const Channel(
+                id: 'c1',
+                name: 'general',
+                kind: 'text',
+                createdAt: 0,
+                position: 0,
+                cursor: 0,
+                lastReadSeq: 0,
+                mentionedSeq: 0,
+                slowModeSeconds: 30,
+                joinMuted: false,
+                isPersonalSpace: false,
+              ),
+            ),
+          ),
+          myChannelPermissionsProvider('c1').overrideWithValue(0),
+          slowModeTickerProvider.overrideWith((ref) {
+            onTicker();
+            return const Stream<void>.empty();
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('is not watched while nothing is counting down', () async {
+      var started = 0;
+      final container = build(() => ++started);
+      container.listen(slowModeRemainingSecondsProvider('c1'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(container.read(slowModeRemainingSecondsProvider('c1')), 0);
+      expect(started, 0);
+    });
+
+    test('is watched once a send starts a countdown', () async {
+      var started = 0;
+      final container = build(() => ++started);
+      container.listen(slowModeRemainingSecondsProvider('c1'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      container
+          .read(slowModeLastSentProvider.notifier)
+          .recordSent('c1', DateTime.now());
+
+      expect(
+        container.read(slowModeRemainingSecondsProvider('c1')),
+        greaterThan(0),
+      );
+      expect(started, 1);
     });
   });
 }
