@@ -47,6 +47,10 @@ class _FakeTrack {
   /// caller cannot tell a push that landed from one that was dropped.
   bool active = true;
 
+  /// What the SFU was last told about this publication.
+  bool forwarding = true;
+  int forwardCalls = 0;
+
   int enableCalls = 0;
   int disableCalls = 0;
   int volumeCalls = 0;
@@ -54,7 +58,8 @@ class _FakeTrack {
   /// Set to make the next push fail the way a real platform call can.
   Object? failure;
 
-  int get platformCalls => enableCalls + disableCalls + volumeCalls;
+  int get platformCalls =>
+      enableCalls + disableCalls + volumeCalls + forwardCalls;
 
   /// A resubscribe: same participant, same publication, new platform object
   /// arriving back at the source default with nothing to announce it.
@@ -97,6 +102,14 @@ class _FakeTrack {
           disableCalls++;
           if (failure != null) throw failure!;
           if (active) enabled = false;
+        },
+        startForwarding: () async {
+          forwardCalls++;
+          forwarding = true;
+        },
+        stopForwarding: () async {
+          forwardCalls++;
+          forwarding = false;
         },
         setVolume: (value) async {
           volumeCalls++;
@@ -485,6 +498,8 @@ void main() {
       isAudible: () => true,
       enable: () async {},
       disable: () async {},
+      startForwarding: () async {},
+      stopForwarding: () async {},
       setVolume: (double v) async {
         final c = Completer<void>();
         gate.add(c);
@@ -529,5 +544,62 @@ void main() {
     expect(lines.first, contains('applied'));
     expect(lines.last, contains('x0.5'));
     expect(lines.last, contains('failed: Bad state: boom'));
+  });
+
+  group('server forwarding', () {
+    test('deafening stops the SFU sending and undeafening resumes it', () async {
+      final state = LocalAudioState();
+      final voice = _FakeTrack('maya');
+      final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);
+
+      state.deafened = true;
+      await _pumpEvents(state, [voice, screen]);
+      expect([voice.forwarding, screen.forwarding], [false, false]);
+      expect([voice.enabled, screen.enabled], [false, false]);
+
+      state.deafened = false;
+      await _pumpEvents(state, [voice, screen]);
+      expect([voice.forwarding, screen.forwarding], [true, true]);
+      expect([voice.enabled, screen.enabled], [true, true]);
+    });
+
+    test('a per-user mute and volume zero stop forwarding too', () async {
+      final state = LocalAudioState();
+      final muted = _FakeTrack('ann');
+      final quiet = _FakeTrack('bo');
+      state
+        ..setMuted('ann', true)
+        ..setVolumeFor('bo', 0);
+      await _pumpEvents(state, [muted, quiet]);
+      expect(muted.forwarding, isFalse);
+      expect(quiet.forwarding, isFalse);
+
+      state
+        ..setMuted('ann', false)
+        ..setVolumeFor('bo', 0.5);
+      await _pumpEvents(state, [muted, quiet]);
+      expect(muted.forwarding, isTrue);
+      expect(quiet.forwarding, isTrue);
+      expect(quiet.volume, 0.5);
+    });
+
+    test('a track that subscribes while deafened is not forwarded', () async {
+      final state = LocalAudioState()..deafened = true;
+      final late = _FakeTrack('maya');
+      await _pumpEvents(state, [late]);
+      late.resubscribe();
+      await _pumpEvents(state, [late]);
+      expect(late.forwarding, isFalse);
+      expect(late.enabled, isFalse);
+    });
+
+    test('an unchanged reapply tells the SFU nothing new', () async {
+      final state = LocalAudioState()..deafened = true;
+      final track = _FakeTrack('maya');
+      await _pumpEvents(state, [track]);
+      final calls = track.forwardCalls;
+      await _pumpEvents(state, [track], times: 10);
+      expect(track.forwardCalls, calls);
+    });
   });
 }

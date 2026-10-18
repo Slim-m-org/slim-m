@@ -19,6 +19,8 @@ LocalAudioRef _ref(
       isAudible: () => true,
       enable: () async {},
       disable: () async {},
+      startForwarding: () async {},
+      stopForwarding: () async {},
       setVolume: (_) async => null,
     );
 
