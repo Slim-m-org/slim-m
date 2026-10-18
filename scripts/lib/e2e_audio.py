@@ -88,6 +88,12 @@ class AudioProbe:
         return json.loads(self.client.ev(
             "JSON.stringify(window.__e2eAudio.videos())") or "[]")
 
+    def inbound_frames(self):
+        """Total frames decoded across every inbound video, from getStats."""
+        stats = json.loads(self.client.ev(
+            "JSON.stringify(window.__e2eAudio.inboundVideo())") or "{}")
+        return sum(v["frames"] for v in stats.values())
+
     def getusermedia_calls(self):
         return json.loads(self.client.ev(
             "JSON.stringify(window.__e2eAudio.gum)") or "[]")

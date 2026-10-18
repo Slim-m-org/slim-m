@@ -122,12 +122,7 @@ class VoiceSession
   /// Settings has chosen; see [VoiceSessionAudioDevices].
   lk.Room _buildRoom() => lk.Room(
         roomOptions: _audioSwitching.roomOptions(
-          lk.RoomOptions(
-            // Adaptive stream sizes each layer to its tile and is fixed per room, so Max turns it off from the next join.
-            adaptiveStream: _receiveQuality != ReceiveVideoQuality.max,
-            dynacast: true,
-            defaultVideoPublishOptions: cameraPublishOptions(),
-          ),
+          receiveRoomOptions(),
           noiseSuppression: _capture.webrtcNoiseSuppression,
         ),
       );
@@ -138,6 +133,9 @@ class VoiceSession
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
   late final VideoSubscriptionCuller _videoCuller;
+  final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
+    lk.AdaptiveStreamPixelDensity.auto,
+  );
 
   /// See [videoHealth]; fed by [callStats] while any remote video is subscribed.
   late final _stallWatchdog = VideoStallWatchdog(recover: _recoverStalledVideo);
@@ -207,6 +205,7 @@ class VoiceSession
   /// kept for the next join.
   void setReceiveVideoQuality(ReceiveVideoQuality quality) {
     _receiveQuality = quality;
+    _receiveDensity.value = pixelDensityFor(quality);
     _refreshParticipants();
   }
 
@@ -429,7 +428,11 @@ class VoiceSession
   Widget screenShareViewFor(String identity) {
     final room = _room;
     if (room == null) return const SizedBox.shrink();
-    return ScreenShareView(room: room, identity: identity);
+    return ScreenShareView(
+      room: room,
+      identity: identity,
+      density: _receiveDensity,
+    );
   }
 
   /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
@@ -449,6 +452,7 @@ class VoiceSession
       room: room,
       identity: identity,
       facing: _cameraSwitching.facing,
+      density: _receiveDensity,
     );
   }
 
@@ -526,6 +530,7 @@ class VoiceSession
     if (_disposed) return;
     _disposed = true;
     _videoCuller.dispose();
+    _receiveDensity.dispose();
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();
