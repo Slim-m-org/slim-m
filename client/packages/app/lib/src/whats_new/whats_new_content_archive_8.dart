@@ -65,4 +65,35 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.110.0',
+    headline:
+        'Several servers in one app, and calls that leave your music alone',
+    points: [
+      WhatsNewPoint(
+        'Sign in to more than one server and switch between them from the top '
+        'left. The others keep showing unread counts and live calls.',
+      ),
+      WhatsNewPoint(
+        'On Windows, joining a call no longer turns other apps down, and '
+        'Strong noise suppression now works with every microphone.',
+      ),
+      WhatsNewPoint(
+        'Each screen share has its own volume, on the share and in the pop-out '
+        'player.',
+      ),
+      WhatsNewPoint(
+        'Settings has a search box at the top, and sounds and phone haptics '
+        'cover more of a call.',
+      ),
+      WhatsNewPoint(
+        'Pick any profile colour, and link your Discord account to show it on '
+        'your profile.',
+      ),
+      WhatsNewPoint(
+        'Admins get an audit log of every change to the server, and a locked '
+        'phone no longer signs you out.',
+      ),
+    ],
+  ),
 ];
