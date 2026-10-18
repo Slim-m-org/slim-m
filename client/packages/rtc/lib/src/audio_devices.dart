@@ -132,7 +132,14 @@ AudioDevice? resolveAudioDevice(
 /// "System default" in the same picker meaning the same thing. Null already
 /// means the system default here, so the pseudo entries add a duplicate and
 /// nothing else.
+///
+/// A browser that has not been granted the microphone yet lists devices with
+/// an empty id and label; none of them can be chosen, and an empty id is what
+/// the picker uses for the system default, so they are dropped too.
 List<AudioDevice> withoutPseudoDefaults(List<AudioDevice> devices) => [
       for (final device in devices)
-        if (device.id != 'default' && device.id != 'communications') device,
+        if (device.id.isNotEmpty &&
+            device.id != 'default' &&
+            device.id != 'communications')
+          device,
     ];

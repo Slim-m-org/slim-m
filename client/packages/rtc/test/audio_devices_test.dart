@@ -52,6 +52,14 @@ void main() {
       ]);
       expect(kept, [real]);
     });
+
+    test('drops the unnamed entries a browser lists before it has the mic', () {
+      const real = AudioDevice(id: 'abc', label: 'Headset');
+      expect(
+        withoutPseudoDefaults(const [AudioDevice(id: '', label: ''), real]),
+        [real],
+      );
+    });
   });
 
   group('resolveAudioDevice', () {

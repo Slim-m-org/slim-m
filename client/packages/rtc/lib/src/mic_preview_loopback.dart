@@ -42,12 +42,16 @@ class LoopbackMicSource implements MicPreviewSource {
   Future<void> _open(String? deviceId) async {
     if (_opened) await _close();
     _opened = true;
-    final constraints = _switching.previewCaptureOptions(deviceId);
+    final constraints = _switching.previewCaptureOptions(
+      await _switching.pluggedInputId(deviceId),
+    );
     final stream = _stream = await rtc.navigator.mediaDevices.getUserMedia({
       'audio': constraints.toMediaConstraintsMap(),
       'video': false,
     });
-    await _switching.routePreviewInput(deviceId);
+    await _switching.routePreviewInput(
+      await _switching.pluggedInputId(deviceId),
+    );
     final sender = _sender = await rtc.createPeerConnection({});
     final receiver = _receiver = await rtc.createPeerConnection({});
     sender.onIceCandidate = (c) => unawaited(receiver.addCandidate(c));

@@ -29,6 +29,7 @@ class _FakeMic implements MicPort {
   int enableFailures = 0;
   bool Function(bool noiseSuppression) restartFails = (_) => false;
   final restarts = <bool>[];
+  final restartDevices = <String?>[];
   final _lost = StreamController<void>.broadcast();
 
   @override
@@ -56,6 +57,7 @@ class _FakeMic implements MicPort {
   @override
   Future<void> restart(lk.AudioCaptureOptions options) async {
     restarts.add(options.noiseSuppression);
+    restartDevices.add(options.deviceId);
     if (restartFails(options.noiseSuppression)) throw StateError('restart');
   }
 
@@ -241,6 +243,59 @@ void main() {
     await _settle();
 
     expect(rig.mic.restarts, hasLength(1));
+  });
+
+  test('a mic that will not open at join is retried and reported', () async {
+    final rig = _Rig();
+    addTearDown(rig.session.dispose);
+    rig.mic.enableFailures = 1;
+    await rig.join();
+    expect(rig.mic.open, isFalse);
+
+    await _until(() => rig.mic.open);
+    await _until(() => rig.session.micStatus == MicStatus.ok);
+    expect(rig.statuses, [MicStatus.reconnecting, MicStatus.ok]);
+  });
+
+  test('a mic that never opens at join ends as unavailable, not silent',
+      () async {
+    final rig = _Rig();
+    addTearDown(rig.session.dispose);
+    rig.mic.enableFailures = 100;
+    await rig.join();
+
+    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+  });
+
+  test('a muted join does not try to open the mic', () async {
+    final rig = _Rig();
+    addTearDown(rig.session.dispose);
+    rig.mic.enableFailures = 100;
+    await rig.join(micOn: false);
+    await _settle();
+
+    expect(rig.session.micStatus, MicStatus.ok);
+    expect(rig.mic.enableFailures, 100);
+  });
+
+  test('a chosen mic that comes back is used again, not left on the default',
+      () async {
+    final rig = _Rig();
+    addTearDown(rig.session.dispose);
+    const headset = AudioDevice(id: 'bt', label: 'Headset');
+    rig.devices.mics = const [headset];
+    await rig.session.selectAudioInputDevice(headset);
+    await rig.join();
+
+    rig.devices.mics = const [];
+    rig.devices.changes.add(null);
+    await _until(() => rig.mic.restartDevices.isNotEmpty);
+    expect(rig.mic.restartDevices.last, isNull);
+
+    rig.devices.mics = const [headset];
+    rig.devices.changes.add(null);
+    await _until(() => rig.mic.restartDevices.length == 2);
+    expect(rig.mic.restartDevices.last, 'bt');
   });
 
   test('a device change with a healthy capture restarts nothing', () async {

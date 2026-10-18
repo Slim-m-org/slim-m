@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/mic_preview.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../settings/widgets/settings_hairline.dart';
@@ -42,6 +43,8 @@ class AudioDeviceSection extends ConsumerStatefulWidget {
 class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
   List<AudioDevice> _inputs = const [];
   List<AudioDevice> _outputs = const [];
+  // The empty lists before the first answer must not read as "unplugged".
+  bool _listed = false;
   StreamSubscription<void>? _changes;
 
   @override
@@ -62,6 +65,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     setState(() {
       _inputs = inputs;
       _outputs = outputs;
+      _listed = true;
     });
   }
 
@@ -73,6 +77,10 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Opening the capture is what makes some hosts list their devices at all.
+    ref.listen(micPreviewProvider.select((r) => r.status), (before, now) {
+      if (now == MicPreviewStatus.live && before != now) unawaited(_refresh());
+    });
     final settings = ref.watch(voiceSettingsControllerProvider);
     final notifier = ref.read(voiceControllerProvider.notifier);
     final settingsNotifier = ref.read(voiceSettingsControllerProvider.notifier);
@@ -84,6 +92,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         supported: notifier.supportsAudioInputSelection,
         unsupportedCaption: 'This platform routes microphones automatically.',
         devices: _inputs,
+        listed: _listed,
         selectedId: settings.audioInputDeviceId,
         onChanged: settingsNotifier.setAudioInputDevice,
       ),
@@ -94,6 +103,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         unsupportedCaption:
             'This platform always plays a call through its default output.',
         devices: _outputs,
+        listed: _listed,
         selectedId: settings.audioOutputDeviceId,
         onChanged: settingsNotifier.setAudioOutputDevice,
       ),
@@ -114,6 +124,7 @@ class _DevicePickerRow extends StatelessWidget {
     required this.supported,
     required this.unsupportedCaption,
     required this.devices,
+    required this.listed,
     required this.selectedId,
     required this.onChanged,
   });
@@ -123,6 +134,7 @@ class _DevicePickerRow extends StatelessWidget {
   final bool supported;
   final String unsupportedCaption;
   final List<AudioDevice> devices;
+  final bool listed;
   final String? selectedId;
   final ValueChanged<AudioDevice?> onChanged;
 
@@ -138,7 +150,7 @@ class _DevicePickerRow extends StatelessWidget {
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final resolved = resolveAudioDevice(devices, selectedId);
-    final unplugged = selectedId != null && resolved == null;
+    final unplugged = listed && selectedId != null && resolved == null;
     final kind = label == 'Microphone' ? 'mic' : 'speaker';
 
     return Column(
@@ -159,11 +171,12 @@ class _DevicePickerRow extends StatelessWidget {
                 label: device.label.isEmpty ? 'Unnamed device' : device.label,
               ),
           ],
-          onChanged: (id) => onChanged(
-            id == _systemDefaultId
-                ? null
-                : devices.firstWhere((d) => d.id == id),
-          ),
+          onChanged: (id) {
+            if (id == _systemDefaultId) return onChanged(null);
+            // The list can change between opening the sheet and picking.
+            final device = devices.where((d) => d.id == id).firstOrNull;
+            if (device != null) onChanged(device);
+          },
         ),
         if (unplugged)
           Padding(
