@@ -63,7 +63,7 @@ use crate::store::Store;
 
 use debounce::Debounce;
 
-pub use attention::narrow_for_attention;
+pub use attention::{SkipReason, narrow_for_attention, skip_reasons};
 pub use recipients::message_recipients;
 pub use security::NewDeviceSignIn;
 
