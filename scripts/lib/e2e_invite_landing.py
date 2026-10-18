@@ -20,10 +20,10 @@ REPLACE_BANNER = "Replace banner"
 REPLACE_ICON = "Replace icon"
 
 
-def _open_invites(client):
+def _open_customize(client):
     client.click(L.SPACE_MENU, settle=2)
     client.click(L.SPACE_SETTINGS, settle=3)
-    client.click(L.INVITES, settle=3)
+    client.click(L.CUSTOMIZE, settle=3)
 
 
 def _set_pictures(client, picture):
@@ -39,9 +39,9 @@ def _set_pictures(client, picture):
 def admin_sets_the_landing_page(admin_client, admin_api, picture):
     """Returns the description saved, after the server confirms it and both pictures."""
     text = f"A small corner for e2e {int(time.time())}"
-    _open_invites(admin_client)
-    # The landing page card sits below Joining and Join gate.
-    admin_client.wheel_until(L.WHO_CAN_JOIN_ROW, L.SAVE_DESCRIPTION)
+    _open_customize(admin_client)
+    # The Space profile card opens the Customize pane, so the field is already in view.
+    admin_client.wait_for(L.SAVE_DESCRIPTION)
     admin_client.type_into(L.DESCRIPTION_FIELD, text)
     admin_client.click(L.SAVE_DESCRIPTION, settle=3)
     wait_until(admin_api.space_settings,
