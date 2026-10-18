@@ -8608,9 +8608,10 @@ paths:
       tags: [space]
       summary: Read whether this space unfurls pasted links.
       description: >
-        Gated on MANAGE_SERVER. Until an admin chooses, the operator's
-        `SLIMM_LINK_PREVIEWS` decides. `/version`'s `link_previews_enabled`
-        reports the same value to every client.
+        Gated on MANAGE_SERVER. The operator's `SLIMM_LINK_PREVIEWS` is the
+        ceiling: an admin can turn previews off, and back on only where the
+        operator allows them. `/version`'s `link_previews_enabled` reports the
+        effective value to every client.
       responses:
         "200":
           description: The current setting.

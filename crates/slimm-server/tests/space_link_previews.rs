@@ -120,3 +120,13 @@ async fn a_build_without_unfurling_cannot_be_switched_on() {
     previews.set_override(Some(true));
     assert!(!previews.is_enabled());
 }
+
+#[tokio::test]
+async fn an_admin_cannot_turn_previews_on_past_the_operator() {
+    let previews = LinkPreviews::new(&slimm_server::config::Config::default(), [1; 32]);
+    previews.set_override(Some(true));
+    assert!(
+        !previews.is_enabled(),
+        "the operator left SLIMM_LINK_PREVIEWS off"
+    );
+}

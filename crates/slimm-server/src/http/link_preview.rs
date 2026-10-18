@@ -84,8 +84,8 @@ struct Enabled {
 }
 
 impl LinkPreviews {
-    /// Starts on `SLIMM_LINK_PREVIEWS`; an admin's choice overrides it through
-    /// [`Self::set_override`]. While off, every route here answers "not
+    /// Starts on `SLIMM_LINK_PREVIEWS`, which is also the ceiling: an admin can
+    /// turn previews off through [`Self::set_override`], never on past the operator. While off, every route here answers "not
     /// configured", exactly like GIF search with no provider set.
     /// [image_key] signs image tokens; see `image_token` for why it is persisted.
     pub fn new(config: &Config, image_key: [u8; 32]) -> Self {
@@ -111,8 +111,9 @@ impl LinkPreviews {
     }
 
     /// Applies the admin's choice; None goes back to the operator's default.
+    /// Unfurling fetches member-supplied URLs, so only the operator can allow it.
     pub fn set_override(&self, choice: Option<bool>) {
-        let on = self.inner.is_some() && choice.unwrap_or(self.operator_default);
+        let on = self.inner.is_some() && self.operator_default && choice.unwrap_or(true);
         self.active.store(on, Ordering::Relaxed);
     }
 
