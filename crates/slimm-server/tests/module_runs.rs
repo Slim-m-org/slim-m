@@ -219,3 +219,27 @@ async fn stored_data_usage_is_shown_and_clearing_it_keeps_the_install() {
     let (missing, _) = call(&w, "DELETE", "/space/dock/modules/nothing/storage", &token).await;
     assert_eq!(missing, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn an_update_prunes_history_for_commands_the_build_no_longer_declares() {
+    let w = world("slimm-modrun-prune").await;
+    let install = || Install {
+        id: "pruner",
+        wasm: echo_request_wasm(),
+        declared: &[],
+        approved_host: &[],
+    };
+    w.install(install()).await;
+    let ok = slimm_server::store::RunResult::Ok;
+    for command in ["run", "retired"] {
+        w.store
+            .record_module_run("pruner", command, &ok, (1, 1))
+            .await
+            .unwrap();
+    }
+    w.install(install()).await;
+
+    let stats = w.store.module_run_stats().await.unwrap();
+    let kept: Vec<&str> = stats["pruner"].iter().map(|s| s.command.as_str()).collect();
+    assert_eq!(kept, ["run"]);
+}
