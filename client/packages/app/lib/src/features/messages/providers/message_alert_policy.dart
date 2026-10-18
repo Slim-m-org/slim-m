@@ -16,6 +16,7 @@ library;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show Channel;
 
 import '../../../permissions.dart';
 import '../widgets/message_mentions.dart' show messageMentionsMe;
@@ -97,14 +98,17 @@ class MessageAlertPolicy {
     final mentionsSelf = !isDm && await _mentionsSelf(message, selfId);
 
     final overrides = _ref.read(channelNotificationOverridesProvider);
+    final parentId = await _parentChannelId(
+      channel?.parentMessageId,
+      message.channelId,
+    );
     final preference =
         overrides.overrideFor(message.channelId) ??
-        await _parentOverride(
-          channel?.parentMessageId,
-          message.channelId,
-          overrides,
-        ) ??
-        await _accountDefaultIn(message.channelId, isDm: isDm);
+        (parentId == null ? null : overrides.overrideFor(parentId)) ??
+        stricterPreference(
+          await _channelDefault(channel, parentId),
+          await _accountDefaultIn(message.channelId, isDm: isDm),
+        );
     if (!channelEarnsASound(
       channelOverride: preference,
       isDm: isDm,
@@ -213,12 +217,25 @@ class MessageAlertPolicy {
     }
   }
 
-  /// The override on a thread's parent channel, null for any other channel or
-  /// when the parent cannot be found (the thread then follows the account).
-  Future<api.NotificationPreference?> _parentOverride(
+  /// A channel's own default, or its parent's for a thread: a thread has none
+  /// of its own.
+  Future<api.NotificationPreference?> _channelDefault(
+    Channel? channel,
+    String? parentId,
+  ) async {
+    if (parentId == null) {
+      return channel == null ? null : channelDefaultOf(channel);
+    }
+    final store = await _ref.read(storeProvider.future);
+    final parent = await store.watchChannelRow(parentId).first;
+    return parent == null ? null : channelDefaultOf(parent);
+  }
+
+  /// A thread's parent channel, null for any other channel or when the parent
+  /// cannot be found (the thread then follows the account).
+  Future<String?> _parentChannelId(
     String? parentMessageId,
     String channelId,
-    ChannelNotificationOverridesState overrides,
   ) async {
     if (parentMessageId == null) return null;
     if (!_parentChannels.containsKey(channelId)) {
@@ -235,8 +252,7 @@ class MessageAlertPolicy {
         return null;
       }
     }
-    final parentId = _parentChannels[channelId];
-    return parentId == null ? null : overrides.overrideFor(parentId);
+    return _parentChannels[channelId];
   }
 
   /// The account default as it applies in [channelId]: "everything" reads as

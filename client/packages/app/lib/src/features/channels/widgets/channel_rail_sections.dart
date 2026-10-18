@@ -339,7 +339,7 @@ class _RailView {
   final ChannelNotificationOverridesState overrides;
 
   UnreadIndicator indicatorOf(Channel channel) => unreadIndicatorFor(
-    channelOverride: overrides.overrideFor(channel.id),
+    channelOverride: overrides.effectiveFor(channel),
     isDm: false,
     unread: channel.cursor > channel.lastReadSeq,
     mentioned: channel.mentionedSeq > channel.lastReadSeq,
@@ -377,7 +377,7 @@ class _TextChannelRow extends ConsumerWidget {
     // Read state is untouched by this; only what the row draws about it changes.
     final override = ref.watch(
       channelNotificationOverridesProvider.select(
-        (s) => s.overrideFor(channel.id),
+        (s) => s.effectiveFor(channel),
       ),
     );
     final muted = override == NotificationPreference.nothing;

@@ -11,6 +11,7 @@ use sqlx::SqliteExecutor;
 use super::super::permissions::{everyone_role_id, set_overwrite};
 use super::super::{Channel, Store, now_ms};
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
+use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 
 /// Why creating a channel by id failed outright, rather than succeeding
@@ -70,10 +71,17 @@ pub struct CreatedChannel {
     pub fresh: bool,
 }
 
+/// What a new channel starts out with, beyond its name and kind.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ChannelDefaults {
+    pub join_muted: bool,
+    pub notification: NotificationPreference,
+}
+
 impl Store {
     /// Creates a channel and seeds its sequence counters, idempotent by `id`
     /// like a message send. It takes the next channel position and writes
-    /// `private_to` and `join_muted` in the same transaction, so nobody can
+    /// `private_to` and `defaults` in the same transaction, so nobody can
     /// see a channel before it is private or flagged. A deleted or
     /// differently shaped row under the same id is an error, not a 500.
     pub async fn create_channel_with_id(
@@ -83,7 +91,7 @@ impl Store {
         kind: &str,
         category_id: Option<ChannelCategoryId>,
         private_to: Option<UserId>,
-        join_muted: bool,
+        defaults: ChannelDefaults,
     ) -> Result<CreatedChannel, CreateChannelError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
@@ -126,16 +134,18 @@ impl Store {
             }
         }
 
+        let default_notification = defaults.notification.as_str();
         sqlx::query!(
-            "INSERT INTO channels (id, name, kind, position, created_at, category_id, join_muted) \
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO channels (id, name, kind, position, created_at, category_id, join_muted, default_notification) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             id,
             name,
             kind,
             position,
             now,
             category_id,
-            join_muted
+            defaults.join_muted,
+            default_notification
         )
         .execute(&mut *tx)
         .await?;
@@ -190,7 +200,8 @@ impl Store {
                 created_at: now,
                 // The column default; a fresh channel has no slow mode set yet.
                 slow_mode_seconds: 0,
-                join_muted,
+                join_muted: defaults.join_muted,
+                default_notification: defaults.notification,
                 room: super::super::ChannelRoom::default(),
             },
             fresh: true,
@@ -209,7 +220,14 @@ impl Store {
     /// this ever actually surfaces is `Internal`.
     pub async fn create_channel(&self, name: &str, kind: &str) -> anyhow::Result<Channel> {
         match self
-            .create_channel_with_id(ChannelId::generate(), name, kind, None, None, false)
+            .create_channel_with_id(
+                ChannelId::generate(),
+                name,
+                kind,
+                None,
+                None,
+                ChannelDefaults::default(),
+            )
             .await
         {
             Ok(created) => Ok(created.channel),
@@ -255,6 +273,7 @@ where
                   created_at AS "created_at!",
                   slow_mode_seconds AS "slow_mode_seconds!: i64",
                   join_muted AS "join_muted!: bool",
+                  default_notification AS "default_notification!",
                   creates_rooms AS "creates_rooms!: bool",
                   user_limit AS "user_limit!: i64",
                   room_owner_id AS "room_owner_id: crate::ids::UserId",
@@ -276,6 +295,8 @@ where
         created_at: r.created_at,
         slow_mode_seconds: r.slow_mode_seconds,
         join_muted: r.join_muted,
+        default_notification: NotificationPreference::parse(&r.default_notification)
+            .unwrap_or_default(),
         room: super::super::ChannelRoom {
             creates_rooms: r.creates_rooms,
             user_limit: r.user_limit,

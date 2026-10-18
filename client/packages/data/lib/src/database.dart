@@ -104,6 +104,11 @@ class Channels extends Table {
   /// off. False for every existing row until the next channel refresh.
   BoolColumn get joinMuted => boolean().withDefault(const Constant(false))();
 
+  /// `channels.default_notification`: what a member with no choice of their
+  /// own gets here. Null reads as 'everything', as for every row until the
+  /// next channel refresh.
+  TextColumn get defaultNotification => text().nullable()();
+
   /// Temporary voice rooms (decision 0065), nullable so an existing row and
   /// a row built in code read as "not a lobby, no limit, not a room".
   BoolColumn get createsRooms => boolean().nullable()();
@@ -282,7 +287,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   /// Each step runs when the upgrade starts below its version (and at or
   /// above [_UpgradeStep.minFrom]); order matters, a step may rely on earlier ones.
@@ -334,6 +339,8 @@ class SlimmDatabase extends _$SlimmDatabase {
           () =>
               m.addColumn(pendingAttachments, pendingAttachments.mentionReply),
         ),
+        _UpgradeStep(
+            24, () => m.addColumn(channels, channels.defaultNotification)),
         // v2's null display names and the pre-op-stream epoch are both
         // unreachable by a keyset sync. See the doc comment above.
         _UpgradeStep(7, () async {

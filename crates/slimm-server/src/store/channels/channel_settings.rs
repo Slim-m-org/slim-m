@@ -6,6 +6,7 @@ use sqlx::QueryBuilder;
 
 use super::super::{Channel, Store};
 use crate::ids::ChannelId;
+use crate::notifications::NotificationPreference;
 
 /// The fields a channel update may set; `None` leaves a field untouched.
 #[derive(Default)]
@@ -16,6 +17,7 @@ pub struct ChannelPatch<'a> {
     pub slow_mode_seconds: Option<i64>,
     /// A default, not a lock: SPEAK overwrites are what restrict speaking.
     pub join_muted: Option<bool>,
+    pub default_notification: Option<NotificationPreference>,
     /// Voice only: a lobby that makes a room per person (decision 0065).
     pub creates_rooms: Option<bool>,
     /// Voice only: the most people in the call, 0 for no limit.
@@ -30,6 +32,7 @@ impl ChannelPatch<'_> {
             && self.topic.is_none()
             && self.slow_mode_seconds.is_none()
             && self.join_muted.is_none()
+            && self.default_notification.is_none()
             && self.creates_rooms.is_none()
             && self.user_limit.is_none()
             && self.room_locked.is_none()
@@ -60,6 +63,10 @@ impl Store {
         }
         if let Some(join_muted) = patch.join_muted {
             set.push("join_muted = ").push_bind_unseparated(join_muted);
+        }
+        if let Some(level) = patch.default_notification {
+            set.push("default_notification = ")
+                .push_bind_unseparated(level.as_str());
         }
         if let Some(creates_rooms) = patch.creates_rooms {
             set.push("creates_rooms = ")

@@ -9,17 +9,20 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// Renames a channel, replaces its topic, and/or sets its slow-mode
   /// interval. Requires MANAGE_CHANNELS at the deployment level, the same
   /// check creating a channel uses. At least one of [name], [topic],
-  /// [slowModeSeconds] and [joinMuted] must be given; a blank or whitespace-only [topic]
+  /// [slowModeSeconds], [joinMuted] and [defaultNotification] must be given; a blank or whitespace-only [topic]
   /// clears it back to none rather than storing an empty string.
   /// [slowModeSeconds] of 0 turns slow mode off; the server refuses, rather
   /// than clamps, a value outside 0 to 21600 (six hours). [joinMuted] sets
   /// whether joining a voice channel starts with the mic off.
+  /// [defaultNotification] sets what members with no choice of their own get;
+  /// their own choices are never rewritten.
   Future<Channel> updateChannel({
     required String channelId,
     String? name,
     String? topic,
     int? slowModeSeconds,
     bool? joinMuted,
+    NotificationPreference? defaultNotification,
     bool? createsRooms,
     int? userLimit,
   }) async {
@@ -31,6 +34,8 @@ extension SlimmApiChannelAdmin on SlimmApi {
         if (topic != null) 'topic': topic,
         if (slowModeSeconds != null) 'slow_mode_seconds': slowModeSeconds,
         if (joinMuted != null) 'join_muted': joinMuted,
+        if (defaultNotification != null)
+          'default_notification': defaultNotification.wire,
         if (createsRooms != null) 'creates_rooms': createsRooms,
         if (userLimit != null) 'user_limit': userLimit,
       },

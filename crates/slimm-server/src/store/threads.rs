@@ -17,6 +17,7 @@ use std::collections::HashSet;
 
 use super::{Channel, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
+use crate::notifications::NotificationPreference;
 
 /// How many live threads one channel may have open at once.
 ///
@@ -181,6 +182,7 @@ impl Store {
                 // Never read: a thread has no slow-mode setter of its own.
                 slow_mode_seconds: 0,
                 join_muted: false,
+                default_notification: NotificationPreference::default(),
                 room: super::ChannelRoom::default(),
             },
             fresh: true,

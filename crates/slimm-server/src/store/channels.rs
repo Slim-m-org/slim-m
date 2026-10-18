@@ -10,6 +10,7 @@
 use self::channel_create::fetch_channel_by_id;
 use super::{Channel, Store, now_ms};
 use crate::ids::ChannelId;
+use crate::notifications::NotificationPreference;
 
 pub(super) mod channel_create;
 pub(super) mod channel_notification_prefs;
@@ -47,6 +48,7 @@ impl Store {
                       created_at AS "created_at!",
                       slow_mode_seconds AS "slow_mode_seconds!: i64",
                       join_muted AS "join_muted!: bool",
+                      default_notification AS "default_notification!",
                       creates_rooms AS "creates_rooms!: bool",
                       user_limit AS "user_limit!: i64",
                       room_owner_id AS "room_owner_id: crate::ids::UserId",
@@ -68,6 +70,8 @@ impl Store {
             created_at: r.created_at,
             slow_mode_seconds: r.slow_mode_seconds,
             join_muted: r.join_muted,
+            default_notification: NotificationPreference::parse(&r.default_notification)
+                .unwrap_or_default(),
             room: super::ChannelRoom {
                 creates_rooms: r.creates_rooms,
                 user_limit: r.user_limit,

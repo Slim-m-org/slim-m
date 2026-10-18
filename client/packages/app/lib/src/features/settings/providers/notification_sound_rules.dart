@@ -64,6 +64,16 @@ api.NotificationPreference? readOnlyDefault(
     ? api.NotificationPreference.mentions
     : account;
 
+/// The narrower of two defaults, either of which may be absent: a channel's
+/// default only ever narrows the account's, as the server resolves it.
+api.NotificationPreference? stricterPreference(
+  api.NotificationPreference? a,
+  api.NotificationPreference? b,
+) {
+  if (a == null || b == null) return a ?? b;
+  return a.index >= b.index ? a : b;
+}
+
 /// Above this many participants (self included), join/leave chimes stop -
 /// the owner's own decision, "roughly 8", recorded in CLAUDE.md and already
 /// echoed in the Sounds settings copy before anything played them.

@@ -12981,6 +12981,14 @@ components:
             SPEAK overwrites are what restrict who may speak. Set with
             `updateChannel` or at `createChannel`. Absent on servers older
             than this field, which a client must treat as false.
+        default_notification:
+          type: string
+          enum: [everything, mentions, nothing]
+          description: >
+            What members with no choice of their own for this channel get.
+            A member's own choice wins, and a default can only narrow their
+            account preference. Absent on older servers, which a client must
+            treat as `everything`.
         creates_rooms:
           type: boolean
           description: >
@@ -13127,6 +13135,12 @@ components:
           description: >
             True creates a voice channel whose joins start with the mic off.
             Absent or false leaves the default off. Refused on a text channel.
+        default_notification:
+          type: string
+          enum: [everything, mentions, nothing]
+          description: >
+            The notification level members get here until they choose their
+            own. Absent means `everything`.
 
     UpdateChannelRequest:
       type: object
@@ -13157,6 +13171,12 @@ components:
           description: >
             Sets the join-muted default. Absent leaves it unchanged. `true` is
             refused on a text channel.
+        default_notification:
+          type: string
+          enum: [everything, mentions, nothing]
+          description: >
+            Sets the default notification level. Absent leaves it unchanged;
+            members' own choices are never rewritten.
         creates_rooms:
           type: boolean
           description: >

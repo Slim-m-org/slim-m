@@ -43,9 +43,7 @@ AppMenuItem markReadStateMenuItem(
 }) {
   final showsUnread = channelShowsUnread(
     channel,
-    container
-        .read(channelNotificationOverridesProvider)
-        .overrideFor(channel.id),
+    container.read(channelNotificationOverridesProvider).effectiveFor(channel),
     isDm: isDm,
   );
   return AppMenuItem(
@@ -82,7 +80,7 @@ AppMenuItem? markAllReadMenuItem(
     for (final channel in channels)
       if (channelShowsUnread(
         channel,
-        overrides.overrideFor(channel.id),
+        overrides.effectiveFor(channel),
         isDm: false,
       ))
         channel.id,
@@ -129,7 +127,7 @@ AppMenuItem markSpaceReadMenuItem(
               if (channel.kind != dmChannelKind &&
                   channelShowsUnread(
                     channel,
-                    overrides.overrideFor(channel.id),
+                    overrides.effectiveFor(channel),
                     isDm: false,
                   ))
                 channel.id,
@@ -151,7 +149,17 @@ Future<void> _set(
     ? notifier.mute(channelId)
     : notifier.mentionsOnly(channelId);
 
-/// Mute, mentions only and off-hours entries for [channelId].
+/// "Default (Mentions)" style wording for a channel's own default level.
+String channelDefaultMenuLabel(api.NotificationPreference level) =>
+    switch (level) {
+      api.NotificationPreference.nothing => 'Default (Muted)',
+      api.NotificationPreference.mentions => 'Default (Mentions)',
+      api.NotificationPreference.everything => 'Default (All messages)',
+    };
+
+/// Mute, mentions only and off-hours entries for [channelId], led by the
+/// channel's own default when it sets one ([channelDefault], from
+/// `channelDefaultOf`); choosing it clears this account's own choice.
 ///
 /// Read fresh when the menu opens rather than watched: the row itself already
 /// rebuilds on a live change, and an open menu need not react to one landing.
@@ -161,6 +169,7 @@ List<AppMenuItem> notificationMenuItems(
   String channelId,
   VoidCallback close, {
   required String muteLabel,
+  api.NotificationPreference? channelDefault,
 }) {
   final current = container
       .read(channelNotificationOverridesProvider)
@@ -207,6 +216,28 @@ List<AppMenuItem> notificationMenuItems(
   }
 
   return [
+    if (channelDefault != null)
+      AppMenuItem(
+        label: channelDefaultMenuLabel(channelDefault),
+        leading: channelDefault == api.NotificationPreference.nothing
+            ? AppIcons.notificationsOff
+            : AppIcons.notificationsOn,
+        selected: current == null,
+        onTap: () {
+          close();
+          if (current == null) return;
+          final notifier = container.read(
+            channelNotificationOverridesProvider.notifier,
+          );
+          unawaited(
+            _say(
+              context,
+              'change this conversation\'s notifications',
+              () => notifier.clear(channelId),
+            ),
+          );
+        },
+      ),
     AppMenuItem(
       label: muteLabel,
       leading: AppIcons.notificationsOff,

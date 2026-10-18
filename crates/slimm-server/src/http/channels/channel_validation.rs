@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! What a channel's name, topic and `join_muted` may be, on create and update.
+//! What a channel's name, topic and `join_muted` and default notification level may be, on create and update.
 
 use super::super::error::ApiError;
 use super::super::hidden_chars::is_hidden_char;
+use crate::notifications::NotificationPreference;
 
 /// A one-line header, not a description field: long enough for a real
 /// sentence, short enough that a client never needs to wrap or truncate it
@@ -35,6 +36,15 @@ pub(in crate::http) const JOIN_MUTED_VOICE_ONLY: &str =
     "join_muted only applies to a voice channel";
 pub(in crate::http) const ROOMS_VOICE_ONLY: &str =
     "creates_rooms and user_limit only apply to a voice channel, and a room cannot make rooms";
+
+/// Parses a channel's default notification level; `everything` means no default.
+pub(in crate::http) fn validate_default_notification(
+    value: &str,
+) -> Result<NotificationPreference, ApiError> {
+    NotificationPreference::parse(value).ok_or(ApiError::BadRequest(
+        "default_notification must be everything, mentions or nothing",
+    ))
+}
 
 /// The largest user limit a voice channel takes.
 pub(in crate::http) const MAX_USER_LIMIT: i64 = 99;

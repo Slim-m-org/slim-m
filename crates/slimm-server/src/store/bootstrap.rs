@@ -11,6 +11,7 @@
 
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, RoleId, UserId};
+use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 
 /// What `@everyone` gets on a fresh deployment: read and take part, but no
@@ -87,6 +88,7 @@ impl Store {
                       c.created_at AS "created_at!",
                       c.slow_mode_seconds AS "slow_mode_seconds!: i64",
                       c.join_muted AS "join_muted!: bool",
+                      c.default_notification AS "default_notification!",
                       c.creates_rooms AS "creates_rooms!: bool",
                       c.user_limit AS "user_limit!: i64",
                       c.room_owner_id AS "room_owner_id: crate::ids::UserId",
@@ -113,6 +115,8 @@ impl Store {
                 created_at: r.created_at,
                 slow_mode_seconds: r.slow_mode_seconds,
                 join_muted: r.join_muted,
+                default_notification: NotificationPreference::parse(&r.default_notification)
+                    .unwrap_or_default(),
                 room: super::ChannelRoom {
                     creates_rooms: r.creates_rooms,
                     user_limit: r.user_limit,
