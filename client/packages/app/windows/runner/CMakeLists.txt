@@ -55,6 +55,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "wtsapi32.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE now_playing_smtc)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
