@@ -122,3 +122,21 @@ final whatsNewControllerProvider =
     StateNotifierProvider<WhatsNewController, List<WhatsNewEntry>>(
       (ref) => WhatsNewController(ref),
     );
+
+/// Counts home panes on screen, so the gate leaves the update to their card.
+///
+/// Plain state rather than a notifying provider: the gate reads it at the
+/// moment an update lands, and the home registers synchronously on mount.
+class WhatsNewHomeHosts {
+  int _count = 0;
+
+  bool get present => _count > 0;
+
+  void attach() => _count++;
+
+  void detach() => _count--;
+}
+
+final whatsNewHomeHostsProvider = Provider<WhatsNewHomeHosts>(
+  (ref) => WhatsNewHomeHosts(),
+);

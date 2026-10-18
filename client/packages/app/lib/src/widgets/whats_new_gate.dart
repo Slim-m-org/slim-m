@@ -38,6 +38,8 @@ class WhatsNewGate extends ConsumerWidget {
       if (next.isEmpty) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
+        // The home shows the update as a card, so the dialog would say it twice.
+        if (ref.read(whatsNewHomeHostsProvider).present) return;
         unawaited(_showAndMarkSeen(context, ref, next));
       });
     });
