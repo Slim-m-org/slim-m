@@ -96,4 +96,30 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.111.0',
+    headline: 'Push to talk while you play, and an inbox for what you missed',
+    points: [
+      WhatsNewPoint(
+        'Push to talk and the mute shortcut work while a game has focus, on '
+        'Linux and Windows.',
+      ),
+      WhatsNewPoint(
+        'The inbox lists your mentions and unread channels, with mark all '
+        'read.',
+      ),
+      WhatsNewPoint(
+        'Invite links open in a browser now, and new members get a short '
+        'setup they can skip.',
+      ),
+      WhatsNewPoint(
+        'Images load faster because the server shrinks them first, and link '
+        'previews can be turned off.',
+      ),
+      WhatsNewPoint(
+        'Password fields have a show button, and bots no longer clash over '
+        'the same command.',
+      ),
+    ],
+  ),
 ];
