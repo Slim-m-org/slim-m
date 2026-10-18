@@ -148,6 +148,15 @@ pub(crate) struct AttachmentDto {
     /// Shown behind a spoiler on this message; omitted when false.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     spoiler: bool,
+    /// The uploaded original kept beside this copy; omitted when none was kept.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    original: Option<OriginalDto>,
+}
+
+#[derive(Serialize, Clone)]
+pub(crate) struct OriginalDto {
+    size: i64,
+    filename: String,
 }
 
 impl From<AttachmentSummary> for AttachmentDto {
@@ -158,6 +167,10 @@ impl From<AttachmentSummary> for AttachmentDto {
             content_type: a.content_type,
             size: a.size,
             spoiler: a.spoiler,
+            original: a.original.map(|o| OriginalDto {
+                size: o.size,
+                filename: o.filename,
+            }),
         }
     }
 }

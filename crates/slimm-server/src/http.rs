@@ -23,8 +23,10 @@ use crate::voice::VoiceService;
 pub mod admin_audit;
 mod analytics;
 mod apps;
+mod attachment_compress;
 mod attachment_ids;
 mod attachment_limit;
+mod attachment_original;
 mod attachment_preview;
 mod attachment_range;
 mod attachment_uploads;
@@ -103,6 +105,7 @@ mod recovery;
 mod reports;
 mod roles;
 use roles::role_reorder;
+mod media_compression;
 mod route_timing;
 mod safety;
 mod saved_messages;
@@ -222,6 +225,7 @@ pub fn router(state: AppState) -> Router {
         .merge(admin_audit::routes())
         .merge(analytics::routes())
         .merge(attachment_limit::routes())
+        .merge(media_compression::routes())
         .merge(module_schedule::routes())
         .merge(channel_retention::routes())
         .merge(apps::routes())

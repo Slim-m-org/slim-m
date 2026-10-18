@@ -4222,6 +4222,12 @@ paths:
         and the original's content type, so a caller must read the response
         `Content-Type` rather than assume the preview's. A value that is not a
         non-negative integer answers 400.
+
+
+        `original=true` asks for the file as it was uploaded, kept beside the
+        compressed copy when the space keeps originals (`original` on the
+        attachment). It is always a download and answers 404 when no original
+        was kept. It takes precedence over `w`.
       parameters:
         - name: w
           in: query
@@ -4229,6 +4235,14 @@ paths:
           description: Preview width in pixels; see the operation description.
           schema:
             type: integer
+        - name: original
+          in: query
+          required: false
+          description: >-
+            `true` for the uploaded original instead of the stored copy; see
+            the operation description.
+          schema:
+            type: boolean
         - name: Range
           in: header
           required: false
@@ -8608,6 +8622,76 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/media-compression:
+    get:
+      operationId: getSpaceMediaCompression
+      tags: [space]
+      summary: Read the photo compression settings.
+      description: >
+        Gated on MANAGE_SERVER. Compression is off until an admin turns it
+        on, and the other fields only apply while it is on. An upload whose
+        content (sniffed, never its name) is one of the listed photo types is
+        stored as a smaller upright JPEG, or as an optimised PNG when it is a
+        screenshot or has transparency. Animated pictures, video and every
+        other type are stored as sent. `extensions` is the list in force, the
+        defaults when none were chosen.
+      responses:
+        "200":
+          description: The current settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMediaCompression"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    patch:
+      operationId: updateSpaceMediaCompression
+      tags: [space]
+      summary: Change the photo compression settings.
+      description: >
+        Every field is optional and a missing one stays as it is. Extensions
+        are matched without case and may carry a leading dot; one no
+        supported format uses is refused with 400, and an empty list restores
+        the defaults. `metadata` is `keep`, `remove_location` or
+        `remove_all`; the picture is always stored upright. Applies to the
+        next upload; files already stored are kept as they are.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                extensions:
+                  type: array
+                  items:
+                    type: string
+                metadata:
+                  type: string
+                  enum: [keep, remove_location, remove_all]
+                keep_original:
+                  type: boolean
+      responses:
+        "200":
+          description: The settings after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMediaCompression"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/screen-share:
     get:
       operationId: getSpaceScreenShareCap
@@ -10899,6 +10983,39 @@ components:
         server_max_bytes:
           type: integer
           description: The operator's ceiling, which max_bytes may not exceed.
+    SpaceMediaCompression:
+      type: object
+      required:
+        - enabled
+        - extensions
+        - default_extensions
+        - supported_extensions
+        - metadata
+        - keep_original
+      properties:
+        enabled:
+          type: boolean
+        extensions:
+          type: array
+          items:
+            type: string
+        default_extensions:
+          type: array
+          items:
+            type: string
+        supported_extensions:
+          type: array
+          description: Every extension a list may name.
+          items:
+            type: string
+        metadata:
+          type: string
+          enum: [keep, remove_location, remove_all]
+        keep_original:
+          type: boolean
+          description: >-
+            Keep the uploaded file beside the compressed copy, offered as a
+            download.
     CreateUploadSession:
       type: object
       required: [size]
@@ -14047,6 +14164,19 @@ components:
           description: >-
             Shown behind a spoiler on this message. A property of the message
             carrying the bytes, not of the bytes; omitted when false.
+        original:
+          type: object
+          description: >-
+            The uploaded original kept beside this copy, fetched with
+            `getAttachment`'s `original=true`; omitted when none was kept.
+          required: [size, filename]
+          properties:
+            size:
+              type: integer
+              format: int64
+            filename:
+              type: string
+              description: The name it was uploaded under.
 
     GifResult:
       type: object

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT original_size AS \"size!\", original_content_type AS \"content_type!\",\n                      original_filename AS \"filename!\"\n               FROM attachments WHERE sha256 = ? AND original_size > 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "size!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "content_type!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "filename!",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "35ad044dae55e806d92ca7a59d2b4a0d64b3e59d5f2c1a7f59e1b3f8d7e0ce22"
+}

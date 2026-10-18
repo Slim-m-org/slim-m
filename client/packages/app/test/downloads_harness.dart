@@ -91,6 +91,7 @@ class FakeAttachmentServer {
   StreamController<List<int>> body = StreamController<List<int>>();
   bool bodyCancelled = false;
   int requests = 0;
+  Uri? lastUri;
 
   /// When set, response headers wait for it.
   Completer<void>? headersGate;
@@ -100,6 +101,7 @@ class FakeAttachmentServer {
     session: api.SessionStore(tokens: testTokens),
     httpClient: MockClient.streaming((request, _) async {
       requests++;
+      lastUri = request.url;
       await headersGate?.future;
       if (requests > 1) body = StreamController<List<int>>();
       if (status != 200) {

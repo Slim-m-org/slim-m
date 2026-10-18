@@ -68,4 +68,15 @@ pub(super) async fn upload_session_calls(c: &mut Contract, root: &str) {
         json!({"max_bytes": 0}),
     )
     .await;
+
+    c.get("getSpaceMediaCompression", "/space/media-compression", root)
+        .await;
+    c.json(
+        "updateSpaceMediaCompression",
+        "PATCH",
+        "/space/media-compression",
+        root,
+        json!({"enabled": true, "metadata": "remove_all"}),
+    )
+    .await;
 }

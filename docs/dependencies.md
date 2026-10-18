@@ -288,3 +288,11 @@ It is reached through a `dart.library.io` conditional import and only builds a c
 It is used for the camera source only, because `photo_manager` above cannot capture.
 Permissions: iOS reuses `NSCameraUsageDescription` (its text now also names profile photos) and Android reuses the `CAMERA` permission already declared for calls, so the two plugins add no new keys.
 Real-camera capture on a phone is untested here and needs a device.
+
+## Photo compression (jpeg-encoder, fast_image_resize, zune-heic, oxipng)
+
+The upload photo compressor (`media/compress`, decision record in `docs/research/media-compression.md`).
+All are permissive-licensed.
+`zune-heic` is the only HEIC decoder in the tree that is pure safe Rust and not AGPL.
+`oxipng` is held to `default-features = false` (no CLI, no rayon, no zopfli) and pulls `libdeflater`, which builds with the C compiler the jemalloc build already needs.
+`image` gains the `bmp` and `tiff` decoders for the same feature.

@@ -59,15 +59,18 @@ pub async fn collect_garbage(
             }
             continue;
         }
-        if age < ORPHAN_FILE_GRACE || !is_content_name(&name) {
+        let hex = name
+            .strip_suffix(media::originals::ORIGINAL_SUFFIX)
+            .unwrap_or(&name);
+        if age < ORPHAN_FILE_GRACE || !is_content_name(hex) {
             continue;
         }
-        let Some(sha256) = media::from_hex(&name) else {
+        let Some(sha256) = media::from_hex(hex) else {
             continue;
         };
         let _guard = media.blob_guard().await;
         if store.attachment_summary(&sha256).await?.is_none() {
-            media.delete_attachment(&name).await?;
+            media.delete_attachment(hex).await?;
             removed += 1;
         }
     }

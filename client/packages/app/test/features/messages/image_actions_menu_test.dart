@@ -86,6 +86,7 @@ Future<void> _pump(
   required Size size,
   required _FakeWriter writer,
   required _FakeExporter exporter,
+  api.Attachment image = _image,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -101,10 +102,10 @@ Future<void> _pump(
         ],
         child: MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
-          home: const Scaffold(
+          home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              child: AttachmentView(attachment: _image),
+              child: AttachmentView(attachment: image),
             ),
           ),
         ),
@@ -150,6 +151,37 @@ void main() {
     expect(_row('Save image'), findsOneWidget);
     expect(tester.getSize(_row('Copy image')).height, 34);
     expect(find.text('Copy link'), findsNothing);
+  });
+
+  testWidgets('Download original shows only where the space kept the upload', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      size: const Size(1280, 800),
+      writer: _FakeWriter(),
+      exporter: _FakeExporter(phone: false),
+    );
+    await _rightClick(tester, find.byType(Image).first);
+    expect(find.text('Download original'), findsNothing);
+    await tester.tapAt(const Offset(1200, 700));
+    await tester.pumpAndSettle();
+
+    await _pump(
+      tester,
+      size: const Size(1280, 800),
+      writer: _FakeWriter(),
+      exporter: _FakeExporter(phone: false),
+      image: const api.Attachment(
+        id: 'a2',
+        filename: 'holiday.jpg',
+        contentType: 'image/jpeg',
+        size: 2048,
+        original: api.AttachmentOriginal(size: 9000, filename: 'IMG_1.heic'),
+      ),
+    );
+    await _rightClick(tester, find.byType(Image).first);
+    expect(_row('Download original'), findsOneWidget);
   });
 
   testWidgets('Copy image hands the seam the attachment bytes', (tester) async {

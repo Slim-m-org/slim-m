@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The small menu a right-click or long-press on an image opens: Copy image
-/// and Save image.
+/// The small menu a right-click or long-press on an image opens: Copy image,
+/// Save image and, where the space kept the upload, Download original.
 ///
 /// There is no Copy link row: an attachment is served only to signed-in
 /// members, so its address is no link anyone could open. A failed action goes
@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../downloads/downloads_controller.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'image_actions.dart';
 import 'image_export.dart';
@@ -70,6 +71,15 @@ class ImageActionsMenuRegion extends ConsumerWidget {
             _run(saveImageToDevice, ref);
           },
         ),
+        if (image.original != null)
+          AppMenuItem(
+            label: 'Download original',
+            leading: AppIcons.download,
+            onTap: () {
+              close();
+              ref.read(downloadsProvider.notifier).start(image, original: true);
+            },
+          ),
       ],
       child: child,
     );

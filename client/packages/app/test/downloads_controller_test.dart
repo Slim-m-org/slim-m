@@ -50,6 +50,36 @@ void main() {
     await until(() => server.body.hasListener);
   }
 
+  test(
+    'a kept original downloads from its own route under its own name',
+    () async {
+      harness();
+      const kept = api.Attachment(
+        id: 'img1',
+        filename: 'IMG_1.jpg',
+        contentType: 'image/jpeg',
+        size: 4,
+        original: api.AttachmentOriginal(size: 8, filename: 'IMG_1.heic'),
+      );
+      final started = controller().start(kept, original: true);
+      await until(() => server.body.hasListener);
+      await server.body.close();
+      await started;
+
+      expect(dialog.filenames, ['IMG_1.heic']);
+      expect(server.lastUri!.queryParameters['original'], 'true');
+      expect(tasks().single.attachment.size, 8);
+    },
+  );
+
+  test('an attachment with no kept original starts nothing', () async {
+    harness();
+    await controller().start(_iso, original: true);
+
+    expect(dialog.filenames, isEmpty);
+    expect(server.requests, 0);
+  });
+
   test('streams every chunk to the target and finishes', () async {
     harness();
     await begin();

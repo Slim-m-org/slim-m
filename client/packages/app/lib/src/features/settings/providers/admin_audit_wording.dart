@@ -120,6 +120,7 @@ class _Describer {
     'space.screen_share' => 'changed the screen share limit',
     'space.link_previews' => 'changed link previews',
     'space.attachment_limit' => 'changed the attachment size limit',
+    'space.media_compression' => 'changed photo compression',
     'space.icon_set' => 'set the space icon',
     'space.icon_clear' => 'removed the space icon',
     'space.banner_set' => 'set the space banner',

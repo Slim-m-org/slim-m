@@ -1,0 +1,94 @@
+# Photo compression on upload
+
+Decision record and measurements for the space setting that shrinks photos when they are uploaded (`/space/media-compression`).
+The owner's brief: a phone sends a raw 40 MB photo and it is stored at a reasonable size and format without a noticeable difference, toggleable, on listed types only, with an option to keep the original.
+
+## What it does
+
+- Off by default, so an upgrade changes nothing.
+- The file type is decided by sniffing the bytes.
+  The admin's extension list only chooses which sniffed formats are eligible: jpg/jpeg/jpe/jfif, png, webp, heic/heif/hif, bmp and tif/tiff.
+  Defaults are jpg, jpeg, heic, heif, png, webp, bmp, tiff.
+- A photograph becomes a progressive JPEG, 4:2:0, quality 90, MS-SSIM quantisation tables, longest side capped at 4096 px, upright, ICC profile kept.
+- A screenshot, drawing or picture with transparency stays pixel-identical and only goes through oxipng (lossless).
+  "Drawn" means more than 60% of pixels equal their left neighbour, or fewer than 2048 distinct colours.
+- Animated PNG, animated WebP, multi-page TIFF, GIF, video and everything else are never touched.
+- A result must be at least 10% smaller than the upload, or smaller at all when it keeps the format losslessly.
+  HEIC, BMP and TIFF are always converted when they decode, because no client draws them.
+  A JPEG that does not shrink but carries metadata the policy removes is rewritten at segment level, with no re-encode.
+- Metadata: keep all, remove location (default), remove all.
+  Orientation is always baked into the pixels, so the stored EXIF orientation is 1.
+  Remove location rebuilds the EXIF block without GPS, thumbnail, maker note and embedded XMP/IPTC; remove all writes none.
+  The metadata mode only applies while compression is on: stripping rewrites the file, and applying it with the switch off would change what an upgrade stores.
+- Keep original stores the upload beside the copy as `<id>.orig`, served only at `GET /attachments/{id}?original=true` as a download.
+  The quota and the storage screen count both files.
+
+## Measurements
+
+Reference for every row is the source decoded and resampled to the output size by Pillow (Lanczos), so only encoding loss is measured.
+SSIMULACRA2 (higher is better; 90 is visually lossless, 70 is high quality) and a 7x7 luma SSIM.
+Photos: Fronalpstock (10109x4542, 14.7 MB, scenery), Eiffel (2900x5367, 5.3 MB), phone12 (4032x3024 with sensor noise, EXIF orientation 6 and GPS, 4.2 MB).
+At 100% a side-by-side crop of Eiffel at q90 against the reference could not be told apart.
+
+Quality and tables at a 4096 px cap, 4:2:0:
+
+| photo | setting | size | SSIMULACRA2 | SSIM |
+|---|---|---|---|---|
+| Fronalpstock | q85 standard | 1.40 MB | 78.7 | 0.9705 |
+| Fronalpstock | q85 MS-SSIM | 1.37 MB | 79.3 | 0.9689 |
+| Fronalpstock | q90 MS-SSIM | 1.76 MB | 82.8 | 0.9777 |
+| Eiffel | q85 standard | 1.48 MB | 76.1 | 0.9767 |
+| Eiffel | q85 MS-SSIM | 1.41 MB | 76.0 | 0.9766 |
+| Eiffel | q90 MS-SSIM | 1.82 MB (34%) | about 81 | 0.983 |
+| phone12 | q85 standard | 2.31 MB | 80.6 | 0.9598 |
+| phone12 | q90 MS-SSIM | about 3.0 MB | about 86 | 0.984 |
+
+4:4:4 at q85 costs about 25% more bytes for 3 to 4 points of SSIMULACRA2, about what q90 buys in 4:2:0, so 4:2:0 was kept.
+MS-SSIM tables are 3 to 5% smaller than the standard ones at equal or better score.
+
+Long-edge cap at q90, 4:2:0, MS-SSIM:
+
+| source | 2560 | 3072 | 4096 |
+|---|---|---|---|
+| 108 MP phone, 58.8 MB | 1.20 MB | 1.68 MB | 2.84 MB |
+| 83 MP painting, 94.3 MB | 1.73 MB | 2.54 MB | 4.55 MB |
+| Fronalpstock, 14.7 MB | 0.76 MB | 1.05 MB | 1.76 MB |
+
+SSIMULACRA2 stayed between 79 and 84 at every cap.
+4096 was chosen so a 12 MP phone photo keeps its pixels; a 40 to 60 MB photo lands at 2 to 5 MB.
+
+Lossless PNG (oxipng preset 2, pixel-identical in every case, checked by decoding both):
+
+| input | before | after |
+|---|---|---|
+| UI screenshots 1280x800 | 128 to 424 KB | 74 to 95% of that |
+| 16-bit RGBA UI screenshot | 700 KB | 87% |
+| code screenshot 2560x1440 | 254 KB | 76% |
+| transparent 1600x900 | 53 KB | 82% |
+| photo saved as PNG, 4000x3000 | 14.2 MB | 2.37 MB as JPEG |
+
+The `png` crate alone made screenshots larger than the input; oxipng's palette and filter search is what saves bytes.
+A smooth, denoised phone photo (the pug HEIC) has 45% equal neighbours, which is why the drawn threshold is 60% and not lower.
+
+## Cost
+
+| build | 12 MP | 108 MP | peak RSS at 108 MP |
+|---|---|---|---|
+| cargo release, opt-level 3 | 0.18 s | 0.8 s | 520 MB |
+| release profile (opt-level z, lto) | 0.5 s | 3.3 s | 520 MB |
+
+The server runs this in `spawn_blocking` behind a 4-unit budget, one unit per 24 megapixels, so one 100 MP photo at a time or four small ones.
+Pictures over 160 MP or files over 256 MB are stored as sent.
+The default upload limit is 1 GiB (`SLIMM_ATTACHMENT_MAX_BYTES`), so a 40 MB photo passes it with room to spare.
+
+## Formats and dependencies
+
+- HEIC decodes with `zune-heic` (MIT/Apache-2.0/Zlib), pure safe Rust, no libheif.
+  The `heic` crate was rejected: AGPL.
+  It handled a 4032x3024 iPhone file in 53 ms and a hand-built HEVC still; a libheif sample with an unusual `mdat` layout failed to decode and is stored as sent.
+  HEIC with alpha or 10-bit samples that the decoder refuses are also stored as sent.
+- JPEG encode is `jpeg-encoder`, resize is `fast_image_resize`, both pure Rust.
+- `oxipng` brings `libdeflater`, a small C library compiled by the `cc` crate.
+  `docker build -f docker/server.Dockerfile` builds it on the Alpine musl builder without changes.
+- Not preserved on re-encode: HDR gain maps and multi-picture data (Ultra HDR), and the EXIF thumbnail.
+  Keep original retains them.

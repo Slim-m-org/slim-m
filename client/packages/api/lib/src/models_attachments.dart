@@ -17,6 +17,7 @@ class Attachment {
     required this.contentType,
     required this.size,
     this.spoiler = false,
+    this.original,
   });
 
   /// Hex sha256 of the stored bytes. Also the path segment a fetch uses, and
@@ -37,12 +38,49 @@ class Attachment {
   /// a property of the bytes.
   final bool spoiler;
 
+  /// The file as uploaded, kept beside this compressed copy when the space
+  /// keeps originals; fetched with `fetchAttachment`'s original flag.
+  final AttachmentOriginal? original;
+
+  /// This attachment as the file that was uploaded, for saving it.
+  Attachment? get asOriginal {
+    final kept = original;
+    if (kept == null) return null;
+    return Attachment(
+      id: id,
+      filename: kept.filename,
+      contentType: contentType,
+      size: kept.size,
+    );
+  }
+
   factory Attachment.fromJson(Map<String, dynamic> json) => Attachment(
         id: json['id'] as String,
         filename: json['filename'] as String,
         contentType: json['content_type'] as String,
         size: json['size'] as int,
         spoiler: json['spoiler'] as bool? ?? false,
+        original: json['original'] == null
+            ? null
+            : AttachmentOriginal.fromJson(
+                json['original'] as Map<String, dynamic>,
+              ),
+      );
+}
+
+/// The uploaded file kept beside a compressed attachment.
+class AttachmentOriginal {
+  const AttachmentOriginal({required this.size, required this.filename});
+
+  final int size;
+
+  /// The name it was uploaded under.
+  final String filename;
+
+  factory AttachmentOriginal.fromJson(Map<String, dynamic> json) =>
+      AttachmentOriginal(
+        size: json['size'] as int,
+        filename: json['filename'] as String,
       );
 }
 

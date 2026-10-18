@@ -126,7 +126,18 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
 
   /// Asks where to save, then downloads in the background. A dismissed Save
   /// dialog is not a failure and starts nothing.
-  Future<void> start(api.Attachment attachment) async {
+  ///
+  /// With [original] the file as uploaded, kept beside a compressed copy.
+  Future<void> start(api.Attachment attachment, {bool original = false}) async {
+    final source = original ? attachment.asOriginal : attachment;
+    if (source == null) return;
+    await _start(source, original: original);
+  }
+
+  Future<void> _start(
+    api.Attachment attachment, {
+    required bool original,
+  }) async {
     if (isDownloading(attachment.id)) return;
     _asking.add(attachment.id);
     final DownloadTarget? target;
@@ -175,7 +186,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
         total: attachment.size > 0 ? attachment.size : null,
       ),
     ];
-    await _run(id, run, attachment);
+    await _run(id, run, attachment, original: original);
   }
 
   /// Stops a running download and removes its partial file.
@@ -198,11 +209,16 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
     ];
   }
 
-  Future<void> _run(int id, _Run run, api.Attachment attachment) async {
+  Future<void> _run(
+    int id,
+    _Run run,
+    api.Attachment attachment, {
+    required bool original,
+  }) async {
     try {
       final download = await ref
           .read(apiProvider)
-          .openAttachmentDownload(attachment.id);
+          .openAttachmentDownload(attachment.id, original: original);
       if (run.cancelled) {
         // An unread body keeps the socket open and the server sending.
         unawaited(download.body.listen(null).cancel());

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachments (sha256, size, content_type, key_version, is_encrypted, filename, created_at)\n         VALUES (?, ?, ?, 0, 0, ?, ?)\n         ON CONFLICT (sha256) DO UPDATE SET created_at = excluded.created_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "f17e921fead00880927572e4efe5fc80417ee1cf24cab3f889ce1406d75fc5cc"
+}

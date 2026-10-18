@@ -45,3 +45,55 @@ class SpaceAttachmentLimit {
         serverMaxBytes: json['server_max_bytes'] as int,
       );
 }
+
+/// The space's photo compression settings, `GET /space/media-compression`.
+class SpaceMediaCompression {
+  const SpaceMediaCompression({
+    required this.enabled,
+    required this.extensions,
+    required this.defaultExtensions,
+    required this.supportedExtensions,
+    required this.metadata,
+    required this.keepOriginal,
+  });
+
+  final bool enabled;
+
+  /// The file types in force, the defaults when none were chosen.
+  final List<String> extensions;
+  final List<String> defaultExtensions;
+  final List<String> supportedExtensions;
+
+  /// `keep`, `remove_location` or `remove_all`.
+  final String metadata;
+  final bool keepOriginal;
+
+  SpaceMediaCompression copyWith({
+    bool? enabled,
+    List<String>? extensions,
+    String? metadata,
+    bool? keepOriginal,
+  }) =>
+      SpaceMediaCompression(
+        enabled: enabled ?? this.enabled,
+        extensions: extensions ?? this.extensions,
+        defaultExtensions: defaultExtensions,
+        supportedExtensions: supportedExtensions,
+        metadata: metadata ?? this.metadata,
+        keepOriginal: keepOriginal ?? this.keepOriginal,
+      );
+
+  factory SpaceMediaCompression.fromJson(Map<String, dynamic> json) =>
+      SpaceMediaCompression(
+        enabled: json['enabled'] as bool,
+        extensions: _strings(json['extensions']),
+        defaultExtensions: _strings(json['default_extensions']),
+        supportedExtensions: _strings(json['supported_extensions']),
+        metadata: json['metadata'] as String,
+        keepOriginal: json['keep_original'] as bool,
+      );
+
+  static List<String> _strings(Object? raw) => [
+        for (final item in raw as List<dynamic>) item as String,
+      ];
+}
