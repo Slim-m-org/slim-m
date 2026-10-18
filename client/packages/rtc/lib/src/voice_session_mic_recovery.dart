@@ -61,13 +61,15 @@ mixin VoiceSessionMicRecovery {
     _micLost = _mic.lost.listen(
       (_) => _micRecovery.onLost('track ended or unpublished'),
     );
-    _micLevels = _gate.readings.listen(
-      (r) => _micWatchdog.observe(
+    _micLevels = _gate.readings.listen((r) {
+      // Strong suppression turns a quiet room into near-silence, which read as a dead mic every 30-60 s.
+      if (r.strongActive) return;
+      _micWatchdog.observe(
         r.levelDb,
         active:
             _micWanted && _mic.open && _state == VoiceSessionState.connected,
-      ),
-    );
+      );
+    });
   }
 
   Future<void> _disposeMicRecovery() async {
