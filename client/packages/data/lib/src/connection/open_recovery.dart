@@ -60,11 +60,16 @@ class OpenFailure {
 class OpenRecoveryHost {
   const OpenRecoveryHost({
     this.backoff = _defaultBackoff,
+    this.prepare = prepareEncryptedDatabase,
     this.probe = probeOpen,
     this.setAside = setDatabaseAside,
   });
 
   final List<Duration> backoff;
+  final Future<PreparedDatabase> Function({
+    required File file,
+    required DatabaseKeyStore keys,
+  }) prepare;
   final OpenFailure? Function(File file, String key) probe;
   final void Function(File file) setAside;
 }
@@ -109,13 +114,13 @@ Future<PreparedDatabase> prepareOpenableDatabase({
 }) async {
   late PreparedDatabase prepared;
   final failure = await _retrying(file, host, () async {
-    prepared = await prepareEncryptedDatabase(file: file, keys: keys);
+    prepared = await host.prepare(file: file, keys: keys);
     return host.probe(file, prepared.key);
   });
   if (failure == null) return prepared;
   if (failure.heldByLock) throw DatabaseInUseElsewhere(failure.toString());
   _setAside(file, failure, host);
-  final fresh = await prepareEncryptedDatabase(file: file, keys: keys);
+  final fresh = await host.prepare(file: file, keys: keys);
   final again = host.probe(file, fresh.key);
   if (again != null) throw DatabaseUnopenable(again.toString());
   return (key: fresh.key, reset: DatabaseResetReason.unreadable);

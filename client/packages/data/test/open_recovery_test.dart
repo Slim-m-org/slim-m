@@ -205,6 +205,56 @@ void main() {
       );
     });
 
+    test('an exclusive handle seen while preparing is reported, not raised',
+        () async {
+      await seedEncrypted();
+      var prepares = 0;
+      final sharing = FileSystemException(
+        'Cannot open file',
+        file.path,
+        const OSError('being used by another process', 32),
+      );
+      await expectLater(
+        prepareOpenableDatabase(
+          file: file,
+          keys: keys,
+          host: OpenRecoveryHost(
+            backoff: const [Duration(milliseconds: 1)],
+            prepare: ({required file, required keys}) {
+              prepares++;
+              throw sharing;
+            },
+            setAside: (f) => throw sharing,
+          ),
+        ),
+        throwsA(isA<DatabaseInUseElsewhere>()),
+      );
+      expect(prepares, 2, reason: 'retried once before giving up');
+    });
+
+    test('an exclusive handle that is released while retrying opens', () async {
+      await seedEncrypted();
+      var prepares = 0;
+      final prepared = await prepareOpenableDatabase(
+        file: file,
+        keys: keys,
+        host: OpenRecoveryHost(
+          backoff: const [Duration(milliseconds: 1)],
+          prepare: ({required file, required keys}) {
+            if (prepares++ == 0) {
+              throw FileSystemException(
+                'Cannot open file',
+                file.path,
+                const OSError('being used by another process', 32),
+              );
+            }
+            return prepareEncryptedDatabase(file: file, keys: keys);
+          },
+        ),
+      );
+      expect(prepared.reset, isNull);
+    });
+
     test('a damaged file is not retried', () async {
       await seedEncrypted();
       var probes = 0;

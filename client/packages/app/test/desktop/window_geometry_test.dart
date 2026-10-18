@@ -59,6 +59,42 @@ void main() {
       },
     );
 
+    test('a window capped to a smaller display is moved back onto it', () {
+      // 965x717 saved at 122,16, restored on a 150 percent scaled 853x485 screen.
+      const scaled = DisplayArea(x: 0, y: 0, width: 853, height: 485);
+      final geometry = WindowGeometry(
+        windowedSize: const WindowSize(width: 965, height: 717),
+        position: const WindowRect(x: 122, y: 16, width: 965, height: 717),
+      );
+
+      final clamped = clampToAttachedDisplays(geometry, [scaled]);
+      final placed = clamped.position!;
+
+      expect(placed.x + placed.width, lessThanOrEqualTo(scaled.width));
+      expect(placed.x, greaterThanOrEqualTo(0));
+      expect(placed.y, greaterThanOrEqualTo(0));
+    });
+
+    test('a window hanging off the right edge is nudged left', () {
+      final clamped = clampToAttachedDisplays(_windowed(x: 1500, y: 100), [
+        _primary,
+      ]);
+
+      expect(clamped.position!.x, 1920 - 1280);
+      expect(clamped.position!.y, 100);
+    });
+
+    test('a window straddling two adjacent displays stays where it is', () {
+      final geometry = _windowed(x: 1500, y: 100);
+
+      final clamped = clampToAttachedDisplays(geometry, [
+        _primary,
+        _secondPositionedRight,
+      ]);
+
+      expect(clamped, same(geometry));
+    });
+
     test('an empty display list is treated as nothing to validate against', () {
       final geometry = _windowed(x: 100, y: 100);
 
