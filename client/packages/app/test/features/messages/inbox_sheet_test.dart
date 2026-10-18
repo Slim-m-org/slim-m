@@ -5,6 +5,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryExecutor, QueryInterceptor;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -152,6 +154,30 @@ class _Rig {
   }
 }
 
+class _SelectCounter extends QueryInterceptor {
+  int selects = 0;
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    QueryExecutor inner,
+    String statement,
+    List<Object?> args,
+  ) {
+    selects++;
+    return inner.runSelect(statement, args);
+  }
+}
+
+Future<void> _seedMany(MessageStore store, int count) async {
+  await store.upsertChannels([
+    for (var i = 0; i < count; i++)
+      api.Channel(id: 'c$i', name: 'c$i', kind: 'text', createdAt: i),
+  ]);
+  for (var i = 0; i < count; i++) {
+    await store.applyMessage(_message('m$i', 'c$i', 1, 'hello $i'));
+  }
+}
+
 class _Muted extends ChannelNotificationOverridesController {
   _Muted(super.ref, Map<String, api.NotificationPreference> byChannel) {
     state = ChannelNotificationOverridesState(
@@ -219,6 +245,47 @@ void main() {
     expect(rig.posted.single, unorderedEquals(['gen', 'dev']));
     expect(find.text('You are all caught up.'), findsOneWidget);
   });
+
+  testWidgets('mark all read covers every unread channel, past the list cap', (
+    tester,
+  ) async {
+    final rig = _Rig();
+    await tester.runAsync(() => _seedMany(rig.store, inboxLimit + 50));
+    await rig.open(tester);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Mark all read'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(rig.posted.expand((b) => b).toSet(), hasLength(inboxLimit + 50));
+  });
+
+  test(
+    'building the inbox reads messages in one query, not one per channel',
+    () async {
+      final counter = _SelectCounter();
+      final db = SlimmDatabase(NativeDatabase.memory().interceptWith(counter));
+      addTearDown(db.close);
+      final store = MessageStore(db);
+      await _seedMany(store, 40);
+      final channels = await store.allChannels();
+
+      counter.selects = 0;
+      final entries = await buildInbox(
+        store,
+        channels,
+        const ChannelNotificationOverridesState(byChannel: {}, settled: true),
+      );
+
+      expect(entries, hasLength(40));
+      expect(entries.every((e) => e.message != null), isTrue);
+      expect(counter.selects, 1);
+    },
+  );
 
   test('marking more than 200 channels read goes out 200 at a time', () async {
     final rig = _Rig();
