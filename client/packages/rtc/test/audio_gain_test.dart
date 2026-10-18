@@ -21,6 +21,15 @@ class _EmptyRoom extends lk.Room {
 }
 
 void main() {
+  test('half volume is a clearly quieter -18 dB, full and double stay put', () {
+    expect(perceptualParticipantGain(0.5), closeTo(0.125, 1e-9));
+    expect(perceptualParticipantGain(0), 0);
+    expect(perceptualParticipantGain(1), 1);
+    expect(perceptualParticipantGain(1.5), 1.5);
+    expect(perceptualParticipantGain(2), 2);
+    expect(perceptualParticipantGain(5), kMaxParticipantVolume);
+  });
+
   test('every platform offers the control', () {
     expect(supportsParticipantVolume, isTrue);
   });

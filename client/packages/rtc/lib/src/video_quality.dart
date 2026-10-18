@@ -76,10 +76,11 @@ Future<void> applyReceiveVideoQuality(
   }
 }
 
-/// Every remote video publication of [room] as a [RemoteVideoQualityRef].
+/// Every remote video publication of [room] as a [RemoteVideoQualityRef],
+/// over copies, since callers await between refs while people join and leave.
 Iterable<RemoteVideoQualityRef> remoteVideoQualityRefs(lk.Room room) sync* {
-  for (final participant in room.remoteParticipants.values) {
-    for (final pub in participant.videoTrackPublications) {
+  for (final participant in room.remoteParticipants.values.toList()) {
+    for (final pub in participant.videoTrackPublications.toList()) {
       yield (
         sid: pub.sid,
         source: pub.source,

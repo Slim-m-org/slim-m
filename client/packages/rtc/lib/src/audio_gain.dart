@@ -45,6 +45,15 @@ bool get supportsParticipantVolume => true;
 double clampParticipantVolume(double volume) =>
     volume.clamp(0.0, kMaxParticipantVolume);
 
+/// The playback gain for a slider [volume]. Below 100% it follows an audio
+/// taper (the cube), because a straight multiplier put half volume at only
+/// -6 dB, which barely sounded quieter; above 100% it stays linear, since
+/// boosting past that only clips.
+double perceptualParticipantGain(double volume) {
+  final v = clampParticipantVolume(volume);
+  return v <= 1.0 ? v * v * v : v;
+}
+
 /// Applies [volume] to one already-subscribed remote audio track.
 ///
 /// Errors are returned rather than thrown: this runs inside the per-track
@@ -52,7 +61,7 @@ double clampParticipantVolume(double volume) =>
 /// and not awaited, so a throw would surface as an unhandled zone error
 /// rather than as anything anybody could act on.
 Future<Object?> applyParticipantVolume(lk.Track track, double volume) async {
-  final clamped = clampParticipantVolume(volume);
+  final clamped = perceptualParticipantGain(volume);
   try {
     if (lk.lkPlatformIs(lk.PlatformType.web)) {
       return web_gain.applyWebGain(track.getCid(), clamped);

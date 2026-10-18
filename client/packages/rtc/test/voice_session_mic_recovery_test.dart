@@ -107,7 +107,7 @@ const _timing = MicRecoveryTiming(
 );
 
 class _Rig {
-  _Rig({this.levelDb = -40.0, bool strong = false}) {
+  _Rig({this.levelDb = -40.0, bool strong = false, this.strongActive = false}) {
     session = VoiceSession(
       roomFactory: _EmptyRoom.new,
       micPort: mic,
@@ -117,7 +117,11 @@ class _Rig {
       inputGate: InputGateMonitor(
         interval: const Duration(milliseconds: 5),
         invoke: (method, [args]) async => method == 'getInputGate'
-            ? {'levelDb': levelDb, 'voice': false}
+            ? {
+                'levelDb': levelDb,
+                'voice': false,
+                'strongNoiseSuppression': strongActive,
+              }
             : null,
         supported: true,
       ),
@@ -129,6 +133,7 @@ class _Rig {
   final mic = _FakeMic();
   final devices = _Devices();
   final double levelDb;
+  final bool strongActive;
   final statuses = <MicStatus>[];
   late final VoiceSession session;
 
@@ -250,6 +255,17 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     expect(rig.mic.restarts, hasLength(2));
+  });
+
+  test('a quiet room under active Strong suppression is not restarted',
+      () async {
+    final rig = _Rig(levelDb: kInputFloorDb, strongActive: true);
+    addTearDown(rig.session.dispose);
+    await rig.join();
+
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    expect(rig.mic.restarts, isEmpty);
   });
 
   test('a live level or a muted mic never trips the watchdog', () async {

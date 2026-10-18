@@ -147,9 +147,12 @@ class LocalAudioState {
   Future<Object?> applyTo(lk.Room room) => applyToRefs(refsOf(room));
 
   /// Every subscribed remote audio track in [room], as [LocalAudioRef]s.
+  ///
+  /// Walks copies: callers await between refs, and a join or leave in that gap
+  /// threw a concurrent modification that stopped the rest of the pass.
   Iterable<LocalAudioRef> refsOf(lk.Room room) sync* {
-    for (final participant in room.remoteParticipants.values) {
-      for (final publication in participant.audioTrackPublications) {
+    for (final participant in room.remoteParticipants.values.toList()) {
+      for (final publication in participant.audioTrackPublications.toList()) {
         final track = publication.track;
         if (track == null) continue;
         yield (

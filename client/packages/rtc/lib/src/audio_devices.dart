@@ -3,7 +3,9 @@
 /// own shape for audio.
 library;
 
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'pulse_audio.dart';
 import 'voice_models.dart';
@@ -31,21 +33,50 @@ class HardwareAudioDevices implements AudioDevices {
   /// own list stands in; see `pulse_audio_io.dart`.
   @override
   Future<List<AudioDevice>> inputs() async {
-    final listed = withoutPseudoDefaults(
-      _toAudioDevices(await lk.Hardware.instance.audioInputs()),
-    );
+    final listed = await _listedOrWarmed(lk.Hardware.instance.audioInputs);
     if (listed.isNotEmpty || !PulseAudio.supported) return listed;
     return await PulseAudio().sources() ?? listed;
   }
 
   @override
   Future<List<AudioDevice>> outputs() async {
-    final listed = withoutPseudoDefaults(
-      _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
-    );
+    final listed = await _listedOrWarmed(lk.Hardware.instance.audioOutputs);
     if (listed.isNotEmpty || !PulseAudio.supported) return listed;
     return await PulseAudio().sinks() ?? listed;
   }
+
+  /// On Windows libwebrtc lists no audio devices until something has opened
+  /// audio, so a new member saw an empty microphone list until they joined a
+  /// call. An empty first answer there opens the mic for a moment and asks again.
+  static Future<List<AudioDevice>> _listedOrWarmed(
+    Future<List<lk.MediaDevice>> Function() list,
+  ) async {
+    final listed = withoutPseudoDefaults(_toAudioDevices(await list()));
+    if (listed.isNotEmpty || lk.lkPlatform() != lk.PlatformType.windows) {
+      return listed;
+    }
+    await _warmAudio();
+    return withoutPseudoDefaults(_toAudioDevices(await list()));
+  }
+
+  static Future<void>? _warming;
+
+  static Future<void> _warmAudio() => _warming ??= () async {
+        try {
+          final stream = await rtc.navigator.mediaDevices
+              .getUserMedia({'audio': true, 'video': false});
+          for (final track in stream.getTracks()) {
+            await track.stop();
+          }
+          await stream.dispose();
+        } on Object catch (error, stack) {
+          // Refused or no microphone: the empty list is then the true answer.
+          AppLog.swallowed(LogTag.voice,
+              'open audio to list devices failed, ignored', error, stack);
+        } finally {
+          _warming = null;
+        }
+      }();
 
   @override
   Future<AudioDevice?> systemDefaultInput() async => _systemDefaultOf(

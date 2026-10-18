@@ -11,6 +11,12 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 enum CallStatsSource { camera, screenShare }
 
 /// One entry of a `getStats` report, detached from the plugin type.
+/// A stats timestamp in milliseconds. Browsers report milliseconds, while the
+/// native plugin reports libwebrtc's microseconds, which made every desktop
+/// bitrate read a thousand times too low.
+num statsTimestampMs(num timestamp) =>
+    timestamp > 1e14 ? timestamp / 1000 : timestamp;
+
 class StatsEntry {
   const StatsEntry({
     required this.type,
@@ -22,7 +28,7 @@ class StatsEntry {
   factory StatsEntry.fromReport(rtc.StatsReport report) => StatsEntry(
         type: report.type,
         id: report.id,
-        timestampMs: report.timestamp,
+        timestampMs: statsTimestampMs(report.timestamp),
         values: {for (final e in report.values.entries) '${e.key}': e.value},
       );
 

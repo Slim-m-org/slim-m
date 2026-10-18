@@ -204,10 +204,18 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       final recent = await ref
           .read(apiProvider)
           .listMessages(widget.channelId, limit: 50);
+      // Stored too: a thread older than /sync's window has no local rows, and showed blank until a new message arrived.
+      final store = await ref.read(storeProvider.future);
+      await store.applyMessages(recent);
       if (!mounted) return;
       ref.read(messageExtrasProvider.notifier).applyMessages(recent);
-    } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'hydrate extras', error, stack);
+    } catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.ui,
+        'load recent channel messages',
+        error,
+        stack,
+      );
       // Nothing useful to do; a live event or the next channel open corrects it.
     }
   }

@@ -286,4 +286,11 @@ void main() {
       });
     });
   });
+
+  test(
+      'a native microsecond timestamp reads as milliseconds, a browser one as is',
+      () {
+    expect(statsTimestampMs(1792350739000000), 1792350739000);
+    expect(statsTimestampMs(1792350739000), 1792350739000);
+  });
 }
