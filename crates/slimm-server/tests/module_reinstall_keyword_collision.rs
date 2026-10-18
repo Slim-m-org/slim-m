@@ -10,20 +10,14 @@ use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::dock::Dock;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
+use slimm_server::http::{self};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModuleRuntimeLimits, Store,
 };
-use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
@@ -125,19 +119,11 @@ async fn updating_an_enabled_module_to_a_taken_keyword_is_refused() {
         .access_token;
 
     let keyword: Keyword = Arc::new(Mutex::new("roll"));
-    let router = http::router(AppState {
-        store: s.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: Dock::for_test(&registry(keyword.clone()).await),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let router = http::router(
+        support::app::builder(s.clone())
+            .dock(Dock::for_test(&registry(keyword.clone()).await))
+            .build(),
+    );
     let install = "/space/dock/modules/newdice/install";
     let version = Some(json!({ "version": "0.1.0" }));
 

@@ -10,28 +10,22 @@
 //! the route that ties installed-module state, the permission grant, and the
 //! host together.
 
-use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
     Store, User,
 };
-use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::{app, json_body};
 use support::wasm_fixtures::{canned_ok_wasm, echo_request_wasm, fuel_burner_wasm, sha256_hex};
 
 async fn store(name: &str) -> (Store, support::TestDbGuard) {
@@ -44,22 +38,6 @@ async fn store(name: &str) -> (Store, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool), guard)
-}
-
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
 }
 
 async fn deployment(s: &Store) -> User {
@@ -129,13 +107,6 @@ fn req_json(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> 
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 #[tokio::test]

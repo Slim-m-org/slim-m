@@ -8,15 +8,10 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::json;
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Hub, MemoryReading};
-use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
@@ -40,19 +35,7 @@ fn app(store: Store, voice: VoiceService) -> Router {
 }
 
 fn app_with_hub(store: Store, voice: VoiceService, hub: Hub) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).hub(hub).voice(voice).router()
 }
 
 fn get(uri: &str, token: &str) -> Request<Body> {
