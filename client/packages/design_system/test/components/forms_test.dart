@@ -444,6 +444,41 @@ void main() {
           isNot(await meterColor(active: false)));
     });
 
+    testWidgets('an inactive meter uses the disabled tone, not the edge token',
+        (tester) async {
+      await tester.pumpWidget(_wrap(SizedBox(
+          width: 200,
+          child: AppSlider(
+              value: 40,
+              tall: true,
+              meter: 60,
+              meterActive: false,
+              onChanged: (_) {}))));
+      final tokens =
+          Theme.of(tester.element(find.byType(Slider))).extension<AppTokens>()!;
+      final theme = SliderTheme.of(tester.element(find.byType(Slider)));
+      final color = (theme.trackShape! as TroughTrackShape).meterColor;
+      expect(color, tokens.textDisabled);
+      expect(color, isNot(tokens.borderStrong));
+    });
+
+    testWidgets('a muted inactive meter is not dimmed twice', (tester) async {
+      await tester.pumpWidget(_wrap(SizedBox(
+          width: 200,
+          child: AppSlider(
+              value: 40,
+              tall: true,
+              meter: 60,
+              meterActive: false,
+              muted: true,
+              onChanged: (_) {}))));
+      final tokens =
+          Theme.of(tester.element(find.byType(Slider))).extension<AppTokens>()!;
+      final theme = SliderTheme.of(tester.element(find.byType(Slider)));
+      expect((theme.trackShape! as TroughTrackShape).meterColor,
+          tokens.textSecondary);
+    });
+
     testWidgets('tall variant renders without a meter or ticks supplied',
         (tester) async {
       await tester.pumpWidget(_wrap(SizedBox(

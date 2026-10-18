@@ -105,6 +105,13 @@ class _AppSliderState extends State<AppSlider> {
     return widget.onChanged == null ? 0.7 : 1;
   }
 
+  /// A muted slider is already at half opacity, so its inactive meter starts
+  /// from the brighter neutral instead of dimming twice.
+  Color _meterColor(AppTokens tokens) {
+    if (widget.meterActive) return tokens.accentSoft;
+    return widget.muted ? tokens.textSecondary : tokens.textDisabled;
+  }
+
   Widget _tickLabels(AppTokens tokens) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -139,7 +146,7 @@ class _AppSliderState extends State<AppSlider> {
       borderColor: tokens.borderSubtle,
       trackColor: trackColor,
       fillColor: fillColor,
-      meterColor: widget.meterActive ? tokens.accentSoft : tokens.borderStrong,
+      meterColor: _meterColor(tokens),
       meterFraction: meterFraction,
     );
     final thumb = TroughThumbShape(

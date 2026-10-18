@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'call_recap.dart';
+import 'mic_level_ballistics.dart';
 import 'voice_controller.dart';
 
 class VoiceFlags {
@@ -174,11 +175,9 @@ final autoInputThresholdProvider = StreamProvider.autoDispose<double>(
 /// there is one, since the SFU's report lags by half a second.
 final localMicLevelProvider = Provider<double>((ref) {
   if (ref.watch(voiceControllerProvider.notifier).supportsInputGate) {
-    final fraction = ref.watch(
-      inputGateReadingProvider.select(
-        (r) => inputLevelFraction(r.valueOrNull?.levelDb ?? kInputFloorDb),
-      ),
-    );
+    final ballistics = ref.watch(micLevelBallisticsProvider);
+    final raw = ref.watch(inputGateReadingProvider).valueOrNull?.levelDb;
+    final fraction = inputLevelFraction(ballistics.step(raw ?? kInputFloorDb));
     // Twenty steps is as fine as the bar can show, and spares the rebuilds.
     return (fraction * 20).round() / 20;
   }
