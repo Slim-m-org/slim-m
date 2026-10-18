@@ -8,6 +8,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
+import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
 import '../../../providers/retention_sweep.dart';
@@ -64,5 +65,10 @@ Future<void> signOutVia(ProviderReader read) async {
   await clearAttachmentPreviews(
     read(attachmentPreviewCacheProvider),
     read(serverUrlProvider),
+  );
+  await clearMediaDiskCaches(
+    read(serverUrlProvider),
+    avatars: read(avatarCacheProvider),
+    originals: read(attachmentOriginalCacheProvider),
   );
 }
