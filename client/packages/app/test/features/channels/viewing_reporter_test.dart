@@ -126,7 +126,11 @@ void main() {
       expect(sent, [isEmpty]);
       expect(actives.last, isFalse);
       async.elapse(const Duration(minutes: 5));
-      expect(sent, hasLength(1), reason: 'no timer runs for a Space out of view');
+      expect(
+        sent,
+        hasLength(1),
+        reason: 'no timer runs for a Space out of view',
+      );
     });
   });
 
