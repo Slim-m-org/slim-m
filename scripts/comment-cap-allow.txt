@@ -90,7 +90,7 @@ client/packages/app/test/features/messages/message_row_empty_body_test.dart 2
 client/packages/app/test/features/messages/message_row_test.dart 1
 client/packages/app/test/features/voice/modal_page_test.dart 2
 client/packages/app/test/features/auth/onboarding_screen_test.dart 1
-client/packages/app/test/push_controller_test.dart 6
+client/packages/app/test/push_controller_test.dart 4
 client/packages/app/test/router_recovery_test.dart 1
 client/packages/app/test/features/settings/screen_safe_area_test.dart 3
 client/packages/app/test/features/auth/server_fingerprint_test.dart 1
@@ -133,7 +133,7 @@ client/packages/design_system/lib/src/components/surfaces/list_row.dart 10
 client/packages/design_system/lib/src/components/surfaces/menu.dart 3
 client/packages/design_system/lib/src/components/surfaces/sheet.dart 1
 client/packages/design_system/test/components/core_test.dart 1
-client/packages/design_system/test/components/forms_test.dart 4
+client/packages/design_system/test/components/forms_test.dart 3
 client/packages/design_system/test/components/semantics_test.dart 3
 client/packages/design_system/test/components/sheet_test.dart 1
 client/packages/design_system/test/components/surfaces_test.dart 9
