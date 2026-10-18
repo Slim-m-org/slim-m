@@ -59,7 +59,7 @@ Future<int?> sourceHeaderEdge(Uint8List bytes) async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.media,
-      'source header edge failed, ignored',
+      'Could not read the size of the picked picture',
       error,
       stack,
     );
@@ -84,7 +84,7 @@ Future<int?> decodedSourceEdge(Uint8List bytes) async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.media,
-      'decoded source edge failed, ignored',
+      'Could not read the size of the picked picture',
       error,
       stack,
     );
@@ -159,7 +159,7 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     try {
       out = await _capture(object);
     } catch (error, stack) {
-      reportFailure(LogTag.media, 'confirm', error, stack);
+      reportFailure(LogTag.media, 'crop the avatar', error, stack);
       // Raster and encode are the one unrecoverable step here; see the doc.
       out = null;
     }

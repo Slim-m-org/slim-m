@@ -48,7 +48,7 @@ Future<bool> fetchSpaceStrongNoiseSuppression(Ref ref) async {
   } on Object catch (error, stack) {
     reportFailure(
       LogTag.voice,
-      'fetch space strong noise suppression',
+      "read the server's noise suppression default",
       error,
       stack,
     );

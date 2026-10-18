@@ -39,7 +39,7 @@ Future<String?> copyImageToClipboard(
   } on ClipboardImageWriteException catch (e, stack) {
     api.AppLog.swallowed(
       api.LogTag.media,
-      'copy image to clipboard failed, ignored',
+      'Could not copy the image; showing the reason',
       e,
       stack,
     );
@@ -47,18 +47,13 @@ Future<String?> copyImageToClipboard(
   } on api.ApiException catch (e, stack) {
     api.AppLog.swallowed(
       api.LogTag.media,
-      'copy image to clipboard failed, ignored',
+      'Could not copy the image; showing the reason',
       e,
       stack,
     );
     return describeApiFailure('copy ${image.filename}', e);
   } catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.media,
-      'copy image to clipboard',
-      error,
-      stack,
-    );
+    api.reportFailure(api.LogTag.media, 'copy the image', error, stack);
     return 'Could not copy ${image.filename}.';
   }
 }
@@ -86,7 +81,7 @@ Future<String?> saveImageToDevice(
   } on api.ApiException catch (e, stack) {
     api.AppLog.swallowed(
       api.LogTag.media,
-      'save image to device failed, ignored',
+      'Could not save the image; showing the reason',
       e,
       stack,
     );
@@ -94,13 +89,13 @@ Future<String?> saveImageToDevice(
   } on PhotoLibraryDenied catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.media,
-      'save image to device failed, ignored',
+      'Could not save the image; showing the reason',
       error,
       stack,
     );
     return 'Could not save $name: allow photo access for slim-m in Settings.';
   } catch (error, stack) {
-    api.reportFailure(api.LogTag.media, 'save image to device', error, stack);
+    api.reportFailure(api.LogTag.media, 'save the image', error, stack);
     return 'Could not save $name.';
   }
 }

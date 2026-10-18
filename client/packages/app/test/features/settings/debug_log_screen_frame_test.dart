@@ -58,9 +58,11 @@ void main() {
     await tester.pumpWidget(_harness(_oneOfEach));
     await tester.pumpAndSettle();
 
+    final semantics = tester.ensureSemantics();
+    await tester.pumpAndSettle();
     for (final word in ['Error', 'Warning', 'Info']) {
       expect(
-        find.text(word),
+        find.bySemanticsLabel(RegExp('^$word,')),
         findsOneWidget,
         reason:
             '$word must be readable as text, not inferred from a tint. A '
@@ -68,6 +70,7 @@ void main() {
             'at any of the three.',
       );
     }
+    semantics.dispose();
   });
 
   testWidgets('each severity draws its own silhouette, not three tints of '

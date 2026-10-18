@@ -18,7 +18,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
-import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart';
 import '../../messages/widgets/attachment_format.dart';
 import '../../../widgets/transfer_meter.dart';
@@ -454,7 +453,7 @@ class AttachmentStagingController extends ChangeNotifier {
         ),
       );
     } on api.UploadCancelled catch (_) {
-      api.AppLog.debug(api.LogTag.media, 'upload cancelled');
+      api.AppLog.debug(api.LogTag.media, 'An upload was cancelled');
       return;
     } on Object catch (e) {
       onFailure?.call(filename, e);
@@ -512,9 +511,11 @@ final attachmentStagingProvider =
         },
         onAbandon: (key) => ref.read(apiProvider).abandonUpload(key),
         maxBytes: () => _attachmentLimit(ref),
-        onFailure: (filename, error) => ref
-            .read(debugLogProvider.notifier)
-            .record('attachment', 'Upload of $filename failed', detail: error),
+        onFailure: (filename, error) => api.AppLog.warning(
+          api.LogTag.media,
+          'Could not upload $filename',
+          error: error,
+        ),
       );
       final session = ref.read(sessionProvider);
       final account = session.tokens?.userId;
@@ -539,7 +540,12 @@ Future<List<String>?> _serverCapabilities(Ref ref, int length) async {
         .timeout(const Duration(seconds: 3));
     return version.capabilities;
   } on Object catch (error, stack) {
-    api.reportFailure(api.LogTag.media, 'server capabilities', error, stack);
+    api.reportFailure(
+      api.LogTag.media,
+      "read the server's upload limits",
+      error,
+      stack,
+    );
     return null;
   }
 }
@@ -554,7 +560,12 @@ Future<int?> _attachmentLimit(Ref ref) async {
         .timeout(const Duration(seconds: 3));
     return version.maxAttachmentBytes;
   } on Object catch (error, stack) {
-    api.reportFailure(api.LogTag.media, 'attachment limit', error, stack);
+    api.reportFailure(
+      api.LogTag.media,
+      "read the server's attachment size limit",
+      error,
+      stack,
+    );
     return null;
   }
 }

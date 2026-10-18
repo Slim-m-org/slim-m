@@ -80,7 +80,7 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
             : 'Version ${update.version} is available.';
       });
     } catch (error, stack) {
-      reportFailure(LogTag.platform, 'set state', error, stack);
+      reportFailure(LogTag.platform, 'check for an update', error, stack);
       // Best-effort, like every path in decision 0025: no error surfaced.
       if (mounted) setState(() => _result = 'Could not check just now.');
     } finally {

@@ -58,7 +58,7 @@ Future<(bool, Object?)> setCameraWithin(
   } on TimeoutException catch (error, stack) {
     AppLog.swallowed(
       LogTag.voice,
-      'camera failure message failed, ignored',
+      'Could not read why the camera failed',
       error,
       stack,
     );

@@ -73,7 +73,7 @@ class FiledReportsController extends StateNotifier<List<String>> {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'Falls back to an empty list; the manual id field still works',
+        'Could not read the list of reports you filed',
         error,
         stack,
       );
@@ -115,7 +115,7 @@ class FiledReportsController extends StateNotifier<List<String>> {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'Best-effort: the report was still filed even if this did not persist',
+        'Could not remember a filed report; it was still sent',
         error,
         stack,
       );

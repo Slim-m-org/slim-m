@@ -47,7 +47,12 @@ Future<void> showClearTotpSheet(
             .clearMemberTotp(subjectId, password: password);
         return null;
       } on ApiException catch (e, stack) {
-        reportFailure(LogTag.auth, 'show reauth sheet', e, stack);
+        reportFailure(
+          LogTag.auth,
+          "turn off a member's two-factor sign-in",
+          e,
+          stack,
+        );
         return reauthFailure(e);
       }
     },

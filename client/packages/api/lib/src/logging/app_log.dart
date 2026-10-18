@@ -79,6 +79,11 @@ abstract final class AppLog {
           {Object? error, StackTrace? stack, Map<String, Object?>? context}) =>
       _log(LogLevel.error, tag, message, error, stack, context);
 
+  /// Logs at a level chosen by the caller, for a pipe that carries its own level.
+  static void at(LogLevel level, String tag, String message,
+          {Object? error, StackTrace? stack}) =>
+      _log(level, tag, message, error, stack, null);
+
   /// A failure that is deliberately ignored; [reason] says why that is safe.
   static void swallowed(String tag, String reason, Object error,
           [StackTrace? stack]) =>

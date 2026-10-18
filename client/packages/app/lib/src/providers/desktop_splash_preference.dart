@@ -76,7 +76,7 @@ class SplashDurationController extends StateNotifier<SplashDuration> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'Not worth failing a launch over; standard is always usable',
+        'Could not read the splash screen setting; using the standard one',
         error,
         stack,
       );

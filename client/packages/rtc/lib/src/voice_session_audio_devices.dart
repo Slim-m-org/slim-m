@@ -50,7 +50,8 @@ mixin VoiceSessionAudioDevices {
   void _followPreferredDevices() {
     Future<void> apply() =>
         _audioSwitching.applyServerRouting().catchError(ignoreError(
-            LogTag.voice, 'applying server audio routing is best effort'));
+            LogTag.voice,
+            'Could not move the call audio to the chosen device'));
     unawaited(apply());
     unawaited(Future<void>.delayed(const Duration(seconds: 3), apply));
   }
@@ -70,7 +71,7 @@ mixin VoiceSessionAudioDevices {
     } catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
-          'Keep the remembered devices as they are and let the join go on',
+          'Could not forget unplugged audio devices; keeping the saved ones',
           error,
           stack);
     }
@@ -82,7 +83,7 @@ mixin VoiceSessionAudioDevices {
     try {
       return await list();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'forget unplugged devices', e, stack);
+      reportFailure(LogTag.voice, 'list audio devices', e, stack);
       _lastError = e;
       return const [];
     }
@@ -120,7 +121,7 @@ mixin VoiceSessionAudioDevices {
       await run();
       return true;
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'try select audio', e, stack);
+      reportFailure(LogTag.voice, 'choose the audio device', e, stack);
       _lastError = e;
       return false;
     }

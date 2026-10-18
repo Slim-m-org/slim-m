@@ -36,7 +36,12 @@ ProviderContainer? _containerOf(BuildContext context) {
   try {
     return ProviderScope.containerOf(context, listen: false);
   } on StateError catch (error, stack) {
-    AppLog.swallowed(LogTag.ui, 'container of failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.ui,
+      'Could not find the app state to show a message',
+      error,
+      stack,
+    );
     return null;
   }
 }

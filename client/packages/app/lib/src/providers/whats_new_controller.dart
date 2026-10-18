@@ -85,7 +85,7 @@ class WhatsNewController extends StateNotifier<List<WhatsNewEntry>> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Never the reason a launch fails to reach the shell; stay silent',
+        'Could not check what is new; skipping it',
         error,
         stack,
       );
@@ -107,7 +107,7 @@ class WhatsNewController extends StateNotifier<List<WhatsNewEntry>> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Best effort: worst case the same entries are shown again next launch',
+        'Could not remember the shown release notes; they may show again',
         error,
         stack,
       );

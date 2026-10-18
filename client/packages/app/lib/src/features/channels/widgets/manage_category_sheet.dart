@@ -166,7 +166,7 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
       await store.upsertCategory(updated);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'save the category', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('rename the category', e));
       }
@@ -189,7 +189,7 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
       await deleteCategoryAndForget(ref, widget.category);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'delete the category', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('delete the category', e));
       }

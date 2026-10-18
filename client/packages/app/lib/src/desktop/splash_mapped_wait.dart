@@ -31,7 +31,7 @@ Future<Duration?> queryNativeWindowMapped() async {
   } on MissingPluginException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'query native window mapped failed, ignored',
+      'Could not ask the system whether the splash window is on screen',
       error,
       stack,
     );
@@ -55,7 +55,7 @@ Future<void> awaitSplashMapped({Duration floor = Duration.zero}) async {
       if (DateTime.now().isAfter(deadline)) {
         AppLog.warning(
           LogTag.platform,
-          'splash was not mapped before the handoff',
+          'The splash window was not on screen before the main window opened',
         );
         return;
       }
@@ -66,7 +66,7 @@ Future<void> awaitSplashMapped({Duration floor = Duration.zero}) async {
   } catch (error, stack) {
     AppLog.warning(
       LogTag.platform,
-      'splash mapped check failed',
+      'Could not confirm the splash window is on screen',
       error: error,
       stack: stack,
     );

@@ -118,7 +118,7 @@ extension VoiceSessionTracks on VoiceSession {
       _micRecovery.reset();
       return true;
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'try set microphone', e, stack);
+      reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
       _micWanted = intent;
       _lastError = e;
       _refreshParticipants();
@@ -219,7 +219,8 @@ Future<void> _step(Future<void> Function() run) async {
   try {
     await run();
   } catch (error, stack) {
-    AppLog.swallowed(LogTag.voice, 'step failed, ignored', error, stack);
+    AppLog.swallowed(LogTag.voice,
+        'A call cleanup step failed; carrying on with the rest', error, stack);
     // See this function's own doc comment for why nothing is kept.
   }
 }

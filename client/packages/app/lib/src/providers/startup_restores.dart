@@ -12,7 +12,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../diagnostics/debug_log.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import 'app_lock_preference.dart';
 import '../features/messages/providers/attachment_preview_quality.dart';
 import 'desktop_splash_preference.dart';
@@ -36,13 +37,12 @@ Future<void> restoreOrDefault(
   try {
     await restore;
   } catch (error, stack) {
-    container
-        .read(debugLogProvider.notifier)
-        .record(
-          'startup',
-          'could not restore $name, using its default',
-          detail: '$error\n$stack',
-        );
+    AppLog.warning(
+      LogTag.data,
+      'Could not restore the saved $name setting; using the default',
+      error: error,
+      stack: stack,
+    );
   }
 }
 
@@ -134,12 +134,11 @@ Future<void> runStartupStep(
   try {
     await step();
   } catch (error, stack) {
-    container
-        .read(debugLogProvider.notifier)
-        .record(
-          'startup',
-          '$name failed, opening the app anyway',
-          detail: '$error\n$stack',
-        );
+    AppLog.warning(
+      LogTag.data,
+      'Startup step "$name" failed; opening the app anyway',
+      error: error,
+      stack: stack,
+    );
   }
 }

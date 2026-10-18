@@ -32,7 +32,7 @@ Future<String?> loadInstallId(KeyStore store) async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.auth,
-      'load install id failed, ignored',
+      "Could not read this install's id; signing in without it",
       error,
       stack,
     );

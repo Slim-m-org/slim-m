@@ -16,7 +16,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../diagnostics/debug_log.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import '../providers/auto_update_preference.dart';
 import '../providers/providers.dart';
 import 'relaunch.dart';
@@ -71,9 +72,11 @@ Future<void> runStartupUpdates(
     }
     await _offerManually(container, update);
   } catch (error) {
-    container
-        .read(debugLogProvider.notifier)
-        .record('update', 'startup update pass failed: $error');
+    AppLog.warning(
+      LogTag.platform,
+      'Could not check for an update at startup',
+      error: error,
+    );
   } finally {
     container.read(startupPromptProvider.notifier).state = null;
   }
@@ -99,9 +102,11 @@ Future<void> _installWithDnf(
       'Installing ${update.version}';
   final result = await rpm.apply(currentVersion: currentVersion);
   if (!result.ok) {
-    container
-        .read(debugLogProvider.notifier)
-        .record('update', 'dnf could not install: ${result.detail}');
+    AppLog.warning(
+      LogTag.platform,
+      'dnf could not install the update; offering a manual install',
+      error: result.detail,
+    );
     await _offerManually(container, update);
     return;
   }

@@ -97,7 +97,7 @@ class RetentionSweepController {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
-        'Best-effort: a store not ready yet, or briefly gone mid sign-out, just tries again next tick',
+        'Message cleanup skipped because the local data is not ready; trying again later',
         error,
         stack,
       );

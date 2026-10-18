@@ -207,7 +207,12 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       if (!mounted) return;
       ref.read(messageExtrasProvider.notifier).applyMessages(recent);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'hydrate extras', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'load recent channel messages',
+        error,
+        stack,
+      );
       // Nothing useful to do; a live event or the next channel open corrects it.
     }
   }

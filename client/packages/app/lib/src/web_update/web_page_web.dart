@@ -27,7 +27,7 @@ Future<String?> fetchLiveWebBuild() async {
   } on Object catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'fetch live web build failed, ignored',
+      'Could not check for a newer web build',
       error,
       stack,
     );

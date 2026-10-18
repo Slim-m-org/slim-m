@@ -23,6 +23,14 @@ Records logged before the sink exists are buffered and replayed.
 - A swallow that is intended (best-effort cleanup, an optional plugin): `AppLog.swallowed(tag, 'why this is safe', error, stack)`, which logs at debug.
 - A `catchError` that ignores: `ignoreError(tag, 'why')`.
 
+## Writing the message
+
+Say what happened in plain words someone can act on, such as "Could not read the saved session; staying signed out".
+Never point at code ("see the class doc"), never repeat the tag, and never leave a generated name such as "set state failed".
+Real failures are errors, expected degradations are warnings or info, and only noise is debug.
+`reportFailure` prefixes "Could not", so pass a verb phrase like `save the profile`.
+`client/packages/api/test/log_message_quality_test.dart` fails on the first two and on generated names.
+
 ## What the gate enforces
 
 `client/packages/api/test/no_silent_catch_test.dart` fails on a catch clause or `catchError` handler with an empty body, and on `debugPrint` outside the logger.
@@ -31,4 +39,4 @@ A deliberate swallow still has a body, and the reason string is the comment.
 ## The debug log screen
 
 Settings, Troubleshooting, Debug log.
-It filters by level, tag and a search term, and Copy exports what is shown, redacted again at export time.
+It filters by level, area and a search term, one line per entry that opens in place, and Copy exports what is shown, redacted again at export time.

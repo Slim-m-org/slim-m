@@ -144,7 +144,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
       ref.read(messageExtrasProvider.notifier).applyMessage(sent);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'create the poll', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('send the poll', e));
       }

@@ -113,7 +113,7 @@ class SceneImageCache extends ChangeNotifier {
       _remember(key, image);
       notifyListeners();
     } catch (error, stack) {
-      reportFailure(LogTag.media, 'decode', error, stack);
+      reportFailure(LogTag.media, 'decode a module image', error, stack);
       // Not a decodable image is a real answer, so nothing retries it.
       if (_disposed) return;
       _pending.remove(key);

@@ -9,7 +9,12 @@ Map<String, String>? queryOrNull(Uri uri) {
   try {
     return uri.queryParameters;
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.ui, 'query or null failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.ui,
+      'Could not read the parameters of a link',
+      error,
+      stack,
+    );
     return null;
   }
 }

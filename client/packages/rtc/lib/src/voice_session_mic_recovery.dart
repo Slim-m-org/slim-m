@@ -54,7 +54,10 @@ mixin VoiceSessionMicRecovery {
     _micWatchdog = SilentMicWatchdog(
       timing: timing,
       onSilent: () {
-        _logMic('mic reads digital silence, restarting capture');
+        _logMic(
+          'Microphone is sending silence; restarting the capture',
+          level: LogLevel.warning,
+        );
         unawaited(_restartMicCapture('silent'));
       },
     );
@@ -79,11 +82,15 @@ mixin VoiceSessionMicRecovery {
     await _micStatuses.close();
   }
 
-  void _logMic(String message) => _diag('voice: $message');
+  void _logMic(String message, {LogLevel level = LogLevel.info}) =>
+      _diag(message, level: level);
 
   /// Into the app's debug log when the app wired one, so a tester's export shows it.
-  void _diag(String line) =>
-      (_audio.log ?? (l) => AppLog.info(LogTag.voice, l))(line);
+  void _diag(String line, {LogLevel level = LogLevel.info}) =>
+      (_audio.log ?? _appLogVoice)(line, level: level);
+
+  static void _appLogVoice(String line, {LogLevel level = LogLevel.info}) =>
+      AppLog.at(level, LogTag.voice, line);
 
   void _setMicStatus(MicStatus next) {
     if (next == _micStatus) return;
@@ -127,9 +134,16 @@ mixin VoiceSessionMicRecovery {
       inputDropped = await _audioSwitching.forgetUnpluggedPreferences();
       await _audioSwitching.applyServerRouting();
     } on Object catch (e) {
-      _logMic('device change follow failed: $e');
+      _logMic(
+        'Could not follow the audio device change: $e',
+        level: LogLevel.warning,
+      );
     }
-    _logMic('audio devices changed, chosen microphone gone: $inputDropped');
+    _logMic(
+      inputDropped
+          ? 'Audio devices changed; the chosen microphone is gone'
+          : 'Audio devices changed; the chosen microphone is still there',
+    );
     if (!_micWanted) return;
     if (inputDropped || !_mic.hasTrack || _micStatus != MicStatus.ok) {
       await _restartMicCapture('device change');
@@ -144,10 +158,13 @@ mixin VoiceSessionMicRecovery {
     try {
       await _mic.restart(_currentCaptureOptions());
       _afterRestart();
-      _logMic('capture restarted ($reason)');
+      _logMic('Microphone capture restarted ($reason)');
       return true;
     } on Object catch (e) {
-      _logMic('capture restart failed ($reason): $e');
+      _logMic(
+        'Could not restart the microphone capture ($reason): $e',
+        level: LogLevel.warning,
+      );
       return _micRecovery.recoverNow('$reason, restart failed');
     }
   }
@@ -177,11 +194,17 @@ mixin VoiceSessionMicRecovery {
       if (!webrtcNoiseSuppression) {
         await _mic.restart(_currentCaptureOptions());
         _capture.opened(webrtcNoiseSuppression: true);
-        _logMic('strong restart failed, reopened with libwebrtc suppression');
+        _logMic(
+          'Strong noise suppression failed to restart; reopened with standard',
+          level: LogLevel.warning,
+        );
         return;
       }
     } on Object catch (e) {
-      _logMic('reopen after failed restart also failed: $e');
+      _logMic(
+        'Could not reopen the microphone after a failed restart: $e',
+        level: LogLevel.warning,
+      );
     }
     await _micRecovery.recoverNow('restart failed');
   }
@@ -196,7 +219,7 @@ mixin VoiceSessionMicRecovery {
   /// opens a fresh one.
   Future<bool> resetMicrophone() async {
     if (_room == null) return false;
-    _logMic('reset microphone requested');
+    _logMic('Microphone reset requested');
     if (!_micWanted) {
       if (_mic.hasTrack) await _mic.discard();
       return true;

@@ -31,7 +31,7 @@ Future<Uint8List?> minifiedPng(
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.media,
-      'finish an operation failed, ignored',
+      'Could not shrink an image; using the original',
       error,
       stack,
     );
@@ -93,7 +93,12 @@ Future<({int width, int height, bool animated})?> _decoded(
     codec.dispose();
     return result;
   } catch (error, stack) {
-    AppLog.swallowed(LogTag.media, 'decoded failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.media,
+      'Could not decode an image to shrink it; using the original',
+      error,
+      stack,
+    );
     return null;
   }
 }

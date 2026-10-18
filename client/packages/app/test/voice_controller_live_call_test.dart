@@ -310,7 +310,7 @@ void main() {
     expect(controller.state.error, contains('source not found!'));
     expect(
       harness.log(controller).map((e) => e.message),
-      contains(contains('Screen share start failed')),
+      contains(contains('Could not start the screen share')),
     );
   });
 

@@ -195,10 +195,18 @@ class FileKeyStore implements KeyStore {
     try {
       return jsonDecode(contents) as Map<String, dynamic>;
     } on FormatException catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'read all failed, ignored', error, stack);
+      AppLog.swallowed(
+          LogTag.auth,
+          'The saved secrets file is corrupt; treating it as empty',
+          error,
+          stack);
       return {};
     } on TypeError catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'read all failed, ignored', error, stack);
+      AppLog.swallowed(
+          LogTag.auth,
+          'The saved secrets file is corrupt; treating it as empty',
+          error,
+          stack);
       return {};
     }
   }
@@ -363,7 +371,7 @@ Future<void> migrateLegacyFileSecrets({
     entries = await legacy.readAllForMigration();
   } catch (error, stack) {
     AppLog.swallowed(LogTag.auth,
-        'migrate legacy file secrets if needed failed, ignored', error, stack);
+        'Could not read the old secrets file to move it', error, stack);
     return;
   }
   if (entries == null) return;
@@ -374,7 +382,7 @@ Future<void> migrateLegacyFileSecrets({
     }
   } catch (error, stack) {
     AppLog.swallowed(LogTag.auth,
-        'migrate legacy file secrets if needed failed, ignored', error, stack);
+        'Could not move the old secrets to the new store', error, stack);
     return;
   }
   await legacy.deleteLegacyFile();

@@ -21,6 +21,11 @@ Future<void> repairAutostart(ProviderContainer container) async {
     final autostart = await container.read(autostartProvider.future);
     await autostart?.repair();
   } on Object catch (error, stack) {
-    AppLog.swallowed(LogTag.platform, 'autostart repair failed', error, stack);
+    AppLog.swallowed(
+      LogTag.platform,
+      'Could not repair the start-on-login entry',
+      error,
+      stack,
+    );
   }
 }

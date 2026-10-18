@@ -72,16 +72,16 @@ void main() {
     expect(find.text('voice stats'), findsNothing);
   });
 
-  testWidgets('a tag button narrows to that tag and a second tap clears it', (
+  testWidgets('an area chip narrows to that area and a second tap clears it', (
     tester,
   ) async {
     await _open(tester);
-    await tester.tap(find.widgetWithText(AppButton, 'voice'));
+    await tester.tap(find.byKey(const ValueKey('area-voice')));
     await tester.pumpAndSettle();
     expect(find.text('voice joined'), findsOneWidget);
     expect(find.text('sync dropped'), findsNothing);
 
-    await tester.tap(find.widgetWithText(AppButton, 'voice'));
+    await tester.tap(find.byKey(const ValueKey('area-voice')));
     await tester.pumpAndSettle();
     expect(find.text('sync dropped'), findsOneWidget);
   });

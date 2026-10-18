@@ -44,8 +44,8 @@ NowPlaying? pickNowPlaying(Iterable<MprisPlayerState> players) {
       final picked = _nowPlayingOf(player);
       if (picked != null) return picked;
     } on Object catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'pick now playing failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not read what a media player is playing', error, stack);
       continue;
     }
   }
@@ -122,8 +122,8 @@ class MprisNowPlayingSource implements NowPlayingSource {
           ),
         );
       } on Object catch (error, stack) {
-        AppLog.swallowed(
-            LogTag.platform, 'read players failed, ignored', error, stack);
+        AppLog.swallowed(LogTag.platform,
+            'Could not list the running media players', error, stack);
         continue;
       }
     }
@@ -134,8 +134,8 @@ class MprisNowPlayingSource implements NowPlayingSource {
     try {
       return (await object.getProperty(_rootInterface, 'Identity')).asString();
     } on Object catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'identity failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform, "Could not read a media player's name",
+          error, stack);
       return null;
     }
   }

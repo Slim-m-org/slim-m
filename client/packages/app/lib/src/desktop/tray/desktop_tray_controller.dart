@@ -138,7 +138,7 @@ class DesktopTrayController with TrayListener {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.platform,
-        'Best-effort: see the doc comment above',
+        'Could not set the tray tooltip',
         error,
         stack,
       );
@@ -157,7 +157,7 @@ class DesktopTrayController with TrayListener {
       // A default icon is a worse tray; a menu-less one is no tray at all.
       AppLog.warning(
         LogTag.platform,
-        'tray icon failed, continuing to the menu',
+        'Could not set the tray icon; building the menu anyway',
         error: error,
         stack: stack,
       );
@@ -173,7 +173,7 @@ class DesktopTrayController with TrayListener {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'could not build the context menu',
+        'Could not build the tray menu',
         error: error,
         stack: stack,
       );

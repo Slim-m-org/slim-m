@@ -59,7 +59,7 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
     } on api.ApiException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'ensure thread channel row failed, ignored',
+        "Could not load the thread's parent channel",
         error,
         stack,
       );

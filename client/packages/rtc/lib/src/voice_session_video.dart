@@ -71,7 +71,10 @@ extension VoiceSessionVideo on VoiceSession {
         if (blocked == !pub.subscribed) continue;
         unawaited(
           (blocked ? pub.unsubscribe() : pub.subscribe()).catchError(
-            (Object e) => _diag('share audio block: $e'),
+            (Object e) => _diag(
+              'Could not change screen share audio: $e',
+              level: LogLevel.warning,
+            ),
           ),
         );
       }

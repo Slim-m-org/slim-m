@@ -24,7 +24,7 @@ Future<void> ensureDmChannelLoaded(Ref ref, String channelId) async {
     if (match.isEmpty) return;
     await store.upsertChannels([channelFromDm(match.first, selfId: selfId)]);
   } on Object catch (error, stack) {
-    reportFailure(LogTag.ui, 'ensure dm channel loaded', error, stack);
+    reportFailure(LogTag.ui, 'load the direct message channel', error, stack);
     // A failed store or fetch must not block the call; the next refresh still heals it.
   }
 }

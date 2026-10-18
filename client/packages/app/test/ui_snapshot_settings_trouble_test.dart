@@ -6,6 +6,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
+import 'package:slimm_app/src/features/settings/widgets/debug_log_entry.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 
 import 'ui_snapshot_support.dart';
@@ -44,7 +45,7 @@ Future<void> _openDebugLog(WidgetTester tester) async {
 
 Future<void> _openDebugLogAndExpand(WidgetTester tester) async {
   await _openDebugLog(tester);
-  await tester.tap(find.byTooltip('Show detail').first);
+  await tester.tap(find.byType(DebugLogEntry).first);
   await tester.pump(const Duration(milliseconds: 350));
 }
 

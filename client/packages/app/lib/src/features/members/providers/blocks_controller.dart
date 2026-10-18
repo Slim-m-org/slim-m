@@ -120,7 +120,12 @@ class BlocksController extends StateNotifier<BlocksState> {
       }
       state = BlocksState(ids: ids, settled: true);
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'refresh the blocked users list',
+        error,
+        stack,
+      );
       if (!mounted || generation != _generation) return;
       final message = error is api.ApiException ? error.message : '$error';
       state = BlocksState(ids: state.ids, settled: true, error: message);

@@ -17,7 +17,7 @@ final spaceRulesProvider = FutureProvider.autoDispose<api.SpaceRules?>((
   } on api.NotFoundException catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.ui,
-      'auto dispose failed, ignored',
+      'This server has no join rules to show',
       error,
       stack,
     );

@@ -90,11 +90,17 @@ class MethodChannelBroadcastBridge implements BroadcastBridge {
       return await channel.invokeMethod<bool>('isAvailable') ?? false;
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.voice, 'is available failed, ignored', error, stack);
+          LogTag.voice,
+          'Could not check whether screen broadcast is available',
+          error,
+          stack);
       return false;
     } on MissingPluginException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.voice, 'is available failed, ignored', error, stack);
+          LogTag.voice,
+          'Could not check whether screen broadcast is available',
+          error,
+          stack);
       return false;
     }
   }
@@ -105,14 +111,11 @@ class MethodChannelBroadcastBridge implements BroadcastBridge {
     try {
       await channel.invokeMethod<void>('requestStop');
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.voice,
-          'Nothing to stop, or no host to ask. Either way the share is over as far as this side is concerned',
-          error,
-          stack);
+      AppLog.swallowed(LogTag.voice,
+          'Nothing to stop: screen broadcast is not running', error, stack);
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.voice, 'request stop failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.voice,
+          'Could not ask the screen broadcast to stop', error, stack);
       // As above.
     }
   }

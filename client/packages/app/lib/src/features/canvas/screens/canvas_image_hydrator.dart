@@ -183,11 +183,11 @@ class CanvasImageHydrator {
       document.setImageBitmap(id, image);
       _remember(id, image);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.media, 'fetch', error, stack);
+      api.reportFailure(api.LogTag.media, 'load a canvas image', error, stack);
       _pending.remove(id);
       if (!_disposed && !_isTransient(error)) document.markImageLoadFailed(id);
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.media, 'fetch', error, stack);
+      api.reportFailure(api.LogTag.media, 'load a canvas image', error, stack);
       _pending.remove(id);
       if (!_disposed) document.markImageLoadFailed(id);
     }

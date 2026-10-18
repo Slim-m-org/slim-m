@@ -141,7 +141,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
         photos = await library.recent(_requested);
       }
     } catch (error, stack) {
-      reportFailure(LogTag.ui, 'load', error, stack);
+      reportFailure(LogTag.ui, 'load recent photos', error, stack);
       // A plugin that cannot read the library lands on the same way out as a refusal.
       access = PhotoAccess.denied;
     }
@@ -166,7 +166,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
         _exhausted = photos.length < _requested;
       });
     } catch (error, stack) {
-      reportFailure(LogTag.ui, 'set state', error, stack);
+      reportFailure(LogTag.ui, 'load more photos', error, stack);
       // The page already shown stays; scrolling to the end again retries.
       _requested -= _pageSize;
     } finally {

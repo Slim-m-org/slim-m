@@ -151,7 +151,12 @@ Future<void> _reissue(BuildContext context, WidgetRef ref) async {
         fresh = await ref.read(apiProvider).reissueTotpRecoveryCodes(code);
         return null;
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(api.LogTag.auth, 'reissue', e, stack);
+        api.reportFailure(
+          api.LogTag.auth,
+          'reissue two-factor recovery codes',
+          e,
+          stack,
+        );
         return totpCodeFailure(e);
       }
     },
@@ -181,7 +186,12 @@ Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
         await ref.read(apiProvider).disableTotp(code);
         return null;
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(api.LogTag.auth, 'turn off', e, stack);
+        api.reportFailure(
+          api.LogTag.auth,
+          'turn off two-factor sign-in',
+          e,
+          stack,
+        );
         return totpCodeFailure(e);
       }
     },

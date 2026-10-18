@@ -45,7 +45,7 @@ class LinuxInstallLayout {
     } on FileSystemException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'linked version failed, ignored',
+        'Could not read which version is installed',
         error,
         stack,
       );
@@ -79,7 +79,7 @@ bool layoutIsWritable(LinuxInstallLayout layout) {
   } on FileSystemException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'layout is writable failed, ignored',
+      'The install folder is not writable; updating in place is off',
       error,
       stack,
     );

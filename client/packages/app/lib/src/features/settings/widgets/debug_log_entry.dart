@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One caught event in the debug log, with a copy button and, when it has a
-/// stack trace, an expander.
+/// One caught event in the debug log: a single line of time, level marker,
+/// area and message that opens in place to the full text and any detail.
 ///
 /// Severity never rides on colour alone: a distinct glyph silhouette (octagon,
 /// triangle, circle) and the spoken level word carry it, the tint only
-/// reinforces.
+/// reinforces. Copy appears on hover and on long-press, and the open entry
+/// has a visible Copy button for touch.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../diagnostics/debug_log.dart';
 import '../../../providers/toasts.dart';
+
+const double _timeWidth = 56;
+const double _areaWidth = 60;
 
 class DebugLogEntry extends ConsumerStatefulWidget {
   const DebugLogEntry({super.key, required this.entry});
@@ -58,75 +62,89 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final entry = widget.entry;
-    final level = _levelColor(tokens);
-    final detail = entry.expandedText;
-
+    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     final reduced = AppMotion.isReduced(context);
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          spacing: AppSpacing.s8,
-          children: [
-            Text(
-              _levelWord,
-              style: AppText.micro.copyWith(
-                color: level,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            _SourceChip(entry.source),
-            Expanded(
-              child: Text(
-                entry.timestamp,
-                textAlign: TextAlign.end,
-                style: AppText.micro.copyWith(
-                  color: tokens.textSecondary,
-                  fontFamily: AppFonts.mono,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        Text(
-          entry.count > 1
-              ? '${entry.message} (x${entry.count})'
-              : entry.message,
-          style: AppText.caption.copyWith(color: tokens.textPrimary),
-        ),
-        if (_open && detail != null) _DetailBlock(detail),
-      ],
-    );
+    final message = entry.count > 1
+        ? '${entry.message} (x${entry.count})'
+        : entry.message;
 
-    return AnimatedContainer(
-      duration: reduced ? Duration.zero : AppMotion.fast,
-      color: _open
-          ? Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5)
-          : Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        AppSpacing.s12,
-        AppSpacing.s8,
-        AppSpacing.s12,
+    return GestureDetector(
+      onLongPress: _copy,
+      child: FocusableTapTarget(
+        semanticLabel:
+            '$_levelWord, ${entry.source}, ${entry.timestamp}: '
+            '$message',
+        selected: _open,
+        onTap: () => setState(() => _open = !_open),
+        builder: (context, focused, hovered) => AnimatedContainer(
+          duration: reduced ? Duration.zero : AppMotion.fast,
+          width: double.infinity,
+          color: _open
+              ? Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5)
+              : hovered
+              ? tokens.surfaceSunken
+              : Colors.transparent,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s12,
+            vertical: AppSpacing.s4,
+          ),
+          child: _sized(
+            reduced,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ExcludeSemantics(
+                  child: _line(tokens, message, hovered, compact),
+                ),
+                if (_open) _expanded(tokens),
+              ],
+            ),
+          ),
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: AppSpacing.s12,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(_levelIcon, size: AppSizes.icon16, color: level),
+    );
+  }
+
+  Widget _sized(bool reduced, Widget child) => reduced
+      ? child
+      : AnimatedSize(
+          duration: AppMotion.fast,
+          alignment: Alignment.topCenter,
+          child: child,
+        );
+
+  Widget _line(AppTokens tokens, String message, bool hovered, bool compact) {
+    final entry = widget.entry;
+    final mono = AppText.micro.copyWith(
+      color: tokens.textSecondary,
+      fontFamily: AppFonts.mono,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      spacing: AppSpacing.s8,
+      children: [
+        SizedBox(
+          width: _timeWidth,
+          child: Text(entry.timestamp, style: mono),
+        ),
+        Icon(_levelIcon, size: AppSizes.icon16, color: _levelColor(tokens)),
+        SizedBox(
+          width: _areaWidth,
+          child: Text(
+            entry.source,
+            overflow: TextOverflow.ellipsis,
+            style: mono,
           ),
-          Expanded(
-            child: reduced
-                ? body
-                : AnimatedSize(
-                    duration: AppMotion.fast,
-                    alignment: Alignment.topCenter,
-                    child: body,
-                  ),
+        ),
+        Expanded(
+          child: Text(
+            message,
+            maxLines: _open ? null : (compact ? 2 : 1),
+            overflow: _open ? TextOverflow.visible : TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: tokens.textPrimary),
           ),
+        ),
+        if (hovered && !_open && !compact)
           AppIconButton(
             icon: AppIcons.copy,
             semanticLabel: 'Copy this entry',
@@ -135,44 +153,36 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
             iconSize: AppSizes.icon16,
             onPressed: _copy,
           ),
-          if (detail != null)
-            AppIconButton(
-              icon: _open ? AppIcons.chevronUp : AppIcons.chevronDown,
-              semanticLabel: _open ? 'Hide detail' : 'Show detail',
-              tooltip: _open ? 'Hide detail' : 'Show detail',
-              size: AppIconButtonSize.sm,
-              iconSize: AppSizes.icon16,
-              onPressed: () => setState(() => _open = !_open),
-            )
-          else
-            const SizedBox(width: AppSizes.controlSm),
-        ],
-      ),
+        Icon(
+          _open ? AppIcons.chevronUp : AppIcons.chevronDown,
+          size: AppSizes.icon16,
+          color: tokens.textSecondary,
+        ),
+      ],
     );
   }
-}
 
-class _SourceChip extends StatelessWidget {
-  const _SourceChip(this.source);
-
-  final String source;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(4),
+  Widget _expanded(AppTokens tokens) {
+    final detail = widget.entry.expandedText;
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: _timeWidth + AppSpacing.s8,
+        top: AppSpacing.s4,
+        bottom: AppSpacing.s8,
       ),
-      child: Text(
-        source,
-        overflow: TextOverflow.ellipsis,
-        style: AppText.micro.copyWith(
-          color: tokens.textSecondary,
-          fontFamily: AppFonts.mono,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.s8,
+        children: [
+          if (detail != null) _DetailBlock(detail),
+          AppButton(
+            label: 'Copy entry',
+            icon: AppIcons.copy,
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.ghost,
+            onPressed: _copy,
+          ),
+        ],
       ),
     );
   }
@@ -187,8 +197,11 @@ class _DetailBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s12,
+        vertical: AppSpacing.s8,
+      ),
       decoration: BoxDecoration(
         color: tokens.surfaceSunken,
         border: Border.all(color: tokens.borderSubtle),

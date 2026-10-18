@@ -420,12 +420,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       sync.seedFromViewport(page.latestSeq);
       await sync.catchUp();
     } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'padded', error, stack);
+      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
       if (mounted) {
         state = state.copyWith(loading: false, error: canvasUnavailableMessage);
       }
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'padded', error, stack);
+      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
       if (mounted) {
         state = state.copyWith(loading: false, error: genericLoadError);
       }

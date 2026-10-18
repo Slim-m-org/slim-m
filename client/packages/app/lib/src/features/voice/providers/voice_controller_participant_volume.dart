@@ -96,7 +96,7 @@ mixin VoiceControllerParticipantVolumeMixin on StateNotifier<VoiceState> {
       _failing.remove((identity, channel));
     } else if (_failing.add((identity, channel))) {
       _log(
-        'Volume change failed',
+        'Could not change a participant volume',
         detail: '${channel.name} audio for $identity: $failure',
       );
     }

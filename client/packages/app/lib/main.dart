@@ -301,7 +301,7 @@ Future<void> _initAndroidPush() async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.ui,
-      'No Firebase credentials or no Play Services: push degrades either way',
+      'Push notifications are off: no Firebase setup or Play Services on this device',
       error,
       stack,
     );

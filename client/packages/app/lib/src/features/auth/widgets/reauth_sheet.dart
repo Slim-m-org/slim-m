@@ -110,7 +110,7 @@ class _ReauthSheetState extends State<_ReauthSheet> {
         widget.askForCode ? _codeText : null,
       );
     } on Object catch (error, stack) {
-      api.reportFailure(api.LogTag.auth, 'set state', error, stack);
+      api.reportFailure(api.LogTag.auth, 'confirm the password', error, stack);
       failure = 'Something went wrong. Try again.';
     }
     if (!mounted) return;

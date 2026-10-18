@@ -44,12 +44,12 @@ class PictureInPictureChannel {
     try {
       await _channel.invokeMethod<void>('setEligible', eligible);
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'set eligible failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not update picture-in-picture availability', error, stack);
       return;
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.platform, 'set eligible failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not update picture-in-picture availability', error, stack);
       return;
     }
   }

@@ -26,7 +26,7 @@ class _StartOnLoginRowState extends ConsumerState<StartOnLoginRow> {
       await autostart.setEnabled(on);
       if (mounted) setState(() => _failed = false);
     } on Object catch (error, stack) {
-      reportFailure(LogTag.ui, 'set', error, stack);
+      reportFailure(LogTag.ui, 'change start on login', error, stack);
       if (mounted) setState(() => _failed = true);
     }
     ref.invalidate(autostartEnabledProvider);

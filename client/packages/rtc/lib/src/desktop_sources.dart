@@ -91,8 +91,8 @@ class WebrtcDesktopSources implements DesktopSources {
         'resetDesktopSources',
       );
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.voice, 'drop portal session failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.voice,
+          'Could not reset the screen share source list', error, stack);
       return;
     }
   }

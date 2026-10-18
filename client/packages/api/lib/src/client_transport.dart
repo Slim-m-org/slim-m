@@ -255,7 +255,7 @@ extension SlimmApiTransport on SlimmApi {
     } catch (error, stack) {
       AppLog.swallowed(
           LogTag.net,
-          'A non-JSON body is not itself an error worth surfacing; the status is',
+          'The error response was not JSON; using the HTTP status instead',
           error,
           stack);
     }

@@ -80,11 +80,11 @@ class PinsController extends StateNotifier<PinsState> {
           .toList(growable: false);
       state = PinsState(pinned: pinned);
     } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
+      api.reportFailure(api.LogTag.ui, 'refresh pinned messages', error, stack);
       if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true, forbidden: true);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
+      api.reportFailure(api.LogTag.ui, 'refresh pinned messages', error, stack);
       if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true);
     }

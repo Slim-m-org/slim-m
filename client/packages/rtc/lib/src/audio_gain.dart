@@ -61,7 +61,7 @@ Future<Object?> applyParticipantVolume(lk.Track track, double volume) async {
     return null;
   } catch (e, stack) {
     AppLog.swallowed(
-        LogTag.voice, 'apply participant volume failed, ignored', e, stack);
+        LogTag.voice, "Could not set a participant's volume", e, stack);
     return e;
   }
 }
@@ -78,7 +78,10 @@ void Function() watchAudioArrivals(void Function(String trackId) onArrive) {
 void holdArrivedAudio(String trackId, double gain) {
   final failure = web_gain.applyWebGain(trackId, gain);
   if (failure != null) {
-    AppLog.swallowed(LogTag.voice, 'hold arrived audio failed, ignored',
-        failure, StackTrace.current);
+    AppLog.swallowed(
+        LogTag.voice,
+        'Could not hold the volume for audio that just arrived',
+        failure,
+        StackTrace.current);
   }
 }

@@ -71,11 +71,11 @@ class ReadMarker {
       await store.setReadMarker(channelId, seq, manuallyUnread: false);
       await client.markRead(channelId: channelId, seq: seq);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'write', e, stack);
+      api.reportFailure(api.LogTag.ui, 'save the read position', e, stack);
       // The local marker already advanced; only the server one is behind.
       if (_isTransient(e)) _forget(channelId, seq, previous);
     } on Object catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'write', error, stack);
+      api.reportFailure(api.LogTag.ui, 'save the read position', error, stack);
       _forget(channelId, seq, previous);
     }
   }

@@ -31,7 +31,7 @@ class PrefsDebugLogPersistence implements DebugLogPersistence {
     } on Object catch (e, s) {
       AppLog.debug(
         LogTag.data,
-        'Saved debug log unreadable',
+        'Could not read the saved debug log; starting empty',
         error: e,
         stack: s,
       );
@@ -45,7 +45,12 @@ class PrefsDebugLogPersistence implements DebugLogPersistence {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_key, encodeEvents(events));
     } on Object catch (e, s) {
-      AppLog.debug(LogTag.data, 'Debug log not persisted', error: e, stack: s);
+      AppLog.debug(
+        LogTag.data,
+        'Could not save the debug log',
+        error: e,
+        stack: s,
+      );
     }
   }
 }

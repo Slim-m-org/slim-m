@@ -82,7 +82,7 @@ class _BotsPaneState extends ConsumerState<BotsPane>
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'dispose failed, ignored',
+        'Could not suggest a bot prefix; leaving it empty',
         error,
         stack,
       );

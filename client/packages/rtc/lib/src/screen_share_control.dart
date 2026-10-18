@@ -130,7 +130,7 @@ class ScreenShareControl {
           ? ScreenShareOutcome.started
           : ScreenShareOutcome.pendingBroadcast;
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'share the screen', e, stack);
+      reportFailure(LogTag.voice, 'start sharing the screen', e, stack);
       onSettled(e);
       return ScreenShareOutcome.failed;
     }
@@ -158,7 +158,7 @@ class ScreenShareControl {
     try {
       await publish(true, options, includeAudio);
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'share the screen', e, stack);
+      reportFailure(LogTag.voice, 'start sharing the screen', e, stack);
       _broadcast.autoPublishEnabled = true;
       onSettled(e);
       return ScreenShareOutcome.failed;
@@ -206,7 +206,8 @@ class ScreenShareControl {
       await publish(true, options, includeAudio);
       onSettled(null);
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'publish after activation', e, stack);
+      reportFailure(LogTag.voice,
+          'start sharing after the screen broadcast began', e, stack);
       onSettled(e);
     } finally {
       _broadcast.autoPublishEnabled = true;

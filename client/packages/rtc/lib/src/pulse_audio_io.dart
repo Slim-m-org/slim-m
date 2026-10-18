@@ -51,7 +51,8 @@ class PulseAudio {
       if (result.exitCode != 0) return null;
       return parse(result.stdout as String);
     } on Object catch (error, stack) {
-      AppLog.swallowed(LogTag.voice, 'run pactl failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.voice, 'Could not list audio devices with pactl',
+          error, stack);
       return null;
     }
   }
@@ -67,7 +68,8 @@ class PulseAudio {
           ? '$pulseDevicePrefix$name'
           : null;
     } on Object catch (error, stack) {
-      AppLog.swallowed(LogTag.voice, 'run pactl failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.voice,
+          'Could not read the default audio device with pactl', error, stack);
       return null;
     }
   }

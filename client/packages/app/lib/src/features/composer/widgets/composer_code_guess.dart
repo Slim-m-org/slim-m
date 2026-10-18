@@ -103,7 +103,12 @@ bool _isJson(String text) {
     jsonDecode(trimmed);
     return true;
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.ui, 'is json failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.ui,
+      'The pasted text is not valid JSON; treating it as plain text',
+      error,
+      stack,
+    );
     return false;
   }
 }

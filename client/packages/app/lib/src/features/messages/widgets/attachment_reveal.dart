@@ -191,7 +191,7 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'A frame that will not decode leaves the neutral box; the tap reveals',
+        'An image preview could not be decoded; showing a placeholder',
         error,
         stack,
       );

@@ -233,7 +233,7 @@ void _healAfterCooldown(Ref ref) {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'heal after cooldown failed, ignored',
+        'Could not refresh the emoji list after the cooldown',
         error,
         stack,
       );

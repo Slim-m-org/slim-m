@@ -75,7 +75,7 @@ class ChannelDraftsController {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.data,
-        'restore failed, ignored',
+        'Could not restore saved message drafts',
         error,
         stack,
       );
@@ -120,7 +120,7 @@ class ChannelDraftsController {
     } catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.data,
-        'persist failed, ignored',
+        'Could not save a message draft',
         error,
         stack,
       );

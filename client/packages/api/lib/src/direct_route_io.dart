@@ -163,7 +163,11 @@ class IoDirectRoute implements DirectRoute {
       _skipUntil = null;
       return socket;
     } on Object catch (error, stack) {
-      reportFailure(LogTag.net, 'close', error, stack);
+      reportFailure(
+          LogTag.net,
+          'connect over the direct route; using the normal route',
+          error,
+          stack);
       raw?.destroy();
       _isActive = false;
       _probing = false;

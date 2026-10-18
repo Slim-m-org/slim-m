@@ -55,7 +55,7 @@ Future<void> signOutVia(ProviderReader read) async {
   try {
     await read(apiProvider).logout();
   } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.auth, 'sign out via', error, stack);
+    api.reportFailure(api.LogTag.auth, 'sign out on the server', error, stack);
     // The session may already be gone; clear locally either way.
     read(sessionProvider).clear();
   }

@@ -48,10 +48,11 @@ import 'video_publish_options.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
+import 'voice_log.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'package:slimm_api/api.dart'
-    show AppLog, LogTag, reportFailure, ignoreError;
+    show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
 
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
@@ -85,7 +86,7 @@ class VoiceSession
     InputGateMonitor? inputGate,
     MicPort? micPort,
     Duration? captureRestartDebounce,
-    void Function(String line)? audioLog,
+    VoiceLog? audioLog,
     AudioDevices? audioDevices,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
@@ -246,8 +247,8 @@ class VoiceSession
   }) {
     final previous = _joining ?? Future<void>.value();
     final current = previous
-        .catchError(ignoreError(
-            LogTag.voice, 'a previous queued step failed, already reported'))
+        .catchError(ignoreError(LogTag.voice,
+            'An earlier call setup step failed; it was already reported'))
         .then(
           (_) => _join(
             url: url,
@@ -299,7 +300,7 @@ class VoiceSession
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'set receive video quality', e, stack);
+      reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(_room, room)) return;
       _lastError = e;
       await _teardown();
@@ -354,7 +355,8 @@ class VoiceSession
     try {
       return await _desktopSources.list();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'screen share sources', e, stack);
+      reportFailure(LogTag.voice,
+          'list the screens and windows that can be shared', e, stack);
       _lastError = e;
       return const [];
     }
@@ -483,7 +485,7 @@ class VoiceSession
     try {
       return await _cameraSwitching.devices();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'camera devices', e, stack);
+      reportFailure(LogTag.voice, 'list cameras', e, stack);
       _lastError = e;
       return const [];
     }
@@ -494,7 +496,7 @@ class VoiceSession
     try {
       return await _cameraSwitching.flip(_room?.localParticipant);
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'flip camera', e, stack);
+      reportFailure(LogTag.voice, 'switch the camera', e, stack);
       _lastError = e;
       return false;
     }
@@ -510,7 +512,7 @@ class VoiceSession
       _refreshParticipants();
       return true;
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'select camera device', e, stack);
+      reportFailure(LogTag.voice, 'choose the camera', e, stack);
       _lastError = e;
       return false;
     }

@@ -56,7 +56,7 @@ class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
       if (context.mounted) ref.invalidate(rolesProvider);
       if (mounted) Navigator.of(context).pop(role.id);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'create the role', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('create the role', e);

@@ -12,7 +12,7 @@ void safeDelete(FileSystemEntity entity) {
   } on FileSystemException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'safe delete failed, ignored',
+      'Could not delete an old update file',
       error,
       stack,
     );

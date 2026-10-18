@@ -20,7 +20,6 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../diagnostics/debug_log.dart';
 import '../features/accounts/providers/account_providers.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
@@ -100,7 +99,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'flushing geometry on quit failed',
+        'Could not save the window position on quit',
         error: error,
         stack: stack,
       );
@@ -223,7 +222,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'initial splash geometry failed',
+        'Could not place the startup splash window',
         error: error,
         stack: stack,
       );
@@ -259,7 +258,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'splash chrome lock failed',
+        'Could not lock the startup splash window frame',
         error: error,
         stack: stack,
       );
@@ -311,7 +310,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'splash handoff geometry failed',
+        'Could not restore the window size and position after startup',
         error: error,
         stack: stack,
       );
@@ -418,7 +417,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'splash handoff reveal failed',
+        'Could not show the main window after startup',
         error: error,
         stack: stack,
       );
@@ -428,7 +427,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'post-reveal frame wait failed',
+        'The first frame took too long to appear after the window opened',
         error: error,
         stack: stack,
       );
@@ -471,7 +470,12 @@ class DesktopWindowShell {
       await _port.show();
       await _port.restore();
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'raise failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.platform,
+        'Could not bring the window to the front',
+        error,
+        stack,
+      );
     }
   }
 
@@ -496,13 +500,12 @@ class DesktopWindowShell {
     try {
       await _bringUpWindowAndTray(container, platform).timeout(_setupTimeout);
     } catch (error, stack) {
-      container
-          .read(debugLogProvider.notifier)
-          .record(
-            'desktop',
-            'window shell setup failed: $error',
-            detail: stack,
-          );
+      AppLog.warning(
+        LogTag.platform,
+        'Could not set up the window and tray',
+        error: error,
+        stack: stack,
+      );
     }
   }
 

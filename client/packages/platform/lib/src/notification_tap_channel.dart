@@ -68,12 +68,12 @@ class NotificationTapChannel {
       final channelId = await _channel.invokeMethod<String>('takeInitialTap');
       return (channelId != null && channelId.isNotEmpty) ? channelId : null;
     } on PlatformException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.push, 'take initial failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.push,
+          'Could not read the notification that opened the app', error, stack);
       return null;
     } on MissingPluginException catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.push, 'take initial failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.push,
+          'Could not read the notification that opened the app', error, stack);
       return null;
     }
   }

@@ -36,7 +36,7 @@ class RailWidthController extends StateNotifier<double?>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
-        'The layout default is always usable, so a bad read is not worth failing a launch over',
+        'Could not read the saved sidebar width; using the default',
         error,
         stack,
       );

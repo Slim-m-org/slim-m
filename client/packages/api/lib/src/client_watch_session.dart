@@ -12,7 +12,7 @@ extension SlimmApiWatchSession on SlimmApi {
       return WatchSession.fromJson(json as Map<String, dynamic>);
     } on NotFoundException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.auth, 'get watch session failed, ignored', error, stack);
+          LogTag.auth, 'Could not read the shared watch session', error, stack);
       return null;
     }
   }

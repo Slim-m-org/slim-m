@@ -65,7 +65,12 @@ class PushContentPreviewController extends StateNotifier<bool?> {
       final served = await _ref.read(apiProvider).pushPreview();
       if (!stale() && !_chosen) state = served;
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'refresh', error, stack);
+      reportFailure(
+        LogTag.push,
+        'read the push preview setting from the server',
+        error,
+        stack,
+      );
       // state keeps the pending choice, or stays unknown.
     }
   }
@@ -80,7 +85,12 @@ class PushContentPreviewController extends StateNotifier<bool?> {
       final prefs = await _ref.read(preferencesProvider.future);
       return prefs.getBool(pushIncludeContentKeyFor(account));
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'pending choice', error, stack);
+      reportFailure(
+        LogTag.push,
+        'read the push preview choice made while offline',
+        error,
+        stack,
+      );
       _ref.invalidate(preferencesProvider);
       return null;
     }
@@ -95,7 +105,12 @@ class PushContentPreviewController extends StateNotifier<bool?> {
       final prefs = await _ref.read(preferencesProvider.future);
       await prefs.remove(pushIncludeContentKeyFor(account));
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'clear pending', error, stack);
+      reportFailure(
+        LogTag.push,
+        'clear the push preview choice made while offline',
+        error,
+        stack,
+      );
       _ref.invalidate(preferencesProvider);
     }
   }
@@ -113,14 +128,19 @@ class PushContentPreviewController extends StateNotifier<bool?> {
         await prefs.setBool(pushIncludeContentKeyFor(account), enabled);
       }
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'set enabled', error, stack);
+      reportFailure(LogTag.push, 'save the push preview choice', error, stack);
       _ref.invalidate(preferencesProvider);
     }
     try {
       await _ref.read(apiProvider).setPushPreview(enabled);
       await _clearPending(account);
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'set enabled', error, stack);
+      reportFailure(
+        LogTag.push,
+        'update the push preview setting on the server',
+        error,
+        stack,
+      );
       // Left pending on purpose; see above.
     }
   }

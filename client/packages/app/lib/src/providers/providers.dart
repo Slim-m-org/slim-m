@@ -61,7 +61,7 @@ class ChosenServer extends Notifier<Uri?> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.auth,
-        'Best effort: a key store that refuses to write must not stand between someone and the server they just typed',
+        'Could not remember the server address; you may need to enter it again',
         error,
         stack,
       );
@@ -156,7 +156,7 @@ final sessionProvider = Provider<SessionStore>((ref) {
           slot == null ? serverUrl : null,
         );
       } catch (error, stack) {
-        reportFailure(LogTag.auth, 'persist', error, stack);
+        reportFailure(LogTag.auth, 'save the sign-in', error, stack);
 
         /// The server rotates refresh tokens with reuse detection: a write that
         /// failed here may have left a stale, already-spent token on disk, and
@@ -167,7 +167,10 @@ final sessionProvider = Provider<SessionStore>((ref) {
           await keyStore
               .delete(handle)
               .catchError(
-                ignoreError(LogTag.auth, 'deleting a stale key is best effort'),
+                ignoreError(
+                  LogTag.auth,
+                  'Could not delete an old saved sign-in',
+                ),
               );
         }
       }
@@ -230,7 +233,7 @@ Future<void> restoreSession(
     stored = await keyStore.read(sessionTokenHandle);
     prefs = await container.read(preferencesProvider.future);
   } catch (error, stack) {
-    reportFailure(LogTag.auth, 'restore the session', error, stack);
+    reportFailure(LogTag.auth, 'restore the saved sign-in', error, stack);
     // Locked storage (a phone woken before unlock, a keyring not yet open) is not a sign-out: keep everything and retry.
     note.state = 'stored session unreadable at launch, will retry: $error';
     container.read(_restoreRetryProvider).schedule(container, firstRetry);
@@ -277,13 +280,13 @@ Future<void> restoreSession(
       note.state = 'stored session restored after a retry';
     }
   } catch (error, stack) {
-    reportFailure(LogTag.auth, 'restore the session', error, stack);
+    reportFailure(LogTag.auth, 'restore the saved sign-in', error, stack);
     // Only what was read and found unusable is dropped; an unreadable store returned above.
     note.state = 'stored session dropped: $error';
     await keyStore
         .delete(sessionTokenHandle)
         .catchError(
-          ignoreError(LogTag.auth, 'deleting a stale key is best effort'),
+          ignoreError(LogTag.auth, 'Could not delete an old saved sign-in'),
         );
   }
 }

@@ -263,7 +263,7 @@ class _WarmTrendingGifsState extends ConsumerState<_WarmTrendingGifs> {
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'The GIFs tab shows its own error and retry when opened; a warm-up has nothing to say',
+        'Could not preload trending GIFs; the GIF tab shows its own error when opened',
         error,
         stack,
       );

@@ -21,7 +21,7 @@ mixin VoiceSessionInputGate {
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
-  void _diag(String line);
+  void _diag(String line, {LogLevel level});
 
   bool get supportsInputGate => _gate.supported;
 

@@ -94,12 +94,17 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
     } on api.NotConfiguredException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
-        'No voice on this deployment; never fires again for this channel',
+        'This server has no voice; not checking this channel for calls again',
         error,
         stack,
       );
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.voice, 'fetch', error, stack);
+      api.reportFailure(
+        api.LogTag.voice,
+        'check for a call in a direct message',
+        error,
+        stack,
+      );
       // Untracked again, so the next row that asks retries; waiting on a live event would leave a call already in progress unlit.
       _tracked.remove(channelId);
     }

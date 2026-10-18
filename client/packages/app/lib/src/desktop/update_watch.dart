@@ -100,7 +100,7 @@ class UpdateWatcher {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'Best-effort, same as the splash\'s own check: try again next tick',
+        'Could not check for an update; trying again later',
         error,
         stack,
       );

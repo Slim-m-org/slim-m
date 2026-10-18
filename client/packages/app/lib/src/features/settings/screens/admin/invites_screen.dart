@@ -179,7 +179,7 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
         _roleGrant = null;
       });
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'create the invite', e, stack);
       if (!mounted) return;
       setState(() => _error = describeApiFailure('create the invite', e));
     } finally {

@@ -74,7 +74,7 @@ class CanvasSelfPresenceController
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'A prefs store that cannot be read leaves the bubble at its default: visible',
+        'Could not read the canvas cursor setting; showing it',
         error,
         stack,
       );
@@ -94,7 +94,7 @@ class CanvasSelfPresenceController
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Best effort: a write failure must not stop this session\'s toggle from taking effect',
+        'Could not save the canvas cursor setting; applied for this session only',
         error,
         stack,
       );

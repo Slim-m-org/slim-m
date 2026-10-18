@@ -44,7 +44,12 @@ class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
       if (identity == null || identity.publicKey == pinned) return null;
       return identity;
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.auth, 'build', error, stack);
+      api.reportFailure(
+        api.LogTag.auth,
+        're-check the server identity',
+        error,
+        stack,
+      );
       return proven?.publicKey == pinned ? null : proven;
     }
   }

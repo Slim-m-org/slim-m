@@ -41,7 +41,7 @@ class WindowMaximizedTracker extends ChangeNotifier {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'An early-startup plugin failure leaves the icon at its default',
+        'Could not tell whether the window is maximized; keeping the default icon',
         error,
         stack,
       );
@@ -58,7 +58,7 @@ class WindowMaximizedTracker extends ChangeNotifier {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'A WM refusal or plugin error leaves the icon as it was',
+        'Could not maximize or restore the window',
         error,
         stack,
       );

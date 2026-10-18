@@ -121,7 +121,7 @@ Future<bool> hasClipboardImage() async {
   } on MissingPluginException catch (error, stack) {
     AppLog.swallowed(
       LogTag.media,
-      'has clipboard image failed, ignored',
+      'Could not check the clipboard for an image',
       error,
       stack,
     );
@@ -139,7 +139,7 @@ Future<Uint8List?> readClipboardImage() async {
   } on MissingPluginException catch (error, stack) {
     AppLog.swallowed(
       LogTag.media,
-      'read clipboard image failed, ignored',
+      'Could not read an image from the clipboard',
       error,
       stack,
     );

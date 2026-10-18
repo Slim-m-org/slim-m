@@ -76,13 +76,18 @@ class DiskByteCache implements ByteCache {
             .catchError(
               ignoreError(
                 LogTag.media,
-                'touching the cache entry is best effort',
+                'Could not mark a cached file as recently used',
               ),
             ),
       );
       return bytes;
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.media, 'read failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.media,
+        'Could not read a file from the disk cache',
+        error,
+        stack,
+      );
       // A miss, an unreadable file or a broken directory all read as never cached.
       return null;
     }
@@ -98,7 +103,12 @@ class DiskByteCache implements ByteCache {
       await partial.rename(file.path);
       if (_dueForTrim()) await _evictOverCeiling(dir);
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.media, 'write failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.media,
+        'Could not write a file to the disk cache',
+        error,
+        stack,
+      );
       // See [ByteCache.write]: a failed write is a slower next view, nothing more.
     }
   }
@@ -115,7 +125,7 @@ class DiskByteCache implements ByteCache {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'an undeletable cached file stays until eviction reaches it',
+        'Could not delete a cached file; it stays until the cache trims it',
         error,
         stack,
       );
@@ -149,7 +159,7 @@ class DiskByteCache implements ByteCache {
       } catch (error, stack) {
         AppLog.swallowed(
           LogTag.media,
-          'evict over ceiling failed, ignored',
+          'Could not delete a cached file while trimming the cache',
           error,
           stack,
         );

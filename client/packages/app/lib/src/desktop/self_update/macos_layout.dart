@@ -74,7 +74,7 @@ bool _canWrite(Directory dir) {
   } on FileSystemException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'can write failed, ignored',
+      'The install folder is not writable; updating in place is off',
       error,
       stack,
     );

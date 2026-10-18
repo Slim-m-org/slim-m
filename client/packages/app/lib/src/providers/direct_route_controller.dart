@@ -13,7 +13,12 @@ final directRouteProvider = FutureProvider<void>((ref) async {
   try {
     await ref.watch(apiProvider).refreshDirectRoute();
   } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'future provider', error, stack);
+    api.reportFailure(
+      api.LogTag.ui,
+      'refresh the direct route to the server',
+      error,
+      stack,
+    );
     return;
   }
 });

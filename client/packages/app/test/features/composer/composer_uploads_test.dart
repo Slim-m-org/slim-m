@@ -107,13 +107,19 @@ void main() {
   setUpAll(loadRealFonts);
 
   late TextEditingController controller;
+  late DebugLog log;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     controller = TextEditingController();
+    log = DebugLog();
+    api.AppLog.install(log);
   });
 
-  tearDown(() => controller.dispose());
+  tearDown(() {
+    api.AppLog.install(null);
+    controller.dispose();
+  });
 
   Future<void> pumpComposer(
     WidgetTester tester, {
@@ -293,8 +299,8 @@ void main() {
     );
     expect(find.textContaining('1.0 KB per file'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
-    final events = _container(tester).read(debugLogProvider);
-    expect(events.single.source, 'attachment');
+    final events = log.state;
+    expect(events.single.source, 'media');
     expect(events.single.detail, contains('1.0 KB'));
   });
 
@@ -330,8 +336,8 @@ void main() {
     expect(paragraph.didExceedMaxLines, isFalse);
     expect(paragraph.text.toPlainText(), contains('Nothing was changed.'));
 
-    final events = _container(tester).read(debugLogProvider);
-    expect(events.single.source, 'attachment');
+    final events = log.state;
+    expect(events.single.source, 'media');
     expect(events.single.message, contains(_iso));
     expect(events.single.detail, contains('connection reset'));
     await writeSnapshot(tester, 'composer-upload-failed-desktop-light');

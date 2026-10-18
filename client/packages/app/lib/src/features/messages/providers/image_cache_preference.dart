@@ -51,7 +51,7 @@ class ImageCacheLimitController extends StateNotifier<int>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'Not worth failing a launch over; the default is always usable',
+        'Could not read the image cache setting; using the default',
         error,
         stack,
       );

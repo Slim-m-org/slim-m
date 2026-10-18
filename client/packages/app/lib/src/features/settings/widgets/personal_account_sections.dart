@@ -218,7 +218,12 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     try {
       needsCode = (await ref.read(apiProvider).totpStatus()).enabled;
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.auth, 'confirm deletion', e, stack);
+      api.reportFailure(
+        api.LogTag.auth,
+        'check whether a two-factor code is needed to delete the account',
+        e,
+        stack,
+      );
       if (mounted) setState(() => _deleteError = e.message);
       return;
     }
@@ -263,7 +268,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
       await ref.read(apiProvider).deleteAccount(password: password, code: code);
       return null;
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.auth, 'confirm deletion', e, stack);
+      api.reportFailure(api.LogTag.auth, 'delete the account', e, stack);
 
       /// Not on a 401: there the session is already gone, cleared by the
       /// refresh path before this catch runs, so restarting would race the

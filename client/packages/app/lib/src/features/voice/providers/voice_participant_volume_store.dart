@@ -38,7 +38,12 @@ Future<Map<String, double>> loadParticipantVolumes(
           ),
     };
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.voice, 'key for failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.voice,
+      'Could not build the key for a saved participant volume',
+      error,
+      stack,
+    );
     return {};
   }
 }

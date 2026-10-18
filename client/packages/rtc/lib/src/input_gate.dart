@@ -103,7 +103,7 @@ class InputGateMonitor {
     } on Object catch (error, stack) {
       AppLog.swallowed(
           LogTag.voice,
-          'An older native build has no gate; the call then just carries on ungated',
+          'This build has no voice input gate; the call runs ungated',
           error,
           stack);
     }
@@ -138,7 +138,8 @@ class InputGateMonitor {
         onVoiceChanged();
       }
     } on Object catch (error, stack) {
-      reportFailure(LogTag.voice, 'poll', error, stack);
+      reportFailure(LogTag.voice,
+          'read the microphone level from the input gate', error, stack);
       stop();
     } finally {
       _polling = false;

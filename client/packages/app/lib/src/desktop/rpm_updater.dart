@@ -100,7 +100,7 @@ class RpmUpdater {
     } on ProcessException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'repo enabled failed, ignored',
+        'Could not check whether the slim-m package repository is enabled',
         error,
         stack,
       );
@@ -108,7 +108,7 @@ class RpmUpdater {
     } on TimeoutException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'repo enabled failed, ignored',
+        'Could not check whether the slim-m package repository is enabled',
         error,
         stack,
       );
@@ -131,7 +131,7 @@ class RpmUpdater {
     } on ProcessException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'installed version failed, ignored',
+        'Could not read the installed slim-m package version',
         error,
         stack,
       );
@@ -139,7 +139,7 @@ class RpmUpdater {
     } on TimeoutException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'installed version failed, ignored',
+        'Could not read the installed slim-m package version',
         error,
         stack,
       );
@@ -219,12 +219,17 @@ class RpmUpdater {
         detail: lastLines('${result.stdout}\n${result.stderr}'),
       );
     } on ProcessException catch (e, stack) {
-      AppLog.swallowed(LogTag.platform, 'privileged failed, ignored', e, stack);
+      AppLog.swallowed(
+        LogTag.platform,
+        'Could not run the package manager with elevated rights',
+        e,
+        stack,
+      );
       return RpmUpdateResult(ok: false, detail: e.message);
     } on TimeoutException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'privileged failed, ignored',
+        'Could not run the package manager with elevated rights',
         error,
         stack,
       );
