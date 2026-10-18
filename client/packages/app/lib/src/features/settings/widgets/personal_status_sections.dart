@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart'
-    show LocalAlertChannel, isAndroidHost, isLinuxHost;
+    show LocalAlertChannel, isAndroidHost, isDesktopHost, isLinuxHost;
 
 import '../../../providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
@@ -40,7 +40,10 @@ bool get isPhoneHaptics =>
 /// [PushController] tracks: this is what makes a registration problem
 /// diagnosable from the device itself, instead of guessing from server logs.
 class NotificationsSection extends ConsumerWidget {
-  const NotificationsSection({super.key});
+  const NotificationsSection({super.key, this.hasPushChannel});
+
+  /// Null asks the host; a desktop shows its own notifications and has no push to report on.
+  final bool? hasPushChannel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,19 +52,19 @@ class NotificationsSection extends ConsumerWidget {
     final moduleSoundsEnabled = ref.watch(moduleSoundSettingsProvider);
     final uiSoundsEnabled = ref.watch(uiSoundSettingsProvider);
     final hapticsEnabled = ref.watch(hapticsSettingsProvider);
-    // The Linux desktop shows its own notifications and never has push, so any push status would be the wrong answer there.
-    final localOnly = isLinuxHost;
-    final style = notificationBannerStyle(status, localOnly: localOnly);
+    final style = notificationBannerStyle(status);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: AppSpacing.s16),
-        NotificationStatusBanner(
-          label: localOnly ? 'Shown while slim-m is running' : status.label,
-          warn: style.warn,
-          bell: style.bell,
-        ),
+        if (hasPushChannel ?? !isDesktopHost) ...[
+          const SizedBox(height: AppSpacing.s16),
+          NotificationStatusBanner(
+            label: status.label,
+            warn: style.warn,
+            bell: style.bell,
+          ),
+        ],
         SettingsSectionCard(
           title: 'When to notify',
           children: [

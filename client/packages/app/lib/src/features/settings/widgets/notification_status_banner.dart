@@ -9,11 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../providers/push_status.dart';
 
 /// Which tone and glyph each push state reads in.
-({bool warn, bool bell}) notificationBannerStyle(
-  PushStatus status, {
-  required bool localOnly,
-}) {
-  if (localOnly) return (warn: false, bell: true);
+({bool warn, bool bell}) notificationBannerStyle(PushStatus status) {
   return switch (status) {
     PushStatus.registered => (warn: false, bell: true),
     PushStatus.notSignedIn ||

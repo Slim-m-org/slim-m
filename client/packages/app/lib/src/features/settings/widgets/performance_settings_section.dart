@@ -7,8 +7,8 @@
 /// how much decoded-image memory is kept for reuse (memory). The four are
 /// paired on purpose - a data-saver preview and a large cache together hold far
 /// more attachments ready to scroll back to than either does alone, since each
-/// one resident costs a fraction as much. App behaviour lives in
-/// [GeneralSettingsSection].
+/// one resident costs a fraction as much. How much history loads per page sits
+/// here too, since it is what this device keeps around.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../messages/providers/attachment_preview_quality.dart';
 import '../../messages/providers/image_cache_preference.dart';
 import '../../messages/providers/media_preferences.dart';
+import '../../messages/providers/message_page_size.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 
@@ -96,16 +97,29 @@ class PerformanceSettingsSection extends ConsumerWidget {
               value: ref.watch(imageCacheLimitControllerProvider),
               choices: [
                 for (final mb in imageCacheLimitChoicesMb)
-                  SettingsChoice(
-                    value: mb,
-                    label: mb == defaultImageCacheLimitMb
-                        ? '$mb MB (default)'
-                        : '$mb MB',
-                  ),
+                  SettingsChoice(value: mb, label: imageCacheLimitLabel(mb)),
               ],
               description: 'How much memory recent images may use.',
               onChanged: (next) => ref
                   .read(imageCacheLimitControllerProvider.notifier)
+                  .select(next),
+            ),
+          ],
+        ),
+        SettingsSectionCard(
+          title: 'History',
+          description: 'How many messages load when you scroll back.',
+          children: [
+            SettingsSelectRow<MessagePageSize>(
+              label: 'Message page size',
+              sheetTitle: 'Message page size',
+              value: ref.watch(messagePageSizeControllerProvider),
+              choices: [
+                for (final value in MessagePageSize.values)
+                  SettingsChoice(value: value, label: value.label),
+              ],
+              onChanged: (next) => ref
+                  .read(messagePageSizeControllerProvider.notifier)
                   .select(next),
             ),
           ],

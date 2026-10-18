@@ -6,6 +6,7 @@ library;
 import 'package:slimm_rtc/rtc.dart';
 
 String receiveVideoQualityLabel(ReceiveVideoQuality q) => switch (q) {
+  ReceiveVideoQuality.max => 'Max',
   ReceiveVideoQuality.auto => 'Auto',
   ReceiveVideoQuality.balanced => 'Balanced',
   ReceiveVideoQuality.dataSaver => 'Data saver',

@@ -25,9 +25,30 @@ const imageCacheLimitKey = 'slimm.performance.image_cache_mb';
 /// picker as the "(default)" choice.
 const int defaultImageCacheLimitMb = 100;
 
+/// The stored value for no cap at all.
+const int imageCacheNoLimitMb = 0;
+
 /// The offered caps. 100 is the default; the lower ones trade decode work for
-/// less resident memory, the higher one favours scrolling back through media.
-const List<int> imageCacheLimitChoicesMb = [50, 100, 200];
+/// less resident memory, the higher ones favour scrolling back through media.
+const List<int> imageCacheLimitChoicesMb = [
+  50,
+  100,
+  200,
+  500,
+  1000,
+  imageCacheNoLimitMb,
+];
+
+/// How a cap reads in the picker.
+String imageCacheLimitLabel(int megabytes) => switch (megabytes) {
+  imageCacheNoLimitMb => 'No limit',
+  defaultImageCacheLimitMb => '$megabytes MB (default)',
+  1000 => '1 GB',
+  _ => '$megabytes MB',
+};
+
+/// Flutter's own entry-count cap, which No limit lifts along with the bytes.
+const int _defaultImageCacheEntries = 1000;
 
 class ImageCacheLimitController extends StateNotifier<int>
     implements RestorablePreference {
@@ -67,7 +88,15 @@ class ImageCacheLimitController extends StateNotifier<int>
   }
 
   void _apply(int megabytes) {
-    PaintingBinding.instance.imageCache.maximumSizeBytes = megabytes << 20;
+    final cache = PaintingBinding.instance.imageCache;
+    if (megabytes == imageCacheNoLimitMb) {
+      // Below 2^53 so the same value holds on the web, where ints are doubles.
+      cache.maximumSizeBytes = 1 << 50;
+      cache.maximumSize = 1 << 30;
+      return;
+    }
+    cache.maximumSizeBytes = megabytes << 20;
+    cache.maximumSize = _defaultImageCacheEntries;
   }
 }
 

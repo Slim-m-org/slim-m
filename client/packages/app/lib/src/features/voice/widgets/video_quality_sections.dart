@@ -5,14 +5,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../../routing/routes.dart';
 import 'pause_video_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_segmented_row.dart';
@@ -32,7 +29,6 @@ class VideoQualitySection extends ConsumerWidget {
         .read(voiceControllerProvider.notifier)
         .supportsScreenShareAudio;
 
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -84,29 +80,6 @@ class VideoQualitySection extends ConsumerWidget {
               ),
             if (ref.watch(pauseOnUnfocusedAppliesProvider))
               const PauseVideoRow(),
-            AppListRow(
-              leading: Container(
-                width: AppSizes.controlLg,
-                height: AppSizes.controlLg,
-                decoration: BoxDecoration(
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                ),
-                child: Icon(
-                  AppIcons.requestLatency,
-                  size: AppSizes.icon20,
-                  color: tokens.textSecondary,
-                ),
-              ),
-              label: 'Call stats',
-              subtitle: 'Live video numbers for a call.',
-              trailing: Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              onTap: () => context.push(Routes.callStats),
-            ),
           ],
         ),
       ],

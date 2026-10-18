@@ -63,6 +63,20 @@ void main() {
       expect(share, isEmpty);
     });
 
+    test('max asks every camera and share for the top layer, even fresh ones',
+        () async {
+      final camera = <lk.VideoQuality>[];
+      final share = <lk.VideoQuality>[];
+      final lowered = {'TR_1'};
+      await applyReceiveVideoQuality([
+        _pub(lk.TrackSource.camera, camera),
+        _pub(lk.TrackSource.screenShareVideo, share, sid: 'TR_2'),
+      ], ReceiveVideoQuality.max, lowered);
+      expect(camera, [lk.VideoQuality.HIGH]);
+      expect(share, [lk.VideoQuality.HIGH]);
+      expect(lowered, isEmpty);
+    });
+
     test('balanced leaves a fresh share alone, it asks for the top layer',
         () async {
       final share = <lk.VideoQuality>[];
