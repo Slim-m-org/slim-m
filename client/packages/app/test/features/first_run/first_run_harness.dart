@@ -194,10 +194,15 @@ final defaultChannels = [
 http.Response _handle(http.Request request) {
   final path = request.url.path;
   if (path == '/space/settings') {
+    return http.Response('{"error":"forbidden"}', 403);
+  }
+  if (path == '/version') {
     return _json({
-      'name': 'Lamplight',
-      'description': 'A small place for the game night crowd.',
-      'join_policy': 'invite',
+      'name': 'slim-m',
+      'version': '0.0.0',
+      'protocol': 1,
+      'space_name': 'Lamplight',
+      'space_description': 'A small place for the game night crowd.',
     });
   }
   if (path == '/push/preference') {

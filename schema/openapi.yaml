@@ -9698,6 +9698,9 @@ components:
         space_name:
           type: string
           description: This deployment's own name, which an admin can change. Absent on older servers.
+        space_description:
+          type: string
+          description: The Space's description, as the invite landing card shows it. Absent when none is set.
         version:
           type: string
           description: The server's release version.

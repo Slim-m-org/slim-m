@@ -24,6 +24,7 @@ class Version {
     required this.version,
     required this.protocol,
     this.spaceName,
+    this.spaceDescription,
     this.pushEnabled,
     this.inviteRequired,
     this.claimed,
@@ -47,6 +48,9 @@ class Version {
 
   /// The name an admin gave this Space; null from a server too old to have one.
   final String? spaceName;
+
+  /// What the admin wrote about this Space; null when there is none.
+  final String? spaceDescription;
 
   /// The Space's name, falling back to the product on an older server.
   String get displayName => spaceName ?? name;
@@ -145,6 +149,7 @@ class Version {
   factory Version.fromJson(Map<String, dynamic> json) => Version(
         name: json['name'] as String,
         spaceName: json['space_name'] as String?,
+        spaceDescription: json['space_description'] as String?,
         version: json['version'] as String,
         protocol: json['protocol'] as int,
         pushEnabled: json['push_enabled'] as bool?,

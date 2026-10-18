@@ -9,7 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/space_icon.dart';
 import '../../members/widgets/avatar_settings_section.dart';
-import '../../settings/widgets/join_policy_row.dart' show spaceSettingsProvider;
+import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import '../providers/first_run_controller.dart';
 
 const double _iconSize = 56;
@@ -20,22 +20,23 @@ class FirstRunWelcomeStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final settings = ref.watch(spaceSettingsProvider);
+    final server = ref.watch(serverInfoProvider);
     final inviter = ref.watch(firstRunInviterProvider);
-    final loaded = settings.valueOrNull;
-    if (loaded == null && settings.hasError) {
+    final loaded = server.valueOrNull;
+    if (loaded == null && server.hasError) {
       return AppErrorState(
         message: 'Could not load this Space.',
-        onRetry: () => ref.invalidate(spaceSettingsProvider),
+        onRetry: () => ref.invalidate(serverInfoProvider),
       );
     }
+    final description = loaded?.spaceDescription ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SpaceMark(settings: loaded),
+        _SpaceMark(iconUpdatedAt: loaded?.iconUpdatedAt),
         const SizedBox(height: AppSpacing.s16),
         Text(
-          loaded?.name ?? '',
+          loaded?.displayName ?? '',
           style: AppText.title.copyWith(color: tokens.textPrimary),
         ),
         if (inviter != null) ...[
@@ -45,10 +46,10 @@ class FirstRunWelcomeStep extends ConsumerWidget {
             style: AppText.ui.copyWith(color: tokens.textSecondary),
           ),
         ],
-        if (loaded != null && loaded.description.isNotEmpty) ...[
+        if (description.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.s12),
           Text(
-            loaded.description,
+            description,
             style: AppText.body.copyWith(color: tokens.textPrimary),
           ),
         ],
@@ -63,13 +64,13 @@ class FirstRunWelcomeStep extends ConsumerWidget {
 }
 
 class _SpaceMark extends StatelessWidget {
-  const _SpaceMark({required this.settings});
+  const _SpaceMark({required this.iconUpdatedAt});
 
-  final api.SpaceSettings? settings;
+  final int? iconUpdatedAt;
 
   @override
   Widget build(BuildContext context) {
-    final updatedAt = settings?.iconUpdatedAt;
+    final updatedAt = iconUpdatedAt;
     if (updatedAt != null) {
       return SpaceIcon(updatedAt: updatedAt, size: _iconSize);
     }

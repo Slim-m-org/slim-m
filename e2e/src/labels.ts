@@ -3,6 +3,7 @@
 export const L = {
   "COMPOSER": "Message composer",
   "SEND": "Send message",
+  "SKIP_SETUP": "Skip setup",
   "ATTACH": "Attach a file",
   "ADD_REACTION": "Add reaction",
   "REMOVE_ATTACHMENT": "Remove attachment",

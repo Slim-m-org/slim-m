@@ -67,7 +67,21 @@ def sign_in(client, server, username, password):
     client.type_into("Password", password)
     client.click("Sign in", settle=6)
     client.wait_url("#/channels")
+    skip_first_run(client)
     print(f"  {client.name}: signed in as {username}")
+
+
+def skip_first_run(client, timeout=15):
+    """A new account opens on the setup card, which covers the shell.
+
+    Only a first sign-in per browser shows it, so its absence is fine.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if client.find(L.SKIP_SETUP):
+            client.click(L.SKIP_SETUP)
+            return
+        time.sleep(1)
 
 
 def go_home(client):
