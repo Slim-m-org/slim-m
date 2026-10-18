@@ -6,7 +6,7 @@ There are two ways in, and both create the same per-user install that updates it
 It is an Inno Setup installer (`slim-m.iss`) that needs no administrator rights, installs into `%LOCALAPPDATA%\slim-m`, adds a Start menu shortcut and an optional desktop one, and registers an uninstaller in Apps & Features.
 Running a newer setup over an existing install upgrades it in place, writing the `previous` and `current` pointers the way the updater does.
 Setup and the uninstaller both notice a running slim-m (through its `Local\top.npcserver.slimm.instance` mutex) and ask you to close it first.
-Closing the window only sends slim-m to the tray, so quit it from the tray icon's menu (Quit slim-m), then click OK.
+Closing the window only sends slim-m to the tray, so quit it from the tray icon (Quit slim-m; on Windows it may sit under the ^ overflow arrow), then click OK.
 Start on login registers the stable `slim-m.exe` launcher, so a login start follows updates; the app rewrites an older registration that named a versioned folder.
 Uninstalling removes the app folders, the launcher, the pointers, the `running.pid` marker, a "Start on login" entry that points into the install, and the install folder itself once it is empty.
 The app keeps its data under `%APPDATA%`, outside that folder, so uninstalling leaves it alone.

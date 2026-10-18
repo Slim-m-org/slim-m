@@ -18,4 +18,14 @@ void main() {
     final bytes = await rootBundle.load(trayIconAssetPath);
     expect(bytes.lengthInBytes, greaterThan(0));
   });
+
+  test(
+    'the windows tray icon is a bundled .ico and the others stay png',
+    () async {
+      final path = trayIconPathFor(windows: true);
+      expect(path, endsWith('.ico'));
+      expect((await rootBundle.load(path)).lengthInBytes, greaterThan(0));
+      expect(trayIconPathFor(windows: false), endsWith('.png'));
+    },
+  );
 }
