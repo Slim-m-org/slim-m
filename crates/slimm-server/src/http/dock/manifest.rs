@@ -454,6 +454,7 @@ mod changelog;
 mod index;
 mod names;
 mod network;
+mod review;
 mod schedule;
 mod supported;
 

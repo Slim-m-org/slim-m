@@ -43,16 +43,28 @@ extension SlimmApiModuleCommands on SlimmApi {
   ///
   /// [channelId] is the channel the command was typed in; only then may the
   /// module post a message, and only into that channel.
+  ///
+  /// With [postOutput] the server posts a successful run's output into
+  /// [channelId] as the caller, labelled as the module's, and answers with the
+  /// new message's id instead of the text; [replyToId] is the message it
+  /// answers.
   Future<RunModuleCommandResult> runModuleCommand({
     required String moduleId,
     required String command,
     required String input,
     String? channelId,
+    bool postOutput = false,
+    String? replyToId,
   }) async {
     final json = await _send(
       'POST',
       '/modules/$moduleId/commands/$command',
-      body: {'input': input, if (channelId != null) 'channel_id': channelId},
+      body: {
+        'input': input,
+        if (channelId != null) 'channel_id': channelId,
+        if (postOutput) 'post_output': true,
+        if (postOutput && replyToId != null) 'reply_to_id': replyToId,
+      },
     );
     return RunModuleCommandResult.fromJson(json as Map<String, dynamic>);
   }

@@ -6,7 +6,10 @@
 use serde::Serialize;
 
 use super::manifest::{IndexEntry, Manifest, ManifestExtensionPoint};
-use crate::store::{InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec};
+use crate::module_runtime::{MAX_ENTRIES, MAX_TOTAL_BYTES};
+use crate::store::{
+    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleRunStat, StorageUsage,
+};
 
 #[derive(Serialize)]
 pub(super) struct IndexEntryDto {
@@ -100,6 +103,8 @@ pub(super) struct ManifestDto {
     schedules: Vec<ScheduleDto>,
     /// What each version changed, newest first; empty when none is published.
     changelog: Vec<ChangelogEntryDto>,
+    /// Sent back with the install so consent is bound to what was reviewed.
+    review_digest: String,
 }
 
 #[derive(Serialize)]
@@ -123,7 +128,9 @@ pub(super) struct NetworkDto {
 
 impl From<Manifest> for ManifestDto {
     fn from(m: Manifest) -> Self {
+        let review_digest = m.review_digest();
         Self {
+            review_digest,
             id: m.id,
             name: m.name,
             version: m.version,
@@ -209,6 +216,80 @@ pub(in crate::http) struct InstalledModuleDto {
     /// Where its scheduled runs post; absent until an admin chooses.
     #[serde(skip_serializing_if = "Option::is_none")]
     schedule_channel_id: Option<String>,
+    /// How each of its commands has run lately; only the installed listing carries it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    run_stats: Option<Vec<RunStatDto>>,
+    /// What its `kv.store` holds against the limits; only the installed listing carries it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    storage: Option<StorageDto>,
+}
+
+#[derive(Serialize)]
+pub(in crate::http) struct RunStatDto {
+    command: String,
+    run_count: i64,
+    failure_count: i64,
+    last_run_at: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_ok_at: Option<i64>,
+    /// When the current run of failures began; absent while the last run succeeded.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    failing_since: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_error_at: Option<i64>,
+    last_duration_ms: i64,
+    max_duration_ms: i64,
+}
+
+impl From<ModuleRunStat> for RunStatDto {
+    fn from(s: ModuleRunStat) -> Self {
+        Self {
+            command: s.command,
+            run_count: s.run_count,
+            failure_count: s.failure_count,
+            last_run_at: s.last_run_at,
+            last_ok_at: s.last_ok_at,
+            failing_since: s.failing_since,
+            last_error: s.last_error,
+            last_error_at: s.last_error_at,
+            last_duration_ms: s.last_duration_ms,
+            max_duration_ms: s.max_duration_ms,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub(in crate::http) struct StorageDto {
+    entries: i64,
+    bytes: i64,
+    max_entries: i64,
+    max_bytes: i64,
+}
+
+impl From<StorageUsage> for StorageDto {
+    fn from(u: StorageUsage) -> Self {
+        Self {
+            entries: u.entries,
+            bytes: u.bytes,
+            max_entries: MAX_ENTRIES as i64,
+            max_bytes: MAX_TOTAL_BYTES as i64,
+        }
+    }
+}
+
+impl InstalledModuleDto {
+    /// Adds what the admin's installed list shows beside the module itself.
+    pub(in crate::http) fn with_activity(
+        mut self,
+        stats: Vec<ModuleRunStat>,
+        usage: StorageUsage,
+    ) -> Self {
+        self.run_stats = Some(stats.into_iter().map(RunStatDto::from).collect());
+        self.storage = Some(usage.into());
+        self
+    }
 }
 
 impl From<InstalledModule> for InstalledModuleDto {
@@ -236,6 +317,8 @@ impl From<InstalledModule> for InstalledModuleDto {
                 .collect(),
             bot_user_id: m.bot_user_id.map(|id| id.to_string()),
             schedule_channel_id: m.schedule_channel_id.map(|id| id.to_string()),
+            run_stats: None,
+            storage: None,
         }
     }
 }

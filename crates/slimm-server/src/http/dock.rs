@@ -30,7 +30,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use url::Url;
 
-use self::dock_lifecycle::{disable, enable, list_installed, uninstall};
+use self::dock_lifecycle::{clear_storage, disable, enable, list_installed, uninstall};
 use self::dock_sources::{add_source, list_sources, remove_source};
 use super::AppState;
 use super::error::ApiError;
@@ -51,7 +51,7 @@ use capabilities::{
 use fetch::{FetchError, fetch_first};
 use keywords::ensure_slash_keywords_free;
 use manifest::{IndexEntry, Manifest, ManifestError, parse_index, parse_manifest, validate_slug};
-use sources::SourceQuery;
+use sources::{Origin, SourceQuery};
 use wire::{IndexEntryDto, InstalledModuleDto, ManifestDto};
 
 pub(super) mod dock_lifecycle;
@@ -80,6 +80,8 @@ struct Enabled {
     source_root: Url,
     official_repos: Vec<String>,
     allowed_host: String,
+    /// The operator's local module directory, canonical; `None` leaves the `dev` source absent.
+    dev_dir: Option<std::path::PathBuf>,
 }
 
 impl Dock {
@@ -90,6 +92,24 @@ impl Dock {
         let root = Url::parse(&format!("https://{ADDONS_HOST}/"))
             .expect("a fixed host is always a valid URL");
         Self::rooted_at(root, config.addons_repos(), false)
+            .with_dev_dir(config.dev_module_dir.as_deref())
+    }
+
+    /// Reads the operator's `dev_module_dir`, if it names a directory.
+    fn with_dev_dir(mut self, dir: Option<&str>) -> Self {
+        let Some(dir) = dir else { return self };
+        match std::fs::canonicalize(dir) {
+            Ok(path) if path.is_dir() => {
+                if let Some(inner) = self.inner.as_mut().and_then(Arc::get_mut) {
+                    inner.dev_dir = Some(path);
+                }
+            }
+            _ => tracing::warn!(
+                dir,
+                "SLIMM_DEV_MODULE_DIR is not a readable directory; the dev source stays off"
+            ),
+        }
+        self
     }
 
     fn rooted_at(source_root: Url, official_repos: Vec<String>, allow_private: bool) -> Self {
@@ -121,6 +141,7 @@ impl Dock {
                 source_root,
                 official_repos,
                 allowed_host,
+                dev_dir: None,
             })),
         }
     }
@@ -130,6 +151,11 @@ impl Dock {
     /// nothing exercises it by accident.
     pub fn disabled() -> Self {
         Self { inner: None }
+    }
+
+    /// Whether the operator turned the local `dev` source on.
+    pub(crate) fn has_dev_source(&self) -> bool {
+        self.inner.as_deref().is_some_and(|d| d.dev_dir.is_some())
     }
 
     /// The official source's repo slug, for the sources listing.
@@ -170,6 +196,10 @@ pub fn routes() -> Router<AppState> {
         .route(
             "/space/dock/modules/{id}/install",
             post(install).delete(uninstall),
+        )
+        .route(
+            "/space/dock/modules/{id}/storage",
+            axum::routing::delete(clear_storage),
         )
         .route("/space/dock/modules/{id}/enable", post(enable))
         .route("/space/dock/modules/{id}/disable", post(disable))
@@ -223,16 +253,30 @@ pub(crate) fn validate_module_id(id: &str) -> Result<(), ApiError> {
     validate_slug(id, MAX_MODULE_ID_LEN).map_err(|_| ApiError::BadRequest("invalid module id"))
 }
 
+/// [path] from wherever [origin] keeps its files.
+async fn fetch_path(
+    dock: &Enabled,
+    origin: &Origin,
+    path: &str,
+    limits: fetch::Limits,
+) -> Result<Vec<u8>, FetchError> {
+    match origin {
+        Origin::Remote(bases) => {
+            fetch_first(&dock.client, bases, path, &dock.allowed_host, limits).await
+        }
+        Origin::Dev(root) => fetch::read_local(root, path, limits).await,
+    }
+}
+
 /// Fetches and validates the module at [id]'s current `manifest.json`,
 /// confirming the registry's own `id` field agrees with the path it was
 /// fetched at - the same "does not alias a different resource" check
 /// `messages::SendError::IdConflict` exists for elsewhere.
-async fn fetch_manifest(dock: &Enabled, bases: &[Url], id: &str) -> Result<Manifest, ApiError> {
-    let bytes = fetch_first(
-        &dock.client,
-        bases,
+async fn fetch_manifest(dock: &Enabled, origin: &Origin, id: &str) -> Result<Manifest, ApiError> {
+    let bytes = fetch_path(
+        dock,
+        origin,
         &format!("modules/{id}/manifest.json"),
-        &dock.allowed_host,
         fetch::Limits::MANIFEST,
     )
     .await?;
@@ -245,16 +289,37 @@ async fn fetch_manifest(dock: &Enabled, bases: &[Url], id: &str) -> Result<Manif
     Ok(manifest)
 }
 
+/// `bases` moved to the immutable ref the index published for `id`, so the
+/// manifest an admin reviews and the artifact it installs come from one fixed
+/// commit. An entry with no ref (an older index), or an index that cannot be
+/// read, leaves `bases` on `main`; the reviewed digest still binds the install.
+async fn pinned_origin(dock: &Enabled, origin: &Origin, id: &str) -> Result<Origin, ApiError> {
+    let Origin::Remote(bases) = origin else {
+        return Ok(origin.clone());
+    };
+    let Ok(index) = fetch_index(dock, origin).await else {
+        return Ok(origin.clone());
+    };
+    let Some(reference) = index
+        .into_iter()
+        .find(|e| e.id == id)
+        .and_then(|e| e.reference)
+    else {
+        return Ok(origin.clone());
+    };
+    bases
+        .iter()
+        .map(|base| {
+            base.join(&format!("../{reference}/"))
+                .map_err(|_| ApiError::Internal)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Origin::Remote)
+}
+
 /// The first of `bases`' `index.json` that exists, fetched capped and validated.
-async fn fetch_index(dock: &Enabled, bases: &[Url]) -> Result<Vec<IndexEntry>, ApiError> {
-    let bytes = fetch_first(
-        &dock.client,
-        bases,
-        "index.json",
-        &dock.allowed_host,
-        fetch::Limits::INDEX,
-    )
-    .await?;
+async fn fetch_index(dock: &Enabled, origin: &Origin) -> Result<Vec<IndexEntry>, ApiError> {
+    let bytes = fetch_path(dock, origin, "index.json", fetch::Limits::INDEX).await?;
     Ok(parse_index(&bytes)?)
 }
 
@@ -268,7 +333,7 @@ async fn list_modules(
     require_manage_server(&state, ctx.user_id).await?;
     let dock = state.dock.enabled()?;
     let resolved = sources::resolve(&state, dock, query.source.as_deref()).await?;
-    let index = fetch_index(dock, &resolved.bases).await?;
+    let index = fetch_index(dock, &resolved.origin).await?;
     let taken = match &resolved.repo {
         Some(repo) => sources::taken_ids(&state, dock, repo).await?,
         None => Default::default(),
@@ -296,7 +361,8 @@ async fn get_module(
     validate_module_id(&id)?;
     let dock = state.dock.enabled()?;
     let resolved = sources::resolve(&state, dock, query.source.as_deref()).await?;
-    let manifest = fetch_manifest(dock, &resolved.bases, &id).await?;
+    let origin = pinned_origin(dock, &resolved.origin, &id).await?;
+    let manifest = fetch_manifest(dock, &origin, &id).await?;
     Ok(Json(ManifestDto::from(manifest)))
 }
 
@@ -317,6 +383,10 @@ struct InstallRequest {
     /// addresses. Omitted keeps an earlier approval for the same hosts.
     #[serde(default)]
     approve_local_network: Option<bool>,
+    /// The `review_digest` of the manifest the admin was shown. Refused when
+    /// the manifest has changed since, so consent is for what was reviewed.
+    #[serde(default)]
+    reviewed_digest: Option<String>,
 }
 
 async fn install(
@@ -333,10 +403,20 @@ async fn install(
     let dock = state.dock.enabled()?;
     let resolved = sources::resolve(&state, dock, query.source.as_deref()).await?;
     sources::check_id_free(&state, dock, &resolved, &id).await?;
-    let manifest = fetch_manifest(dock, &resolved.bases, &id).await?;
+    let origin = pinned_origin(dock, &resolved.origin, &id).await?;
+    let manifest = fetch_manifest(dock, &origin, &id).await?;
     if manifest.version != req.version {
         return Err(ApiError::Conflict(
             "the module's current version no longer matches the one requested; reopen it in the Dock",
+        ));
+    }
+    if req
+        .reviewed_digest
+        .as_deref()
+        .is_some_and(|reviewed| reviewed != manifest.review_digest())
+    {
+        return Err(ApiError::Conflict(
+            "the module changed since you reviewed it; reopen it in the Dock",
         ));
     }
     let approved_host = match &req.approved_host_capabilities {
@@ -364,7 +444,7 @@ async fn install(
             .map(|e| e.name.as_str());
         ensure_slash_keywords_free(&state, &id, keywords).await?;
     }
-    let artifact = fetch_artifact(dock, &resolved.bases, &manifest).await?;
+    let artifact = fetch_artifact(dock, &origin, &manifest).await?;
 
     let permissions: Vec<ModulePermissionSpec> = manifest
         .permissions
@@ -436,14 +516,13 @@ async fn install(
 /// repeats again, defense in depth, right before it ever runs them.
 async fn fetch_artifact(
     dock: &Enabled,
-    bases: &[Url],
+    origin: &Origin,
     manifest: &Manifest,
 ) -> Result<Vec<u8>, ApiError> {
-    let bytes = fetch_first(
-        &dock.client,
-        bases,
+    let bytes = fetch_path(
+        dock,
+        origin,
         &manifest.artifact.path,
-        &dock.allowed_host,
         fetch::Limits::ARTIFACT,
     )
     .await?;

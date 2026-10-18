@@ -98,21 +98,26 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     return _localNetwork ?? carried;
   }
 
-  /// A new build never inherits the power to post, and new hosts never inherit
-  /// net.fetch: each has to be switched on again for what the admin is
-  /// looking at.
+  /// A new build never inherits the power to post, fetch or run on a timer,
+  /// and new hosts or a changed schedule never inherit theirs: each has to be
+  /// switched on again for what the admin is looking at.
   static bool _needsReapproval(
     String capability,
     api.DockManifest manifest,
     api.InstalledDockModule? installed,
   ) {
     if (installed == null) return false;
+    final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
     return switch (capability) {
-      'message.post' => installed.artifactSha256 != manifest.artifact.sha256,
-      'net.fetch' => !dockSameHosts(
-        installed.networkHosts,
-        manifest.network?.hosts ?? const [],
-      ),
+      'message.post' => newBuild,
+      'net.fetch' =>
+        newBuild ||
+            !dockSameHosts(
+              installed.networkHosts,
+              manifest.network?.hosts ?? const [],
+            ),
+      'schedule' =>
+        newBuild || dockScheduleChanges(manifest, installed).isNotEmpty,
       _ => false,
     };
   }
@@ -178,6 +183,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
             approveLocalNetwork: manifest.network == null
                 ? null
                 : _localFor(manifest, current, approved),
+            reviewedDigest: manifest.reviewDigest,
             source: widget.source,
           ),
     );
@@ -214,6 +220,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       verified: verified,
       isUpdate: wasInstalled,
       localNetwork: _localFor(manifest, current, approved),
+      changes: dockConsentChanges(manifest, current),
     );
     return agreed && mounted;
   }
@@ -273,6 +280,27 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       action: () => ref
           .read(apiProvider)
           .setDockModuleScheduleChannel(widget.moduleId, channelId),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (ok) ref.invalidate(dockCatalogProvider);
+  }
+
+  Future<void> _clearStorage(String name) async {
+    final confirmed = await confirmDangerousAction(
+      context,
+      title: 'Clear what $name stored?',
+      message:
+          'It forgets everything it saved for this space. It stays installed '
+          'with the same access.',
+      confirmLabel: 'Clear data',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _busy = true);
+    final ok = await guard(
+      whatFailed: 'clear what $name stored',
+      action: () =>
+          ref.read(apiProvider).clearDockModuleStorage(widget.moduleId),
     );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -353,6 +381,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           onLocalNetworkChanged: (v) => setState(() => _localNetwork = v),
           scheduleChannels: textChannels,
           onScheduleChannel: _setScheduleChannel,
+          onClearStorage: () => _clearStorage(m.name),
           onToggleHostCapability: _toggleHostCapability,
           busy: _busy,
           error: actionError,

@@ -153,6 +153,14 @@ pub struct Config {
     #[serde(default = "default_addons_repo")]
     pub addons_repo: String,
 
+    /// A directory laid out like a module registry (`index.json`,
+    /// `modules/<id>/...`) the Dock offers as an extra, unverified source named
+    /// `dev`, so a module author can install a build without publishing it.
+    /// Unset is the default and keeps the source, and its routes, absent. An
+    /// operator tool: set it only on a deployment you are developing against.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub dev_module_dir: Option<String>,
+
     /// Base URL of a self-hosted Piston instance (engineer-man/piston), for
     /// example `http://piston:2000` on a compose-internal network; the
     /// `/api/v2/...` paths are appended when calling it. See
@@ -242,6 +250,7 @@ impl Default for Config {
             cors_allowed_origins: None,
             trust_proxy_hops: 0,
             addons_repo: default_addons_repo(),
+            dev_module_dir: None,
             code_runner_url: None,
             discord_client_id: None,
             discord_client_secret: None,

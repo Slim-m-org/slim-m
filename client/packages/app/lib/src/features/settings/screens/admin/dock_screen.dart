@@ -53,9 +53,6 @@ typedef _Outdated = ({api.DockIndexEntry entry, String? source});
 
 enum _UpdateOutcome { updated, needsReview, needsApproval, failed }
 
-/// The host capability a new build of a module has to be approved for again.
-const _postMessages = 'message.post';
-
 /// The module list itself, embeddable as a Space settings pane as well as
 /// routed.
 class DockPane extends ConsumerStatefulWidget {
@@ -171,10 +168,10 @@ class _DockPaneState extends ConsumerState<DockPane>
             version: entry.version,
             source: source,
           );
-      final lostPost =
-          (before?.contains(_postMessages) ?? false) &&
-          !updated.approvedHostCapabilities.contains(_postMessages);
-      return lostPost ? _UpdateOutcome.needsApproval : _UpdateOutcome.updated;
+      final lostAccess = (before ?? const <String>[]).any(
+        (c) => !updated.approvedHostCapabilities.contains(c),
+      );
+      return lostAccess ? _UpdateOutcome.needsApproval : _UpdateOutcome.updated;
     } catch (_) {
       return _UpdateOutcome.failed;
     }
@@ -193,7 +190,7 @@ class _DockPaneState extends ConsumerState<DockPane>
         if (needReview.isNotEmpty)
           '${needReview.join(', ')} asks for new access. Open it to review.',
         if (needApproval.isNotEmpty)
-          '${needApproval.join(', ')} needs Post messages approved again.',
+          '${needApproval.join(', ')} needs its access approved again.',
       ].join(' '),
     );
   }

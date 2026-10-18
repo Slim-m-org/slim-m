@@ -67,6 +67,22 @@ pub struct RunLimits {
     pub wall: Duration,
 }
 
+/// The least wall clock a module that can call `net.fetch` runs under: one
+/// request may take [`MAX_FETCH_MS`], so the run needs that plus time to answer.
+pub const NET_FETCH_WALL_FLOOR_MS: u64 = MAX_FETCH_MS + 1_000;
+/// The longest one `net.fetch` request is given.
+pub const MAX_FETCH_MS: u64 = 5_000;
+
+impl RunLimits {
+    /// Raises the wall clock of a module that can fetch, so a slow upstream is
+    /// reported to the module instead of timing the whole run out.
+    pub fn for_fetching(mut self) -> Self {
+        let floor = Duration::from_millis(NET_FETCH_WALL_FLOOR_MS);
+        self.wall = self.wall.max(floor);
+        self
+    }
+}
+
 impl From<&ModuleRuntimeLimits> for RunLimits {
     fn from(limits: &ModuleRuntimeLimits) -> Self {
         let memory_mb = limits.memory_mb.unwrap_or(DEFAULT_MEMORY_MB);

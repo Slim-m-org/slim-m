@@ -17,7 +17,11 @@ struct Recording {
 }
 
 impl HttpFetcher for Recording {
-    fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, FetchRefused> {
+    fn fetch(
+        &self,
+        request: FetchRequest,
+        _remaining: Duration,
+    ) -> Result<FetchResponse, FetchRefused> {
         self.seen.lock().unwrap().push(request);
         Ok(FetchResponse {
             status: 200,
@@ -28,6 +32,8 @@ impl HttpFetcher for Recording {
         })
     }
 }
+
+const ROOMY: Duration = Duration::from_secs(5);
 
 fn text(bytes: &[u8]) -> String {
     String::from_utf8(bytes.to_vec()).unwrap()
@@ -97,7 +103,10 @@ fn an_allowed_request_reaches_the_fetcher_and_the_reply_carries_the_body() {
         &fetcher,
         &hosts(&["api.example.com"]),
         &mut budget,
-        br#"{"url":"https://api.example.com/status","headers":{"Accept":"application/json"}}"#,
+        (
+            br#"{"url":"https://api.example.com/status","headers":{"Accept":"application/json"}}"#,
+            ROOMY,
+        ),
     ));
     assert!(out.contains(r#""ok":true"#), "{out}");
     assert!(out.contains(r#""status":200"#), "{out}");
@@ -118,7 +127,10 @@ fn a_refused_request_never_reaches_the_fetcher() {
         &fetcher,
         &hosts(&["api.example.com"]),
         &mut budget,
-        br#"{"url":"http://169.254.169.254/latest/meta-data"}"#,
+        (
+            br#"{"url":"http://169.254.169.254/latest/meta-data"}"#,
+            ROOMY,
+        ),
     ));
     assert!(out.contains("host not approved"), "{out}");
     assert!(fetcher.seen.lock().unwrap().is_empty());
@@ -134,15 +146,43 @@ fn the_per_run_budget_is_spent_per_attempt() {
             &fetcher,
             &approved,
             &mut budget,
-            br#"{"url":"https://nope.example/"}"#,
+            (br#"{"url":"https://nope.example/"}"#, ROOMY),
         );
     }
     let out = text(&handle(
         &fetcher,
         &approved,
         &mut budget,
-        br#"{"url":"https://api.example.com/"}"#,
+        (br#"{"url":"https://api.example.com/"}"#, ROOMY),
     ));
     assert!(out.contains("budget for this run is exhausted"), "{out}");
     assert!(fetcher.seen.lock().unwrap().is_empty());
+}
+
+#[test]
+fn the_fetcher_is_told_how_much_of_the_run_is_left() {
+    struct Timing(Mutex<Option<Duration>>);
+    impl HttpFetcher for Timing {
+        fn fetch(
+            &self,
+            _: FetchRequest,
+            remaining: Duration,
+        ) -> Result<FetchResponse, FetchRefused> {
+            *self.0.lock().unwrap() = Some(remaining);
+            Err(FetchRefused("net.fetch timed out".into()))
+        }
+    }
+    let fetcher = Timing(Mutex::new(None));
+    let mut budget = MAX_FETCHES_PER_RUN;
+    let out = text(&handle(
+        &fetcher,
+        &hosts(&["api.example.com"]),
+        &mut budget,
+        (
+            br#"{"url":"https://api.example.com/"}"#,
+            Duration::from_millis(700),
+        ),
+    ));
+    assert!(out.contains("net.fetch timed out"), "{out}");
+    assert_eq!(*fetcher.0.lock().unwrap(), Some(Duration::from_millis(700)));
 }

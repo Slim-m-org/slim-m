@@ -113,6 +113,7 @@ mod space_icon;
 mod space_link_previews;
 mod still_picture;
 mod storage;
+mod surface_state;
 mod sync;
 mod sync_ops;
 mod threads;

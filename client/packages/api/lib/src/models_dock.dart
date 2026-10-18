@@ -8,6 +8,8 @@
 /// that file for how the pieces are recombined into one import.
 library;
 
+import 'models_dock_activity.dart';
+
 /// One row of the marketplace's index: enough to list a module, not enough
 /// to install it. `GET /space/dock/modules`.
 class DockIndexEntry {
@@ -46,6 +48,7 @@ class DockSource {
     required this.id,
     required this.repo,
     required this.official,
+    this.local = false,
   });
 
   /// Passed as `source` to the module routes; `official` for the official one.
@@ -55,10 +58,14 @@ class DockSource {
   final String repo;
   final bool official;
 
+  /// The operator's own module directory (`dev`), never verified.
+  final bool local;
+
   factory DockSource.fromJson(Map<String, dynamic> json) => DockSource(
         id: json['id'] as String,
         repo: json['repo'] as String,
         official: json['official'] as bool,
+        local: json['local'] as bool? ?? false,
       );
 }
 
@@ -294,7 +301,11 @@ class DockManifest {
     this.network,
     this.schedules = const [],
     this.changelog = const [],
+    this.reviewDigest,
   });
+
+  /// Sent back with the install so consent is for exactly this manifest.
+  final String? reviewDigest;
 
   final String id;
   final String name;
@@ -368,6 +379,7 @@ class DockManifest {
             : DockNetwork.fromJson(json['network'] as Map<String, dynamic>),
         schedules: _schedules(json['schedules']),
         changelog: _changelog(json['changelog']),
+        reviewDigest: json['review_digest'] as String?,
       );
 }
 
@@ -390,7 +402,15 @@ class InstalledDockModule {
     this.schedules = const [],
     this.botUserId,
     this.scheduleChannelId,
+    this.runStats,
+    this.storage,
   });
+
+  /// How each command has run lately; only `GET /space/dock/installed` fills it.
+  final List<DockRunStat>? runStats;
+
+  /// What its `kv.store` holds; only `GET /space/dock/installed` fills it.
+  final DockStorage? storage;
 
   final String id;
   final String name;
@@ -457,5 +477,11 @@ class InstalledDockModule {
         schedules: _schedules(json['schedules']),
         botUserId: json['bot_user_id'] as String?,
         scheduleChannelId: json['schedule_channel_id'] as String?,
+        runStats: (json['run_stats'] as List<dynamic>?)
+            ?.map((s) => DockRunStat.fromJson(s as Map<String, dynamic>))
+            .toList(growable: false),
+        storage: json['storage'] == null
+            ? null
+            : DockStorage.fromJson(json['storage'] as Map<String, dynamic>),
       );
 }

@@ -65,6 +65,8 @@ class Composer extends ConsumerStatefulWidget {
     required this.channelId,
     required this.channelName,
     required this.onSend,
+    this.replyToId,
+    this.onCommandPosted,
     this.clipboardPasteStart = startClipboardImagePaste,
     this.clipboardPasteStop = stopClipboardImagePaste,
   });
@@ -81,6 +83,10 @@ class Composer extends ConsumerStatefulWidget {
   /// an id yet, so this never receives fewer ids than what is visibly
   /// attached.
   final Future<void> Function(StagedSend attachments) onSend;
+
+  /// The message a slash command's output replies to, and what runs once it posted.
+  final String? replyToId;
+  final VoidCallback? onCommandPosted;
 
   /// The Ctrl+V seam (see `composer_clipboard_image.dart`): real on web, a
   /// no-op everywhere else. Parameters rather than a direct call so a test
@@ -578,8 +584,6 @@ class _ComposerState extends ConsumerState<Composer> {
     if (mounted) setState(() => _commandError = message);
   }
 
-  /// A `/command` for a module runs it and posts its output; anything else is
-  /// an ordinary send. See `composer_slash.dart` for the run itself.
   /// `/gif`: the picker's GIF tab, searching for [query], with its field focused.
   void _openGifSearch(String query) {
     if (MediaQuery.sizeOf(context).width < kCompactWidth) {
@@ -620,7 +624,8 @@ class _ComposerState extends ConsumerState<Composer> {
         hasStagedFile: !_attachments.isEmpty,
         isMounted: () => mounted,
         clearError: () => setState(() => _commandError = null),
-        post: () => widget.onSend(const StagedSend([])),
+        onPosted: () => widget.onCommandPosted?.call(),
+        replyToId: widget.replyToId,
         fail: _reportCommandError,
       );
     } finally {

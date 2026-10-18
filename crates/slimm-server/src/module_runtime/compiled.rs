@@ -37,6 +37,11 @@ fn cache() -> &'static Mutex<HashMap<String, Module>> {
     CACHE.get_or_init(Mutex::default)
 }
 
+/// The compiled form of an artifact already verified under `sha256`, if cached.
+pub(super) fn cached_module(sha256: &str) -> Option<Module> {
+    cache().lock().ok().and_then(|c| c.get(sha256).cloned())
+}
+
 /// The compiled form of `wasm`, whose verified sha256 is `sha256`, compiling
 /// it on the first sight of that digest and reusing it after.
 pub(super) fn compiled_module(sha256: &str, wasm: &[u8]) -> Result<Module, RunError> {

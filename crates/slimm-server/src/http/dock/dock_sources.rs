@@ -51,6 +51,8 @@ pub(in crate::http) struct SourceDto {
     official: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     created_at: Option<i64>,
+    /// An operator's local directory, not a repository: never verified.
+    local: bool,
 }
 
 impl From<DockSource> for SourceDto {
@@ -60,6 +62,7 @@ impl From<DockSource> for SourceDto {
             repo: s.repo,
             official: false,
             created_at: Some(s.created_at),
+            local: false,
         }
     }
 }
@@ -77,6 +80,7 @@ pub(in crate::http) async fn list_sources(
         repo: official_repo.to_owned(),
         official: true,
         created_at: None,
+        local: false,
     }];
     out.extend(
         state
@@ -86,6 +90,15 @@ pub(in crate::http) async fn list_sources(
             .into_iter()
             .map(SourceDto::from),
     );
+    if state.dock.has_dev_source() {
+        out.push(SourceDto {
+            id: super::sources::DEV_ID.to_owned(),
+            repo: super::sources::DEV_REPO.to_owned(),
+            official: false,
+            created_at: None,
+            local: true,
+        });
+    }
     Ok(Json(out))
 }
 

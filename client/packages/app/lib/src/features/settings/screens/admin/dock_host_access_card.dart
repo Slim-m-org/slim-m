@@ -54,9 +54,10 @@ final dockHostCapabilities = <String, DockCapability>{
 };
 
 /// The second, separate yes for `net.fetch` to reach private addresses.
-const dockLocalNetworkLabel = 'Local network';
+const dockLocalNetworkLabel = 'Private network';
 const dockLocalNetworkWarning =
-    'Can also reach devices on your home network, like a NAS or media server.';
+    'Can also reach devices on your private network, like a NAS or media '
+    'server. Never this server itself.';
 
 String _networkWarning(List<String> hosts) {
   final names = switch (hosts.length) {

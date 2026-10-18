@@ -42,7 +42,7 @@ use super::dock::validate_module_id;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, MODULE};
 use super::module_host;
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{InstalledModule, ModuleExtensionPoint};
@@ -73,6 +73,13 @@ struct RunCommandRequest {
     /// Without it the run is not offered `message.post`.
     #[serde(default)]
     channel_id: Option<String>,
+    /// Post the output into `channel_id` as the member, labelled as the
+    /// module's, instead of handing it back. Needs `channel_id`.
+    #[serde(default)]
+    post_output: bool,
+    /// The message the posted output replies to; only with `post_output`.
+    #[serde(default)]
+    reply_to_id: Option<String>,
 }
 
 /// The module ABI's own response shape, echoed straight through: see
@@ -85,6 +92,9 @@ struct RunCommandResponse {
     output: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+    /// The message the output was posted as, when `post_output` was asked for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message_id: Option<String>,
 }
 
 impl RunCommandResponse {
@@ -93,6 +103,7 @@ impl RunCommandResponse {
             ok: false,
             output: None,
             error: Some(error.into()),
+            message_id: None,
         }
     }
 }
@@ -124,6 +135,19 @@ fn required_permission<'a>(module: &'a InstalledModule, command: &str) -> Option
 pub(crate) struct CommandOutcome {
     pub(crate) ok: bool,
     pub(crate) payload: String,
+    /// The host could not run the module (a limit, a trap, a bad response), as
+    /// opposed to the module answering with an error of its own.
+    pub(crate) host_failed: bool,
+}
+
+impl CommandOutcome {
+    pub(crate) fn host_failure(payload: String) -> Self {
+        Self {
+            ok: false,
+            payload,
+            host_failed: true,
+        }
+    }
 }
 
 /// Gates and runs `command` on `module_id` for `user_id`, the one place a
@@ -175,7 +199,13 @@ pub(crate) async fn execute_command_in(
         return Err(ApiError::Forbidden);
     }
     let surface = module_host::surface_for(state, &module, user_id, channel);
-    super::module_run::run_installed(state, &module, user_id, command, input, surface).await
+    let request = super::module_run::RunRequest {
+        caller: user_id,
+        command,
+        input,
+        scheduled: false,
+    };
+    super::module_run::run_installed(state, &module, &request, surface).await
 }
 
 /// The reserved `module_id` this deployment's code-runner broker
@@ -221,6 +251,7 @@ pub(crate) async fn execute_code_runner(
     Ok(CommandOutcome {
         ok: outcome.ok,
         payload: outcome.payload,
+        host_failed: false,
     })
 }
 
@@ -249,16 +280,69 @@ async fn run_command(
         )
         .await?
     };
-    let response = if outcome.ok {
+    let response = if !outcome.ok {
+        RunCommandResponse::failure(outcome.payload)
+    } else if req.post_output && module_id != CODE_RUNNER_MODULE_ID {
+        post_output(&state, ctx.user_id, (&module_id, &req), &outcome.payload).await?
+    } else {
         RunCommandResponse {
             ok: true,
             output: Some(outcome.payload),
             error: None,
+            message_id: None,
         }
-    } else {
-        RunCommandResponse::failure(outcome.payload)
     };
     Ok(Json(response))
+}
+
+/// Posts a successful command's output as the member, labelled as the module's.
+async fn post_output(
+    state: &AppState,
+    user_id: UserId,
+    (module_id, req): (&str, &RunCommandRequest),
+    output: &str,
+) -> Result<RunCommandResponse, ApiError> {
+    let channel = req
+        .channel_id
+        .as_deref()
+        .ok_or(ApiError::BadRequest("post_output needs a channel_id"))?;
+    let channel = ChannelId(super::messages::parse_uuid(channel)?);
+    let reply_to = req
+        .reply_to_id
+        .as_deref()
+        .map(|raw| super::messages::parse_uuid(raw).map(MessageId))
+        .transpose()?;
+    if output.trim().is_empty() {
+        return Ok(RunCommandResponse {
+            ok: true,
+            output: Some(String::new()),
+            error: None,
+            message_id: None,
+        });
+    }
+    let module = state
+        .store
+        .installed_module(module_id)
+        .await?
+        .ok_or(ApiError::NotFound("module not installed"))?;
+    Ok(
+        match module_host::post_command_output(
+            state,
+            &module,
+            (user_id, channel),
+            (output, reply_to),
+        )
+        .await
+        {
+            Ok(id) => RunCommandResponse {
+                ok: true,
+                output: None,
+                error: None,
+                message_id: Some(id.to_string()),
+            },
+            Err(refused) => RunCommandResponse::failure(refused.0),
+        },
+    )
 }
 
 /// One `(module_id, command)` pair a client may `POST` to
@@ -289,6 +373,37 @@ struct SlashCommandDto {
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    /// Which module provides it and what that module is allowed to do.
+    module: ModuleInfoDto,
+}
+
+/// What a member is told about the module behind a command: its name, whether
+/// it came from the official registry, and the host powers an admin approved.
+#[derive(Serialize, Clone)]
+pub(super) struct ModuleInfoDto {
+    name: String,
+    verified: bool,
+    /// Approved host capabilities (`kv.store`, `message.post`, `net.fetch`, `schedule`).
+    capabilities: Vec<String>,
+    /// The sites `net.fetch` may reach; empty without it.
+    network_hosts: Vec<String>,
+}
+
+impl ModuleInfoDto {
+    fn of(module: &InstalledModule) -> Self {
+        let capabilities = module_host::effective_capabilities(module);
+        let network_hosts = if capabilities.iter().any(|c| c == "net.fetch") {
+            module.network_hosts.clone()
+        } else {
+            Vec::new()
+        };
+        Self {
+            name: module.name.clone(),
+            verified: module.source_repo.is_none(),
+            capabilities,
+            network_hosts,
+        }
+    }
 }
 
 /// One extension point the caller may currently reach, with the module it
@@ -298,6 +413,7 @@ pub(super) struct Reachable {
     pub(super) module_id: String,
     pub(super) command: String,
     pub(super) point: ModuleExtensionPoint,
+    pub(super) module: ModuleInfoDto,
 }
 
 /// Every extension point of `kind` the caller may currently reach: declared by
@@ -318,6 +434,7 @@ pub(super) async fn reachable_extension_points(
         if !module.enabled {
             continue;
         }
+        let info = ModuleInfoDto::of(&module);
         for point in module.extension_points {
             if point.kind != kind {
                 continue;
@@ -330,6 +447,7 @@ pub(super) async fn reachable_extension_points(
                     module_id: module.id.clone(),
                     command: command.clone(),
                     point,
+                    module: info.clone(),
                 });
             }
         }
@@ -354,6 +472,7 @@ async fn list_slash_commands(
             command: r.command,
             name: r.point.name,
             description: r.point.description,
+            module: r.module,
         })
         .collect();
     Ok(Json(commands))

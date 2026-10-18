@@ -9,6 +9,7 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
+import '../../modules/module_detail.dart';
 import 'composer_autocomplete_query.dart';
 import '../../emoji/widgets/emoji_catalog.dart';
 
@@ -287,7 +288,7 @@ List<AutocompleteSuggestion> _slashCommandRows(
       AutocompleteSuggestion(
         insert: '/${command.name} ',
         label: '/${command.name}',
-        detail: command.description,
+        detail: moduleCommandDetail(command.description, command.module),
       ),
 ];
 

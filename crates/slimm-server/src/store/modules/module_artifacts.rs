@@ -7,6 +7,17 @@
 use super::super::{Store, now_ms};
 
 impl Store {
+    /// The sha256 a module's stored artifact was recorded under, without
+    /// reading the bytes.
+    pub async fn module_artifact_sha256(&self, module_id: &str) -> anyhow::Result<Option<String>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT sha256 AS "sha256!" FROM module_artifacts WHERE module_id = ?"#,
+            module_id
+        )
+        .fetch_optional(&self.pool)
+        .await?)
+    }
+
     /// A module's stored artifact bytes and the sha256 they were recorded
     /// under, or `None` if none were ever stored (an install that predates
     /// this table, or one whose artifact fetch failed).

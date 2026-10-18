@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'dock_host_access_card.dart';
 import 'dock_limits_card.dart';
+import 'dock_schedule_card.dart' show dockEveryWords;
 
 /// Official-registry modules are verified; every community source is not.
 bool dockIsVerified(String? source) => source == null || source == 'official';
@@ -26,21 +27,74 @@ List<String> newConsentCapabilities(
   return [
     for (final capability in grantableHostCapabilities(manifest.capabilities))
       if (!had.contains(capability) ||
-          _hostsChanged(capability, manifest, installed))
+          _widened(capability, manifest, installed))
         capability,
   ];
 }
 
-/// An update that names different hosts drops the old `net.fetch` approval.
-bool _hostsChanged(
+/// An update widens an approved power the admin has not seen when its hosts
+/// changed, when it is a new build of a module that fetches or runs on a
+/// timer, or when its schedule changed. The server drops those approvals.
+bool _widened(
   String capability,
   api.DockManifest manifest,
   api.InstalledDockModule? installed,
-) =>
-    capability == 'net.fetch' &&
-    installed != null &&
-    installed.approvedHostCapabilities.contains(capability) &&
-    !dockSameHosts(installed.networkHosts, manifest.network?.hosts ?? const []);
+) {
+  if (installed == null ||
+      !installed.approvedHostCapabilities.contains(capability)) {
+    return false;
+  }
+  final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
+  return switch (capability) {
+    'net.fetch' =>
+      newBuild ||
+          !dockSameHosts(
+            installed.networkHosts,
+            manifest.network?.hosts ?? const [],
+          ),
+    'schedule' =>
+      newBuild || dockScheduleChanges(manifest, installed).isNotEmpty,
+    _ => false,
+  };
+}
+
+/// Plain sentences for what an update changes about a module's reach or
+/// timer, so the consent sheet can say "now every 5 minutes, was weekly".
+List<String> dockConsentChanges(
+  api.DockManifest manifest,
+  api.InstalledDockModule? installed,
+) {
+  if (installed == null) return const [];
+  final hosts = manifest.network?.hosts ?? const <String>[];
+  return [
+    if (installed.approvedHostCapabilities.contains('net.fetch') &&
+        !dockSameHosts(installed.networkHosts, hosts))
+      'Now reaches ${hosts.join(', ')}, was ${installed.networkHosts.join(', ')}.',
+    if (installed.approvedHostCapabilities.contains('schedule'))
+      ...dockScheduleChanges(manifest, installed),
+    if ((installed.approvedHostCapabilities.contains('net.fetch') ||
+            installed.approvedHostCapabilities.contains('schedule')) &&
+        installed.artifactSha256 != manifest.artifact.sha256)
+      'This is a new build of the module code.',
+  ];
+}
+
+/// The sentences for schedule entries that are new or run at another interval.
+List<String> dockScheduleChanges(
+  api.DockManifest manifest,
+  api.InstalledDockModule installed,
+) => [
+  for (final next in manifest.schedules)
+    switch (installed.schedules
+        .where((s) => s.command == next.command)
+        .firstOrNull) {
+      null => 'Now runs ${next.command} ${dockEveryWords(next.everyMinutes)}.',
+      final was when was.everyMinutes != next.everyMinutes =>
+        '${next.command} now runs ${dockEveryWords(next.everyMinutes)}, '
+            'was ${dockEveryWords(was.everyMinutes)}.',
+      _ => null,
+    },
+].nonNulls.toList(growable: false);
 
 /// Whether two host lists name the same hosts, in any order.
 bool dockSameHosts(List<String> a, List<String> b) =>
@@ -85,6 +139,7 @@ Future<bool> showDockInstallConsent(
   required bool verified,
   required bool isUpdate,
   bool localNetwork = false,
+  List<String> changes = const [],
 }) async {
   final agreed = await showAppSheet<bool>(
     context,
@@ -95,6 +150,7 @@ Future<bool> showDockInstallConsent(
       verified: verified,
       isUpdate: isUpdate,
       localNetwork: localNetwork,
+      changes: changes,
     ),
   );
   return agreed ?? false;
@@ -107,9 +163,13 @@ class _ConsentSheet extends StatefulWidget {
     required this.verified,
     required this.isUpdate,
     required this.localNetwork,
+    required this.changes,
   });
 
   final api.DockManifest manifest;
+
+  /// What an update changed about the module's reach or timer.
+  final List<String> changes;
   final bool localNetwork;
   final List<String> capabilities;
   final bool verified;
@@ -191,6 +251,8 @@ class _ConsentSheetState extends State<_ConsentSheet> {
           style: AppText.body.copyWith(color: tokens.textPrimary),
         ),
         const SizedBox(height: AppSpacing.s8),
+        for (final change in widget.changes)
+          _CapabilityLine(text: change, verified: false),
         for (final capability in widget.capabilities)
           _CapabilityLine(
             text: dockCapabilityWarning(

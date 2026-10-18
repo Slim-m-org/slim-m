@@ -28,6 +28,7 @@ void main() {
     final sends = Sends();
     final gate = Completer<void>();
     var runs = 0;
+    Map<String, dynamic>? lastBody;
     api.SlimmApi apiBuilder(Ref ref) => api.SlimmApi(
       baseUrl: Uri.parse('http://localhost:8080'),
       session: ref.watch(sessionProvider),
@@ -35,9 +36,10 @@ void main() {
         if (request.method == 'POST' &&
             request.url.path == '/modules/dice/commands/roll') {
           runs += 1;
+          lastBody = jsonDecode(request.body) as Map<String, dynamic>;
           await gate.future;
           return http.Response(
-            jsonEncode({'ok': true, 'output': 'rolled 7'}),
+            jsonEncode({'ok': true, 'message_id': 'm1'}),
             200,
             headers: {'content-type': 'application/json'},
           );
@@ -80,6 +82,12 @@ void main() {
     gate.complete();
     await tester.pumpAndSettle();
     expect(runs, 1, reason: 'module command POSTs');
-    expect(sends.count, 1, reason: 'messages posted');
+    expect(
+      lastBody?['post_output'],
+      isTrue,
+      reason: 'the host posts the output',
+    );
+    expect(sends.count, 0, reason: 'the composer posts nothing itself');
+    expect(controller.text, isEmpty);
   });
 }
