@@ -164,7 +164,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   Future<void> _onClear() async {
-    await _ops.clear(_sync.asOfSeq ?? 0);
+    // Fenced on the newest head this client can read; a stale one would leave later ink standing.
+    await _sync.catchUp();
+    final fence = _sync.asOfSeq;
+    if (fence == null) {
+      _engine.reportError('The canvas could not be cleared.');
+      return;
+    }
+    await _ops.clear(fence);
     _refresh();
   }
 

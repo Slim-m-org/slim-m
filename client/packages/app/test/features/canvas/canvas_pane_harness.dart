@@ -171,6 +171,9 @@ class CanvasPaneFixture {
   /// "the same fetch racing itself and never stopping".
   int viewportGets = 0;
 
+  /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
+  int? opsHead;
+
   /// Every `GET .../canvas/ops` the pane sent: every viewport fetch runs a
   /// catch-up afterward, so this file's own tests only need the default
   /// answer below to keep paging correct - it is not itself under test here.
@@ -237,7 +240,7 @@ class CanvasPaneFixture {
           final afterSeq = int.parse(request.url.queryParameters['after_seq']!);
           return jsonResponse({
             'ops': <Object>[],
-            'latest_seq': afterSeq,
+            'latest_seq': opsHead ?? afterSeq,
             'has_more': false,
             'reset': false,
           });

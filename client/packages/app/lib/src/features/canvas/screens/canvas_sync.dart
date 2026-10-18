@@ -32,6 +32,15 @@ import '../../../providers/op_adjacency.dart';
 @visibleForTesting
 const int maxCatchUpPages = 25;
 
+/// A request that never answers (a half-open socket after a deploy) would
+/// otherwise hold the single catch-up slot forever and drop every later gap.
+@visibleForTesting
+const Duration catchUpDeadline = Duration(seconds: 15);
+
+/// A failed catch-up re-arms itself this many times, backing off from two seconds.
+@visibleForTesting
+const int maxCatchUpRetries = 6;
+
 /// A hard reset costs one viewport read; without a floor, a server emitting
 /// an op kind this client cannot parse turns every stale client into a
 /// refetch loop.
@@ -222,6 +231,8 @@ class CanvasSync {
   final VoidCallback forgetFetchedRegion;
 
   int? _asOfSeq;
+  Timer? _retryTimer;
+  int _retries = 0;
   DateTime? _lastReset;
   bool _catchingUp = false;
   bool _disposed = false;
@@ -235,7 +246,10 @@ class CanvasSync {
   /// interval it was in flight.
   int? get asOfSeq => _asOfSeq;
 
-  void dispose() => _disposed = true;
+  void dispose() {
+    _disposed = true;
+    _retryTimer?.cancel();
+  }
 
   /// Seeds the cursor from a viewport read's own `latestSeq`, but only the
   /// first time.
@@ -260,7 +274,19 @@ class CanvasSync {
       case LiveOpOutcome.ignored:
         return;
       case LiveOpOutcome.applied:
-        apply();
+        try {
+          apply();
+        } on Object catch (error, stack) {
+          // Left unmoved, so the feed replays this op instead of the cursor wedging behind it.
+          api.reportFailure(
+            api.LogTag.ui,
+            'apply a canvas change',
+            error,
+            stack,
+          );
+          unawaited(catchUp());
+          return;
+        }
         _asOfSeq = seq;
       case LiveOpOutcome.needsReconcile:
         unawaited(catchUp());
@@ -304,16 +330,29 @@ class CanvasSync {
     }
   }
 
+  void _scheduleRetry() {
+    if (_disposed || _retries >= maxCatchUpRetries) return;
+    _retryTimer?.cancel();
+    final delay = Duration(seconds: 2 << _retries++);
+    _retryTimer = Timer(delay, () => unawaited(catchUp()));
+  }
+
   Future<void> _catchUpPages() async {
     var cursor = _asOfSeq ?? 0;
     for (var page = 0; page < maxCatchUpPages; page++) {
       final result = await _fetchPage(cursor);
-      if (_disposed || result == null) return;
+      if (_disposed) return;
+      if (result == null) {
+        _scheduleRetry();
+        return;
+      }
       if (result.reset || !_applyOps(result.ops)) {
         await _hardReset();
         return;
       }
       if (!result.hasMore) {
+        _retries = 0;
+        _retryTimer?.cancel();
         _commitHead(result.latestSeq);
         return;
       }
@@ -326,7 +365,13 @@ class CanvasSync {
 
   bool _applyOps(List<api.CanvasOp> ops) {
     for (final op in ops) {
-      if (!_applyOp(op)) return false;
+      try {
+        if (!_applyOp(op)) return false;
+      } on Object catch (error, stack) {
+        // An op this client cannot apply is the same as one it cannot parse: resync.
+        api.reportFailure(api.LogTag.ui, 'apply a canvas change', error, stack);
+        return false;
+      }
     }
     return true;
   }
@@ -350,7 +395,12 @@ class CanvasSync {
     for (var attempt = 0; attempt < 3; attempt++) {
       if (_disposed) return null;
       try {
-        return await client.canvasOps(channelId, afterSeq: afterSeq);
+        return await client
+            .canvasOps(channelId, afterSeq: afterSeq)
+            .timeout(catchUpDeadline);
+      } on TimeoutException catch (error, stack) {
+        api.reportFailure(api.LogTag.ui, 'load canvas changes', error, stack);
+        return null;
       } on api.RateLimitedException catch (error, stack) {
         api.reportFailure(api.LogTag.ui, 'load canvas changes', error, stack);
         if (attempt == 2) return null;
