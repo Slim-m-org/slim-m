@@ -7,18 +7,11 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::dock::Dock;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
-use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
@@ -136,19 +129,9 @@ async fn world(name: &str) -> World {
         .await
         .unwrap()
         .access_token;
-    let router = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: Dock::for_test(&fake_upstream().await),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let router = support::app::builder(store.clone())
+        .dock(Dock::for_test(&fake_upstream().await))
+        .router();
     World {
         router,
         store,

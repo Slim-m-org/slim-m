@@ -15,23 +15,19 @@
 use std::sync::{Arc, Mutex};
 
 use axum::Router as SfuRouter;
-use axum::body::Body;
 use axum::extract::State;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::Value;
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::voice::{VoiceService, room_for_channel};
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::request_bearer as request;
 
 /// Records every `DeleteRoom` call, so a test asserts the SFU was actually
 /// told rather than that the handler happened not to error.
@@ -61,28 +57,7 @@ async fn spawn_sfu(recorder: RecordingRoomService) -> String {
 }
 
 fn app(store: Store, voice: VoiceService) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
-fn request(method: &str, uri: &str, token: &str) -> Request<Body> {
-    Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"))
-        .body(Body::empty())
-        .unwrap()
+    support::app::builder(store).voice(voice).router()
 }
 
 /// An admin holding MANAGE_CHANNELS, which the bootstrap seeds.
